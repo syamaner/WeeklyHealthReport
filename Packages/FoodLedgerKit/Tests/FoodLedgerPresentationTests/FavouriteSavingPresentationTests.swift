@@ -35,6 +35,45 @@ final class FavouriteSavingPresentationTests: XCTestCase {
             active.insert(logItemVersionID)
             return try XCTUnwrap(projection().activeFavourite(boundTo: logItemVersionID))
         }
+
+        /// Versions with the same food, source, preparation and amount as an active favourite's (#308).
+        var sameSource: [LogItemVersionID: LogItemVersionID] = [:]
+        private(set) var matchReads = 0
+
+        func activeFavourites(matching logItemVersionIDs: [LogItemVersionID]) throws -> [LogItemVersionID: FavouriteVersion] {
+            matchReads += 1
+            let projection = try projection()
+            var result: [LogItemVersionID: FavouriteVersion] = [:]
+            for id in logItemVersionIDs {
+                result[id] = projection.activeFavourite(boundTo: id) ?? sameSource[id].flatMap { projection.activeFavourite(boundTo: $0) }
+            }
+            return result
+        }
+    }
+
+    /// #308: after a re-log, the new entry from the same food and source reads "Already a
+    /// favourite" and is never offered or saved again.
+    func testRelogOfAFavouriteStaysAlreadyAFavourite() throws {
+        let store = FakeStore()
+        let original = try id(10), relog = try id(11), other = try id(12)
+        store.active = [original]
+        store.sameSource = [relog: original]
+        let model = FavouriteSaveModel(store: store)
+        model.refresh([relog, other])
+        XCTAssertEqual(store.matchReads, 1, "one read per refresh, not one per row")
+        XCTAssertEqual(model.state(for: relog), .alreadyFavourite)
+        XCTAssertEqual(model.state(for: other), .available)
+        model.save(relog)
+        XCTAssertEqual(store.saves, 0, "no duplicate favourite")
+        // A row refreshed before the favourite existed still writes nothing once it does.
+        let stale = FavouriteSaveModel(store: store)
+        store.active = []
+        stale.refresh([relog])
+        XCTAssertEqual(stale.state(for: relog), .available)
+        store.active = [original]
+        stale.save(relog)
+        XCTAssertEqual(stale.state(for: relog), .alreadyFavourite)
+        XCTAssertEqual(store.saves, 0)
     }
 
     private func id(_ value: Int) throws -> LogItemVersionID {

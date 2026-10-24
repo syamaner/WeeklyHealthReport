@@ -87,7 +87,7 @@ public struct AddFoodView: View {
         Form {
             Section {
                 HStack {
-                    TextField("Food and amount, e.g. 2 scrambled eggs", text: $text)
+                    TextField(FoodSearchFieldText.prompt(example: "2 scrambled eggs", at: dynamicTypeSize), text: $text)
                         .accessibilityLabel("Food and amount")
                         .submitLabel(.search)
                         .onSubmit(submit)

@@ -32,6 +32,9 @@ Search results and Web lookup are sub-flows, not restorable routes: restoring ne
 
 - Energy for the amount only when energy is exact or augmented and the basis is per 100 g with a gram amount, or per 100 mL with a millilitre amount (only mL is normalised). Everything else, including oz, counts, named servings and mL against per 100 g, is basis-only. Unknown energy shows no figure.
 - Rounding: kcal to the nearest whole number, half away from zero, after scaling.
+- **Amendment, 24 October 2026 (#308, owner-approved backlog).** A basis-only row also states the source's energy for its basis when the basis is per 100 g or per 100 mL and energy is exact (measured or augmented): "US reference · raw · 89 kcal per 100 g", "Packaged product · 42 kcal per 100 mL on label". Unknown or bounded energy, and every other basis, keep the basis alone, so an unknown never shows as 0. `FoodSearchResultSummary.basisEnergyKcal` carries the whole kcal (half away from zero).
+- **Grouping (#308).** "Best matches" holds close name matches only: an exact name, or a primary name (before the first comma) whose lexical terms are all in the searched food or that contains every searched term. The rest of the ranked list follows, in the same order, under "Other matches". Online additions keep their own section. This is presentation grouping only; ranking, eligibility and identity are unchanged.
+- **One source name (#308).** Confirm names a generic estimate's source with the row's family words plus "estimate" ("US reference · estimate"), instead of "Generic food estimate"; a source outside the closed families keeps "Generic food estimate".
 
 ## Recent foods
 

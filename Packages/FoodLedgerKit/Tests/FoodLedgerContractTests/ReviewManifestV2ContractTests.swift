@@ -434,6 +434,12 @@ final class ReviewManifestV2ContractTests: XCTestCase {
         for (name, set, basis, amount) in basisOnly {
             XCTAssertEqual(FoodSearchResultSummary.energy(nutrients: set, basis: basis, amount: amount), .basisOnly(basis), name)
         }
+        // #308: the stated per 100 g / per 100 mL energy for a row without an amount; unknown is nil, never 0.
+        XCTAssertEqual(FoodSearchResultSummary.basisEnergy(nutrients: nutrients, basis: .per100Grams), 150)
+        XCTAssertEqual(FoodSearchResultSummary.basisEnergy(nutrients: nutrients, basis: .per100Millilitres), 150)
+        XCTAssertNil(FoodSearchResultSummary.basisEnergy(nutrients: nutrients, basis: named))
+        XCTAssertNil(FoodSearchResultSummary.basisEnergy(nutrients: nutrients, basis: .unknown))
+        XCTAssertNil(FoodSearchResultSummary.basisEnergy(nutrients: unknownEnergy, basis: .per100Grams))
     }
 
     // MARK: Presentation contract web-lookup-review-v1 (pinned by golden output, never recomputed at admission)

@@ -1581,7 +1581,7 @@ extension WeeklyReportScreenshotTests {
     /// The screen, tiles and Full Page reword a failed read and Title Case labels; Copy all
     /// (the README's text contract) keeps its labels and says "Could not read Apple Health."
     /// for a failed read, with the technical message only in Developer tools.
-    func testDisplayDocumentRewordsFailuresAndLabelsWhileCopyAllKeepsLabels() throws {
+    func testDisplayDocumentRewordsFailuresAndCopyAllUsesTheScreenLabels() throws {
         let calendar = testCalendar()
         let locale = Locale(identifier: "en_GB")
         let entitlement = "Missing com.apple.developer.healthkit entitlement."
@@ -1596,11 +1596,15 @@ extension WeeklyReportScreenshotTests {
         let display = document.forDisplay()
         let generatedAt = date(2026, 9, 10, hour: 12, calendar: calendar)
 
-        // Copy all keeps its Title Case labels; a failed read is plain wording, no message.
+        // Copy all v2 (#308) uses the screen's labels; a failed read is plain wording, no message.
         let copied = document.plainText(generatedAt: generatedAt, calendar: calendar, locale: locale)
         XCTAssertTrue(copied.contains("\nSteps\nCould not read Apple Health.\n"))
-        XCTAssertTrue(copied.contains("Resting HR Average: Could not read Apple Health."))
-        XCTAssertTrue(copied.contains("\nBlood Pressure\n"))
+        XCTAssertTrue(copied.contains("Resting heart rate average: Could not read Apple Health."))
+        XCTAssertTrue(copied.contains("Days with Apple Watch data: No data"))
+        XCTAssertTrue(copied.contains("\nBlood pressure\n"))
+        for oldLabel in ["Resting HR Average", "Watch Data Coverage", "Blood Pressure\n"] {
+            XCTAssertFalse(copied.contains(oldLabel), oldLabel)
+        }
         for diagnostic in ["entitlement", "com.apple", "query failed", "Query failed"] {
             XCTAssertFalse(copied.contains(diagnostic), diagnostic)
         }
@@ -1622,7 +1626,7 @@ extension WeeklyReportScreenshotTests {
         XCTAssertFalse(failedRows.isEmpty)
         XCTAssertTrue(failedRows.allSatisfy { $0.value == "Could not read Apple Health." })
 
-        // Sentence case on screen; README's Copy all labels stay as they are.
+        // Sentence case on screen, and the same words in Copy all.
         XCTAssertEqual(display.sections.first { $0.id == .bloodPressure }?.title, "Blood pressure")
         XCTAssertEqual(display.sections.first { $0.id == .medications }?.title, "Medications taken")
         let heart = try XCTUnwrap(display.sections.first { $0.id == .heart })
@@ -1671,18 +1675,10 @@ extension WeeklyReportScreenshotTests {
 
         XCTAssertEqual(copied, Self.copyAllGoldenWithFailures)
 
-        // Only the failure rows differ from the rendering before this change.
-        let before = Self.legacyPlainText(document, generatedAt: generatedAt, calendar: calendar, locale: locale)
-        let beforeLines = before.components(separatedBy: "\n")
-        let copiedLines = copied.components(separatedBy: "\n")
-        XCTAssertEqual(beforeLines.count, copiedLines.count)
-        let failureValues = document.sections.flatMap(\.rows).filter { $0.style == .failure }.map(\.value)
-        let changed = zip(beforeLines, copiedLines).filter { $0 != $1 }
-        XCTAssertEqual(changed.count, failureValues.count)
-        for (old, new) in changed {
-            XCTAssertTrue(failureValues.contains { old.hasSuffix($0) }, old)
-            XCTAssertTrue(new.hasSuffix("Could not read Apple Health."), new)
-        }
+        // Copy all is the display document's text, line for line (v2, #308).
+        let display = Self.legacyPlainText(document.forDisplay(), generatedAt: generatedAt, calendar: calendar, locale: locale)
+        XCTAssertEqual(copied, display)
+        XCTAssertFalse(copied.contains("Query failed"))
 
         // Developer tools still lists each read's technical message.
         XCTAssertTrue(snapshot.readFailures.contains(ReportReadFailure(metric: "Steps", message: entitlement)))
@@ -1690,9 +1686,9 @@ extension WeeklyReportScreenshotTests {
         XCTAssertEqual(snapshot.readFailures.count, 7)
     }
 
-    /// Without failures, Copy all is byte-identical to the rendering before the
-    /// failure-wording change.
-    func testCopyAllWithoutFailuresIsByteIdenticalToBefore() throws {
+    /// Without failures, Copy all is the display document rendered line for line
+    /// (Copy all v2, #308): the screen's titles, labels and footers.
+    func testCopyAllWithoutFailuresIsTheDisplayDocumentText() throws {
         let calendar = testCalendar()
         let locale = Locale(identifier: "en_GB")
         let generatedAt = date(2026, 9, 10, hour: 12, calendar: calendar)
@@ -1701,13 +1697,58 @@ extension WeeklyReportScreenshotTests {
             XCTAssertFalse(document.sections.flatMap(\.rows).contains { $0.style == .failure })
             XCTAssertEqual(
                 document.plainText(generatedAt: generatedAt, calendar: calendar, locale: locale),
-                Self.legacyPlainText(document, generatedAt: generatedAt, calendar: calendar, locale: locale)
+                Self.legacyPlainText(document.forDisplay(), generatedAt: generatedAt, calendar: calendar, locale: locale)
             )
         }
     }
 
-    /// The Copy all renderer as it was before failures were reworded: every row value verbatim.
-    /// It keeps the #216 group headings so only the failure wording is compared.
+    /// #308: one banner says the cause and next step for failed Apple Health reads; the
+    /// food log failure is not an Apple Health read and never raises it. Rows keep their
+    /// own state, quietly.
+    func testOneHealthFailureBannerWithCauseAndNextStep() throws {
+        XCTAssertNil(HealthReadFailureBanner.make(failures: makeSnapshot().readFailures))
+        XCTAssertNil(HealthReadFailureBanner.make(failures: makeSnapshot(foodLog: .failed("disk")).readFailures),
+                     "the food log is not Apple Health")
+        let snapshot = makeSnapshot(
+            steps: .failed("x"), bloodPressure: .failed("y"), restingHeartRate: .failed("z"), foodLog: .failed("disk"))
+        let banner = try XCTUnwrap(HealthReadFailureBanner.make(failures: snapshot.readFailures))
+        XCTAssertEqual(banner.failedMetricCount, 3)
+        XCTAssertEqual(banner.message,
+            "3 metrics could not be read for this period. This can happen while iPhone is locked or before Health access has been set up. Unlock iPhone, then try again. Developer tools lists each failed read.")
+        XCTAssertEqual(HealthReadFailureBanner(failedMetricCount: 1).message.prefix(38), "One metric could not be read for this ")
+        XCTAssertTrue(banner.accessibilityLabel.hasPrefix("Could not read Apple Health. "))
+        for wording in ["denied", "refused", "not granted", "x", "disk"] where wording.count > 1 {
+            XCTAssertFalse(banner.message.contains(wording), wording)
+        }
+
+        let display = ReportDocument.expanded(snapshot: snapshot).forDisplay()
+        let rows = display.sections.flatMap(\.rows)
+        XCTAssertTrue(rows.filter { $0.style == .failure && $0.id != ReportDocument.foodLogFailedRowID }
+            .allSatisfy(\.isExplainedByHealthBanner))
+        XCTAssertFalse(try XCTUnwrap(rows.first { $0.id == ReportDocument.foodLogFailedRowID }).isExplainedByHealthBanner)
+        XCTAssertFalse(rows.filter { $0.style != .failure }.contains(where: \.isExplainedByHealthBanner))
+    }
+
+    /// #308: "No data" cannot tell an empty store from withheld access, so the tiles say so
+    /// once, and only when a tile shows "No data".
+    func testNoDataFootnoteSaysNoVisibleDataOrNoAccess() throws {
+        let empty = HealthSummaryTiles.make(from: ReportDocument.expanded(snapshot: makeSnapshot()).forDisplay())
+        XCTAssertTrue(empty.contains { $0.primary.value == "No data" })
+        XCTAssertEqual(HealthSummaryTiles.noDataFootnote(for: empty),
+                       "No data means no visible data or no access; Apple Health does not tell apps which.")
+        let full = HealthSummaryTiles.make(from: ReportDocument.expanded(snapshot: makeFullFixtureSnapshot()).forDisplay())
+        XCTAssertNil(HealthSummaryTiles.noDataFootnote(for: full))
+    }
+
+    /// The period picker's visible titles are what VoiceOver reads.
+    func testPeriodPickerTitlesArePlain() {
+        XCTAssertEqual(HealthReportView.shortTitle(for: .currentWeek), "This week")
+        XCTAssertEqual(HealthReportView.shortTitle(for: .previousWeek), "Last week")
+        XCTAssertEqual(HealthReportView.shortTitle(for: .lastSevenCompletedDays), "Last 7 days")
+    }
+
+    /// A plain renderer of any document: every row value verbatim, with the #216 group
+    /// headings. Applied to the display document it is the expected Copy all v2 text.
     private static func legacyPlainText(
         _ document: ReportDocument,
         generatedAt: Date,
@@ -1743,7 +1784,7 @@ extension WeeklyReportScreenshotTests {
     Could not read Apple Health.
 
     Activity
-    Active Energy: Could not read Apple Health.
+    Active energy: Could not read Apple Health.
     Exercise: No data
     Workouts: No data
 
@@ -1758,43 +1799,43 @@ extension WeeklyReportScreenshotTests {
     Weight
     No weight data is visible, or Health access was not granted.
 
-    Body Composition
+    Body composition
     Could not read Apple Health.
-    Waist Circumference: No data
+    Waist circumference: No data
 
     HEART AND SLEEP
 
     Heart
-    Resting HR Average: Could not read Apple Health.
-    Resting HR Trend: Could not read Apple Health.
-    HRV Average: No data
-    HRV Trend: No data
-    Watch Data Coverage: No data
+    Resting heart rate average: Could not read Apple Health.
+    Resting heart rate trend: Could not read Apple Health.
+    HRV average: No data
+    HRV trend: No data
+    Days with Apple Watch data: No data
 
-    Blood Pressure
+    Blood pressure
     Could not read Apple Health.
     Period averages use completed days. Morning is before 14:00; evening is from 17:00. Mid-afternoon readings are excluded from both slot summaries.
 
     Sleep
-    Average Sleep: No data
+    Average sleep: No data
 
     FITNESS AND BLOOD OXYGEN
 
-    Cardiorespiratory
-    Latest VO₂ Max: No data
-    Latest Blood Oxygen: No data
+    Fitness and blood oxygen
+    Latest VO₂ max: No data
+    Latest blood oxygen: No data
     Apple Watch blood-oxygen measurements are wellness estimates, not medical measurements.
 
     GLUCOSE
 
     Glucose
-    Daily Average: Could not read Apple Health.
-    Observed Range: Could not read Apple Health.
-    Data Coverage: Could not read Apple Health.
+    Daily average: Could not read Apple Health.
+    Observed range: Could not read Apple Health.
+    Data coverage: Could not read Apple Health.
 
     MEDICATIONS
 
-    Medications Taken
+    Medications taken
     Could not read Apple Health.
     """
 

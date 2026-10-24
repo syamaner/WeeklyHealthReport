@@ -32,19 +32,19 @@ final class FoodLogHealthSectionTests: XCTestCase {
         No step data is visible, or Health access was not granted.
 
         Activity
-        Active Energy: No data
+        Active energy: No data
         Exercise: No data
         Workouts: No data
 
         FOOD AND WATER
 
         Food and water
-        Days Logged: 6 / 7 days
-        Logged Energy: 2,010 kcal per day (5 complete days)
-        Incomplete Energy Days: 1
-        Logged Fibre: 24 g per day (4 complete days)
-        Incomplete Fibre Days: 2
-        Plain Water: 1,750 mL per day (4 days)
+        Days logged: 6 / 7 days
+        Logged energy: 2,010 kcal per day (5 complete days)
+        Incomplete energy days: 1
+        Logged fibre: 24 g per day (4 complete days)
+        Incomplete fibre days: 2
+        Plain water: 1,750 mL per day (4 days)
         Logged in this app; not a measure of everything eaten or drunk.
 
         BODY
@@ -52,42 +52,44 @@ final class FoodLogHealthSectionTests: XCTestCase {
         Weight
         No weight data is visible, or Health access was not granted.
 
-        Body Composition
+        Body composition
         No body-fat data is visible, or Health access was not granted.
-        Waist Circumference: No data
+        Waist circumference: No data
 
         HEART AND SLEEP
 
         Heart
-        Resting HR Average: No data
-        Resting HR Trend: No data
-        HRV Average: No data
-        HRV Trend: No data
-        Watch Data Coverage: No data
+        Resting heart rate average: No data
+        Resting heart rate trend: No data
+        HRV average: No data
+        HRV trend: No data
+        Days with Apple Watch data: No data
 
-        Blood Pressure
+        Blood pressure
         No complete blood-pressure readings are visible, or Health access was not granted.
         Period averages use completed days. Morning is before 14:00; evening is from 17:00. Mid-afternoon readings are excluded from both slot summaries.
 
         Sleep
-        Average Sleep: No data
+        Average sleep: No data
 
         FITNESS AND BLOOD OXYGEN
 
-        Cardiorespiratory
-        Latest VO₂ Max: No data
-        Latest Blood Oxygen: No data
+        Fitness and blood oxygen
+        Latest VO₂ max: No data
+        Latest blood oxygen: No data
         Apple Watch blood-oxygen measurements are wellness estimates, not medical measurements.
 
         GLUCOSE
 
         Glucose
-        Daily Average: No data
-        Observed Range: No data
-        Data Coverage: No data
+        Daily average: No data
+        Observed range: No data
+        Data coverage: No data
         """)
-        // Tiles are never copied.
-        XCTAssertFalse(text.contains("Logged energy"))
+        // Tiles are never copied. Since Copy all v2 (#308) the row label "Logged energy" matches the
+        // tile title, so check the tile's own value text and the Summary heading instead.
+        XCTAssertFalse(text.contains("Summary"))
+        XCTAssertEqual(text.components(separatedBy: "Logged energy").count - 1, 1, "only the section row")
     }
 
     /// Only the Food and water block and its heading are new: every other block
@@ -114,12 +116,12 @@ final class FoodLogHealthSectionTests: XCTestCase {
         ])))
         XCTAssertEqual(block, """
         Food and water
-        Days Logged: 1 / 7 days
-        Logged Energy: Insufficient history
-        Incomplete Energy Days: 1
-        Logged Fibre: Insufficient history
-        Incomplete Fibre Days: 1
-        Plain Water: 500 mL per day (1 day)
+        Days logged: 1 / 7 days
+        Logged energy: Insufficient history
+        Incomplete energy days: 1
+        Logged fibre: Insufficient history
+        Incomplete fibre days: 1
+        Plain water: 500 mL per day (1 day)
         Logged in this app; not a measure of everything eaten or drunk.
         """)
         XCTAssertFalse(block.contains("640"), "a known minimum is never shown as an average")
@@ -131,10 +133,10 @@ final class FoodLogHealthSectionTests: XCTestCase {
         )))
         XCTAssertEqual(block, """
         Food and water
-        Days Logged: 3 / 7 days
-        Logged Energy: 2,000 kcal per day (3 complete days)
-        Logged Fibre: 25 g per day (3 complete days)
-        Plain Water: No data
+        Days logged: 3 / 7 days
+        Logged energy: 2,000 kcal per day (3 complete days)
+        Logged fibre: 25 g per day (3 complete days)
+        Plain water: No data
         Logged in this app; not a measure of everything eaten or drunk.
         """)
         XCTAssertFalse(block.contains("0 mL"))
@@ -166,10 +168,10 @@ final class FoodLogHealthSectionTests: XCTestCase {
         ])))
         XCTAssertEqual(block, """
         Food and water
-        Days Logged: 3 / 7 days
-        Logged Energy: 2,000 kcal per day (3 complete days)
-        Logged Fibre: 20 g per day (3 complete days)
-        Plain Water: 1,200 mL per day (5 days)
+        Days logged: 3 / 7 days
+        Logged energy: 2,000 kcal per day (3 complete days)
+        Logged fibre: 20 g per day (3 complete days)
+        Plain water: 1,200 mL per day (5 days)
         Logged in this app; not a measure of everything eaten or drunk.
         """)
     }
@@ -182,7 +184,7 @@ final class FoodLogHealthSectionTests: XCTestCase {
         XCTAssertEqual(Self.copyAllBlock(state), """
         Food and water
         No food logged in this period.
-        Plain Water: 1,500 mL per day (2 days)
+        Plain water: 1,500 mL per day (2 days)
         Logged in this app; not a measure of everything eaten or drunk.
         """)
         let display = try XCTUnwrap(Self.document(foodLog: state).forDisplay().sections.first { $0.id == .foodLog })
@@ -219,13 +221,13 @@ final class FoodLogHealthSectionTests: XCTestCase {
             FoodLogFixtures.day(dates[0], energy: 1_500, estimates: true, water: 1_000),
             FoodLogFixtures.day(dates[1], energy: 2_500, water: 400, waterIncomplete: 1)
         ])))
-        XCTAssertTrue(block.contains("Logged Energy: 2,000 kcal per day (2 complete days), includes estimates"), block)
-        XCTAssertTrue(block.contains("Plain Water: 1,000 mL per day (1 day; 1 incomplete day left out)"), block)
+        XCTAssertTrue(block.contains("Logged energy: 2,000 kcal per day (2 complete days), includes estimates"), block)
+        XCTAssertTrue(block.contains("Plain water: 1,000 mL per day (1 day; 1 incomplete day left out)"), block)
 
         let onlyIncompleteWater = Self.copyAllBlock(.available(Self.summary([
             FoodLogFixtures.day(dates[0], energy: 0, water: 400, waterIncomplete: 1)
         ])))
-        XCTAssertTrue(onlyIncompleteWater.contains("Plain Water: Insufficient history (1 incomplete day left out)"))
+        XCTAssertTrue(onlyIncompleteWater.contains("Plain water: Insufficient history (1 incomplete day left out)"))
     }
 
     /// Contract v1.2 (#288), owner decision 9: fibre follows the energy rule.
@@ -242,11 +244,11 @@ final class FoodLogHealthSectionTests: XCTestCase {
         ])))
         XCTAssertEqual(block, """
         Food and water
-        Days Logged: 4 / 7 days
-        Logged Energy: 2,000 kcal per day (4 complete days)
-        Logged Fibre: 24 g per day (2 complete days), includes estimates
-        Incomplete Fibre Days: 2
-        Plain Water: 1,000 mL per day (1 day)
+        Days logged: 4 / 7 days
+        Logged energy: 2,000 kcal per day (4 complete days)
+        Logged fibre: 24 g per day (2 complete days), includes estimates
+        Incomplete fibre days: 2
+        Plain water: 1,000 mL per day (1 day)
         Logged in this app; not a measure of everything eaten or drunk.
         """)
         XCTAssertFalse(block.contains("70"), "a known minimum is never shown as an average")
@@ -255,7 +257,7 @@ final class FoodLogHealthSectionTests: XCTestCase {
             FoodLogFixtures.day(dates[0], energy: 1_500),
             FoodLogFixtures.day(dates[1], energy: 1_700)
         ])))
-        XCTAssertTrue(noKnownFibre.contains("Logged Fibre: Insufficient history\nIncomplete Fibre Days: 2"), noKnownFibre)
+        XCTAssertTrue(noKnownFibre.contains("Logged fibre: Insufficient history\nIncomplete fibre days: 2"), noKnownFibre)
         XCTAssertFalse(noKnownFibre.contains("0 g"), "unknown fibre is never 0 g")
 
         let display = Self.document(foodLog: .available(Self.normalWeek())).forDisplay()
@@ -601,7 +603,7 @@ final class FoodLogHealthSectionTests: XCTestCase {
         XCTAssertEqual(summary.incompleteFibreDayCount, 1)
         XCTAssertNil(summary.averageFibreGrams)
         let block = Self.copyAllBlock(.available(summary))
-        XCTAssertTrue(block.contains("Logged Fibre: Insufficient history\nIncomplete Fibre Days: 1"), block)
+        XCTAssertTrue(block.contains("Logged fibre: Insufficient history\nIncomplete fibre days: 1"), block)
 
         let gb = Locale(identifier: "en_GB")
         let day = try root.foodLogService.day(reportingDate: date)

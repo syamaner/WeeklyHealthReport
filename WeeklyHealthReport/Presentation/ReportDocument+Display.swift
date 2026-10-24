@@ -3,8 +3,8 @@ import Foundation
 /// Screen copy for the Health report: the on-screen sections, the summary tiles
 /// and Full Page (UX copy pass, #140).
 ///
-/// `ReportDocument` itself is the Copy all text, whose titles and labels the
-/// README specifies ("What gets copied"), so it is never reworded here. This
+/// Since Copy all v2 (#308, docs/health-copy-all-v2.md) Copy all renders this
+/// projection too, so the screen, Full Page and Copy all share one wording. This
 /// projection changes wording only: section titles and fixed row labels in
 /// sentence case, plain copy for a failed read (as Copy all also says; the
 /// technical message stays in Developer tools), and a note that the weight average uses the
@@ -125,6 +125,8 @@ struct ReportReadFailure: Equatable {
 }
 
 extension ReportPresentationSnapshot {
+    static let foodLogFailureMetric = "Food log"
+
     /// Every failed read with the message the read returned. Taken from the metric
     /// states rather than the document, because a metric row keeps only "Query failed"
     /// and drops the message, and no screen or copied text shows either.
@@ -158,10 +160,45 @@ extension ReportPresentationSnapshot {
             ("Workouts", message(workouts)),
             ("Sleep", message(sleep)),
             ("Medications", includesMedicationSection ? message(medications) : nil),
-            ("Food log", message(foodLog))
+            (Self.foodLogFailureMetric, message(foodLog))
         ]
         return candidates.compactMap { metric, message in
             message.map { ReportReadFailure(metric: metric, message: $0) }
         }
+    }
+}
+
+/// One banner for failed Apple Health reads (#308): the cause and the next step are
+/// said once, at the top of the Health screen, instead of on every tile. Each row and
+/// tile keeps its own "Could not read" state, in secondary text rather than red. The
+/// food log is this app's own store, not Apple Health, so its failure is not counted
+/// here and keeps its own row wording. A failed read is an error, never a denial:
+/// HealthKit does not disclose read denial (that shows as no data), so the banner
+/// never says access was refused.
+struct HealthReadFailureBanner: Equatable {
+    static let title = "Could not read Apple Health"
+    static let cause = "This can happen while iPhone is locked or before Health access has been set up."
+    static let nextStep = "Unlock iPhone, then try again. Developer tools lists each failed read."
+
+    let failedMetricCount: Int
+
+    var message: String {
+        let count = failedMetricCount == 1 ? "One metric" : "\(failedMetricCount) metrics"
+        return "\(count) could not be read for this period. \(Self.cause) \(Self.nextStep)"
+    }
+
+    var accessibilityLabel: String { "\(Self.title). \(message)" }
+
+    static func make(failures: [ReportReadFailure]) -> HealthReadFailureBanner? {
+        let health = failures.filter { $0.metric != ReportPresentationSnapshot.foodLogFailureMetric }
+        return health.isEmpty ? nil : HealthReadFailureBanner(failedMetricCount: health.count)
+    }
+}
+
+extension ReportDocument.Row {
+    /// An Apple Health read failure, which the screen's banner explains. The food log
+    /// failure is not one: it keeps its own emphasis.
+    var isExplainedByHealthBanner: Bool {
+        style == .failure && id != ReportDocument.foodLogFailedRowID
     }
 }
