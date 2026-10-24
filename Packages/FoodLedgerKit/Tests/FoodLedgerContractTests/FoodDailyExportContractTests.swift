@@ -477,6 +477,20 @@ final class FoodDailyExportContractTests: XCTestCase {
         XCTAssertNil(FoodDailyExportTimestamp.date("2023-11-15T00:00:00Z"), "the health form without milliseconds is not this form")
     }
 
+    /// #304: a file written under `food-intake-summary-v4` before v5 still decodes and re-encodes
+    /// byte for byte; its frozen v4 values (water's exact zeros as a complete 0) are kept as written.
+    func testFrozenSummaryV4GoldenRoundTripsByteForByte() throws {
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("../../../../docs/fixtures/food-daily-v1/food-daily-plain-water-only-summary-v4.json")
+            .standardizedFileURL
+        let golden = try Data(contentsOf: url)
+        let decoded = try FoodDailyExportSerializer.decode(golden)
+        XCTAssertEqual(decoded.summaryVersion, "food-intake-summary-v4")
+        XCTAssertEqual(decoded.foodDailySchemaVersion, FoodDailyExportDocument.schemaVersion, "the file shape is unchanged")
+        XCTAssertEqual(try FoodDailyExportSerializer.encode(decoded), golden)
+        XCTAssertEqual(decoded.summary.first { $0.key == "energy_consumed" }?.state, "complete")
+    }
+
     func testGoldenFilesAreByteStable() throws {
         let saved = try Self.savedDay(try Self.memoryHarness())
         let waterOnly: LedgerMutation = try {

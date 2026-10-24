@@ -98,6 +98,8 @@ For each of the 39 nutrients, from `FoodIntakeSummary` v5 (v4 before #304):
 
 No targets, reference values, percentages or interpretation.
 
+**Versioning rule (24 October 2026, #304).** `summary_version` changes whenever the day-total semantics change (which contributions count, how they combine, what makes a total known or incomplete), even when the file shape stays the same. `food_daily_schema_version` changes only when the file shape changes (keys, value forms, byte form). A writer emits only the current `summary_version`; validators, including the Drive identity policy's reconcile and recovery reads, accept every published `summary_version` (currently `food-intake-summary-v4` and `food-intake-summary-v5`), so files already on Drive stay valid. A file keeps the values it was written with; nothing rewrites an earlier file except a fresh export of that day. A frozen v4 golden (`docs/fixtures/food-daily-v1/food-daily-plain-water-only-summary-v4.json`) pins that a v4 file still decodes, re-encodes byte for byte and passes the policy.
+
 ### Plain water
 
 `plain_water` reports `PlainWaterDayTotal.total` for entries backed by `PlainWaterReference` (`weeklyhealthreport.reference:plain-water-v1`) in mL, with the same `complete` / `known_minimum` state. The `water` nutrient in `summary` still includes water in foods; the two are labelled so they are not added together by a reader. `PlainWaterDayTotal` rejects competing heads more widely than `FoodIntakeProjection` (any item with a head on the day and more than one head on any date); the builder runs both checks, and either failure blocks the file.

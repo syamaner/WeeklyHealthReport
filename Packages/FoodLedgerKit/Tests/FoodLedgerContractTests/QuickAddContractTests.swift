@@ -337,6 +337,12 @@ final class QuickAddContractTests: XCTestCase {
             let row = try XCTUnwrap(projection.rows.first)
             XCTAssertTrue(row.isPlainWater)
             XCTAssertEqual(row.totals.first { $0.key == .energyConsumed }?.knownAmount, 0)
+            // The Food Log shows the no-food copy, not nutrient totals, and still lists the water.
+            let content = FoodLogDayContent(projection: projection, reportingDate: saved.logItemVersion.reportingDate.value, estimates: [])
+            XCTAssertFalse(content.showsFoodTotals)
+            XCTAssertEqual(content.foodEntryCount, 0)
+            XCTAssertNotNil(content.totals, "the day has entries, so it is not an empty day")
+            XCTAssertEqual(content.entries.count, 1)
         }
     }
 
@@ -363,6 +369,8 @@ final class QuickAddContractTests: XCTestCase {
             XCTAssertEqual(summary.foodItemCount, 1)
             let content = FoodLogDayContent(projection: projection, reportingDate: day, estimates: [])
             XCTAssertNil(content.totals?.first { $0.key == .carbohydrates }?.knownAmount, "the Food Log strip agrees")
+            XCTAssertTrue(content.showsFoodTotals, "a day with food shows its totals; Unknown stays Unknown")
+            XCTAssertEqual(content.foodEntryCount, 1)
             let waterEntry = try XCTUnwrap(content.entries.first { $0.name == PlainWaterReference.name })
             XCTAssertEqual(waterEntry.energyKcal, 0, "the water entry still reads 0 kcal")
             XCTAssertEqual(waterEntry.unknownKeys, [])

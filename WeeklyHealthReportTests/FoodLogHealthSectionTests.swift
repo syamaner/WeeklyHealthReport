@@ -618,7 +618,9 @@ final class FoodLogHealthSectionTests: XCTestCase {
         XCTAssertEqual(logged.nutrients.last?.label, "Fibre")
         XCTAssertEqual(logged.nutrients.last?.value, "Unknown")
         XCTAssertEqual(logged.entryCount, "1 entry", "plain water is not a food entry")
-        XCTAssertTrue(logged.footnote?.hasPrefix("Some values are unknown for 1 entry") == true, logged.footnote ?? "nil")
+        // Only the food's protein is known and complete, so no total carries "+": the footnote
+        // names the one food entry and makes no known-minimum claim.
+        XCTAssertEqual(logged.footnote, "Some values are unknown for 1 entry.")
     }
 
     /// Two current heads for one entry (a removal committed against a stale view)

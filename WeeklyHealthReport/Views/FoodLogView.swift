@@ -38,7 +38,11 @@ struct FoodLogView: View {
                 addFoodSection
             case let .loaded(day):
                 if let totals = day.totals {
-                    totalsSection(totals, plainWater: day.plainWater)
+                    if day.showsFoodTotals {
+                        totalsSection(totals, plainWater: day.plainWater)
+                    } else {
+                        noFoodSection(plainWater: day.plainWater)
+                    }
                 }
                 addFoodSection
                 if day.entries.isEmpty {
@@ -159,6 +163,24 @@ struct FoodLogView: View {
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(FoodLogText.plainWaterAccessibility(plainWater))
         } footer: { Text(FoodLogText.totalsFootnote) }
+    }
+
+    /// Plain water only (#304): the empty-day copy instead of nutrient totals (never 0, never a
+    /// bare "Unknown"), with plain water logged still shown.
+    private func noFoodSection(plainWater: FoodIntakeTotal?) -> some View {
+        Section {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(FoodLogText.emptyTitle).font(.headline)
+                Text(FoodLogText.emptyMessage).font(.subheadline).foregroundStyle(.secondary)
+            }
+            .padding(.vertical, 4)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(FoodLogText.emptyTitle). \(FoodLogText.emptyMessage)")
+            LabeledContent(FoodLogText.plainWaterLabel, value: FoodLogText.plainWater(plainWater))
+                .monospacedDigit()
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(FoodLogText.plainWaterAccessibility(plainWater))
+        }
     }
 
     // MARK: Add food

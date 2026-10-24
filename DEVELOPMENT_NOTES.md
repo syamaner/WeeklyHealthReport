@@ -2712,4 +2712,12 @@ Pricing: re-checked on 24 October 2026 against Anthropic's official pricing page
 
 Boundary: `phase_usage.py --format claude --since 2026-10-24T06:40:02Z --until 2026-10-24T07:22:34Z` on the subagent transcript alone. Cache writes: 334,235 5-minute, 0 1-hour. Exact API-equivalent USD 5.2211184 at the recorded counts. The orchestrating session is not included, and no reviewer subagents were run.
 
+Review fold-in, same subagent and transcript, from `2026-10-24T07:22:34Z` to `2026-10-24T07:49:33Z`. It includes the first ledger edit, the first commit, push and PR #309, and then the invariant review and journey QA findings: accepting `food-intake-summary-v4` in the Drive policy, a frozen v4 golden, the full footnote assertion, the versioning rule and policy-identifier wording, the no-food state on Home and in the Food Log, and a second full gate run. The first row above stays frozen. Same rates.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Plain water and unknown nutrients (#304), review fold-in | 12,167,132 (11,637,984) | 529,044 | 28,810 | 12,195,942 | $5.55 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-24T07:22:34Z --until 2026-10-24T07:49:33Z` on the subagent transcript alone. Cache writes: 529,044 5-minute, 0 1-hour. Exact API-equivalent USD 5.5494328 at the recorded counts. A single run over the whole window (`06:40:02Z` to `07:49:33Z`) reports 25,106,750 tokens and USD 10.7119244, which is less than the sum of the two rows (the windows share the `07:22:34Z` boundary; the cause of the difference was not investigated), so the rows are not added here. The reviewer subagents and the orchestrating session are not included.
+
 Token totals are not evidence of productivity, quality or provider efficiency.
