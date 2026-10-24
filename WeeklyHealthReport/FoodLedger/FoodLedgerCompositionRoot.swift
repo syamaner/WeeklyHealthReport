@@ -808,6 +808,8 @@ struct PastedLabelFlowView: View {
         } else {
             confirmationModel = root.model(for: input, prefillSourceQuantity: false, entryDay: finish?.entryDay)
         }
+        // Pasted label Confirm v1 (#306): an editable reading asks fortification on Confirm.
+        confirmationModel?.answersLabelFortification(for: source)
         sourceModel = source
         showsConfirmation = true
     }

@@ -139,7 +139,7 @@ A reopened pasted-label entry keeps the same order. Its Fortification row is rea
 |---|---|---|---|---|
 | Yes | `yes` | `fortified` / `fortified_food` | none (plain exact save) | as today for a pasted label |
 | No | `no` | `unfortified` / `food` | none | as today |
-| Not stated | `unanswered` | `unknown` / `food` | exactly one, the v5 "Exact with decisions" row: reason `Logged with inline decisions under food_confirmation_v5`, claim `Logged under food_confirmation_v5; decisions: fortification: source unknown, choice not_sure`, record `[fortification, unknown, not_sure]` | `confirm_food_v3` |
+| Not stated | `unanswered` | `unknown` / `food`; the candidate decision is recorded `rejected` with reason `fortification`, as v2 records an unknown-identity generic estimate (section 14) | exactly one, the v5 "Exact with decisions" row: reason `Logged with inline decisions under food_confirmation_v5`, claim `Logged under food_confirmation_v5; decisions: fortification: source unknown, choice not_sure`, record `[fortification, unknown, not_sure]` | `confirm_food_v3` |
 
 - Every value above already exists and already decodes strictly (`not_sure` against an unknown source state is a valid `FacetDecision`). The persisted grammar is unchanged, so `methodVersion` stays `food_confirmation_v5` and no new policy identifier is needed.
 - Food contract and store stay at the current levels (contract 7, `food-ledger-v7`): `confirm_food_v3` needs contract 4 or later, which a pasted-label archive already exceeds.
@@ -267,3 +267,13 @@ Verdict: PASS WITH CHANGES. Every required change is applied.
 ### Files the implementation changes
 
 `FoodLedgerApplication/PastedLabelFortificationPolicy.swift` (new), the 4.5 formatter (new, beside `SavedFoodEntryDetail.swift`), `FoodConfirmation.swift`, `FoodLogPolicy.swift`, `FoodLedgerDomain/PastedLabelDomain.swift` (comments only), `FoodLedgerPresentation/FoodConfirmationView.swift`, `PastedLabelSourceModel.swift`, `PastedLabelTextViewModel.swift`, `PastedLabelViews.swift`, `PastedLabelText.swift`, `FoodLogRequirementText.swift` if the route copy is mapped there, the Developer tools pasted-label details, and tests. No file pinned by `ReaderV3FreezeTests`.
+
+## 14. Implementation notes (#306 build, 24 October 2026)
+
+Where the build narrowed or completed the spec:
+
+- **Candidate decision outcome for Not stated.** The domain refuses a `selected` `CandidateDecision` whose expected identity has an unknown facet (`hardIdentityContradiction`). A Not stated save is therefore recorded with the existing outcome `rejected` and `contradiction_reasons: [fortification]`, exactly as v2 records an unknown-identity generic estimate (`FoodConfirmationService`, the same branch as `isGenericEstimate`). No new value; tested in 8.5 test 4. Quick add still answers `.confirm(.estimate)` first for such a favourite.
+- **Composition root.** The one-line wiring is in the paste route's `open(_:)`, an event handler, not in `pastedLabelConfirmation`, which runs while the view is built.
+- **Section 4.5 surface.** "Fortification on the label" is shown on the saved entry (`SavedFoodEntryView`). Developer tools list only the current reading's lines (no stored entries, v5 section 5), and a new reading is always unanswered, so no Developer tools line is added.
+- **Test 16.** The Daily JSON check pins that a Not stated entry exports exactly the same entry keys as a No entry (no new field), rather than a byte-pinned golden file, because the existing export tests build their own synthetic days.
+- **Reopened entries.** The Fortification section shows the recorded answer read-only through the 4.5 formatter on any reopened pasted-label entry.

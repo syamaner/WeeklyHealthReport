@@ -2697,3 +2697,21 @@ Pricing uses the Claude Opus 5.5 rates re-checked on the official pricing page o
 Boundary: `phase_usage.py --format claude --since 2026-10-23T06:46:13Z --until 2026-10-23T07:02:29Z` on the subagent transcript alone. Cache writes: 761,651 5-minute, 0 1-hour. Exact API-equivalent USD 10.045778 at the recorded counts. The orchestrating session is not included, and no reviewer subagents were run.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-306-2026-10-24: Claude Code pasted label Confirm (inline fortification, amount first, servings default)
+
+One implementation subagent and transcript (`subagents/agent-a88e83af94fc0d003.jsonl`) for #306, owner-approved for autonomous delivery on 24 October 2026. Two phases:
+
+- **Spec and architecture gate** (`docs/pasted-label-confirm-v1.md`, three gate rounds): Unmeasured. No start boundary was captured before the spec work began, so no figure is estimated.
+- **Implementation**: the application policy, presentation and composition-root changes, the contract, presentation and app tests, one full gate run and the commits. It runs from `2026-10-24T06:56:31Z` (captured with `date -u` when implementation began) to `2026-10-24T07:37:02Z`, just before this ledger edit (UTC).
+
+Pricing uses the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output); they were not re-checked on the day of this entry. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label Confirm spec and gate (#306), implementation subagent | Unmeasured | Unmeasured | Unmeasured | Unmeasured | Unmeasured |
+| Pasted label Confirm implementation (#306), implementation subagent | 27,635,404 (26,874,726) | 760,494 | 67,804 | 27,703,208 | $10.53 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-24T06:56:31Z --until 2026-10-24T07:37:02Z` on the subagent transcript alone. Cache writes: 760,494 5-minute, 0 1-hour. Exact API-equivalent USD 10.5342312 at the recorded counts. The orchestrating session and the architecture-gate reviewer are not included.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

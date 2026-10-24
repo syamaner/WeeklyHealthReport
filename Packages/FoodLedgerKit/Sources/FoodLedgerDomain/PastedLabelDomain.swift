@@ -43,15 +43,17 @@ public enum PastedLabelIdentity {
     /// example 沖泡 or 瀝乾). Defined here; the reading route (PR 3) emits it.
     public static let basisStateNotSupported = "basis_state_not_supported"
 
-    /// The optional Fortified? answer on Confirm.
+    /// The fortification answer, given on Confirm (pasted label Confirm v1, #306). Not stated is
+    /// stored as `unanswered` with a typed `not_sure` decision on the confirming assertion.
     public enum FortificationAnswer: String, Codable, CaseIterable, Sendable {
         case yes
         case no
         case unanswered
     }
 
-    /// Yes is fortified, No is unfortified; unanswered is unknown (which raises the existing
-    /// `sourceIdentityMissing` requirement).
+    /// Yes is fortified, No is unfortified; unanswered is unknown. Unknown raises the existing
+    /// `sourceIdentityMissing` requirement, except on an editable pasted-label Confirm (or a
+    /// reopened Not stated entry), where it is an inline decision (pasted label Confirm v1, C4).
     public static func fortification(_ answer: FortificationAnswer) -> FortificationState {
         switch answer {
         case .yes: .fortified
