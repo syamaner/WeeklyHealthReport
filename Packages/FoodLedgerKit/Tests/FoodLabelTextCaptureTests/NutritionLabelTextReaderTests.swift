@@ -234,7 +234,8 @@ final class NutritionLabelTextReaderTests: XCTestCase {
         }
         XCTAssertEqual(try requirements(.yes), [])
         XCTAssertEqual(try requirements(.no), [])
-        XCTAssertEqual(try requirements(.unanswered), [.sourceIdentityMissing([.fortification])])
+        // Pasted label Confirm v1 (#306): unanswered is an inline decision on Confirm.
+        XCTAssertEqual(try requirements(.unanswered), [.decideDifference(.fortification)])
     }
 
     // MARK: Flags, conversions and declines on synthetic text

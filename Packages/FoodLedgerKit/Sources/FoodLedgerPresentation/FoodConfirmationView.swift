@@ -417,8 +417,20 @@ public final class FoodConfirmationViewModel: ObservableObject {
     /// Whether the Fortification section asks the question on this Confirm.
     public var labelFortificationApplies: Bool { PastedLabelFortificationPolicy.applies(state) }
 
-    /// Whether this Confirm asks the Fortification question (an editable pasted label).
+    /// Whether this Confirm asks the Fortification question (any new pasted-label Confirm).
     public var asksLabelFortification: Bool { labelFortificationApplies && state.reopened == nil }
+
+    /// Whether Yes and No can be answered inline: only an editable source can be rebuilt.
+    public var answersLabelFortificationInline: Bool { asksLabelFortification && state.answersLabelFortification }
+
+    /// The answers offered inline, in order.
+    public var labelFortificationChoices: [LabelFortification] {
+        answersLabelFortificationInline ? [.yes, .no, .notStated] : [.notStated]
+    }
+
+    /// Whether the estimate notice sits in the Fortification section, below the answers, so that
+    /// choosing Not stated moves nothing above the finger (journey QA of 381e694e).
+    public var showsEstimateNoticeInFortification: Bool { asksLabelFortification && savesEstimate }
 
     /// The recorded answer, read-only, on a reopened pasted-label entry (section 5.1), else nil.
     public var reopenedLabelFortification: String? {
@@ -467,6 +479,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
 
     public var labelFortificationFooter: String {
         switch labelFortification {
+        case .unanswered where !answersLabelFortificationInline: PastedLabelText.fortificationFooterStored
         case .unanswered: PastedLabelText.fortificationFooterUnanswered
         case .yes: PastedLabelText.fortificationFooterYes
         case .no: PastedLabelText.fortificationFooterNo
@@ -646,8 +659,13 @@ public final class FoodConfirmationViewModel: ObservableObject {
     /// details are missing, otherwise "Correct food details" for a saved entry or once details
     /// were applied, so an applied correction can be reopened before Log (#276).
     public var foodDetailsActionTitle: String? {
-        // C6: never the catalogue form while an editable pasted label asks its own question.
+        // C6: never the catalogue form while an editable pasted label asks its own question. A
+        // re-log or favourite cannot rebuild its stored label, so Yes or No goes through Food
+        // details there, beside the inline Not stated.
         if state.answersLabelFortification && state.reopened == nil { return nil }
+        if asksLabelFortification, state.selectedCandidate.candidate.identity.fortification == .unknown {
+            return Self.addFoodDetailsTitle
+        }
         if !missingSourceDetails.isEmpty { return Self.addFoodDetailsTitle }
         if state.reopened != nil || state.correction != nil { return Self.correctFoodDetailsTitle }
         return nil
@@ -918,7 +936,7 @@ public struct FoodConfirmationView: View {
             if let brand = model.displayedBrand {
                 LabeledContent("Brand", value: brand.value)
             }
-            if model.savesEstimate {
+            if model.savesEstimate && !model.showsEstimateNoticeInFortification {
                 Label(FoodConfirmationViewModel.estimateNotice, systemImage: "info.circle")
                     .font(.subheadline)
                     .accessibilityLabel(FoodConfirmationViewModel.estimateNotice)
@@ -975,12 +993,14 @@ public struct FoodConfirmationView: View {
     private var labelFortificationSection: some View {
         if model.asksLabelFortification {
             Section {
+                Text(PastedLabelText.fortificationQuestion).font(.subheadline)
+                    .accessibilityHidden(true)
                 Picker(PastedLabelText.fortificationQuestion, selection: Binding<FoodConfirmationViewModel.LabelFortification?>(
                     get: { model.labelFortification == .unanswered ? nil : model.labelFortification },
                     set: { if let answer = $0 { model.answerLabelFortification(answer) } })) {
-                    Text(PastedLabelText.fortificationYes).tag(FoodConfirmationViewModel.LabelFortification?.some(.yes))
-                    Text(PastedLabelText.fortificationNo).tag(FoodConfirmationViewModel.LabelFortification?.some(.no))
-                    Text(PastedLabelText.fortificationNotStated).tag(FoodConfirmationViewModel.LabelFortification?.some(.notStated))
+                    ForEach(model.labelFortificationChoices, id: \.self) { choice in
+                        Text(PastedLabelText.fortificationChoice(choice)).tag(FoodConfirmationViewModel.LabelFortification?.some(choice))
+                    }
                 }
                 .pickerStyle(.inline)
                 .labelsHidden()
@@ -989,9 +1009,15 @@ public struct FoodConfirmationView: View {
                     Label(failure, systemImage: "exclamationmark.triangle").font(.subheadline)
                 }
             } header: {
-                Text(PastedLabelText.fortificationQuestion)
+                Text(PastedLabelText.fortificationHeader)
             } footer: {
-                Text(model.labelFortificationFooter)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(model.labelFortificationFooter)
+                    if model.showsEstimateNoticeInFortification {
+                        Label(FoodConfirmationViewModel.estimateNotice, systemImage: "info.circle")
+                            .accessibilityLabel(FoodConfirmationViewModel.estimateNotice)
+                    }
+                }
             }
         } else if let value = model.reopenedLabelFortification {
             Section(PastedLabelText.fortificationHeader) {
@@ -1531,7 +1557,7 @@ public struct FoodConfirmationView: View {
             case .choice(.kitchenScale): "Kitchen scale"
             case .choice(.packageWeight): "Package weight"
             case .choice(.estimatedByEye): "Estimated by eye"
-            case let .recorded(text): "Recorded: \(text.value)"
+            case let .recorded(text): "Recorded: \(PastedLabelText.conversionMethodLabel(text.value) ?? text.value)"
             }
         }
 
@@ -1539,7 +1565,7 @@ public struct FoodConfirmationView: View {
         public static func storedMethodLabel(_ stored: LedgerText) -> String {
             switch MethodSelection(stored: stored) {
             case let .choice(method): label(.choice(method))
-            case .recorded: stored.value
+            case .recorded: PastedLabelText.conversionMethodLabel(stored.value) ?? stored.value
             }
         }
 

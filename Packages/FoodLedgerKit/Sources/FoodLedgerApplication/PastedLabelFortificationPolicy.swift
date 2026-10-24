@@ -11,14 +11,15 @@ public enum PastedLabelFortificationPolicy {
         PanelSourceAdmission.applies(input, candidate: candidate)
     }
 
-    /// C4: an editable pasted-label source (the transient state flag), or a reopened pasted-label
-    /// entry whose current version recorded Not stated. Re-logs and favourites have neither. Never
-    /// while a Food details correction is applied: a correction carries no decision, so its
-    /// identity must be complete under the unchanged v5 rule.
+    /// C4: every new pasted-label Confirm (a new reading, a re-log or a favourite), or a reopened
+    /// pasted-label entry whose current version recorded Not stated. Never while a Food details
+    /// correction is applied: a correction carries no decision, so its identity must be complete
+    /// under the unchanged v5 rule. The transient `answersLabelFortification` flag no longer gates
+    /// this; it marks an editable source, where Yes and No rebuild the source (C6, journey QA).
     public static func applies(_ state: FoodConfirmationState) -> Bool {
         guard state.correction == nil, isPastedLabel(state.input, candidate: state.selectedCandidate) else { return false }
         if let reopened = state.reopened { return recordsNotStated(reopened) }
-        return state.answersLabelFortification
+        return true
     }
 
     /// C5: the only recorded decision admitted for the facet.

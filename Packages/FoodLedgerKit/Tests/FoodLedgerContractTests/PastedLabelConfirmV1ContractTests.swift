@@ -42,8 +42,8 @@ final class PastedLabelConfirmV1ContractTests: XCTestCase {
         empty.answersLabelFortification = true
         XCTAssertEqual(requirements(empty), [.decideDifference(.fortification), .amountMissing])
         XCTAssertEqual(requirements(state(unanswered)), [.decideDifference(.fortification)])
-        // Unflagged (a re-log or favourite): today's rule exactly.
-        XCTAssertEqual(requirements(state(unanswered, flagged: false)), [.sourceIdentityMissing([.fortification])])
+        // Unflagged (a re-log or favourite, journey QA of 381e694e): the same inline decision.
+        XCTAssertEqual(requirements(state(unanswered, flagged: false)), [.decideDifference(.fortification)])
         // A catalogue source ignores the flag.
         var catalogue = FoodConfirmationState(input: try QuickAddFixtures.exactInput(30_100), prefillSourceQuantity: false)
         catalogue.answersLabelFortification = true
@@ -300,7 +300,8 @@ final class PastedLabelConfirmV1ContractTests: XCTestCase {
         let pasted = state(try input())
         XCTAssertEqual(FoodLogPolicy.offeredChoices(pasted, facet: .fortification), [.notSure])
         let unflagged = state(try input(), flagged: false)
-        XCTAssertEqual(FoodLogPolicy.offeredChoices(unflagged, facet: .fortification),
+        XCTAssertEqual(FoodLogPolicy.offeredChoices(unflagged, facet: .fortification), [.notSure], "re-logs too")
+        XCTAssertEqual(FoodLogFacetDecision.offeredChoices(facet: .fortification, sourceState: FoodLogPolicy.sourceState(unflagged, facet: .fortification)),
                        [.differs("fortified"), .differs("unfortified"), .notSure], "the domain's set, unchanged")
         XCTAssertThrowsError(try {
             var differs = pasted
@@ -312,7 +313,7 @@ final class PastedLabelConfirmV1ContractTests: XCTestCase {
 
     // MARK: 15. Re-log and favourites
 
-    func test15ReLogsKeepTodaysRuleAndQuickAddEligibilityFollowsTheAnswer() throws {
+    func test15ReLogsAndFavouritesOfferNotStatedInlineAndQuickAddFollowsTheAnswer() throws {
         for harness in try LedgerFixtures.harnesses() {
             defer { harness.cleanup() }
             let service = try F.service(harness)
@@ -339,10 +340,31 @@ final class PastedLabelConfirmV1ContractTests: XCTestCase {
             XCTAssertEqual(try eligibility(notStated), .confirm(.estimate), harness.name)
             XCTAssertEqual(try eligibility(corrected), .confirm(.corrected), harness.name)
 
+            // A re-log asks inline; Not stated is an explicit choice on Confirm, never carried.
             var relog = try XCTUnwrap(service.relogState(logItemID: notStated.logItem.logItemID))
             XCTAssertFalse(relog.answersLabelFortification)
+            XCTAssertNil(relog.decisions[.fortification], "the stored decision is not carried")
             FoodConfirmationReducer.reduce(state: &relog, action: .accept)
-            XCTAssertTrue(requirements(relog).contains(.sourceIdentityMissing([.fortification])), "a re-log keeps today's rule")
+            XCTAssertEqual(requirements(relog), [.decideDifference(.fortification)], harness.name)
+            FoodConfirmationReducer.reduce(state: &relog, action: .decideDifference(.fortification, .notSure))
+            XCTAssertTrue(FoodLogPolicy.savesEstimate(relog))
+            let relogged = try service.save(relog, operationID: LedgerFixtures.operationID(30_804))
+            XCTAssertEqual(relogged.assertions.first?.confirmation?.decisions.map(\.choice), [.notSure])
+            // A Not stated favourite: Quick add sends it to Confirm as an estimate; one choice logs it.
+            var favourite = FoodConfirmationState(input: try service.favouriteInput(notStated), prefillSourceQuantity: false)
+            FoodConfirmationReducer.reduce(state: &favourite, action: .setQuantity(40, .grams))
+            FoodConfirmationReducer.reduce(state: &favourite, action: .accept)
+            XCTAssertEqual(requirements(favourite), [.decideDifference(.fortification)])
+            FoodConfirmationReducer.reduce(state: &favourite, action: .decideDifference(.fortification, .notSure))
+            XCTAssertNoThrow(try service.save(favourite, operationID: LedgerFixtures.operationID(30_805)), harness.name)
+            // Yes or No on a stored label still goes through Food details, as a correction.
+            var viaDetails = try XCTUnwrap(service.relogState(logItemID: notStated.logItem.logItemID))
+            let stored = viaDetails.selectedCandidate
+            FoodConfirmationReducer.reduce(state: &viaDetails, action: .applyCorrection(try FoodCorrection(name: stored.name,
+                brand: stored.brand, variant: nil, identity: try PastedLabelIdentity.identity(fortification: .yes, servingBasis: .per100Grams),
+                itemClass: .fortifiedFood, nutrients: stored.candidate.nutrients, reason: LedgerText("Synthetic: vitamins added."))))
+            FoodConfirmationReducer.reduce(state: &viaDetails, action: .accept)
+            XCTAssertEqual(requirements(viaDetails), [])
             XCTAssertEqual(PastedLabelFortificationText.value(corrected, manifest: try XCTUnwrap(PastedLabelValueOrigins.manifest(
                 evidence: corrected.evidence, evidenceIDs: corrected.candidateDecision.candidate.evidenceIDs))),
                 "Not stated or not answered, then corrected in food details")

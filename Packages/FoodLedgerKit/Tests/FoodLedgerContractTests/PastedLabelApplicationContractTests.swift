@@ -237,19 +237,19 @@ final class PastedLabelApplicationContractTests: XCTestCase {
             XCTAssertEqual(requirements(input), [], "\(answer)")
         }
         let unanswered = try R.input(review, details: .init(name: "Synthetic oat crackers"))
-        XCTAssertEqual(requirements(unanswered), [.sourceIdentityMissing([.fortification])])
+        XCTAssertEqual(requirements(unanswered), [.decideDifference(.fortification)], "#306: an inline decision")
         for harness in try LedgerFixtures.harnesses() {
             defer { harness.cleanup() }
             let service = try F.service(harness)
             let saved = try service.save(F.state(R.input(review)), operationID: LedgerFixtures.operationID(9_950))
             XCTAssertEqual(saved.assertions, [], "A pasted-label save writes no assertion (\(harness.name))")
             XCTAssertEqual(saved.resolutionVersion.methodVersion.value, "food_confirmation_v5", harness.name)
-            // Unanswered: refused until the existing details flow answers fortification.
+            // Unanswered: refused until fortification is answered (#306: inline, or through Food details).
             var state = FoodConfirmationState(input: unanswered, prefillSourceQuantity: false)
             FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(40, .grams))
             FoodConfirmationReducer.reduce(state: &state, action: .accept)
             XCTAssertThrowsError(try service.save(state, operationID: LedgerFixtures.operationID(9_951))) {
-                XCTAssertEqual($0 as? FoodConfirmationSaveError, .unmetRequirements([.sourceIdentityMissing([.fortification])]), harness.name)
+                XCTAssertEqual($0 as? FoodConfirmationSaveError, .unmetRequirements([.decideDifference(.fortification)]), harness.name)
             }
             let source = unanswered.candidates[0]
             let identity = try PastedLabelIdentity.identity(fortification: .no, servingBasis: .per100Grams)

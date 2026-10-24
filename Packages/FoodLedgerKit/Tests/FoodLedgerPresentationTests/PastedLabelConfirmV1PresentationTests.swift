@@ -37,8 +37,17 @@ final class PastedLabelConfirmV1PresentationTests: XCTestCase {
         }
         relog.answersLabelFortification(for: stored)
         XCTAssertFalse(relog.state.answersLabelFortification, "a stored source never sets it")
-        XCTAssertFalse(relog.asksLabelFortification)
-        XCTAssertEqual(relog.foodDetailsActionTitle, FoodConfirmationViewModel.addFoodDetailsTitle, "C6: re-logs keep Food details")
+        XCTAssertTrue(relog.asksLabelFortification, "a re-log asks inline too")
+        XCTAssertFalse(relog.answersLabelFortificationInline)
+        XCTAssertEqual(relog.labelFortificationChoices, [.notStated], "Yes or No cannot rebuild a stored label")
+        XCTAssertEqual(relog.labelFortificationFooter, PastedLabelText.fortificationFooterStored)
+        XCTAssertEqual(relog.foodDetailsActionTitle, FoodConfirmationViewModel.addFoodDetailsTitle, "C6: Yes or No via Food details")
+        relog.send(.setQuantity(40, .grams))
+        XCTAssertEqual(relog.blockedReason, PastedLabelText.fortificationRequirement, "never \"Choose a different match\"")
+        relog.answerLabelFortification(.notStated)
+        XCTAssertTrue(relog.canLog, relog.blockedReason ?? "")
+        XCTAssertTrue(relog.savesEstimate)
+        XCTAssertTrue(relog.showsEstimateNoticeInFortification, "the notice sits below the answers")
     }
 
     // MARK: Unanswered Confirm: copy, decisions loop and Food details
@@ -183,6 +192,28 @@ final class PastedLabelConfirmV1PresentationTests: XCTestCase {
     }
 
     // MARK: Order and copy
+
+    func testTheSectionHeaderIsFortificationAndMethodsAreNeverIdentifiers() {
+        XCTAssertEqual(PastedLabelText.fortificationHeader, "Fortification")
+        for version in PastedLabelServingPolicy.admittedVersions {
+            XCTAssertEqual(FoodConfirmationView.ConversionFields.storedMethodLabel(try! LedgerText(version)), "From the label’s serving size")
+        }
+        XCTAssertEqual(PastedLabelText.conversionMethodLabel(FoodNamedServingPolicy.version), "From the recipe’s serving")
+        XCTAssertEqual(PastedLabelText.conversionMethodLabel(FoodSourceServingPolicy.version), "From the source’s serving size")
+        XCTAssertNil(PastedLabelText.conversionMethodLabel("weighed at home"), "user-typed text stays as typed")
+    }
+
+    func testTheSavedEntryShowsAPastedLabelsFortificationOnce() throws {
+        let (model, _) = try confirm()
+        model.send(.setQuantity(40, .grams))
+        model.answerLabelFortification(.notStated)
+        model.log()
+        let saved = try XCTUnwrap(model.savedResult)
+        let detail = SavedFoodEntryDetail(stored: saved, isEstimate: true, history: [])
+        XCTAssertEqual(detail.decisions.map(\.facet), [.fortification])
+        XCTAssertEqual(PastedLabelSavedEntryText.sourceDecisions(detail), [], "no second \"Fortification: Not sure\" row")
+        XCTAssertEqual(detail.pastedLabelFortification, "Not stated")
+    }
 
     func testTheSourceFooterAndSavedEntryTitleUseTheRouteCopy() {
         XCTAssertEqual(PastedLabelText.sourceFooter,

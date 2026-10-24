@@ -36,6 +36,27 @@ public enum PastedLabelText {
     public static let fortificationFooterYes = "Saved as a fortified food."
     public static let fortificationFooterNo = "Saved as not fortified."
     public static let fortificationFooterNotStated = "Fortification stays unknown, so this entry is marked as an estimate. The label’s values are kept as read."
+    /// A re-log or favourite of a stored label: only Not stated is inline (C6).
+    public static let fortificationFooterStored = "This saved label cannot be changed here. Choose Not stated, or use Add food details to say Yes or No."
+
+    public static func fortificationChoice(_ choice: FoodConfirmationViewModel.LabelFortification) -> String {
+        switch choice {
+        case .yes: fortificationYes
+        case .no: fortificationNo
+        case .notStated, .unanswered: fortificationNotStated
+        }
+    }
+
+    /// Plain copy for a stored quantity conversion method; identifiers stay in Developer tools.
+    public static func conversionMethodLabel(_ methodVersion: String) -> String? {
+        if PastedLabelServingPolicy.admittedVersions.contains(methodVersion) { return "From the label’s serving size" }
+        switch methodVersion {
+        case FoodNamedServingPolicy.version: return "From the recipe’s serving"
+        case FoodSourceServingPolicy.version: return "From the source’s serving size"
+        default: return nil
+        }
+    }
+
     public static let fortificationNotApplied = "The answer could not be applied. Your earlier answer is kept."
     public static let fortificationRequirement = "Answer whether the label says vitamins or minerals are added."
     public static let sourceFooter = "To change the name, brand or text, use Edit label text. To change a value, correct it in Nutrition from the label."
@@ -458,6 +479,12 @@ public enum NutrientOriginText {
 /// the calculated values' printed sources, through the one origin formatter.
 public enum PastedLabelSavedEntryText {
     public static let sectionTitle = "From pasted label"
+
+    /// The Source section's decision rows. A pasted label's fortification decision is already
+    /// shown as "Fortification on the label" (#306), so it is not repeated as "Not sure".
+    public static func sourceDecisions(_ detail: SavedFoodEntryDetail) -> [FoodLogFacetDecision] {
+        detail.pastedLabel == nil ? detail.decisions : detail.decisions.filter { $0.facet != .fortification }
+    }
 
     /// "about 555 kcal · Calculated", "12 g · Corrected by you", or the plain value.
     public static func value(_ total: FoodIntakeTotal, detail: SavedFoodEntryDetail) -> String {

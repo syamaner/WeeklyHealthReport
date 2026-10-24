@@ -52,7 +52,7 @@ public enum PastedLabelIdentity {
     }
 
     /// Yes is fortified, No is unfortified; unanswered is unknown. Unknown raises the existing
-    /// `sourceIdentityMissing` requirement, except on an editable pasted-label Confirm (or a
+    /// `sourceIdentityMissing` requirement, except on a new pasted-label Confirm (or a
     /// reopened Not stated entry), where it is an inline decision (pasted label Confirm v1, C4).
     public static func fortification(_ answer: FortificationAnswer) -> FortificationState {
         switch answer {
