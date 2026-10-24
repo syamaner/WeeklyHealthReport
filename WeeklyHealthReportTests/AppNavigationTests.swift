@@ -318,10 +318,16 @@ final class AppNavigationTests: XCTestCase {
         XCTAssertTrue(unavailable.isDisjoint(with: AppRoute.driveExportRoutes))
         XCTAssertEqual(AppRoute.restoredPath(from: "dailyExport", hasDraft: true, availableRoutes: unavailable), [])
         XCTAssertEqual(AppRoute.restoredPath(from: "exportDestination", hasDraft: false, availableRoutes: unavailable), [.settings])
+        // Export's notes would put the unavailable Export behind them, so they restore Home too.
+        for hasDraft in [true, false] {
+            XCTAssertEqual(AppRoute.restoredPath(from: "notes", hasDraft: hasDraft, availableRoutes: unavailable), [])
+            XCTAssertEqual(AppRoute.restoredPath(from: "noteEditor", hasDraft: hasDraft, availableRoutes: unavailable), [])
+        }
         // Everything else restores exactly as in a Drive-enabled build.
         let available = driveSettings(true).availableRoutes
         XCTAssertTrue(available.isSuperset(of: AppRoute.driveExportRoutes))
-        for route in AppRoute.allCases where !AppRoute.driveExportRoutes.contains(route) {
+        let restoredOnExport: Set<AppRoute> = AppRoute.driveExportRoutes.union([.notes, .noteEditor])
+        for route in AppRoute.allCases where !restoredOnExport.contains(route) {
             XCTAssertEqual(
                 AppRoute.restoredPath(from: route.rawValue, hasDraft: true, availableRoutes: unavailable),
                 AppRoute.restoredPath(from: route.rawValue, hasDraft: true, availableRoutes: available),

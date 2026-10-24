@@ -51,8 +51,8 @@ enum AppRoute: String, Codable, Hashable, CaseIterable {
     /// Rebuilds a navigation path from the last stored destination.
     /// Unknown values restore Home. Settings children that are not composed
     /// restore Settings itself. A destination missing from `availableRoutes`
-    /// is never the landing screen: Export restores Home and Drive setup
-    /// restores Settings (#305).
+    /// is never the landing screen or behind it: Export and its notes restore
+    /// Home and Drive setup restores Settings (#305).
     static func restoredPath(
         from storedDestination: String,
         hasDraft: Bool,
@@ -72,9 +72,13 @@ enum AppRoute: String, Codable, Hashable, CaseIterable {
             return [.todayNotes]
         case .todayNoteEditor:
             return hasDraft ? [.todayNotes, .todayNoteEditor] : [.todayNotes]
+        // Export's notes sit on Export, so they restore Home when Export is unavailable:
+        // the user never lands on or backs into the unavailable screen (#305).
         case .notes:
+            guard availableRoutes.contains(.dailyExport) else { return [] }
             return [.dailyExport, .notes]
         case .noteEditor:
+            guard availableRoutes.contains(.dailyExport) else { return [] }
             return hasDraft ? [.dailyExport, .notes, .noteEditor] : [.dailyExport, .notes]
         case .diagnostics:
             return []
