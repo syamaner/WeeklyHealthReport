@@ -73,12 +73,13 @@ final class FavouritesFromLoggedContractTests: XCTestCase {
     }
 
     /// #308: re-logging a favourite writes a new entry from the same source record. "Already a
-    /// favourite" follows that food and source, not only the bound version; a different source is
-    /// not a favourite. Reads only: no record or operation is written.
-    func testFavouriteFollowsItsFoodAndSourceAfterARelog() throws {
+    /// favourite" follows the food, source, preparation and amount, not only the bound version; the
+    /// same food at a different amount, or a different source, is not that favourite and can still
+    /// be saved. Reads only: no record or operation is written.
+    func testFavouriteFollowsItsFoodSourceAndAmountAfterARelog() throws {
         for context in try QuickAddFixtures.contexts() {
             defer { context.harness.cleanup() }
-            let saved = try context.logExact(83)
+            let saved = try context.logExact(83, amount: 100)
             let favourite = try context.favourites.saveFavourite(logItemVersionID: saved.logItemVersion.logItemVersionID)
             var state = try XCTUnwrap(context.confirmations.relogState(logItemID: saved.logItem.logItemID))
             FoodConfirmationReducer.reduce(state: &state, action: .accept)
@@ -86,18 +87,42 @@ final class FavouritesFromLoggedContractTests: XCTestCase {
             XCTAssertNotEqual(relogged.logItemVersion.logItemVersionID, saved.logItemVersion.logItemVersionID)
             XCTAssertNil(try context.favourites.projection().activeFavourite(boundTo: relogged.logItemVersion.logItemVersionID),
                          "the binding itself is unchanged")
-            let operations = try context.operations().count
             XCTAssertEqual(try context.favourites.activeFavourite(matchingSourceOf: relogged.logItemVersion.logItemVersionID), favourite,
                            context.harness.name)
             XCTAssertEqual(try context.favourites.activeFavourite(matchingSourceOf: saved.logItemVersion.logItemVersionID), favourite)
-            let source = relogged.candidateDecision.candidate
-            XCTAssertTrue(try context.favourites.hasActiveFavourite(sourceReleaseID: source.sourceReleaseID, recordID: source.recordID))
 
-            let other = try context.logExact(84)
+            // The same food at another amount is a different favourite: not matched, still savable.
+            var larger = try XCTUnwrap(context.confirmations.relogState(logItemID: saved.logItem.logItemID))
+            FoodConfirmationReducer.reduce(state: &larger, action: .setQuantity(150, .grams))
+            FoodConfirmationReducer.reduce(state: &larger, action: .accept)
+            let largerEntry = try context.confirmations.save(larger, operationID: context.ids.makeID(OperationTag.self))
+            XCTAssertNil(try context.favourites.activeFavourite(matchingSourceOf: largerEntry.logItemVersion.logItemVersionID))
+
+            let source = relogged.candidateDecision.candidate
+            let preparation = relogged.productVersion.identity.preparation.kind
+            typealias Key = FavouritesService.FavouriteMatchKey
+            XCTAssertTrue(try context.favourites.hasActiveFavourite(Key(sourceReleaseID: source.sourceReleaseID, recordID: source.recordID,
+                                                                        preparation: preparation, amountValue: 100, amountUnit: .grams)))
+            XCTAssertFalse(try context.favourites.hasActiveFavourite(Key(sourceReleaseID: source.sourceReleaseID, recordID: source.recordID,
+                                                                         preparation: preparation, amountValue: 150, amountUnit: .grams)))
+
+            let other = try context.logExact(84, amount: 100)
             XCTAssertNil(try context.favourites.activeFavourite(matchingSourceOf: other.logItemVersion.logItemVersionID), "another source")
-            let otherSource = other.candidateDecision.candidate
-            XCTAssertFalse(try context.favourites.hasActiveFavourite(sourceReleaseID: otherSource.sourceReleaseID, recordID: otherSource.recordID))
-            XCTAssertEqual(try context.operations().count, operations + 1, "only the second log wrote; matching reads only")
+
+            // One pass for a list: every version answered, and reading writes nothing.
+            let operations = try context.operations().count
+            let ids = [relogged, largerEntry, other, saved].map(\.logItemVersion.logItemVersionID)
+            let matches = try context.favourites.activeFavourites(matching: ids)
+            XCTAssertEqual(matches[relogged.logItemVersion.logItemVersionID], favourite)
+            XCTAssertEqual(matches[saved.logItemVersion.logItemVersionID], favourite)
+            XCTAssertNil(matches[largerEntry.logItemVersion.logItemVersionID])
+            XCTAssertNil(matches[other.logItemVersion.logItemVersionID])
+            XCTAssertEqual(try context.operations().count, operations, "matching reads only")
+
+            // A larger amount saved as its own favourite is allowed, and then matched by its own amount.
+            let second = try context.favourites.saveFavourite(logItemVersionID: largerEntry.logItemVersion.logItemVersionID)
+            XCTAssertNotEqual(second.favouriteID, favourite.favouriteID)
+            XCTAssertEqual(try context.favourites.activeFavourite(matchingSourceOf: relogged.logItemVersion.logItemVersionID), favourite)
         }
     }
 

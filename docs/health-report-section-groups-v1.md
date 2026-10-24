@@ -14,6 +14,8 @@ Copy all titles (v1; since [Copy all v2](health-copy-all-v2.md), #308, Copy all 
 
 ## 2. Groups and order
 
+Section names in this table are the v1 Copy all titles. Since [Copy all v2](health-copy-all-v2.md) (#308) Copy all, the screen and Full Page all use the display titles (Body composition, Blood pressure, Fitness and blood oxygen, Medications taken); the grouping is unchanged.
+
 | Group (heading) | Sections, in order |
 |---|---|
 | Daily activity | Steps, Activity |

@@ -195,12 +195,23 @@ final class FoodLedgerCompositionRoot {
     }
 
     /// Re-logging a favourite (Recent or quick add) does not offer Save as favourite again
-    /// (#308): the favourite follows its food and source, not only the entry it was saved from.
-    /// A read failure keeps the offer, as before.
+    /// (#308): the favourite follows its food, source, preparation and amount, not only the entry
+    /// it was saved from. The amount is the one Confirm opens with; a different amount is a
+    /// different favourite and keeps the offer. A read failure keeps the offer, as before.
     private func favouriteAction(unlessFavourite state: FoodConfirmationState) -> (@MainActor @Sendable (LogItemVersionID) throws -> Void)? {
-        let source = state.selectedCandidate.candidate
-        let isFavourite = (try? favourites.hasActiveFavourite(sourceReleaseID: source.sourceReleaseID, recordID: source.recordID)) ?? false
+        guard let key = Self.favouriteMatchKey(state) else { return favouriteAction }
+        let isFavourite = (try? favourites.hasActiveFavourite(key)) ?? false
         return isFavourite ? nil : favouriteAction
+    }
+
+    /// The opening Confirm state's favourite key: its source, preparation (a correction's when
+    /// present) and prefilled amount. Nil without an amount.
+    static func favouriteMatchKey(_ state: FoodConfirmationState) -> FavouritesService.FavouriteMatchKey? {
+        guard let value = state.quantity.value else { return nil }
+        let source = state.selectedCandidate.candidate
+        let preparation = state.correction?.identity.preparation.kind ?? source.identity.preparation.kind
+        return FavouritesService.FavouriteMatchKey(sourceReleaseID: source.sourceReleaseID, recordID: source.recordID,
+                                                   preparation: preparation, amountValue: value, amountUnit: state.quantity.unit)
     }
 
     func favouritesModel() -> FavouritesViewModel { FavouritesViewModel(store: favourites) }

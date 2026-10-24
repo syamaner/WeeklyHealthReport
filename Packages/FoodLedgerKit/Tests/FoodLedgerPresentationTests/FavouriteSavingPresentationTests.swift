@@ -36,13 +36,18 @@ final class FavouriteSavingPresentationTests: XCTestCase {
             return try XCTUnwrap(projection().activeFavourite(boundTo: logItemVersionID))
         }
 
-        /// Versions logged from the same source as an active favourite's version (#308).
+        /// Versions with the same food, source, preparation and amount as an active favourite's (#308).
         var sameSource: [LogItemVersionID: LogItemVersionID] = [:]
+        private(set) var matchReads = 0
 
-        func activeFavourite(matchingSourceOf logItemVersionID: LogItemVersionID) throws -> FavouriteVersion? {
+        func activeFavourites(matching logItemVersionIDs: [LogItemVersionID]) throws -> [LogItemVersionID: FavouriteVersion] {
+            matchReads += 1
             let projection = try projection()
-            return projection.activeFavourite(boundTo: logItemVersionID)
-                ?? sameSource[logItemVersionID].flatMap { projection.activeFavourite(boundTo: $0) }
+            var result: [LogItemVersionID: FavouriteVersion] = [:]
+            for id in logItemVersionIDs {
+                result[id] = projection.activeFavourite(boundTo: id) ?? sameSource[id].flatMap { projection.activeFavourite(boundTo: $0) }
+            }
+            return result
         }
     }
 
@@ -55,6 +60,7 @@ final class FavouriteSavingPresentationTests: XCTestCase {
         store.sameSource = [relog: original]
         let model = FavouriteSaveModel(store: store)
         model.refresh([relog, other])
+        XCTAssertEqual(store.matchReads, 1, "one read per refresh, not one per row")
         XCTAssertEqual(model.state(for: relog), .alreadyFavourite)
         XCTAssertEqual(model.state(for: other), .available)
         model.save(relog)

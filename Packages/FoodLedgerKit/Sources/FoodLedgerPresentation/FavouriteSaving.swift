@@ -10,17 +10,25 @@ public protocol FavouriteSaving: AnyObject {
     func projection() throws -> FavouritesProjection
     @discardableResult
     func saveFavourite(logItemVersionID: LogItemVersionID) throws -> FavouriteVersion
-    /// The active favourite for the same food and source as this logged version, if any (#308).
-    func activeFavourite(matchingSourceOf logItemVersionID: LogItemVersionID) throws -> FavouriteVersion?
+    /// The matching active favourite for each version (same food, source, preparation and amount),
+    /// read in one pass (#308).
+    func activeFavourites(matching logItemVersionIDs: [LogItemVersionID]) throws -> [LogItemVersionID: FavouriteVersion]
 }
 
 extension FavouritesService: FavouriteSaving {}
 
 public extension FavouriteSaving {
-    /// The active favourite for this version's food and source (#308). The default matches the
-    /// bound version only; `FavouritesService` also matches the same source record.
+    /// The active favourite matching this version (#308). The default matches the bound version
+    /// only; `FavouritesService` also matches the same source, preparation and amount.
     func activeFavourite(matchingSourceOf logItemVersionID: LogItemVersionID) throws -> FavouriteVersion? {
-        try projection().activeFavourite(boundTo: logItemVersionID)
+        try activeFavourites(matching: [logItemVersionID])[logItemVersionID]
+    }
+
+    func activeFavourites(matching logItemVersionIDs: [LogItemVersionID]) throws -> [LogItemVersionID: FavouriteVersion] {
+        let projection = try projection()
+        var result: [LogItemVersionID: FavouriteVersion] = [:]
+        for id in logItemVersionIDs { result[id] = projection.activeFavourite(boundTo: id) }
+        return result
     }
 }
 
@@ -82,12 +90,14 @@ public final class FavouriteSaveModel: ObservableObject {
     /// Marks each version already pinned by an active favourite. A version saved here keeps
     /// "Saved as favourite"; one whose favourite was removed elsewhere becomes available again.
     /// When favourites cannot be read the control stays available and a save reports its own result.
-    /// A version counts as a favourite when an active favourite has the same food and source, so
-    /// re-logging a favourite keeps "Already a favourite" (#308).
+    /// A version counts as a favourite when an active favourite has the same food, source,
+    /// preparation and amount, so re-logging a favourite keeps "Already a favourite" (#308). The
+    /// matches are read once per refresh, not once per row.
     public func refresh(_ ids: [LogItemVersionID]) {
+        let matches = try? store.activeFavourites(matching: ids)
         var next: [LogItemVersionID: FavouriteSaveState] = [:]
         for id in ids {
-            let active = (try? store.activeFavourite(matchingSourceOf: id)) != nil
+            let active = matches?[id] != nil
             switch (states[id], active) {
             case (.saved?, true): next[id] = .saved
             case (_, true): next[id] = .alreadyFavourite
