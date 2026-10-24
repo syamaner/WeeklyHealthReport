@@ -56,6 +56,8 @@ public struct AddFoodView: View {
     private let favourites: (() -> Void)?
     /// Nil when favourites cannot be read: shown as a failure with a way to Favourites, never as empty.
     private let favouriteItems: [QuickAddItem]?
+    /// Whether a favourite's count amount means servings of a pasted label (#306).
+    private let favouriteAmountIsServings: (QuickAddItem) -> Bool
     private let quickAdd: ((QuickAddItem) -> Void)?
     private let relog: (FoodRecentRelogItem) -> Void
     /// Save as favourite on recent rows (owner decision A); nil hides it.
@@ -68,7 +70,8 @@ public struct AddFoodView: View {
                 initialText: String = "",
                 search: @escaping (String) -> Void, scanBarcode: (() -> Void)?, pasteOrDictate: (() -> Void)?,
                 pasteLabel: (() -> Void)? = nil,
-                favourites: (() -> Void)?, favouriteItems: [QuickAddItem]? = [], quickAdd: ((QuickAddItem) -> Void)? = nil,
+                favourites: (() -> Void)?, favouriteItems: [QuickAddItem]? = [], favouriteAmountIsServings: @escaping (QuickAddItem) -> Bool = { _ in false },
+                quickAdd: ((QuickAddItem) -> Void)? = nil,
                 favouriteSaving: FavouriteSaveModel? = nil,
                 listImportNote: String? = nil,
                 relog: @escaping (FoodRecentRelogItem) -> Void) {
@@ -76,7 +79,7 @@ public struct AddFoodView: View {
         self.recents = recents; self.now = now; self.calendar = calendar
         self.favouriteSaving = favouriteSaving
         self.search = search; self.scanBarcode = scanBarcode; self.pasteOrDictate = pasteOrDictate; self.pasteLabel = pasteLabel
-        self.favourites = favourites; self.favouriteItems = favouriteItems; self.quickAdd = quickAdd; self.relog = relog
+        self.favourites = favourites; self.favouriteItems = favouriteItems; self.favouriteAmountIsServings = favouriteAmountIsServings; self.quickAdd = quickAdd; self.relog = relog
         _text = State(initialValue: initialText)
     }
 
@@ -121,7 +124,7 @@ public struct AddFoodView: View {
                             HStack {
                                 Text(QuickAddText.title(item)).foregroundStyle(.primary)
                                 Spacer(minLength: 8)
-                                Text(QuickAddText.defaultAmount(item)).font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
+                                Text(QuickAddText.defaultAmount(item, servings: favouriteAmountIsServings(item))).font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
                             }.frame(minHeight: 44).contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)

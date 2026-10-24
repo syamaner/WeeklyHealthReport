@@ -7,6 +7,8 @@ public protocol FavouritesManaging: AnyObject {
     func projection() throws -> FavouritesProjection
     /// Nil when the favourite's source can no longer be verified.
     func isEstimate(_ version: FavouriteVersion) -> Bool?
+    /// Whether the favourite's count amount means servings of a pasted label (#306).
+    func amountIsServings(_ version: FavouriteVersion) -> Bool
     func rename(_ favouriteID: FavouriteID, to label: LedgerText) throws
     func setDefaultAmount(_ favouriteID: FavouriteID, to amount: FavouriteAmount) throws
     func remove(_ favouriteID: FavouriteID) throws
@@ -75,7 +77,8 @@ public final class FavouritesViewModel: ObservableObject {
         case let .favourite(version):
             let estimate = store.isEstimate(version)
             return FavouriteRow(id: version.favouriteID.rawValue, item: item, title: QuickAddText.title(item),
-                                detail: QuickAddText.detail(item, isEstimate: estimate), isUnverifiable: estimate == nil)
+                                detail: QuickAddText.detail(item, isEstimate: estimate, servings: store.amountIsServings(version)),
+                                isUnverifiable: estimate == nil)
         }
     }
 

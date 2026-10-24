@@ -36,7 +36,6 @@ final class PastedLabelRouteTests: XCTestCase {
         let root = try makeRoot()
         let model = root.pastedLabelTextModel(locale: Locale(identifier: "en_GB"))
         model.name = "Synthetic oat crackers"
-        model.fortification = .no
         model.text = Self.base
         let source = try XCTUnwrap(model.readLabel(), "\(model.declineMessages)")
         XCTAssertFalse(root.searchDiagnostics.pastedLabelLines.isEmpty, "Developer tools show the reading while the screen is open")
@@ -48,7 +47,8 @@ final class PastedLabelRouteTests: XCTestCase {
 
         let confirm = root.model(for: try XCTUnwrap(source.input), prefillSourceQuantity: false)
         let view = root.pastedLabelConfirmation(confirm, source: source, editLabelText: {}, leave: {})
-        XCTAssertTrue(confirm.missingSourceDetails.isEmpty, "Fortified? answered: no sourceIdentityMissing")
+        answer(confirm, source)
+        XCTAssertTrue(confirm.missingSourceDetails.isEmpty, "Fortification answered on Confirm: no sourceIdentityMissing")
         XCTAssertNil(source.setValue("fibre", text: "9.8", unit: "g"), "printed 9.6, corrected by the user")
         XCTAssertEqual(confirm.state.selectedCandidate.candidate.nutrients.entries.first { $0.key == .fiber }?.value.provenance.first?.sourceKind,
                        .manualDeclaration, "a correction replaces Confirm's source input")
@@ -88,12 +88,14 @@ final class PastedLabelRouteTests: XCTestCase {
         let root = try makeRoot()
         let model = root.pastedLabelTextModel(locale: Locale(identifier: "en_GB"))
         model.name = "Synthetic oat crackers"
-        model.fortification = .no
         model.text = Self.base
         let source = try XCTUnwrap(model.readLabel(), "\(model.declineMessages)")
         XCTAssertEqual(source.sourceLine, "From pasted label · per 100 g · Traditional Chinese, Taiwan layout")
         let confirm = root.model(for: try XCTUnwrap(source.input), prefillSourceQuantity: false)
         let view = root.pastedLabelConfirmation(confirm, source: source, editLabelText: {}, leave: {})
+        answer(confirm, source)
+        XCTAssertEqual(confirm.state.quantity.unit, .count, "#306 C8: servings by default when the label states a serving")
+        XCTAssertNil(confirm.state.quantity.value, "no amount is chosen for the user")
         XCTAssertTrue(confirm.countsPastedLabelServings)
         XCTAssertEqual(confirm.pastedLabelWholePack, PastedLabelWholePack(servings: 2, origin: .printed))
         confirm.chooseWholePack()
@@ -114,7 +116,6 @@ final class PastedLabelRouteTests: XCTestCase {
         let root = try makeRoot()
         let model = root.pastedLabelTextModel(locale: Locale(identifier: "en_GB"))
         model.name = "Synthetic oat crackers"
-        model.fortification = .no
         model.text = (["營養標示", "每一份量 25-30 公克", "本包裝含約10份", "　　　　每份  每100公克"] + Self.rows).joined(separator: "\n") + "\n"
         let source = try XCTUnwrap(model.readLabel(), "\(model.declineMessages)")
         let size = try XCTUnwrap(source.servingLines.first)
@@ -142,16 +143,19 @@ final class PastedLabelRouteTests: XCTestCase {
         let source = try XCTUnwrap(model.readLabel())
         XCTAssertTrue(model.declineMessages.isEmpty)
         XCTAssertEqual(source.pastedText, Self.base)
-        // Fortified? left unanswered: the existing details requirement, never a block on reading.
+        // Fortification is asked on Confirm (#306): an inline question, never the details form.
         let confirm = root.model(for: try XCTUnwrap(source.input), prefillSourceQuantity: false)
-        XCTAssertEqual(confirm.missingSourceDetails, [.fortification])
+        confirm.answersLabelFortification(for: source)
+        XCTAssertEqual(confirm.missingSourceDetails, [])
+        XCTAssertNil(confirm.foodDetailsActionTitle)
+        XCTAssertEqual(confirm.labelFortification, .unanswered)
+        XCTAssertTrue(confirm.requirements.contains(.decideDifference(.fortification)))
     }
 
     func testAKilojouleOnlyLabelShowsCalculatedEnergyEverywhere() throws {
         let root = try makeRoot()
         let model = root.pastedLabelTextModel(locale: Locale(identifier: "en_GB"))
         model.name = "Synthetic oat crackers"
-        model.fortification = .no
         model.text = Self.kilojoulesOnly
         let source = try XCTUnwrap(model.readLabel(), "\(model.declineMessages)")
         let energy = try XCTUnwrap(source.rows.first { $0.id == "energy_kcal" })
@@ -164,6 +168,7 @@ final class PastedLabelRouteTests: XCTestCase {
         XCTAssertTrue(energy.originText.hasPrefix("Calculated from 1754 kJ (printed)"))
         let confirm = root.model(for: try XCTUnwrap(source.input), prefillSourceQuantity: false)
         _ = root.pastedLabelConfirmation(confirm, source: source, editLabelText: {}, leave: {})
+        answer(confirm, source)
         confirm.send(.setQuantity(100, .grams))
         confirm.log()
         let saved = try XCTUnwrap(confirm.savedResult)
@@ -181,7 +186,6 @@ final class PastedLabelRouteTests: XCTestCase {
         let root = try makeRoot()
         let model = root.pastedLabelTextModel(locale: Locale(identifier: "en_GB"))
         model.name = "Synthetic oat crackers"
-        model.fortification = .no
         model.text = Self.base.replacingOccurrences(of: "每一份量 40 公克", with: "每一份量\n40 公克")
             .replacingOccurrences(of: "本包裝含 2 份", with: "本包裝含\n2 份")
         let source = try XCTUnwrap(model.readLabel(), "\(model.declineMessages)")
@@ -245,6 +249,13 @@ final class PastedLabelRouteTests: XCTestCase {
 
     // MARK: Helpers
 
+    /// What the paste route does on opening Confirm, then the user's answer (#306).
+    private func answer(_ confirm: FoodConfirmationViewModel, _ source: PastedLabelSourceModel,
+                        _ answer: FoodConfirmationViewModel.LabelFortification = .no) {
+        confirm.answersLabelFortification(for: source)
+        confirm.answerLabelFortification(answer)
+    }
+
     // MARK: Reader v3 PR 4: the basis sheet journey (section 8.4, contract test 16)
 
     /// A synthetic one-column table whose column heading did not copy, with its energy line
@@ -257,7 +268,6 @@ final class PastedLabelRouteTests: XCTestCase {
         let root = try makeRoot()
         let model = root.pastedLabelTextModel(locale: Locale(identifier: "en_GB"))
         model.name = "Synthetic chosen crackers"
-        model.fortification = .no
         model.text = Self.unheaded
         XCTAssertNil(model.readLabel(), "the basis sheet comes first")
         let sheet = try XCTUnwrap(model.basisSheet, "\(model.declineMessages)")
@@ -276,6 +286,7 @@ final class PastedLabelRouteTests: XCTestCase {
         XCTAssertTrue(root.searchDiagnostics.pastedLabelLines.contains { $0.hasPrefix("Basis: per serving · Chosen by you") })
         let confirm = root.model(for: try XCTUnwrap(source.input), prefillSourceQuantity: false)
         let view = root.pastedLabelConfirmation(confirm, source: source, editLabelText: {}, leave: {})
+        answer(confirm, source)
         render(NavigationStack { view }, "Pasted label - Confirm chosen basis")
         // Change: the current choice is labelled, dismissing keeps it.
         source.changeBasis?()
@@ -297,8 +308,8 @@ final class PastedLabelRouteTests: XCTestCase {
     }
 
     /// Journey QA 1 of #284 and #282: at accessibility-extra-extra-extra-large, with the chosen
-    /// option's plausibility warnings and Fortified? not answered, only Log stays pinned; the
-    /// warnings and hint scroll with the content, and the Fortified? answers show in full.
+    /// option's plausibility warnings and fortification not answered, only Log stays pinned; the
+    /// warnings and hint scroll with the content, and the fortification answers show in full (#306).
     func testAtTheLargestTextSizeOnlyLogIsPinnedAndNothingIsTruncated() throws {
         let root = try makeRoot()
         let model = root.pastedLabelTextModel(locale: Locale(identifier: "en_GB"))
@@ -313,7 +324,9 @@ final class PastedLabelRouteTests: XCTestCase {
         let source = try XCTUnwrap(model.chooseBasis(option.arrangement))
         XCTAssertEqual(source.warnings.count, 2)
         let confirm = root.model(for: try XCTUnwrap(source.input), prefillSourceQuantity: false)
-        XCTAssertNotNil(confirm.blockedReason, "Fortified? not answered and no amount: a hint beside Log")
+        confirm.answersLabelFortification(for: source)
+        XCTAssertEqual(confirm.blockedReason, "Answer whether the label says vitamins or minerals are added.",
+                       "fortification not answered and no amount: the label-wording hint beside Log")
         XCTAssertTrue(FoodConfirmationView.pinsOnlyLog(isAccessibilitySize: true, warningCount: source.warnings.count,
                                                        hasBlockedReason: true, hasEstimate: false))
         let view = root.pastedLabelConfirmation(confirm, source: source, editLabelText: {}, leave: {})

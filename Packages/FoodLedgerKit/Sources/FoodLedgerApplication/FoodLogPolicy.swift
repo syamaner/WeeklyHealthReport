@@ -72,7 +72,10 @@ public enum FoodLogPolicy {
     }
 
     public static func offeredChoices(_ state: FoodConfirmationState, facet: IdentityContradiction) -> [FoodLogDecisionChoice] {
-        FoodLogFacetDecision.offeredChoices(facet: facet, sourceState: sourceState(state, facet: facet))
+        if facet == .fortification, PastedLabelFortificationPolicy.applies(state) {
+            return PastedLabelFortificationPolicy.offeredChoices
+        }
+        return FoodLogFacetDecision.offeredChoices(facet: facet, sourceState: sourceState(state, facet: facet))
     }
 
     /// The typed record for the current decisions, or nil when there are none.
@@ -81,6 +84,11 @@ public enum FoodLogPolicy {
         let pending = pendingDifferences(state)
         guard Set(state.decisions.keys) == Set(pending) else { throw FoodConfirmationSaveError.staleDecisions }
         guard !pending.isEmpty else { return nil }
+        // Pasted label Confirm v1 C5: Yes and No change the source; only Not stated is recorded.
+        if let choice = state.decisions[.fortification], PastedLabelFortificationPolicy.applies(state),
+           !PastedLabelFortificationPolicy.offeredChoices.contains(choice) {
+            throw FoodConfirmationSaveError.staleDecisions
+        }
         do {
             return try FoodLogDecisionRecord(policyVersion: LedgerText(FoodLogDecisionRecord.currentPolicyVersion),
                 decisions: IdentityContradiction.allCases.filter(pending.contains).map { facet in

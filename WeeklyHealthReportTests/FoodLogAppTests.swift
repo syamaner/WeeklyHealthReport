@@ -1151,7 +1151,7 @@ final class QuickAddAppTests: XCTestCase {
         populated.reload()
         XCTAssertEqual(populated.today.count, 2)
         let chips = try XCTUnwrap(root.quickAddItems())
-        XCTAssertTrue(chips.map(QuickAddText.defaultAmount).contains("150 g"))
+        XCTAssertTrue(chips.map { QuickAddText.defaultAmount($0) }.contains("150 g"))
         for (size, scheme, name) in [(DynamicTypeSize.large, ColorScheme.light, "standard light"), (.accessibility3, .dark, "accessibility dark")] {
             render(NavigationStack { FavouritesView(model: populated, createFromSearch: {}, createFromBarcode: {}, createFromWebLookup: {}) }
                 .environment(\.dynamicTypeSize, size).preferredColorScheme(scheme), "Favourites - \(name)")

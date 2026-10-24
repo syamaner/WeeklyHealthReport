@@ -14,14 +14,19 @@ public enum QuickAddText {
     /// most Cancel, the title and one trailing action and the title is not truncated (#224).
     public static func showsEdit(amountFocus: AmountFieldFocus?) -> Bool { !AmountFieldFocus.showsDone(amountFocus) }
 
-    public static func amount(_ value: Double, unit: QuantityUnit, locale: Locale = .current) -> String {
+    /// `servings` is true when a count means servings of a pasted label (#306 journey QA).
+    public static func amount(_ value: Double, unit: QuantityUnit, servings: Bool = false, locale: Locale = .current) -> String {
         let number = value.formatted(.number.precision(.fractionLength(0...2)).locale(locale))
         switch unit {
         case .grams: return "\(number) g"
         case .millilitres: return "\(number) mL"
+        case .count where servings: return value == 1 ? "1 serving" : "\(number) servings"
         case .count: return value == 1 ? "1 piece" : "\(number) pieces"
         }
     }
+
+    /// The unit word for the sheet's "Other amount" field.
+    public static func countWord(servings: Bool) -> String { servings ? "servings" : FoodAmountNoun.countUnitLabel }
 
     public static func title(_ item: QuickAddItem) -> String {
         switch item {
@@ -30,15 +35,15 @@ public enum QuickAddText {
         }
     }
 
-    public static func defaultAmount(_ item: QuickAddItem) -> String {
+    public static func defaultAmount(_ item: QuickAddItem, servings: Bool = false) -> String {
         switch item {
         case .builtInWater: amount(QuickAddItem.builtInWaterMillilitres, unit: .millilitres)
-        case let .favourite(version): amount(version.defaultAmount.value, unit: version.defaultAmount.unit)
+        case let .favourite(version): amount(version.defaultAmount.value, unit: version.defaultAmount.unit, servings: servings)
         }
     }
 
     /// "Water 250 mL".
-    public static func chip(_ item: QuickAddItem) -> String { "\(title(item)) \(defaultAmount(item))" }
+    public static func chip(_ item: QuickAddItem, servings: Bool = false) -> String { "\(title(item)) \(defaultAmount(item, servings: servings))" }
 
     public static func isPlainWater(_ item: QuickAddItem) -> Bool {
         switch item {
@@ -48,10 +53,11 @@ public enum QuickAddText {
     }
 
     /// "250 mL · plain water", "150 g · Estimate", "150 g".
-    public static func detail(_ item: QuickAddItem, isEstimate: Bool?, locale: Locale = .current) -> String {
-        if isPlainWater(item) { return "\(defaultAmount(item)) · plain water" }
-        guard let isEstimate else { return "\(defaultAmount(item)) · \(unverifiable)" }
-        return isEstimate ? "\(defaultAmount(item)) · Estimate" : defaultAmount(item)
+    public static func detail(_ item: QuickAddItem, isEstimate: Bool?, servings: Bool = false, locale: Locale = .current) -> String {
+        let amount = defaultAmount(item, servings: servings)
+        if isPlainWater(item) { return "\(amount) · plain water" }
+        guard let isEstimate else { return "\(amount) · \(unverifiable)" }
+        return isEstimate ? "\(amount) · Estimate" : amount
     }
 }
 
@@ -59,10 +65,12 @@ public enum QuickAddText {
 public struct QuickAddChipRow: View {
     private let items: [QuickAddItem]
     private let open: (QuickAddItem) -> Void
+    private let servings: (QuickAddItem) -> Bool
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
-    public init(items: [QuickAddItem], open: @escaping (QuickAddItem) -> Void) {
-        self.items = items; self.open = open
+    public init(items: [QuickAddItem], servings: @escaping (QuickAddItem) -> Bool = { _ in false },
+                open: @escaping (QuickAddItem) -> Void) {
+        self.items = items; self.open = open; self.servings = servings
     }
 
     public var body: some View {
@@ -75,7 +83,7 @@ public struct QuickAddChipRow: View {
                         // The amount is always shown in full; a long name truncates instead.
                         VStack(alignment: .leading, spacing: 2) {
                             Text(QuickAddText.title(item)).lineLimit(2).truncationMode(.tail)
-                            Text(QuickAddText.defaultAmount(item)).font(.subheadline).monospacedDigit()
+                            Text(QuickAddText.defaultAmount(item, servings: servings(item))).font(.subheadline).monospacedDigit()
                                 .fixedSize(horizontal: false, vertical: true).layoutPriority(1)
                         }
                         .multilineTextAlignment(.leading)
@@ -86,7 +94,7 @@ public struct QuickAddChipRow: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.bordered)
-                .accessibilityLabel("Quick add \(QuickAddText.chip(item))")
+                .accessibilityLabel("Quick add \(QuickAddText.chip(item, servings: servings(item)))")
                 .accessibilityHint("Opens quick add. Nothing is logged until you choose Log.")
             }
         }
@@ -129,6 +137,8 @@ public final class QuickAddSheetModel: ObservableObject, Identifiable {
 
     public var title: String { "Quick add \(preparation.label)" }
     public var unit: QuantityUnit { preparation.defaultAmount.unit }
+    /// A pasted label's count is servings (#306 journey QA), from the rebuilt source itself.
+    public var amountIsServings: Bool { unit == .count && state.pastedLabelServing != nil }
 
     /// Water: 150, 250, 330 and 500 mL. A food favourite: its default amount (Q5).
     public var presets: [Double] {
@@ -152,14 +162,14 @@ public final class QuickAddSheetModel: ObservableObject, Identifiable {
     /// "Log 250 mL".
     public var logTitle: String {
         guard let value = state.quantity.value, value.isFinite, value > 0 else { return "Log" }
-        return "Log \(QuickAddText.amount(value, unit: unit))"
+        return "Log \(QuickAddText.amount(value, unit: unit, servings: amountIsServings))"
     }
 
     /// The banner after Log (owner decision, 15 October 2026): "Logged · 250 mL", the figure the
     /// sheet's Log button showed. Nil until the one successful Log.
     public var loggedNotice: FoodLoggedNotice? {
         guard phase == .saved, let saved = savedResult else { return nil }
-        let figure = state.quantity.value.flatMap { $0.isFinite && $0 > 0 ? QuickAddText.amount($0, unit: unit) : nil }
+        let figure = state.quantity.value.flatMap { $0.isFinite && $0 > 0 ? QuickAddText.amount($0, unit: unit, servings: amountIsServings) : nil }
         return FoodLoggedNotice(saved: saved, message: FoodLoggedText.message(figure: figure, withoutNutrition: false, savedFavourite: false))
     }
 
@@ -252,7 +262,7 @@ public struct QuickAddSheet: View {
                 ForEach(model.presets, id: \.self) { value in
                     Button { model.choosePreset(value); showsOther = false } label: {
                         HStack {
-                            Text(QuickAddText.amount(value, unit: model.unit)).foregroundStyle(.primary)
+                            Text(QuickAddText.amount(value, unit: model.unit, servings: model.amountIsServings)).foregroundStyle(.primary)
                             Spacer()
                             if model.selectedPreset == value && !showsOther {
                                 Image(systemName: "checkmark").foregroundStyle(.tint).accessibilityHidden(true)
@@ -276,8 +286,8 @@ public struct QuickAddSheet: View {
                         TextField("Amount", text: $text)
                             .amountKeyboard($editingAmount, .quickAddOther)
                             .onChange(of: text) { _, value in model.setCustomText(FoodAmountFieldText.reducerText(value, locale: locale)) }
-                            .accessibilityLabel("Other amount in \(model.unit == .millilitres ? "millilitres" : model.unit == .grams ? "grams" : FoodAmountNoun.countUnitLabel)")
-                        Text(model.unit == .count ? FoodAmountNoun.countUnitLabel : model.unit == .millilitres ? "mL" : "g").foregroundStyle(.secondary)
+                            .accessibilityLabel("Other amount in \(model.unit == .millilitres ? "millilitres" : model.unit == .grams ? "grams" : QuickAddText.countWord(servings: model.amountIsServings))")
+                        Text(model.unit == .count ? QuickAddText.countWord(servings: model.amountIsServings) : model.unit == .millilitres ? "mL" : "g").foregroundStyle(.secondary)
                     }.frame(minHeight: 44)
                 }
             }

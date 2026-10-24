@@ -172,6 +172,13 @@ public struct FoodConfirmationState: Codable, Equatable, Sendable {
     public var decisions: [IdentityContradiction: FoodLogDecisionChoice]
     /// Explicit occurrence time. Nil on a new entry means "Now", resolved at commit.
     public var occurredAt: Date?
+    /// Pasted label Confirm v1 (#306) C4: set only through the presentation entry point for an
+    /// editable pasted-label source (a new reading). Transient: never encoded, decodes as false.
+    public var answersLabelFortification = false
+
+    private enum CodingKeys: String, CodingKey {
+        case input, selectedCandidateIndex, decision, correction, quantity, phase, reopened, decisions, occurredAt
+    }
 
     public init(input: PopulatedFoodConfirmation, reopened: StoredFoodConfirmation? = nil,
                 queryQuantity: ParsedFoodQuery.Quantity? = nil, prefillSourceQuantity: Bool = true) {
@@ -229,11 +236,18 @@ public struct FoodConfirmationState: Codable, Equatable, Sendable {
             default: break
             }
         }
-        // A pasted label per 100 ml opens on millilitres, its basis unit (#93).
-        if reopened == nil, input.candidates[0].candidate.identity.servingBasis == .per100Millilitres,
-           input.sourceReleases.contains(where: { $0.sourceReleaseID == input.candidates[0].candidate.sourceReleaseID
-               && $0.sourceID.value == PastedLabelSource.sourceID }), quantity.value == nil {
+        // A pasted label per 100 ml opens on millilitres, its basis unit (#93). One scope
+        // predicate, panel admission (pasted label Confirm v1, C6a).
+        let pastedLabel = PastedLabelFortificationPolicy.isPastedLabel(input, candidate: input.candidates[0])
+        if reopened == nil, pastedLabel, input.candidates[0].candidate.identity.servingBasis == .per100Millilitres,
+           quantity.value == nil {
             quantity = FoodQuantityDraft(unit: .millilitres)
+        }
+        // Pasted label Confirm v1 (#306) C8: servings by default when the label states a serving.
+        // Only the unit; the amount stays empty.
+        if reopened == nil, pastedLabel, quantity.value == nil, quantity.directWeight == nil,
+           PastedLabelServingPolicy.serving(input, candidate: input.candidates[0]) != nil {
+            quantity = FoodQuantityDraft(unit: .count)
         }
         if reopened == nil, FoodSourceServingPolicy.applies(input, candidate: input.candidates[0])
             || PastedLabelServingPolicy.servingsOnly(input, candidate: input.candidates[0]) {
@@ -259,10 +273,14 @@ public struct FoodConfirmationState: Codable, Equatable, Sendable {
     }
 
     public var unresolvedIdentity: [IdentityContradiction] {
-        FoodConfirmationPolicy.unresolvedIdentity(
+        let missing = FoodConfirmationPolicy.unresolvedIdentity(
             correction?.identity ?? reopened?.productVersion.identity ?? selectedCandidate.candidate.identity,
             allowingEstimate: isGenericEstimate
         )
+        // Pasted label Confirm v1 (#306) C4: on an editable pasted label, or a reopened entry that
+        // recorded Not stated, unknown fortification is an inline decision, not missing identity.
+        guard PastedLabelFortificationPolicy.applies(self) else { return missing }
+        return missing.filter { $0 != .fortification }
     }
 
     public var materialDifferences: [IdentityContradiction] {
@@ -584,7 +602,10 @@ public final class FoodConfirmationService: @unchecked Sendable {
                 candidate: selected.candidate,
                 expectedIdentity: identity,
                 expectedEdibleQuantity: state.input.expectedEdibleQuantity,
-                requestedOutcome: state.correction == nil && (!state.isGenericEstimate || IdentityCompatibility.contradictions(
+                // An unknown-identity estimate (generic, or a pasted label's Not stated, #306) is
+                // recorded `rejected` with its contradiction reasons, as v2 records generic ones.
+                requestedOutcome: state.correction == nil && ((!state.isGenericEstimate && !PastedLabelFortificationPolicy.applies(state))
+                    || IdentityCompatibility.contradictions(
                     between: identity, and: selected.candidate.identity,
                     expectedEdibleQuantity: state.input.expectedEdibleQuantity,
                     candidateEdibleQuantity: selected.candidate.edibleQuantity

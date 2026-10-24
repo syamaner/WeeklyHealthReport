@@ -3,7 +3,7 @@ import FoodLedgerDomain
 import SwiftUI
 
 /// The label text screen (`docs/pasted-nutrition-label-v1.md` sections 2.2, 3.1 and 3.3): Name,
-/// optional Brand, optional Fortified?, and the pasted text. Read label runs the on-device
+/// optional Brand and the pasted text (fortification is asked on Confirm, #306). Read label runs the on-device
 /// reader through the application's `PastedLabelReader`; a hard decline keeps the user here with
 /// the text and name kept and a plain reason above the field. Nothing is saved here, and the
 /// text lives only in this model: never in scene or app storage, never read from the pasteboard
@@ -18,7 +18,6 @@ public final class PastedLabelTextViewModel: ObservableObject {
 
     @Published public var name = ""
     @Published public var brand = ""
-    @Published public var fortification: PastedLabelIdentity.FortificationAnswer = .unanswered
     @Published public var text = ""
     @Published public private(set) var phase: Phase = .editing
     /// Confirm for the current reading, kept while the user edits the text so Cancel on the
@@ -81,8 +80,10 @@ public final class PastedLabelTextViewModel: ObservableObject {
 
     public var details: PastedLabelDetails {
         let trimmedBrand = brand.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Fortification is asked once, on Confirm (pasted label Confirm v1, C1): a new reading
+        // always starts unanswered.
         return PastedLabelDetails(name: name.trimmingCharacters(in: .whitespacesAndNewlines),
-                                  brand: trimmedBrand.isEmpty ? nil : trimmedBrand, fortification: fortification)
+                                  brand: trimmedBrand.isEmpty ? nil : trimmedBrand)
     }
 
     // MARK: Read label (section 2.2)
@@ -133,10 +134,12 @@ public final class PastedLabelTextViewModel: ObservableObject {
     /// "Cancel" on the question: every correction is kept.
     public func cancelReadAgain() { asksToReplaceCorrections = false }
 
-    /// "Back to Confirm": the kept Confirm, with any new name, brand or Fortified? answer.
+    /// "Back to Confirm": the kept Confirm, with any new name or brand. The fortification answer
+    /// is Confirm's and is kept (pasted label Confirm v1, C12).
     public func returnToConfirm() -> PastedLabelSourceModel? {
         guard canReturnToConfirm, let confirm else { return nil }
-        confirm.updateDetails(details)
+        let current = details
+        confirm.updateNameAndBrand(name: current.name, brand: current.brand)
         return confirm
     }
 
@@ -347,7 +350,7 @@ public final class PastedLabelTextViewModel: ObservableObject {
 
     /// The screen closed ("Leave without saving", back, or after Log): nothing is kept.
     public func dismissed() {
-        text = ""; name = ""; brand = ""; fortification = .unanswered
+        text = ""; name = ""; brand = ""
         phase = .editing
         confirm = nil
         confirmRequest = nil

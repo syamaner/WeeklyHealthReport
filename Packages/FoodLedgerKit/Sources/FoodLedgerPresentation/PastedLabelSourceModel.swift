@@ -82,7 +82,8 @@ public final class PastedLabelSourceModel: ObservableObject {
     /// A stored entry of either manifest version, read-only.
     public init(stored manifest: PastedLabelEvidenceManifest, nutrients: NutrientSet) {
         review = nil; builder = nil; locale = nil
-        details = PastedLabelDetails(name: manifest.name, brand: manifest.brand)
+        details = PastedLabelDetails(name: manifest.name, brand: manifest.brand,
+                                     fortification: manifest.identityMapping.fortificationAnswer)
         self.manifest = manifest
         self.nutrients = nutrients
         corrections = manifest.corrections
@@ -384,12 +385,31 @@ public final class PastedLabelSourceModel: ObservableObject {
         try? rebuild(corrections.filter { $0.nutrient != id })
     }
 
-    /// Name, brand or Fortified? changed on the label text screen without a new reading.
-    public func updateDetails(_ details: PastedLabelDetails) {
-        guard isEditable, details != self.details else { return }
-        let previous = self.details
-        self.details = details
-        do { try rebuild(corrections) } catch { self.details = previous }
+    /// Pasted label Confirm v1 (#306) C12: the fortification answer this source holds (Yes and No
+    /// are the manifest answer; Not stated is `unanswered` plus Confirm's recorded decision).
+    public var fortificationAnswer: PastedLabelIdentity.FortificationAnswer { details.fortification }
+
+    /// Name or brand changed on the label text screen without a new reading. The fortification
+    /// answer given on Confirm is kept (C12).
+    public func updateNameAndBrand(name: String, brand: String?) {
+        let next = PastedLabelDetails(name: name, brand: brand, fortification: details.fortification)
+        guard isEditable, next != details else { return }
+        let previous = details
+        details = next
+        do { try rebuild(corrections) } catch { details = previous }
+    }
+
+    /// Yes or No on Confirm (C2): rebuilds the source with the manifest answer, keeping the
+    /// corrections. Throws on failure, with the earlier answer and model kept.
+    public func answerFortification(_ answer: PastedLabelIdentity.FortificationAnswer) throws {
+        guard isEditable else { throw PastedLabelSourceError.invalidManifest("stored entry") }
+        guard answer != details.fortification else { return }
+        let previous = details
+        details = PastedLabelDetails(name: previous.name, brand: previous.brand, fortification: answer)
+        do { try rebuild(corrections) } catch {
+            details = previous
+            throw error
+        }
     }
 
     /// Reader v3 8.4.9: Change chose another arrangement. Confirm keeps this model (so its

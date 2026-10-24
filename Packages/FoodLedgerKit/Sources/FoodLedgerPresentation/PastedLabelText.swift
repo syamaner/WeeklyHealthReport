@@ -13,8 +13,6 @@ public enum PastedLabelText {
     public static let nameField = "Name"
     public static let namePrompt = "For example Oat granola"
     public static let brandField = "Brand (optional)"
-    public static let fortifiedQuestion = "Fortified?"
-    public static let fortifiedHelp = "Does the pack say vitamins or minerals are added?"
     public static let labelTextField = "Label text"
     public static let labelTextHelp = "Paste the nutrition table only. The text you read is saved with the entry as its source, on this device."
     public static let readLabel = "Read label"
@@ -26,6 +24,37 @@ public enum PastedLabelText {
     public static let scanInstead = "Scan barcode instead"
     public static let leaveWithoutSaving = "Leave without saving"
     public static let nothingSaved = "Nothing is saved until you choose Log on the next screen."
+
+    // MARK: Fortification on Confirm (pasted label Confirm v1, #306, section 4)
+
+    public static let fortificationHeader = "Fortification"
+    public static let fortificationQuestion = "Does the label say vitamins or minerals are added?"
+    public static let fortificationYes = "Yes, it lists added vitamins or minerals"
+    public static let fortificationNo = "No, the ingredients list none"
+    public static let fortificationNotStated = "Not stated"
+    public static let fortificationFooterUnanswered = "Check the ingredients or claims on the pack. Choose Not stated if the text you have does not say, for example a nutrition table without its ingredients."
+    public static let fortificationFooterYes = "Saved as a fortified food."
+    public static let fortificationFooterNo = "Saved as not fortified."
+    public static let fortificationFooterNotStated = "Fortification stays unknown, so this entry is marked as an estimate. The label’s values are kept as read."
+    /// A re-log or favourite of a stored label: only Not stated is inline (C6).
+    public static let fortificationFooterStored = "This saved label cannot be changed here. Choose Not stated, or use Add food details to say Yes or No."
+
+    public static func fortificationChoice(_ choice: FoodConfirmationViewModel.LabelFortification) -> String {
+        switch choice {
+        case .yes: fortificationYes
+        case .no: fortificationNo
+        case .notStated, .unanswered: fortificationNotStated
+        }
+    }
+
+    /// A pasted-label servings conversion's method, in plain copy (#306).
+    public static let servingConversionMethod = "From the label’s serving size"
+
+    public static let fortificationNotApplied = "The answer could not be applied. Your earlier answer is kept."
+    public static let fortificationRequirement = "Answer whether the label says vitamins or minerals are added."
+    /// A re-log or favourite of a stored label: its text and values cannot be edited here.
+    public static let sourceFooterStored = "To change the label’s name, text or values, paste the label again from Add food."
+    public static let sourceFooter = "To change the name, brand or text, use Edit label text. To change a value, correct it in Nutrition from the label."
 
     /// Why Read label is disabled, or nil when it is enabled.
     public static func readBlockedReason(nameMissing: Bool, textMissing: Bool, tooLong: Bool) -> String? {
@@ -445,6 +474,12 @@ public enum NutrientOriginText {
 /// the calculated values' printed sources, through the one origin formatter.
 public enum PastedLabelSavedEntryText {
     public static let sectionTitle = "From pasted label"
+
+    /// The Source section's decision rows. A pasted label's fortification decision is already
+    /// shown as "Fortification on the label" (#306), so it is not repeated as "Not sure".
+    public static func sourceDecisions(_ detail: SavedFoodEntryDetail) -> [FoodLogFacetDecision] {
+        detail.pastedLabel == nil ? detail.decisions : detail.decisions.filter { $0.facet != .fortification }
+    }
 
     /// "about 555 kcal · Calculated", "12 g · Corrected by you", or the plain value.
     public static func value(_ total: FoodIntakeTotal, detail: SavedFoodEntryDetail) -> String {
