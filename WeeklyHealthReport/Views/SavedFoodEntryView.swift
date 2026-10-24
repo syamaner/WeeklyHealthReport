@@ -113,7 +113,8 @@ struct SavedFoodEntryView: View {
             Section("Source") {
                 Text(FoodLogText.source(detail))
                 if let variant = detail.variant { Text(variant).font(.subheadline).foregroundStyle(.secondary) }
-                ForEach(Array(detail.decisions.enumerated()), id: \.offset) { _, decision in
+                // #306: a pasted label's fortification is shown once, as "Fortification on the label".
+                ForEach(Array(PastedLabelSavedEntryText.sourceDecisions(detail).enumerated()), id: \.offset) { _, decision in
                     LabeledContent(FoodLogText.facet(decision.facet), value: FoodLogText.decision(decision))
                 }
             }
@@ -136,6 +137,9 @@ struct SavedFoodEntryView: View {
         Section(PastedLabelSavedEntryText.sectionTitle) {
             if let line = PastedLabelSavedEntryText.sourceLine(detail) { Text(line).font(.subheadline) }
             if let note = PastedLabelSavedEntryText.basisHintNote(detail) { Text(note).font(.caption) }
+            if let fortification = detail.pastedLabelFortification {
+                LabeledContent(PastedLabelFortificationText.title, value: fortification)
+            }
             ForEach(PastedLabelSavedEntryText.originLines(detail), id: \.self) { Text($0).font(.caption) }
             if let report = PastedLabelSavedEntryText.reportText(detail) {
                 Button(PastedLabelText.reportMisread) { misreadReport = PastedLabelMisreadPreviewModel(report: report) }

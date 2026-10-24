@@ -69,7 +69,6 @@ final class PastedLabelBasisChoicePresentationTests: XCTestCase {
             try PastedLabelSourceModel(review: review, details: details, builder: builder, locale: F.locale)
         }, choose: { try builder.choose($0, in: $1) }, recordDiagnostics: { [weak self] in self?.lines = $0 })
         model.name = "Synthetic chosen biscuits"
-        model.fortification = .no
         model.text = Self.text
         return model
     }
@@ -196,6 +195,9 @@ final class PastedLabelBasisChoicePresentationTests: XCTestCase {
         model.readLabel()
         let source = try XCTUnwrap(model.chooseBasis(arrangement("per_100g")))
         let (confirm, _) = try F.confirm(source)
+        // Fortification is asked once, on Confirm (pasted label Confirm v1, #306).
+        confirm.answersLabelFortification(for: source)
+        confirm.answerLabelFortification(.no)
         confirm.send(.setQuantity(40, .grams))
         confirm.log()
         let saved = try XCTUnwrap(confirm.savedResult, confirm.blockedReason ?? "")
@@ -242,7 +244,6 @@ final class PastedLabelBasisChoicePresentationTests: XCTestCase {
                                      warningCodes: review.warningCodes, basisChoice: review.basisChoice)
         })
         model.name = "Synthetic chosen biscuits"
-        model.fortification = .no
         model.text = Self.text
         model.readLabel()
         let confirm = try XCTUnwrap(model.chooseBasis(arrangement("per_100g")))
@@ -304,7 +305,6 @@ final class PastedLabelBasisChoicePresentationTests: XCTestCase {
             return try builder.choose(arrangement, in: request)
         })
         model.name = "Synthetic chosen biscuits"
-        model.fortification = .no
         model.text = Self.text
         fail = true
         model.readLabel()
@@ -347,7 +347,6 @@ final class PastedLabelBasisChoicePresentationTests: XCTestCase {
             try PastedLabelSourceModel(review: review, details: details, builder: builder, locale: F.locale)
         }, choose: { _, _ in throw Failure() })
         model.name = "Synthetic chosen biscuits"
-        model.fortification = .no
         model.text = Self.text
         model.readLabel()
         XCTAssertNil(model.chooseBasis(arrangement("per_100g")))

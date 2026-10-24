@@ -41,6 +41,8 @@ public struct SavedFoodEntryDetail: Sendable {
     /// A pasted nutrition label's stored manifest (#93), for the per-value origins and Report a
     /// misread; nil for every other route.
     public let pastedLabel: PastedLabelEvidenceManifest?
+    /// Pasted label Confirm v1 (#306) 4.5: "Fortification on the label", nil for other sources.
+    public let pastedLabelFortification: String?
     /// Each stored value's origin under `NutrientValueOrigin`, for a pasted label only.
     public let valueOrigins: [NutrientKey: NutrientValueOrigin]
     /// A pasted label's stored values by key, so a bound can be shown as a bound ("Less than
@@ -81,6 +83,7 @@ public struct SavedFoodEntryDetail: Sendable {
         let manifest = release?.sourceID.value == PastedLabelSource.sourceID
             ? PastedLabelValueOrigins.manifest(evidence: stored.evidence, evidenceIDs: stored.candidateDecision.candidate.evidenceIDs) : nil
         pastedLabel = manifest
+        pastedLabelFortification = manifest.map { PastedLabelFortificationText.value(stored, manifest: $0) }
         valueOrigins = manifest.map { PastedLabelValueOrigins.origins(stored.resolutionVersion.nutrients, manifest: $0) } ?? [:]
         pastedLabelValues = manifest == nil ? [:]
             : Dictionary(stored.resolutionVersion.nutrients.entries.map { ($0.key, $0.value) }, uniquingKeysWith: { first, _ in first })
