@@ -118,9 +118,17 @@ public struct FoodIntakeProjection: Sendable {
     }
 
     /// The source ID of the entry's nutrition release, for the shared servings predicate.
+    /// The decision candidate's release, as Recent and the saved entry read it: the selected
+    /// decision of the effective resolution, else its first decision.
     static func sourceID(_ version: NutritionResolutionVersion?, records: LedgerMutation) -> String? {
-        guard let release = version?.sourceReleaseIDs.first else { return nil }
+        guard let version, let release = decisionCandidateReleaseID(version, records: records) else { return nil }
         return records.sourceReleases.first { $0.sourceReleaseID == release }?.sourceID.value
+    }
+
+    public static func decisionCandidateReleaseID(_ version: NutritionResolutionVersion, records: LedgerMutation) -> ExternalIdentifier? {
+        let decision = records.candidateDecisions.first { version.decisionIDs.contains($0.candidateDecisionID) && $0.outcome == .selected }
+            ?? records.candidateDecisions.first { version.decisionIDs.contains($0.candidateDecisionID) }
+        return decision?.candidate.sourceReleaseID
     }
 }
 

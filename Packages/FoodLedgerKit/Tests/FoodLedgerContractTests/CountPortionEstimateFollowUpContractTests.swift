@@ -36,6 +36,12 @@ final class CountPortionEstimateFollowUpContractTests: XCTestCase {
         XCTAssertEqual(day.entries.first?.amountIsServings, true, "the Food Log row reads servings")
         guard case let .changed(amount?, _) = detail.history.first?.kind else { return XCTFail("an amount change") }
         XCTAssertTrue(amount.isServings, "history reads servings")
+        // One source for the servings rule: the Food Log row reads the decision candidate's
+        // release, as the saved entry and Recent do.
+        let stored = try XCTUnwrap(harness.reader.foodConfirmation(logItemID: saved.logItem.logItemID))
+        let records = try (harness.committer as! any FoodArchiveLedgerAccess).archiveState().records
+        XCTAssertEqual(FoodIntakeProjection.decisionCandidateReleaseID(stored.resolutionVersion, records: records),
+                       stored.candidateDecision.candidate.sourceReleaseID)
     }
 
     func testSourceRecipeServingsAreServings() throws {
@@ -260,7 +266,9 @@ final class CountPortionEstimateFollowUpContractTests: XCTestCase {
                 return (egg, route.confirmation.evidence, route.confirmation.sourceReleases)
             }
         }
-        throw XCTSkip("Expected the USDA hard-boiled egg record")
+        // Never a skip: the USDA allow-list fix must be exercised.
+        XCTFail("Expected the USDA hard-boiled egg record")
+        throw FoodLedgerValidationError.invalidProvenance
     }
 
     private func boiledEggs(guides: USDACountPortionGuides, code: String) throws -> FoodConfirmationState {
