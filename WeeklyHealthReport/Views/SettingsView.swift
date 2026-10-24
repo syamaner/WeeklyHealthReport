@@ -102,19 +102,25 @@ struct SettingsSection: Identifiable {
 struct AppSettings {
     let sections: [SettingsSection]
     let developerTools: SettingsToggle
+    /// False in a build without Google Drive configuration (#305).
+    let driveExportAvailable: Bool
 
-    init(sections: [SettingsSection], developerTools: SettingsToggle) {
+    init(sections: [SettingsSection], developerTools: SettingsToggle, driveExportAvailable: Bool = true) {
         self.sections = sections.sorted { $0.id < $1.id }
         self.developerTools = developerTools
+        self.driveExportAvailable = driveExportAvailable
     }
 
     var linkedRoutes: [AppRoute] {
         sections.flatMap { $0.rows.compactMap(\.route) }
     }
 
-    /// Fixed routes plus every route a composed section links to.
+    /// Routes a stored destination may restore: fixed routes plus every route a
+    /// composed section links to, without the Drive export screens when this
+    /// build cannot export to Drive (#305).
     var availableRoutes: Set<AppRoute> {
-        AppRoute.fixedRoutes.union(linkedRoutes)
+        let routes = AppRoute.fixedRoutes.union(linkedRoutes)
+        return driveExportAvailable ? routes : routes.subtracting(AppRoute.driveExportRoutes)
     }
 
     var toggles: [SettingsToggle] {

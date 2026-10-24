@@ -34,6 +34,11 @@ enum AppRoute: String, Codable, Hashable, CaseIterable {
         .webLookupKey, .foodMarket, .dataBackup, .medicationAccess, .developerTools
     ]
 
+    /// Google Drive export screens. They always have a destination, but a build
+    /// without Drive configuration shows them as unavailable, so they are never
+    /// restored there (#305).
+    static let driveExportRoutes: Set<AppRoute> = [.dailyExport, .exportDestination]
+
     /// Routes that always have a destination, possibly an unavailable screen.
     static let fixedRoutes: Set<AppRoute> = Set(allCases).subtracting(composedSettingsRoutes)
 
@@ -45,7 +50,9 @@ enum AppRoute: String, Codable, Hashable, CaseIterable {
 
     /// Rebuilds a navigation path from the last stored destination.
     /// Unknown values restore Home. Settings children that are not composed
-    /// restore Settings itself.
+    /// restore Settings itself. A destination missing from `availableRoutes`
+    /// is never the landing screen or behind it: Export and its notes restore
+    /// Home and Drive setup restores Settings (#305).
     static func restoredPath(
         from storedDestination: String,
         hasDraft: Bool,
@@ -56,23 +63,29 @@ enum AppRoute: String, Codable, Hashable, CaseIterable {
         }
 
         switch destination {
-        case .foodLog, .healthReport, .dailyExport, .genericFoodSearch,
+        case .dailyExport:
+            return availableRoutes.contains(.dailyExport) ? [.dailyExport] : []
+        case .foodLog, .healthReport, .genericFoodSearch,
              .foodListImport, .barcodeFoodCapture, .commonFoods, .addFood, .favourites:
             return [destination]
         case .todayNotes:
             return [.todayNotes]
         case .todayNoteEditor:
             return hasDraft ? [.todayNotes, .todayNoteEditor] : [.todayNotes]
+        // Export's notes sit on Export, so they restore Home when Export is unavailable:
+        // the user never lands on or backs into the unavailable screen (#305).
         case .notes:
+            guard availableRoutes.contains(.dailyExport) else { return [] }
             return [.dailyExport, .notes]
         case .noteEditor:
+            guard availableRoutes.contains(.dailyExport) else { return [] }
             return hasDraft ? [.dailyExport, .notes, .noteEditor] : [.dailyExport, .notes]
         case .diagnostics:
             return []
         case .settings:
             return [.settings]
         case .exportDestination:
-            return [.settings, .exportDestination]
+            return availableRoutes.contains(.exportDestination) ? [.settings, .exportDestination] : [.settings]
         case .privacy, .inventoryReview, .foodReresolution, .webLookupKey,
              .foodMarket, .dataBackup, .medicationAccess, .developerTools:
             return availableRoutes.contains(destination) ? [.settings, destination] : [.settings]
