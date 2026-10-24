@@ -634,6 +634,40 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
         }
     }
 
+    /// #296: eggs by count on Confirm show the method field's label as visible text, not only as
+    /// grey placeholder text, and Log stays blocked by the unchanged count rule.
+    func testEggsByCountShowTheMethodFieldLabelOnConfirm() async throws {
+        let ids = NativeQuantityIDs()
+        let search = try GenericFoodSearchViewModel(searcher: try CoFIDGenericFoodSearch(ids: ids), locale: LedgerText("en_GB"))
+        search.query = "egg"; search.search()
+        let input = try XCTUnwrap(search.confirmation(at: 0))
+        let model = FoodConfirmationViewModel(state: FoodConfirmationState(input: input, queryQuantity: nil)) { _ in
+            throw CocoaError(.fileWriteUnknown)
+        }
+        model.chooseQuantityUnit(.count)
+        model.send(.setQuantity(3, .count))
+        XCTAssertEqual(model.requirements, [.countNeedsMeasuredAmount])
+
+        let host = NativeHostingController(rootView: NavigationStack { FoodConfirmationView(model: model, leave: {}) })
+        let scene = try testScene()
+        let previous = scene.windows.first(where: \.isKeyWindow)
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0, y: 0, width: 390, height: 2_400)
+        window.rootViewController = host; window.makeKeyAndVisible()
+        defer { window.isHidden = true; previous?.makeKey() }
+        try await waitForHostAppearance(host, window: window)
+        // The UIKit text field's placeholder is the example, not the field's question: the question is
+        // now a separate visible label (SwiftUI text, which this UILabel scan does not see).
+        try await waitForNativeState("Confirm should show the method field with an example placeholder",
+            diagnostics: { "\(self.nativeText(host.view))" }) {
+            host.view.layoutIfNeeded()
+            return self.nativeText(host.view).contains(FoodConfirmationView.ConversionFields.methodPrompt)
+        }
+        XCTAssertFalse(nativeText(host.view).contains("How was this weight or volume measured?"),
+                       "the required question must not live only in grey placeholder text")
+        XCTAssertFalse(model.canLog)
+    }
+
     /// Visual evidence for #196 with synthetic data only: Add food (recents, empty), Search results
     /// (searching, energy for the amount, basis-only, no result with "Not what you ate?") and Web
     /// lookup (match type unset with a disabled action, match type chosen). PNGs only with WHR_RENDER_DIR.

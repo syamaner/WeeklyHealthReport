@@ -2633,3 +2633,19 @@ Pricing uses the Claude Opus 5.5 rates re-checked on the official pricing page o
 Boundary: `phase_usage.py --format claude --include-subagents --since 2026-10-23T04:48:14Z --until 2026-10-23T05:45:12Z`. Cache writes: 251,787 5-minute, 374,498 1-hour. Exact API-equivalent USD 19.4467186 at the recorded counts. Output may be undercounted where streaming snapshots record partial counts; this was not checked.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-296-2026-10-23: Claude Code egg count conversion label fix
+
+One implementation subagent, its own transcript (`subagents/agent-ae2732c13ca727cda.jsonl`), for #296. It covers the reproduction in the simulator (iPhone Air), the contract reading, the presentation fix, the package and hosted render tests, one full gate run plus a rerun of the app tests after the render test was added, the issue and the commit.
+
+Runs from the phase's start (`2026-10-23T06:02:45Z`, captured with `date -u` at the start) to `2026-10-23T06:40:19Z`, just before this ledger edit. These times are UTC, which is 23 October local time (UTC+8).
+
+Pricing: re-checked on 23 October 2026 against Anthropic's official pricing page for Claude Opus 5.5: USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output, unchanged. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Egg count conversion label (#296), implementation subagent | 19,957,315 (19,072,754) | 884,367 | 42,153 | 19,999,468 | $9.08 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-23T06:02:45Z --until 2026-10-23T06:40:19Z` on the subagent transcript alone. Cache writes: 884,367 5-minute, 0 1-hour. Exact API-equivalent USD 9.0802218 at the recorded counts. None of the 229 usage entries in this window records 32 or fewer output tokens, so no streaming-snapshot lower bound applies. The orchestrating session is not included, and no reviewer subagents were run.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
