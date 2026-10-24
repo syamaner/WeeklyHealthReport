@@ -2698,6 +2698,46 @@ Boundary: `phase_usage.py --format claude --since 2026-10-23T06:46:13Z --until 2
 
 Token totals are not evidence of productivity, quality or provider efficiency.
 
+## WHR-305-2026-10-24: Claude Code first launch lands on Home
+
+One `claude-opus-5-5` implementation subagent (branch `fix/305-first-launch-home`), transcript `subagents/agent-a839d4c3188627bdd.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`, for #305. It covers the issue, reading the navigation coordinator, routes, Settings and composition root, the simulator reproduction (iPhone Air: clean reinstalls, and a stored Export before and after the fix), the restore rule, the navigation tests and every gate (one earlier app test run was abandoned when the simulator failed to launch the test host).
+
+Runs from the subagent's first transcript message (`2026-10-24T06:39:54Z`) to `2026-10-24T07:14:30Z`, just before this ledger edit. No start time was captured with `date -u`; the boundary is the transcript's own first timestamp, so the row covers the whole subagent transcript up to the edit. These times are UTC (24 October local time, UTC+8). No subagents were launched; the orchestrator's usage is outside the row. This ledger edit, the commit, the push and the PR are outside the row. No OpenRouter or other provider call was made.
+
+Pricing: Claude Opus 5.5 rates re-checked on 24 October 2026 against Anthropic's official pricing page (the same check as WHR-304-2026-10-24), unchanged from 23 October: USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| First launch lands on Home (#305), implementation subagent | 6,363,330 (5,902,531) | 460,689 | 30,985 | 6,394,315 | $4.10 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-24T06:39:54Z --until 2026-10-24T07:14:30Z` on the subagent transcript alone. Cache writes: 460,689 5-minute, 0 1-hour. Exact API-equivalent USD 4.1040912. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-304-2026-10-24: Claude Code plain water and unknown nutrients fix
+
+One implementation subagent, its own transcript (`subagents/agent-a538a69644dda2695.jsonl`), for #304. It covers reading the issue and the contracts, the root cause, the failing tests, the `food-intake-summary-v5` fix across the projection, Home, Health and the food daily export, the contract clarification (`health-food-and-water-v1.md` v1.3) and one full gate run.
+
+Runs from the phase's start (`2026-10-24T06:40:02Z`, captured with `date -u` at the start) to `2026-10-24T07:22:34Z`, just before this ledger edit. These times are UTC (24 October local time, UTC+8). The commit, push and PR that follow are not included.
+
+Pricing: re-checked on 24 October 2026 against Anthropic's official pricing page for Claude Opus 5.5: USD 4/M base input, 5/M 5-minute cache write, 0.20/M cache read, 20/M output, unchanged. The page did not list the 1-hour cache write rate; the ledger's recorded 8/M is passed to the script but no 1-hour writes occurred. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Plain water and unknown nutrients (#304), implementation subagent | 13,077,736 (12,743,337) | 334,235 | 50,031 | 13,127,767 | $5.22 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-24T06:40:02Z --until 2026-10-24T07:22:34Z` on the subagent transcript alone. Cache writes: 334,235 5-minute, 0 1-hour. Exact API-equivalent USD 5.2211184 at the recorded counts. The orchestrating session is not included, and no reviewer subagents were run.
+
+Review fold-in, same subagent and transcript, from `2026-10-24T07:22:34Z` to `2026-10-24T07:49:33Z`. It includes the first ledger edit, the first commit, push and PR #309, and then the invariant review and journey QA findings: accepting `food-intake-summary-v4` in the Drive policy, a frozen v4 golden, the full footnote assertion, the versioning rule and policy-identifier wording, the no-food state on Home and in the Food Log, and a second full gate run. The first row above stays frozen. Same rates.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Plain water and unknown nutrients (#304), review fold-in | 12,167,132 (11,637,984) | 529,044 | 28,810 | 12,195,942 | $5.55 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-24T07:22:34Z --until 2026-10-24T07:49:33Z` on the subagent transcript alone. Cache writes: 529,044 5-minute, 0 1-hour. Exact API-equivalent USD 5.5494328 at the recorded counts. A single run over the whole window (`06:40:02Z` to `07:49:33Z`) reports 25,106,750 tokens and USD 10.7119244, which is less than the sum of the two rows (the windows share the `07:22:34Z` boundary; the cause of the difference was not investigated), so the rows are not added here. The reviewer subagents and the orchestrating session are not included.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
+
 ## WHR-306-2026-10-24: Claude Code pasted label Confirm (inline fortification, amount first, servings default)
 
 One implementation subagent and transcript (`subagents/agent-a88e83af94fc0d003.jsonl`) for #306, owner-approved for autonomous delivery on 24 October 2026. Two phases:

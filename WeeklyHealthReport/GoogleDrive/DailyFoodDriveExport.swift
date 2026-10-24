@@ -15,7 +15,11 @@ enum DailyExportDocumentType: Hashable, CaseIterable {
 /// corrected re-export must still replace the earlier file.
 struct DailyFoodExportIdentityPolicy: DrivePayloadIdentityPolicy {
     static let orderingVersion = "food-v1"
-    static let summaryVersion = "food-intake-summary-v4"
+    /// The summary version this build emits.
+    static let summaryVersion = "food-intake-summary-v5"
+    /// Every published summary version: files already on Drive (v4 before #304) must still pass
+    /// reconcile and recovery, as the health policy accepts earlier schemas. Only v5 is emitted.
+    static let acceptedSummaryVersions: Set<String> = ["food-intake-summary-v4", summaryVersion]
     let ownerPropertyKey = "whrDailyFood"
     let orderingPropertyKey = "whrDataAsOf"
 
@@ -24,7 +28,7 @@ struct DailyFoodExportIdentityPolicy: DrivePayloadIdentityPolicy {
               document.foodDailySchemaVersion == FoodDailyExportDocument.schemaVersion,
               document.reportDate == reportDate,
               document.nutrientCatalogueVersion == NutrientSet.catalogueVersion,
-              document.summaryVersion == Self.summaryVersion,
+              Self.acceptedSummaryVersions.contains(document.summaryVersion),
               document.summary.map(\.key) == NutrientKey.allCases.map(\.rawValue),
               document.entries.allSatisfy({ $0.nutrients.map(\.key) == NutrientKey.allCases.map(\.rawValue) }),
               TimeZone(identifier: document.timeZone) != nil,

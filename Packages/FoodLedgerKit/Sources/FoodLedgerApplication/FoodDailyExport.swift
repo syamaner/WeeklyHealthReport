@@ -394,7 +394,7 @@ public struct FoodDailyExportRequest: Sendable {
 
 /// Projects one reporting date of a ledger snapshot into the export document. Pure: the snapshot,
 /// zone and instants are injected. Head-version selection and totals come from
-/// `FoodIntakeProjection` (`food-intake-summary-v4`) and plain water from `PlainWaterDayTotal`, so
+/// `FoodIntakeProjection` (`food-intake-summary-v5`) and plain water from `PlainWaterDayTotal`, so
 /// Home, the Health food section and the file cannot disagree. Any error means no document.
 public enum FoodDailyExportBuilder {
     public static func make(_ request: FoodDailyExportRequest) throws -> FoodDailyExportDocument {
@@ -407,7 +407,8 @@ public enum FoodDailyExportBuilder {
 
         var contributors: [NutrientKey: [String]] = [:]
         let entries = try projection.rows.map { row -> FoodDailyExportEntry in
-            for total in row.totals where total.knownAmount != nil {
+            // v5 (#304): plain water contributes to the summary's water only, as in the summary.
+            for total in row.totals where total.knownAmount != nil && (!row.isPlainWater || total.key == .water) {
                 contributors[total.key, default: []].append(row.logItemVersionID.rawValue)
             }
             return try entry(row, records: records, timestamp: timestamp)

@@ -53,6 +53,11 @@ public struct FoodLogDayContent: Sendable {
     /// Plain water logged on this day in mL (#198, Q8), the same figure as Home. Nil when none is
     /// logged (No data, never 0 mL); a known minimum when an entry cannot be scaled.
     public let plainWater: FoodIntakeTotal?
+    /// Current entries that are not plain water (`food-intake-summary-v5`, #304). With entries but
+    /// none of them food, the strip shows the no-food copy instead of its nutrient totals.
+    public let foodEntryCount: Int
+    /// Whether the strip shows nutrient totals: some current entry is food.
+    public var showsFoodTotals: Bool { totals != nil && foodEntryCount > 0 }
 
     /// `estimates` is the set of entries whose current version is a labelled estimate; the caller
     /// computes it from stored evidence (`FoodEntryEstimateStatus`).
@@ -60,6 +65,7 @@ public struct FoodLogDayContent: Sendable {
                 plainWater: FoodIntakeTotal? = nil) {
         self.reportingDate = reportingDate
         self.plainWater = plainWater
+        foodEntryCount = projection.summary.foodItemCount
         totals = projection.rows.isEmpty ? nil : Self.stripKeys.compactMap { key in
             projection.summary.totals.first { $0.key == key }
         }

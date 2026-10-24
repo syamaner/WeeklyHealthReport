@@ -67,6 +67,30 @@ final class DailyFoodDriveExportTests: XCTestCase {
         }
     }
 
+    /// #304: v4 files already on Drive still validate (reconcile and recovery read them); the
+    /// policy emits v5 only, and an unpublished summary version is rejected.
+    func testPolicyAcceptsEveryPublishedSummaryVersion() throws {
+        let policy = DailyFoodExportIdentityPolicy()
+        XCTAssertEqual(DailyFoodExportIdentityPolicy.summaryVersion, "food-intake-summary-v5")
+        XCTAssertEqual(DailyFoodExportIdentityPolicy.acceptedSummaryVersions, ["food-intake-summary-v4", "food-intake-summary-v5"])
+        let text = String(decoding: try foodBytes(), as: UTF8.self)
+        XCTAssertTrue(text.contains(#""summary_version":"food-intake-summary-v5""#))
+        let v4 = Data(text.replacingOccurrences(of: "food-intake-summary-v5", with: "food-intake-summary-v4").utf8)
+        XCTAssertEqual(try FoodDailyExportSerializer.encode(FoodDailyExportSerializer.decode(v4)), v4, "a canonical v4 payload")
+        XCTAssertNoThrow(try policy.validate(payload: v4, reportDate: reportDate))
+        let unpublished = Data(text.replacingOccurrences(of: "food-intake-summary-v5", with: "food-intake-summary-v9").utf8)
+        XCTAssertThrowsError(try policy.validate(payload: unpublished, reportDate: reportDate)) {
+            XCTAssertEqual($0 as? DailyDriveExportFailure, .invalidPayload)
+        }
+
+        // The frozen v4 golden written before #304 (docs/fixtures/food-daily-v1).
+        let golden = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("../docs/fixtures/food-daily-v1/food-daily-plain-water-only-summary-v4.json").standardizedFileURL
+        let bytes = try Data(contentsOf: golden)
+        XCTAssertEqual(try FoodDailyExportSerializer.decode(bytes).summaryVersion, "food-intake-summary-v4")
+        XCTAssertNoThrow(try policy.validate(payload: bytes, reportDate: "2023-11-14"))
+    }
+
     func testEachPolicyRejectsTheOtherFilesPayload() throws {
         let food = try foodBytes()
         XCTAssertThrowsError(try DailyHealthExportIdentityPolicy().validate(payload: food, reportDate: reportDate)) {
