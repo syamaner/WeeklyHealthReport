@@ -23,16 +23,28 @@ struct FoodHomeCardContent: Equatable {
         let footnote: String?
     }
 
+    /// Plain water but no food today (#304): the no-food copy instead of nutrient rows, never 0
+    /// and never a bare "Unknown", with the water figure still shown.
+    struct NoFood: Equatable {
+        let water: Row
+        /// Set only when a plain water entry cannot be scaled (the water figure is a known minimum).
+        let footnote: String?
+    }
+
     enum State: Equatable {
         case loading
         case unavailable
         case failed(String)
         case empty
+        case noFood(NoFood)
         case logged(Logged)
     }
 
     static let title = "Food logged"
     static let emptyMessage = "Nothing logged yet today"
+    /// The Food Log's empty-day copy, shared so both screens say the same.
+    static let noFoodTitle = FoodLogText.emptyTitle
+    static let noFoodMessage = FoodLogText.emptyMessage
     static let unavailableMessage = "The local food log could not be opened."
     /// Rows after energy, in order. Fibre follows fat (phase 6 amendment, 23 October 2026, #288).
     static let nutrientKeys: [NutrientKey] = [.protein, .carbohydrates, .fatTotal, .fiber]
@@ -42,15 +54,18 @@ struct FoodHomeCardContent: Equatable {
         plainWater: FoodIntakeTotal?,
         locale: Locale = .autoupdatingCurrent
     ) -> State {
-        make(itemCount: projection.summary.itemCount, totals: projection.summary.totals,
-             plainWater: plainWater, locale: locale,
-             incompleteEntries: incompleteEntries(projection.rows.map(\.totals), dayTotals: projection.summary.totals,
-                                                  plainWater: plainWater))
+        // Plain water is not a food entry and adds nothing to the nutrient totals
+        // (`food-intake-summary-v5`, #304), so only food rows count here.
+        make(itemCount: projection.summary.itemCount, foodItemCount: projection.summary.foodItemCount,
+             totals: projection.summary.totals, plainWater: plainWater, locale: locale,
+             incompleteEntries: incompleteEntries(projection.rows.filter { !$0.isPlainWater }.map(\.totals),
+                                                  dayTotals: projection.summary.totals, plainWater: plainWater))
     }
 
     /// Distinct current entries behind the card's known minimums: an entry counts once when any
-    /// shown total it contributes to (energy, protein, carbohydrates, fat, fibre) lacks its value. Plain
-    /// water that cannot be scaled also lacks energy, so the larger count covers it.
+    /// shown total it contributes to (energy, protein, carbohydrates, fat, fibre) lacks its value.
+    /// `rows` are food entries only; plain water that cannot be scaled leaves the water figure a
+    /// known minimum, so the larger count covers it.
     static func incompleteEntries(_ rows: [[FoodIntakeTotal]], dayTotals: [FoodIntakeTotal], plainWater: FoodIntakeTotal?) -> Int {
         let affected = ([NutrientKey.energyConsumed] + nutrientKeys).filter { key in
             (dayTotals.first { $0.key == key }?.incompleteContributions ?? 0) > 0
@@ -61,8 +76,11 @@ struct FoodHomeCardContent: Equatable {
         return max(entries, plainWater?.incompleteContributions ?? 0)
     }
 
+    /// `itemCount` is every current entry (the card is empty only with none); `foodItemCount`, the
+    /// entries that are not plain water, is the count shown. Nil means every entry is food.
     static func make(
         itemCount: Int,
+        foodItemCount: Int? = nil,
         totals: [FoodIntakeTotal],
         plainWater: FoodIntakeTotal?,
         locale: Locale = .autoupdatingCurrent,
@@ -79,14 +97,19 @@ struct FoodHomeCardContent: Equatable {
                        accessibilityLabel: FoodLogText.totalAccessibility(total, locale: locale),
                        caption: FoodLogText.totalCaption(total))
         }
+        let water = Row(label: FoodLogText.plainWaterLabel, value: FoodLogText.plainWater(plainWater, locale: locale),
+                        accessibilityLabel: FoodLogText.plainWaterAccessibility(plainWater, locale: locale))
+        // Plain water only (#304): no food total exists, so no nutrient row is shown.
+        guard (foodItemCount ?? itemCount) > 0 else {
+            return .noFood(NoFood(water: water, footnote: noFoodFootnote(plainWater)))
+        }
         let affected = (([NutrientKey.energyConsumed] + nutrientKeys).compactMap { key in totals.first { $0.key == key } }
             + [plainWater].compactMap { $0 }).filter { $0.incompleteContributions > 0 }
         return .logged(Logged(
             energy: row(.energyConsumed),
-            entryCount: entryCount(itemCount),
+            entryCount: entryCount(foodItemCount ?? itemCount),
             nutrients: nutrientKeys.map(row),
-            water: Row(label: FoodLogText.plainWaterLabel, value: FoodLogText.plainWater(plainWater, locale: locale),
-                       accessibilityLabel: FoodLogText.plainWaterAccessibility(plainWater, locale: locale)),
+            water: water,
             footnote: footnote(affected, entries: incompleteEntries)
         ))
     }
@@ -102,6 +125,13 @@ struct FoodHomeCardContent: Equatable {
             ? unknown + ", so totals marked + are known minimums." : unknown + "."
     }
 
+    /// The no-food state's footnote, shared by Home and the Food Log (#304): only when a plain
+    /// water entry cannot be scaled, so the water figure is a known minimum ("250 mL+").
+    static func noFoodFootnote(_ plainWater: FoodIntakeTotal?) -> String? {
+        guard let plainWater, plainWater.incompleteContributions > 0 else { return nil }
+        return footnote([plainWater], entries: plainWater.incompleteContributions)
+    }
+
     static let loadingMessage = "Loading food log"
 
     /// The card as plain text for Today's Full Page, in the card's own words.
@@ -112,6 +142,9 @@ struct FoodHomeCardContent: Equatable {
         case .unavailable: return .init(title: title, rows: [Row(value: unavailableMessage)])
         case .failed(let message): return .init(title: title, rows: [Row(value: message)])
         case .empty: return .init(title: title, rows: [Row(value: emptyMessage)])
+        case .noFood(let noFood):
+            return .init(title: title, rows: [Row(value: noFoodTitle), Row(value: noFoodMessage),
+                                              Row(noFood.water.label, value: noFood.water.value)], footer: noFood.footnote)
         case .logged(let logged):
             let energy = Row(logged.energy.label, value: logged.energy.value, note: logged.energy.caption)
             let others = (logged.nutrients + [logged.water]).map { Row($0.label, value: $0.value, note: $0.caption) }
@@ -231,6 +264,20 @@ struct FoodHomeCard: View {
                     Text(FoodHomeCardContent.emptyMessage).foregroundStyle(.secondary)
                 }
                 .accessibilityHint("Opens the Food Log")
+            case .noFood(let noFood):
+                NavigationLink(value: AppRoute.foodLog) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(FoodHomeCardContent.noFoodTitle).font(.headline)
+                        Text(FoodHomeCardContent.noFoodMessage).font(.subheadline).foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(FoodHomeCardContent.noFoodTitle). \(FoodHomeCardContent.noFoodMessage)")
+                .accessibilityHint("Opens the Food Log")
+                LabeledContent(noFood.water.label) { Text(noFood.water.value).monospacedDigit() }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(noFood.water.accessibilityLabel)
             case .logged(let logged):
                 NavigationLink(value: AppRoute.foodLog) {
                     VStack(alignment: .leading, spacing: 4) {
@@ -262,6 +309,8 @@ struct FoodHomeCard: View {
             Text(FoodHomeCardContent.title)
         } footer: {
             if case .logged(let logged) = model.state, let footnote = logged.footnote {
+                Text(footnote)
+            } else if case .noFood(let noFood) = model.state, let footnote = noFood.footnote {
                 Text(footnote)
             }
         }

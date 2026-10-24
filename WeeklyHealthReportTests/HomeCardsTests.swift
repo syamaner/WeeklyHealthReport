@@ -71,6 +71,52 @@ final class HomeCardsTests: XCTestCase {
         XCTAssertEqual(FoodHomeCardContent.emptyMessage, "Nothing logged yet today")
     }
 
+    /// #304: plain water is not a food entry. A water-only day still shows the card (with its
+    /// water figure), counts 0 food entries and shows no nutrient as 0.
+    func testPlainWaterIsNotCountedAsAFoodEntry() throws {
+        let gb = Locale(identifier: "en_GB")
+        let none = [NutrientKey.energyConsumed, .protein, .carbohydrates, .fatTotal, .fiber].map {
+            FoodIntakeTotal(key: $0, knownAmount: nil, incompleteContributions: 0, includesEstimates: false)
+        }
+        let water = FoodIntakeTotal(key: .water, knownAmount: 250, incompleteContributions: 0, includesEstimates: false)
+        guard case .noFood(let waterOnly) = FoodHomeCardContent.make(itemCount: 1, foodItemCount: 0, totals: none, plainWater: water,
+                                                                      locale: gb, incompleteEntries: 0) else {
+            return XCTFail("Expected the no-food card")
+        }
+        XCTAssertEqual(waterOnly.water.value, "250 mL")
+        XCTAssertEqual(waterOnly.water.accessibilityLabel, "Plain water logged, 250 millilitres")
+        XCTAssertNil(waterOnly.footnote)
+        XCTAssertEqual(FoodHomeCardContent.noFoodTitle, "No food logged")
+        XCTAssertEqual(FoodHomeCardContent.noFoodMessage, "An empty log does not mean no food was eaten.")
+        let section = FoodHomeCardContent.fullPageSection(.noFood(waterOnly))
+        XCTAssertEqual(section.rows.map(\.label), [nil, nil, "Plain water logged"])
+        XCTAssertEqual(section.rows.map(\.value), ["No food logged", "An empty log does not mean no food was eaten.", "250 mL"])
+        XCTAssertNil(section.footer)
+        XCTAssertFalse(section.rows.contains { $0.value == "Unknown" || $0.value.hasPrefix("0 ") }, "no nutrient row, never 0")
+
+        // Water that cannot be scaled keeps its known-minimum footnote.
+        let partialWater = FoodIntakeTotal(key: .water, knownAmount: 250, incompleteContributions: 1, includesEstimates: false)
+        guard case .noFood(let partial) = FoodHomeCardContent.make(itemCount: 2, foodItemCount: 0, totals: none, plainWater: partialWater,
+                                                                    locale: gb, incompleteEntries: 1) else {
+            return XCTFail("Expected the no-food card")
+        }
+        XCTAssertEqual(partial.water.value, "250 mL+")
+        XCTAssertEqual(partial.footnote, "Some values are unknown for 1 entry, so totals marked + are known minimums.")
+        XCTAssertEqual(FoodHomeCardContent.noFoodFootnote(partialWater), partial.footnote, "the Food Log shows the same line")
+        XCTAssertNil(FoodHomeCardContent.noFoodFootnote(water))
+        XCTAssertNil(FoodHomeCardContent.noFoodFootnote(nil))
+
+        let carbohydrates = FoodIntakeTotal(key: .carbohydrates, knownAmount: nil, incompleteContributions: 1, includesEstimates: false)
+        guard case .logged(let mixed) = FoodHomeCardContent.make(itemCount: 2, foodItemCount: 1,
+                                                                  totals: [total(.energyConsumed, 210), carbohydrates],
+                                                                  plainWater: water, locale: gb, incompleteEntries: 1) else {
+            return XCTFail("Expected a logged card")
+        }
+        XCTAssertEqual(mixed.entryCount, "1 entry")
+        XCTAssertEqual(mixed.nutrients[1].value, "Unknown", "unknown carbohydrates stay Unknown beside water, never 0 g+")
+        XCTAssertNil(mixed.nutrients[1].caption)
+    }
+
     func testLoggedFoodShowsKnownMinimumFootnoteAndPlainWater() throws {
         let gb = Locale(identifier: "en_GB")
         let totals = [

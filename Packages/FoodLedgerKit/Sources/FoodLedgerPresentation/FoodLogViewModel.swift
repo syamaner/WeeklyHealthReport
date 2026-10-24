@@ -153,10 +153,13 @@ public struct FoodLogDayContentSnapshot: Equatable {
     public let entries: [FoodLogDayContent.Entry]
     public let removed: [FoodLogDayContent.RemovedEntry]
     public let plainWater: FoodIntakeTotal?
+    /// `FoodLogDayContent.showsFoodTotals` (#304): false on a plain-water-only day.
+    public let showsFoodTotals: Bool
 
     public init(_ content: FoodLogDayContent) {
         reportingDate = content.reportingDate
         totals = content.totals
+        showsFoodTotals = content.showsFoodTotals
         entries = content.entries
         removed = content.removed
         plainWater = content.plainWater

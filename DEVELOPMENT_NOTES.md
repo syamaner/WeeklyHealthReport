@@ -2713,3 +2713,27 @@ Pricing: Claude Opus 5.5 rates re-checked on 24 October 2026 against Anthropic's
 Boundary: `phase_usage.py --format claude --since 2026-10-24T06:39:54Z --until 2026-10-24T07:14:30Z` on the subagent transcript alone. Cache writes: 460,689 5-minute, 0 1-hour. Exact API-equivalent USD 4.1040912. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-304-2026-10-24: Claude Code plain water and unknown nutrients fix
+
+One implementation subagent, its own transcript (`subagents/agent-a538a69644dda2695.jsonl`), for #304. It covers reading the issue and the contracts, the root cause, the failing tests, the `food-intake-summary-v5` fix across the projection, Home, Health and the food daily export, the contract clarification (`health-food-and-water-v1.md` v1.3) and one full gate run.
+
+Runs from the phase's start (`2026-10-24T06:40:02Z`, captured with `date -u` at the start) to `2026-10-24T07:22:34Z`, just before this ledger edit. These times are UTC (24 October local time, UTC+8). The commit, push and PR that follow are not included.
+
+Pricing: re-checked on 24 October 2026 against Anthropic's official pricing page for Claude Opus 5.5: USD 4/M base input, 5/M 5-minute cache write, 0.20/M cache read, 20/M output, unchanged. The page did not list the 1-hour cache write rate; the ledger's recorded 8/M is passed to the script but no 1-hour writes occurred. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Plain water and unknown nutrients (#304), implementation subagent | 13,077,736 (12,743,337) | 334,235 | 50,031 | 13,127,767 | $5.22 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-24T06:40:02Z --until 2026-10-24T07:22:34Z` on the subagent transcript alone. Cache writes: 334,235 5-minute, 0 1-hour. Exact API-equivalent USD 5.2211184 at the recorded counts. The orchestrating session is not included, and no reviewer subagents were run.
+
+Review fold-in, same subagent and transcript, from `2026-10-24T07:22:34Z` to `2026-10-24T07:49:33Z`. It includes the first ledger edit, the first commit, push and PR #309, and then the invariant review and journey QA findings: accepting `food-intake-summary-v4` in the Drive policy, a frozen v4 golden, the full footnote assertion, the versioning rule and policy-identifier wording, the no-food state on Home and in the Food Log, and a second full gate run. The first row above stays frozen. Same rates.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Plain water and unknown nutrients (#304), review fold-in | 12,167,132 (11,637,984) | 529,044 | 28,810 | 12,195,942 | $5.55 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-24T07:22:34Z --until 2026-10-24T07:49:33Z` on the subagent transcript alone. Cache writes: 529,044 5-minute, 0 1-hour. Exact API-equivalent USD 5.5494328 at the recorded counts. A single run over the whole window (`06:40:02Z` to `07:49:33Z`) reports 25,106,750 tokens and USD 10.7119244, which is less than the sum of the two rows (the windows share the `07:22:34Z` boundary; the cause of the difference was not investigated), so the rows are not added here. The reviewer subagents and the orchestrating session are not included.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

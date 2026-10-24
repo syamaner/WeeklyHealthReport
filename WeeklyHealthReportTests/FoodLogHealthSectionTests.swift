@@ -581,10 +581,11 @@ final class FoodLogHealthSectionTests: XCTestCase {
         XCTAssertTrue(FoodLogDayContent.stripKeys.contains(.fiber), "FoodLogPeriodReader reads fibre from the strip totals")
     }
 
-    /// #288 review: plain water plus a food without fibre. Water's exact 0 g is the only known
-    /// fibre, so the day total is a known minimum of 0 g: "0 g+" with the footnote on Home and in
-    /// the Food Log strip, and an incomplete fibre day in the report (never a 0 g complete day).
-    func testRealAdapterWaterAndFibrelessFoodIsAKnownMinimumOfZeroAndIncomplete() async throws {
+    /// #304 (amends the #288 review): plain water plus a food without fibre. Water's exact 0 g
+    /// makes nothing known (health-food-and-water-v1.3), so fibre stays "Unknown" on Home and in
+    /// the Food Log strip, never "0 g+", and the report counts an incomplete fibre day. Water is not
+    /// a food entry on Home.
+    func testRealAdapterWaterAndFibrelessFoodKeepsFibreUnknownAndIncomplete() async throws {
         let ledger = try makeLedger()
         let root = ledger.root
         let saved = try saveReviewedWebEntry(root)
@@ -593,7 +594,7 @@ final class FoodLogHealthSectionTests: XCTestCase {
 
         let facts = try await root.foodLogPeriodReader.dayFacts(for: [date])
         let fibre = try XCTUnwrap(facts.first?.fibre)
-        XCTAssertEqual(fibre.knownAmount, 0, "plain water is exactly 0 g")
+        XCTAssertNil(fibre.knownAmount, "water never makes fibre known or zero")
         XCTAssertEqual(fibre.incompleteContributions, 1, "the food's unknown fibre")
         let summary = FoodLogPeriodSummary.make(days: facts, reportingDates: [date])
         XCTAssertEqual(summary.days.map(\.fibre), [.incomplete])
@@ -605,8 +606,8 @@ final class FoodLogHealthSectionTests: XCTestCase {
         let gb = Locale(identifier: "en_GB")
         let day = try root.foodLogService.day(reportingDate: date)
         let stripFibre = try XCTUnwrap(day.totals?.first { $0.key == .fiber })
-        XCTAssertEqual(FoodLogText.total(stripFibre, locale: gb), "0 g+")
-        XCTAssertEqual(FoodLogText.totalAccessibility(stripFibre, locale: gb), "Fibre, at least 0 grams")
+        XCTAssertEqual(FoodLogText.total(stripFibre, locale: gb), "Unknown")
+        XCTAssertEqual(FoodLogText.totalAccessibility(stripFibre, locale: gb), "Fibre, unknown")
 
         let projection = try root.intakeProjection(for: root.confirmationNow, calendar: root.confirmationDayCalendar)
         try XCTSkipUnless(projection.summary.itemCount == 2, "the entry was saved on another day than Home's today")
@@ -615,8 +616,41 @@ final class FoodLogHealthSectionTests: XCTestCase {
             return XCTFail("Expected a logged card")
         }
         XCTAssertEqual(logged.nutrients.last?.label, "Fibre")
-        XCTAssertEqual(logged.nutrients.last?.value, "0 g+")
-        XCTAssertEqual(logged.footnote, "Some values are unknown for 1 entry, so totals marked + are known minimums.")
+        XCTAssertEqual(logged.nutrients.last?.value, "Unknown")
+        XCTAssertEqual(logged.entryCount, "1 entry", "plain water is not a food entry")
+        // Only the food's protein is known and complete, so no total carries "+": the footnote
+        // names the one food entry and makes no known-minimum claim.
+        XCTAssertEqual(logged.footnote, "Some values are unknown for 1 entry.")
+    }
+
+    /// #304 review: water, then a food, then the food removed. The day is water-only again, so the
+    /// Food Log strip and Home show the no-food state (never 0, never a bare "Unknown").
+    func testRealAdapterRemovingTheOnlyFoodLeavesTheNoFoodState() async throws {
+        let ledger = try makeLedger()
+        let root = ledger.root
+        let saved = try saveReviewedWebEntry(root)
+        let date = saved.logItemVersion.reportingDate.value
+        _ = try logWater(root, on: date)
+        let outcome = await root.foodLogStore.remove(saved.logItem.logItemID, expected: saved.logItemVersion.logItemVersionID)
+        XCTAssertEqual(outcome, .applied)
+
+        let day = try root.foodLogService.day(reportingDate: date)
+        XCTAssertFalse(day.showsFoodTotals)
+        XCTAssertEqual(day.foodEntryCount, 0)
+        XCTAssertEqual(day.entries.count, 1, "the water entry is still listed")
+        XCTAssertEqual(day.removed.count, 1)
+        let facts = try await root.foodLogPeriodReader.dayFacts(for: [date])
+        XCTAssertNil(facts.first?.energy, "a water-only day is not logged")
+
+        let projection = try root.intakeProjection(for: root.confirmationNow, calendar: root.confirmationDayCalendar)
+        try XCTSkipUnless(projection.summary.itemCount == 1, "the entry was saved on another day than Home's today")
+        let plainWater = try root.plainWaterTotal(for: root.confirmationNow, calendar: root.confirmationDayCalendar)
+        guard case .noFood(let noFood) = FoodHomeCardContent.make(projection: projection, plainWater: plainWater,
+                                                                   locale: Locale(identifier: "en_GB")) else {
+            return XCTFail("Expected the no-food card")
+        }
+        XCTAssertEqual(noFood.water.value, "250 mL")
+        XCTAssertNil(noFood.footnote)
     }
 
     /// Two current heads for one entry (a removal committed against a stale view)
