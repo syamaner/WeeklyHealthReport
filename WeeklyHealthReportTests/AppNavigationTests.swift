@@ -299,7 +299,62 @@ final class AppNavigationTests: XCTestCase {
         XCTAssertEqual(navigation.path, [.settings])
     }
 
+    // MARK: First launch and unavailable destinations (#305)
+
+    /// A fresh install has no stored destination, so the first screen is Home
+    /// whether or not this build can export to Drive.
+    func testFirstLaunchLandsOnHome() {
+        for driveExportAvailable in [true, false] {
+            let coordinator = AppNavigationCoordinator(defaults: isolatedDefaults())
+            coordinator.restoreIfNeeded(hasDraft: true, availableRoutes: driveSettings(driveExportAvailable).availableRoutes)
+            XCTAssertEqual(coordinator.path, [], "drive export available: \(driveExportAvailable)")
+        }
+    }
+
+    /// A build without Drive configuration never restores the Drive export
+    /// screens: Export restores Home and Drive setup restores Settings.
+    func testUnavailableDriveExportNeverRestoresAsLandingScreen() {
+        let unavailable = driveSettings(false).availableRoutes
+        XCTAssertTrue(unavailable.isDisjoint(with: AppRoute.driveExportRoutes))
+        XCTAssertEqual(AppRoute.restoredPath(from: "dailyExport", hasDraft: true, availableRoutes: unavailable), [])
+        XCTAssertEqual(AppRoute.restoredPath(from: "exportDestination", hasDraft: false, availableRoutes: unavailable), [.settings])
+        // Everything else restores exactly as in a Drive-enabled build.
+        let available = driveSettings(true).availableRoutes
+        XCTAssertTrue(available.isSuperset(of: AppRoute.driveExportRoutes))
+        for route in AppRoute.allCases where !AppRoute.driveExportRoutes.contains(route) {
+            XCTAssertEqual(
+                AppRoute.restoredPath(from: route.rawValue, hasDraft: true, availableRoutes: unavailable),
+                AppRoute.restoredPath(from: route.rawValue, hasDraft: true, availableRoutes: available),
+                "\(route)"
+            )
+        }
+    }
+
+    /// The reported state: a stored Export in a build without Drive opens Home,
+    /// on launch and on returning to the foreground; with Drive it is remembered.
+    func testStoredExportOpensHomeWhenDriveExportIsUnavailable() {
+        let defaults = isolatedDefaults()
+        defaults.set("dailyExport", forKey: AppNavigationCoordinator.destinationKey)
+        let unavailable = driveSettings(false).availableRoutes
+        let launched = AppNavigationCoordinator(defaults: defaults)
+        launched.restoreIfNeeded(hasDraft: false, availableRoutes: unavailable)
+        XCTAssertEqual(launched.path, [])
+        launched.didBecomeActive(hasDraft: false, availableRoutes: unavailable)
+        XCTAssertEqual(launched.path, [])
+
+        let configured = AppNavigationCoordinator(defaults: defaults)
+        configured.restoreIfNeeded(hasDraft: false, availableRoutes: driveSettings(true).availableRoutes)
+        XCTAssertEqual(configured.path, [.dailyExport])
+    }
+
     // MARK: Helpers
+
+    private func driveSettings(_ driveExportAvailable: Bool) -> AppSettings {
+        WeeklyHealthReportApp.makeSettings(
+            foodLedger: nil, defaults: isolatedDefaults(),
+            medicationAccessAvailable: false, driveExportAvailable: driveExportAvailable
+        )
+    }
 
     private func isolatedDefaults() -> UserDefaults {
         let name = "app-navigation-" + UUID().uuidString
