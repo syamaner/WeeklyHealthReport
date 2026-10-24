@@ -676,7 +676,8 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
                 host.view.layoutIfNeeded()
                 return self.nativeText(host.view).contains("Converted edible amount")
             }
-            XCTAssertFalse(nativeText(host.view).contains("How was this weight or volume measured?"), "no free-text method field")
+            XCTAssertFalse(descendants(host.view).contains { $0.accessibilityIdentifier == "confirm.conversionMethod" && $0 is UITextField },
+                           "the method is a picker, not a free-text field")
 
             // What the picker does for each choice.
             var chosen = typed; chosen.method = .choice(method)

@@ -39,7 +39,12 @@ final class CountConversionMethodContractTests: XCTestCase {
             XCTAssertEqual(declaration.total, try PositiveQuantity(value: 168, unit: .grams), harness.name)
             XCTAssertEqual(declaration.originalInput, try PositiveQuantity(value: 3, unit: .count), harness.name)
             let archive = try XCTUnwrap(harness.committer as? any FoodArchiveLedgerAccess)
-            XCTAssertTrue(try archive.archiveState().records.quantityConversions.isEmpty, harness.name)
+            let records = try archive.archiveState().records
+            XCTAssertTrue(records.quantityConversions.isEmpty, harness.name)
+            // The intake projection (Food Log, Home, export) marks the entry as an estimate.
+            let projection = try FoodIntakeProjection(records: records, reportingDate: saved.logItemVersion.reportingDate.value)
+            let energy = try XCTUnwrap(projection.summary.totals.first { $0.key == .energyConsumed }, harness.name)
+            XCTAssertTrue(energy.includesEstimates, harness.name)
         }
     }
 
@@ -58,6 +63,15 @@ final class CountConversionMethodContractTests: XCTestCase {
             let decoded = try decoder.decode(QuantityConversionVersion.self, from: bytes)
             XCTAssertEqual(decoded, record, harness.name)
             XCTAssertEqual(try encoder.encode(decoded), bytes, "re-encodes to identical bytes (\(harness.name))")
+
+            // Reopen, change the amount, keep "Recorded: ..." and save again: the typed text is kept.
+            var edited = try XCTUnwrap(service.reopen(logItemID: saved.logItem.logItemID))
+            FoodConfirmationReducer.reduce(state: &edited, action: .setConversion(QuantityConversionDraft(
+                convertedQuantity: try PositiveQuantity(value: 170, unit: .grams), methodVersion: typed)))
+            FoodConfirmationReducer.reduce(state: &edited, action: .accept)
+            let resaved = try service.save(edited, operationID: LedgerFixtures.operationID(421))
+            XCTAssertEqual(resaved.quantityConversion?.methodVersion, typed, harness.name)
+            XCTAssertEqual(resaved.quantityConversion?.convertedQuantity, try PositiveQuantity(value: 170, unit: .grams), harness.name)
         }
     }
 
