@@ -371,6 +371,16 @@ final class QuickAddContractTests: XCTestCase {
             XCTAssertNil(content.totals?.first { $0.key == .carbohydrates }?.knownAmount, "the Food Log strip agrees")
             XCTAssertTrue(content.showsFoodTotals, "a day with food shows its totals; Unknown stays Unknown")
             XCTAssertEqual(content.foodEntryCount, 1)
+
+            // Removing the only food leaves a water-only day: no food totals, never 0.
+            try context.management.remove(logItemID: food.logItemVersion.logItemID, expectedVersion: food.logItemVersion.logItemVersionID,
+                                           reason: LedgerText("Synthetic removal"), operationID: context.ids.makeID(OperationTag.self))
+            let afterRemoval = try FoodIntakeProjection(records: context.records(), reportingDate: day)
+            let waterOnly = FoodLogDayContent(projection: afterRemoval, reportingDate: day, estimates: [])
+            XCTAssertFalse(waterOnly.showsFoodTotals)
+            XCTAssertEqual(waterOnly.foodEntryCount, 0)
+            XCTAssertEqual(afterRemoval.removedRows.count, 1)
+            XCTAssertNil(afterRemoval.summary.totals.first { $0.key == .energyConsumed }?.knownAmount, "not 0 kcal")
             let waterEntry = try XCTUnwrap(content.entries.first { $0.name == PlainWaterReference.name })
             XCTAssertEqual(waterEntry.energyKcal, 0, "the water entry still reads 0 kcal")
             XCTAssertEqual(waterEntry.unknownKeys, [])

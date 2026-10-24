@@ -101,8 +101,7 @@ struct FoodHomeCardContent: Equatable {
                         accessibilityLabel: FoodLogText.plainWaterAccessibility(plainWater, locale: locale))
         // Plain water only (#304): no food total exists, so no nutrient row is shown.
         guard (foodItemCount ?? itemCount) > 0 else {
-            let affected = [plainWater].compactMap { $0 }.filter { $0.incompleteContributions > 0 }
-            return .noFood(NoFood(water: water, footnote: footnote(affected, entries: incompleteEntries)))
+            return .noFood(NoFood(water: water, footnote: noFoodFootnote(plainWater)))
         }
         let affected = (([NutrientKey.energyConsumed] + nutrientKeys).compactMap { key in totals.first { $0.key == key } }
             + [plainWater].compactMap { $0 }).filter { $0.incompleteContributions > 0 }
@@ -124,6 +123,13 @@ struct FoodHomeCardContent: Equatable {
         // "+" appears only beside a total with a known part; an all-unknown total reads "Unknown".
         return affected.contains { $0.knownAmount != nil }
             ? unknown + ", so totals marked + are known minimums." : unknown + "."
+    }
+
+    /// The no-food state's footnote, shared by Home and the Food Log (#304): only when a plain
+    /// water entry cannot be scaled, so the water figure is a known minimum ("250 mL+").
+    static func noFoodFootnote(_ plainWater: FoodIntakeTotal?) -> String? {
+        guard let plainWater, plainWater.incompleteContributions > 0 else { return nil }
+        return footnote([plainWater], entries: plainWater.incompleteContributions)
     }
 
     static let loadingMessage = "Loading food log"

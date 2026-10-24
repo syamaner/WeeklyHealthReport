@@ -102,6 +102,9 @@ final class HomeCardsTests: XCTestCase {
         }
         XCTAssertEqual(partial.water.value, "250 mL+")
         XCTAssertEqual(partial.footnote, "Some values are unknown for 1 entry, so totals marked + are known minimums.")
+        XCTAssertEqual(FoodHomeCardContent.noFoodFootnote(partialWater), partial.footnote, "the Food Log shows the same line")
+        XCTAssertNil(FoodHomeCardContent.noFoodFootnote(water))
+        XCTAssertNil(FoodHomeCardContent.noFoodFootnote(nil))
 
         let carbohydrates = FoodIntakeTotal(key: .carbohydrates, knownAmount: nil, incompleteContributions: 1, includesEstimates: false)
         guard case .logged(let mixed) = FoodHomeCardContent.make(itemCount: 2, foodItemCount: 1,

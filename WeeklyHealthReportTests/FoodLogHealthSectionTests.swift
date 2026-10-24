@@ -623,6 +623,36 @@ final class FoodLogHealthSectionTests: XCTestCase {
         XCTAssertEqual(logged.footnote, "Some values are unknown for 1 entry.")
     }
 
+    /// #304 review: water, then a food, then the food removed. The day is water-only again, so the
+    /// Food Log strip and Home show the no-food state (never 0, never a bare "Unknown").
+    func testRealAdapterRemovingTheOnlyFoodLeavesTheNoFoodState() async throws {
+        let ledger = try makeLedger()
+        let root = ledger.root
+        let saved = try saveReviewedWebEntry(root)
+        let date = saved.logItemVersion.reportingDate.value
+        _ = try logWater(root, on: date)
+        let outcome = await root.foodLogStore.remove(saved.logItem.logItemID, expected: saved.logItemVersion.logItemVersionID)
+        XCTAssertEqual(outcome, .applied)
+
+        let day = try root.foodLogService.day(reportingDate: date)
+        XCTAssertFalse(day.showsFoodTotals)
+        XCTAssertEqual(day.foodEntryCount, 0)
+        XCTAssertEqual(day.entries.count, 1, "the water entry is still listed")
+        XCTAssertEqual(day.removed.count, 1)
+        let facts = try await root.foodLogPeriodReader.dayFacts(for: [date])
+        XCTAssertNil(facts.first?.energy, "a water-only day is not logged")
+
+        let projection = try root.intakeProjection(for: root.confirmationNow, calendar: root.confirmationDayCalendar)
+        try XCTSkipUnless(projection.summary.itemCount == 1, "the entry was saved on another day than Home's today")
+        let plainWater = try root.plainWaterTotal(for: root.confirmationNow, calendar: root.confirmationDayCalendar)
+        guard case .noFood(let noFood) = FoodHomeCardContent.make(projection: projection, plainWater: plainWater,
+                                                                   locale: Locale(identifier: "en_GB")) else {
+            return XCTFail("Expected the no-food card")
+        }
+        XCTAssertEqual(noFood.water.value, "250 mL")
+        XCTAssertNil(noFood.footnote)
+    }
+
     /// Two current heads for one entry (a removal committed against a stale view)
     /// make the read fail, and the section reports it as a food-log failure.
     func testRealAdapterCompetingHeadsGiveAFailedState() async throws {

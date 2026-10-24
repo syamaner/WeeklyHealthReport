@@ -180,6 +180,9 @@ struct FoodLogView: View {
                 .monospacedDigit()
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(FoodLogText.plainWaterAccessibility(plainWater))
+        } footer: {
+            // The same line as Home's no-food card, only when the water figure is a known minimum.
+            if let footnote = FoodHomeCardContent.noFoodFootnote(plainWater) { Text(footnote) }
         }
     }
 
