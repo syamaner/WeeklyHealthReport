@@ -43,7 +43,7 @@ scrolling form. It always includes every report section with all blood-pressure
 details shown, whatever is expanded on screen, but not the summary tiles or the
 navigation, export, copy, refresh or diagnostics controls. Its wording is the
 screen's (sentence-case labels, and "Could not read Apple Health." for a failed
-read), while Copy all keeps the copied-report labels shown below.
+read), and Copy all uses the same words ([Copy all v2](docs/health-copy-all-v2.md)).
 **Today** offers Full Page too: a one-page PDF of its cards as text (the date, Food
 logged, quick-add favourites, Health · today so far with its footer and "As of" time,
 and today's notes count), built from the cards' current content when iOS asks. Buttons
@@ -435,9 +435,9 @@ These are calendar periods, not a rolling 168-hour window. Last 7 days still con
 
 The copied report is plain text. Latest weight, waist, blood oxygen and blood pressure are selected independently of the weekly period, so a measurement recorded today can appear alongside a report of completed days.
 
-A failed Apple Health read is copied as "Could not read Apple Health.", whether it is one metric row (for example `Daily Average: Could not read Apple Health.`) or a whole section such as Steps. The technical message is never copied; Developer tools lists it under "Health report read failures". The Food and water section reads this app's food log, not Apple Health, so a failed read there is copied as "Could not read the food log." No-data, unavailable and partial wording is copied unchanged.
+A failed Apple Health read is copied as "Could not read Apple Health.", whether it is one metric row (for example `Daily average: Could not read Apple Health.`) or a whole section such as Steps. The technical message is never copied; Developer tools lists it under "Health report read failures". The Food and water section reads this app's food log, not Apple Health, so a failed read there is copied as "Could not read the food log." No-data, unavailable and partial wording is copied unchanged.
 
-Sections are copied in the Health screen's group order ([section groups](docs/health-report-section-groups-v1.md)): Daily activity (Steps, Activity), Food and water, Body (Weight, Body Composition), Heart and sleep (Heart, Blood Pressure, Sleep), Fitness and blood oxygen (Cardiorespiratory), Glucose, and Medications (Medications Taken). Every group starts with its name in capitals on its own line; section titles, row labels and values are unchanged.
+Sections are copied in the Health screen's group order ([section groups](docs/health-report-section-groups-v1.md)): Daily activity (Steps, Activity), Food and water, Body (Weight, Body composition), Heart and sleep (Heart, Blood pressure, Sleep), Fitness and blood oxygen, Glucose, and Medications (Medications taken). Every group starts with its name in capitals on its own line. Section titles, row labels and footers are the Health screen's own wording ([Copy all v2](docs/health-copy-all-v2.md), #308), so the copied text reads like the screen; values are unchanged.
 
 <details>
 <summary>See a synthetic copied report</summary>
@@ -451,56 +451,57 @@ Generated: 26/08/26 - 09:00
 DAILY ACTIVITY
 
 Steps
-Average Daily Steps: 2,727
-Data Coverage: 7 / 7 days
-Steps Trend: Insufficient history
-Weekly Total: 19,089
+Average daily steps: 2,727
+Data coverage: 7 / 7 days
+Steps trend: Insufficient history
+Weekly total: 19,089
 
 Activity
-Active Energy: 1,974 kcal
+Active energy: 1,974 kcal
 Exercise: 89 min
 Workouts: 1
-Workout Time: 30m
+Workout time: 30m
 Walking: 30m — 18/08/26 - 00:00
 
 FOOD AND WATER
 
 Food and water
-Days Logged: 6 / 7 days
-Logged Energy: 2,010 kcal per day (5 complete days)
-Incomplete Energy Days: 1
-Logged Fibre: 24 g per day (4 complete days)
-Incomplete Fibre Days: 2
-Plain Water: 1,750 mL per day (4 days)
+Days logged: 6 / 7 days
+Logged energy: 2,010 kcal per day (5 complete days)
+Incomplete energy days: 1
+Logged fibre: 24 g per day (4 complete days)
+Incomplete fibre days: 2
+Plain water: 1,750 mL per day (4 days)
 Logged in this app; not a measure of everything eaten or drunk.
 
 BODY
 
 Weight
-Latest Weight: 100.6 kg
+Latest weight: 100.6 kg
 Measured: 25/08/26 - 00:00
-7-day Average: 100.8 kg
-Weight Trend: -0.4 kg vs previous 7d
+Average, last 7 completed days: 100.8 kg
+Weight trend: -0.4 kg vs previous 7d
+Latest weight can include today. The average uses the last 7 completed days, and the trend compares them with the 7 days before, whichever period is selected.
 
-Body Composition
-Body Fat: 26.5% latest
-7-day Average: 26.7%
-28-day Average: 26.7%
-Body Fat Trend: ↓ 0.9 pp vs previous 28d
-Waist Circumference: 101.4 cm
-Waist Measured: 24/08/26 - 09:00
-4-week Waist Trend: -1.7 cm vs ~4 weeks earlier
+Body composition
+Body fat: 26.5% latest
+7-day average: 26.7%
+28-day average: 26.7%
+Body fat trend: ↓ 0.9 pp vs previous 28d
+Waist circumference: 101.4 cm
+Waist measured: 24/08/26 - 09:00
+4-week waist trend: -1.7 cm vs ~4 weeks earlier
 
 HEART AND SLEEP
 
 Heart
-Resting HR Average: 73 bpm
-Resting HR Trend: +3.0 bpm vs previous 7d
-HRV Average: 42 ms
-HRV Trend: -5.0 ms vs previous 7d
-Watch Data Coverage: 4 / 7 days
+Resting heart rate average: 73 bpm
+Resting heart rate trend: +3.0 bpm vs previous 7d
+HRV average: 42 ms
+HRV trend: -5.0 ms vs previous 7d
+Days with Apple Watch data: 4 / 7 days
 
-Blood Pressure
+Blood pressure
 Latest reading: 123/78 mmHg
 Recorded: 24/08/26 - 20:14
 Morning average: 124.1/79.2 mmHg
@@ -514,33 +515,33 @@ Coverage: 4/7 days · 12 readings
 Period averages use completed days. Morning is before 14:00; evening is from 17:00. Mid-afternoon readings are excluded from both slot summaries.
 
 Sleep
-Average Sleep: 6h 48m
+Average sleep: 6h 48m
 
 FITNESS AND BLOOD OXYGEN
 
-Cardiorespiratory
-Latest VO₂ Max: 32.1 mL/kg/min
-VO₂ Max Measured: 24/08/26 - 09:00
-4-Week Average: 31.8 mL/kg/min (8 days)
-3-Month Average: 30.9 mL/kg/min (24 days)
-6-Month Average: 29.7 mL/kg/min (51 days)
-Latest Blood Oxygen: 97%
-Blood Oxygen Measured: 24/08/26 - 09:00
-Period Typical: 97%
-Daily Median Range: 96–98%
-Blood Oxygen Coverage: 7 / 7 days
+Fitness and blood oxygen
+Latest VO₂ max: 32.1 mL/kg/min
+VO₂ max measured: 24/08/26 - 09:00
+4-week average: 31.8 mL/kg/min (8 days)
+3-month average: 30.9 mL/kg/min (24 days)
+6-month average: 29.7 mL/kg/min (51 days)
+Latest blood oxygen: 97%
+Blood oxygen measured: 24/08/26 - 09:00
+Period typical: 97%
+Daily median range: 96–98%
+Blood oxygen coverage: 7 / 7 days
 Apple Watch blood-oxygen measurements are wellness estimates, not medical measurements.
 
 GLUCOSE
 
 Glucose
-Daily Average: 5.8 mmol/L
-Observed Range: 3.9–8.7 mmol/L
-Data Coverage: 7 / 7 days
+Daily average: 5.8 mmol/L
+Observed range: 3.9–8.7 mmol/L
+Data coverage: 7 / 7 days
 
 MEDICATIONS
 
-Medications Taken
+Medications taken
 No taken medication events are visible for this period.
 ```
 

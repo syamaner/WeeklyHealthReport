@@ -220,3 +220,15 @@ enum HealthSummaryTiles {
         return ReportDocument.Row(row.id, label: row.label, value: value, style: row.style)
     }
 }
+
+extension HealthSummaryTiles {
+    /// "No data" on a tile cannot tell an empty store from withheld access, because
+    /// HealthKit does not disclose read denial (#308). Said once under the tiles, only
+    /// when a tile shows "No data".
+    static let noDataFootnote = "No data means no visible data or no access; Apple Health does not tell apps which."
+
+    static func noDataFootnote(for tiles: [HealthSummaryTile]) -> String? {
+        let rows = tiles.flatMap { [$0.primary, $0.detail, $0.trend].compactMap { $0 } }
+        return rows.contains { $0.value == MetricRowVocabulary.noData } ? noDataFootnote : nil
+    }
+}

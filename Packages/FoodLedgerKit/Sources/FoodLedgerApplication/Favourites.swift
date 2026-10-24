@@ -139,6 +139,42 @@ public final class FavouritesService: @unchecked Sendable {
         try FavouritesProjection(records: reader.favouriteRecords())
     }
 
+    // MARK: Favourite by food and source (#308, read-only)
+
+    /// The active favourite for the same food and source as this logged version. A favourite is
+    /// bound to one logged version (`save_favourite_v1`), and re-logging it writes a new entry from
+    /// the same source record, so "Already a favourite" follows the source identity (source release
+    /// and record, the Recent foods de-duplication key) rather than only the bound version. Reads
+    /// only; no record, binding or format changes.
+    public func activeFavourite(matchingSourceOf logItemVersionID: LogItemVersionID) throws -> FavouriteVersion? {
+        let projection = try projection()
+        if let bound = projection.activeFavourite(boundTo: logItemVersionID) { return bound }
+        guard let key = try sourceKey(logItemVersionID) else { return nil }
+        return try activeFavourite(sourceKey: key, in: projection)
+    }
+
+    /// Whether an active favourite comes from this source record, for Confirm's "Save as favourite".
+    public func hasActiveFavourite(sourceReleaseID: ExternalIdentifier, recordID: ExternalIdentifier) throws -> Bool {
+        try activeFavourite(sourceKey: Self.sourceKey(sourceReleaseID, recordID), in: projection()) != nil
+    }
+
+    private func activeFavourite(sourceKey key: String, in projection: FavouritesProjection) throws -> FavouriteVersion? {
+        for favourite in projection.favourites {
+            guard case let .savedEntry(bound) = favourite.binding else { continue }
+            if try sourceKey(bound) == key { return favourite }
+        }
+        return nil
+    }
+
+    private func sourceKey(_ logItemVersionID: LogItemVersionID) throws -> String? {
+        guard let stored = try confirmations.pinnedConfirmation(logItemVersionID) else { return nil }
+        return Self.sourceKey(stored.candidateDecision.candidate.sourceReleaseID, stored.candidateDecision.candidate.recordID)
+    }
+
+    static func sourceKey(_ sourceReleaseID: ExternalIdentifier, _ recordID: ExternalIdentifier) -> String {
+        sourceReleaseID.value + "\u{1F}" + recordID.value
+    }
+
     // MARK: Save as favourite (save_favourite_v1)
 
     /// Saves a favourite bound to one logged entry version. Returns the existing active favourite

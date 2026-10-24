@@ -119,13 +119,14 @@ final class ReportDocumentGroupsTests: XCTestCase {
 
         let copied = document.plainText(generatedAt: Self.now, calendar: Self.calendar, locale: Self.locale)
         let blocks = copied.components(separatedBy: "\n\n").dropFirst()
-        let expected = document.groupedSections.flatMap { grouped in
+        // Copy all v2 (#308): the display titles, as on screen and in Full Page.
+        let expected = display.groupedSections.flatMap { grouped in
             [ReportDocument.copyAllGroupHeading(grouped.heading)] + grouped.sections.map(\.title)
         }
         XCTAssertEqual(blocks.map { $0.components(separatedBy: "\n")[0] }, expected)
         XCTAssertEqual(expected.prefix(3), ["DAILY ACTIVITY", "Steps", "Activity"])
         XCTAssertEqual(expected.suffix(6), [
-            "FITNESS AND BLOOD OXYGEN", "Cardiorespiratory", "GLUCOSE", "Glucose", "MEDICATIONS", "Medications Taken"
+            "FITNESS AND BLOOD OXYGEN", "Fitness and blood oxygen", "GLUCOSE", "Glucose", "MEDICATIONS", "Medications taken"
         ])
     }
 

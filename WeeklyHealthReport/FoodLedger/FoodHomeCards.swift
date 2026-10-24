@@ -21,6 +21,20 @@ struct FoodHomeCardContent: Equatable {
         let water: Row
         /// One line about the known minimums ("+"), or nil when every total is complete.
         let footnote: String?
+
+        /// One "Includes estimates" note for the whole card (#308) when any shown total's known
+        /// values include estimates, instead of a caption under every row. Each row's VoiceOver
+        /// label still says "includes estimates".
+        var estimatesNote: String? {
+            ([energy] + nutrients + [water]).contains { $0.caption != nil } ? FoodHomeCardContent.estimatesNote : nil
+        }
+
+        /// The card's footer: the estimates note, then the known-minimum footnote. Card-level,
+        /// so neither is read as belonging to the energy row.
+        var footer: String? {
+            let lines = [estimatesNote.map { $0 + "." }, footnote].compactMap { $0 }
+            return lines.isEmpty ? nil : lines.joined(separator: "\n")
+        }
     }
 
     /// Plain water but no food today (#304): the no-food copy instead of nutrient rows, never 0
@@ -41,6 +55,7 @@ struct FoodHomeCardContent: Equatable {
     }
 
     static let title = "Food logged"
+    static let estimatesNote = "Includes estimates"
     static let emptyMessage = "Nothing logged yet today"
     /// The Food Log's empty-day copy, shared so both screens say the same.
     static let noFoodTitle = FoodLogText.emptyTitle
@@ -146,9 +161,9 @@ struct FoodHomeCardContent: Equatable {
             return .init(title: title, rows: [Row(value: noFoodTitle), Row(value: noFoodMessage),
                                               Row(noFood.water.label, value: noFood.water.value)], footer: noFood.footnote)
         case .logged(let logged):
-            let energy = Row(logged.energy.label, value: logged.energy.value, note: logged.energy.caption)
-            let others = (logged.nutrients + [logged.water]).map { Row($0.label, value: $0.value, note: $0.caption) }
-            return .init(title: title, rows: [energy, Row(value: logged.entryCount)] + others, footer: logged.footnote)
+            let energy = Row(logged.energy.label, value: logged.energy.value)
+            let others = (logged.nutrients + [logged.water]).map { Row($0.label, value: $0.value) }
+            return .init(title: title, rows: [energy, Row(value: logged.entryCount)] + others, footer: logged.footer)
         }
     }
 
@@ -164,13 +179,13 @@ struct FoodHomeCardContent: Equatable {
         }
     }
 
-    /// "1,240 kcal" or "41 g" without the known-minimum mark; nil when unknown.
+    /// "1,240 kcal" or "41 g" without the known-minimum mark; nil when unknown. The Food Log
+    /// strip's own figure, which carries "kcal" for energy since #308.
     private static func amount(_ total: FoodIntakeTotal, locale: Locale) -> String? {
         guard total.knownAmount != nil else { return nil }
         let complete = FoodIntakeTotal(key: total.key, knownAmount: total.knownAmount,
                                        incompleteContributions: 0, includesEstimates: total.includesEstimates)
-        let value = FoodLogText.total(complete, locale: locale)
-        return total.key == .energyConsumed ? value + " kcal" : value
+        return FoodLogText.total(complete, locale: locale)
     }
 }
 
@@ -286,9 +301,6 @@ struct FoodHomeCard: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(logged.energy.value).font(.title2.weight(.semibold)).monospacedDigit()
                         Text(logged.entryCount).font(.subheadline).foregroundStyle(.secondary)
-                        if let caption = logged.energy.caption {
-                            Text(caption).font(.caption).foregroundStyle(.secondary)
-                        }
                     }
                     .padding(.vertical, 4)
                 }
@@ -300,9 +312,6 @@ struct FoodHomeCard: View {
                         Text(row.value).monospacedDigit()
                     } label: {
                         Text(row.label)
-                        if let caption = row.caption {
-                            Text(caption)
-                        }
                     }
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(row.accessibilityLabel)
@@ -311,8 +320,8 @@ struct FoodHomeCard: View {
         } header: {
             Text(FoodHomeCardContent.title)
         } footer: {
-            if case .logged(let logged) = model.state, let footnote = logged.footnote {
-                Text(footnote)
+            if case .logged(let logged) = model.state, let footer = logged.footer {
+                Text(footer)
             } else if case .noFood(let noFood) = model.state, let footnote = noFood.footnote {
                 Text(footnote)
             }

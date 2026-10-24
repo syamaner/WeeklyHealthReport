@@ -51,7 +51,9 @@ struct HealthSummaryTileView: View {
         case .secondary, .note:
             Text(row.value).font(font).foregroundStyle(.secondary)
         case .failure:
-            Text(row.value).font(font).foregroundStyle(.red)
+            // An Apple Health failure is explained once by the screen's banner (#308),
+            // so the tile states it quietly; the food log failure keeps red.
+            Text(row.value).font(font).foregroundStyle(row.isExplainedByHealthBanner ? .secondary : Color.red)
         }
     }
 

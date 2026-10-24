@@ -31,7 +31,7 @@ final class FoodLogPresentationTests: XCTestCase {
         let fat = try XCTUnwrap(day.totals?.first { $0.key == .fatTotal })
         XCTAssertEqual(FoodLogText.total(fat, locale: locale), "Unknown")
         let energy = try XCTUnwrap(day.totals?.first { $0.key == .energyConsumed })
-        XCTAssertEqual(FoodLogText.total(energy, locale: locale), "300")
+        XCTAssertEqual(FoodLogText.total(energy, locale: locale), "300 kcal")
     }
 
     func testEmptyDayHasNoTotalsAndDayNavigationReloads() async throws {
@@ -431,11 +431,47 @@ final class FoodLogPresentationTests: XCTestCase {
 
     // MARK: Copy
 
+    /// #308: the "+" footnote only when a figure shows "+", as on Home.
+    func testTotalsFootnoteOnlyWhenAFigureShowsPlus() {
+        func total(_ key: NutrientKey, _ amount: Double?, incomplete: Int = 0) -> FoodIntakeTotal {
+            FoodIntakeSummaryProbe.total(key: key, amount: amount, incomplete: incomplete)
+        }
+        let complete = [total(.energyConsumed, 300), total(.protein, 12)]
+        XCTAssertNil(FoodLogText.totalsFootnote(complete, plainWater: nil))
+        XCTAssertNil(FoodLogText.totalsFootnote(complete + [total(.fatTotal, nil, incomplete: 1)], plainWater: nil),
+                     "a wholly unknown total reads Unknown, with no +")
+        XCTAssertEqual(FoodLogText.totalsFootnote(complete + [total(.fatTotal, 4, incomplete: 1)], plainWater: nil),
+                       FoodLogText.totalsFootnote)
+        XCTAssertEqual(FoodLogText.totalsFootnote(complete, plainWater: total(.water, 250, incomplete: 1)), FoodLogText.totalsFootnote,
+                       "plain water as a known minimum shows +")
+    }
+
+    /// #308: Source details say why a value is unknown in plain words, never the raw identifier.
+    func testUnknownNutrientReasonsArePlainLanguage() {
+        let reasons: [UnknownReason] = [.notDeclared, .noCompatibleSource, .missingConversion, .conflictingEvidence]
+        XCTAssertEqual(FoodLogText.unknownNutrient(.notDeclared), "Unknown, not stated by the source")
+        for reason in reasons {
+            let text = FoodLogText.unknownNutrient(reason)
+            XCTAssertTrue(text.hasPrefix("Unknown, "), text)
+            XCTAssertFalse(text.contains(reason.rawValue) || text.contains(String(describing: reason)) || text.contains("("), text)
+        }
+    }
+
+    /// #308: changing a pasted label's basis keeps the amount and unit, and the Change sheet says so.
+    func testBasisChangeSheetExplainsTheKeptUnit() {
+        XCTAssertNil(PastedLabelBasisSheetView.basisChangeNote(fromChange: false), "no amount exists on the first sheet")
+        let note = PastedLabelBasisSheetView.basisChangeNote(fromChange: true)
+        XCTAssertEqual(note, PastedLabelText.basisChangeKeepsAmount)
+        XCTAssertTrue(note?.contains("grams for per 100 g") == true)
+        XCTAssertTrue(note?.contains("millilitres for per 100 mL") == true)
+    }
+
     func testTotalsAndFlagsGoldenStrings() throws {
         func total(_ key: NutrientKey, _ amount: Double?, incomplete: Int = 0) -> FoodIntakeTotal {
             FoodIntakeSummaryProbe.total(key: key, amount: amount, incomplete: incomplete)
         }
-        XCTAssertEqual(FoodLogText.total(total(.energyConsumed, 1240), locale: locale), "1,240")
+        XCTAssertEqual(FoodLogText.total(total(.energyConsumed, 1240), locale: locale), "1,240 kcal", "#308: energy carries its unit")
+        XCTAssertEqual(FoodLogText.total(total(.energyConsumed, 1240, incomplete: 1), locale: locale), "1,240 kcal+")
         XCTAssertEqual(FoodLogText.total(total(.protein, 68), locale: locale), "68 g")
         XCTAssertEqual(FoodLogText.total(total(.fatTotal, 41, incomplete: 1), locale: locale), "41 g+")
         XCTAssertEqual(FoodLogText.total(total(.fatTotal, nil, incomplete: 2), locale: locale), "Unknown")
@@ -465,7 +501,7 @@ final class FoodLogPresentationTests: XCTestCase {
         XCTAssertEqual(FoodLogText.entryEnergy(volume, locale: locale), "Energy unknown")
         XCTAssertFalse(FoodLogText.flags(volume).contains("Estimate"))
         XCTAssertTrue(FoodLogText.entryAccessibility(volume, time: "12:40", locale: locale).contains("Energy unknown"))
-        XCTAssertEqual(FoodLogText.total(try XCTUnwrap(day.totals?.first { $0.key == .energyConsumed }), locale: locale), "300+")
+        XCTAssertEqual(FoodLogText.total(try XCTUnwrap(day.totals?.first { $0.key == .energyConsumed }), locale: locale), "300 kcal+")
     }
 }
 

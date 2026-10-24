@@ -102,6 +102,12 @@ struct ReportSectionHeader: View {
 struct ReportDocumentRowView: View {
     let row: ReportDocument.Row
 
+    /// Apple Health failures are explained once by the screen's banner (#308), so
+    /// each row keeps its accessible text without red; the food log keeps red.
+    private var failureColour: Color {
+        row.isExplainedByHealthBanner ? .secondary : .red
+    }
+
     @ViewBuilder
     var body: some View {
         if let label = row.label {
@@ -117,7 +123,7 @@ struct ReportDocumentRowView: View {
                     .foregroundStyle(.secondary)
             case .failure:
                 LabeledContent(label, value: row.value)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(failureColour)
             }
         } else {
             switch row.style {
@@ -133,7 +139,7 @@ struct ReportDocumentRowView: View {
                     .foregroundStyle(.secondary)
             case .failure:
                 Text(row.value)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(failureColour)
             case .note:
                 Text(row.value)
                     .font(.caption)

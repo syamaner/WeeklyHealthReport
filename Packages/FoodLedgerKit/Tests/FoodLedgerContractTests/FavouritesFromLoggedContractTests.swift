@@ -72,6 +72,35 @@ final class FavouritesFromLoggedContractTests: XCTestCase {
         }
     }
 
+    /// #308: re-logging a favourite writes a new entry from the same source record. "Already a
+    /// favourite" follows that food and source, not only the bound version; a different source is
+    /// not a favourite. Reads only: no record or operation is written.
+    func testFavouriteFollowsItsFoodAndSourceAfterARelog() throws {
+        for context in try QuickAddFixtures.contexts() {
+            defer { context.harness.cleanup() }
+            let saved = try context.logExact(83)
+            let favourite = try context.favourites.saveFavourite(logItemVersionID: saved.logItemVersion.logItemVersionID)
+            var state = try XCTUnwrap(context.confirmations.relogState(logItemID: saved.logItem.logItemID))
+            FoodConfirmationReducer.reduce(state: &state, action: .accept)
+            let relogged = try context.confirmations.save(state, operationID: context.ids.makeID(OperationTag.self))
+            XCTAssertNotEqual(relogged.logItemVersion.logItemVersionID, saved.logItemVersion.logItemVersionID)
+            XCTAssertNil(try context.favourites.projection().activeFavourite(boundTo: relogged.logItemVersion.logItemVersionID),
+                         "the binding itself is unchanged")
+            let operations = try context.operations().count
+            XCTAssertEqual(try context.favourites.activeFavourite(matchingSourceOf: relogged.logItemVersion.logItemVersionID), favourite,
+                           context.harness.name)
+            XCTAssertEqual(try context.favourites.activeFavourite(matchingSourceOf: saved.logItemVersion.logItemVersionID), favourite)
+            let source = relogged.candidateDecision.candidate
+            XCTAssertTrue(try context.favourites.hasActiveFavourite(sourceReleaseID: source.sourceReleaseID, recordID: source.recordID))
+
+            let other = try context.logExact(84)
+            XCTAssertNil(try context.favourites.activeFavourite(matchingSourceOf: other.logItemVersion.logItemVersionID), "another source")
+            let otherSource = other.candidateDecision.candidate
+            XCTAssertFalse(try context.favourites.hasActiveFavourite(sourceReleaseID: otherSource.sourceReleaseID, recordID: otherSource.recordID))
+            XCTAssertEqual(try context.operations().count, operations + 1, "only the second log wrote; matching reads only")
+        }
+    }
+
     // MARK: F. Add Water to quick add (Q7 amendment)
 
     func testAddWaterIsANoOpWhileWaterIsOffered() throws {

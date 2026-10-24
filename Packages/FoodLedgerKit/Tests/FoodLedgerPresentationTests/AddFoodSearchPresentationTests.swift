@@ -33,6 +33,81 @@ final class AddFoodSearchPresentationTests: XCTestCase {
         XCTAssertEqual(FoodSearchResultText.amount(.init(value: 2, unit: "count")), "2 pieces")
     }
 
+    /// #308: a row without an amount states the source's energy per 100 g or per 100 mL; an
+    /// unknown energy shows the basis alone and never 0.
+    func testRowsStateEnergyPerBasisAndNeverZeroForUnknown() throws {
+        XCTAssertEqual(FoodSearchResultText.summaryLine(.init(family: .usReference, preparation: .raw,
+            energy: .basisOnly(.per100Grams), basisEnergyKcal: 89)), "US reference · raw · 89 kcal per 100 g")
+        XCTAssertEqual(FoodSearchResultText.summaryLine(.init(family: .packagedProduct, preparation: .unknown,
+            energy: .basisOnly(.per100Millilitres), basisEnergyKcal: 42)), "Packaged product · 42 kcal per 100 mL on label")
+        XCTAssertEqual(FoodSearchResultText.summaryLine(.init(family: .ukReference, preparation: .unknown,
+            energy: .basisOnly(.per100Millilitres), basisEnergyKcal: 0)), "UK reference · 0 kcal per 100 mL", "a stated zero stays zero")
+        XCTAssertEqual(FoodSearchResultText.summaryLine(.init(family: .ukReference, preparation: .unknown,
+            energy: .basisOnly(.per100Grams), basisEnergyKcal: nil)), "UK reference · per 100 g", "unknown energy shows no figure")
+        let model = try GenericFoodSearchViewModel(searcher: CoFIDGenericFoodSearch(ids: RandomLedgerIDGenerator()), locale: LedgerText("en_GB"))
+        model.query = "banana"; model.search()
+        let rows = try model.bestMatches.map { FoodSearchResultText.summaryLine(try XCTUnwrap(model.summary(for: $0))) }
+        XCTAssertFalse(rows.isEmpty)
+        XCTAssertTrue(rows.contains { $0.contains(" kcal per 100 g") }, "\(rows)")
+        XCTAssertFalse(rows.contains { $0.contains(" 0 kcal") }, "\(rows)")
+    }
+
+    /// #308: "Best matches" holds close name matches; the rest keep their order under "Other matches".
+    func testBestMatchesKeepCloseNameMatchesAndTheRestFollowInOrder() throws {
+        func match(_ name: String, exact: Bool = false) throws -> GenericFoodMatch {
+            let base = try XCTUnwrap(try { () -> GenericFoodMatch? in
+                let model = try GenericFoodSearchViewModel(searcher: CoFIDGenericFoodSearch(ids: RandomLedgerIDGenerator()), locale: LedgerText("en_GB"))
+                model.query = "banana"; model.search()
+                return model.bestMatches.first
+            }())
+            let candidate = try PopulatedFoodCandidate(candidate: base.candidate.candidate, name: LedgerText(name), brand: nil, variant: nil,
+                                                       barcode: nil, itemClass: base.candidate.itemClass)
+            return GenericFoodMatch(candidate: candidate, isExactName: exact)
+        }
+        typealias M = GenericFoodSearchViewModel
+        XCTAssertTrue(M.isCloseNameMatch(try match("Bananas, raw"), food: "banana"))
+        XCTAssertTrue(M.isCloseNameMatch(try match("Bananas, dehydrated, or banana powder"), food: "banana"))
+        XCTAssertTrue(M.isCloseNameMatch(try match("Heinz Baked Beans"), food: "baked beans"))
+        XCTAssertTrue(M.isCloseNameMatch(try match("Yogurt, Greek, plain"), food: "greek yoghurt"))
+        XCTAssertTrue(M.isCloseNameMatch(try match("Plantain chips", exact: true), food: "banana"), "an exact name is always close")
+        XCTAssertFalse(M.isCloseNameMatch(try match("Babyfood, cereal, oatmeal, with bananas"), food: "banana"))
+        XCTAssertFalse(M.isCloseNameMatch(try match("Bread, banana"), food: "banana"))
+
+        let model = try GenericFoodSearchViewModel(searcher: CoFIDGenericFoodSearch(ids: RandomLedgerIDGenerator()), locale: LedgerText("en_GB"))
+        model.query = "banana"; model.search()
+        let food = model.parsedQuery?.food ?? model.query
+        XCTAssertFalse(model.closeMatches.isEmpty)
+        XCTAssertTrue(model.closeMatches.allSatisfy { M.isCloseNameMatch($0, food: food) })
+        XCTAssertTrue(model.otherMatches.allSatisfy { !M.isCloseNameMatch($0, food: food) })
+        XCTAssertEqual(Set((model.closeMatches + model.otherMatches).map(\.searchID)), Set(model.bestMatches.map(\.searchID)))
+        let order = model.bestMatches.map(\.searchID)
+        XCTAssertEqual(model.closeMatches.map(\.searchID), order.filter { id in model.closeMatches.contains { $0.searchID == id } },
+                       "grouping keeps the ranked order")
+    }
+
+    /// #308: Confirm names a generic estimate's source with the search row's words.
+    func testConfirmSourceNameMatchesTheSearchRow() {
+        XCTAssertEqual(FoodSearchResultText.confirmSourceName(family: .usReference, isGenericEstimate: true), "US reference · estimate")
+        XCTAssertEqual(FoodSearchResultText.confirmSourceName(family: .ukReference, isGenericEstimate: true), "UK reference · estimate")
+        XCTAssertEqual(FoodSearchResultText.confirmSourceName(family: .otherSource, isGenericEstimate: true), "Generic food estimate")
+        XCTAssertNil(FoodSearchResultText.confirmSourceName(family: .usReference, isGenericEstimate: false))
+        XCTAssertTrue(FoodSearchResultText.confirmSourceName(family: .usReference, isGenericEstimate: true)!
+            .hasPrefix(FoodSearchResultText.family(.usReference)))
+    }
+
+    /// #308: at accessibility sizes the search field keeps a prompt that scales, the chips stack
+    /// so words wrap whole, and screen titles move inline instead of truncating.
+    func testAccessibilitySizesKeepPromptChipsAndTitlesWhole() {
+        XCTAssertEqual(FoodSearchFieldText.prompt(example: "2 scrambled eggs", at: .large), "Food and amount, e.g. 2 scrambled eggs")
+        XCTAssertEqual(FoodSearchFieldText.prompt(example: "2 scrambled eggs", at: .accessibility5), "Food and amount")
+        XCTAssertEqual(FoodSearchFieldText.prompt(example: "x", at: .accessibility1), FoodSearchFieldText.shortPrompt)
+        XCTAssertFalse(FoodSearchFieldText.stacksChips(at: .xxxLarge))
+        XCTAssertTrue(FoodSearchFieldText.stacksChips(at: .accessibility1))
+        XCTAssertFalse(AccessibleNavigationTitle.usesInlineTitle(at: .xxxLarge))
+        XCTAssertTrue(AccessibleNavigationTitle.usesInlineTitle(at: .accessibility5))
+        XCTAssertGreaterThan(AccessibleNavigationTitle.inlineLineLimit, 1)
+    }
+
     func testConfirmAmountTextHasNoTrailingZeroAndRoundTrips() {
         XCTAssertEqual(FoodAmountTextParser.editableText(150), "150")
         XCTAssertEqual(FoodAmountTextParser.editableText(1500), "1500")

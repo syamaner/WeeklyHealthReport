@@ -10,7 +10,7 @@ The Health report's sections are put under a few named groups and reordered. **N
 
 steps, weight, bodyComposition, heart, bloodPressure, cardiorespiratory, glucose, activity, sleep, medications (the last only when the medication section is included).
 
-Copy all titles: Steps, Weight, Body Composition, Heart, Blood Pressure, Cardiorespiratory, Glucose, Activity, Sleep, Medications Taken. Full Page uses the display titles (`ReportDocument+Display.swift`), where cardiorespiratory reads "Fitness and blood oxygen".
+Copy all titles (v1; since [Copy all v2](health-copy-all-v2.md), #308, Copy all uses the display titles): Steps, Weight, Body Composition, Heart, Blood Pressure, Cardiorespiratory, Glucose, Activity, Sleep, Medications Taken. Full Page uses the display titles (`ReportDocument+Display.swift`), where cardiorespiratory reads "Fitness and blood oxygen".
 
 ## 2. Groups and order
 
@@ -34,7 +34,7 @@ Copy all titles: Steps, Weight, Body Composition, Heart, Blood Pressure, Cardior
 | Surface | Change |
 |---|---|
 | Health screen | Sections in the new order, with a group heading above each group, in primary-colour text distinct from section headers |
-| Copy all | Section blocks in the new order. Before each group, one heading line in capitals (`DAILY ACTIVITY`, `BODY`, `HEART AND SLEEP`, `FITNESS AND BLOOD OXYGEN`, `GLUCOSE`, `MEDICATIONS`) as its own block (decision 3). Every other line is byte-identical |
+| Copy all | Section blocks in the new order. Before each group, one heading line in capitals (`DAILY ACTIVITY`, `BODY`, `HEART AND SLEEP`, `FITNESS AND BLOOD OXYGEN`, `GLUCOSE`, `MEDICATIONS`) as its own block (decision 3). Every other line is byte-identical (superseded for titles, labels and footers by [Copy all v2](health-copy-all-v2.md), #308: Copy all now uses the screen's wording) |
 | Full Page | The screen's order and headings in display wording |
 | Developer tools | Unchanged order (decision 4). It reads model states, not `ReportDocument` |
 | Daily JSON, stored records | No change |

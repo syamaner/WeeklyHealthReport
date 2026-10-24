@@ -35,6 +35,39 @@ final class FavouriteSavingPresentationTests: XCTestCase {
             active.insert(logItemVersionID)
             return try XCTUnwrap(projection().activeFavourite(boundTo: logItemVersionID))
         }
+
+        /// Versions logged from the same source as an active favourite's version (#308).
+        var sameSource: [LogItemVersionID: LogItemVersionID] = [:]
+
+        func activeFavourite(matchingSourceOf logItemVersionID: LogItemVersionID) throws -> FavouriteVersion? {
+            let projection = try projection()
+            return projection.activeFavourite(boundTo: logItemVersionID)
+                ?? sameSource[logItemVersionID].flatMap { projection.activeFavourite(boundTo: $0) }
+        }
+    }
+
+    /// #308: after a re-log, the new entry from the same food and source reads "Already a
+    /// favourite" and is never offered or saved again.
+    func testRelogOfAFavouriteStaysAlreadyAFavourite() throws {
+        let store = FakeStore()
+        let original = try id(10), relog = try id(11), other = try id(12)
+        store.active = [original]
+        store.sameSource = [relog: original]
+        let model = FavouriteSaveModel(store: store)
+        model.refresh([relog, other])
+        XCTAssertEqual(model.state(for: relog), .alreadyFavourite)
+        XCTAssertEqual(model.state(for: other), .available)
+        model.save(relog)
+        XCTAssertEqual(store.saves, 0, "no duplicate favourite")
+        // A row refreshed before the favourite existed still writes nothing once it does.
+        let stale = FavouriteSaveModel(store: store)
+        store.active = []
+        stale.refresh([relog])
+        XCTAssertEqual(stale.state(for: relog), .available)
+        store.active = [original]
+        stale.save(relog)
+        XCTAssertEqual(stale.state(for: relog), .alreadyFavourite)
+        XCTAssertEqual(store.saves, 0)
     }
 
     private func id(_ value: Int) throws -> LogItemVersionID {

@@ -315,56 +315,57 @@ final class HealthReportFormatterTests: XCTestCase {
         DAILY ACTIVITY
 
         Steps
-        Average Daily Steps: 2,727
-        Data Coverage: 7 / 7 days
-        Steps Trend: Insufficient history
-        Weekly Total: 19,089
+        Average daily steps: 2,727
+        Data coverage: 7 / 7 days
+        Steps trend: Insufficient history
+        Weekly total: 19,089
 
         Activity
-        Active Energy: 1,974 kcal
+        Active energy: 1,974 kcal
         Exercise: 89 min
         Workouts: 1
-        Workout Time: 30m
+        Workout time: 30m
         Walking: 30m — 18/08/26 - 00:00
 
         FOOD AND WATER
 
         Food and water
-        Days Logged: 6 / 7 days
-        Logged Energy: 2,010 kcal per day (5 complete days)
-        Incomplete Energy Days: 1
-        Logged Fibre: 24 g per day (4 complete days)
-        Incomplete Fibre Days: 2
-        Plain Water: 1,750 mL per day (4 days)
+        Days logged: 6 / 7 days
+        Logged energy: 2,010 kcal per day (5 complete days)
+        Incomplete energy days: 1
+        Logged fibre: 24 g per day (4 complete days)
+        Incomplete fibre days: 2
+        Plain water: 1,750 mL per day (4 days)
         Logged in this app; not a measure of everything eaten or drunk.
 
         BODY
 
         Weight
-        Latest Weight: 100.6 kg
+        Latest weight: 100.6 kg
         Measured: 25/08/26 - 00:00
-        7-day Average: 100.8 kg
-        Weight Trend: -0.4 kg vs previous 7d
+        Average, last 7 completed days: 100.8 kg
+        Weight trend: -0.4 kg vs previous 7d
+        Latest weight can include today. The average uses the last 7 completed days, and the trend compares them with the 7 days before, whichever period is selected.
 
-        Body Composition
-        Body Fat: 26.5% latest
-        7-day Average: 26.7%
-        28-day Average: 26.7%
-        Body Fat Trend: ↓ 0.9 pp vs previous 28d
-        Waist Circumference: 101.4 cm
-        Waist Measured: 24/08/26 - 09:00
-        4-week Waist Trend: -1.7 cm vs ~4 weeks earlier
+        Body composition
+        Body fat: 26.5% latest
+        7-day average: 26.7%
+        28-day average: 26.7%
+        Body fat trend: ↓ 0.9 pp vs previous 28d
+        Waist circumference: 101.4 cm
+        Waist measured: 24/08/26 - 09:00
+        4-week waist trend: -1.7 cm vs ~4 weeks earlier
 
         HEART AND SLEEP
 
         Heart
-        Resting HR Average: 73 bpm
-        Resting HR Trend: +3.0 bpm vs previous 7d
-        HRV Average: 42 ms
-        HRV Trend: -5.0 ms vs previous 7d
-        Watch Data Coverage: 4 / 7 days
+        Resting heart rate average: 73 bpm
+        Resting heart rate trend: +3.0 bpm vs previous 7d
+        HRV average: 42 ms
+        HRV trend: -5.0 ms vs previous 7d
+        Days with Apple Watch data: 4 / 7 days
 
-        Blood Pressure
+        Blood pressure
         Latest reading: 123/78 mmHg
         Recorded: 24/08/26 - 20:14
         Morning average: 124.1/79.2 mmHg
@@ -378,33 +379,33 @@ final class HealthReportFormatterTests: XCTestCase {
         Period averages use completed days. Morning is before 14:00; evening is from 17:00. Mid-afternoon readings are excluded from both slot summaries.
 
         Sleep
-        Average Sleep: 6h 48m
+        Average sleep: 6h 48m
 
         FITNESS AND BLOOD OXYGEN
 
-        Cardiorespiratory
-        Latest VO₂ Max: 32.1 mL/kg/min
-        VO₂ Max Measured: 24/08/26 - 09:00
-        4-Week Average: 31.8 mL/kg/min (8 days)
-        3-Month Average: 30.9 mL/kg/min (24 days)
-        6-Month Average: 29.7 mL/kg/min (51 days)
-        Latest Blood Oxygen: 97%
-        Blood Oxygen Measured: 24/08/26 - 09:00
-        Period Typical: 97%
-        Daily Median Range: 96–98%
-        Blood Oxygen Coverage: 7 / 7 days
+        Fitness and blood oxygen
+        Latest VO₂ max: 32.1 mL/kg/min
+        VO₂ max measured: 24/08/26 - 09:00
+        4-week average: 31.8 mL/kg/min (8 days)
+        3-month average: 30.9 mL/kg/min (24 days)
+        6-month average: 29.7 mL/kg/min (51 days)
+        Latest blood oxygen: 97%
+        Blood oxygen measured: 24/08/26 - 09:00
+        Period typical: 97%
+        Daily median range: 96–98%
+        Blood oxygen coverage: 7 / 7 days
         Apple Watch blood-oxygen measurements are wellness estimates, not medical measurements.
 
         GLUCOSE
 
         Glucose
-        Daily Average: 5.8 mmol/L
-        Observed Range: 3.9–8.7 mmol/L
-        Data Coverage: 7 / 7 days
+        Daily average: 5.8 mmol/L
+        Observed range: 3.9–8.7 mmol/L
+        Data coverage: 7 / 7 days
 
         MEDICATIONS
 
-        Medications Taken
+        Medications taken
         No taken medication events are visible for this period.
         """)
         XCTAssertFalse(text.hasSuffix("\n"))
@@ -433,34 +434,35 @@ final class HealthReportFormatterTests: XCTestCase {
         Generated: 26/08/26 - 09:00
 
         Steps
-        Average Daily Steps: 2,727
-        Data Coverage: 7 / 7 days
-        Steps Trend: Insufficient history
-        Weekly Total: 19,089
+        Average daily steps: 2,727
+        Data coverage: 7 / 7 days
+        Steps trend: Insufficient history
+        Weekly total: 19,089
 
         Weight
-        Latest Weight: 100.6 kg
+        Latest weight: 100.6 kg
         Measured: 25/08/26 - 00:00
-        7-day Average: 100.8 kg
-        Weight Trend: -0.4 kg vs previous 7d
+        Average, last 7 completed days: 100.8 kg
+        Weight trend: -0.4 kg vs previous 7d
+        Latest weight can include today. The average uses the last 7 completed days, and the trend compares them with the 7 days before, whichever period is selected.
 
-        Body Composition
-        Body Fat: 26.5% latest
-        7-day Average: 26.7%
-        28-day Average: 26.7%
-        Body Fat Trend: ↓ 0.9 pp vs previous 28d
-        Waist Circumference: 101.4 cm
-        Waist Measured: 24/08/26 - 09:00
-        4-week Waist Trend: -1.7 cm vs ~4 weeks earlier
+        Body composition
+        Body fat: 26.5% latest
+        7-day average: 26.7%
+        28-day average: 26.7%
+        Body fat trend: ↓ 0.9 pp vs previous 28d
+        Waist circumference: 101.4 cm
+        Waist measured: 24/08/26 - 09:00
+        4-week waist trend: -1.7 cm vs ~4 weeks earlier
 
         Heart
-        Resting HR Average: 73 bpm
-        Resting HR Trend: +3.0 bpm vs previous 7d
-        HRV Average: 42 ms
-        HRV Trend: -5.0 ms vs previous 7d
-        Watch Data Coverage: 4 / 7 days
+        Resting heart rate average: 73 bpm
+        Resting heart rate trend: +3.0 bpm vs previous 7d
+        HRV average: 42 ms
+        HRV trend: -5.0 ms vs previous 7d
+        Days with Apple Watch data: 4 / 7 days
 
-        Blood Pressure
+        Blood pressure
         Latest reading: 123/78 mmHg
         Recorded: 24/08/26 - 20:14
         Morning average: 124.1/79.2 mmHg
@@ -473,35 +475,35 @@ final class HealthReportFormatterTests: XCTestCase {
         Coverage: 4/7 days · 12 readings
         Period averages use completed days. Morning is before 14:00; evening is from 17:00. Mid-afternoon readings are excluded from both slot summaries.
 
-        Cardiorespiratory
-        Latest VO₂ Max: 32.1 mL/kg/min
-        VO₂ Max Measured: 24/08/26 - 09:00
-        4-Week Average: 31.8 mL/kg/min (8 days)
-        3-Month Average: 30.9 mL/kg/min (24 days)
-        6-Month Average: 29.7 mL/kg/min (51 days)
-        Latest Blood Oxygen: 97%
-        Blood Oxygen Measured: 24/08/26 - 09:00
-        Period Typical: 97%
-        Daily Median Range: 96–98%
-        Blood Oxygen Coverage: 7 / 7 days
+        Fitness and blood oxygen
+        Latest VO₂ max: 32.1 mL/kg/min
+        VO₂ max measured: 24/08/26 - 09:00
+        4-week average: 31.8 mL/kg/min (8 days)
+        3-month average: 30.9 mL/kg/min (24 days)
+        6-month average: 29.7 mL/kg/min (51 days)
+        Latest blood oxygen: 97%
+        Blood oxygen measured: 24/08/26 - 09:00
+        Period typical: 97%
+        Daily median range: 96–98%
+        Blood oxygen coverage: 7 / 7 days
         Apple Watch blood-oxygen measurements are wellness estimates, not medical measurements.
 
         Glucose
-        Daily Average: 5.8 mmol/L
-        Observed Range: 3.9–8.7 mmol/L
-        Data Coverage: 7 / 7 days
+        Daily average: 5.8 mmol/L
+        Observed range: 3.9–8.7 mmol/L
+        Data coverage: 7 / 7 days
 
         Activity
-        Active Energy: 1,974 kcal
+        Active energy: 1,974 kcal
         Exercise: 89 min
         Workouts: 1
-        Workout Time: 30m
+        Workout time: 30m
         Walking: 30m — 18/08/26 - 00:00
 
         Sleep
-        Average Sleep: 6h 48m
+        Average sleep: 6h 48m
 
-        Medications Taken
+        Medications taken
         No taken medication events are visible for this period.
         """
 
@@ -524,21 +526,21 @@ final class HealthReportFormatterTests: XCTestCase {
             calendar: calendar,
             locale: Locale(identifier: "en_GB")
         )
-        XCTAssertTrue(text.contains("HRV Average: No data"), text)
+        XCTAssertTrue(text.contains("HRV average: No data"), text)
         XCTAssertTrue(text.contains(
             "No weight data is visible, or Health access was not granted."
         ))
-        XCTAssertTrue(text.contains("Waist Circumference: No data"))
-        XCTAssertTrue(text.contains("Daily Average: Could not read Apple Health."))
+        XCTAssertTrue(text.contains("Waist circumference: No data"))
+        XCTAssertTrue(text.contains("Daily average: Could not read Apple Health."))
         XCTAssertFalse(text.contains("Synthetic glucose failure"))
-        XCTAssertTrue(text.contains("Latest VO₂ Max: No data"))
-        XCTAssertTrue(text.contains("Latest Blood Oxygen: No data"))
+        XCTAssertTrue(text.contains("Latest VO₂ max: No data"))
+        XCTAssertTrue(text.contains("Latest blood oxygen: No data"))
         XCTAssertTrue(text.contains(
             "No complete blood-pressure readings are visible, or Health access was not granted."
         ))
-        XCTAssertTrue(text.contains("Watch Data Coverage: No data"))
+        XCTAssertTrue(text.contains("Days with Apple Watch data: No data"))
         XCTAssertTrue(text.contains("Workouts: No data"))
-        XCTAssertFalse(text.contains("HRV Average: 0"))
+        XCTAssertFalse(text.contains("HRV average: 0"))
         XCTAssertFalse(text.contains("Medication Taken:"))
     }
 

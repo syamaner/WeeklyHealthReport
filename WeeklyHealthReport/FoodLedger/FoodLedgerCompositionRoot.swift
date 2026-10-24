@@ -181,7 +181,7 @@ final class FoodLedgerCompositionRoot {
         let clock = confirmationClock
         return FoodConfirmationViewModel(state: state, volumeConversionOffering: offering,
                                          now: { clock.now() }, calendar: confirmationCalendar,
-                                         favouriteAction: favouriteAction,
+                                         favouriteAction: favouriteAction(unlessFavourite: state),
                                          whenNotice: FoodLogText.whenNotice(when)) { [confirmations, ids] state in
             try confirmations.save(state, operationID: ids.makeID(OperationTag.self), idempotencyKey: nil)
         }
@@ -192,6 +192,15 @@ final class FoodLedgerCompositionRoot {
     /// Writes `save_favourite_v1` for a logged entry version (Confirm's "Save as favourite").
     var favouriteAction: @MainActor @Sendable (LogItemVersionID) throws -> Void {
         { [favourites] versionID in _ = try favourites.saveFavourite(logItemVersionID: versionID) }
+    }
+
+    /// Re-logging a favourite (Recent or quick add) does not offer Save as favourite again
+    /// (#308): the favourite follows its food and source, not only the entry it was saved from.
+    /// A read failure keeps the offer, as before.
+    private func favouriteAction(unlessFavourite state: FoodConfirmationState) -> (@MainActor @Sendable (LogItemVersionID) throws -> Void)? {
+        let source = state.selectedCandidate.candidate
+        let isFavourite = (try? favourites.hasActiveFavourite(sourceReleaseID: source.sourceReleaseID, recordID: source.recordID)) ?? false
+        return isFavourite ? nil : favouriteAction
     }
 
     func favouritesModel() -> FavouritesViewModel { FavouritesViewModel(store: favourites) }
@@ -259,7 +268,7 @@ final class FoodLedgerCompositionRoot {
         }
         return FoodConfirmationViewModel(state: prepared, volumeConversionOffering: offering, now: { clock.now() },
                                          calendar: confirmationCalendar,
-                                         favouriteAction: favouriteAction, whenNotice: whenNotice) { [confirmations, ids] state in
+                                         favouriteAction: favouriteAction(unlessFavourite: prepared), whenNotice: whenNotice) { [confirmations, ids] state in
             try confirmations.save(state, operationID: ids.makeID(OperationTag.self), idempotencyKey: nil)
         }
     }

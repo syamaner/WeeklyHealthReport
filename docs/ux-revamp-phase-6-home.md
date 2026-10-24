@@ -103,6 +103,7 @@ Rebased onto `main` with phases 3 (#207), 4 (#211) and 7 (#210), and compared wi
 - Times use the locale's short time style through `DateFormatter` ("07:05" in en_GB, "7:05 AM" in en_US), as D4 specifies.
 - Review fixes (12 October 2026, invariant review and journey QA of `334af539`):
   - The food card keeps the Food Log's "Includes estimates" caption (`FoodLogText.totalCaption`) under the energy headline and each nutrient row; VoiceOver already says "includes estimates".
+    - Superseded on 24 October 2026 (#308, owner-approved backlog): the card shows one "Includes estimates." line in its footer, before the known-minimum footnote, when any shown total's known values include estimates, instead of a caption under every row (at accessibility sizes the per-row captions filled the screen). It is card-level, so it is never read as belonging to the energy row. Each row's VoiceOver label still says "includes estimates", and Today's Full Page uses the same footer.
   - Positive values below the display unit read "Less than 1 kcal so far" and "Less than 1 min", never 0; a returned exact 0 is still "0 so far" (D6).
   - `TodaySoFarHealthModel` uses the food ledger root's clock and calendar, the same as the food card and Home's date.
   - Read authorisation is single-flight: `SingleFlightReadAuthorization` wraps one `HealthKitClient` and is shared by the report (`WeeklyReportViewModel(readAuthorization:)`) and Home, so launch asks once. The read set and empty `toShare` are unchanged; `HealthDataProviding` and `FakeHealthDataProvider` are not changed.

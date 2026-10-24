@@ -58,6 +58,8 @@ CODE_READ_DOCS = {
     "docs/healthkit-day-bucketing-v1.md",
     # Cited by the pasted-label fortification policy, Confirm copy and their tests (#306).
     "docs/pasted-label-confirm-v1.md",
+    # Cited by the Copy all renderer and its golden tests (#308).
+    "docs/health-copy-all-v2.md",
 }
 CODE_READ_DOC_PREFIXES = ("docs/fixtures/",)
 # Never documentation, whatever the lists above say: CI, its scripts and this
