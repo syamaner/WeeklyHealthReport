@@ -4,6 +4,8 @@ Status: **owner-approved, gate passed with changes, assisted-UX principle applie
 
 **Reader v3 (20 October 2026).** The reader is amended by [pasted nutrition label reader v3](pasted-nutrition-label-reader-v3.md) (parser `nutrition-label-text-parser-v3`, manifest `pasted-nutrition-label-v2` for a chosen basis, serving `pasted-label-serving-v3`, and a fresh-set release check), owner-approved 20 October 2026; where the two differ for the reader, v3 governs.
 
+**Confirm (24 October 2026).** Sections 2.2, 2.3 and 6.5 are amended by [pasted label Confirm v1](pasted-label-confirm-v1.md) (#306): fortification is asked once, on Confirm, as Yes / No / Not stated; Not stated is recorded as the existing typed `not_sure` decision; Amount eaten comes before the label values; and the unit opens on servings when the label states one.
+
 **Launch scope (decisions 3, 4 and 11):** Taiwan 營養標示 text ships first. UK English ships only after at least 20 real public UK label texts read with zero wrong values. US "Nutrition Facts" layouts decline in v1.
 
 This contract composes with, and does not amend, [food confirmation v5](food-confirmation-contract-v5.md) (`food_confirmation_v5`), the [food identity and nutrition contract](food-identity-nutrition-contract.md), the [review manifest v2](generic-food-review-manifest-v2.md) and [UX revamp v1](ux-revamp-v1.md). The evaluation it relies on is [`nutrition-label-capture-evaluation-v1.md`](nutrition-label-capture-evaluation-v1.md); its phase 5 results are on PR #260's branch `feat/255-label-eval-phase-5`, cited by path below.
