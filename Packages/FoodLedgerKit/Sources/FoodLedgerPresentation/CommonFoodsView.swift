@@ -1,3 +1,4 @@
+import FoodLedgerApplication
 import FoodLedgerDomain
 import SwiftUI
 
@@ -65,7 +66,7 @@ public struct CommonFoodsView: View {
                     Picker("Unit", selection: $unit) {
                         Text("g").tag(QuantityUnit.grams)
                         Text("mL").tag(QuantityUnit.millilitres)
-                        Text("count").tag(QuantityUnit.count)
+                        Text(FoodAmountNoun.countUnitLabel).tag(QuantityUnit.count)
                     }
                     Text("A usual portion is a suggestion. It does not record a purchase, remaining stock or food consumed.")
                     if let message = model.message { Text(message) }
@@ -89,7 +90,7 @@ public struct CommonFoodsView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(product.name).font(.headline)
                 if !product.aliases.isEmpty { Text(product.aliases.joined(separator: ", ")).font(.caption) }
-                if let amount = product.usualPortion { Text("Usual: \(amount.value.formatted()) \(amount.unit.rawValue)").font(.caption) }
+                if let amount = product.usualPortion { Text("Usual: \(amount.value.formatted()) \(FoodAmountNoun.unit(amount.unit, value: amount.value))").font(.caption) }
                 Button("Add to review") { addToReview(product) }
                 Button("Edit") { edit(product) }
             }

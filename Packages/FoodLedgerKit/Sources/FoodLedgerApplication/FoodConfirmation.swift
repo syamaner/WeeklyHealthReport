@@ -87,6 +87,9 @@ public struct FoodQuantityDraft: Codable, Equatable, Sendable {
     public var plateChoice: PlateWeightChoice
     public var directWeight: DirectWeightDraft?
     public var invalidOriginalAmountText: Bool?
+    /// The selected count portion guide size (count-portion-estimate-v1). Only the code: grams
+    /// come from the frozen table for preview and from the service's own port at save.
+    public var portionGuideCode: LedgerText?
 
     public init(
         value: Double? = nil,
@@ -184,6 +187,11 @@ public struct FoodConfirmationState: Codable, Equatable, Sendable {
                     unit: declaration.originalInput?.unit ?? .grams,
                     plateChoice: reopened.plateWeightVersion.map(PlateWeightChoice.saved) ?? .foodOnly,
                     directWeight: DirectWeightDraft(totalGrams: declaration.total.value, basis: declaration.basis))
+            } else if let conversion = reopened.quantityConversion, CountPortionGuideCode.isGuideCode(conversion.methodVersion) {
+                // A saved guide size reopens selected; the state holds only its code (gate F4).
+                quantity = FoodQuantityDraft(value: conversion.sourceQuantity.value, unit: conversion.sourceQuantity.unit,
+                    plateChoice: reopened.plateWeightVersion.map(PlateWeightChoice.saved) ?? .foodOnly)
+                quantity.portionGuideCode = conversion.methodVersion
             } else if let conversion = reopened.quantityConversion {
                 quantity = FoodQuantityDraft(
                     value: conversion.sourceQuantity.value,
@@ -301,6 +309,8 @@ public enum FoodConfirmationAction: Sendable {
     /// the amount, so `amountMissing` blocks Log until an amount is entered in the new unit.
     case setQuantityUnit(QuantityUnit)
     case setConversion(QuantityConversionDraft?)
+    /// Selects a count portion guide size by its code, or clears it (count-portion-estimate-v1).
+    case setPortionGuide(LedgerText?)
     case setPlateChoice(PlateWeightChoice)
     case beginSaving
     case saveFailed(String)
@@ -317,6 +327,8 @@ public enum FoodConfirmationReducer {
             if changed {
                 state.quantity.directWeight?.needsReconfirmation = true
                 state.quantity.conversion = nil
+                // A guide belongs to its record; the view model offers the new record's own sizes.
+                state.quantity.portionGuideCode = nil
             }
             state.selectedCandidateIndex = index
             if changed && (wasServing || state.usesSourceDeclaredServing) {
@@ -348,6 +360,7 @@ public enum FoodConfirmationReducer {
             state.decisions = [:]
             state.decision = .accepted
             state.quantity.conversion = nil
+            state.quantity.portionGuideCode = nil
             if state.quantity.directWeight != nil, previousIdentity != correction.identity {
                 state.quantity.directWeight?.needsReconfirmation = true
                 state.decision = .undecided
@@ -356,6 +369,7 @@ public enum FoodConfirmationReducer {
         case .beginDirectWeight:
             if state.quantity.directWeight == nil { state.quantity.directWeight = DirectWeightDraft() }
             state.quantity.conversion = nil
+            state.quantity.portionGuideCode = nil
             state.phase = .editing
         case .endDirectWeight:
             state.quantity.directWeight = nil
@@ -379,6 +393,9 @@ public enum FoodConfirmationReducer {
             if (previousValue != value || previousUnit != unit) && (unit != .count || previousUnit != unit) {
                 state.quantity.conversion = nil
             }
+            // A guide size is per piece: a count change keeps it (the total is derived); any other
+            // unit drops it.
+            if unit != .count { state.quantity.portionGuideCode = nil }
             state.phase = .editing
         case let .setQuantityUnit(unit):
             guard unit != state.quantity.unit else { return }
@@ -386,9 +403,20 @@ public enum FoodConfirmationReducer {
             state.quantity.invalidOriginalAmountText = nil
             state.quantity.unit = unit
             state.quantity.conversion = nil
+            state.quantity.portionGuideCode = nil
             state.phase = .editing
         case let .setConversion(conversion):
             state.quantity.conversion = conversion
+            if conversion != nil { state.quantity.portionGuideCode = nil }
+            state.phase = .editing
+        case let .setPortionGuide(code):
+            if let code {
+                guard state.quantity.unit == .count, CountPortionGuideCode.entry(code) != nil,
+                      CountPortionGuidePolicy.admitsRecord(state) else { return }
+                state.quantity.conversion = nil
+                state.quantity.directWeight = nil
+            }
+            state.quantity.portionGuideCode = code
             state.phase = .editing
         case let .setPlateChoice(choice):
             state.quantity.plateChoice = choice
@@ -423,9 +451,12 @@ public final class FoodConfirmationService: @unchecked Sendable {
     private let encoder: any CanonicalEncoding
     private let calendar: Calendar
     private let pastedLabelConversions: (any PastedLabelConversionChecking)?
+    private let portionGuides: (any FoodEdibleWeightGuideProviding)?
 
     /// `pastedLabelConversions` recomputes pasted-label conversions at save and reopen. Without
     /// it, a pasted-label entry with a calculated value fails verification (closed by default).
+    /// `portionGuides` resolves a selected count portion guide size at save; without it a new
+    /// guide save fails closed (count-portion-estimate-v1, C9).
     public init(
         ledger: FoodLedgerService,
         reader: any FoodConfirmationReading,
@@ -434,9 +465,11 @@ public final class FoodConfirmationService: @unchecked Sendable {
         digester: any Digesting,
         calendar: Calendar = .autoupdatingCurrent,
         encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder(),
-        pastedLabelConversions: (any PastedLabelConversionChecking)? = nil
+        pastedLabelConversions: (any PastedLabelConversionChecking)? = nil,
+        portionGuides: (any FoodEdibleWeightGuideProviding)? = nil
     ) {
         self.pastedLabelConversions = pastedLabelConversions
+        self.portionGuides = portionGuides
         self.ledger = ledger
         self.reader = reader
         self.clock = clock
@@ -488,6 +521,11 @@ public final class FoodConfirmationService: @unchecked Sendable {
         // The service is authoritative: the same pure policy that drives the Log button.
         let unmet = FoodLogPolicy.requirements(state, now: now, calendar: calendar)
         guard unmet.isEmpty else { throw FoodConfirmationSaveError.unmetRequirements(unmet) }
+        // count-portion-estimate-v1 (gate G6): a guide size only on a record counted in pieces.
+        if state.quantity.portionGuideCode != nil, state.quantity.conversion == nil, state.quantity.directWeight == nil,
+           !CountPortionGuidePolicy.applies(state) {
+            throw FoodConfirmationSaveError.invalidQuantity
+        }
         let decisionRecord = try FoodLogPolicy.decisionRecord(state)
         let savesEstimate = FoodLogPolicy.savesEstimate(state)
         let previous = state.reopened
@@ -504,7 +542,8 @@ public final class FoodConfirmationService: @unchecked Sendable {
         let entered = try quantity.calculationInput()
         let countedServings = state.usesSourceDeclaredServing || (state.logsPastedLabelServings && quantity.conversion == nil)
         let conversion = declaration == nil
-            ? try makeConversion(quantity, entered: entered, previous: previous, at: now, sourceRecipe: countedServings)
+            ? try makeConversion(quantity, entered: entered, previous: previous, at: now, sourceRecipe: countedServings,
+                                 state: state)
             : (version: nil, isNew: false)
         let plate = try makePlate(quantity.plateChoice, previous: previous, at: now)
         let edibleQuantity = try state.calculatedEdibleQuantity()
@@ -745,6 +784,10 @@ public final class FoodConfirmationService: @unchecked Sendable {
         var state = FoodConfirmationState(input: try relogInput(saved), prefillSourceQuantity: false)
         let last = Self.lastEnteredAmount(saved.logItemVersion, conversion: saved.quantityConversion)
         state.quantity = FoodQuantityDraft(value: last.value, unit: last.unit)
+        // A typical-weight entry relogs at its saved size; Confirm keeps it only while still offered.
+        if let conversion = saved.quantityConversion, CountPortionGuideCode.entry(conversion.methodVersion) != nil, last.unit == .count {
+            state.quantity.portionGuideCode = conversion.methodVersion
+        }
         return state
     }
 
@@ -833,8 +876,11 @@ public final class FoodConfirmationService: @unchecked Sendable {
         _ draft: FoodQuantityDraft,
         entered: PositiveQuantity,
         previous: StoredFoodConfirmation?,
-        at date: Date, sourceRecipe: Bool = false
+        at date: Date, sourceRecipe: Bool = false, state: FoodConfirmationState
     ) throws -> (version: QuantityConversionVersion?, isNew: Bool) {
+        if draft.conversion == nil, let code = draft.portionGuideCode, entered.unit == .count, !sourceRecipe {
+            return try makeGuideConversion(code: code, entered: entered, previous: previous, at: date, state: state)
+        }
         guard let value = draft.conversion else {
             if entered.unit == .count && !sourceRecipe { throw FoodQuantityValidationError.missingConversion }
             return (nil, false)
@@ -845,6 +891,9 @@ public final class FoodConfirmationService: @unchecked Sendable {
         }
         // count-conversion-method-v1: the method namespace is closed; there is no estimate code.
         guard CountConversionMethod.admits(value.methodVersion) else { throw FoodConfirmationSaveError.invalidQuantity }
+        // count-portion-estimate-v1 (C9): a guide code only ever comes from the selected size,
+        // resolved below; a conversion draft naming one is refused.
+        guard !CountPortionGuideCode.isGuideCode(value.methodVersion) else { throw FoodConfirmationSaveError.invalidQuantity }
         return (try QuantityConversionVersion(
             quantityConversionVersionID: ids.makeID(QuantityConversionVersionTag.self),
             ordinal: VersionOrdinal((previous?.quantityConversion?.ordinal.value ?? 0) + 1),
@@ -854,6 +903,44 @@ public final class FoodConfirmationService: @unchecked Sendable {
             methodVersion: value.methodVersion,
             sourceReleaseID: value.sourceReleaseID,
             evidenceID: value.evidenceID,
+            createdAt: date
+        ), true)
+    }
+
+    /// count-portion-estimate-v1 (C9, gate F4): the service resolves the selected size through its
+    /// own port and writes count × that size's grams under the size's code and the guide release.
+    /// An unchanged re-save keeps the stored conversion, even after a guide was withdrawn.
+    private func makeGuideConversion(
+        code: LedgerText, entered: PositiveQuantity, previous: StoredFoodConfirmation?,
+        at date: Date, state: FoodConfirmationState
+    ) throws -> (version: QuantityConversionVersion?, isNew: Bool) {
+        if let old = previous?.quantityConversion, old.methodVersion == code, old.sourceQuantity == entered,
+           old.sourceReleaseID?.value.hasPrefix(CountPortionGuideCode.releasePrefix) == true {
+            return (old, false)
+        }
+        guard CountPortionGuidePolicy.applies(state), let frozen = CountPortionGuideCode.entry(code),
+              let guides = portionGuides,
+              let entry = try guides.entry(code, for: state.selectedCandidate),
+              entry.edibleGramsPerPiece == frozen.grams, entry.size == frozen.size, entry.isDerived == frozen.isDerived,
+              let grams = CountPortionGuidePolicy.grams(code: code, count: entered.value) else {
+            throw FoodConfirmationSaveError.invalidQuantity
+        }
+        let release = guides.sourceRelease.sourceReleaseID
+        // Gate G4: the guide release must be saved with the entry or already be stored.
+        guard release.value.hasPrefix(CountPortionGuideCode.releasePrefix),
+              try state.input.sourceReleases.contains(where: { $0.sourceReleaseID == release })
+                || reader.sourceRelease(id: release) != nil else {
+            throw FoodConfirmationSaveError.invalidQuantity
+        }
+        return (try QuantityConversionVersion(
+            quantityConversionVersionID: ids.makeID(QuantityConversionVersionTag.self),
+            ordinal: VersionOrdinal((previous?.quantityConversion?.ordinal.value ?? 0) + 1),
+            supersedesQuantityConversionVersionID: previous?.quantityConversion?.quantityConversionVersionID,
+            sourceQuantity: entered,
+            convertedQuantity: PositiveQuantity(value: grams, unit: .grams),
+            methodVersion: code,
+            sourceReleaseID: release,
+            evidenceID: nil,
             createdAt: date
         ), true)
     }

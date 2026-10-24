@@ -27,8 +27,11 @@ public struct SavedFoodEntryDetail: Sendable {
     /// The edible amount used for nutrition.
     public let edibleQuantity: PositiveQuantity
     public let isEstimate: Bool
-    /// The whole entry is an estimate because its weight was estimated (stated once, in the header).
+    /// The whole entry is an estimate because its quantity was estimated: by eye, a typical
+    /// weight or the whole-milk volume rule (count-portion-estimate-v1, C6). Stated once, in the header.
     public let weightIsEstimated: Bool
+    /// How the amount was obtained (C7), shown on the header and in history.
+    public let quantityMethod: FoodQuantityMethod
     /// Nutrients whose source value is augmented (estimated); marked beside that value only.
     public let augmentedKeys: Set<NutrientKey>
     public let nutrition: Nutrition
@@ -64,7 +67,8 @@ public struct SavedFoodEntryDetail: Sendable {
         enteredAmount = (try? PositiveQuantity(value: entered.value, unit: entered.unit)) ?? log.edibleQuantity
         edibleQuantity = log.edibleQuantity
         self.isEstimate = isEstimate
-        weightIsEstimated = log.weightDeclaration?.basis == .estimated
+        weightIsEstimated = FoodQuantityEstimate.isEstimate(log, conversion: stored.quantityConversion)
+        quantityMethod = FoodQuantityMethod.of(log, conversion: stored.quantityConversion)
         augmentedKeys = Set(stored.resolutionVersion.nutrients.entries.compactMap { entry in
             if case .augmented = entry.value { return entry.key } else { return nil }
         })
@@ -72,7 +76,7 @@ public struct SavedFoodEntryDetail: Sendable {
         isPlainWater = PlainWaterReference.isPlainWater(stored.resolutionVersion)
         nutrition = Self.nutrition(quantity: log.edibleQuantity, basis: stored.resolution.basis,
                                    nutrients: stored.resolutionVersion.nutrients,
-                                   quantityIsEstimate: log.weightDeclaration?.basis == .estimated)
+                                   quantityIsEstimate: FoodQuantityEstimate.isEstimate(log, conversion: stored.quantityConversion))
         let release = stored.sourceReleases.first { $0.sourceReleaseID == stored.candidateDecision.candidate.sourceReleaseID }
         sourceFamily = FoodSearchResultSummary.family(release?.sourceID.value ?? "",
                                                       recordID: stored.candidateDecision.candidate.recordID.value)

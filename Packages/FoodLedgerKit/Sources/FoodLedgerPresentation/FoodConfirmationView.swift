@@ -19,6 +19,12 @@ public final class FoodConfirmationViewModel: ObservableObject {
     private let now: @Sendable () -> Date
     public let calendar: Calendar
     private let volumeConversionOffering: (any FoodVolumeConversionOffering)?
+    /// Count portion guides (count-portion-estimate-v1). Nil offers no typical weight.
+    private let portionGuides: (any FoodEdibleWeightGuideProviding)?
+    /// The user chose Change: the typical weight stays off until "Use typical weight".
+    @Published public private(set) var portionGuideDismissed = false
+    /// The last size chosen, kept across a raw / boiled record switch.
+    private var lastGuideSize: FoodEdibleWeightGuideSize?
     private let searchInterpretation: FoodQueryInterpretation?
     /// Shown beside When when the Food Log day could not be used (owner decision D).
     public let whenNotice: String?
@@ -35,6 +41,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
     public init(
         state: FoodConfirmationState,
         volumeConversionOffering: (any FoodVolumeConversionOffering)? = nil,
+        portionGuides: (any FoodEdibleWeightGuideProviding)? = nil,
         searchInterpretation: FoodQueryInterpretation? = nil,
         now: @escaping @Sendable () -> Date = { Date() },
         calendar: Calendar = .autoupdatingCurrent,
@@ -50,8 +57,94 @@ public final class FoodConfirmationViewModel: ObservableObject {
         self.now = now
         self.calendar = calendar
         self.volumeConversionOffering = volumeConversionOffering
+        self.portionGuides = portionGuides
         self.searchInterpretation = searchInterpretation
         self.saveAction = saveAction
+        lastGuideSize = state.quantity.portionGuideCode.flatMap(CountPortionGuideCode.entry)?.size
+        normalisePortionGuide()
+    }
+
+    // MARK: Count portion guide (count-portion-estimate-v1, #307)
+
+    /// The selected record's sizes, when it is counted in pieces and has a reviewed guide.
+    public var portionGuideSet: FoodEdibleWeightGuideSet? {
+        guard let portionGuides, state.correction == nil, CountPortionGuidePolicy.admitsRecord(state) else { return nil }
+        return try? portionGuides.guide(for: state.selectedCandidate)
+    }
+
+    /// The size choice and the typical weight row are shown (Log would save the estimate).
+    public var showsPortionGuide: Bool {
+        guard !portionGuideDismissed, let code = state.quantity.portionGuideCode else { return false }
+        return portionGuideSet?.entry(code) != nil || keepsWithdrawnStoredGuide
+    }
+
+    /// "Use typical weight" is offered after Change, on a record with a guide.
+    public var offersTypicalWeight: Bool {
+        portionGuideDismissed && portionGuideSet != nil && state.quantity.unit == .count && savedResult == nil
+    }
+
+    /// The selected size, from the frozen table (the service resolves it again through its port).
+    public var selectedPortionGuide: CountPortionGuideCode.Entry? {
+        state.quantity.portionGuideCode.flatMap(CountPortionGuideCode.entry)
+    }
+
+    /// The estimated total for the selected size and count, or nil.
+    public var portionGuideTotal: PositiveQuantity? {
+        guard showsPortionGuide else { return nil }
+        return try? state.calculatedEdibleQuantity()
+    }
+
+    public func selectPortionGuide(_ code: LedgerText) {
+        guard savedResult == nil, portionGuideSet?.entry(code) != nil else { return }
+        lastGuideSize = CountPortionGuideCode.entry(code)?.size
+        send(.setPortionGuide(code))
+    }
+
+    /// Change: the user gives a weight and how they got it; the estimate is no longer applied.
+    public func changeTypicalWeight() {
+        guard savedResult == nil else { return }
+        portionGuideDismissed = true
+        send(.setPortionGuide(nil))
+    }
+
+    /// Back to the size choice, at the last size chosen.
+    public func useTypicalWeight() {
+        guard savedResult == nil else { return }
+        portionGuideDismissed = false
+        if state.quantity.directWeight != nil { FoodConfirmationReducer.reduce(state: &state, action: .endDirectWeight) }
+        if state.quantity.conversion != nil { FoodConfirmationReducer.reduce(state: &state, action: .setConversion(nil)) }
+        normalisePortionGuide()
+    }
+
+    /// A reopened entry whose stored size the guide no longer offers keeps it only while the count
+    /// is unchanged, so an unchanged re-save reuses the stored conversion (gate F4).
+    private var keepsWithdrawnStoredGuide: Bool {
+        guard let code = state.quantity.portionGuideCode, let stored = state.reopened?.quantityConversion,
+              stored.methodVersion == code, let value = state.quantity.value else { return false }
+        return stored.sourceQuantity.value == value && stored.sourceQuantity.unit == state.quantity.unit
+    }
+
+    /// Keeps the selected size valid for the selected record: pre-fills Large (or the last size
+    /// chosen) on an allow-listed record counted in pieces, and clears a size the record does not
+    /// offer. Nothing is saved; Log is the only save.
+    private func normalisePortionGuide() {
+        guard savedResult == nil else { return }
+        let applicable = CountPortionGuidePolicy.applies(state) && state.quantity.conversion == nil
+        guard let set = portionGuideSet, applicable, !portionGuideDismissed else {
+            if state.quantity.portionGuideCode != nil, !keepsWithdrawnStoredGuide {
+                FoodConfirmationReducer.reduce(state: &state, action: .setPortionGuide(nil))
+            }
+            return
+        }
+        if let code = state.quantity.portionGuideCode, set.entry(code) != nil { return }
+        let preferred = lastGuideSize.flatMap { size in set.entries.first { $0.size == size } }
+        FoodConfirmationReducer.reduce(state: &state, action: .setPortionGuide(preferred?.code ?? set.defaultCode))
+    }
+
+    /// Whether the amount Log would save is an estimate: by eye, a typical weight or the whole-milk
+    /// volume rule (C6). Drives "about" on the Log button (gate F8) and the estimate marking.
+    public var quantityIsEstimate: Bool {
+        state.quantity.directWeight?.basis == .estimated || usesOfferedVolumeEstimate || showsPortionGuide
     }
 
     /// A pasted label's corrected input (#93): a value the user corrected or entered on Confirm
@@ -221,7 +314,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
                 return "Estimated edible mass: \(conversion.convertedQuantity.value.formatted()) g from the entered volume. This uses a separately sourced volume factor, not a measured weight or CoFID density field."
             }
             if let conversion = state.quantity.conversion {
-                return "Converted edible amount: \(conversion.convertedQuantity.value.formatted()) \(conversion.convertedQuantity.unit.rawValue) using the recorded method. Check that the conversion describes the food as eaten."
+                return "Converted edible amount: \(conversion.convertedQuantity.value.formatted()) \(FoodAmountNoun.unit(conversion.convertedQuantity.unit, value: conversion.convertedQuantity.value)) using the recorded method. Check that the conversion describes the food as eaten."
             }
             return "This food’s nutrition is per 100 g, and millilitres cannot be converted to grams for it. Logged in mL, this entry has no nutrition."
         }
@@ -297,7 +390,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
     }
 
     public var consumedNutrition: [FoodIntakeTotal] {
-        Self.consumedNutrition(state, quantityIsEstimate: state.quantity.directWeight?.basis == .estimated || usesOfferedVolumeEstimate)
+        Self.consumedNutrition(state, quantityIsEstimate: quantityIsEstimate)
     }
 
     private static func consumedNutrition(_ state: FoodConfirmationState, quantityIsEstimate: Bool) -> [FoodIntakeTotal] {
@@ -412,7 +505,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
         }
         if savesAsFavourite { return "Log and save favourite" }
         guard let amount = logEnergy else { return "Log" }
-        return "Log \(energyIsCalculated ? "about " : "")\(FoodDisplayNumber.energy(amount))"
+        return "Log \(energyIsCalculated || quantityIsEstimate ? "about " : "")\(FoodDisplayNumber.energy(amount))"
     }
 
     /// The energy value is a calculated one (pasted label, kJ only; contract section 3.5), so
@@ -467,12 +560,12 @@ public final class FoodConfirmationViewModel: ObservableObject {
 
     /// The energy the Log button states for a new entry, or nil when it is not complete.
     private var logEnergy: Double? {
-        Self.knownConsumedEnergy(state, quantityIsEstimate: state.quantity.directWeight?.basis == .estimated
-                                    || usesOfferedVolumeEstimate)
+        Self.knownConsumedEnergy(state, quantityIsEstimate: quantityIsEstimate)
     }
 
     /// The figures captured at the Log press for the banner (owner decision, 15 October 2026).
     private var logPress: (energy: Double?, withoutNutrition: Bool)?
+    private var logPressIsEstimate = false
 
     /// The banner for the entry just logged, once Log may close Confirm: a new entry saved, and
     /// any favourite requested with it saved too. Nil for Save changes, before a save, and when
@@ -482,7 +575,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
         let savedFavourite = favouriteOutcome == .saved
         if savesFavourite && offersFavourite && !savedFavourite { return nil }
         return FoodLoggedNotice(saved: saved,
-            message: FoodLoggedText.message(figure: logPress.energy.map { (energyIsCalculated ? "about " : "") + FoodDisplayNumber.energy($0) },
+            message: FoodLoggedText.message(figure: logPress.energy.map { (energyIsCalculated || logPressIsEstimate ? "about " : "") + FoodDisplayNumber.energy($0) },
                                              withoutNutrition: logPress.withoutNutrition, savedFavourite: savedFavourite),
             detail: FoodLoggedText.detail(savedFavourite: savedFavourite))
     }
@@ -514,6 +607,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
     public func log() {
         guard canLog else { return }
         logPress = (unitBasisMismatch == nil ? logEnergy : nil, unitBasisMismatch != nil)
+        logPressIsEstimate = quantityIsEstimate
         send(.accept)
         save()
     }
@@ -525,6 +619,10 @@ public final class FoodConfirmationViewModel: ObservableObject {
 
     public func send(_ action: FoodConfirmationAction) {
         FoodConfirmationReducer.reduce(state: &state, action: action)
+        switch action {
+        case .setPortionGuide, .beginSaving, .saveFailed, .saved, .accept: break
+        default: normalisePortionGuide()
+        }
         // The user answered "Add food details" again: the not-carried notice no longer applies.
         if case .applyCorrection = action {
             sourceDetailsNotice = nil
@@ -656,6 +754,8 @@ public struct FoodConfirmationView: View {
     @State private var conversionText = ""
     @State private var conversionUnit = QuantityUnit.grams
     @State private var conversionMethod: ConversionFields.MethodSelection?
+    /// Estimated by eye was chosen with a millilitre amount, which is never read as grams.
+    @State private var estimateFromMillilitres = false
     /// A pasted nutrition label's source section (#93): the live, editable model from the paste
     /// route, or the read-only model of a stored label (Edit, Recent foods, a favourite).
     @State private var pastedLabel: PastedLabelSourceModel?
@@ -1096,9 +1196,11 @@ public struct FoodConfirmationView: View {
                 Text((pack.origin == .printed ? "Servings per pack printed on the label. " : "Servings per pack entered by you. ")
                      + PastedLabelText.wholePackNote(servingSize: model.pastedLabelServingSizeOrigin)).font(.caption)
             }
-            Button("Enter measured weight") { model.send(.beginDirectWeight); directWeightText = "" }
-                .disabled(model.state.quantity.directWeight != nil || model.state.usesSourceDeclaredServing || model.pastedLabelServingsOnly)
-            if model.state.quantity.directWeight != nil {
+            if !model.showsPortionGuide && !countEstimateLayout {
+                Button("Enter measured weight") { model.send(.beginDirectWeight); directWeightText = "" }
+                    .disabled(model.state.quantity.directWeight != nil || model.state.usesSourceDeclaredServing || model.pastedLabelServingsOnly)
+            }
+            if model.state.quantity.directWeight != nil && !countEstimateLayout {
                 Text("Weigh the food as you ate it, for example peeled, boiled or fried. Leave out peel, shell, bone and anything you did not eat.").font(.caption)
                 TextField(usesPlate ? "Total food and plate weight (g)" : "Total edible weight (g)", text: $directWeightText)
                     .amountKeyboard($editingAmount, .confirmDirectWeight)
@@ -1129,9 +1231,11 @@ public struct FoodConfirmationView: View {
                 Text("g").tag(QuantityUnit.grams)
                 Text("mL").tag(QuantityUnit.millilitres)
                 Text(model.state.isSourceRecipe ? "recipe servings" : model.state.usesSourceDeclaredServing ? "source servings"
-                     : model.countsPastedLabelServings ? "servings" : "count").tag(QuantityUnit.count)
+                     : model.countsPastedLabelServings ? "servings" : FoodAmountNoun.countUnitLabel).tag(QuantityUnit.count)
             }
             if let requirement = model.originalAmountRequirement { Text(requirement).font(.caption) }
+            if model.showsPortionGuide { portionGuideRows }
+            if countEstimateLayout { countEstimateRows }
             whenRow
             if let warning = model.quantityBasisWarning {
                 Label(warning, systemImage: "exclamationmark.triangle").font(.caption)
@@ -1169,12 +1273,13 @@ public struct FoodConfirmationView: View {
                 }
             }
             if model.state.quantity.unit == .count && model.state.quantity.directWeight == nil && !model.state.usesSourceDeclaredServing
-                && !model.countsPastedLabelServings {
-                Text("No source-backed size guide is available for this food. Enter the total edible weight, excluding shell, bone or other parts you did not eat.").font(.caption)
-                TextField("Converted edible amount", text: $conversionText)
+                && !model.countsPastedLabelServings && !model.showsPortionGuide {
+                Text(ConversionFields.intro).font(.caption)
+                TextField(ConversionFields.amountTitle, text: $conversionText, prompt: Text(ConversionFields.amountPrompt))
                     .amountKeyboard($editingAmount, .confirmConversion)
                     .onChange(of: conversionText) { _, _ in updateConversion() }
-                Picker("Converted unit", selection: $conversionUnit) {
+                    .accessibilityLabel(ConversionFields.amountTitle)
+                Picker(ConversionFields.unitTitle, selection: $conversionUnit) {
                     Text("g").tag(QuantityUnit.grams)
                     Text("mL").tag(QuantityUnit.millilitres)
                 }
@@ -1201,6 +1306,11 @@ public struct FoodConfirmationView: View {
                     Label(requirement, systemImage: "exclamationmark.triangle")
                         .font(.caption)
                         .accessibilityIdentifier("confirm.conversionRequirement")
+                }
+                if model.offersTypicalWeight {
+                    Button(Self.useTypicalWeightTitle) { useTypicalWeight() }
+                        .frame(minHeight: 44)
+                        .accessibilityIdentifier("confirm.useTypicalWeight")
                 }
             }
             ForEach(model.plateRequirements, id: \.self) { Text($0).font(.caption) }
@@ -1234,6 +1344,139 @@ public struct FoodConfirmationView: View {
                 }
             }
         }
+    }
+
+    // MARK: Count portion guide (count-portion-estimate-v1, #307)
+
+    public static let portionGuideSizeHeader = "Egg size"
+    public static let portionGuideWeightTitle = "Weight"
+    public static let portionGuideSubtitle = "Typical weight · Estimate"
+    public static let changeTypicalWeightTitle = "Change"
+    public static let useTypicalWeightTitle = "Use typical weight"
+    public static let portionGuideDetailsTitle = "About this estimate"
+    public static let portionGuideDetails = "Typical weights of one egg without shell, from USDA FoodData Central SR Legacy (April 2018). US sizes; carton sizes differ by country, so your eggs may weigh more or less. Change it if you know the weight."
+    public static let portionGuideBoiledDetails = "USDA gives a boiled egg only as large, 50 g, the same as a raw large egg, so the other boiled sizes use the raw weights."
+    public static let portionGuideSource = "Source: USDA FoodData Central, SR Legacy, April 2018 · public domain (CC0 1.0)"
+    public static let estimateInMillilitres = "Estimates are in grams. Enter the weight in g."
+
+    /// "Large, about 50 g each".
+    public static func portionGuideOption(_ entry: FoodEdibleWeightGuide, locale: Locale = .current) -> String {
+        "\(FoodLogText.sizeName(entry.size)), about \(FoodDisplayNumber.amount(entry.edibleGramsPerPiece, fraction: 0...1)) g each"
+    }
+
+    /// "About 150 g".
+    public static func portionGuideTotal(_ total: PositiveQuantity) -> String {
+        "About \(FoodDisplayNumber.amount(total.value, fraction: 0...1)) g"
+    }
+
+    private var portionGuideRows: some View {
+        Group {
+            if let set = model.portionGuideSet, model.savedResult == nil {
+                Text(Self.portionGuideSizeHeader).font(.subheadline.weight(.semibold))
+                    .accessibilityAddTraits(.isHeader)
+                ForEach(set.entries, id: \.code) { entry in
+                    let selected = model.state.quantity.portionGuideCode == entry.code
+                    Button { model.selectPortionGuide(entry.code) } label: {
+                        HStack {
+                            Text(Self.portionGuideOption(entry)).foregroundStyle(.primary)
+                            Spacer()
+                            if selected { Image(systemName: "checkmark").accessibilityHidden(true) }
+                        }
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                    }
+                    .accessibilityLabel("\(FoodLogText.sizeName(entry.size)), about \(FoodDisplayNumber.amount(entry.edibleGramsPerPiece, fraction: 0...1)) grams each")
+                    .accessibilityAddTraits(selected ? .isSelected : [])
+                    .accessibilityIdentifier("confirm.portionGuide.\(entry.size.rawValue)")
+                }
+            }
+            if let total = model.portionGuideTotal {
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(Self.portionGuideWeightTitle)
+                        Text(Self.portionGuideSubtitle).font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Text(Self.portionGuideTotal(total)).foregroundStyle(.secondary)
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Weight, about \(FoodDisplayNumber.amount(total.value, fraction: 0...1)) grams, typical weight, estimate")
+                .accessibilityIdentifier("confirm.portionGuideWeight")
+                if model.savedResult == nil {
+                    Button(Self.changeTypicalWeightTitle) { changeTypicalWeight() }
+                        .frame(minHeight: 44)
+                        .accessibilityHint("Enter a weight you measured or estimated instead")
+                        .accessibilityIdentifier("confirm.changeTypicalWeight")
+                }
+                DisclosureGroup(Self.portionGuideDetailsTitle) {
+                    Text(Self.portionGuideDetails).font(.caption)
+                    if model.selectedPortionGuide?.preparation == .boiled {
+                        Text(Self.portionGuideBoiledDetails).font(.caption)
+                    }
+                    Text(Self.portionGuideSource).font(.caption2)
+                }
+            }
+        }
+    }
+
+    /// Estimated by eye on a count keeps the count layout (C4): one amount (the count), the total
+    /// weight and how it was obtained. The stored record is the estimated weight declaration.
+    private var countEstimateLayout: Bool {
+        model.state.quantity.unit == .count && model.state.quantity.directWeight?.basis == .estimated
+            && !usesPlate && model.state.quantity.directWeight?.needsReconfirmation != true
+            && !model.state.usesSourceDeclaredServing && !model.countsPastedLabelServings
+    }
+
+    private var countEstimateRows: some View {
+        Group {
+            Text(ConversionFields.intro).font(.caption)
+            TextField(ConversionFields.amountTitle, text: $directWeightText, prompt: Text(ConversionFields.amountPrompt))
+                .amountKeyboard($editingAmount, .confirmDirectWeight)
+                .onChange(of: directWeightText) { _, value in model.send(.setDirectWeight(FoodAmountFieldText.parse(value, locale: locale))) }
+                .accessibilityLabel("\(ConversionFields.amountTitle) in grams")
+            LabeledContent(ConversionFields.unitTitle, value: "g")
+            Picker(ConversionFields.methodTitle, selection: Binding<CountConversionMethod>(
+                get: { .estimatedByEye },
+                set: { method in leaveEstimateByEye(for: method) })) {
+                ForEach(CountConversionMethod.allCases, id: \.self) { method in
+                    Text(ConversionFields.label(.choice(method))).tag(method)
+                }
+            }
+            .accessibilityIdentifier("confirm.conversionMethod")
+            if estimateFromMillilitres && model.state.quantity.directWeight?.totalGrams == nil {
+                Label(Self.estimateInMillilitres, systemImage: "exclamationmark.triangle").font(.caption)
+            }
+            ForEach(model.directWeightRequirements, id: \.self) { Text($0).font(.caption) }
+            if model.offersTypicalWeight {
+                Button(Self.useTypicalWeightTitle) { useTypicalWeight() }
+                    .frame(minHeight: 44)
+                    .accessibilityIdentifier("confirm.useTypicalWeight")
+            }
+        }
+    }
+
+    private func changeTypicalWeight() {
+        model.changeTypicalWeight()
+        resetConversionFields()
+    }
+
+    private func useTypicalWeight() {
+        model.useTypicalWeight()
+        resetConversionFields()
+        directWeightText = ""
+        estimateFromMillilitres = false
+    }
+
+    /// Kitchen scale or package weight chosen from the count estimate layout: the typed grams
+    /// become the measured conversion's amount; nothing else changes.
+    private func leaveEstimateByEye(for method: CountConversionMethod) {
+        guard method != .estimatedByEye else { return }
+        let grams = model.state.quantity.directWeight?.totalGrams
+        model.send(.endDirectWeight)
+        conversionText = grams.map(editableNumber) ?? ""
+        conversionUnit = .grams
+        conversionMethod = .choice(method)
+        updateConversion()
     }
 
     private var compactNutritionSection: some View {
@@ -1316,7 +1559,7 @@ public struct FoodConfirmationView: View {
                 }
                 if let saved = model.savedResult {
                     LabeledContent("Logged food", value: saved.productVersion.name.value)
-                    LabeledContent("Logged amount", value: "\(editableNumber(saved.logItemVersion.edibleQuantity.value)) \(saved.logItemVersion.edibleQuantity.unit.rawValue)")
+                    LabeledContent("Logged amount", value: "\(editableNumber(saved.logItemVersion.edibleQuantity.value)) \(FoodAmountNoun.unit(saved.logItemVersion.edibleQuantity.unit, value: saved.logItemVersion.edibleQuantity.value))")
                 }
             }
         }
@@ -1363,6 +1606,7 @@ public struct FoodConfirmationView: View {
     private func useEstimateByEye() {
         let grams = ConversionFields(text: conversionText, unit: conversionUnit, method: conversionMethod)
             .estimatedGrams(locale: locale)
+        estimateFromMillilitres = conversionUnit == .millilitres
         model.useEstimatedCountWeight(grams: grams)
         directWeightText = grams.map(editableNumber) ?? ""
         resetConversionFields()
@@ -1393,7 +1637,12 @@ public struct FoodConfirmationView: View {
         /// The fields after a unit change: empty, grams, no method.
         public static let cleared = ConversionFields(text: "", unit: .grams, method: nil)
 
-        public static let methodTitle = "How you got this amount"
+        public static let methodTitle = "How you got it"
+        public static let amountTitle = "Total weight"
+        public static let amountPrompt = "Without shell, bone or skin you did not eat"
+        public static let unitTitle = "Weight unit"
+        /// Replaces "No source-backed size guide is available…" (count-portion-estimate-v1).
+        public static let intro = "Enter the total weight you ate, without shell, bone or other parts."
 
         /// The shown label. The v1 code-to-label table is frozen by count-conversion-method-v1.
         public static func label(_ selection: MethodSelection) -> String {
@@ -1419,13 +1668,12 @@ public struct FoodConfirmationView: View {
         public func requirementText(locale: Locale) -> String? {
             guard draft(locale: locale) == nil else { return nil }
             switch (amount(locale: locale), method) {
-            case let (amount?, nil):
-                let unitText = unit == .millilitres ? "mL" : "g"
-                return "Choose how you got the \(FoodNutritionReviewPresentation.number(amount.value)) \(unitText): kitchen scale, package weight or estimated by eye."
+            case (_?, nil):
+                return "Choose how you got the weight."
             case (nil, _?):
-                return "Enter the total edible weight or volume, greater than zero."
+                return "Enter the total weight."
             default:
-                return "Enter the total edible weight or volume and choose how you got it."
+                return "Enter the total weight and choose how you got it."
             }
         }
 
@@ -1507,9 +1755,9 @@ public struct FoodConfirmationView: View {
         switch value {
         case .per100Grams: "Per 100 g"
         case .per100Millilitres: "Per 100 mL"
-        case let .perServing(quantity): "Per serving (\(number(quantity.value)) \(quantity.unit.rawValue))"
-        case let .perUnit(quantity): "Per unit (\(number(quantity.value)) \(quantity.unit.rawValue))"
-        case let .named(name, quantity): "\(name.value) (\(number(quantity.value)) \(quantity.unit.rawValue))"
+        case let .perServing(quantity): "Per serving (\(number(quantity.value)) \(FoodAmountNoun.unit(quantity.unit, value: quantity.value)))"
+        case let .perUnit(quantity): "Per unit (\(number(quantity.value)) \(FoodAmountNoun.unit(quantity.unit, value: quantity.value)))"
+        case let .named(name, quantity): "\(name.value) (\(number(quantity.value)) \(FoodAmountNoun.unit(quantity.unit, value: quantity.value)))"
         case .unknown: "Unknown"
         }
     }

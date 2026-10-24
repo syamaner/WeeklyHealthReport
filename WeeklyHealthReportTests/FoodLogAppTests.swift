@@ -599,7 +599,7 @@ final class FoodLogAppTests: XCTestCase {
         }
         confirmation.applyAvailableVolumeConversion()
         XCTAssertNil(confirmation.volumeEstimateLogBarAction)
-        XCTAssertEqual(confirmation.logButtonTitle, "Log 130 kcal")
+        XCTAssertEqual(confirmation.logButtonTitle, "Log about 130 kcal", "an estimated quantity reads about (#307, gate F8)")
         renderPolish(NavigationStack { FoodConfirmationView(model: confirmation) {} }, "Confirm milk estimate applied - standard")
     }
 

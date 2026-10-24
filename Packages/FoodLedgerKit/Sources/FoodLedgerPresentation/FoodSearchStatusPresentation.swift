@@ -155,15 +155,15 @@ public enum FoodSearchResultText {
         return text.prefix(1).uppercased() + text.dropFirst()
     }
     public static func amount(_ quantity: ParsedFoodQuery.Quantity) -> String {
-        let unit = quantity.unit.lowercased() == "ml" ? "mL" : quantity.unit == "count" ? (quantity.value == 1 ? "piece" : "pieces") : quantity.unit
+        let unit = quantity.unit.lowercased() == "ml" ? "mL" : quantity.unit == "count" ? FoodAmountNoun.count(quantity.value) : quantity.unit
         return quantity.value.formatted() + " " + unit
     }
     public static func basisLabel(_ basis: ResolutionBasis) -> String {
         switch basis {
         case .per100Grams: "per 100 g"
         case .per100Millilitres: "per 100 mL"
-        case let .perServing(quantity): "per serving (\(quantity.value.formatted()) \(quantity.unit.rawValue))"
-        case let .perUnit(quantity): "per unit (\(quantity.value.formatted()) \(quantity.unit.rawValue))"
+        case let .perServing(quantity): "per serving (\(quantity.value.formatted()) \(FoodAmountNoun.unit(quantity.unit, value: quantity.value)))"
+        case let .perUnit(quantity): "per unit (\(quantity.value.formatted()) \(FoodAmountNoun.unit(quantity.unit, value: quantity.value)))"
         case let .named(label, _): "per \(label.value)"
         case .unknown: "basis not specified"
         }

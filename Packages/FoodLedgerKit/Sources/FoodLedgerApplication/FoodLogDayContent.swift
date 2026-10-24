@@ -28,6 +28,12 @@ public struct FoodLogDayContent: Sendable {
         public let unknownKeys: [NutrientKey]
         /// Energy stated only as an upper bound, shown as a bound when `energyKcal` is nil.
         public var energyUpperBound: FoodEnergyUpperBound? = nil
+        /// The amount as entered ("3 pieces"), when it differs from `quantity`.
+        public var enteredAmount: PositiveQuantity? = nil
+        /// How the amount was obtained (count-portion-estimate-v1, C7).
+        public var quantityMethod: FoodQuantityMethod = .direct
+        /// A count of servings, not pieces.
+        public var amountIsServings: Bool = false
     }
 
     public struct RemovedEntry: Sendable, Equatable {
@@ -53,7 +59,7 @@ public struct FoodLogDayContent: Sendable {
     /// Plain water logged on this day in mL (#198, Q8), the same figure as Home. Nil when none is
     /// logged (No data, never 0 mL); a known minimum when an entry cannot be scaled.
     public let plainWater: FoodIntakeTotal?
-    /// Current entries that are not plain water (`food-intake-summary-v5`, #304). With entries but
+    /// Current entries that are not plain water (`food-intake-summary-v6`, #304). With entries but
     /// none of them food, the strip shows the no-food copy instead of its nutrient totals.
     public let foodEntryCount: Int
     /// Whether the strip shows nutrient totals: some current entry is food.
@@ -77,7 +83,9 @@ public struct FoodLogDayContent: Sendable {
                          isEstimate: estimates.contains(row.logItemID) || row.totals.contains { $0.includesEstimates }
                             || row.energyUpperBound?.isCalculated == true,
                          unknownKeys: Self.entryFlagKeys.filter { (known[$0] ?? nil) == nil },
-                         energyUpperBound: row.energyUpperBound)
+                         energyUpperBound: row.energyUpperBound,
+                         enteredAmount: row.enteredAmount, quantityMethod: row.quantityMethod,
+                         amountIsServings: row.amountIsServings)
         }
         removed = projection.removedRows.map { row in
             RemovedEntry(logItemID: row.logItemID, logItemVersionID: row.logItemVersionID, occurredAt: row.occurredAt,

@@ -2737,3 +2737,22 @@ Review fold-in, same subagent and transcript, from `2026-10-24T07:22:34Z` to `20
 Boundary: `phase_usage.py --format claude --since 2026-10-24T07:22:34Z --until 2026-10-24T07:49:33Z` on the subagent transcript alone. Cache writes: 529,044 5-minute, 0 1-hour. Exact API-equivalent USD 5.5494328 at the recorded counts. A single run over the whole window (`06:40:02Z` to `07:49:33Z`) reports 25,106,750 tokens and USD 10.7119244, which is less than the sum of the two rows (the windows share the `07:22:34Z` boundary; the cause of the difference was not investigated), so the rows are not added here. The reviewer subagents and the orchestrating session are not included.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-307-2026-10-24: Claude Code assistive count amounts (spec and implementation)
+
+One `claude-opus-5-5` subagent, transcript `subagents/agent-a47b37ffd7f2c1513.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`, for #307. Two rows on the same transcript, split at the coordinator's gate re-check message.
+
+Spec row: from the transcript's first message (`2026-10-24T08:54:35Z`) to the gate re-check message (`2026-10-24T09:32:18Z`). It covers reading the contracts, code and UX review screenshots, the spec and architecture gate (`docs/count-portion-estimate-v1.md`), the owner's size amendment with the offline re-read of the USDA archive, and folding the first architecture-gate findings (F1 to F11). No start time was captured with `date -u`; the boundary is the transcript's own first timestamp.
+
+Implementation row: from `2026-10-24T09:32:18Z` to `2026-10-24T11:17:15Z` (captured with `date -u`), just before this ledger edit. It covers folding G1 to G6 into the spec, the manifest projection, the application, adapter, presentation and app changes, the contract and presentation tests, the v5 golden freeze and v6 goldens, and the gate runs completed before the edit (the app test gate was still running and is outside the row only for its remaining minutes). This ledger edit, the commit, the push and the PR are outside both rows. The orchestrator and the architecture-gate reviewers are not included. Times are UTC (24 October local time, UTC+8).
+
+Pricing: Claude Opus 5.5 rates as recorded by the 24 October 2026 check in WHR-305-2026-10-24 and WHR-304-2026-10-24 (not re-checked for this row): USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Assistive count amounts (#307), spec, amendment and gate fold-in | 5,383,256 (5,074,446) | 308,734 | 61,141 | 5,444,397 | $3.78 |
+| Assistive count amounts (#307), implementation and gates | 68,030,769 (64,979,540) | 3,050,897 | 151,894 | 68,182,663 | $31.29 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-24T08:54:35Z --until 2026-10-24T09:32:18Z` and `--since 2026-10-24T09:32:18Z --until 2026-10-24T11:17:15Z` on the subagent transcript alone. Cache writes are all 5-minute (308,734 and 3,050,897), 0 1-hour. Exact API-equivalent USD 3.7816832 and 31.289601. Output counts are as the transcript records them and are likely lower bounds, because messages record streaming-time snapshots.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

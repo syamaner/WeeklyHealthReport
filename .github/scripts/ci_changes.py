@@ -56,6 +56,8 @@ CODE_READ_DOCS = {
     # Cited by parser v3, the serving v3 policy and their tests (reader v3, #93).
     "docs/pasted-nutrition-label-reader-v3.md",
     "docs/healthkit-day-bucketing-v1.md",
+    # Cited by the count portion guides, the estimate and method rules and their tests (#307).
+    "docs/count-portion-estimate-v1.md",
 }
 CODE_READ_DOC_PREFIXES = ("docs/fixtures/",)
 # Never documentation, whatever the lists above say: CI, its scripts and this

@@ -11,9 +11,15 @@ public struct FoodEntryHistoryEvent: Equatable, Sendable {
         /// Edible amounts, present only when either side's edible amount differs from what was entered.
         public let edibleFrom: PositiveQuantity?
         public let edibleTo: PositiveQuantity?
+        /// How each side's amount was obtained (count-portion-estimate-v1, C7), derived from the
+        /// records, so history can say "about" and name a new method or size.
+        public let methodFrom: FoodQuantityMethod
+        public let methodTo: FoodQuantityMethod
 
-        public init(from: PositiveQuantity, to: PositiveQuantity, edibleFrom: PositiveQuantity?, edibleTo: PositiveQuantity?) {
+        public init(from: PositiveQuantity, to: PositiveQuantity, edibleFrom: PositiveQuantity?, edibleTo: PositiveQuantity?,
+                    methodFrom: FoodQuantityMethod = .direct, methodTo: FoodQuantityMethod = .direct) {
             self.from = from; self.to = to; self.edibleFrom = edibleFrom; self.edibleTo = edibleTo
+            self.methodFrom = methodFrom; self.methodTo = methodTo
         }
     }
 
@@ -90,11 +96,22 @@ public enum FoodEntryHistory {
     private static func amountChange(_ previous: LogItemVersion, _ next: LogItemVersion,
                                      _ conversions: [QuantityConversionVersionID: QuantityConversionVersion]) -> FoodEntryHistoryEvent.AmountChange? {
         let from = entered(previous, conversions), to = entered(next, conversions)
-        guard from != to || previous.edibleQuantity != next.edibleQuantity else { return nil }
+        let methodFrom = method(previous, conversions), methodTo = method(next, conversions)
+        // A method change through a new conversion (another size or method) is an amount change;
+        // a declaration-only change stays `weightDetailsChanged`.
+        let conversionMethodChanged = methodFrom != methodTo
+            && previous.quantityConversionVersionID != next.quantityConversionVersionID
+        guard from != to || previous.edibleQuantity != next.edibleQuantity || conversionMethodChanged else { return nil }
         let showsEdible = from != previous.edibleQuantity || to != next.edibleQuantity
         return .init(from: from, to: to,
                      edibleFrom: showsEdible ? previous.edibleQuantity : nil,
-                     edibleTo: showsEdible ? next.edibleQuantity : nil)
+                     edibleTo: showsEdible ? next.edibleQuantity : nil,
+                     methodFrom: methodFrom, methodTo: methodTo)
+    }
+
+    private static func method(_ version: LogItemVersion,
+                               _ conversions: [QuantityConversionVersionID: QuantityConversionVersion]) -> FoodQuantityMethod {
+        FoodQuantityMethod.of(version, conversion: version.quantityConversionVersionID.flatMap { conversions[$0] })
     }
 
     private static func entered(_ version: LogItemVersion,

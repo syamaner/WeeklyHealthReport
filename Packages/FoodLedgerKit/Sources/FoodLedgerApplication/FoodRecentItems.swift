@@ -121,7 +121,8 @@ public struct FoodRecentItemsService: Sendable {
             // include estimates (an augmented or calculated value, or an estimated weight).
             let log = saved.logItemVersion
             let totals = FoodIntakeSummary(contributions: [.init(quantity: log.edibleQuantity, basis: saved.resolution.basis,
-                nutrients: saved.resolutionVersion.nutrients, quantityIsEstimate: log.weightDeclaration?.basis == .estimated)]).totals
+                nutrients: saved.resolutionVersion.nutrients,
+                quantityIsEstimate: FoodQuantityEstimate.isEstimate(log, conversion: saved.quantityConversion))]).totals
             return FoodRecentRelogItem(item: item, name: input.candidates[0].name.value,
                                        isEstimate: isEstimate || totals.contains { $0.includesEstimates }
                                            || item.energyUpperBound?.isCalculated == true,

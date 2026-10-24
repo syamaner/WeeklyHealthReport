@@ -19,8 +19,15 @@ public struct FoodIntakeLogRow: Sendable {
     /// still counts it as incomplete, as before.
     public var energyUpperBound: FoodEnergyUpperBound? = nil
     /// The entry is plain water (`PlainWaterReference.isPlainWater`). Its own `totals` keep the
-    /// reference's exact zeros; the day summary leaves them out (`food-intake-summary-v5`, #304).
+    /// reference's exact zeros; the day summary leaves them out (`food-intake-summary-v6`, #304).
     public var isPlainWater: Bool = false
+    /// The amount as entered (the count of a count entry), for the amount line "3 pieces · about
+    /// 150 g" (count-portion-estimate-v1). Defaults to the edible quantity.
+    public var enteredAmount: PositiveQuantity? = nil
+    /// How the amount was obtained, derived from the stored records (C7). Never stored.
+    public var quantityMethod: FoodQuantityMethod = .direct
+    /// Whether the entry was counted in servings (pasted label or source serving).
+    public var amountIsServings: Bool = false
 }
 
 /// An energy upper bound scaled to the amount eaten, with whether the stored value is calculated.
@@ -77,7 +84,13 @@ public struct FoodIntakeProjection: Sendable {
             }
             let version = records.resolutionVersions.first { $0.resolutionVersionID == log.effectiveResolutionVersionID }
             let resolution = version.flatMap { version in records.resolutions.first { $0.resolutionID == version.resolutionID } }
-            let contribution = FoodIntakeContribution(quantity: log.edibleQuantity, basis: resolution?.basis ?? .unknown, nutrients: version?.nutrients, quantityIsEstimate: log.weightDeclaration?.basis == .estimated)
+            let conversion = log.quantityConversionVersionID.flatMap { id in
+                records.quantityConversions.first { $0.quantityConversionVersionID == id }
+            }
+            // count-portion-estimate-v1 (C6): one estimate rule over the stored records
+            // (`food-intake-summary-v6`).
+            let contribution = FoodIntakeContribution(quantity: log.edibleQuantity, basis: resolution?.basis ?? .unknown, nutrients: version?.nutrients,
+                                                      quantityIsEstimate: FoodQuantityEstimate.isEstimate(log, conversion: conversion))
             let isPlainWater = version.map(PlainWaterReference.isPlainWater) ?? false
             if !removed {
                 contributions.append(FoodIntakeContribution(quantity: contribution.quantity, basis: contribution.basis,
@@ -86,17 +99,32 @@ public struct FoodIntakeProjection: Sendable {
                                                             isPlainWater: isPlainWater))
             }
             let sources = Set((version?.nutrients.entries ?? []).flatMap { $0.value.provenance }.map { $0.sourceID.value })
+            let entered = FoodConfirmationService.lastEnteredAmount(log, conversion: conversion)
             let row = FoodIntakeLogRow(logItemID: log.logItemID, logItemVersionID: head.logItemVersionID, occurredAt: log.occurredAt,
                                          name: product.name.value, quantity: log.edibleQuantity, sourceIDs: sources.sorted(),
                                          totals: FoodIntakeSummary(contributions: [contribution]).totals,
                                          removedAt: removed ? head.createdAt : nil,
                                          energyUpperBound: FoodEnergyUpperBound.of(contribution),
-                                         isPlainWater: isPlainWater)
+                                         isPlainWater: isPlainWater,
+                                         enteredAmount: try? PositiveQuantity(value: entered.value, unit: entered.unit),
+                                         quantityMethod: FoodQuantityMethod.of(log, conversion: conversion),
+                                         amountIsServings: entered.unit == .count && Self.countsServings(conversion: conversion,
+                                             resolutionBasis: resolution?.basis))
             if removed { removedRows.append(row) } else { rows.append(row) }
         }
         summary = FoodIntakeSummary(contributions: contributions)
         self.rows = rows
         self.removedRows = removedRows
+    }
+
+    /// A count is servings, not pieces, when it went through a pasted-label serving or the source
+    /// itself is per serving or recipe serving.
+    static func countsServings(conversion: QuantityConversionVersion?, resolutionBasis: ResolutionBasis?) -> Bool {
+        if let conversion, PastedLabelServingPolicy.admittedVersions.contains(conversion.methodVersion.value) { return true }
+        switch resolutionBasis {
+        case .per100Grams?, .per100Millilitres?, .unknown?, nil: return false
+        default: return true
+        }
     }
 }
 

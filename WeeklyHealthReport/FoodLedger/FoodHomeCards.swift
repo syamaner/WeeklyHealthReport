@@ -55,7 +55,7 @@ struct FoodHomeCardContent: Equatable {
         locale: Locale = .autoupdatingCurrent
     ) -> State {
         // Plain water is not a food entry and adds nothing to the nutrient totals
-        // (`food-intake-summary-v5`, #304), so only food rows count here.
+        // (`food-intake-summary-v6`, #304), so only food rows count here.
         make(itemCount: projection.summary.itemCount, foodItemCount: projection.summary.foodItemCount,
              totals: projection.summary.totals, plainWater: plainWater, locale: locale,
              incompleteEntries: incompleteEntries(projection.rows.filter { !$0.isPlainWater }.map(\.totals),

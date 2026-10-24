@@ -442,7 +442,7 @@ final class FoodLogPresentationTests: XCTestCase {
         XCTAssertEqual(FoodLogText.totalAccessibility(total(.fatTotal, 41, incomplete: 1), locale: locale), "Fat, at least 41 grams")
         XCTAssertEqual(FoodLogText.totalAccessibility(total(.energyConsumed, nil), locale: locale), "Energy, unknown")
         XCTAssertEqual(FoodLogText.amount(try PositiveQuantity(value: 150, unit: .grams), locale: locale), "150 g")
-        XCTAssertEqual(FoodLogText.amount(try PositiveQuantity(value: 1, unit: .count), locale: locale), "1 unit")
+        XCTAssertEqual(FoodLogText.amount(try PositiveQuantity(value: 1, unit: .count), locale: locale), "1 piece")
         XCTAssertEqual(FoodLogText.kcal(247.5, locale: locale), "248")
         XCTAssertEqual(FoodLogText.removedHeader(1), "Removed · 1 entry")
         XCTAssertEqual(FoodLogText.removedLine(removedAt: "11:02"), "Removed 11:02 · not in totals")

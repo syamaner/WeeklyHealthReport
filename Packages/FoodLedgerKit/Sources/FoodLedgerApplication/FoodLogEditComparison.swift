@@ -33,7 +33,12 @@ public enum FoodLogEditComparison {
         do { declaration = try state.quantity.declaration() } catch { return true }
         if declaration != log.weightDeclaration { return true }
         if declaration == nil {
-            if let draft = state.quantity.conversion {
+            if state.quantity.conversion == nil, let code = state.quantity.portionGuideCode {
+                // A guide size: unchanged when the stored conversion has the same code and count.
+                guard let stored = stored.quantityConversion, stored.methodVersion == code,
+                      stored.quantityConversionVersionID == log.quantityConversionVersionID,
+                      let entered = try? state.quantity.calculationInput(), stored.sourceQuantity == entered else { return true }
+            } else if let draft = state.quantity.conversion {
                 guard let entered = try? state.quantity.calculationInput(),
                       reusesConversion(stored.quantityConversion, entered: entered, draft: draft),
                       stored.quantityConversion?.quantityConversionVersionID == log.quantityConversionVersionID else { return true }

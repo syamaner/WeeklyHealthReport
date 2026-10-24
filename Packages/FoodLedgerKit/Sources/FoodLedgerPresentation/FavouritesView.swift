@@ -299,7 +299,7 @@ public struct FavouritesView: View {
     private func unitLabel(_ item: QuickAddItem) -> String {
         switch item {
         case .builtInWater: "mL"
-        case let .favourite(version): version.defaultAmount.unit == .count ? "pieces" : version.defaultAmount.unit.rawValue
+        case let .favourite(version): version.defaultAmount.unit == .count ? FoodAmountNoun.countUnitLabel : version.defaultAmount.unit == .millilitres ? "mL" : "g"
         }
     }
 

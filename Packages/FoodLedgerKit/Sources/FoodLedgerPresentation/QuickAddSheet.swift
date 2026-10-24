@@ -276,8 +276,8 @@ public struct QuickAddSheet: View {
                         TextField("Amount", text: $text)
                             .amountKeyboard($editingAmount, .quickAddOther)
                             .onChange(of: text) { _, value in model.setCustomText(FoodAmountFieldText.reducerText(value, locale: locale)) }
-                            .accessibilityLabel("Other amount in \(model.unit == .millilitres ? "millilitres" : model.unit == .grams ? "grams" : "pieces")")
-                        Text(model.unit == .count ? "pieces" : model.unit.rawValue).foregroundStyle(.secondary)
+                            .accessibilityLabel("Other amount in \(model.unit == .millilitres ? "millilitres" : model.unit == .grams ? "grams" : FoodAmountNoun.countUnitLabel)")
+                        Text(model.unit == .count ? FoodAmountNoun.countUnitLabel : model.unit == .millilitres ? "mL" : "g").foregroundStyle(.secondary)
                     }.frame(minHeight: 44)
                 }
             }

@@ -1,6 +1,6 @@
 # Count portion estimate v1 (#307)
 
-Status: **design spec and architecture gate, 24 October 2026. Documents only; no production code has changed.** The owner approved autonomous delivery of #307, including any contract, on 24 October 2026. Owner principle: the app pre-fills, the user validates and corrects, and every estimate stays visible.
+Status: **implemented on `feat/307-count-portion-estimate`, 24 October 2026** (spec and architecture gate passed with changes; gate re-check G1 to G6 folded in). The owner approved autonomous delivery of #307, including any contract, on 24 October 2026. Owner principle: the app pre-fills, the user validates and corrects, and every estimate stays visible.
 
 Amendment 1 (24 October 2026, owner input: "Small, medium, large, X-Large estimates could help"): eggs get a one-tap size choice (Small, Medium, Large, Extra large) with Large pre-filled; each size is its own closed code; boiled sizes other than Large are a documented derivation from the raw sizes; the USDA archive was re-downloaded with owner approval and the values re-verified (section 3); the Daily JSON summary moves to food-intake-summary-v6 while entry fields stay unchanged (follow-up #312); the architecture gate findings F1 to F11 on 435783ba are folded in.
 
@@ -343,3 +343,11 @@ Presentation and infrastructure depend on application; application depends on do
 16. `200ml whole milk` with the volume estimate tapped: after saving, the Food Log row shows `200 mL · about 206 g` and `Estimate · Whole milk volume estimate`.
 17. Largest Dynamic Type: the size rows, weight row and Change stay readable and tappable (44 pt); VoiceOver reads them as in section 5.
 18. Pasted-label servings still read `servings`.
+
+## 12. Implementation notes (24 October 2026)
+
+- Manifest generated with `python3 -I Tools/FoodSourceEvaluation/project_usda_count_portions.py <scratchpad>/usda-sr-legacy/FoodData_Central_sr_legacy_food_json_2018-04.zip Packages/FoodLedgerKit/Sources/FoodGenericSearch/Resources/count-portion-guides-v1.json`: archive SHA-256 `0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef`, manifest SHA-256 `5bcf4a90d77ddc9c465196e241a2e7400ad68934707be8737e37d10e7917ae84` (pinned in `USDACountPortionGuides`).
+- Port: `entry(_:for:)` is a protocol extension over `guide(for:)`, so an adapter implements one method and the two cannot disagree.
+- The list import route gets the same guides as the search route (`FoodListImportViewModel(portionGuides:)`).
+- While the size choice shows, "Enter measured weight" is hidden; Change is the one way to a measured or own weight.
+- The v5 Daily JSON goldens are frozen as `docs/fixtures/food-daily-v1/food-daily-*-summary-v5.json`; the current goldens (v6) differ from them only in `summary_version`, and `food-daily-typical-weight-day.json` pins a typical-weight day.

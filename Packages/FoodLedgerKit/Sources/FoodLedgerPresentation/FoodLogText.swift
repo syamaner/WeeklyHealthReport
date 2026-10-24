@@ -119,14 +119,68 @@ public enum FoodLogText {
 
     // MARK: Entries
 
-    /// "150 g", "200 mL", "2 units".
+    /// "150 g", "200 mL", "2 pieces" (count-portion-estimate-v1, C8: one count word).
     public static func amount(_ quantity: PositiveQuantity, locale: Locale = .current) -> String {
         let value = number(quantity.value, fraction: 0...2, locale: locale)
         switch quantity.unit {
         case .grams: return "\(value) g"
         case .millilitres: return "\(value) mL"
-        case .count: return quantity.value == 1 ? "1 unit" : "\(value) units"
+        case .count: return "\(value) \(FoodAmountNoun.count(quantity.value))"
         }
+    }
+
+    /// An entered count in servings: "1 serving", "2 servings".
+    static func servings(_ quantity: PositiveQuantity, locale: Locale) -> String {
+        "\(number(quantity.value, fraction: 0...2, locale: locale)) \(FoodAmountNoun.servings(quantity.value))"
+    }
+
+    /// The amount line (count-portion-estimate-v1, section 5): "3 pieces · about 150 g", "150 g",
+    /// "200 mL · about 206 g". The edible amount reads "about" only when the quantity is an estimate.
+    public static func amountLine(entered: PositiveQuantity?, edible: PositiveQuantity, isServings: Bool,
+                                  method: FoodQuantityMethod, locale: Locale = .current) -> String {
+        let edibleText = (method.isEstimate ? "about " : "") + amount(edible, locale: locale)
+        guard let entered, entered != edible else { return edibleText }
+        let enteredText = isServings && entered.unit == .count ? servings(entered, locale: locale) : amount(entered, locale: locale)
+        return "\(enteredText) · \(edibleText)"
+    }
+
+    /// A Food Log row's amount line.
+    public static func entryAmount(_ entry: FoodLogDayContent.Entry, locale: Locale = .current) -> String {
+        amountLine(entered: entry.enteredAmount, edible: entry.quantity, isServings: entry.amountIsServings,
+                   method: entry.quantityMethod, locale: locale)
+    }
+
+    /// The method's short label (Food Log flags, saved entry, history), or nil for an amount
+    /// entered directly (C7).
+    public static func methodLabel(_ method: FoodQuantityMethod) -> String? {
+        switch method {
+        case .direct: nil
+        case .weighed: "Weighed"
+        case .estimatedByEye: "Estimated by eye"
+        case .kitchenScale: "Kitchen scale"
+        case .packageWeight: "Package weight"
+        case .typicalWeight: "Typical weight"
+        case .wholeMilkVolume: "Whole milk volume estimate"
+        case let .recorded(text): "Recorded: \(text)"
+        }
+    }
+
+    /// "Small", "Medium", "Large", "Extra large": the source's US size names.
+    public static func sizeName(_ size: FoodEdibleWeightGuideSize) -> String {
+        switch size {
+        case .small: "Small"
+        case .medium: "Medium"
+        case .large: "Large"
+        case .extraLarge: "Extra large"
+        }
+    }
+
+    /// The method as the saved entry header states it: "Typical weight, Large, about 50 g each".
+    public static func methodDetail(_ method: FoodQuantityMethod, locale: Locale = .current) -> String? {
+        if case let .typicalWeight(size, grams) = method {
+            return "Typical weight, \(sizeName(size)), about \(number(grams, fraction: 0...1, locale: locale)) g each"
+        }
+        return methodLabel(method)
     }
 
     /// "248 kcal"; "Less than 5 kcal" (or "5 kcal or less") when the source states only an upper
@@ -145,13 +199,14 @@ public enum FoodLogText {
     /// nutrients other than energy (energy has its own slot). Empty when there is nothing to flag.
     public static func flags(_ entry: FoodLogDayContent.Entry) -> String {
         var parts = entry.isEstimate ? ["Estimate"] : []
+        if let method = methodLabel(entry.quantityMethod) { parts.append(method) }
         parts += entry.unknownKeys.filter { $0 != .energyConsumed }.map { "\(label($0)) unknown" }
         return parts.joined(separator: " · ")
     }
 
     public static func entryAccessibility(_ entry: FoodLogDayContent.Entry, time: String, locale: Locale = .current) -> String {
         let flags = flags(entry)
-        return [time, entry.name, amount(entry.quantity, locale: locale), entryEnergy(entry, locale: locale), flags]
+        return [time, entry.name, entryAmount(entry, locale: locale), entryEnergy(entry, locale: locale), flags]
             .filter { !$0.isEmpty }.joined(separator: ", ")
     }
 
@@ -208,17 +263,11 @@ public enum FoodLogText {
 
     // MARK: Saved entry
 
-    /// "150 g", or "2 units · 240 g" when the edible amount differs from what was entered; a
-    /// pasted label's servings read "2 servings · 60 g".
+    /// "150 g", or "3 pieces · about 150 g" when the edible amount differs from what was entered;
+    /// a pasted label's servings read "2 servings · 60 g".
     public static func savedAmount(_ detail: SavedFoodEntryDetail, locale: Locale = .current) -> String {
-        let entered: String
-        if detail.amountIsServings {
-            let value = number(detail.enteredAmount.value, fraction: 0...2, locale: locale)
-            entered = detail.enteredAmount.value == 1 ? "1 serving" : "\(value) servings"
-        } else {
-            entered = amount(detail.enteredAmount, locale: locale)
-        }
-        return detail.enteredAmount == detail.edibleQuantity ? entered : "\(entered) · \(amount(detail.edibleQuantity, locale: locale))"
+        amountLine(entered: detail.enteredAmount, edible: detail.edibleQuantity, isServings: detail.amountIsServings,
+                   method: detail.quantityMethod, locale: locale)
     }
 
     public static func notCalculableTitle() -> String { "Nutrition can’t be calculated for this amount" }
@@ -241,7 +290,7 @@ public enum FoodLogText {
     }
 
     static func unitPhrase(_ unit: QuantityUnit) -> String {
-        switch unit { case .grams: "g"; case .millilitres: "mL"; case .count: "units" }
+        switch unit { case .grams: "g"; case .millilitres: "mL"; case .count: FoodAmountNoun.countUnitLabel }
     }
 
     /// "Unknown" for unknown, bounded or unscalable values; "Estimated" only beside a value the
@@ -254,11 +303,18 @@ public enum FoodLogText {
         return augmented ? "\(value) · Estimated" : value
     }
 
-    /// The header's estimate line, or nil: "Estimate · Unknown details stay unknown".
-    public static func headerEstimate(_ detail: SavedFoodEntryDetail) -> String? {
-        if detail.isEstimate { return "Estimate · \(estimateNotice)" }
-        if detail.weightIsEstimated { return "Estimate · The weight was estimated" }
-        return nil
+    /// The header's second line, or nil (count-portion-estimate-v1, section 5): both estimate
+    /// kinds once ("Estimate · Typical weight, Large, about 50 g each · Unknown details stay
+    /// unknown"), or a measured method's label alone ("Kitchen scale").
+    public static func headerEstimate(_ detail: SavedFoodEntryDetail, locale: Locale = .current) -> String? {
+        let method = methodDetail(detail.quantityMethod, locale: locale)
+        if detail.isEstimate || detail.weightIsEstimated {
+            var parts = ["Estimate"]
+            if detail.weightIsEstimated, let method { parts.append(method) }
+            if detail.isEstimate { parts.append(estimateNotice) }
+            return parts.joined(separator: " · ")
+        }
+        return method
     }
 
     public static let plainWaterSourceName = "Plain water"
@@ -286,6 +342,32 @@ public enum FoodLogText {
 
     public static func decision(_ decision: FoodLogFacetDecision) -> String {
         FoodLogRequirementText.choice(decision.choice, facet: decision.facet, source: decision.sourceState)
+    }
+
+    /// "Amount changed 3 pieces to 4 pieces (about 150 g to about 200 g)" when the entered amount
+    /// changed; "Weight changed about 150 g to 120 g" when only the edible amount changed; with
+    /// " · now Kitchen scale" (or the new size) when the method changed. Never a repeated count.
+    static func amountChange(_ amount: FoodEntryHistoryEvent.AmountChange, locale: Locale) -> String {
+        func edible(_ quantity: PositiveQuantity, _ method: FoodQuantityMethod) -> String {
+            (method.isEstimate ? "about " : "") + self.amount(quantity, locale: locale)
+        }
+        var text: String
+        if amount.from != amount.to {
+            text = "Amount changed \(self.amount(amount.from, locale: locale)) to \(self.amount(amount.to, locale: locale))"
+            if let from = amount.edibleFrom, let to = amount.edibleTo, from != to {
+                text += " (\(edible(from, amount.methodFrom)) to \(edible(to, amount.methodTo)))"
+            }
+        } else if let from = amount.edibleFrom, let to = amount.edibleTo, from != to {
+            text = "Weight changed \(edible(from, amount.methodFrom)) to \(edible(to, amount.methodTo))"
+        } else {
+            text = "Weight details changed"
+        }
+        if amount.methodFrom != amount.methodTo {
+            let now: String? = if case let .typicalWeight(size, _) = amount.methodTo,
+                                  case .typicalWeight = amount.methodFrom { sizeName(size) } else { methodLabel(amount.methodTo) }
+            if let now { text += " · now \(now)" }
+        }
+        return text
     }
 
     /// One history line without its time: "Logged", "Amount changed 120 g to 150 g", ... A time
@@ -318,11 +400,7 @@ public enum FoodLogText {
                                 time: (Date, Date) -> (String, String), locale: Locale) -> [String] {
         var parts: [String] = []
         if let amount {
-            var text = "Amount changed \(self.amount(amount.from, locale: locale)) to \(self.amount(amount.to, locale: locale))"
-            if let from = amount.edibleFrom, let to = amount.edibleTo, from != to {
-                text += " (\(self.amount(from, locale: locale)) to \(self.amount(to, locale: locale)))"
-            }
-            parts.append(text)
+            parts.append(amountChange(amount, locale: locale))
         }
         if let change {
             let (from, to) = time(change.from, change.to)
