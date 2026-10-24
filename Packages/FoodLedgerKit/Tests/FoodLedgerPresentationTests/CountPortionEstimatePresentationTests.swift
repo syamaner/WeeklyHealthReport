@@ -70,6 +70,7 @@ final class CountPortionEstimatePresentationTests: XCTestCase {
         model.send(.setConversion(QuantityConversionDraft(convertedQuantity: try PositiveQuantity(value: 120, unit: .grams),
             methodVersion: try XCTUnwrap(CountConversionMethod.kitchenScale.storedCode))))
         XCTAssertTrue(model.requirements.isEmpty)
+        XCTAssertTrue(model.showsCountMethodPicker, "the method shows once, in the picker, not also as a read-only row")
         XCTAssertFalse(model.quantityIsEstimate)
         XCTAssertFalse(model.logButtonTitle.contains("about"), model.logButtonTitle)
         model.useTypicalWeight()
@@ -217,6 +218,62 @@ final class CountPortionEstimatePresentationTests: XCTestCase {
         XCTAssertEqual(FoodLogText.entryAmount(entry, locale: locale), "3 pieces · about 150 g")
         XCTAssertTrue(FoodLogText.flags(entry).hasPrefix("Estimate · Typical weight"), FoodLogText.flags(entry))
         XCTAssertTrue(day.totals?.first { $0.key == .energyConsumed }?.includesEstimates == true)
+    }
+
+    // MARK: Invariant review of 89ba348f
+
+    func testServingsReadServingsWithOrWithoutAWeight() throws {
+        let two = try PositiveQuantity(value: 2, unit: .count), three = try PositiveQuantity(value: 3, unit: .count)
+        XCTAssertEqual(FoodLogText.amountLine(entered: two, edible: two, isServings: true, method: .direct, locale: locale), "2 servings")
+        XCTAssertEqual(FoodLogText.amountLine(entered: two, edible: two, isServings: false, method: .direct, locale: locale), "2 pieces")
+        let change = FoodEntryHistoryEvent.AmountChange(from: two, to: three, edibleFrom: nil, edibleTo: nil, isServings: true)
+        XCTAssertEqual(FoodLogText.history(.changed(amount: change, time: nil), now: now, calendar: calendar, locale: locale),
+                       "Amount changed 2 servings to 3 servings")
+    }
+
+    func testAReopenedCorrectedEggOffersUseTypicalWeight() throws {
+        let guides = try USDACountPortionGuides()
+        let (service, _) = try services(guides: guides)
+        // Kitchen scale.
+        var scale = try eggs(guides: guides)
+        FoodConfirmationReducer.reduce(state: &scale, action: .setConversion(QuantityConversionDraft(
+            convertedQuantity: try PositiveQuantity(value: 160, unit: .grams),
+            methodVersion: try XCTUnwrap(CountConversionMethod.kitchenScale.storedCode))))
+        FoodConfirmationReducer.reduce(state: &scale, action: .accept)
+        let scaleSaved = try service.save(scale, operationID: LedgerID("00000000-0000-0000-0000-000000000711"))
+        // Estimated by eye.
+        var eye = try eggs(guides: guides)
+        FoodConfirmationReducer.reduce(state: &eye, action: .beginDirectWeight)
+        FoodConfirmationReducer.reduce(state: &eye, action: .setDirectWeight(140))
+        FoodConfirmationReducer.reduce(state: &eye, action: .setWeightBasis(.estimated))
+        FoodConfirmationReducer.reduce(state: &eye, action: .accept)
+        let eyeSaved = try service.save(eye, operationID: LedgerID("00000000-0000-0000-0000-000000000712"))
+        for (name, saved) in [("kitchen scale", scaleSaved), ("estimated by eye", eyeSaved)] {
+            let model = FoodConfirmationViewModel(state: try XCTUnwrap(service.reopen(logItemID: saved.logItem.logItemID)),
+                                                  portionGuides: guides, now: { [now] in now }, calendar: calendar) { _ in
+                throw CocoaError(.fileWriteUnknown)
+            }
+            XCTAssertFalse(model.showsPortionGuide, name)
+            XCTAssertTrue(model.offersTypicalWeight, name)
+            XCTAssertTrue(model.requirements.isEmpty, "\(name): \(model.requirements)")
+            model.useTypicalWeight()
+            XCTAssertTrue(model.showsPortionGuide, name)
+        }
+    }
+
+    func testAMeasuredMethodIsNamedWhenOnlyTheSourceIsAnEstimate() throws {
+        let guides = try USDACountPortionGuides()
+        let (service, _) = try services(guides: guides)
+        var state = try eggs(guides: guides)
+        FoodConfirmationReducer.reduce(state: &state, action: .setConversion(QuantityConversionDraft(
+            convertedQuantity: try PositiveQuantity(value: 160, unit: .grams),
+            methodVersion: try XCTUnwrap(CountConversionMethod.kitchenScale.storedCode))))
+        FoodConfirmationReducer.reduce(state: &state, action: .accept)
+        let saved = try service.save(state, operationID: LedgerID("00000000-0000-0000-0000-000000000713"))
+        let detail = SavedFoodEntryDetail(stored: saved, isEstimate: try service.isEstimate(saved), history: [])
+        XCTAssertTrue(detail.isEstimate, "the CoFID egg is a generic estimate")
+        XCTAssertEqual(FoodLogText.headerEstimate(detail, locale: locale), "Estimate · Unknown details stay unknown · Kitchen scale")
+        XCTAssertEqual(FoodLogText.savedAmount(detail, locale: locale), "3 pieces · 160 g")
     }
 
     // MARK: Fixtures

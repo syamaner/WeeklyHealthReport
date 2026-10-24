@@ -149,10 +149,13 @@ public enum FoodLogText {
     /// "200 mL · about 206 g". The edible amount reads "about" only when the quantity is an estimate.
     public static func amountLine(entered: PositiveQuantity?, edible: PositiveQuantity, isServings: Bool,
                                   method: FoodQuantityMethod, locale: Locale = .current) -> String {
-        let edibleText = (method.isEstimate ? "about " : "") + amount(edible, locale: locale)
+        // Servings are servings even when no weight went through them ("2 servings").
+        func counted(_ quantity: PositiveQuantity) -> String {
+            isServings && quantity.unit == .count ? servings(quantity, locale: locale) : amount(quantity, locale: locale)
+        }
+        let edibleText = (method.isEstimate ? "about " : "") + counted(edible)
         guard let entered, entered != edible else { return edibleText }
-        let enteredText = isServings && entered.unit == .count ? servings(entered, locale: locale) : amount(entered, locale: locale)
-        return "\(enteredText) · \(edibleText)"
+        return "\(counted(entered)) · \(edibleText)"
     }
 
     /// A Food Log row's amount line.
@@ -323,6 +326,8 @@ public enum FoodLogText {
             var parts = ["Estimate"]
             if detail.weightIsEstimated, let method { parts.append(method) }
             if detail.isEstimate { parts.append(estimateNotice) }
+            // A measured method is still named when only the source is an estimate.
+            if !detail.weightIsEstimated, let method { parts.append(method) }
             return parts.joined(separator: " · ")
         }
         return method
@@ -359,12 +364,15 @@ public enum FoodLogText {
     /// changed; "Weight changed about 150 g to 120 g" when only the edible amount changed; with
     /// " · now Kitchen scale" (or the new size) when the method changed. Never a repeated count.
     static func amountChange(_ amount: FoodEntryHistoryEvent.AmountChange, locale: Locale) -> String {
+        func counted(_ quantity: PositiveQuantity) -> String {
+            amount.isServings && quantity.unit == .count ? servings(quantity, locale: locale) : self.amount(quantity, locale: locale)
+        }
         func edible(_ quantity: PositiveQuantity, _ method: FoodQuantityMethod) -> String {
-            (method.isEstimate ? "about " : "") + self.amount(quantity, locale: locale)
+            (method.isEstimate ? "about " : "") + counted(quantity)
         }
         var text: String
         if amount.from != amount.to {
-            text = "Amount changed \(self.amount(amount.from, locale: locale)) to \(self.amount(amount.to, locale: locale))"
+            text = "Amount changed \(counted(amount.from)) to \(counted(amount.to))"
             if let from = amount.edibleFrom, let to = amount.edibleTo, from != to {
                 text += " (\(edible(from, amount.methodFrom)) to \(edible(to, amount.methodTo)))"
             }

@@ -935,8 +935,11 @@ public final class FoodConfirmationService: @unchecked Sendable {
         code: LedgerText, entered: PositiveQuantity, previous: StoredFoodConfirmation?,
         at date: Date, state: FoodConfirmationState
     ) throws -> (version: QuantityConversionVersion?, isNew: Bool) {
-        if let old = previous?.quantityConversion, old.methodVersion == code, old.sourceQuantity == entered,
-           old.sourceReleaseID?.value.hasPrefix(CountPortionGuideCode.releasePrefix) == true {
+        if let previous, let old = previous.quantityConversion, old.methodVersion == code, old.sourceQuantity == entered,
+           old.sourceReleaseID?.value.hasPrefix(CountPortionGuideCode.releasePrefix) == true,
+           // Only for the same record: another candidate resolves through the port.
+           state.selectedCandidate.candidate.recordID == previous.candidateDecision.candidate.recordID,
+           state.selectedCandidate.candidate.sourceReleaseID == previous.candidateDecision.candidate.sourceReleaseID {
             return (old, false)
         }
         guard CountPortionGuidePolicy.applies(state), let frozen = CountPortionGuideCode.entry(code),

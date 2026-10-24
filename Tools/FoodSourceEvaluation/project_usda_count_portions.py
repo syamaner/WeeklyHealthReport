@@ -21,11 +21,15 @@ RAW_FDC, BOILED_FDC = 171287, 173424
 RAW_PORTIONS = [("small", 88379, "small", 38.0), ("medium", 88378, "medium", 44.0),
                 ("large", 88374, "large", 50.0), ("extra_large", 88375, "extra large", 56.0)]
 BOILED_LARGE = ("large", 92500, "large", 50.0)
-USDA_RELEASE = "usda-legacy:2018-04-01:sha256:" + ARCHIVE_SHA256
+# The app's USDA candidates carry the bundled projection's release ID (USDAGenericFoodSearch:
+# "<release>:projection:<corpus SHA-256>") and the record ID "<release>:fdc:<id>".
+USDA_RECORD_PREFIX = "usda-legacy:2018-04-01:sha256:" + ARCHIVE_SHA256
+USDA_CORPUS_SHA256 = "6759b10f419ecdfd5395d469b0ff51d58e59e29d40f31e2087ae9455da6a4bd4"
+USDA_RELEASE = USDA_RECORD_PREFIX + ":projection:" + USDA_CORPUS_SHA256
 COFID_RELEASE = "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d"
-RAW_RECORDS = [[USDA_RELEASE, USDA_RELEASE + ":fdc:171287"],
+RAW_RECORDS = [[USDA_RELEASE, USDA_RECORD_PREFIX + ":fdc:171287"],
                [COFID_RELEASE, COFID_RELEASE + ":row:1096:a72b3e44d2dadad3"]]
-BOILED_RECORDS = [[USDA_RELEASE, USDA_RELEASE + ":fdc:173424"],
+BOILED_RECORDS = [[USDA_RELEASE, USDA_RECORD_PREFIX + ":fdc:173424"],
                   [COFID_RELEASE, COFID_RELEASE + ":row:1091:0fe190b81c244ccf"]]
 
 

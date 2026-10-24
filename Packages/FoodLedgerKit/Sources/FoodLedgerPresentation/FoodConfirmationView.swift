@@ -61,6 +61,12 @@ public final class FoodConfirmationViewModel: ObservableObject {
         self.searchInterpretation = searchInterpretation
         self.saveAction = saveAction
         lastGuideSize = state.quantity.portionGuideCode.flatMap(CountPortionGuideCode.entry)?.size
+        // An entry that opens with its own weight (a count conversion or a count direct weight) on
+        // a record with a guide keeps that weight and offers "Use typical weight".
+        if state.quantity.unit == .count, state.quantity.portionGuideCode == nil,
+           state.quantity.conversion != nil || state.quantity.directWeight != nil, portionGuideSet != nil {
+            portionGuideDismissed = true
+        }
         normalisePortionGuide()
     }
 
@@ -139,6 +145,13 @@ public final class FoodConfirmationViewModel: ObservableObject {
         if let code = state.quantity.portionGuideCode, set.entry(code) != nil { return }
         let preferred = lastGuideSize.flatMap { size in set.entries.first { $0.size == size } }
         FoodConfirmationReducer.reduce(state: &state, action: .setPortionGuide(preferred?.code ?? set.defaultCode))
+    }
+
+    /// The count layout's "How you got it" picker is on screen, so the method is not repeated as
+    /// a read-only row (count-portion-estimate-v1, journey QA of 89ba348f).
+    public var showsCountMethodPicker: Bool {
+        state.quantity.unit == .count && state.quantity.directWeight == nil && !state.usesSourceDeclaredServing
+            && !countsPastedLabelServings && !showsPortionGuide
     }
 
     /// Whether the amount Log would save is an estimate: by eye, a typical weight or the whole-milk
@@ -1436,8 +1449,11 @@ public struct FoodConfirmationView: View {
             }
             if let conversion = model.state.quantity.conversion {
                 let method = model.conversionMethodLabel ?? conversion.methodVersion.value
-                LabeledContent("Weight or volume method", value: method)
-                    .accessibilityLabel("Weight or volume method, \(method)")
+                // A count's method is shown once, by the "How you got it" picker below (#307).
+                if !model.showsCountMethodPicker {
+                    LabeledContent("Weight or volume method", value: method)
+                        .accessibilityLabel("Weight or volume method, \(method)")
+                }
                 if let url = model.volumeConversionSourceURL,
                    let sourceID = conversion.sourceReleaseID,
                    let source = model.state.input.sourceReleases.first(where: { $0.sourceReleaseID == sourceID }) {

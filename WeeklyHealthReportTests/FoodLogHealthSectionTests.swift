@@ -557,6 +557,44 @@ final class FoodLogHealthSectionTests: XCTestCase {
         XCTAssertEqual(summary.completeWaterDayCount, 2)
     }
 
+    /// #307 (cross-surface, gate F7 and G2): a typical-weight egg logged through the real root
+    /// pre-fills Large, and the Health report period facts and Copy all mark the day as including
+    /// estimates under `food-intake-summary-v6`.
+    func testATypicalWeightEggDayIncludesEstimatesInTheHealthReport() async throws {
+        let ledger = try makeLedger()
+        let root = ledger.root
+        let yesterday = try ledger.key(-1)
+        let search = try root.genericFoodSearchModel(locale: Locale(identifier: "en_GB"))
+        search.query = "Eggs chicken whole boiled"
+        search.search()
+        guard case let .results(route) = search.phase,
+              let egg = route.confirmation.candidates.first(where: { $0.name.value == "Eggs, chicken, whole, boiled" }) else {
+            return XCTFail("Expected the CoFID boiled egg")
+        }
+        let input = try PopulatedFoodConfirmation(evidence: route.confirmation.evidence, sourceReleases: route.confirmation.sourceReleases,
+            candidates: [egg], expectedIdentity: egg.candidate.identity, expectedEdibleQuantity: egg.candidate.edibleQuantity)
+        let confirmation = root.model(for: input, entryDay: yesterday)
+        confirmation.chooseQuantityUnit(.count)
+        confirmation.send(.setQuantity(3, .count))
+        XCTAssertTrue(confirmation.showsPortionGuide, "the composition root wires the guide")
+        XCTAssertEqual(confirmation.state.quantity.portionGuideCode?.value, "count_portion_guide_v1:usda_sr_legacy_173424_92500")
+        for facet in confirmation.pendingDifferences {
+            confirmation.send(.decideDifference(facet, confirmation.offeredChoices(facet).first))
+        }
+        confirmation.log()
+        let saved = try XCTUnwrap(confirmation.savedResult, "\(confirmation.requirements) \(confirmation.state.phase)")
+        XCTAssertEqual(saved.quantityConversion?.convertedQuantity, try PositiveQuantity(value: 150, unit: .grams))
+
+        let facts = try await root.foodLogPeriodReader.dayFacts(for: [yesterday])
+        XCTAssertEqual(facts.first?.energy?.includesEstimates, true)
+        let summary = FoodLogPeriodSummary.make(days: facts, reportingDates: [yesterday])
+        let block = Self.copyAllBlock(.available(summary))
+        XCTAssertTrue(block.contains("includes estimates"), block)
+        let day = try root.foodLogService.day(reportingDate: yesterday)
+        XCTAssertEqual(day.entries.first?.isEstimate, true)
+        XCTAssertEqual(FoodLogText.entryAmount(try XCTUnwrap(day.entries.first)), "3 pieces · about 150 g")
+    }
+
     /// A food whose energy is unknown makes its day incomplete.
     func testRealAdapterFoodWithUnknownEnergyIsIncomplete() async throws {
         let ledger = try makeLedger()

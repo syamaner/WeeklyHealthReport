@@ -62,8 +62,8 @@ public enum FoodRecentItemsProjection {
             let item = FoodRecentItem(logItemID: head.logItemID, sourceReleaseID: decision.candidate.sourceReleaseID,
                 recordID: decision.candidate.recordID, occurredAt: head.occurredAt, lastAmount: amount,
                 energyKcal: energy,
-                lastAmountIsServings: PastedLabelServingPolicy.isServingsAmount(enteredUnit: amount.unit, conversion: conversion,
-                                                                                sourceID: sourceID),
+                lastAmountIsServings: FoodAmountServings.isServings(enteredUnit: amount.unit, conversion: conversion,
+                                                                    sourceID: sourceID, basis: basis),
                 energyUpperBound: energy == nil ? FoodEnergyUpperBound.of(contribution) : nil)
             let key = decision.candidate.sourceReleaseID.value + "\u{1F}" + decision.candidate.recordID.value
             if let existing = latest[key], !Self.isMoreRecent(item, than: existing) { continue }
@@ -125,6 +125,7 @@ public struct FoodRecentItemsService: Sendable {
                 quantityIsEstimate: FoodQuantityEstimate.isEstimate(log, conversion: saved.quantityConversion))]).totals
             return FoodRecentRelogItem(item: item, name: input.candidates[0].name.value,
                                        isEstimate: isEstimate || totals.contains { $0.includesEstimates }
+                                           || FoodQuantityEstimate.isEstimate(log, conversion: saved.quantityConversion)
                                            || item.energyUpperBound?.isCalculated == true,
                                        logItemVersionID: saved.logItemVersion.logItemVersionID,
                                        isPlainWater: PlainWaterReference.isPlainWater(saved.resolutionVersion))

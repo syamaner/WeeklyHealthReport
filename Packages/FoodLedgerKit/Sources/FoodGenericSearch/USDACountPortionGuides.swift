@@ -13,7 +13,7 @@ public enum USDACountPortionGuidesError: Error, Equatable, Sendable {
 /// one whole egg without shell in four sizes, from USDA SR Legacy April 2018, for four
 /// allow-listed records. Bundled and hash-pinned; no network.
 public struct USDACountPortionGuides: FoodEdibleWeightGuideProviding {
-    public static let manifestSHA256 = "5bcf4a90d77ddc9c465196e241a2e7400ad68934707be8737e37d10e7917ae84"
+    public static let manifestSHA256 = "6ae637e8d95e6bf3e975a4f41440ffe4aba3e15d5b5cfbfafc48a88bb8d9830d"
     public let sourceRelease: SourceRelease
     /// Guide sets keyed by nutrition release and record.
     private let sets: [String: FoodEdibleWeightGuideSet]
@@ -49,7 +49,7 @@ public struct USDACountPortionGuides: FoodEdibleWeightGuideProviding {
                 throw USDACountPortionGuidesError.malformedManifest
             }
             for pair in guide.appliesTo {
-                guard pair.count == 2, pair[1].hasPrefix(pair[0] + ":") else { throw USDACountPortionGuidesError.malformedManifest }
+                guard pair.count == 2, !pair[0].isEmpty, !pair[1].isEmpty else { throw USDACountPortionGuidesError.malformedManifest }
                 byRecord[pair[0] + "\u{1F}" + pair[1], default: []].append((guide, value))
             }
         }

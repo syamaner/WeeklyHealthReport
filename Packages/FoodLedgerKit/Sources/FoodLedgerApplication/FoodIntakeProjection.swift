@@ -108,8 +108,8 @@ public struct FoodIntakeProjection: Sendable {
                                          isPlainWater: isPlainWater,
                                          enteredAmount: try? PositiveQuantity(value: entered.value, unit: entered.unit),
                                          quantityMethod: FoodQuantityMethod.of(log, conversion: conversion),
-                                         amountIsServings: entered.unit == .count && Self.countsServings(conversion: conversion,
-                                             resolutionBasis: resolution?.basis))
+                                         amountIsServings: FoodAmountServings.isServings(enteredUnit: entered.unit, conversion: conversion,
+                                             sourceID: Self.sourceID(version, records: records), basis: resolution?.basis))
             if removed { removedRows.append(row) } else { rows.append(row) }
         }
         summary = FoodIntakeSummary(contributions: contributions)
@@ -117,14 +117,10 @@ public struct FoodIntakeProjection: Sendable {
         self.removedRows = removedRows
     }
 
-    /// A count is servings, not pieces, when it went through a pasted-label serving or the source
-    /// itself is per serving or recipe serving.
-    static func countsServings(conversion: QuantityConversionVersion?, resolutionBasis: ResolutionBasis?) -> Bool {
-        if let conversion, PastedLabelServingPolicy.admittedVersions.contains(conversion.methodVersion.value) { return true }
-        switch resolutionBasis {
-        case .per100Grams?, .per100Millilitres?, .unknown?, nil: return false
-        default: return true
-        }
+    /// The source ID of the entry's nutrition release, for the shared servings predicate.
+    static func sourceID(_ version: NutritionResolutionVersion?, records: LedgerMutation) -> String? {
+        guard let release = version?.sourceReleaseIDs.first else { return nil }
+        return records.sourceReleases.first { $0.sourceReleaseID == release }?.sourceID.value
     }
 }
 

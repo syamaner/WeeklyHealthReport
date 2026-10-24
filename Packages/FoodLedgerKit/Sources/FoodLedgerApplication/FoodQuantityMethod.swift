@@ -73,6 +73,24 @@ public enum FoodQuantityMethod: Equatable, Sendable {
     }
 }
 
+/// Whether an entered count is servings rather than pieces: one predicate for the Food Log row,
+/// the saved entry, Recent and history (count-portion-estimate-v1, C8). Pasted-label servings
+/// (`PastedLabelServingPolicy.isServingsAmount`) and counts on a per-serving or named-serving
+/// basis (source-declared and recipe servings) read "servings"; everything else reads "pieces".
+public enum FoodAmountServings {
+    public static func isServings(enteredUnit: QuantityUnit, conversion: QuantityConversionVersion?,
+                                  sourceID: String?, basis: ResolutionBasis?) -> Bool {
+        guard enteredUnit == .count else { return false }
+        if PastedLabelServingPolicy.isServingsAmount(enteredUnit: enteredUnit, conversion: conversion, sourceID: sourceID) { return true }
+        // A conversion through a portion guide or a user method converts pieces, never servings.
+        if let conversion, !PastedLabelServingPolicy.admittedVersions.contains(conversion.methodVersion.value) { return false }
+        switch basis {
+        case .perServing?, .named?: return true
+        default: return false
+        }
+    }
+}
+
 /// The one count noun (count-portion-estimate-v1, C8): "piece" / "pieces" on every surface.
 /// Stored, parsed and exported `count` is data, not this word.
 public enum FoodAmountNoun {

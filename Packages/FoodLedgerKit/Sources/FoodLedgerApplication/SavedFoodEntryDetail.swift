@@ -91,8 +91,8 @@ public struct SavedFoodEntryDetail: Sendable {
         valueOrigins = manifest.map { PastedLabelValueOrigins.origins(stored.resolutionVersion.nutrients, manifest: $0) } ?? [:]
         pastedLabelValues = manifest == nil ? [:]
             : Dictionary(stored.resolutionVersion.nutrients.entries.map { ($0.key, $0.value) }, uniquingKeysWith: { first, _ in first })
-        amountIsServings = PastedLabelServingPolicy.isServingsAmount(enteredUnit: enteredAmount.unit, conversion: stored.quantityConversion,
-                                                                     sourceID: release?.sourceID.value)
+        amountIsServings = FoodAmountServings.isServings(enteredUnit: enteredAmount.unit, conversion: stored.quantityConversion,
+                                                         sourceID: release?.sourceID.value, basis: stored.resolution.basis)
         servingSize = amountIsServings && stored.quantityConversion != nil
             ? manifest.flatMap { PastedLabelServingPolicy.storedServingSize($0, basis: stored.resolution.basis) } : nil
     }

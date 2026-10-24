@@ -81,6 +81,7 @@ public struct FoodLogDayContent: Sendable {
                          name: row.name, quantity: row.quantity,
                          energyKcal: known[.energyConsumed] ?? nil,
                          isEstimate: estimates.contains(row.logItemID) || row.totals.contains { $0.includesEstimates }
+                            || row.quantityMethod.isEstimate
                             || row.energyUpperBound?.isCalculated == true,
                          unknownKeys: Self.entryFlagKeys.filter { (known[$0] ?? nil) == nil },
                          energyUpperBound: row.energyUpperBound,
