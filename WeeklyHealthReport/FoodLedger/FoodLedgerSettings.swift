@@ -43,7 +43,7 @@ enum FoodSearchSettingsContribution {
         return SettingsSection(
             id: .foodSearch,
             title: "Food search",
-            footer: "Online sources receive only the food terms you search for. Your Health data and food log stay on this device.",
+            footer: "Online sources receive only the food terms you search for. Your Health data and food log stay on this device unless you export them to Google Drive.",
             footerLink: SettingsExternalLink(
                 title: "Open Food Facts terms and data licences",
                 url: URL(string: "https://world.openfoodfacts.org/terms-of-use")!

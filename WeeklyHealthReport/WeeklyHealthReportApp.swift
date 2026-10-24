@@ -5,7 +5,7 @@ import HealthKit
 struct WeeklyHealthReportApp: App {
     private let healthStore: HKHealthStore
     @StateObject private var viewModel: WeeklyReportViewModel
-    @StateObject private var dailyExport = DailyDriveSessionController()
+    @StateObject private var dailyExport: DailyDriveSessionController
     @StateObject private var navigation = AppNavigationCoordinator()
     /// Home's today-so-far health card (#199); one per app session.
     @StateObject private var todaySoFar: TodaySoFarHealthModel
@@ -18,6 +18,8 @@ struct WeeklyHealthReportApp: App {
         healthStore = store
         let foodLedger = try? FoodLedgerCompositionRoot()
         self.foodLedger = foodLedger
+        // Export prepares the food file from the same ledger (#287).
+        _dailyExport = StateObject(wrappedValue: DailyDriveSessionController(foodLedger: foodLedger))
         _foodHome = StateObject(wrappedValue: FoodHomeModel(root: foodLedger))
         settings = Self.makeSettings(
             foodLedger: foodLedger,

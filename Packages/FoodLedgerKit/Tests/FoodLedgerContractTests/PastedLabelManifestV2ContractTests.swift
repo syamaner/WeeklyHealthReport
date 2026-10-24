@@ -57,7 +57,7 @@ final class PastedLabelManifestV2ContractTests: XCTestCase {
         columns == 1 ? ["per_serving", "per_100g", "per_100ml"] : ["per_serving,per_100g", "per_serving,per_100ml"]
     }
 
-    private static func v2(columns: [String] = ["per_100g"], candidate: PastedLabelManifest.Candidate? = nil,
+    static func v2(columns: [String] = ["per_100g"], candidate: PastedLabelManifest.Candidate? = nil,
                            choices: [PastedLabelManifestV2.BasisChoice]? = nil, offered: [String]? = nil, at: Int64 = at,
                            warningsShown: [String] = [], arithmetic: String = "label-arithmetic-checks-v2") throws -> PastedLabelManifestV2 {
         let candidate = try candidate ?? self.candidate(columns: columns)
@@ -79,7 +79,7 @@ final class PastedLabelManifestV2ContractTests: XCTestCase {
             warningsShown: warningsShown, name: "Synthetic chosen biscuits", brand: nil, basisChoices: records)
     }
 
-    private static func input(_ manifest: PastedLabelEvidenceManifest, capturedAt: Date = LedgerFixtures.date) throws -> PopulatedFoodConfirmation {
+    static func input(_ manifest: PastedLabelEvidenceManifest, capturedAt: Date = LedgerFixtures.date) throws -> PopulatedFoodConfirmation {
         try PastedLabelSource.confirmation(manifest: manifest, evidenceID: LedgerFixtures.id(9_500, EvidenceTag.self), capturedAt: capturedAt,
             locale: LedgerText("zh_TW"), encoder: LedgerFixtures.encoder, digester: LedgerFixtures.digester,
             conversions: GoldenPastedLabelConversions())

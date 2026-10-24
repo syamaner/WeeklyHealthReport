@@ -206,8 +206,40 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     @Published private(set) var accountLabel = "Not connected"
     @Published private(set) var destinationLabel = "No destination"
     @Published private(set) var status = "No Health or Google request has run."
-    @Published private(set) var preview: DailyHealthExportResult?
+    @Published private(set) var preview: DailyHealthExportResult? {
+        // The food file shares the health file's refresh (#287): discarding the health snapshot
+        // discards the food one, except when the health file was just verified.
+        didSet { if preview == nil, !retainingFoodAfterHealthVerification { refreshedFood = .notPrepared } }
+    }
     @Published private(set) var selectedReportDay: DailyNoteDayID?
+    /// Food log (#287): on by default when Drive is connected; the person can switch it off.
+    @Published private(set) var foodLogEnabled: Bool
+    /// The food file prepared by the latest refresh, whether or not Food log is on.
+    @Published private var refreshedFood: DailyFoodExportPreparation = .notPrepared
+    /// The latest food export attempt, independent of the health result.
+    @Published private(set) var lastFoodExportOutcome: DailyExportOutcomeRecord?
+    /// The selected day's verified food export recorded on this iPhone (food registry only).
+    @Published private(set) var lastFoodExportOfSelectedDay: DailyExportLastExportLookup?
+    @Published private(set) var foodFileReplacementReason: FileReplacementReason?
+    private var retainingFoodAfterHealthVerification = false
+    /// Set by Cancel export for the whole Export action, so a food file that has not started
+    /// yet is never sent after the person cancelled (the food coordinator is idle until then).
+    private var exportCancellationRequested = false
+
+    /// What Export sends as the food file: off, unavailable in this build, blocked or prepared.
+    var foodPreparation: DailyFoodExportPreparation {
+        guard foodExport.isAvailable else { return .unavailable }
+        guard foodLogEnabled else { return .off }
+        return refreshedFood
+    }
+
+    var foodLogAvailable: Bool { foodExport.isAvailable }
+
+    func setFoodLogEnabled(_ enabled: Bool) {
+        guard !busy, foodExport.isAvailable, enabled != foodLogEnabled else { return }
+        foodLogEnabled = enabled
+        foodLogPreference.saveFoodLogEnabled(enabled)
+    }
     var availableReportDays: [DailyNoteDayID] { exportService.availableReportDays() }
 
     /// Re-applies the export's selected day to the shared notes controller when
@@ -251,7 +283,10 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     /// `applyExportOutcome`; cleared on day change, saved-note invalidation,
     /// sign-out, revocation, an authorisation error, `prepareForPresentation()`
     /// and whenever a new preview is installed.
-    @Published private(set) var lastExportOutcome: DailyExportOutcomeRecord?
+    @Published private(set) var lastExportOutcome: DailyExportOutcomeRecord? {
+        // A cleared health result clears the food result too: both belonged to the old snapshot.
+        didSet { if lastExportOutcome == nil { lastFoodExportOutcome = nil } }
+    }
     @Published private(set) var canForgetTrashedDestination = false
     @Published private(set) var fileReplacementReason: FileReplacementReason?
     @Published private(set) var nutritionSources: [NutritionSource] = []
@@ -265,8 +300,11 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     /// The same check against the main bundle, for building Settings before any session exists.
     /// Reads Info.plist only; no request.
     static var bundleHasOAuthConfiguration: Bool { (try? DriveOAuthClientConfiguration.fromMainBundle()) != nil }
+    /// Export is available while either file of the prepared snapshot is still unsent, so a
+    /// failure in one retries only that file.
     var canExport: Bool {
-        previewIsCurrent && account != nil && activeDestination != nil && !busy
+        (previewIsCurrent || foodPreparation.preview != nil)
+            && account != nil && activeDestination != nil && !busy
             && presentationState == .readyToExport
     }
     var previewSummary: DailyExportPreviewSummary? {
@@ -308,6 +346,10 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     private let exportService: DailyHealthExportService
     private let identityStore: any DailyDriveExportIdentityPersisting
     private let exportCoordinator: DailyDriveExportCoordinator
+    private let foodIdentityStore: any DailyDriveExportIdentityPersisting
+    private let foodExportCoordinator: DailyDriveExportCoordinator
+    private let foodExport: DailyFoodExportService
+    private let foodLogPreference: any DailyFoodLogPreferencePersisting
     private let nutritionSourceSelection: any NutritionSourceSelectionPersisting
     private let preparationOrchestrator = DailyExportPreparationOrchestrator()
     private var account: DailyDriveAccount?
@@ -325,7 +367,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         selectedNutritionSourceBundleIdentifier
     }
 
-    override convenience init() {
+    convenience init(foodLedger: (any DailyFoodLedgerSnapshotReading)? = nil) {
         let keychain = DailyDriveKeychainStore()
         let notesStore = FileDailyNotesStore()
         let notes = DailyNotesController(store: notesStore)
@@ -338,7 +380,10 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
             ),
             identityStore: KeychainDailyDriveExportIdentityStore(keychain: keychain),
             nutritionSourceSelection: UserDefaultsNutritionSourceSelectionStore(),
-            notes: notes
+            notes: notes,
+            foodIdentityStore: KeychainDailyDriveExportIdentityStore.food(keychain: keychain),
+            foodExport: DailyFoodExportService(reader: foodLedger),
+            foodLogPreference: UserDefaultsDailyFoodLogPreference()
         )
     }
 
@@ -352,7 +397,10 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         oauthSession: (any DriveOAuthSessionProviding)? = nil,
         oauthConfiguration: @escaping () throws -> DriveOAuthClientConfiguration = {
             try DriveOAuthClientConfiguration.fromMainBundle()
-        }
+        },
+        foodIdentityStore: (any DailyDriveExportIdentityPersisting)? = nil,
+        foodExport: DailyFoodExportService = .unavailable,
+        foodLogPreference: any DailyFoodLogPreferencePersisting = MemoryDailyFoodLogPreference()
     ) {
         self.oauthSession = oauthSession ?? AppAuthDriveSession(
             secureStore: keychain,
@@ -373,6 +421,16 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
             transport: drive,
             store: identityStore
         )
+        let foodStore = foodIdentityStore ?? KeychainDailyDriveExportIdentityStore.food(keychain: keychain)
+        self.foodIdentityStore = foodStore
+        foodExportCoordinator = DailyDriveExportCoordinator(
+            transport: drive,
+            store: foodStore,
+            policy: DailyFoodExportIdentityPolicy()
+        )
+        self.foodExport = foodExport
+        self.foodLogPreference = foodLogPreference
+        foodLogEnabled = foodExport.isAvailable && foodLogPreference.loadFoodLogEnabled()
         super.init()
         self.oauthSession.onAuthorizationError = { [weak self] failure in
             guard let self else { return }
@@ -471,6 +529,12 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
                 throw Failure.noDestination
             }
 
+            // The food registry follows the health registry on every lifecycle path (#287). Food
+            // goes first: if it fails, nothing is abandoned and the action can be retried as is.
+            try await self.foodExportCoordinator.abandonDestination(
+                accountID: candidate.accountID,
+                folderID: candidate.folderID
+            )
             try await self.exportCoordinator.abandonDestination(
                 accountID: candidate.accountID,
                 folderID: candidate.folderID
@@ -575,64 +639,186 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     /// Whether this run has validated a Google account (no request is made).
     var hasValidatedAccount: Bool { account != nil }
 
+    /// The food file's exact bytes as text, built only when viewed.
+    func makeExactFoodPreviewText() -> String? {
+        guard let food = foodPreparation.preview else { return nil }
+        return String(data: food.bytes, encoding: .utf8)
+    }
+
+    /// Per-file results appear once a food export ran or Food log is on beside a health result.
+    var showsPerFileResults: Bool {
+        lastFoodExportOutcome != nil || (lastExportOutcome != nil && foodLogEnabled && foodExport.isAvailable)
+    }
+
     func makeExactPreviewText() -> String? {
         guard let preview else { return nil }
         exactJSONConstructionCount += 1
         return String(data: preview.bytes, encoding: .utf8)
     }
 
+    /// Sends the health file first, then the food file (D3). Each is verified on its own and keeps
+    /// its own result; a failure in one never marks the other as failed. A file already verified
+    /// from this snapshot is not sent again.
     func exportPreview() async {
-        guard let preview, previewIsCurrent,
+        let health = previewIsCurrent ? preview : nil
+        let food = foodPreparation.preview
+        guard health != nil || food != nil,
               let account, let destination = activeDestination else {
             status = "Refresh a preview and validate an account and destination before export."
             return
         }
         await run("Submitting the reviewed preview and verifying Drive…") {
             self.exporting = true
-            defer { self.exporting = false }
-            let result: DailyDriveExportResult
-            do {
-                result = try await self.exportCoordinator.export(
-                    payload: preview.bytes,
-                    reportDate: preview.envelope.reportDate,
-                    accountID: account.id,
-                    folderID: destination.folderID,
-                    tokenProvider: { forceRefresh in
-                        try await self.freshAccessToken(forceRefresh: forceRefresh)
-                    }
-                )
-            } catch DailyDriveExportFailure.remoteTrashed {
-                self.destinationCoordinator.markFileForReplacement(
-                    accountID: account.id,
-                    folderID: destination.folderID,
-                    reportDate: preview.envelope.reportDate,
-                    reason: .trashed
-                )
-                self.mirrorDestinationState()
-                try self.applyExportOutcome(.failure(.remoteTrashed), exportedPreview: preview)
-                return
-            } catch DailyDriveExportFailure.remoteMissing {
-                self.destinationCoordinator.markFileForReplacement(
-                    accountID: account.id,
-                    folderID: destination.folderID,
-                    reportDate: preview.envelope.reportDate,
-                    reason: .missingOrInaccessible
-                )
-                self.mirrorDestinationState()
-                try self.applyExportOutcome(.failure(.remoteMissing), exportedPreview: preview)
-                return
-            } catch let failure as DailyDriveExportFailure {
-                try self.applyExportOutcome(.failure(failure), exportedPreview: preview)
-                return
+            self.exportCancellationRequested = false
+            defer {
+                self.exporting = false
+                self.exportCancellationRequested = false
             }
-            self.destinationCoordinator.clearFileReplacementCandidate(
+            var healthError: Error?
+            if let health {
+                do {
+                    try await self.exportHealth(health, account: account, destination: destination)
+                } catch {
+                    healthError = error
+                }
+            }
+            if let food {
+                if self.exportCancellationRequested {
+                    self.applyFoodExportOutcome(.success(.cancelledBeforeSubmission), exportedFood: food,
+                                                accountID: account.id, folderID: destination.folderID)
+                } else {
+                    await self.exportFood(food, account: account, destination: destination)
+                }
+            }
+            if let healthError { throw healthError }
+        }
+    }
+
+    private func exportHealth(
+        _ preview: DailyHealthExportResult,
+        account: DailyDriveAccount,
+        destination: DailyDestinationBinding
+    ) async throws {
+        let result: DailyDriveExportResult
+        do {
+            result = try await exportCoordinator.export(
+                payload: preview.bytes,
+                reportDate: preview.envelope.reportDate,
                 accountID: account.id,
                 folderID: destination.folderID,
-                reportDate: preview.envelope.reportDate
+                tokenProvider: { forceRefresh in
+                    try await self.freshAccessToken(forceRefresh: forceRefresh)
+                }
             )
-            self.mirrorDestinationState()
-            try self.applyExportOutcome(.success(result), exportedPreview: preview)
+        } catch DailyDriveExportFailure.remoteTrashed {
+            destinationCoordinator.markFileForReplacement(
+                accountID: account.id,
+                folderID: destination.folderID,
+                reportDate: preview.envelope.reportDate,
+                reason: .trashed
+            )
+            mirrorDestinationState()
+            try applyExportOutcome(.failure(.remoteTrashed), exportedPreview: preview)
+            return
+        } catch DailyDriveExportFailure.remoteMissing {
+            destinationCoordinator.markFileForReplacement(
+                accountID: account.id,
+                folderID: destination.folderID,
+                reportDate: preview.envelope.reportDate,
+                reason: .missingOrInaccessible
+            )
+            mirrorDestinationState()
+            try applyExportOutcome(.failure(.remoteMissing), exportedPreview: preview)
+            return
+        } catch let failure as DailyDriveExportFailure {
+            try applyExportOutcome(.failure(failure), exportedPreview: preview)
+            return
         }
+        destinationCoordinator.clearFileReplacementCandidate(
+            accountID: account.id,
+            folderID: destination.folderID,
+            reportDate: preview.envelope.reportDate,
+            documentType: .health
+        )
+        mirrorDestinationState()
+        try applyExportOutcome(.success(result), exportedPreview: preview)
+    }
+
+    private func exportFood(
+        _ food: DailyFoodExportPreview,
+        account: DailyDriveAccount,
+        destination: DailyDestinationBinding
+    ) async {
+        let outcome: Result<DailyDriveExportResult, Error>
+        do {
+            outcome = .success(try await foodExportCoordinator.export(
+                payload: food.bytes,
+                reportDate: food.reportDate,
+                accountID: account.id,
+                folderID: destination.folderID,
+                tokenProvider: { forceRefresh in
+                    try await self.freshAccessToken(forceRefresh: forceRefresh)
+                }
+            ))
+        } catch {
+            outcome = .failure(error)
+        }
+        applyFoodExportOutcome(outcome, exportedFood: food, accountID: account.id, folderID: destination.folderID)
+    }
+
+    /// Records the food file's own result. Note cleanup stays bound to the health file alone.
+    /// A food failure changes the screen's state only when the person must act (reconnect or
+    /// recover a file); otherwise Export stays available to retry the food file.
+    func applyFoodExportOutcome(
+        _ outcome: Result<DailyDriveExportResult, Error>,
+        exportedFood: DailyFoodExportPreview,
+        accountID: String,
+        folderID: String
+    ) {
+        switch outcome {
+        case .success(let result):
+            lastFoodExportOutcome = DailyExportOutcomeRecord(
+                outcome: .success(result),
+                reportDate: exportedFood.reportDate,
+                attemptedDataAsOf: exportedFood.orderingToken
+            )
+            destinationCoordinator.clearFileReplacementCandidate(
+                accountID: accountID,
+                folderID: folderID,
+                reportDate: exportedFood.reportDate,
+                documentType: .food
+            )
+            if result.authorizesNoteCleanup, refreshedFood.preview == exportedFood {
+                refreshedFood = .notPrepared
+            }
+            status += " Food file: \(result.foodUserFacingLabel)"
+        case .failure(let error):
+            let failure = error as? DailyDriveExportFailure
+            lastFoodExportOutcome = DailyExportOutcomeRecord(
+                outcome: .failure(failure ?? .transportFailure),
+                reportDate: exportedFood.reportDate,
+                attemptedDataAsOf: exportedFood.orderingToken
+            )
+            if failure == .remoteTrashed || failure == .remoteMissing {
+                destinationCoordinator.markFileForReplacement(
+                    accountID: accountID,
+                    folderID: folderID,
+                    reportDate: exportedFood.reportDate,
+                    reason: failure == .remoteTrashed ? .trashed : .missingOrInaccessible,
+                    documentType: .food
+                )
+            }
+            let resolution = DailyExportStatusCatalogue.resolve(error)
+            switch resolution.presentationState {
+            case .needsGoogleConnection?, .needsAttention(.canonicalRecovery)?:
+                presentationState = resolution.presentationState ?? presentationState
+            default:
+                break
+            }
+            status += " Food file: \(resolution.statusOverride ?? "Export failed. No background retry was queued.")"
+        }
+        mirrorDestinationState()
+        refreshLastExportOfSelectedDay()
     }
 
     func applyExportOutcome(
@@ -657,47 +843,68 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
             status += " Current notes were retained because their verified cleanup marker was not saved."
         }
         if preview == exportedPreview {
+            retainingFoodAfterHealthVerification = true
             preview = nil
+            retainingFoodAfterHealthVerification = false
         }
     }
 
-    func confirmFileReplacementOverride() async {
+    /// Forgets only the identity of `documentType`'s file for that date (#287): a missing food
+    /// file never abandons the health identity, and the reverse.
+    func confirmFileReplacementOverride(documentType: DailyExportDocumentType = .health) async {
         await run("Forgetting the unavailable file identity…") {
             let context = try await self.currentContext()
             guard let candidate = self.destinationCoordinator.fileReplacementCandidate(
                     accountID: context.account.id,
-                    folderID: self.activeDestination?.folderID
+                    folderID: self.activeDestination?.folderID,
+                    documentType: documentType
                   ),
-                  let reason = self.destinationCoordinator.fileReplacementReason,
+                  let reason = self.destinationCoordinator.fileReplacementReason(for: documentType),
                   candidate.accountID == context.account.id,
                   self.activeDestination?.folderID == candidate.folderID else {
                 throw Failure.noDestination
             }
 
-            try await self.exportCoordinator.abandonFileIdentity(
+            try await self.coordinator(for: documentType).abandonFileIdentity(
                 accountID: candidate.accountID,
                 folderID: candidate.folderID,
                 reportDate: candidate.reportDate
             )
-            self.destinationCoordinator.clearFileReplacementCandidate()
+            self.destinationCoordinator.clearFileReplacementCandidate(documentType: documentType)
             self.mirrorDestinationState()
             self.restoreLastVerifiedLabel(for: context.account.id)
+            let file = documentType == .food ? "food file" : "daily file"
             switch reason {
             case .trashed:
-                self.status = "Forgot the trashed daily file identity. Export the matching date again to create a fresh canonical file; no Drive item was changed."
+                self.status = "Forgot the trashed \(file) identity. Export the matching date again to create a fresh canonical file; no Drive item was changed."
             case .missingOrInaccessible:
-                self.status = "Explicit override accepted for the missing or inaccessible daily file. Export the matching date again to create a new canonical file ID; no Drive item was changed."
+                self.status = "Explicit override accepted for the missing or inaccessible \(file). Export the matching date again to create a new canonical file ID; no Drive item was changed."
             }
+        }
+    }
+
+    private func coordinator(for documentType: DailyExportDocumentType) -> DailyDriveExportCoordinator {
+        switch documentType {
+        case .health: exportCoordinator
+        case .food: foodExportCoordinator
         }
     }
 
     func cancelExport() {
         guard exporting else { return }
+        exportCancellationRequested = true
         status = "Cancellation requested. If submission began, verification must finish before the result is known."
-        Task { await exportCoordinator.requestCancellation() }
+        Task {
+            await exportCoordinator.requestCancellation()
+            await foodExportCoordinator.requestCancellation()
+        }
     }
 
-    func recoverSelectedFile() async {
+    func recoverSelectedFile(documentType: DailyExportDocumentType = .health) async {
+        if documentType == .food {
+            await recoverSelectedFoodFile()
+            return
+        }
         guard let preview, let destination = activeDestination else {
             status = "Refresh the matching report date and validate a destination before recovery."
             return
@@ -722,7 +929,8 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
             self.destinationCoordinator.clearFileReplacementCandidate(
                 accountID: result.account.id,
                 folderID: destination.folderID,
-                reportDate: preview.envelope.reportDate
+                reportDate: preview.envelope.reportDate,
+                documentType: .health
             )
             self.mirrorDestinationState()
             self.lastVerifiedLabel = recovery.verifiedLabel
@@ -730,6 +938,42 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
             self.refreshLastExportOfSelectedDay()
             self.presentationState = .readyToExport
             self.status = recovery.userFacingLabel
+        }
+    }
+
+    /// The food registry recovers on its own through the same Picker path (#287).
+    private func recoverSelectedFoodFile() async {
+        guard let food = refreshedFood.preview, let destination = activeDestination else {
+            status = "Refresh the matching report date with Food log on and validate a destination before recovery."
+            return
+        }
+        await run("Opening explicit food-file recovery…") {
+            let result = try await self.authorize(
+                .recoverFile,
+                expectedAccountID: destination.accountID
+            )
+            guard let selectedFileID = result.pickedItemID else {
+                throw DailyDriveExportFailure.identityRecoveryAmbiguous
+            }
+            let recovery = try await self.foodExportCoordinator.recover(
+                selectedFileID: selectedFileID,
+                reportDate: food.reportDate,
+                accountID: result.account.id,
+                folderID: destination.folderID,
+                tokenProvider: { forceRefresh in
+                    try await self.freshAccessToken(forceRefresh: forceRefresh)
+                }
+            )
+            self.destinationCoordinator.clearFileReplacementCandidate(
+                accountID: result.account.id,
+                folderID: destination.folderID,
+                reportDate: food.reportDate,
+                documentType: .food
+            )
+            self.mirrorDestinationState()
+            self.refreshLastExportOfSelectedDay()
+            if !self.identityRecoveryRequired { self.presentationState = .readyToExport }
+            self.status = "Food file: \(recovery.foodUserFacingLabel)"
         }
     }
 
@@ -743,6 +987,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
             accountLabel = "Not connected"
             destinationLabel = "No active destination"
             lastExportOfSelectedDay = nil
+            lastFoodExportOfSelectedDay = nil
             preview = nil
             lastExportOutcome = nil
             presentationState = .needsGoogleConnection
@@ -771,6 +1016,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
                 self.accountLabel = "Not connected"
                 self.destinationLabel = "No active destination"
                 self.lastExportOfSelectedDay = nil
+                self.lastFoodExportOfSelectedDay = nil
                 self.preview = nil
                 self.lastExportOutcome = nil
                 self.presentationState = .needsGoogleConnection
@@ -897,6 +1143,9 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
             )
             mirrorDestinationState()
             preview = result
+            // The food file is built from the same refresh: the same report date, zone and
+            // instants, and the ledger as it is now (#287). Building it sends nothing.
+            refreshedFood = foodExport.prepare(matching: result.envelope)
             // A fresh exportable preview supersedes the previous attempt's result.
             lastExportOutcome = nil
         } catch HealthDataError.unavailable {
@@ -964,6 +1213,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     private func mirrorDestinationState() {
         canForgetTrashedDestination = destinationCoordinator.canForgetTrashedDestination
         fileReplacementReason = destinationCoordinator.fileReplacementReason
+        foodFileReplacementReason = destinationCoordinator.fileReplacementReason(for: .food)
         if let account {
             destinationLabel = destinationCoordinator.destinationLabel(for: account.id)
         }
@@ -978,6 +1228,12 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
                 accountID: accountID,
                 folderID: folderID,
                 registry: { registry }
+            )
+            lastFoodExportOfSelectedDay = lastVerifiedExport(
+                for: selectedReportDate,
+                accountID: accountID,
+                folderID: folderID,
+                registry: { try self.foodIdentityStore.load() }
             )
             let latest = registry?.identities
                 .filter { $0.accountID == accountID && $0.folderID == folderID }
@@ -997,6 +1253,12 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
                 accountID: accountID,
                 folderID: destinationCoordinator.activeDestination(for: accountID)?.folderID,
                 registry: { throw error }
+            )
+            lastFoodExportOfSelectedDay = lastVerifiedExport(
+                for: selectedReportDate,
+                accountID: accountID,
+                folderID: destinationCoordinator.activeDestination(for: accountID)?.folderID,
+                registry: { try self.foodIdentityStore.load() }
             )
         }
     }
@@ -1022,9 +1284,32 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     private func refreshLastExportOfSelectedDay() {
         guard let reportDate = selectedReportDate else {
             lastExportOfSelectedDay = nil
+            lastFoodExportOfSelectedDay = nil
             return
         }
         lastExportOfSelectedDay = lastVerifiedExport(for: reportDate)
+        lastFoodExportOfSelectedDay = lastVerifiedFoodExport(for: reportDate)
+    }
+
+    /// The food registry's record of `reportDate` (#287): a local Keychain read only.
+    func lastVerifiedFoodExport(for reportDate: String) -> DailyExportLastExportLookup? {
+        lastVerifiedExport(
+            for: reportDate,
+            accountID: account?.id,
+            folderID: activeDestination?.folderID,
+            registry: { try self.foodIdentityStore.load() }
+        )
+    }
+
+    /// The food file's Drive record for `reportDate` in the active folder, for Developer tools.
+    /// A local Keychain read; nil when none is tracked or the registry cannot be read.
+    func foodDriveRecord(for reportDate: String) -> DailyFoodDriveRecord? {
+        guard let accountID = account?.id, let folderID = activeDestination?.folderID else { return nil }
+        let matches = ((try? foodIdentityStore.load())??.identities ?? []).filter {
+            $0.accountID == accountID && $0.folderID == folderID && $0.reportDate == reportDate
+        }
+        guard matches.count == 1 else { return nil }
+        return DailyFoodDriveRecord(fileID: matches[0].fileID, lastVerifiedToken: matches[0].lastVerified?.dataAsOf)
     }
 
     private func lastVerifiedExport(
@@ -1139,8 +1424,18 @@ extension DailyExportOutcomeRecord {
         outcome: Result<DailyDriveExportResult, DailyDriveExportFailure>,
         exportedPreview: DailyHealthExportResult
     ) {
-        let reportDate = exportedPreview.envelope.reportDate
-        let attemptedDataAsOf = exportedPreview.envelope.dataAsOf
+        self.init(
+            outcome: outcome,
+            reportDate: exportedPreview.envelope.reportDate,
+            attemptedDataAsOf: exportedPreview.envelope.dataAsOf
+        )
+    }
+
+    init(
+        outcome: Result<DailyDriveExportResult, DailyDriveExportFailure>,
+        reportDate: String,
+        attemptedDataAsOf: String
+    ) {
         switch outcome {
         case .success(.verified(let dataAsOf, _)):
             self.init(reportDate: reportDate, dataAsOf: dataAsOf, kind: .verified)

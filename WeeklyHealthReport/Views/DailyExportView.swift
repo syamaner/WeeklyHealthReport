@@ -11,6 +11,7 @@ struct DailyExportView: View {
     @State private var exactJSON: ExactJSONInspection?
     @State private var showingTrashedDestinationConfirmation = false
     @State private var showingTrashedFileConfirmation = false
+    @State private var showingTrashedFoodFileConfirmation = false
 
     init(session: DailyDriveSessionController, openDriveSetup: (() -> Void)? = nil) {
         self.session = session
@@ -53,6 +54,10 @@ struct DailyExportView: View {
             Section {
                 Text("Workouts include heart-rate summaries and zones, active energy estimated by Apple Health, distance (including treadmill distance you accepted) and PacePrompt intervals when they are available. An interval’s distance may cover only part of it. Each heart-rate reading keeps its time and source. Anything missing is marked as unavailable; gaps are never filled in.")
                     .font(.caption)
+                if session.foodLogAvailable && driveAvailability != .unavailableInBuild {
+                    Text("With Food log on, a separate food file is sent to the same folder: the foods you logged that day, their amounts and times, nutrient values with their sources and the day’s totals. Unknown values stay unknown, never zero. It never includes pasted label text, receipts, photos, captured web page text or search queries.")
+                        .font(.caption)
+                }
             } header: {
                 Text("About the file")
             }
@@ -96,6 +101,17 @@ struct DailyExportView: View {
             }
         } message: {
             Text(session.fileReplacementReason?.confirmationMessage ?? "")
+        }
+        .alert(
+            session.foodFileReplacementReason?.foodConfirmationTitle ?? "Replace food file?",
+            isPresented: $showingTrashedFoodFileConfirmation
+        ) {
+            Button("Cancel", role: .cancel) {}
+            Button("Forget and allow replacement", role: .destructive) {
+                Task { await session.confirmFileReplacementOverride(documentType: .food) }
+            }
+        } message: {
+            Text(session.foodFileReplacementReason?.foodConfirmationMessage ?? "")
         }
         .navigationTitle("Export")
         .navigationBarTitleDisplayMode(.inline)
@@ -231,6 +247,13 @@ struct DailyExportView: View {
             case .needsAttention:
                 Label("Needs attention", systemImage: "exclamationmark.triangle")
             }
+            if session.showsPerFileResults {
+                // One result per file (D3): a failure in one never marks the other as failed.
+                LabeledContent("Health file", value: DailyExportFileResult.line(session.lastExportOutcome))
+                    .accessibilityIdentifier("export.result.health")
+                LabeledContent("Food file", value: DailyExportFileResult.line(session.lastFoodExportOutcome))
+                    .accessibilityIdentifier("export.result.food")
+            }
             Text(session.status)
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -305,13 +328,60 @@ struct DailyExportView: View {
                     .font(.caption)
                     .accessibilityIdentifier("export.lastExportOfDay")
             }
-            Text("Food-log entries are not exported yet.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            foodLogRows
         } header: {
             Text("Included")
         } footer: {
             Text("Drafts stay on this device. After you save a note change, the file is prepared again before you can export. The exact file is built only when you view it.")
+        }
+    }
+
+    /// The Food log row (#287): a separate food file for the same day, with its own preview.
+    @ViewBuilder
+    private var foodLogRows: some View {
+        if driveAvailability == .unavailableInBuild {
+            // Nothing can be sent in this build, so no Food log choice is offered (D2 of journey QA).
+            EmptyView()
+        } else if session.foodLogAvailable {
+            Toggle("Food log", isOn: Binding(
+                get: { session.foodLogEnabled },
+                set: { session.setFoodLogEnabled($0) }
+            ))
+            .disabled(session.busy)
+            .accessibilityIdentifier("export.foodLog")
+            switch session.foodPreparation {
+            case .prepared(let food):
+                LabeledContent("Food file") {
+                    Text(DailyExportFoodSummary.line(food))
+                }
+                .accessibilityIdentifier("export.foodFile")
+                Button("View exact food file") {
+                    if let text = session.makeExactFoodPreviewText() {
+                        exactJSON = ExactJSONInspection(text: text)
+                    }
+                }
+                .disabled(session.busy)
+            case .blocked(let block):
+                Label(block.line, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .accessibilityIdentifier("export.foodBlocked")
+            case .off:
+                Text("Off. Export sends the health file only.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            case .notPrepared, .unavailable:
+                LabeledContent("Food file", value: "Not prepared")
+                    .foregroundStyle(.secondary)
+            }
+            if session.foodLogEnabled, let lastExport = session.lastFoodExportOfSelectedDay {
+                Text("Food file: " + DailyExportLastExportFormatter.line(lastExport.state))
+                    .font(.caption)
+                    .accessibilityIdentifier("export.lastFoodExportOfDay")
+            }
+        } else {
+            Text("Food log isn’t available in this build.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -401,6 +471,7 @@ struct DailyExportView: View {
         return !actions.isDisjoint(with: [
             .connect, .chooseDestination, .createDestination, .recoverCanonicalFile, .retry
         ]) || session.canForgetTrashedDestination || session.fileReplacementReason != nil
+            || session.foodFileReplacementReason != nil
     }
 
     private var attentionSection: some View {
@@ -439,6 +510,19 @@ struct DailyExportView: View {
                 }
                 .disabled(session.busy)
             }
+            if session.presentationState.actions.contains(.recoverCanonicalFile),
+               session.foodPreparation.preview != nil {
+                Button("Recover the food file you selected") {
+                    Task { await session.recoverSelectedFile(documentType: .food) }
+                }
+                .disabled(session.busy || !session.isConfigured)
+            }
+            if let reason = session.foodFileReplacementReason {
+                Button(reason.foodButtonTitle, role: .destructive) {
+                    showingTrashedFoodFileConfirmation = true
+                }
+                .disabled(session.busy)
+            }
             if session.presentationState.actions.contains(.retry) {
                 Button("Retry preparation") {
                     Task { await session.prepareForPresentation() }
@@ -455,6 +539,29 @@ private struct ExactJSONInspection: Identifiable {
 }
 
 private extension DailyDriveSessionController.FileReplacementReason {
+    var foodButtonTitle: String {
+        switch self {
+        case .trashed: "Replace trashed food file"
+        case .missingOrInaccessible: "Override missing food file"
+        }
+    }
+
+    var foodConfirmationTitle: String {
+        switch self {
+        case .trashed: "Replace trashed food file?"
+        case .missingOrInaccessible: "Override missing or inaccessible food file?"
+        }
+    }
+
+    var foodConfirmationMessage: String {
+        switch self {
+        case .trashed:
+            "This forgets only the trashed food file identity on this installation. The health file for that day is not affected, and nothing in Google Drive is changed or deleted. Export that day again to create a fresh food file."
+        case .missingOrInaccessible:
+            "Drive cannot distinguish permanent deletion from lost access here. Continuing forgets only this installation’s food file identity and may create a duplicate if the original still exists. The health file is not affected, and no Drive item is changed until you export again."
+        }
+    }
+
     var buttonTitle: String {
         switch self {
         case .trashed: "Replace trashed daily file"

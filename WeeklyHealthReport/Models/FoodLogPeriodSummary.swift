@@ -5,7 +5,7 @@ import Foundation
 /// read side (`FoodLogDayContent`); no FoodLedgerKit, store or SwiftUI type
 /// appears here.
 struct FoodLogDayFacts: Equatable, Sendable {
-    /// A day total under the summary policy `food-intake-summary-v3`.
+    /// A day total under the summary policy `food-intake-summary-v4` (v3 rules; the v4 overflow flag is not shown here).
     struct Total: Equatable, Sendable {
         /// The known amount; nil when no contribution could be scaled.
         let knownAmount: Double?

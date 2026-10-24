@@ -3202,11 +3202,42 @@ private actor PreparationDriveTransportFixture: DailyDriveSessionTransporting {
     private let revokeStatus: Int
     private let fileOutcome: FileOutcome
 
-    /// How daily-file uploads behave. `.uncertain` is the original behaviour.
-    enum FileOutcome: Sendable {
+    /// How daily-file uploads behave. `.uncertain` is the original behaviour. `.stores` keeps
+    /// files and reads them back (#287), failing uploads whose name starts with `failingPrefix`.
+    enum FileOutcome: Sendable, Equatable {
         case uncertain
         case notFound
         case acceptedThenTrashed
+        case stores(failingPrefix: String?)
+    }
+
+    private var storedFiles: [String: (descriptor: DailyDriveUploadDescriptor, content: Data)] = [:]
+    private(set) var uploadedNames: [String] = []
+
+    private var pauseUploads = false
+    private var uploadContinuation: CheckedContinuation<Void, Never>?
+    /// Uploads whose name starts with this prefix get 404 (`.stores` only).
+    var missingPrefix: String?
+
+    func storedFileNames() -> [String] { storedFiles.values.map(\.descriptor.name).sorted() }
+    func setMissingPrefix(_ prefix: String?) { missingPrefix = prefix }
+    func removeStoredFiles(prefix: String) {
+        storedFiles = storedFiles.filter { !$0.value.descriptor.name.hasPrefix(prefix) }
+    }
+    func pauseNextUpload() { pauseUploads = true }
+    func isUploadPaused() -> Bool { uploadContinuation != nil }
+    func resumeUpload() { uploadContinuation?.resume(); uploadContinuation = nil }
+
+    private func store(_ descriptor: DailyDriveUploadDescriptor, _ content: Data) async throws {
+        uploadedNames.append(descriptor.name)
+        guard case let .stores(prefix) = fileOutcome else { return }
+        if let prefix, descriptor.name.hasPrefix(prefix) { throw URLError(.timedOut) }
+        if let missingPrefix, descriptor.name.hasPrefix(missingPrefix) { throw DailyDriveAPI.Failure.httpStatus(404, nil) }
+        if pauseUploads {
+            pauseUploads = false
+            await withCheckedContinuation { uploadContinuation = $0 }
+        }
+        storedFiles[descriptor.id] = (descriptor, content)
     }
 
     init(createOutcomes: [CreateOutcome], revokeStatus: Int = 200, fileOutcome: FileOutcome = .uncertain) {
@@ -3307,6 +3338,7 @@ private actor PreparationDriveTransportFixture: DailyDriveSessionTransporting {
         case .uncertain: throw URLError(.unsupportedURL)
         case .notFound: throw DailyDriveAPI.Failure.httpStatus(404, nil)
         case .acceptedThenTrashed: return
+        case .stores: try await store(descriptor, content)
         }
     }
 
@@ -3316,13 +3348,23 @@ private actor PreparationDriveTransportFixture: DailyDriveSessionTransporting {
         accessToken: String
     ) async throws {
         uploadCount += 1
-        throw URLError(.unsupportedURL)
+        guard case .stores = fileOutcome else { throw URLError(.unsupportedURL) }
+        guard storedFiles[descriptor.id] != nil else { throw DailyDriveAPI.Failure.httpStatus(404, nil) }
+        try await store(descriptor, content)
     }
 
     func fileMetadata(
         id: String,
         accessToken: String
     ) async throws -> DailyDriveFileMetadata {
+        if case .stores = fileOutcome {
+            guard let file = storedFiles[id] else { throw DailyDriveAPI.Failure.httpStatus(404, nil) }
+            return DailyDriveFileMetadata(
+                id: id, name: file.descriptor.name, mimeType: "application/json",
+                parents: [file.descriptor.parentID], trashed: false, driveID: nil,
+                isAppAuthorized: true, canEdit: true, appProperties: file.descriptor.appProperties
+            )
+        }
         guard fileOutcome == .acceptedThenTrashed else {
             throw DailyDriveAPI.Failure.httpStatus(404, nil)
         }
@@ -3340,6 +3382,10 @@ private actor PreparationDriveTransportFixture: DailyDriveSessionTransporting {
     }
 
     func fileContent(id: String, accessToken: String) async throws -> Data {
+        if case .stores = fileOutcome {
+            guard let file = storedFiles[id] else { throw DailyDriveAPI.Failure.httpStatus(404, nil) }
+            return file.content
+        }
         guard fileOutcome == .acceptedThenTrashed else {
             throw DailyDriveAPI.Failure.httpStatus(404, nil)
         }
@@ -4109,5 +4155,438 @@ extension DailyHealthExportTests {
             try data.write(to: URL(fileURLWithPath: directory)
                 .appendingPathComponent("weekly-health-report-daily-export-synthetic.png"))
         }
+    }
+}
+
+// MARK: - Food daily export (#287): the session controller with both files
+
+/// A food ledger snapshot for Export: fixed records, or a read failure.
+private struct FixedFoodLedger: DailyFoodLedgerSnapshotReading {
+    let records: LedgerMutation?
+    func dailyFoodExportSnapshot() throws -> LedgerMutation {
+        guard let records else { throw ProbeError.queryFailed }
+        return records
+    }
+}
+
+extension DailyHealthExportTests {
+    private static let foodBinding = DailyDestinationBinding(
+        accountID: "invented-account",
+        folderID: "invented-folder",
+        folderName: "Invented",
+        origin: .picker
+    )
+
+    /// Two current heads for one log item on the export day: the projection rejects the day.
+    private static func competingFoodRecords() throws -> LedgerMutation {
+        func id<Tag>(_ number: Int) throws -> LedgerID<Tag> {
+            try LedgerID(String(format: "00000000-0000-0000-0000-%012x", number))
+        }
+        var records = LedgerMutation()
+        for version in [11, 12] {
+            records.logItemVersions.append(try LogItemVersion(
+                logItemVersionID: id(version), logItemID: id(10), ordinal: VersionOrdinal(1),
+                occurredAt: Date(timeIntervalSince1970: 1_788_678_000), reportingDate: LedgerText("2026-09-06"),
+                composition: .product(id(20)), edibleQuantity: PositiveQuantity(value: 100, unit: .grams),
+                originalResolutionVersionID: id(30), effectiveResolutionVersionID: id(30),
+                createdAt: Date(timeIntervalSince1970: 1_788_678_000)))
+        }
+        return records
+    }
+
+    @MainActor
+    private func makeFoodSession(
+        drive: PreparationDriveTransportFixture,
+        food: (any DailyFoodLedgerSnapshotReading)? = FixedFoodLedger(records: LedgerMutation()),
+        identityStore: ControllerMemoryDailyIdentityStore = ControllerMemoryDailyIdentityStore(),
+        foodIdentityStore: ControllerMemoryDailyIdentityStore = ControllerMemoryDailyIdentityStore(),
+        foodLog: MemoryDailyFoodLogPreference = MemoryDailyFoodLogPreference(),
+        withNote: Bool = false
+    ) async throws -> (session: DailyDriveSessionController, notesStore: MutableDailyNotesStore) {
+        let store = MemoryDailySessionStore()
+        try store.save(
+            try JSONEncoder().encode(partitions(containing: Self.foodBinding)),
+            account: "google.drive.daily-export-destinations.v1"
+        )
+        let calendar = londonCalendar()
+        let cutoff = date(2026, 9, 6, 8, calendar: calendar)
+        let notesStore = MutableDailyNotesStore()
+        let notes = DailyNotesController(store: notesStore, calendar: calendar, now: { cutoff })
+        if withNote {
+            XCTAssertTrue(notes.beginNewDraft())
+            XCTAssertTrue(notes.updateDraftText("Invented note"))
+            XCTAssertTrue(notes.saveDraft())
+        }
+        let session = DailyDriveSessionController(
+            keychain: store,
+            drive: drive,
+            exportService: DailyHealthExportService(
+                healthData: RecordingDailyProvider { self.emptyInputs(window: $0) },
+                notesStore: notesStore,
+                calendar: calendar,
+                now: { cutoff }
+            ),
+            identityStore: identityStore,
+            nutritionSourceSelection: FixedNutritionSourceSelection(
+                bundleIdentifier: fixtureNutritionSource.bundleIdentifier
+            ),
+            notes: notes,
+            oauthSession: FakeDriveOAuthSession(),
+            oauthConfiguration: {
+                try DriveOAuthClientConfiguration(infoDictionary: [
+                    "GoogleOAuthClientID": "invented.apps.googleusercontent.com",
+                    "GoogleOAuthRedirectScheme": "com.googleusercontent.apps.invented"
+                ])
+            },
+            foodIdentityStore: foodIdentityStore,
+            foodExport: DailyFoodExportService(
+                reader: food,
+                appContext: FoodDailyExportAppContext(appVersion: "0.0.0", appBuild: "0")
+            ),
+            foodLogPreference: foodLog
+        )
+        _ = try await session.restoreGoogleSession()
+        await session.refreshPreview()
+        return (session, notesStore)
+    }
+
+
+    private static let foodReportDate = "2026-09-06"
+
+    private static func foodBytes(exportedAfter seconds: TimeInterval = 0.5, cutoff: Date = Date(timeIntervalSince1970: 1_788_678_000)) throws -> Data {
+        let document = try FoodDailyExportBuilder.make(FoodDailyExportRequest(
+            records: LedgerMutation(), reportDate: foodReportDate, timeZone: TimeZone(identifier: "Europe/London")!,
+            dataAsOf: cutoff, exportedAt: cutoff.addingTimeInterval(seconds),
+            appContext: FoodDailyExportAppContext(appVersion: "0.0.0", appBuild: "0")))
+        return try FoodDailyExportSerializer.encode(document)
+    }
+
+    func testTheFirstFoodExportSucceedsAfterAHealthExportForTheSameDate() async throws {
+        let cutoff = Date(timeIntervalSince1970: 1_788_678_000)
+        let token: DailyDriveExportCoordinator.TokenProvider = { _ in "invented-token" }
+        let keychain = MemoryDailySessionStore()
+        let server = PreparationDriveTransportFixture(createOutcomes: [], fileOutcome: .stores(failingPrefix: nil))
+        let health = DailyDriveExportCoordinator(transport: server, store: KeychainDailyDriveExportIdentityStore(keychain: keychain))
+        let food = DailyDriveExportCoordinator(transport: server, store: KeychainDailyDriveExportIdentityStore.food(keychain: keychain),
+                                               policy: DailyFoodExportIdentityPolicy())
+        let window = try DailyExportWindow.capture(at: cutoff, calendar: londonCalendar())
+        let healthBytes = try DailyHealthExportSerializer.encode(DailyHealthExportBuilder.make(
+            window: window, exportedAt: cutoff.addingTimeInterval(1), inputs: emptyInputs(window: window), notes: [],
+            includeWorkoutEnrichment: true))
+        _ = try await health.export(payload: healthBytes, reportDate: Self.foodReportDate, accountID: "invented-account",
+                                    folderID: "invented-folder", tokenProvider: token)
+        let result = try await food.export(payload: try Self.foodBytes(), reportDate: Self.foodReportDate, accountID: "invented-account",
+                                           folderID: "invented-folder", tokenProvider: token)
+        guard case .verified(_, true) = result else { return XCTFail("the food file is created: \(result)") }
+        let names = await server.storedFileNames()
+        XCTAssertEqual(names, ["food-daily-2026-09-06.json", "health-daily-2026-09-06.json"])
+        let healthRegistry = try XCTUnwrap(KeychainDailyDriveExportIdentityStore(keychain: keychain).load())
+        let foodRegistry = try XCTUnwrap(KeychainDailyDriveExportIdentityStore.food(keychain: keychain).load())
+        XCTAssertNotEqual(healthRegistry.installationID, foodRegistry.installationID, "distinct installation IDs")
+        XCTAssertEqual(healthRegistry.identities.map(\.reportDate), [Self.foodReportDate])
+        XCTAssertEqual(foodRegistry.identities.map(\.reportDate), [Self.foodReportDate], "no collision on the same date")
+        XCTAssertNotEqual(healthRegistry.identities[0].fileID, foodRegistry.identities[0].fileID)
+
+        // A corrected re-export of the same day replaces the food file; the older token is stale.
+        let corrected = try await food.export(payload: try Self.foodBytes(exportedAfter: 60), reportDate: Self.foodReportDate,
+                                              accountID: "invented-account", folderID: "invented-folder", tokenProvider: token)
+        guard case .verified(_, false) = corrected else { return XCTFail("updated in place: \(corrected)") }
+        do {
+            _ = try await food.export(payload: try Self.foodBytes(), reportDate: Self.foodReportDate, accountID: "invented-account",
+                                      folderID: "invented-folder", tokenProvider: token)
+            XCTFail("an older snapshot must not replace a newer one")
+        } catch DailyDriveExportFailure.staleSnapshot {}
+
+        // Recovering a file of one type under the other policy is rejected.
+        let healthFileID = healthRegistry.identities[0].fileID
+        let fresh = DailyDriveExportCoordinator(transport: server,
+            store: KeychainDailyDriveExportIdentityStore.food(keychain: MemoryDailySessionStore()), policy: DailyFoodExportIdentityPolicy())
+        do {
+            _ = try await fresh.recover(selectedFileID: healthFileID, reportDate: Self.foodReportDate, accountID: "invented-account",
+                                        folderID: "invented-folder", tokenProvider: token)
+            XCTFail("a health file is never recovered as the food file")
+        } catch {}
+        let foodFileID = foodRegistry.identities[0].fileID
+        let freshHealth = DailyDriveExportCoordinator(transport: server,
+            store: KeychainDailyDriveExportIdentityStore(keychain: MemoryDailySessionStore()))
+        do {
+            _ = try await freshHealth.recover(selectedFileID: foodFileID, reportDate: Self.foodReportDate, accountID: "invented-account",
+                                              folderID: "invented-folder", tokenProvider: token)
+            XCTFail("a food file is never recovered as the health file")
+        } catch {}
+    }
+
+    @MainActor
+    func testFoodFileIsPreparedFromTheSameRefreshAsTheHealthFile() async throws {
+        let drive = PreparationDriveTransportFixture(createOutcomes: [], fileOutcome: .stores(failingPrefix: nil))
+        let (session, _) = try await makeFoodSession(drive: drive)
+        let health = try XCTUnwrap(session.preview)
+        let food = try XCTUnwrap(session.foodPreparation.preview)
+        XCTAssertEqual(food.reportDate, health.envelope.reportDate)
+        XCTAssertEqual(food.document.timeZone, health.envelope.timeZone)
+        XCTAssertEqual(health.envelope.dataAsOf, "2026-09-06T08:00:00+01:00")
+        XCTAssertEqual(food.dataAsOf, "2026-09-06T08:00:00.000+01:00", "the same cutoff instant, in the food file's form")
+        XCTAssertEqual(food.document.entries, [], "an empty day is still a file")
+        XCTAssertEqual(try DailyFoodExportIdentityPolicy().validate(payload: food.bytes, reportDate: food.reportDate).orderingToken,
+                       food.orderingToken)
+        let snapshot = await drive.snapshot()
+        XCTAssertEqual(snapshot.uploadCount, 0, "preparing sends nothing")
+
+        // Changing the day discards both prepared files.
+        session.selectReportDay(session.availableReportDays[1])
+        XCTAssertNil(session.preview)
+        XCTAssertNil(session.foodPreparation.preview)
+    }
+
+    @MainActor
+    func testExportSendsHealthThenFoodAndRecordsEachResult() async throws {
+        let drive = PreparationDriveTransportFixture(createOutcomes: [], fileOutcome: .stores(failingPrefix: nil))
+        let foodStore = ControllerMemoryDailyIdentityStore()
+        let (session, notesStore) = try await makeFoodSession(drive: drive, foodIdentityStore: foodStore, withNote: true)
+        await session.exportPreview()
+        let uploaded = await drive.uploadedNames
+        XCTAssertEqual(uploaded, ["health-daily-2026-09-06.json", "food-daily-2026-09-06.json"], "health first, then food")
+        XCTAssertEqual(session.lastExportOutcome?.kind, .verified)
+        XCTAssertEqual(session.lastFoodExportOutcome?.kind, .verified)
+        XCTAssertTrue(session.lastFoodExportOutcome?.dataAsOf.hasPrefix("food-v1|2026-09-06T08:00:00.000+01:00|") == true)
+        XCTAssertNotNil(notesStore.document?.days.first?.verifiedExport, "the health file's verification marks note cleanup")
+        XCTAssertEqual(try foodStore.load()?.identities.map(\.reportDate), ["2026-09-06"], "the food registry")
+        XCTAssertNil(session.preview)
+        XCTAssertNil(session.foodPreparation.preview)
+        XCTAssertFalse(session.canExport, "nothing is left to send from this snapshot")
+        if case .verified = session.lastFoodExportOfSelectedDay?.state {} else {
+            XCTFail("the food registry records the verified food export")
+        }
+    }
+
+    @MainActor
+    func testAFoodFailureNeverMarksHealthFailedAndExportRetriesOnlyTheFoodFile() async throws {
+        let drive = PreparationDriveTransportFixture(createOutcomes: [], fileOutcome: .stores(failingPrefix: "food-daily"))
+        let (session, notesStore) = try await makeFoodSession(drive: drive, withNote: true)
+        await session.exportPreview()
+        XCTAssertEqual(session.lastExportOutcome?.kind, .verified)
+        XCTAssertEqual(session.lastFoodExportOutcome?.kind, .failed)
+        XCTAssertNotNil(notesStore.document?.days.first?.verifiedExport, "note cleanup follows the health file alone")
+        XCTAssertEqual(session.presentationState, .readyToExport, "a transport failure leaves Export available")
+        XCTAssertNil(session.preview)
+        XCTAssertNotNil(session.foodPreparation.preview)
+        XCTAssertTrue(session.canExport)
+        XCTAssertEqual(DailyExportFileResult.line(session.lastExportOutcome), "Exported and verified")
+        XCTAssertEqual(DailyExportFileResult.line(session.lastFoodExportOutcome), "Not verified")
+
+        let before = await drive.uploadedNames
+        await session.exportPreview()
+        let retried = Array(await drive.uploadedNames.dropFirst(before.count))
+        XCTAssertFalse(retried.isEmpty)
+        XCTAssertTrue(retried.allSatisfy { $0 == "food-daily-2026-09-06.json" }, "only the failed file is retried: \(retried)")
+        XCTAssertEqual(session.lastExportOutcome?.kind, .verified, "the health result is untouched")
+    }
+
+    @MainActor
+    func testAHealthFailureNeverMarksFoodFailedAndSkipsNoteCleanup() async throws {
+        let drive = PreparationDriveTransportFixture(createOutcomes: [], fileOutcome: .stores(failingPrefix: "health-daily"))
+        let (session, notesStore) = try await makeFoodSession(drive: drive, withNote: true)
+        await session.exportPreview()
+        XCTAssertEqual(session.lastExportOutcome?.kind, .failed)
+        XCTAssertEqual(session.lastFoodExportOutcome?.kind, .verified)
+        XCTAssertNil(notesStore.document?.days.first?.verifiedExport, "a verified food file never authorises note cleanup")
+        let stored = await drive.storedFileNames()
+        XCTAssertEqual(stored, ["food-daily-2026-09-06.json"])
+    }
+
+    @MainActor
+    func testFoodLogOffSendsNoFoodFile() async throws {
+        let drive = PreparationDriveTransportFixture(createOutcomes: [], fileOutcome: .stores(failingPrefix: nil))
+        let preference = MemoryDailyFoodLogPreference()
+        let (session, _) = try await makeFoodSession(drive: drive, foodLog: preference)
+        session.setFoodLogEnabled(false)
+        XCTAssertFalse(preference.loadFoodLogEnabled(), "the choice is saved")
+        XCTAssertEqual(session.foodPreparation, .off)
+        await session.exportPreview()
+        let uploaded = await drive.uploadedNames
+        XCTAssertEqual(uploaded, ["health-daily-2026-09-06.json"])
+        XCTAssertNil(session.lastFoodExportOutcome)
+
+        // Switched back on, the snapshot from the same refresh is offered again.
+        let restored = try await makeFoodSession(drive: drive, foodLog: MemoryDailyFoodLogPreference(enabled: false)).session
+        XCTAssertEqual(restored.foodPreparation, .off, "a saved Off survives a relaunch")
+        restored.setFoodLogEnabled(true)
+        XCTAssertNotNil(restored.foodPreparation.preview)
+    }
+
+    @MainActor
+    func testABlockedFoodDaySendsNoFoodFileAndLeavesTheEarlierFileAlone() async throws {
+        let drive = PreparationDriveTransportFixture(createOutcomes: [], fileOutcome: .stores(failingPrefix: nil))
+        let blocked = try await makeFoodSession(drive: drive, food: FixedFoodLedger(records: try Self.competingFoodRecords())).session
+        XCTAssertEqual(blocked.foodPreparation, .blocked(.competingVersions))
+        XCTAssertNotNil(blocked.preview, "the health file is unaffected")
+        await blocked.exportPreview()
+        let uploaded = await drive.uploadedNames
+        XCTAssertEqual(uploaded, ["health-daily-2026-09-06.json"], "never an empty-day file in its place")
+
+        let unreadable = try await makeFoodSession(drive: drive, food: FixedFoodLedger(records: nil)).session
+        XCTAssertEqual(unreadable.foodPreparation, .blocked(.unreadable))
+        let unavailable = try await makeFoodSession(drive: drive, food: nil).session
+        XCTAssertEqual(unavailable.foodPreparation, .unavailable)
+        XCTAssertFalse(unavailable.foodLogAvailable)
+    }
+
+    /// The Export screen with Food log on (#287): opening it prepares both files and sends
+    /// nothing; Export then shows one result per file. The rendered screen is attached.
+    @MainActor
+    func testExportScreenWithFoodLogShowsBothPreviewsAndResults() async throws {
+        let drive = PreparationDriveTransportFixture(createOutcomes: [], fileOutcome: .stores(failingPrefix: "food-daily"))
+        await drive.seedFolder(DailyDriveFolder(id: "invented-folder", accountID: "invented-account", name: "Invented",
+            mimeType: DailyDriveConsentPolicy.folderMIMEType, trashed: false, driveID: nil, isAppAuthorized: true,
+            canAddChildren: true))
+        let (session, _) = try await makeFoodSession(drive: drive)
+        let host = UIHostingController(rootView: NavigationStack { DailyExportView(session: session) })
+        let bounds = CGRect(x: 0, y: 0, width: 393, height: 1700)
+        let window: UIWindow
+        if let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first {
+            window = UIWindow(windowScene: scene)
+            window.frame = bounds
+        } else {
+            window = UIWindow(frame: bounds)
+        }
+        window.overrideUserInterfaceStyle = .light
+        host.overrideUserInterfaceStyle = .light
+        window.rootViewController = host
+        window.isHidden = false
+        defer { window.isHidden = true }
+        host.view.frame = window.bounds
+        host.view.layoutIfNeeded()
+        let deadline = Date().addingTimeInterval(10)
+        while Date() < deadline,
+              session.busy || session.presentationState != .readyToExport || session.preview == nil {
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+        XCTAssertEqual(session.presentationState, .readyToExport, session.status)
+        XCTAssertNotNil(session.preview)
+        XCTAssertNotNil(session.foodPreparation.preview, "opening the screen prepares the food file too")
+        let opened = await drive.snapshot()
+        XCTAssertEqual(opened.uploadCount, 0, "opening the screen never uploads")
+
+        await session.exportPreview()
+        XCTAssertTrue(session.showsPerFileResults)
+        XCTAssertEqual(DailyExportFileResult.line(session.lastExportOutcome), "Exported and verified")
+        XCTAssertEqual(DailyExportFileResult.line(session.lastFoodExportOutcome), "Not verified")
+        for _ in 0..<5 {
+            try await Task.sleep(nanoseconds: 100_000_000)
+            host.view.setNeedsLayout(); host.view.layoutIfNeeded()
+            CATransaction.flush()
+        }
+        let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
+            _ = window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+        }
+        let attachment = XCTAttachment(image: image)
+        attachment.name = "Export with Food log"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
+    /// Review fix: cancelling while the health file is uploading never sends the food file.
+    @MainActor
+    func testCancellingDuringTheHealthUploadNeverSendsTheFoodFile() async throws {
+        let drive = PreparationDriveTransportFixture(createOutcomes: [], fileOutcome: .stores(failingPrefix: nil))
+        let (session, _) = try await makeFoodSession(drive: drive)
+        await drive.pauseNextUpload()
+        let export = Task { await session.exportPreview() }
+        let deadline = Date().addingTimeInterval(5)
+        while Date() < deadline, !(await drive.isUploadPaused()) { try await Task.sleep(nanoseconds: 10_000_000) }
+        XCTAssertTrue(session.exporting)
+        session.cancelExport()
+        await drive.resumeUpload()
+        await export.value
+        let uploaded = await drive.uploadedNames
+        XCTAssertEqual(uploaded, ["health-daily-2026-09-06.json"], "no food transport call after Cancel")
+        XCTAssertEqual(session.lastFoodExportOutcome?.kind, .cancelledBeforeSubmission)
+        XCTAssertNotNil(session.foodPreparation.preview, "the food file stays prepared for a later Export")
+    }
+
+    /// The reverse of the food override test: a missing health file never abandons the food identity.
+    @MainActor
+    func testAMissingHealthFileOverrideLeavesTheFoodIdentityForTheSameDate() async throws {
+        let drive = PreparationDriveTransportFixture(createOutcomes: [], fileOutcome: .stores(failingPrefix: nil))
+        let health = ControllerMemoryDailyIdentityStore()
+        let food = ControllerMemoryDailyIdentityStore()
+        let (session, _) = try await makeFoodSession(drive: drive, identityStore: health, foodIdentityStore: food)
+        await session.exportPreview()
+        XCTAssertEqual(try health.load()?.identities.count, 1)
+        XCTAssertEqual(try food.load()?.identities.count, 1)
+
+        // The health file disappears from Drive (and cannot be recreated); the food file stays.
+        await drive.removeStoredFiles(prefix: "health-daily")
+        await drive.setMissingPrefix("health-daily")
+        await session.refreshPreview()
+        await session.exportPreview()
+        XCTAssertNotNil(session.fileReplacementReason, "the health file is marked for replacement")
+        XCTAssertNil(session.foodFileReplacementReason)
+        await session.confirmFileReplacementOverride(documentType: .health)
+        XCTAssertEqual(try health.load()?.identities.count, 0)
+        XCTAssertEqual(try food.load()?.identities.count, 1, "the food identity for the same date is untouched")
+    }
+
+    @MainActor
+    func testForgettingATrashedFolderClearsBothRegistriesAndDisconnectKeepsBoth() async throws {
+        func registry(_ reportDate: String) -> DailyDriveExportRegistry {
+            DailyDriveExportRegistry(installationID: "invented-installation", identities: [
+                DailyDriveExportIdentity(accountID: "invented-account", folderID: "invented-folder", reportDate: reportDate,
+                                         fileID: "invented-file", installationID: "invented-installation",
+                                         lastVerified: nil, pending: nil)
+            ])
+        }
+        // Disconnect keeps both registries.
+        let kept = PreparationDriveTransportFixture(createOutcomes: [], revokeStatus: 200, fileOutcome: .stores(failingPrefix: nil))
+        let keptHealth = ControllerMemoryDailyIdentityStore(registry: registry("2026-09-06"))
+        let keptFood = ControllerMemoryDailyIdentityStore(registry: registry("2026-09-06"))
+        let (disconnecting, _) = try await makeFoodSession(drive: kept, identityStore: keptHealth, foodIdentityStore: keptFood)
+        await disconnecting.disconnect()
+        XCTAssertEqual(try keptHealth.load()?.identities.count, 1)
+        XCTAssertEqual(try keptFood.load()?.identities.count, 1)
+
+        // Forgetting the confirmed trashed folder abandons both.
+        let trashed = PreparationDriveTransportFixture(createOutcomes: [], fileOutcome: .stores(failingPrefix: nil))
+        await trashed.seedFolder(DailyDriveFolder(id: "invented-folder", accountID: "invented-account", name: "Invented",
+            mimeType: DailyDriveConsentPolicy.folderMIMEType, trashed: true, driveID: nil, isAppAuthorized: true,
+            canAddChildren: true))
+        let health = ControllerMemoryDailyIdentityStore(registry: registry("2026-09-06"))
+        let food = ControllerMemoryDailyIdentityStore(registry: registry("2026-09-06"))
+        let (session, _) = try await makeFoodSession(drive: trashed, identityStore: health, foodIdentityStore: food)
+        let context = try await session.restoreGoogleSession()
+        do {
+            try await session.validateStoredDestination(Self.foodBinding, context: context)
+            XCTFail("the trashed folder must not be accepted")
+        } catch {}
+        XCTAssertTrue(session.canForgetTrashedDestination)
+        await session.forgetTrashedDestination()
+        XCTAssertEqual(try health.load()?.identities.count, 0)
+        XCTAssertEqual(try food.load()?.identities.count, 0, "the food registry follows the health registry")
+    }
+
+    @MainActor
+    func testAMissingFoodFileOverrideLeavesTheHealthIdentityForTheSameDate() async throws {
+        func registry() -> DailyDriveExportRegistry {
+            DailyDriveExportRegistry(installationID: "invented-installation", identities: [
+                DailyDriveExportIdentity(accountID: "invented-account", folderID: "invented-folder", reportDate: "2026-09-06",
+                                         fileID: "invented-file", installationID: "invented-installation",
+                                         lastVerified: nil, pending: nil)
+            ])
+        }
+        let drive = PreparationDriveTransportFixture(createOutcomes: [], fileOutcome: .stores(failingPrefix: nil))
+        let health = ControllerMemoryDailyIdentityStore(registry: registry())
+        let food = ControllerMemoryDailyIdentityStore(registry: registry())
+        let (session, _) = try await makeFoodSession(drive: drive, identityStore: health, foodIdentityStore: food)
+        let preview = try XCTUnwrap(session.foodPreparation.preview)
+        session.applyFoodExportOutcome(.failure(DailyDriveExportFailure.remoteMissing), exportedFood: preview,
+                                       accountID: "invented-account", folderID: "invented-folder")
+        XCTAssertEqual(session.foodFileReplacementReason, .missingOrInaccessible)
+        XCTAssertNil(session.fileReplacementReason, "the health file has no replacement candidate")
+        XCTAssertEqual(session.presentationState, .needsAttention(.canonicalRecovery), "the person must act")
+        XCTAssertEqual(session.lastFoodExportOutcome?.kind, .failed)
+        await session.confirmFileReplacementOverride(documentType: .food)
+        XCTAssertEqual(try food.load()?.identities.count, 0)
+        XCTAssertEqual(try health.load()?.identities.count, 1, "the health identity for the same date is untouched")
+        XCTAssertNil(session.foodFileReplacementReason)
     }
 }

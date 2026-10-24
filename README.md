@@ -89,7 +89,12 @@ Nothing is uploaded until you review that snapshot and tap **Export**.
    Today's picker label shows the refresh cutoff once a snapshot is prepared.
    Review the **Included** list: Health data as of the cutoff, the nutrition
    source, notes and the exact file's byte count. Tap **Exact file** to inspect
-   the actual bytes prepared for upload. Food-log entries are not exported yet.
+   the actual bytes prepared for upload. With **Food log** on (the default
+   when Drive is connected), the same refresh also prepares a separate
+   `food-daily-YYYY-MM-DD.json` for the day: the foods you logged, their
+   amounts, nutrient values with their sources and the day's totals, with
+   unknown values left unknown. It goes to the same folder and has its own
+   result (`docs/food-daily-export-contract-v1.md`).
 5. Tap **Export**. The screen reports verified only from a verified Drive result. Refresh first if a saved note or relevant
    selection changed, because the previous preview is deliberately made stale
    rather than silently altered.
