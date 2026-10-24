@@ -15,7 +15,7 @@ enum DailyExportDocumentType: Hashable, CaseIterable {
 /// corrected re-export must still replace the earlier file.
 struct DailyFoodExportIdentityPolicy: DrivePayloadIdentityPolicy {
     static let orderingVersion = "food-v1"
-    static let summaryVersion = "food-intake-summary-v4"
+    static let summaryVersion = "food-intake-summary-v5"
     let ownerPropertyKey = "whrDailyFood"
     let orderingPropertyKey = "whrDataAsOf"
 

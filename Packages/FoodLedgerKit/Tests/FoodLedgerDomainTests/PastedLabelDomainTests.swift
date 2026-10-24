@@ -73,7 +73,7 @@ final class PastedLabelDomainTests: XCTestCase {
     // MARK: 29. Aggregation (food-intake-summary-v3 rule, pinned at v4 since #287)
 
     func test29SummaryVersionGolden() {
-        XCTAssertEqual(FoodIntakeSummary.version, "food-intake-summary-v4")
+        XCTAssertEqual(FoodIntakeSummary.version, "food-intake-summary-v5")
     }
 
     func test29CalculatedContributionSetsIncludesEstimates() throws {

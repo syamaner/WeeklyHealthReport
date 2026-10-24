@@ -71,6 +71,35 @@ final class HomeCardsTests: XCTestCase {
         XCTAssertEqual(FoodHomeCardContent.emptyMessage, "Nothing logged yet today")
     }
 
+    /// #304: plain water is not a food entry. A water-only day still shows the card (with its
+    /// water figure), counts 0 food entries and shows no nutrient as 0.
+    func testPlainWaterIsNotCountedAsAFoodEntry() throws {
+        let gb = Locale(identifier: "en_GB")
+        let none = [NutrientKey.energyConsumed, .protein, .carbohydrates, .fatTotal, .fiber].map {
+            FoodIntakeTotal(key: $0, knownAmount: nil, incompleteContributions: 0, includesEstimates: false)
+        }
+        let water = FoodIntakeTotal(key: .water, knownAmount: 250, incompleteContributions: 0, includesEstimates: false)
+        guard case .logged(let waterOnly) = FoodHomeCardContent.make(itemCount: 1, foodItemCount: 0, totals: none, plainWater: water,
+                                                                      locale: gb, incompleteEntries: 0) else {
+            return XCTFail("Expected a logged card")
+        }
+        XCTAssertEqual(waterOnly.entryCount, "0 entries")
+        XCTAssertEqual(waterOnly.energy.value, "Unknown")
+        XCTAssertEqual(waterOnly.nutrients.map(\.value), ["Unknown", "Unknown", "Unknown", "Unknown"])
+        XCTAssertEqual(waterOnly.water.value, "250 mL")
+        XCTAssertNil(waterOnly.footnote)
+
+        let carbohydrates = FoodIntakeTotal(key: .carbohydrates, knownAmount: nil, incompleteContributions: 1, includesEstimates: false)
+        guard case .logged(let mixed) = FoodHomeCardContent.make(itemCount: 2, foodItemCount: 1,
+                                                                  totals: [total(.energyConsumed, 210), carbohydrates],
+                                                                  plainWater: water, locale: gb, incompleteEntries: 1) else {
+            return XCTFail("Expected a logged card")
+        }
+        XCTAssertEqual(mixed.entryCount, "1 entry")
+        XCTAssertEqual(mixed.nutrients[1].value, "Unknown", "unknown carbohydrates stay Unknown beside water, never 0 g+")
+        XCTAssertNil(mixed.nutrients[1].caption)
+    }
+
     func testLoggedFoodShowsKnownMinimumFootnoteAndPlainWater() throws {
         let gb = Locale(identifier: "en_GB")
         let totals = [

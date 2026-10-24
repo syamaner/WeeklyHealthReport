@@ -51,7 +51,7 @@ Top level, in this order of meaning (keys are sorted in the bytes):
 | `data_as_of` | frozen cutoff; for a past day, the next local midnight |
 | `exported_at` | preview preparation time |
 | `nutrient_catalogue_version` | `1` |
-| `summary_version` | `food-intake-summary-v4` |
+| `summary_version` | `food-intake-summary-v5` (v4 until #304; v5 leaves plain water's exact zeros out of every total except water, see [health-food-and-water-v1.md](health-food-and-water-v1.md) decision 10) |
 | `entries` | the day's log entries, in deterministic order |
 | `summary` | the day's totals for all 39 nutrients |
 | `plain_water` | plain-water total, separately from water inside foods |
@@ -89,12 +89,12 @@ Removed entries (head version is a removal) are **omitted** from `entries` and f
 
 ### Summary
 
-For each of the 39 nutrients, from `FoodIntakeSummary` v4:
+For each of the 39 nutrients, from `FoodIntakeSummary` v5 (v4 before #304):
 
 - `known_amount` (null when no contribution is known), `unit`
 - `state`: `complete` (every contributing entry known), `known_minimum` (some contributions bounded, unknown or unscalable), `none_known`, or `unavailable` (v4 reports `overflowed`; no amount, never a clamped number)
 - `incomplete_contributions` (count) and `includes_estimates` (bool)
-- `log_item_version_ids`: the head versions whose values contributed a known amount, computed by the builder (not part of `FoodIntakeTotal`) and checked by a parity test
+- `log_item_version_ids`: the head versions whose values contributed a known amount (a plain water entry only for `water`, v5), computed by the builder (not part of `FoodIntakeTotal`) and checked by a parity test
 
 No targets, reference values, percentages or interpretation.
 

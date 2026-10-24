@@ -42,15 +42,18 @@ struct FoodHomeCardContent: Equatable {
         plainWater: FoodIntakeTotal?,
         locale: Locale = .autoupdatingCurrent
     ) -> State {
-        make(itemCount: projection.summary.itemCount, totals: projection.summary.totals,
-             plainWater: plainWater, locale: locale,
-             incompleteEntries: incompleteEntries(projection.rows.map(\.totals), dayTotals: projection.summary.totals,
-                                                  plainWater: plainWater))
+        // Plain water is not a food entry and adds nothing to the nutrient totals
+        // (`food-intake-summary-v5`, #304), so only food rows count here.
+        make(itemCount: projection.summary.itemCount, foodItemCount: projection.summary.foodItemCount,
+             totals: projection.summary.totals, plainWater: plainWater, locale: locale,
+             incompleteEntries: incompleteEntries(projection.rows.filter { !$0.isPlainWater }.map(\.totals),
+                                                  dayTotals: projection.summary.totals, plainWater: plainWater))
     }
 
     /// Distinct current entries behind the card's known minimums: an entry counts once when any
-    /// shown total it contributes to (energy, protein, carbohydrates, fat, fibre) lacks its value. Plain
-    /// water that cannot be scaled also lacks energy, so the larger count covers it.
+    /// shown total it contributes to (energy, protein, carbohydrates, fat, fibre) lacks its value.
+    /// `rows` are food entries only; plain water that cannot be scaled leaves the water figure a
+    /// known minimum, so the larger count covers it.
     static func incompleteEntries(_ rows: [[FoodIntakeTotal]], dayTotals: [FoodIntakeTotal], plainWater: FoodIntakeTotal?) -> Int {
         let affected = ([NutrientKey.energyConsumed] + nutrientKeys).filter { key in
             (dayTotals.first { $0.key == key }?.incompleteContributions ?? 0) > 0
@@ -61,8 +64,11 @@ struct FoodHomeCardContent: Equatable {
         return max(entries, plainWater?.incompleteContributions ?? 0)
     }
 
+    /// `itemCount` is every current entry (the card is empty only with none); `foodItemCount`, the
+    /// entries that are not plain water, is the count shown. Nil means every entry is food.
     static func make(
         itemCount: Int,
+        foodItemCount: Int? = nil,
         totals: [FoodIntakeTotal],
         plainWater: FoodIntakeTotal?,
         locale: Locale = .autoupdatingCurrent,
@@ -83,7 +89,7 @@ struct FoodHomeCardContent: Equatable {
             + [plainWater].compactMap { $0 }).filter { $0.incompleteContributions > 0 }
         return .logged(Logged(
             energy: row(.energyConsumed),
-            entryCount: entryCount(itemCount),
+            entryCount: entryCount(foodItemCount ?? itemCount),
             nutrients: nutrientKeys.map(row),
             water: Row(label: FoodLogText.plainWaterLabel, value: FoodLogText.plainWater(plainWater, locale: locale),
                        accessibilityLabel: FoodLogText.plainWaterAccessibility(plainWater, locale: locale)),

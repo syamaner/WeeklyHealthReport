@@ -2697,3 +2697,19 @@ Pricing uses the Claude Opus 5.5 rates re-checked on the official pricing page o
 Boundary: `phase_usage.py --format claude --since 2026-10-23T06:46:13Z --until 2026-10-23T07:02:29Z` on the subagent transcript alone. Cache writes: 761,651 5-minute, 0 1-hour. Exact API-equivalent USD 10.045778 at the recorded counts. The orchestrating session is not included, and no reviewer subagents were run.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-304-2026-10-24: Claude Code plain water and unknown nutrients fix
+
+One implementation subagent, its own transcript (`subagents/agent-a538a69644dda2695.jsonl`), for #304. It covers reading the issue and the contracts, the root cause, the failing tests, the `food-intake-summary-v5` fix across the projection, Home, Health and the food daily export, the contract clarification (`health-food-and-water-v1.md` v1.3) and one full gate run.
+
+Runs from the phase's start (`2026-10-24T06:40:02Z`, captured with `date -u` at the start) to `2026-10-24T07:22:34Z`, just before this ledger edit. These times are UTC (24 October local time, UTC+8). The commit, push and PR that follow are not included.
+
+Pricing: re-checked on 24 October 2026 against Anthropic's official pricing page for Claude Opus 5.5: USD 4/M base input, 5/M 5-minute cache write, 0.20/M cache read, 20/M output, unchanged. The page did not list the 1-hour cache write rate; the ledger's recorded 8/M is passed to the script but no 1-hour writes occurred. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Plain water and unknown nutrients (#304), implementation subagent | 13,077,736 (12,743,337) | 334,235 | 50,031 | 13,127,767 | $5.22 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-24T06:40:02Z --until 2026-10-24T07:22:34Z` on the subagent transcript alone. Cache writes: 334,235 5-minute, 0 1-hour. Exact API-equivalent USD 5.2211184 at the recorded counts. The orchestrating session is not included, and no reviewer subagents were run.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

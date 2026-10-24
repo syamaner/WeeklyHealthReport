@@ -326,6 +326,38 @@ final class FoodDailyExportContractTests: XCTestCase {
                        document.plainWater.knownAmount)
     }
 
+    /// #304: plain water's exact zeros make no summary total known. A food with unknown
+    /// carbohydrates plus water exports carbohydrates as none_known (never 0), and water is not
+    /// listed as a contributor to any nutrient except water.
+    func testPlainWaterMakesNoSummaryNutrientKnown() throws {
+        let harness = try Self.memoryHarness()
+        let context = try QuickAddContext(harness)
+        let food = try context.logExact(60, aliases: [], amount: 150)
+        let water = try context.logWater(250, occurredAt: LedgerFixtures.date.addingTimeInterval(-600))
+        let document = try FoodDailyExportBuilder.make(Self.request(try context.records()))
+        let carbohydrates = try Self.total(document, .carbohydrates)
+        XCTAssertEqual(carbohydrates.state, "none_known")
+        XCTAssertNil(carbohydrates.knownAmount)
+        XCTAssertEqual(carbohydrates.incompleteContributions, 1)
+        XCTAssertEqual(carbohydrates.logItemVersionIDs, [])
+        let energy = try Self.total(document, .energyConsumed)
+        XCTAssertEqual(energy.state, "complete")
+        XCTAssertEqual(energy.knownAmount, 300)
+        XCTAssertEqual(energy.logItemVersionIDs, [food.logItemVersion.logItemVersionID.rawValue])
+        XCTAssertEqual(try Self.total(document, .water).logItemVersionIDs, [water.logItemVersion.logItemVersionID.rawValue])
+        let waterEntry = try XCTUnwrap(document.entries.first { $0.itemClass == "water" })
+        XCTAssertEqual(waterEntry.nutrients.first { $0.key == "energy_consumed" }?.state, "measured", "the entry keeps its exact 0 kcal")
+
+        let waterOnly = try Self.memoryHarness()
+        let waterContext = try QuickAddContext(waterOnly)
+        _ = try waterContext.logWater(250)
+        let waterDocument = try FoodDailyExportBuilder.make(Self.request(try waterContext.records()))
+        for key in [NutrientKey.energyConsumed, .protein, .carbohydrates, .fatTotal, .fiber] {
+            XCTAssertEqual(try Self.total(waterDocument, key).state, "none_known", "\(key) is not 0 on a water-only day")
+        }
+        XCTAssertEqual(waterDocument.plainWater.knownAmount, 250)
+    }
+
     func testOverflowedTotalIsUnavailableWithNoAmount() throws {
         var records = LedgerMutation()
         let huge = try NutrientSet(entries: NutrientKey.allCases.map { key in
@@ -366,8 +398,12 @@ final class FoodDailyExportContractTests: XCTestCase {
                 XCTAssertEqual(exported.knownAmount, total.knownAmount, "\(harness.name) \(exported.key)")
                 XCTAssertEqual(exported.incompleteContributions, total.incompleteContributions, exported.key)
                 XCTAssertEqual(exported.includesEstimates, total.includesEstimates, exported.key)
-                // Every head counts as known or incomplete exactly once.
-                XCTAssertEqual(exported.logItemVersionIDs.count + exported.incompleteContributions, projection.rows.count, exported.key)
+                // Every head counts as known or incomplete exactly once, except plain water's known
+                // values other than water, which v5 leaves out (#304).
+                let leftOut = projection.rows.filter { row in
+                    row.isPlainWater && total.key != .water && row.totals.first { $0.key == total.key }?.knownAmount != nil
+                }.count
+                XCTAssertEqual(exported.logItemVersionIDs.count + exported.incompleteContributions + leftOut, projection.rows.count, exported.key)
             }
             XCTAssertEqual(document.entries.map(\.headVersionID), projection.rows.map(\.logItemVersionID.rawValue))
             XCTAssertEqual(projection.removedRows.count, 1, "the removed entry is in the ledger but not in the file")

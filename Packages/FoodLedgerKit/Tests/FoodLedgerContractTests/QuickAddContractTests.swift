@@ -321,14 +321,51 @@ final class QuickAddContractTests: XCTestCase {
             defer { context.harness.cleanup() }
             let saved = try context.logWater(500)
             let projection = try FoodIntakeProjection(records: context.records(), reportingDate: saved.logItemVersion.reportingDate.value)
+            // Amended (health-food-and-water-v1.3, #304): water's exact zeros make no day total known,
+            // so a water-only day has no known energy or macros (never 0) and no food entry.
             for key in [NutrientKey.energyConsumed, .protein, .carbohydrates, .fatTotal, .fatSaturated, .sugar, .fiber, .cholesterol] {
                 let total = try XCTUnwrap(projection.summary.totals.first { $0.key == key })
-                XCTAssertEqual(total.knownAmount, 0, "\(key)"); XCTAssertEqual(total.incompleteContributions, 0, "\(key)")
+                XCTAssertNil(total.knownAmount, "\(key)"); XCTAssertEqual(total.incompleteContributions, 0, "\(key)")
                 XCTAssertFalse(total.includesEstimates)
             }
+            XCTAssertEqual(projection.summary.itemCount, 1)
+            XCTAssertEqual(projection.summary.foodItemCount, 0)
             XCTAssertEqual(projection.summary.totals.first { $0.key == .water }?.knownAmount, 500)
             let sodium = try XCTUnwrap(projection.summary.totals.first { $0.key == .sodium })
-            XCTAssertEqual(sodium.incompleteContributions, 1, "Sodium is a known minimum on a water day")
+            XCTAssertEqual(sodium.incompleteContributions, 1, "Sodium stays unknown on a water day")
+            // The entry itself still states its exact zeros.
+            let row = try XCTUnwrap(projection.rows.first)
+            XCTAssertTrue(row.isPlainWater)
+            XCTAssertEqual(row.totals.first { $0.key == .energyConsumed }?.knownAmount, 0)
+        }
+    }
+
+    /// #304: a food whose carbohydrates are unknown, then plain water. Carbohydrates stay unknown on
+    /// every surface fed by the projection (Home, Food Log strip, Health, export), never "0 g+";
+    /// known energy and protein are unchanged and water is not a food entry.
+    func test08bWaterNeverMakesAnUnknownFoodNutrientKnown() throws {
+        for context in try QuickAddFixtures.contexts() {
+            defer { context.harness.cleanup() }
+            let food = try context.logExact(90)
+            let day = food.logItemVersion.reportingDate.value
+            let before = try FoodIntakeProjection(records: context.records(), reportingDate: day).summary
+            _ = try context.logWater(250)
+            let projection = try FoodIntakeProjection(records: context.records(), reportingDate: day)
+            let summary = projection.summary
+            let carbohydrates = try XCTUnwrap(summary.totals.first { $0.key == .carbohydrates })
+            XCTAssertNil(carbohydrates.knownAmount, "unknown is never zero")
+            XCTAssertEqual(carbohydrates.incompleteContributions, 1)
+            for key in [NutrientKey.energyConsumed, .protein, .carbohydrates, .fatTotal, .fiber] {
+                XCTAssertEqual(summary.totals.first { $0.key == key }, before.totals.first { $0.key == key }, "\(key)")
+            }
+            XCTAssertEqual(summary.totals.first { $0.key == .energyConsumed }?.knownAmount, 300)
+            XCTAssertEqual(summary.itemCount, 2)
+            XCTAssertEqual(summary.foodItemCount, 1)
+            let content = FoodLogDayContent(projection: projection, reportingDate: day, estimates: [])
+            XCTAssertNil(content.totals?.first { $0.key == .carbohydrates }?.knownAmount, "the Food Log strip agrees")
+            let waterEntry = try XCTUnwrap(content.entries.first { $0.name == PlainWaterReference.name })
+            XCTAssertEqual(waterEntry.energyKcal, 0, "the water entry still reads 0 kcal")
+            XCTAssertEqual(waterEntry.unknownKeys, [])
         }
     }
 
