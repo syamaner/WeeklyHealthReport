@@ -1,6 +1,6 @@
 # Pasted label Confirm v1 (#306)
 
-Status: **design spec and architecture gate, 24 October 2026. Documents only; no code has changed.** The owner approved autonomous delivery of #306, including this contract amendment, on 24 October 2026. Source: the UX review of `main` at `53450fb7` (issues 2, 3 and 4).
+Status: **design spec and architecture gate, 24 October 2026. Documents only; no code has changed.** The owner approved autonomous delivery of #306, including this contract amendment, on 24 October 2026. Source: the UX review of `main` at `53450fb7` (issues 2, 3 and 4). The architecture gate returned **PASS WITH CHANGES** on `d917d57d`; every required change is applied here (section 13).
 
 It amends, in the style of [count conversion method v1](count-conversion-method-v1.md):
 
@@ -36,14 +36,17 @@ The answer is collected on the label text screen (`PastedLabelTextViewModel.fort
 |---|---|
 | C1 | **Ask once, on Confirm.** The Fortified? picker is removed from the label text screen. A new reading always reaches Confirm with the answer `unanswered`; Confirm asks. Nothing is preselected and nothing is inferred from the text (a vitamin row in the table does not answer it). |
 | C2 | **Three answers in label wording: Yes / No / Not stated.** Yes and No are facts about the label, so they become the source's identity through the existing manifest field (`fortification_answer` = `yes` or `no`), applied by the existing `updateDetails` rebuild. Not stated keeps the manifest at `unanswered` and the identity at `unknown`, and is recorded as the existing typed inline decision `fortification: source unknown, choice not_sure`. **No new persisted field, value, token, operation type, contract or schema.** |
-| C3 | **Not stated is a labelled estimate** under v5 section 5(b) (any `not_sure` is an estimate), unchanged: the product identity has an unknown decisive detail. The label's values are kept as read; the estimate notice says why. Library aliases follow v5 D6 (none for an estimate). See open question Q1. |
-| C4 | **Pasted-label fortification is an inline decision, never `sourceIdentityMissing`.** For a pasted-label source, `FoodConfirmationPolicy.unresolvedIdentity` omits `.fortification`; the facet then appears through the unchanged difference computation (unknown on either side is a material difference) as `decideDifference(.fortification)`. This is the only change to the closed v5 rules, and it is scoped to the pasted-label source. |
-| C5 | **The only admitted recorded decision for that facet is `not_sure`.** The service refuses `matches_source` (already refused against an unknown source state) and `differs:fortified` / `differs:unfortified` on a pasted-label source: a Yes or No must change the source, not be recorded as "eaten differs from source". |
-| C6 | **Never the catalogue form for a pasted label.** On a pasted-label Confirm before saving, "Add food details", the Food details sheet and "Choose a different match" are not offered. Under `pasted-label-identity-v1`, fortification is the only facet that can be unknown, so after C4 `sourceIdentityMissing` can never arise for a pasted label (pinned by a test). |
+| C3 | **Not stated is a labelled estimate** under v5 section 5(b) (any `not_sure` is an estimate), unchanged: the product identity has an unknown decisive detail. The label's values are kept as read; the estimate notice says why. Library aliases follow v5 D6 (none for an estimate). **Owner decision, 24 October 2026: Not stated counts as an estimate** (closes Q1, section 12). |
+| C4 | **Pasted-label fortification is an inline decision, never `sourceIdentityMissing`.** For a pasted-label source, the **state property** `FoodConfirmationState.unresolvedIdentity` (`FoodConfirmation.swift`, near line 253) omits `.fortification`; the facet then appears through the unchanged difference computation (unknown on either side is a material difference) as `decideDifference(.fortification)`. The **static** `FoodConfirmationPolicy.unresolvedIdentity(_:allowingEstimate:)` is unchanged, so its other callers (`FoodLogPolicy` line 146, `FoodEntryEstimateStatus`, CoFID admission, `FoodConfirmationState.unresolvedIdentity(_:)` near line 931) keep their results. This is the only change to the closed v5 rules, and it is scoped to the pasted-label source (C6a) **in two situations only**: (a) an editable source, that is a new reading opened by the paste route, which marks the state with a transient `answersLabelFortification` flag (never persisted; the service evaluates the same property, and the flag relaxes nothing for a source that panel admission does not verify); and (b) a reopened pasted-label entry whose current version's decision record holds `fortification: not_sure`, so its quantity and time edits are not blocked. A re-log or favourite (C6) has neither, so it keeps `sourceIdentityMissing` exactly as today. |
+| C5 | **The only admitted recorded decision for that facet is `not_sure`.** `FoodLogPolicy.offeredChoices(state, facet: .fortification)` returns `[.notSure]` for a pasted-label source (the domain's `FoodLogFacetDecision.offeredChoices` is unchanged). Enforcement: `FoodLogPolicy.decisionRecord` throws `staleDecisions` for any other choice on that facet, including `differs:fortified` and `differs:unfortified` (and `matches_source`, already refused against an unknown source state). A Yes or No must change the source, not be recorded as "eaten differs from source". |
+| C6 | **Never the catalogue form for an editable pasted label.** On a pasted-label Confirm whose source is **editable** (a new reading, before saving), "Add food details", the Food details sheet and "Choose a different match" are not offered. Under `pasted-label-identity-v1`, fortification is the only facet that can be unknown, so after C4 `sourceIdentityMissing` can never arise there (pinned by a test). **Re-logs and favourites** of a stored pasted label (`FoodConfirmation.swift` near lines 708 to 748, the non-editable `PastedLabelSourceModel(stored:)`) keep today's behaviour: Food details stays offered, because the stored manifest cannot be rebuilt with a new answer. |
+| C6a | **One scope predicate.** "Pasted-label source" means `PanelSourceAdmission.applies(input, candidate:)` (in the pinned `PastedLabelSource.swift`, called, not changed). The new policy and the existing per 100 mL default in `FoodConfirmationState.init` both use it, replacing the duplicate `sourceID == PastedLabelSource.sourceID` check. C4 never relaxes a source that admission does not verify: a forged release carrying the pasted source ID without a valid manifest is refused by panel admission before any requirement is evaluated (test 8.5.11). |
 | C7 | **Screen order:** Food, Fortification (the blocking decision), Amount eaten (with When), Nutrition from the label, then the existing remainder. Only the pasted-label sections move; their content is unchanged. |
 | C8 | **Servings by default when the label states a serving.** On a new pasted-label Confirm with no amount yet, the unit opens on servings whenever `PastedLabelServingPolicy.serving(input, candidate:)` returns a serving (the same condition under which the picker offers servings today). The amount stays empty: no quantity is chosen for the user. |
 | C9 | **The answer stays visible after it is given,** with the chosen option shown, so it can be changed before Log. It never disappears from under the user. |
-| C10 | **Read again resets the answer** to unanswered and clears a Not stated decision: a new reading is a new source, and nothing carries over silently. Basis Change (reader v3 8.4.9) keeps the answer, because it rebuilds the same reading. |
+| C10 | **Read again resets the answer** to unanswered and clears a Not stated decision: a new reading is a new source, and nothing carries over silently. Every other rebuild of the same reading keeps the answer (C11). |
+| C11 | **The answer survives every source rebuild.** `FoodConfirmationViewModel.replaceSourceInput` (`FoodConfirmationView.swift` near lines 61 to 86) today builds a fresh state, so `decisions` is `[:]` after any rebuild. It must carry `decisions[.fortification] = .notSure` into the rebuilt state **while the rebuilt candidate's fortification is still `unknown`**, and drop it otherwise; no other decision is carried. Yes and No live in the source model's held details, so they survive rebuilds through C12. The rebuild paths are: a value Correct, Remove value, basis Change, and Back to Confirm from the label text screen. |
+| C12 | **Back to Confirm never overwrites the answer.** Today `returnToConfirm` (`PastedLabelTextViewModel.swift` near lines 81 to 85 and 136 to 139) calls `PastedLabelSourceModel.updateDetails(details)` (near lines 388 to 393) with the text screen's whole details, which would reset a Confirm Yes or No to `unanswered` once the text screen loses its picker. `updateDetails` is split into `updateNameAndBrand(name:brand:)`, which keeps the held answer, and `answerFortification(_:) throws`, which rebuilds and throws on failure (so Confirm can show the failure copy of 4.1 and keep the earlier answer). The held answer is exposed read-only (`fortificationAnswer`). |
 
 ## 4. Exact copy
 
@@ -88,7 +91,20 @@ The "Fortified?" picker and its footer ("Does the pack say vitamins or minerals 
 
 ### 4.5 Developer tools and saved entry
 
-The pasted-label details show `Fortification on the label: Yes`, `No` or `Not stated`, derived by one pure function: `yes` and `no` from the manifest; `unanswered` with a recorded `not_sure` decision is `Not stated`; `unanswered` with a correction (entries saved before this change through Food details) is `Not answered (corrected in food details)`.
+The pasted-label details show `Fortification on the label: <value>`, from one **total** pure function in `FoodLedgerApplication`, beside `SavedFoodEntryDetail.swift` (near line 81), over the manifest answer, the current version's decision record and whether the current version is a correction. Every combination has exactly one row:
+
+| Manifest answer | `not_sure` decision on fortification | Current version is a Food details correction | Shown |
+|---|---|---|---|
+| `yes` | any | no | `Yes` |
+| `yes` | any | yes | `Yes, then corrected in food details` |
+| `no` | any | no | `No` |
+| `no` | any | yes | `No, then corrected in food details` |
+| `unanswered` | yes | no | `Not stated` |
+| `unanswered` | yes | yes | `Not stated, then corrected in food details` |
+| `unanswered` | no | yes | `Not answered (corrected in food details)` (entries saved before this change) |
+| `unanswered` | no | no | `Not answered` |
+
+A `yes` or `no` manifest with a `not_sure` decision cannot be saved (C5 and the stale-decision rule), but the function still answers from the manifest, so it never fails. Table-tested row by row (8.5.13).
 
 ## 5. Screen order and states
 
@@ -132,7 +148,7 @@ A reopened pasted-label entry keeps the same order. Its Fortification row is rea
 
 ## 7. Reader v3 freeze
 
-`ReaderV3FreezeTests` pins (pin 3) every file of `NutritionLabelParsing`, and `FoodLedgerApplication/PastedLabelManifest.swift`, `LabelReading.swift`, `PastedLabelSource.swift`, `PastedLabelConfirmation.swift`, `PastedLabelBasisChoice.swift`, `PastedLabelManifestV2.swift`, `PastedLabelServingPolicy.swift`, `PastedLabelServingSizeGrammarV3.swift`, `FoodLabelTextCapture/NutritionLabelTextReader.swift` and the fresh-set harness. **None of them changes.** The design only calls existing API in them (`PastedLabelDetails`, `PastedLabelSource.sourceID`, `PastedLabelServingPolicy.serving`). `FoodLedgerDomain/PastedLabelDomain.swift` is not pinned but feeds the manifest verifier, so it is not changed either: `FortificationAnswer` gains no case. No re-pin is needed; the freeze test must pass unchanged.
+`ReaderV3FreezeTests` pins (pin 3) every file of `NutritionLabelParsing`, and `FoodLedgerApplication/PastedLabelManifest.swift`, `LabelReading.swift`, `PastedLabelSource.swift`, `PastedLabelConfirmation.swift`, `PastedLabelBasisChoice.swift`, `PastedLabelManifestV2.swift`, `PastedLabelServingPolicy.swift`, `PastedLabelServingSizeGrammarV3.swift`, `FoodLabelTextCapture/NutritionLabelTextReader.swift` and the fresh-set harness. **None of them changes.** The design only calls existing API in them (`PastedLabelDetails`, `PanelSourceAdmission.applies`, `PastedLabelServingPolicy.serving`). `FoodLedgerDomain/PastedLabelDomain.swift` is not pinned but feeds the manifest verifier, so its behaviour does not change: `FortificationAnswer` gains no case. Its stale doc comments (near lines 46 and 51 to 54: "The optional Fortified? answer on Confirm" and "unanswered is unknown (which raises the existing `sourceIdentityMissing` requirement)") get a **comment-only** fix in the implementation PR, saying that the answer is given on Confirm and that unanswered is unknown, which raises `sourceIdentityMissing` for catalogue-style resolution but is an inline decision on an editable pasted-label Confirm (C4). No re-pin is needed; the freeze test must pass unchanged.
 
 ## 8. Architecture gate
 
@@ -141,9 +157,9 @@ A reopened pasted-label entry keeps the same order. Its Fortification row is rea
 | Layer | Change |
 |---|---|
 | Domain | None. `FortificationAnswer`, `FoodLogDecisionRecord`, `FacetDecision`, `offeredChoices` and `IdentityCompatibility` are unchanged. |
-| Application | New file `FoodLedgerApplication/PastedLabelFortificationPolicy.swift`: a pure `applies(input, candidate:)` (the candidate's source release has `sourceID == PastedLabelSource.sourceID`, the predicate `FoodConfirmationState.init` already uses for the per 100 mL default) and `admits(_ choice:) -> Bool` (only `.notSure`). `FoodConfirmationState.unresolvedIdentity` omits `.fortification` when it applies (C4), for new and reopened entries. `FoodLogPolicy` (requirements and the service check) refuses any other recorded fortification choice on a pasted-label source (C5). `FoodConfirmationState.init` opens on `.count` under C8, after the existing per 100 mL rule and only when `quantity.value == nil` and `reopened == nil`. A replaced pasted-label input (Yes / No rebuild, Read again) clears the fortification decision. |
+| Application | New file `FoodLedgerApplication/PastedLabelFortificationPolicy.swift`: a pure `applies(_ state:)` that is true when `PanelSourceAdmission.applies(input, candidate:)` holds (C6a) and either the state carries `answersLabelFortification` or it is a reopened entry whose current decision record has `fortification: not_sure` (C4); and `offeredChoices` = `[.notSure]` (C5). `FoodConfirmationState` gains the transient `answersLabelFortification: Bool` (default false, never encoded). The **state property** `FoodConfirmationState.unresolvedIdentity` omits `.fortification` when the policy applies; the static `FoodConfirmationPolicy.unresolvedIdentity` is unchanged (C4). `FoodLogPolicy.offeredChoices(state, facet: .fortification)` narrows to `[.notSure]` and `FoodLogPolicy.decisionRecord` throws `staleDecisions` for any other fortification choice when the policy applies (C5). `FoodConfirmationState.init` opens on `.count` under C8, after the per 100 mL rule (which now uses the C6a predicate) and only when `quantity.value == nil` and `reopened == nil`. A total formatter for 4.5 sits beside `SavedFoodEntryDetail.swift`. |
 | Infrastructure | None. No GRDB, schema, archive or provider change. |
-| Presentation | `FoodConfirmationViewModel` gains `pastedLabelFortification` (unanswered, yes, no, notStated, derived from the source model's details and the state's decision) and `answerFortification(_:)`, which sends Yes or No to `PastedLabelSourceModel.updateDetails` and Not stated to `send(.decideDifference(.fortification, .notSure))`. The view renders the section in the order of 5.1, hides "Add food details" and "Choose a different match" when the policy applies, and maps the requirement to 4.2 copy. The label text screen loses its picker and `PastedLabelTextViewModel.fortification`. One pure formatter produces 4.5 for the saved entry and Developer tools. |
+| Presentation | `PastedLabelSourceModel`: `updateDetails` is split into `updateNameAndBrand(name:brand:)` (keeps the held answer) and `answerFortification(_:) throws` (rebuilds; on failure the earlier answer, corrections and model stay), with the held answer exposed read-only as `fortificationAnswer` (C12). `PastedLabelTextViewModel`: loses `fortification` and its picker; `returnToConfirm` calls `updateNameAndBrand` only; Read again builds a new source model, so the answer resets (C10). `FoodConfirmationViewModel`: the paste route sets `answersLabelFortification` when it opens Confirm on an editable source; gains `pastedLabelFortification` (unanswered, yes, no, notStated, from the source model's held answer and the state's decision) and `answerFortification(_:)`, which calls the source model's throwing `answerFortification` for Yes or No (showing the 4.1 failure copy if it throws) and sends `decideDifference(.fortification, .notSure)` for Not stated; `replaceSourceInput` carries `decisions[.fortification] = .notSure` across a rebuild while the rebuilt candidate's fortification is still `unknown`, and drops it otherwise (C11). The view renders the order of 5.1; the generic decisions loop (`FoodConfirmationView.swift` near lines 875 to 881) skips `.fortification` when the policy applies, because the Fortification section renders it; "Add food details" and "Choose a different match" are hidden only for an editable pasted source (C6); the requirement maps to 4.2 copy. |
 | Composition root | None. |
 
 ### 8.2 Dependency direction
@@ -165,7 +181,7 @@ Kept closed. The pasted-label fortification policy is one small route-owned type
 
 ### 8.5 Contract tests to add (written first)
 
-1. **Policy scope:** for a pasted-label input with `unanswered`, requirements are `[decideDifference(.fortification), amountMissing]` and never contain `sourceIdentityMissing`; for a catalogue exact product with unknown fortification, `sourceIdentityMissing([.fortification])` is unchanged.
+1. **Policy scope:** for an editable pasted-label input (`answersLabelFortification`) with `unanswered`, requirements are `[decideDifference(.fortification), amountMissing]` and never contain `sourceIdentityMissing`; for a catalogue exact product with unknown fortification, `sourceIdentityMissing([.fortification])` is unchanged.
 2. **Identity v1 closure:** for every `FortificationAnswer` and every basis, `pasted-label-identity-v1` with C4 yields an empty `unresolvedIdentity`, so C6 holds by construction.
 3. **Yes and No:** the rebuild gives manifest `yes` / `no`, identity `fortified` / `unfortified`, item class `fortified_food` / `food`, no material difference, a plain exact save with no assertion.
 4. **Not stated:** saves exactly one assertion with the golden reason, claim and record of section 6 under `confirm_food_v3`; manifest `unanswered`; identity `unknown`; the estimate projection is true on memory and GRDB stores and after an archive round trip; no library entry.
@@ -174,12 +190,20 @@ Kept closed. The pasted-label fortification policy is one small route-owned type
 7. **Reopen:** a Not stated entry reopens with no requirement from fortification, a quantity or time edit writes no assertion and keeps the estimate status from the original version.
 8. **Compatibility:** pre-change pasted-label entries (answered, and corrected through Food details) decode, verify, reopen and re-encode byte for byte; `ReaderV3FreezeTests` passes with no re-pin.
 9. **Servings default:** opens on `.count` with an empty amount when `PastedLabelServingPolicy.serving` is non-nil (per 100 g with an exact serving, per serving column); stays on `g` or `mL` when it is nil (no serving size, unknown parser version); a reopened entry and a query amount keep their unit.
+10. **Rebuilds keep the answer (C11, C12),** each for Not stated and for Yes / No: value Correct, Remove value, basis Change and Back to Confirm keep the answer (Not stated as `decisions[.fortification] = .notSure`, Yes / No as the held manifest answer); a rebuild that makes fortification known drops a carried `not_sure`; Read again resets to unanswered with no decision. Explicitly: answer Yes, open Edit label text, change the text and the brand, Back to Confirm, still Yes.
+11. **One scope predicate (C6a):** the policy and the per 100 mL default use `PanelSourceAdmission.applies`; a forged release with the pasted source ID and no valid manifest is refused by panel admission at build and at save before any requirement is evaluated, so C4 never applies to it.
+12. **Unchanged callers (C4):** the static `FoodConfirmationPolicy.unresolvedIdentity` returns the same results as before for catalogue, generic and pasted identities; `FoodEntryEstimateStatus` and `FoodLogPolicy.savesEstimate` are unchanged for catalogue and generic sources.
+13. **4.5 formatter:** every row of the 4.5 table, including Not stated then a later Food details correction, and `unanswered` with neither (`Not answered`).
+14. **Decisions loop and offered set (C5):** `FoodLogPolicy.offeredChoices(.fortification)` is `[.notSure]` for a pasted-label source and the domain's full set for a catalogue source; `decisionRecord` throws `staleDecisions` for `differs:fortified` and `differs:unfortified` on a pasted-label source; the generic decisions loop renders no fortification row there.
+15. **Re-log and favourites (C6):** a re-log of a Not stated entry raises `sourceIdentityMissing([.fortification])` and offers Food details, as today. `QuickAddPolicy.eligibility` (`QuickAdd.swift` near lines 57 to 65): a Yes favourite and a No favourite are eligible exactly as a plain exact pasted favourite is today; a Not stated favourite is `.confirm(.estimate)`; a pre-change favourite fixed through Food details is `.confirm(.corrected)`.
+16. **Daily JSON food export golden:** a Not stated entry exports with exactly the existing fields (no new key), its estimate status through the existing projection; the golden file is byte-pinned.
+17. **Archive round trip:** a pre-change pasted-label entry fixed through Food details (manifest `unanswered`, correction assertion) exports, imports and re-encodes byte for byte, and reopens with Food details still offered.
 
 ## 9. Test plan
 
 **Pure (FoodLedgerKit):** the contract tests of 8.5; `PastedLabelFortificationPolicy` table tests; the 4.5 formatter for every stored combination; requirement order with both blockers.
 
-**View model (app tests, `PastedLabelRouteTests` and Confirm view model tests):** `answerFortification` routes Yes / No through `updateDetails` and Not stated through `decideDifference`; a failed rebuild keeps the earlier answer, corrections, amount and time and shows the 4.1 failure copy; the requirement copy is the 4.2 sentence, never the catalogue sentence; `foodDetailsActionTitle` is nil and "Choose a different match" is not offered on a pasted-label Confirm; the label text view model no longer carries fortification; tests that set `fortification` on the text screen are moved to Confirm.
+**View model (app tests, `PastedLabelRouteTests` and Confirm view model tests):** `answerFortification` routes Yes / No through the source model's throwing `answerFortification` and Not stated through `decideDifference`; a failed rebuild keeps the earlier answer, corrections, amount and time and shows the 4.1 failure copy; the requirement copy is the 4.2 sentence, never the catalogue sentence; `foodDetailsActionTitle` is nil and "Choose a different match" is not offered on a pasted-label Confirm; the label text view model no longer carries fortification; tests that set `fortification` on the text screen are moved to Confirm; contract tests 10, 14 and 15 also run at view-model level (rebuild paths through `replaceSourceInput`, the hidden decisions row, Food details offered on a re-log).
 
 **Simulator UI:**
 
@@ -202,6 +226,8 @@ Kept closed. The pasted-label fortification policy is one small route-owned type
 - [ ] Unit opens on servings when the label states an exact serving; amount empty; Whole pack still offered when a pack count was read.
 - [ ] No serving size: unit opens on g (mL for a per 100 mL label).
 - [ ] Basis Change keeps the answer; Read again asks it again.
+- [ ] Answer Yes, then correct a value, remove it, use Edit label text to change the brand and Back to Confirm: still Yes. Repeat with Not stated: still Not stated and still an estimate.
+- [ ] Re-log a Not stated entry from Recent foods: Food details is offered, as before this change; a Not stated favourite asks for confirmation as an estimate.
 - [ ] Reopened entry: Fortification read-only with the recorded answer; quantity edit saves.
 - [ ] Developer tools show "Fortification on the label: …" per 4.5.
 - [ ] Copy: British spelling, no emoji, nothing truncated at AX5.
@@ -210,6 +236,27 @@ Kept closed. The pasted-label fortification policy is one small route-owned type
 
 Reader v3 and every frozen version (section 7); the identity mapping's other facets; the basis sheet; serving policies and conversions; Whole pack; corrections to values; the catalogue routes' requirements, copy and Food details sheet; the estimate projection; the assertion grammar; HealthKit (read-only, untouched); egress (none).
 
-## 12. Open question for the owner
+## 12. Owner decision (Q1 closed)
 
-**Q1. Should Not stated be an estimate?** Recommended: **yes, as specified (C3).** It needs no change to the closed estimate projection, and it is honest that the product's identity is not fully known. The alternative is to treat Not stated on a user's own label as exact (the printed values do not depend on the answer), which would need a route-scoped exception in `FoodEntryEstimateStatus` and in `FoodLogPolicy.savesEstimate`, and a recorded choice that is not `not_sure` or a new token, so a grammar change. The cost of the recommendation: a Not stated entry is tagged "Estimate" in the Food Log and day totals, and creates no library alias.
+**Q1. Should Not stated be an estimate?** **Decided: yes (owner, 24 October 2026).** It needs no change to the closed estimate projection, and it is honest that the product's identity is not fully known. The rejected alternative (Not stated on a user's own label as exact) would have needed a route-scoped exception in `FoodEntryEstimateStatus` and `FoodLogPolicy.savesEstimate` and a new decision token, so a grammar change. Consequence accepted: a Not stated entry is tagged "Estimate" in the Food Log and day totals, and creates no library alias.
+
+## 13. Architecture gate findings applied (24 October 2026, on `d917d57d`)
+
+Verdict: PASS WITH CHANGES. Every required change is applied.
+
+| # | Finding | Where |
+|---|---|---|
+| 1 | `replaceSourceInput` resets `decisions` on every rebuild; carry `not_sure` while fortification stays unknown | C11; 8.1; test 10 |
+| 2 | `returnToConfirm` would wipe a Confirm Yes or No; split `updateDetails`, throwing answer, read-only held answer; `PastedLabelSourceModel.swift` changes | C12; 8.1; test 10 |
+| 3 | Re-log and favourites use a non-editable source; C6 applies only to an editable source; Quick add eligibility tests | C4 scope; C6; test 15 |
+| 4 | Generic decisions loop skips fortification; `offeredChoices` narrowed; `staleDecisions` enforcement | C5; 8.1; test 14 |
+| 5 | C4 names only the state property; static function unchanged | C4; test 12 |
+| 6 | One scope predicate; forged release refused before C4 | C6a; test 11 |
+| 7 | Total 4.5 formatter, home beside `SavedFoodEntryDetail.swift`, table-tested | 4.5; test 13 |
+| 8 | Stale doc comment in `PastedLabelDomain.swift` | Section 7 (comment-only fix in the implementation PR) |
+| 9 | Record the owner decision on Not stated | C3; section 12 |
+| 10 | Extra contract tests: Daily JSON golden, archive round trip of a pre-change correction | Tests 16 and 17 |
+
+### Files the implementation changes
+
+`FoodLedgerApplication/PastedLabelFortificationPolicy.swift` (new), the 4.5 formatter (new, beside `SavedFoodEntryDetail.swift`), `FoodConfirmation.swift`, `FoodLogPolicy.swift`, `FoodLedgerDomain/PastedLabelDomain.swift` (comments only), `FoodLedgerPresentation/FoodConfirmationView.swift`, `PastedLabelSourceModel.swift`, `PastedLabelTextViewModel.swift`, `PastedLabelViews.swift`, `PastedLabelText.swift`, `FoodLogRequirementText.swift` if the route copy is mapped there, the Developer tools pasted-label details, and tests. No file pinned by `ReaderV3FreezeTests`.
