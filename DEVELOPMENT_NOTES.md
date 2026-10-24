@@ -2604,21 +2604,19 @@ Boundary: `phase_usage.py --format claude --since 2026-10-23T06:02:29Z` on the s
 
 Token totals are not evidence of productivity, quality or provider efficiency.
 
-## WHR-287-2026-10-23a: Claude Code food daily export contract v1 (#287)
+## WHR-93-2026-10-24a: Claude Code pasted nutrition label release PR (step 5 of #93)
 
-One Claude Code session (`24b00822-0d01-424f-8a4a-844576d995cb`) with its subagents: two read-only mapping agents (food document, Drive pipeline), three architecture-gate passes (one blocked, one interrupted by a restart, one passed with corrections) and the drafting of `docs/food-daily-export-contract-v1.md`, the egress amendment and the owner decisions D1 to D3. Design discussion with the owner is inside the boundary. No production code.
+A fresh subagent preparing the release PR of `docs/pasted-nutrition-label-v1.md` section 8.6 item 5: the release-check results file of counts (`docs/pasted-nutrition-label-reader-v3-release-check.md`), the `docs/releases/unreleased.md` entry for the paste route, the privacy policy effective date and this row. Documentation only. Nothing in the private run folder was read; the counts were supplied by the coordinator.
 
-Runs for the whole session, from its first message (`2026-10-22T04:50:16Z`) to `2026-10-23T04:38:48Z`, just before this ledger edit. No phase boundary was captured at the start; the session contains only this work, so whole-session usage is the boundary.
+Runs from the subagent transcript's first message (`2026-10-23T17:05:05Z`, 24 October 2026 local) to `2026-10-23T17:06:55Z`, just before this ledger edit. The start was taken from the transcript, which holds only this phase, rather than captured with `date -u` at the start.
 
-Pricing: Claude Opus 5.5 at USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output, as recorded in WHR-93-2026-10-21a. Base input, cache read and output agree with the Claude API skill's model table (cached 6 October 2026); cache-write rates were not re-checked on 23 October. API-equivalent comparison under a Claude subscription, not a charge.
+Pricing: the rates recorded for WHR-93-2026-10-23a (checked on 23 October 2026 against Anthropic's official pricing page for Claude Opus 5.5: USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked on 24 October 2026. API-equivalent comparison under a Claude subscription, not a charge.
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Food daily export contract v1 (#287), session and subagents | 13,065,356 (12,351,561) | 713,503 | 45,483 | 13,110,839 | $7.93 |
+| Pasted label release PR (#93), implementation subagent | 1,822,218 (1,722,949) | 99,227 | 9,833 | 1,832,051 | $1.04 |
 
-Boundary: `phase_usage.py --format claude --include-subagents` (whole session), taken at `2026-10-23T04:38:48Z`. Cache writes: 386,612 5-minute, 326,891 1-hour. Exact API-equivalent USD 7.9293282 at the recorded counts. Output may be undercounted where streaming snapshots record partial counts; this was not checked. The interrupted gate pass is included as far as its transcript reached.
-
-Token totals are not evidence of productivity, quality or provider efficiency.
+Boundary: `phase_usage.py --format claude --since 2026-10-23T17:05:05Z` on the subagent transcript alone. Cache writes: 99,227 5-minute, 0 1-hour. Exact API-equivalent USD 1.0375528 at the recorded counts. None of the 22 messages in this window records 32 output tokens or fewer, so the output count is not marked as a lower bound. Excluded and unmeasured: the coordinator, the fresh-set collection, blind transcription, owner verification, the run and scoring (other agents and the owner), and the commit, push and PR steps after this edit.
 
 ## WHR-287-2026-10-23b: Claude Code food daily export implementation (#287)
 
