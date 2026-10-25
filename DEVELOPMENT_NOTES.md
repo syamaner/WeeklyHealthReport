@@ -2949,3 +2949,9 @@ Boundary: `phase_usage.py --format claude --since 2026-10-25T17:21:34Z --until 2
 | Label photo L3 invariant-review fix: tap reservation, fail-closed ledger, exact model (#316), subagent | 6,403,131 (5,932,248) | 470,853 | 22,436 | 6,425,567 | $3.99 |
 
 L3 review fix (WHR-316-2026-10-26-L3): `phase_usage.py --format claude --since 2026-10-25T18:16:56Z --until 2026-10-25T18:26:58Z` on the subagent transcript alone. It covers parking the L4 work, the session reservation, the fail-closed ledger, the in-flight guard, the deadline guard, the key and per-day catalogue checks, the exact model rule, their tests, spec 17.18 and the gates. Cache writes 470,853 5-minute, 0 1-hour; exact USD 3.9895546. The L4 work from 18:12:28Z to 18:16:56Z is not in this row; it belongs to L4's row. Same pricing as above; an API-equivalent comparison, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label photo L3 re-check fix: atomic spend ledger update (#316), subagent | 4,737,482 (4,243,214) | 494,248 | 11,092 | 4,748,574 | $3.54 |
+
+L3 re-check fix (WHR-316-2026-10-26-L3): `phase_usage.py --format claude --since 2026-10-25T18:32:33Z --until 2026-10-25T18:41:12Z` on the subagent transcript alone. It covers parking L4 again, the atomic `update` port, the delta reconcile and release, the retried final write, the two-session tests, 17.18 and the gates. Cache writes 494,248 5-minute, 0 1-hour; exact USD 3.5418028. L4's own minutes (18:12:28Z to 18:16:56Z, 18:26:58Z to 18:32:33Z, and from 18:41:12Z on) are not in this row. Same pricing as above; an API-equivalent comparison, not a charge.
