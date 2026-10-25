@@ -211,6 +211,10 @@ are noisy and are not a substitute for exact-head hosted results. Together with
 the hosted job's 11-minute-plus timeout margin, they do not justify increasing
 the timeout before that evidence exists.
 
+## Build and test job timeout
+
+On 25 October 2026 the "Build and test" job for PR #324 was cancelled at its 20-minute timeout (run 40213869449) and passed on rerun in 17m06s (run 40216123559, attempt 2). The label photo phases (#316) keep adding package and app tests, so the job timeout is 30 minutes. The earlier note above, that the measurements did not justify a longer timeout, describes the suite as it was then.
+
 ## Reproduce locally
 
 Choose an available iPhone simulator identifier, then run:
