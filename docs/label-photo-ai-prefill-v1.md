@@ -1215,13 +1215,17 @@ The highlight position was fixed after the walk (decision 6) and is covered by a
 **What changes.** A label photo entry now offers and defaults to servings exactly as a pasted label does (4.2 item 3, pasted Confirm v1 C8).
 
 - **The composite.** A new `LabelServingPolicy` asks the pasted policy (`pasted-label-serving-v1` to `-v3`, pinned by the reader v3 freeze and untouched), then the photo's `label-photo-serving-v1` (17.16). A candidate is one or the other, because `LabelSourceAdmission` refuses a mixed one.
-- **Where it is used.** Every caller outside the pinned file now uses the composite:
+- **Where it is used.** These servings decisions use the composite:
   - Confirm's default unit, servings-only and whole-pack offers;
   - the save path's servings conversion and its misuse rule;
   - the Log policy's requirements;
   - the named-serving and portion-guide rules;
   - reopen verification of a stored servings conversion;
-  - the Food Log's servings wording and quantity method.
+  - the Food Log's servings wording and quantity method;
+  - a favourite's "is this count servings" (Home chips, Add food and Favourites), added on the #328 review;
+  - the saved entry's serving-size line, which for a photo entry is derived from the photo manifest's projection by the pasted rule (#328 review).
+
+  The pasted-only helpers stay pasted: the printed serving's exactness and the pasted source section, which only a pasted label reaches.
 - **How servings are recorded.** A photo entry's servings are stored through the `label-photo-serving-v1` conversion (n x the serving in grams or millilitres, citing the photo release and manifest evidence). They read as servings in the Food Log, are classed as the label's own serving rather than a user method, and are re-derived at reopen. A conversion naming another label method is refused on a photo entry.
 - **Pasted labels are unchanged:** the composite returns exactly the pasted answers for them, and the full pasted suites pass.
 
@@ -1229,6 +1233,11 @@ The highlight position was fixed after the walk (decision 6) and is covered by a
 - a photo entry defaults to servings (30 g);
 - 2 servings save as 60 g under `label-photo-serving-v1` and reopen;
 - a pasted method on a photo entry is refused;
-- pasted answers are identical through the composite.
+- a photo favourite logged in servings says servings, and one logged in grams does not;
+- the saved photo entry shows its 30 g serving size;
+- pasted answers (serving, method, servings-only, whole pack) are identical through the composite for:
+  - per serving with and without a weight;
+  - the printed per 100 g label;
+  - per 100 g and per 100 ml under parser v2 and v3, with and without a serving size.
 
 **Simulator check (fake route, iPhone 17 Pro).** Confirm for the synthetic label opens with the unit set to servings and offers "Whole pack (10 servings)" from the printed servings per pack, as on the pasted route. Saving servings (60 g for 2 servings) and reopening are covered by the contract tests above.

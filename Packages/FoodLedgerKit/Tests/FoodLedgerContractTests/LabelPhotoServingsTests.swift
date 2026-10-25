@@ -75,10 +75,62 @@ final class LabelPhotoServingsTests: XCTestCase {
     }
 
     func testPastedLabelsAreUnchanged() throws {
-        let pasted = try PastedLabelFixtures.input(try PastedLabelFixtures.manifest())
-        let candidate = pasted.candidates[0]
-        XCTAssertEqual(LabelServingPolicy.serving(pasted, candidate: candidate), PastedLabelServingPolicy.serving(pasted, candidate: candidate))
-        XCTAssertEqual(LabelServingPolicy.method(pasted, candidate: candidate), PastedLabelServingPolicy.method(pasted, candidate: candidate))
+        typealias P = PastedLabelFixtures
+        let size = PastedLabelManifest.Candidate.ServingSize(printedText: "每一份量30公克", decimalText: "30", unit: "公克", canonicalUnit: "g")
+        let pack = PastedLabelManifest.Candidate.ServingsPerPack(printedText: "本包裝含10份", decimalText: "10", approximate: false)
+        // Per serving with a weight (case 2) and without one (case 3), the printed per 100 g label,
+        // and per 100 g and per 100 ml under parser v2 and v3, with and without a serving size.
+        var manifests: [(String, PastedLabelManifest)] = [
+            ("per serving, 30 g", try P.perServingManifest(readableServingSize: true)),
+            ("per serving, no weight", try P.perServingManifest(readableServingSize: false)),
+            ("per 100 g printed", try P.manifest()),
+        ]
+        for parser in [PastedLabelSource.parserVersionV2, PastedLabelSource.parserVersionV3] {
+            for basis in ["per_100g", "per_100ml"] {
+                manifests.append(("\(basis) \(parser) with size", try P.per100Manifest(servingSize: size, servingsPerPack: pack, basis: basis,
+                                                                                    parserVersion: parser)))
+                manifests.append(("\(basis) \(parser) no size", try P.per100Manifest(servingSize: nil, basis: basis, parserVersion: parser)))
+            }
+        }
+        for (name, manifest) in manifests {
+            let pasted = try P.input(manifest)
+            let candidate = pasted.candidates[0]
+            XCTAssertEqual(LabelServingPolicy.serving(pasted, candidate: candidate), PastedLabelServingPolicy.serving(pasted, candidate: candidate), name)
+            XCTAssertEqual(LabelServingPolicy.method(pasted, candidate: candidate), PastedLabelServingPolicy.method(pasted, candidate: candidate), name)
+            XCTAssertEqual(LabelServingPolicy.servingsOnly(pasted, candidate: candidate),
+                           PastedLabelServingPolicy.servingsOnly(pasted, candidate: candidate), name)
+            XCTAssertEqual(LabelServingPolicy.wholePack(pasted, candidate: candidate), PastedLabelServingPolicy.wholePack(pasted, candidate: candidate), name)
+        }
         XCTAssertEqual(LabelServingPolicy.admittedVersions, PastedLabelServingPolicy.admittedVersions + ["label-photo-serving-v1"])
+    }
+
+    func testAPhotoFavouriteInServingsSaysServings() throws {
+        let service = try service()
+        let inServings = try service.saveLabelPhoto(try servingsState(1), imageBytes: F.imageBytes, attachmentStore: store,
+                                                    operationID: LedgerFixtures.operationID(9_982))
+        var grams = FoodConfirmationState(input: try input(), prefillSourceQuantity: false)
+        FoodConfirmationReducer.reduce(state: &grams, action: .setQuantity(45, .grams))
+        grams.answerPendingDifferences()
+        FoodConfirmationReducer.reduce(state: &grams, action: .accept)
+        let inGrams = try service.saveLabelPhoto(grams, imageBytes: F.imageBytes, attachmentStore: store,
+                                                 operationID: LedgerFixtures.operationID(9_983))
+        let favourites = try FavouritesService(ledger: LedgerFixtures.service(store), reader: store, confirmations: service,
+            clock: LedgerFixtures.clock, ids: RandomLedgerIDGenerator(), digester: SHA256Digester())
+        let servingsFavourite = try favourites.saveFavourite(logItemVersionID: inServings.logItemVersion.logItemVersionID)
+        let gramsFavourite = try favourites.saveFavourite(logItemVersionID: inGrams.logItemVersion.logItemVersionID)
+        XCTAssertEqual(servingsFavourite.defaultAmount.unit, .count)
+        XCTAssertTrue(favourites.amountIsServings(servingsFavourite), "Home chips, Add food and Favourites say servings")
+        XCTAssertFalse(favourites.amountIsServings(gramsFavourite))
+        let prepared = try favourites.prepare(.favourite(servingsFavourite))
+        XCTAssertNotNil(prepared.state.labelServing, "the sheet's count is servings")
+    }
+
+    func testTheSavedPhotoEntryShowsItsServingSize() throws {
+        let saved = try service().saveLabelPhoto(try servingsState(2), imageBytes: F.imageBytes, attachmentStore: store,
+                                                 operationID: LedgerFixtures.operationID(9_984))
+        let detail = SavedFoodEntryDetail(stored: saved, isEstimate: false, history: [])
+        XCTAssertTrue(detail.amountIsServings)
+        XCTAssertEqual(detail.servingSize?.quantity, try PositiveQuantity(value: 30, unit: .grams))
+        XCTAssertEqual(detail.servingSize?.origin, .printed)
     }
 }

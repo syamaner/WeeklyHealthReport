@@ -75,7 +75,7 @@ public enum FoodQuantityMethod: Equatable, Sendable {
 
 /// Whether an entered count is servings rather than pieces: one predicate for the Food Log row,
 /// the saved entry, Recent and history (count-portion-estimate-v1, C8). Pasted-label servings
-/// (`PastedLabelServingPolicy.isServingsAmount`) and counts on a per-serving or named-serving
+/// (`LabelServingPolicy.isServingsAmount`, pasted and photo) and counts on a per-serving or named-serving
 /// basis (source-declared and recipe servings) read "servings"; everything else reads "pieces".
 public enum FoodAmountServings {
     public static func isServings(enteredUnit: QuantityUnit, conversion: QuantityConversionVersion?,

@@ -108,8 +108,12 @@ public struct SavedFoodEntryDetail: Sendable {
             : Dictionary(stored.resolutionVersion.nutrients.entries.map { ($0.key, $0.value) }, uniquingKeysWith: { first, _ in first })
         amountIsServings = FoodAmountServings.isServings(enteredUnit: enteredAmount.unit, conversion: stored.quantityConversion,
                                                          sourceID: release?.sourceID.value, basis: stored.resolution.basis)
+        // The serving a servings amount went through: from the pasted manifest, or from a photo
+        // manifest's projection onto the pasted shape (the same rule, 17.20).
         servingSize = amountIsServings && stored.quantityConversion != nil
-            ? manifest.flatMap { PastedLabelServingPolicy.storedServingSize($0, basis: stored.resolution.basis) } : nil
+            ? (manifest.flatMap { PastedLabelServingPolicy.storedServingSize($0, basis: stored.resolution.basis) }
+               ?? labelPhoto.flatMap { PastedLabelServingPolicy.storedServingSize(LabelPhotoSource.projection($0), basis: stored.resolution.basis) })
+            : nil
     }
 
     /// One scaling rule: `FoodIntakeContribution.isScalable`, as the summary applies it.
