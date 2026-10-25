@@ -2955,3 +2955,28 @@ L3 review fix (WHR-316-2026-10-26-L3): `phase_usage.py --format claude --since 2
 | Label photo L3 re-check fix: atomic spend ledger update (#316), subagent | 4,737,482 (4,243,214) | 494,248 | 11,092 | 4,748,574 | $3.54 |
 
 L3 re-check fix (WHR-316-2026-10-26-L3): `phase_usage.py --format claude --since 2026-10-25T18:32:33Z --until 2026-10-25T18:41:12Z` on the subagent transcript alone. It covers parking L4 again, the atomic `update` port, the delta reconcile and release, the retried final write, the two-session tests, 17.18 and the gates. Cache writes 494,248 5-minute, 0 1-hour; exact USD 3.5418028. L4's own minutes (18:12:28Z to 18:16:56Z, 18:26:58Z to 18:32:33Z, and from 18:41:12Z on) are not in this row. Same pricing as above; an API-equivalent comparison, not a charge.
+
+## WHR-316-2026-10-26-L4: Claude Code label photo screens over the fake route
+
+The same `claude-opus-5-5` subagent and transcript as WHR-316-2026-10-26-L3, for #316 phase L4. The phase was paused twice for #326 fixes, so it is measured in three windows, each bounded by `date -u` captures, that exclude both #326 fix rows above:
+- `2026-10-25T18:12:28Z` to `18:16:56Z`: the start, up to the first #326 pause;
+- `18:26:58Z` to `18:32:33Z`: the rebase and the Confirm source model, up to the second pause;
+- `18:41:12Z` to `19:41:07Z`, just before this edit.
+
+Together they cover:
+- the read flow, the progress and today's reads, the preview and the quota failure;
+- the file spend ledger with its atomic update, the scripted transport and the synthetic label;
+- `LabelPhotoText`, the screen and source models with their views, Confirm's blocker and the fortification scope;
+- the `FoodLabelPhotoUI` target, the boundary rules and the project links;
+- the composition root, the saved entry, the view-model and composition tests, and the simulator walk with its fixes;
+- spec 17.19, every gate and the commit split.
+
+The push and the PR are outside the windows. The orchestrating session and its reviewers are not included.
+
+Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A): `claude-opus-5-5` USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache hit, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label photo L4 screens, Confirm sections and UI target over the fake route (#316), subagent | 104,070,400 (100,874,406) | 3,195,632 | 165,463 | 104,235,863 | $39.46 |
+
+Boundary: `phase_usage.py --format claude` on the subagent transcript alone, summed over the three windows (USD 2.7532234 + 1.9171006 + 34.7934252 = 39.4637492). Cache writes 3,195,632 5-minute, 0 1-hour. Local Swift and Xcode builds, Vision and the simulator use no API tokens and are not priced. These totals are a cost comparison, not productivity or quality evidence.
