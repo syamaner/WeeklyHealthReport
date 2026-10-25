@@ -144,12 +144,26 @@ public enum LabelValueMatcher {
             for needle in needles(query.printedText, isLine: isLine) {
                 let candidates = occurrences(of: needle, in: normalised, rule: isLine ? .line : .value).map { box($0) }
                     .filter { inHeader(query, $0) }
-                guard let label = rowKey(query), spacing(label) != nil else {
+                if isLine {
+                    // Serving lines carry their own words; no row to confirm.
                     switch candidates.count {
                     case 0: continue
                     case 1: return First(location: Location(id: query.id, status: .found, region: rounded(candidates[0])), candidates: candidates)
                     default: return First(location: Location(id: query.id, status: .ambiguous, region: nil), candidates: candidates)
                     }
+                }
+                guard let label = rowKey(query), spacing(label) != nil else {
+                    // The value's own row cannot be confirmed: its label was not located exactly once
+                    // (or is the only label located). It is never found. Candidates near another
+                    // located label belong to that row and are dropped; any candidate at all makes
+                    // the value ambiguous (the order pass then needs a located label, so it stays so).
+                    if candidates.isEmpty { continue }
+                    let own = query.rowLabel.map { Normalised($0).key }
+                    let elsewhere = candidates.filter { candidate in
+                        rowBoxes.keys.contains { $0 != own && rowFit($0, candidate) == .near }
+                    }
+                    let remaining = candidates.filter { !elsewhere.contains($0) }
+                    return First(location: Location(id: query.id, status: .ambiguous, region: nil), candidates: remaining)
                 }
                 let near = candidates.filter { rowFit(label, $0) == .near }
                 let drifted = candidates.filter { rowFit(label, $0) == .drifted }

@@ -132,12 +132,13 @@ final class LabelValueMatcherTests: XCTestCase {
         let oneLine: [M.Line] = [
             .init(text: "反式脂肪", box: .init(x: 0.05, y: 0.5, width: 0.1, height: 0.04)),
             .init(text: "每份 每100公克", box: .init(x: 0.4, y: 0.9, width: 0.5, height: 0.04)),
+            .init(text: "碳水化合物", box: .init(x: 0.05, y: 0.42, width: 0.1, height: 0.04)),
             .init(text: "0公克", box: .init(x: 0.45, y: 0.5, width: 0.1, height: 0.04)),
             .init(text: "0公克", box: .init(x: 0.75, y: 0.5, width: 0.1, height: 0.04)),
         ]
         // Sub-boxes: 每份 on the left half of the header line, 每100公克 on the right.
         let found = M.locate([.init(id: "t", rowLabel: "反式脂肪", headerText: "每100公克", printedText: "0公克")],
-                             lines: oneLine, headers: ["每份", "每100公克"], rowLabels: ["反式脂肪"], columnCount: 2) { index, range in
+                             lines: oneLine, headers: ["每份", "每100公克"], rowLabels: ["反式脂肪", "碳水化合物"], columnCount: 2) { index, range in
             guard index == 1 else { return nil }
             let left = oneLine[1].text.distance(from: oneLine[1].text.startIndex, to: range.lowerBound) == 0
             return left ? .init(x: 0.42, y: 0.9, width: 0.1, height: 0.04) : .init(x: 0.72, y: 0.9, width: 0.16, height: 0.04)
@@ -269,6 +270,38 @@ final class LabelValueMatcherTests: XCTestCase {
         }
         let found = M.locate(queries, lines: lines, headers: [], rowLabels: rows, columnCount: 1) { _, _ in nil }
         XCTAssertEqual(found.map(\.status), [.found, .found, .found])
+    }
+
+    // MARK: Own row label not located (re-check of 8ebfe912)
+
+    /// Case 10: the model writes the fat label as 脂舫 (not on the photo) and reads saturated fat's
+    /// printed 3公克 as fat's value. It must not be found on the saturated fat row.
+    func testUnlocatedOwnLabelNeverFindsAnotherRowsValue() {
+        let lines = rowLines(values: [("0公克", 0.80), ("5公克", 0.72), ("3公克", 0.64)])
+        let queries: [M.Query] = [.init(id: "p", rowLabel: "蛋白質", headerText: nil, printedText: "0公克"),
+                                  .init(id: "f", rowLabel: "脂舫", headerText: nil, printedText: "3公克"),
+                                  .init(id: "s", rowLabel: "飽和脂肪", headerText: nil, printedText: "3公克")]
+        let found = M.locate(queries, lines: lines, headers: [], rowLabels: ["蛋白質", "脂舫", "飽和脂肪"], columnCount: 1) { _, _ in nil }
+        XCTAssertNotEqual(found[1].status, .found)
+        XCTAssertEqual(found.map(\.status), [.found, .ambiguous, .found])
+    }
+
+    /// Case 10b: the same misspelt label, with the value printed on the fat row itself (between the
+    /// located labels, near none of them): still not found, because its row cannot be confirmed.
+    func testUnlocatedOwnLabelWithAValueOnNoOtherRowIsStillNotFound() {
+        let lines = rowLines(values: [("0公克", 0.80), ("5公克", 0.72), ("1公克", 0.64)])
+        let queries: [M.Query] = [.init(id: "p", rowLabel: "蛋白質", headerText: nil, printedText: "0公克"),
+                                  .init(id: "f", rowLabel: "脂舫", headerText: nil, printedText: "5公克")]
+        let found = M.locate(queries, lines: lines, headers: [], rowLabels: ["蛋白質", "脂舫"], columnCount: 1) { _, _ in nil }
+        XCTAssertNotEqual(found[1].status, .found)
+        XCTAssertEqual(found[1].status, .ambiguous)
+    }
+
+    func testNoRowLabelLocatedMeansAmbiguousNotFound() {
+        let lines: [M.Line] = [.init(text: "3公克", box: .init(x: 0.5, y: 0.72, width: 0.1, height: 0.04))]
+        let found = M.locate([.init(id: "x", rowLabel: "脂肪", headerText: nil, printedText: "3公克")], lines: lines, headers: [],
+                             rowLabels: ["脂肪", "蛋白質"], columnCount: 1) { _, _ in nil }
+        XCTAssertEqual(found.map(\.status), [.ambiguous])
     }
 
     func testFoundRegionIsRoundedAndInsideTheUnitSquare() throws {
