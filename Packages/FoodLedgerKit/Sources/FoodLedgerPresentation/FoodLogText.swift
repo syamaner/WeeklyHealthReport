@@ -362,9 +362,18 @@ public enum FoodLogText {
     /// "UK reference · per 100 g"; the app's plain water reference reads "Plain water · per 100 mL".
     /// Only the first letter of the basis is lowered, so unit symbols such as mL keep their case.
     public static func source(_ detail: SavedFoodEntryDetail) -> String {
-        let name = detail.isPlainWater ? plainWaterSourceName : FoodSearchResultText.family(detail.sourceFamily)
-        let basis = FoodNutritionReviewPresentation.basisLabel(detail.basis)
-        return "\(name) · \(basis.prefix(1).lowercased() + basis.dropFirst())"
+        source(family: detail.sourceFamily, basis: detail.basis, isPlainWater: detail.isPlainWater, isLabelPhoto: detail.labelPhoto != nil)
+    }
+
+    /// The saved entry's Source row. A label photo reads as the pasted route's line does:
+    /// "From a label photo · per 100 g · Traditional Chinese, Taiwan layout" (#328 journey QA).
+    public static func source(family: FoodSearchResultSummary.SourceFamily, basis: ResolutionBasis, isPlainWater: Bool,
+                              isLabelPhoto: Bool) -> String {
+        let label = FoodNutritionReviewPresentation.basisLabel(basis)
+        let basisText = label.prefix(1).lowercased() + label.dropFirst()
+        if isLabelPhoto { return LabelPhotoText.savedSourceRow(basis: basisText) }
+        let name = isPlainWater ? plainWaterSourceName : FoodSearchResultText.family(family)
+        return "\(name) · \(basisText)"
     }
 
     public static func facet(_ facet: IdentityContradiction) -> String {

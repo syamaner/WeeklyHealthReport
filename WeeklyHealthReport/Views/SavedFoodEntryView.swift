@@ -147,6 +147,9 @@ struct SavedFoodEntryView: View {
                 Text(LabelPhotoText.photoNotOnDevice).font(.subheadline).foregroundStyle(.secondary)
             }
             if let line = LabelPhotoSavedEntryText.sourceLine(detail) { Text(line).font(.subheadline) }
+            if let fortification = detail.labelPhotoFortification {
+                LabeledContent(PastedLabelFortificationText.title, value: fortification)
+            }
             ForEach(LabelPhotoSavedEntryText.stateLines(detail), id: \.self) { Text($0).font(.caption) }
         }
     }

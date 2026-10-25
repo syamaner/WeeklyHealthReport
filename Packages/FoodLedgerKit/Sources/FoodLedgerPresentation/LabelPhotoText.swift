@@ -172,6 +172,10 @@ public enum LabelPhotoText {
     public static let paneAccessibilityLabel = "Label photo"
     public static let paneAccessibilityHint = "Swipe up or down to zoom."
     public static let photoNotOnDevice = "The photo is not on this device."
+    /// The saved entry's Source row for a label photo.
+    public static func savedSourceRow(basis: String) -> String {
+        "From a label photo · \(basis) · Traditional Chinese, Taiwan layout"
+    }
     public static let rereadConfirmation = "Reading again replaces your corrections"
 
     /// The check group's sentence.

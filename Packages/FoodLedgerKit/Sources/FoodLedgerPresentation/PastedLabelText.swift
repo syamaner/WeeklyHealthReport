@@ -481,7 +481,13 @@ public enum PastedLabelSavedEntryText {
     /// The Source section's decision rows. A pasted label's fortification decision is already
     /// shown as "Fortification on the label" (#306), so it is not repeated as "Not sure".
     public static func sourceDecisions(_ detail: SavedFoodEntryDetail) -> [FoodLogFacetDecision] {
-        detail.pastedLabel == nil ? detail.decisions : detail.decisions.filter { $0.facet != .fortification }
+        sourceDecisions(detail.decisions, isLabel: detail.pastedLabel != nil || detail.labelPhoto != nil)
+    }
+
+    /// A label entry (pasted or photo) shows its fortification once, in its own section, so the
+    /// Source row never repeats it as "Not sure" (#328 journey QA).
+    public static func sourceDecisions(_ decisions: [FoodLogFacetDecision], isLabel: Bool) -> [FoodLogFacetDecision] {
+        isLabel ? decisions.filter { $0.facet != .fortification } : decisions
     }
 
     /// "about 555 kcal · Calculated", "12 g · Corrected by you", or the plain value.

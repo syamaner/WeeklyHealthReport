@@ -133,4 +133,14 @@ final class LabelPhotoServingsTests: XCTestCase {
         XCTAssertEqual(detail.servingSize?.quantity, try PositiveQuantity(value: 30, unit: .grams))
         XCTAssertEqual(detail.servingSize?.origin, .printed)
     }
+
+    func testTheSavedPhotoEntryCarriesItsLabelFortification() throws {
+        let saved = try service().saveLabelPhoto(try servingsState(1), imageBytes: F.imageBytes, attachmentStore: store,
+                                                 operationID: LedgerFixtures.operationID(9_985))
+        let detail = SavedFoodEntryDetail(stored: saved, isEstimate: false, history: [])
+        XCTAssertNotNil(detail.labelPhoto)
+        XCTAssertNil(detail.pastedLabel)
+        XCTAssertEqual(detail.labelPhotoFortification, PastedLabelFortificationText.value(answer: .no, recordsNotStated: false, corrected: false),
+                       "worded as for a pasted label, from the photo manifest's answer")
+    }
 }

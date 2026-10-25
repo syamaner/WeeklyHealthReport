@@ -1241,3 +1241,7 @@ The highlight position was fixed after the walk (decision 6) and is covered by a
   - per 100 g and per 100 ml under parser v2 and v3, with and without a serving size.
 
 **Simulator check (fake route, iPhone 17 Pro).** Confirm for the synthetic label opens with the unit set to servings and offers "Whole pack (10 servings)" from the printed servings per pack, as on the pasted route. Saving servings (60 g for 2 servings) and reopening are covered by the contract tests above.
+
+**Journey QA of #328 (all pass), two copy fixes:**
+- The saved photo entry's Source row reads "From a label photo · per 100 g · Traditional Chinese, Taiwan layout", matching the pasted route's line.
+- A photo entry's fortification is shown once, as "Fortification on the label" in its section, worded from the photo manifest as for a pasted label. The Source row no longer repeats it as "Not sure".
