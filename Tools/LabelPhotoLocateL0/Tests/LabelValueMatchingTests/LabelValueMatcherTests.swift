@@ -283,9 +283,9 @@ final class LabelValueMatcherTests: XCTestCase {
                                   .init(id: "s", rowLabel: "飽和脂肪", headerText: nil, printedText: "3公克")]
         let found = M.locate(queries, lines: lines, headers: [], rowLabels: ["蛋白質", "脂舫", "飽和脂肪"], columnCount: 1) { _, _ in nil }
         XCTAssertNotEqual(found[1].status, .found)
-        // v2 places 脂舫 on the printed 脂肪 line (one character different, between its located
-        // neighbours), so the wrong value is plainly not on the fat row.
-        XCTAssertEqual(found.map(\.status), [.found, .notFound, .found])
+        // The printed 脂肪 line is itself a known row label, so it is never taken as a near-miss of
+        // 脂舫 (17.12): the fat row stays unconfirmed and the value ambiguous.
+        XCTAssertEqual(found.map(\.status), [.found, .ambiguous, .found])
     }
 
     /// Case 10b: the same misspelt label, with the value printed on the fat row itself (between the
@@ -315,7 +315,9 @@ final class LabelValueMatcherTests: XCTestCase {
             .init(id: "m\($0.offset)", rowLabel: $0.element.0, headerText: nil, printedText: $0.element.1)
         }
         let found = M.locate(queries, lines: lines, headers: [], rowLabels: rows, columnCount: 1) { _, _ in nil }
-        XCTAssertEqual(found.map(\.status), [.found, .found, .found])
+        // A near-miss row only locates: the value is ambiguous, with its region to highlight (17.12).
+        XCTAssertEqual(found.map(\.status), [.found, .ambiguous, .found])
+        XCTAssertEqual(found[1].region?.y, 0.72)
         // The wrong value read on the recovered row is still not found.
         var wrong = queries
         wrong[1] = .init(id: "m1", rowLabel: "脂肪", headerText: nil, printedText: "1公克")
@@ -337,7 +339,10 @@ final class LabelValueMatcherTests: XCTestCase {
         let queries: [M.Query] = zip(labels, ["2公克", "5公克", "1公克", "0公克"]).enumerated().map {
             .init(id: "o\($0.offset)", rowLabel: $0.element.0, headerText: nil, printedText: $0.element.1)
         }
-        XCTAssertEqual(M.locate(queries, lines: lines, headers: [], rowLabels: labels, columnCount: 1) { _, _ in nil }[1].status, .found)
+        let placed = M.locate(queries, lines: lines, headers: [], rowLabels: labels, columnCount: 1) { _, _ in nil }[1]
+        // A row-order placement only locates: ambiguous, with the region to highlight (17.12).
+        XCTAssertEqual(placed.status, .ambiguous)
+        XCTAssertEqual(placed.region?.y, 0.72)
         // An adjacent row's value under the placed label is still never found.
         var wrong = queries
         wrong[1] = .init(id: "o1", rowLabel: "脂肪", headerText: nil, printedText: "1公克")
@@ -383,8 +388,20 @@ final class LabelValueMatcherTests: XCTestCase {
             queries.append(.init(id: "s\(index)", rowLabel: label, headerText: "每份", printedText: perServing[index]))
             queries.append(.init(id: "h\(index)", rowLabel: label, headerText: "每100公克", printedText: per100[index]))
         }
+        // No header located: inferred columns only narrow; every value is ambiguous with its region.
         let found = M.locate(queries, lines: lines, headers: ["每份", "每100公克"], rowLabels: labels, columnCount: 2) { _, _ in nil }
-        XCTAssertEqual(found.map(\.status), Array(repeating: .found, count: 6))
+        XCTAssertEqual(found.map(\.status), Array(repeating: .ambiguous, count: 6))
+        XCTAssertTrue(found.allSatisfy { $0.region != nil })
+        // One header located and agreeing with its group: the columns are confirmed and values found.
+        let oneHeader = lines + [.init(text: "每份", box: .init(x: 0.45, y: 0.9, width: 0.1, height: 0.04))]
+        XCTAssertEqual(M.locate(queries, lines: oneHeader, headers: ["每份", "每100公克"], rowLabels: labels, columnCount: 2) { _, _ in nil }
+            .map(\.status), Array(repeating: .found, count: 6))
+        // The model reversing the two headers, neither read: never found on the wrong basis.
+        let reversed = queries.map { query in
+            M.Query(id: query.id, rowLabel: query.rowLabel, headerText: query.headerText == "每份" ? "每100公克" : "每份", printedText: query.printedText)
+        }
+        XCTAssertFalse(M.locate(reversed, lines: lines, headers: ["每份", "每100公克"], rowLabels: labels, columnCount: 2) { _, _ in nil }
+            .contains { $0.status == .found })
         // S4: the other column's value in this column is never found.
         var wrong = queries
         wrong[2] = .init(id: "s1", rowLabel: "脂肪", headerText: "每份", printedText: "6公克")

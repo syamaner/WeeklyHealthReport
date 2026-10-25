@@ -218,14 +218,14 @@ final class LabelValueMatcherSweepTests: XCTestCase {
         XCTAssertEqual(baselines["1col merged lines"], 12)
         XCTAssertGreaterThanOrEqual(baselines["2col unit split"] ?? 0, 20)
         XCTAssertGreaterThanOrEqual(baselines["1col unit split"] ?? 0, 11)
-        // Locator v2 recovery: baselines with unread headers, misread or missing labels and drift.
-        XCTAssertEqual(baselines["2col headers unread"], 22)
-        // 糖 misread as 舫 is one character for another: no near-miss (two characters needed) and the
-        // slot is occupied, so its row stays unconfirmed (one row, both columns).
-        XCTAssertEqual(baselines["2col labels misread"], 20)
-        XCTAssertEqual(baselines["2col labels missing"], 22)
-        XCTAssertEqual(baselines["2col headers unread, labels missing"], 22)
+        // Locator v2 (17.12): recovery locates but never confirms. Rows placed by a near-miss or by
+        // row order and columns inferred without a located header give ambiguous values (with a
+        // region), so these baselines count only directly confirmed values (and the serving lines).
+        XCTAssertEqual(baselines["2col headers unread"], 2)
+        XCTAssertEqual(baselines["2col labels misread"], 16)
+        XCTAssertEqual(baselines["2col labels missing"], 16)
+        XCTAssertEqual(baselines["2col headers unread, labels missing"], 2)
         XCTAssertEqual(baselines["2col drift 0.45"], 22)
-        XCTAssertEqual(baselines["1col drift 0.45, labels misread"], 11)
+        XCTAssertEqual(baselines["1col drift 0.45, labels misread"], 9)
     }
 }

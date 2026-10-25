@@ -96,8 +96,21 @@ public enum LabelValueMatcher {
             return sorted.count % 2 == 1 ? sorted[sorted.count / 2] : (sorted[sorted.count / 2 - 1] + sorted[sorted.count / 2]) / 2
         }
 
-        // Row labels located exactly once, then recovery (17.11 a).
+        // Every value token on the photo, once.
+        var tokensOnPhoto: [(token: ValueToken, box: Box)] = []
+        for (number, line) in normalised.enumerated() {
+            for token in valueTokens(line.characters) {
+                tokensOnPhoto.append((token, box(Match(line: number, range: line.origin[token.start].lowerBound..<line.origin[token.end - 1].upperBound))))
+            }
+        }
+
+        // Row labels located exactly once, then recovery (17.11 a). Only rows whose own label text is
+        // located on the photo (once, or once between its located neighbours) are **direct**: a value
+        // can be found only on a direct row. Near-miss and row-order placements are indirect: they
+        // may narrow candidates and give the region to highlight, never confirm (17.12).
         var rowBoxes = unique(rowLabels, rule: .label)
+        var directRows = Set(rowBoxes.keys)
+        let knownLabels = Set(rowLabels.map { Normalised($0).key }).union(rowLabelVocabulary.map { Normalised($0).key })
         var readingOrder: [String] = []
         for label in queries.compactMap({ $0.rowLabel.map { Normalised($0).key } }) where !readingOrder.contains(label) {
             readingOrder.append(label)
@@ -131,12 +144,12 @@ public enum LabelValueMatcher {
                 func between(_ value: Box) -> Bool { value.midY < high && value.midY > low }
                 // Its own text, printed once between the neighbours.
                 let exact = occurrences(of: key, in: normalised, rule: .label).map { box($0) }.filter(between)
-                if exact.count == 1 { recovered[key] = exact[0]; continue }
+                if exact.count == 1 { recovered[key] = exact[0]; directRows.insert(key); continue }
                 if !exact.isEmpty { continue }
                 // A near-miss of its text (one character different) in the label column.
                 let similar = normalised.indices.filter { line in
                     !labelLines.contains(line) && between(lines[line].box) && abs(lines[line].box.midX - labelX) < 0.1
-                        && nearMiss(normalised[line].characters, Array(key))
+                        && nearMiss(normalised[line].characters, Array(key)) && !knownLabels.contains(normalised[line].key)
                 }
                 if similar.count == 1 { recovered[key] = lines[similar[0]].box; continue }
                 if !similar.isEmpty { continue }
@@ -151,6 +164,13 @@ public enum LabelValueMatcher {
                 let gap = (high - low) / Double(below - above)
                 guard rowStep > 0, abs(gap - rowStep) <= 0.25 * rowStep else { continue }
                 let y = high - gap * Double(index - above)
+                // Every value token between the neighbours must sit on one of the expected rows (a
+                // tall, wrapped label or an extra line breaks the row step).
+                let slots = (above...below).map { high - gap * Double($0 - above) }
+                let stray = tokensOnPhoto.contains { entry in
+                    between(entry.box) && !slots.contains { abs(entry.box.midY - $0) < rowOffsetLimit * gap }
+                }
+                if stray { continue }
                 recovered[key] = Box(x: labelX - 0.05, y: y - labelHeight / 2, width: 0.1, height: labelHeight)
             }
             for (key, value) in recovered { rowBoxes[key] = value }
@@ -172,14 +192,6 @@ public enum LabelValueMatcher {
             return label
         }
 
-        // Every value token on the photo, once.
-        var tokensOnPhoto: [(token: ValueToken, box: Box)] = []
-        for (number, line) in normalised.enumerated() {
-            for token in valueTokens(line.characters) {
-                tokensOnPhoto.append((token, box(Match(line: number, range: line.origin[token.start].lowerBound..<line.origin[token.end - 1].upperBound))))
-            }
-        }
-
         // Table-wide vertical offset (17.11 c): from values whose token is printed exactly once on
         // the photo, on their own located label's side of the neighbours; used only when at least
         // three rows agree within 0.15 of a row and the offset is at least 0.1 of a row.
@@ -196,11 +208,12 @@ public enum LabelValueMatcher {
                     && $0.token.number == wanted[0].number && $0.token.unit == wanted[0].unit }
                 guard same.count == 1 else { continue }
                 let ratio = (same[0].box.midY - own.midY) / stepForOffset
-                if abs(ratio) < 0.75 { ratios[key] = ratio }
+                if abs(ratio) <= 0.45 { ratios[key] = ratio }
             }
             if let centre = median(Array(ratios.values)) {
                 let agreeing = ratios.values.filter { abs($0 - centre) <= 0.15 }
-                if ratios.count >= 3, agreeing.count >= 3, Double(agreeing.count) >= 0.75 * Double(ratios.count), abs(centre) >= 0.1 {
+                if ratios.count >= 3, agreeing.count >= 3, Double(agreeing.count) >= 0.75 * Double(ratios.count), abs(centre) >= 0.1,
+                   abs(centre) <= 0.45 {
                     offset = centre * stepForOffset
                 }
             }
@@ -224,8 +237,9 @@ public enum LabelValueMatcher {
         let headerKeys = headers.map { Normalised($0).key }
         var clusters: [(low: Double, high: Double)]?
         if columnCount > 1, headerBoxes.count < 2 || headerKeys.contains(where: { headerBoxes[$0] == nil }), headers.count == columnCount {
-            let xs = tokensOnPhoto.filter { entry in !entry.token.unit.isEmpty && rowBoxes.keys.contains { rowFit($0, entry.box) == .near } }
-                .map(\.box.midX).sorted()
+            let onRows = tokensOnPhoto.filter { entry in !entry.token.unit.isEmpty && rowBoxes.keys.contains { rowFit($0, entry.box) == .near } }
+            let xs = onRows.map(\.box.midX).sorted()
+            let tokenWidth = median(onRows.map(\.box.width)) ?? 0
             if xs.count >= 2 * columnCount {
                 let gaps = zip(xs, xs.dropFirst()).enumerated().map { (index: $0.offset, size: $0.element.1 - $0.element.0) }
                 let cuts = gaps.sorted { $0.size > $1.size }.prefix(columnCount - 1).map(\.index).sorted()
@@ -243,7 +257,18 @@ public enum LabelValueMatcher {
                         < abs(groups[$1].low - located.midX) + abs(groups[$1].high - located.midX) }
                     if nearestGroup != index { agrees = false }
                 }
-                if groups.count == columnCount, smallestCut > 0.03, smallestCut > 2 * widest, agrees { clusters = groups }
+                // No group may hold two unit tokens of the same row (an omitted column merged in), and
+                // each group must be narrower than about one token.
+                func groupIndex(_ x: Double) -> Int? { groups.firstIndex { x >= $0.low - 1e-9 && x <= $0.high + 1e-9 } }
+                var seen = Set<String>()
+                var twoInOneRow = false
+                for entry in onRows {
+                    guard let row = rowBoxes.keys.sorted().first(where: { rowFit($0, entry.box) == .near }),
+                          let index = groupIndex(entry.box.midX) else { continue }
+                    if !seen.insert("\(row)#\(index)").inserted { twoInOneRow = true }
+                }
+                if groups.count == columnCount, smallestCut > 0.03, smallestCut > 2 * widest, agrees, !twoInOneRow,
+                   widest < max(tokenWidth, 0.01) { clusters = groups }
             }
         }
         func columnIndex(_ query: Query) -> Int? {
@@ -255,8 +280,22 @@ public enum LabelValueMatcher {
             return clusters.indices.min { min(abs(clusters[$0].low - value.midX), abs(clusters[$0].high - value.midX))
                 < min(abs(clusters[$1].low - value.midX), abs(clusters[$1].high - value.midX)) }
         }
-        /// The value's column is confirmed: one value column; or at least two headers located with
-        /// its own among them; or inferred columns and its header's position known.
+        /// Found needs the column confirmed by a located header: one value column; at least two
+        /// headers located with its own among them; or inferred columns that a located header agrees
+        /// with (checked when the groups were accepted) and its header's position known.
+        func columnForFound(_ query: Query) -> Bool {
+            if columnCount <= 1 { return true }
+            if headerBoxes.count > 1, let header = query.headerText.map({ Normalised($0).key }), headerBoxes[header] != nil { return true }
+            return clusters != nil && !headerBoxes.isEmpty && columnIndex(query) != nil
+        }
+        /// Evidence needs columns separated by located headers.
+        func columnByHeaders(_ query: Query) -> Bool {
+            if columnCount <= 1 { return true }
+            guard headerBoxes.count > 1, let header = query.headerText.map({ Normalised($0).key }) else { return false }
+            return headerBoxes[header] != nil
+        }
+        /// The value's column is known enough to narrow candidates: as for found, or inferred columns
+        /// with its header's position known.
         func columnConfirmed(_ query: Query) -> Bool {
             if columnCount <= 1 { return true }
             if headerBoxes.count > 1, let header = query.headerText.map({ Normalised($0).key }), headerBoxes[header] != nil { return true }
@@ -282,12 +321,13 @@ public enum LabelValueMatcher {
         // Evidence against a value that is not found (17.11, attention policy).
         func evidence(_ query: Query) -> Evidence {
             let wanted = valueTokens(Normalised(query.printedText).characters)
-            guard wanted.count == 1, let label = rowKey(query) else { return .none }
+            // Only on a direct row with its column separated by located headers (17.12).
+            guard wanted.count == 1, let label = rowKey(query), directRows.contains(label), columnByHeaders(query) else { return .none }
             let token = wanted[0]
             func equal(_ other: ValueToken) -> Bool {
                 other.comparator == token.comparator && other.number == token.number && other.unit == token.unit
             }
-            if columnConfirmed(query) {
+            do {
                 let inCell = tokensOnPhoto.filter { !$0.token.unit.isEmpty && rowFit(label, $0.box) == .near && inHeader(query, $0.box) }
                 if !inCell.isEmpty, !inCell.contains(where: { equal($0.token) }) { return .conflictingInCell }
             }
@@ -354,7 +394,13 @@ public enum LabelValueMatcher {
                 if near.isEmpty && drifted.isEmpty { continue }
                 let unlisted = columnCount <= 1 && numberTokens(onRow: label).count > (listedPerRow[label] ?? 0)
                 if near.count == 1 && drifted.isEmpty && !unlisted && columnConfirmed(query) {
-                    return First(location: Location(id: query.id, status: .found, region: rounded(near[0])), candidates: near)
+                    // Found needs direct evidence: the row's own label text and, with two or more
+                    // columns, a located header agreeing with the column. Otherwise the single
+                    // candidate is kept as the region to highlight, and the value is ambiguous.
+                    if directRows.contains(label) && columnForFound(query) {
+                        return First(location: Location(id: query.id, status: .found, region: rounded(near[0])), candidates: near)
+                    }
+                    return First(location: Location(id: query.id, status: .ambiguous, region: rounded(near[0])), candidates: near)
                 }
                 return First(location: Location(id: query.id, status: .ambiguous, region: nil), candidates: near + drifted)
             }
@@ -385,6 +431,7 @@ public enum LabelValueMatcher {
                 .sorted { $0.midY > $1.midY }
             guard inOrder, expected.count > 1, expected.count == observed.count, let rank = expected.firstIndex(of: index),
                   result.candidates.contains(observed[rank]), let label = rowKey(query), rowFit(label, observed[rank]) == .near,
+                  directRows.contains(label), columnForFound(query),
                   !(columnCount <= 1 && numberTokens(onRow: label).count > (listedPerRow[label] ?? 0)) else { return result.location }
             return Location(id: query.id, status: .found, region: rounded(observed[rank]))
         }
@@ -393,6 +440,14 @@ public enum LabelValueMatcher {
             return Location(id: location.id, status: location.status, region: location.region, evidence: evidence(query))
         }
     }
+
+    /// Row labels of other nutrients (Taiwan 營養標示 and English tables). A line reading as one of
+    /// these is a different row, never a near-miss of the wanted label (17.12).
+    static let rowLabelVocabulary: [String] = [
+        "熱量", "能量", "蛋白質", "脂肪", "飽和脂肪", "反式脂肪", "碳水化合物", "糖", "添加糖", "膳食纖維", "鈉", "鉀", "鈣", "鐵", "鎂", "鋅", "磷",
+        "膽固醇", "維生素A", "維生素B1", "維生素B2", "維生素B6", "維生素B12", "維生素C", "維生素D", "維生素E", "維生素K", "菸鹼素", "葉酸",
+        "Energy", "Protein", "Fat", "Saturates", "Carbohydrate", "Sugars", "Fibre", "Salt", "Sodium",
+    ]
 
     /// Two label texts differ by exactly one character (a substitution, insertion or deletion),
     /// and the label has at least two characters.
@@ -575,6 +630,12 @@ public enum LabelValueMatcher {
                 let before = start > 0 ? line.characters[start - 1] : nil
                 let after = start + pattern.count < line.characters.count ? line.characters[start + pattern.count] : nil
                 guard admits(rule, before: before, after: after) else { continue }
+                // A label ending in a digit or Latin letter is not found inside a longer one
+                // (維生素B1 is not in 維生素B12; Fat is not in Fatty).
+                if rule == .label, let last = pattern.last, let after {
+                    if isDigit(last) && isDigit(after) { continue }
+                    if last.isASCII && last.isLetter && after.isASCII && after.isLetter { continue }
+                }
                 found.append(Match(line: number, range: line.origin[start].lowerBound..<line.origin[start + pattern.count - 1].upperBound))
             }
         }

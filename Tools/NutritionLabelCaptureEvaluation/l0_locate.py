@@ -130,7 +130,9 @@ def queries(output: dict[str, Any]) -> tuple[list[str], list[dict[str, Any]]]:
     return [h for h in headers.values() if h], found
 
 
-def table_result(row: dict[str, Any], located: dict[str, str], evidence: dict[str, str] | None = None) -> dict[str, Any]:
+def table_result(
+    row: dict[str, Any], located: dict[str, str], evidence: dict[str, str] | None = None, regions: dict[str, bool] | None = None
+) -> dict[str, Any]:
     output, truth = row["candidate"], row["truth"]
     view, report = ce.assisted_view(output, row["label_format"])
     if report["hard_decline"] is not None or view is None:
@@ -153,9 +155,12 @@ def table_result(row: dict[str, Any], located: dict[str, str], evidence: dict[st
             "attention",
             "blocking",
             "silent_blocking",
+            "ambiguous_with_region",
+            "ambiguous_total",
         )
     }
     evidence = evidence or {}
+    regions = regions or {}
     silent_missed = 0
     silent_unblocked = 0
     for i, kind in classes.items():
@@ -165,6 +170,9 @@ def table_result(row: dict[str, Any], located: dict[str, str], evidence: dict[st
         attention = by_locator or by_gate or i in arith
         counts["attention"] += int(attention)
         blocking = by_gate or i in arith or (by_locator and evidence.get(f"cell:{i}") in CONTRADICTING)
+        if status == "ambiguous":
+            counts["ambiguous_total"] += 1
+            counts["ambiguous_with_region"] += int(regions.get(f"cell:{i}", False))
         counts["blocking"] += int(blocking)
         if kind == "correct":
             counts["correct_" + {"found": "found", "not_found": "not_found", "ambiguous": "ambiguous"}[status]] += 1
@@ -212,6 +220,8 @@ def summarise(tables: list[dict[str, Any]]) -> dict[str, Any]:
             "silent_by_locator",
             "silent_by_locator_or_checks",
             "silent_blocking",
+            "ambiguous_total",
+            "ambiguous_with_region",
         )
     }
     blocking = sorted(t["blocking"] for t in pre)
@@ -285,6 +295,7 @@ def run_arm(
                 row,
                 {loc["id"]: loc["status"] for loc in result["locations"]},
                 {loc["id"]: loc.get("evidence", "none") for loc in result["locations"]},
+                {loc["id"]: bool(loc.get("has_region")) for loc in result["locations"]},
             )
         )
     meta = {

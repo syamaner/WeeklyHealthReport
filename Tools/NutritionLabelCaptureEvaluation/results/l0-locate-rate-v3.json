@@ -8,19 +8,21 @@
   "strata": {
     "development_taiwan": {
       "gemini-on": {
+        "ambiguous_total": 39,
+        "ambiguous_with_region": 6,
         "attention_per_table_median": 2,
         "attention_per_table_p90": 9,
-        "correct_ambiguous": 29,
+        "correct_ambiguous": 39,
         "correct_cells": 238,
-        "correct_found": 189,
-        "correct_found_share": 0.7941,
+        "correct_found": 179,
+        "correct_found_share": 0.7521,
         "correct_not_found": 20,
         "evidence_policy": {
           "blocking_per_table_median": 0,
           "blocking_per_table_p90": 3,
           "silent_error_tables_fully_blocked": [],
           "silent_wrong_values_blocking": 0,
-          "tables_with_no_blocking": 8
+          "tables_with_no_blocking": 9
         },
         "photos_missing": [],
         "photos_refused": {},
@@ -53,19 +55,21 @@
         "wrong_flagged": 0
       },
       "luna-off": {
+        "ambiguous_total": 39,
+        "ambiguous_with_region": 6,
         "attention_per_table_median": 2,
         "attention_per_table_p90": 9,
-        "correct_ambiguous": 29,
+        "correct_ambiguous": 39,
         "correct_cells": 229,
-        "correct_found": 185,
-        "correct_found_share": 0.8079,
+        "correct_found": 175,
+        "correct_found_share": 0.7642,
         "correct_not_found": 15,
         "evidence_policy": {
           "blocking_per_table_median": 0,
           "blocking_per_table_p90": 3,
           "silent_error_tables_fully_blocked": [],
           "silent_wrong_values_blocking": 5,
-          "tables_with_no_blocking": 9
+          "tables_with_no_blocking": 10
         },
         "photos_missing": [],
         "photos_refused": {},
@@ -101,19 +105,21 @@
         "wrong_flagged": 0
       },
       "sol-on": {
+        "ambiguous_total": 39,
+        "ambiguous_with_region": 6,
         "attention_per_table_median": 2,
         "attention_per_table_p90": 9,
-        "correct_ambiguous": 29,
+        "correct_ambiguous": 39,
         "correct_cells": 237,
-        "correct_found": 189,
-        "correct_found_share": 0.7975,
+        "correct_found": 179,
+        "correct_found_share": 0.7553,
         "correct_not_found": 19,
         "evidence_policy": {
           "blocking_per_table_median": 0,
           "blocking_per_table_p90": 3,
           "silent_error_tables_fully_blocked": [],
           "silent_wrong_values_blocking": 0,
-          "tables_with_no_blocking": 9
+          "tables_with_no_blocking": 10
         },
         "photos_missing": [],
         "photos_refused": {},
@@ -150,19 +156,21 @@
     },
     "untouched_taiwan": {
       "gemini-on": {
+        "ambiguous_total": 150,
+        "ambiguous_with_region": 10,
         "attention_per_table_median": 6.5,
         "attention_per_table_p90": 17,
-        "correct_ambiguous": 139,
+        "correct_ambiguous": 149,
         "correct_cells": 557,
-        "correct_found": 341,
-        "correct_found_share": 0.6122,
-        "correct_not_found": 77,
+        "correct_found": 334,
+        "correct_found_share": 0.5996,
+        "correct_not_found": 74,
         "evidence_policy": {
           "blocking_per_table_median": 0.0,
           "blocking_per_table_p90": 2,
           "silent_error_tables_fully_blocked": [],
-          "silent_wrong_values_blocking": 1,
-          "tables_with_no_blocking": 22
+          "silent_wrong_values_blocking": 0,
+          "tables_with_no_blocking": 26
         },
         "photos_missing": [],
         "photos_refused": {
@@ -183,7 +191,7 @@
         "serving_lines": 68,
         "serving_lines_found": 39,
         "silent": 4,
-        "silent_blocking": 1,
+        "silent_blocking": 0,
         "silent_by_locator": 4,
         "silent_by_locator_or_checks": 4,
         "silent_error_tables": [
@@ -206,19 +214,21 @@
         "wrong_flagged": 0
       },
       "luna-off": {
+        "ambiguous_total": 183,
+        "ambiguous_with_region": 10,
         "attention_per_table_median": 8,
-        "attention_per_table_p90": 17,
-        "correct_ambiguous": 150,
+        "attention_per_table_p90": 18,
+        "correct_ambiguous": 160,
         "correct_cells": 566,
-        "correct_found": 346,
-        "correct_found_share": 0.6113,
-        "correct_not_found": 70,
+        "correct_found": 339,
+        "correct_found_share": 0.5989,
+        "correct_not_found": 67,
         "evidence_policy": {
           "blocking_per_table_median": 0,
           "blocking_per_table_p90": 5,
           "silent_error_tables_fully_blocked": [],
-          "silent_wrong_values_blocking": 12,
-          "tables_with_no_blocking": 22
+          "silent_wrong_values_blocking": 6,
+          "tables_with_no_blocking": 25
         },
         "photos_missing": [],
         "photos_refused": {
@@ -239,7 +249,7 @@
         "serving_lines": 72,
         "serving_lines_found": 42,
         "silent": 52,
-        "silent_blocking": 12,
+        "silent_blocking": 6,
         "silent_by_locator": 52,
         "silent_by_locator_or_checks": 52,
         "silent_error_tables": [
@@ -268,13 +278,15 @@
         "wrong_flagged": 0
       },
       "sol-on": {
+        "ambiguous_total": 133,
+        "ambiguous_with_region": 10,
         "attention_per_table_median": 7,
         "attention_per_table_p90": 17,
-        "correct_ambiguous": 121,
+        "correct_ambiguous": 131,
         "correct_cells": 564,
-        "correct_found": 347,
-        "correct_found_share": 0.6152,
-        "correct_not_found": 96,
+        "correct_found": 340,
+        "correct_found_share": 0.6028,
+        "correct_not_found": 93,
         "evidence_policy": {
           "blocking_per_table_median": 0,
           "blocking_per_table_p90": 2,
@@ -283,7 +295,7 @@
             "off-taiwan:4711957513876:nutrition_zh.3"
           ],
           "silent_wrong_values_blocking": 2,
-          "tables_with_no_blocking": 21
+          "tables_with_no_blocking": 24
         },
         "photos_missing": [],
         "photos_refused": {

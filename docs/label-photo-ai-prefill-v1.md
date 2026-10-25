@@ -675,3 +675,32 @@ On the 15 development photos v2 finds 79.4% (Gemini), median 2 and p90 9.
 | Silent-error tables fully blocked | 0 of 2 | 2 of 3 | 0 of 5 |
 
 **Reading and recommendation.** Locator v2 is the safe lever: it recovers about half of what the safety rounds took (42.2% to 61.2% found, a median of 11 to 6.5 values to check) while every silent wrong value still needs a check and the sweep stays at zero false found. The alternative policy would remove almost all blocking (median 0), but it lets most silent errors through as soft markers: 3 of Gemini's 4, 2 of Sol's 4 and 40 of Luna's 52 would no longer block Log, because for most of them the matcher sees no contradicting token on the photo, only an absent or unconfirmed one. **Recommendation: adopt locator v2 with the current blocking policy (P12) for v1 of the route.** If the median of 6.5 is still too much, the next lever is presentation, not policy: group the checks by row, show each beside its region, and make "Matches the photo" one tap per row, which the burden measure counts per value. The alternative policy is not recommended unless the owner accepts that most silent errors would rest on the table-level confirmation.
+
+### 17.12 Locator v2 after the #321 review: recovery locates, never confirms (25 October 2026)
+
+The review of #321 (BLOCK) reproduced, for every recovery mechanism of 17.11, a single model error that v2 then confirmed. The guiding principle now in the matcher: **recovery may locate (to zoom and highlight the region) and narrow candidates; "Found on photo" needs direct evidence**, which is the row's own label text located on the photo (once, or once between its located neighbours) and, with two or more columns, a located header agreeing with the column.
+
+- **Offset:** only rows whose value sits within 0.45 of a row of its label contribute, and the centre must be within 0.45 too, so a reading shifted by a whole row can no longer move the table (it was accepted up to 0.75).
+- **Near-miss labels:** a line that is itself a row label of another nutrient (the reading's labels, or a closed vocabulary of Taiwan and English row names such as 維生素B12) is never a near-miss; a label ending in a digit or Latin letter is not found inside a longer one (維生素B1 is not in 維生素B12). Values on near-miss rows are at most ambiguous.
+- **Row-order placement:** values on such rows are at most ambiguous; the placement is refused when any value token between the neighbours sits off the expected row slots (a tall wrapped label).
+- **Inferred columns:** they filter but never confirm; found needs at least one located header agreeing with its inferred group. A group may not hold two unit tokens of one row, and each group must be narrower than about one token width, so an omitted third column cannot merge two.
+- **Evidence** (`elsewhere`, `conflicting_in_cell`) is reported only on rows whose own label is located and columns separated by located headers.
+- When a value has exactly one candidate on an indirect row or an inferred column, it is ambiguous **with its region**, so Confirm can still zoom to it.
+
+Both reviewer harnesses run clean on the pinned matcher: the base sweep (3,297 mutations, 18 findings, all its artefacts) and the attack harness (20 scenarios, A1 to A6, no false found and no false evidence on correct values). The attack scenarios are ported into `FoodLabelPhotoReadingTests` as `LabelValueMatcherAttackTests`; the sweep's recovery baselines now count only directly confirmed values (2/22 with headers unread, 16/22 with labels misread or missing).
+
+**Results, untouched Taiwan at 240 px** ([`results/l0-locate-rate-v3.md`](../Tools/NutritionLabelCaptureEvaluation/results/l0-locate-rate-v3.md), replacing the 17.11 figures):
+
+| | v1 Gemini | v2 Gemini | v2 Sol | v2 Luna |
+|---|---|---|---|---|
+| Correct values found on the photo | 42.2% | 334 / 557 (60.0%) | 340 / 564 (60.3%) | 339 / 566 (59.9%) |
+| Ambiguous values / with a located region | 246 / 0 | 150 / 10 | 133 / 10 | 183 / 10 |
+| Silent wrong values that need a check | 4 of 4 | 4 of 4 | 4 of 4 | 52 of 52 |
+| Tables opening with nothing to check | 1 of 34 | 5 of 34 | 5 of 35 | 5 of 37 |
+| Values to check per table, median / p90 | 11 / 17 | 6.5 / 17 | 7 / 17 | 8 / 18 |
+| Evidence-only policy: silent wrong values still blocking | | 0 of 4 | 2 of 4 | 6 of 52 |
+| Evidence-only policy: blocking items per table, median / p90 | | 0 / 2 | 0 / 2 | 0 / 5 |
+
+Development photos: v2 Gemini finds 75.2%, median 2.
+
+**Reading.** The found rate is almost unchanged by the review (61.2% to 60.0%): most of v2's gain comes from rows whose own label is located and columns a located header confirms, which still count. Recovery now rarely gives a single located candidate on these photos (10 ambiguous values per arm come with a region). The evidence-only policy is weaker than before (it would block none of Gemini's 4 silent wrong values), because evidence is now reported only where it is direct. **The recommendation of 17.11 stands: adopt locator v2 with the current blocking policy.**
