@@ -58,7 +58,18 @@ public actor LabelPhotoReadSession {
         return LabelPhotoSpendPolicy.worstCase(prices) <= LabelPhotoSpendPolicy.perTapLimit ? prices : nil
     }
 
-    public func read(_ image: PreparedLabelImage) async -> Outcome {
+    /// Today's counted reads, or nil when the spend ledger cannot be read (7.1, "Today: n of 30").
+    public func todayReads() -> Int? {
+        let today = LabelPhotoSpendPolicy.dayKey(clock.now(), calendar: calendar)
+        switch ledger.load() {
+        case .absent: return 0
+        case .unreadable: return nil
+        case let .day(day): return LabelPhotoSpendPolicy.current(today: today, stored: day).reads
+        }
+    }
+
+    /// `progress` is told the number of each attempt as it starts (1, 2, 3), for the Retrying copy.
+    public func read(_ image: PreparedLabelImage, progress: (@Sendable (Int) -> Void)? = nil) async -> Outcome {
         // No suspension before this point: a concurrent tap is refused, never interleaved.
         guard !inFlight else { return .failed(.failed) }
         guard !ledgerFailed else { return .failed(.dailyLimit) }
@@ -126,6 +137,7 @@ public actor LabelPhotoReadSession {
             // No time left in the whole-call deadline: no attempt starts.
             guard timeout > 0 else { outcome = .failed(.timedOut); break loop }
             number += 1
+            progress?(number)
             let result = await attempter.attempt(image, timeout: timeout)
             switch result {
             case let .notSent(failure):

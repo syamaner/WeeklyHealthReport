@@ -19,6 +19,8 @@ let package = Package(
         .library(name: "FoodInventoryImport", targets: ["FoodInventoryImport"]),
         .library(name: "FoodBarcodeCapture", targets: ["FoodBarcodeCapture"]),
         .library(name: "FoodLabelTextCapture", targets: ["FoodLabelTextCapture"]),
+        .library(name: "FoodLabelPhotoCapture", targets: ["FoodLabelPhotoCapture"]),
+        .library(name: "FoodLabelPhotoUI", targets: ["FoodLabelPhotoUI"]),
         .library(name: "FoodLedgerArchive", targets: ["FoodLedgerArchive"]),
         .library(name: "FoodLedgerGRDB", targets: ["FoodLedgerGRDB"]),
         .library(name: "FoodLedgerTestSupport", targets: ["FoodLedgerTestSupport"])
@@ -68,6 +70,7 @@ let package = Package(
             dependencies: ["FoodLedgerApplication", "FoodLedgerDomain", "FoodLabelPhotoReading"],
             resources: [.copy("Resources/label-photo-instruction-v1.txt"), .copy("Resources/label-photo-wire-schema-v1.json")]
         ),
+        .target(name: "FoodLabelPhotoUI", dependencies: ["FoodLedgerApplication", "FoodLedgerDomain"]),
         .target(name: "FoodInventoryImport", dependencies: ["FoodLedgerApplication", "FoodLedgerDomain"]),
         .target(
             name: "FoodLedgerGRDB",

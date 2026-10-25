@@ -7,8 +7,11 @@ import FoodLedgerDomain
 public enum PastedLabelFortificationPolicy {
     /// The one scope predicate (C6a): panel admission. Inputs it matches that admission does not
     /// verify are refused at build and at save before any requirement is evaluated.
+    /// The label photo route asks the same question (docs/label-photo-ai-prefill-v1.md 4.2, 17.19),
+    /// so the scope is the label admission composite: a photo candidate is in scope through its
+    /// evidence even while every value it shows is still unknown.
     public static func isPastedLabel(_ input: PopulatedFoodConfirmation, candidate: PopulatedFoodCandidate) -> Bool {
-        PanelSourceAdmission.applies(input, candidate: candidate)
+        LabelSourceAdmission.applies(input, candidate: candidate)
     }
 
     /// C4: every new pasted-label Confirm (a new reading, a re-log or a favourite), or a reopened
