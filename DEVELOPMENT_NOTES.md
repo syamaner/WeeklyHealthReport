@@ -2980,3 +2980,16 @@ Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A): `claude-opus-5-5` USD 
 | Label photo L4 screens, Confirm sections and UI target over the fake route (#316), subagent | 104,070,400 (100,874,406) | 3,195,632 | 165,463 | 104,235,863 | $39.46 |
 
 Boundary: `phase_usage.py --format claude` on the subagent transcript alone, summed over the three windows (USD 2.7532234 + 1.9171006 + 34.7934252 = 39.4637492). Cache writes 3,195,632 5-minute, 0 1-hour. Local Swift and Xcode builds, Vision and the simulator use no API tokens and are not priced. These totals are a cost comparison, not productivity or quality evidence.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label photo L4 follow-up: spend Lows, invariant review, journey QA, rebase and gates (#316), subagent | 31,278,318 (27,965,020) | 3,313,218 | 36,529 | 31,314,847 | $22.89 |
+
+L4 follow-up (WHR-316-2026-10-26-L4): `phase_usage.py --format claude --since 2026-10-25T19:43:56Z --until 2026-10-25T20:32:42Z` on the subagent transcript alone. It starts where the L4 row ends. It covers:
+- the two #326 re-check spend Lows, with the file-ledger contract tests;
+- the seven #327 invariant-review items;
+- the two journey QA Lows;
+- the rebase onto main after #326 merged;
+- 17.19 and every gate on the final tree.
+
+Idle time between reports carries no tokens. Cache writes 3,313,218 5-minute, 0 1-hour; exact USD 22.889994. Same pricing as above; an API-equivalent comparison, not a charge.
