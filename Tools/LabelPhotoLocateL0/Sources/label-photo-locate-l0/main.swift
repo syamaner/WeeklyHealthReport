@@ -19,6 +19,7 @@ struct Job: Decodable {
     let id: String
     let image_path: String
     let headers: [String]
+    let column_count: Int
     let queries: [Query]
 }
 
@@ -37,12 +38,12 @@ struct Refusal: Error { let reason: String; init(_ reason: String) { self.reason
 
 enum Preparation {
     static let longEdge = 2048.0, maxPixels = 3_200_000.0, maxBytes = 1_500_000
-    /// 480 px is E3; `L0_MIN_SHORT_EDGE` overrides it for a sensitivity run only.
-    static let minShortEdge = Double(ProcessInfo.processInfo.environment["L0_MIN_SHORT_EDGE"] ?? "") ?? 480
+    /// 240 px is P5 as decided after L0 (480 px in the first L0 run); `L0_MIN_SHORT_EDGE` overrides it for a comparison run only.
+    static let minShortEdge = Double(ProcessInfo.processInfo.environment["L0_MIN_SHORT_EDGE"] ?? "") ?? 240
     static let qualities = [0.85, 0.75, 0.65]
 
     /// E3: orientation applied to pixels, sRGB, long edge <= 2,048 px and <= 3.2 MP, JPEG with no
-    /// metadata dictionary, quality ladder 0.85 / 0.75 / 0.65, <= 1,500,000 bytes, short edge >= 480.
+    /// metadata dictionary, quality ladder 0.85 / 0.75 / 0.65, <= 1,500,000 bytes, short edge >= 240 (P5).
     static func prepare(_ data: Data) -> Swift.Result<(Data, Int, Int, Double), Refusal> {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil),
               let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
@@ -115,7 +116,8 @@ for job in jobs {
     let (lines, texts) = try recognise(jpeg)
     let queries = job.queries.map { LabelValueMatcher.Query(id: $0.id, rowLabel: $0.row_label, headerText: $0.header_text, printedText: $0.printed_text) }
     let rowLabels = Array(Set(job.queries.compactMap(\.row_label))).sorted()
-    let located = LabelValueMatcher.locate(queries, lines: lines, headers: job.headers, rowLabels: rowLabels) { index, range in
+    let located = LabelValueMatcher.locate(queries, lines: lines, headers: job.headers, rowLabels: rowLabels,
+                                           columnCount: job.column_count) { index, range in
         guard let box = try? texts[index].boundingBox(for: range)?.boundingBox else { return nil }
         return .init(x: box.minX, y: box.minY, width: box.width, height: box.height)
     }

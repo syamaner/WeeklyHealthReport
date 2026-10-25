@@ -2,6 +2,8 @@
 
 Status: **offline measurement, 25 October 2026. No model, provider or network call.** Phase L0 of [label photo AI pre-fill v1](../../../docs/label-photo-ai-prefill-v1.md) (sections 6.1, 17.6 and 17.9). Machine-readable counts and case IDs only: [`l0-locate-rate-v1.json`](l0-locate-rate-v1.json), written by [`../l0_locate.py`](../l0_locate.py).
 
+**Matcher version note.** These counts were measured with the **pre-L1a** matcher, the `LabelValueMatcher.swift` of commit `9974dd3a` (merged in PR #319 as `3f7f06f3`). L1a changed that file before anything shipped while keeping the identifier `label-photo-vision-locate-v1`, so v1 and [v2](l0-locate-rate-v2.md) results carry the same locator version string but come from different matcher code; v2 records the one pinned in the package.
+
 ## Method
 
 - **Answers:** the saved route C outputs of the untouched Taiwan run (40 photos; Gemini 4 Argon reasoning on, GPT-6.1 Sol reasoning on, GPT-6 Luna reasoning off) and the 15 usable Taiwan development photos, as `correction_effort.py` loads them, in its **assisted** view (the product design: only the route's own decline, a failed output, G1 and G2 decline).

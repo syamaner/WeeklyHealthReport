@@ -2820,3 +2820,22 @@ Pricing uses the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M b
 Boundary: `phase_usage.py --format claude --since 2026-10-25T04:09:05Z --until 2026-10-25T04:49:44Z` on the subagent transcript alone. Cache writes: 921,339 5-minute, 0 1-hour. Exact API-equivalent USD 10.7017902. Local Vision and Swift builds use no API tokens and are not priced.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-316-2026-10-25-L1A: Claude Code label photo L0 folds and L1a matcher
+
+The same `claude-opus-5-5` subagent as WHR-316-2026-10-25, transcript `subagents/agent-aada712dd743c7b94.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`. Two windows, both bounded by `date -u` captures: the PR #319 commit, push and PR, the review folds and the wait for its merge (`2026-10-25T04:49:44Z` to `2026-10-25T05:13:29Z`); then L1a from a new branch off `main` (`2026-10-25T05:13:29Z` to `2026-10-25T05:37:41Z`, just before this ledger edit): the matcher ambiguity changes and tests, the L0 re-run at 240 px with local Vision, the package target with its hash pin, the boundary script and its fixtures, the spec and results, and every gate. The commit after this edit, the push and the PR are outside the windows. The orchestrating session and its reviewers are not included.
+
+Pricing checked 25 October 2026: [official model rates](https://platform.claude.com/docs/en/about-claude/pricing), `claude-opus-5-5` USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache hit, 20/M output, unchanged from WHR-296-2026-10-23. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label photo L0 PR and review folds (#316), subagent | 6,515,793 (6,082,158) | 433,599 | 11,808 | 6,527,601 | $3.62 |
+| Label photo L1a matcher and L0 re-run (#316), subagent | 19,943,982 (19,394,608) | 549,286 | 39,709 | 19,983,691 | $7.42 |
+| Label photo L1a PR, paused L1b start and invariant-review fix (#316), subagent | 23,321,780 (22,191,124) | 1,130,568 | 55,315 | 23,377,095 | $11.20 |
+| Label photo L1a re-check fix: row distance limit and unlisted column (#316), subagent | 18,327,635 (16,489,520) | 1,838,051 | 30,977 | 18,358,612 | $13.11 |
+| Label photo L1a re-check fix: own row label must be located (#316), subagent | 14,407,255 (13,102,683) | 1,304,524 | 18,598 | 14,425,853 | $9.52 |
+| Label photo L1a final re-check fix: value tokens and the mutation sweep (#316), subagent | 24,497,174 (22,292,293) | 2,204,805 | 46,389 | 24,543,563 | $16.41 |
+
+Boundaries: `phase_usage.py --format claude --since 2026-10-25T04:49:44Z --until 2026-10-25T05:13:29Z` and `--since 2026-10-25T05:13:29Z --until 2026-10-25T05:37:41Z` on the subagent transcript alone. Cache writes: 433,599 and 549,286 5-minute, 0 1-hour. Exact API-equivalent USD 3.6207306 and 7.4198836. Third window: `--since 2026-10-25T05:37:41Z --until 2026-10-25T06:03:51Z`, just before this edit: the L1a commit, push and PR #320, the start of L1b (pure policies, parked as a local WIP commit when the review arrived), and the fix for the #320 invariant review (BLOCK) with its L0 re-run, the pricing re-check and every gate. Cache writes 1,130,568 5-minute, 0 1-hour; exact USD 11.1977168. Fourth window: `--since 2026-10-25T06:03:51Z --until 2026-10-25T07:52:33Z`, just before this edit: the ledger commit and PR update for the previous fix, the wait for the re-check, the row distance limit and unlisted-column rule with their tests, the L0 re-run and two uncommitted comparison runs, and every gate. Cache writes 1,838,051 5-minute, 0 1-hour; exact USD 13.107955. Fifth window: `--since 2026-10-25T07:52:33Z --until 2026-10-25T08:24:33Z`, just before this edit: the previous ledger commit and PR update, the own-label rule with its tests, the L0 re-run and every gate. Cache writes 1,304,524 5-minute, 0 1-hour; exact USD 9.5153086. Sixth window: `--since 2026-10-25T08:24:33Z --until 2026-10-25T09:05:21Z`, just before this edit: the previous ledger commit and PR update, the token-based matcher with its regression tests, the reviewer's sweep (run locally on synthetic data) and its port into the package tests, the L0 re-run and one uncommitted comparison run, and every gate. Cache writes 2,204,805 5-minute, 0 1-hour; exact USD 16.4105676. Local Vision and Swift builds use no API tokens and are not priced.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

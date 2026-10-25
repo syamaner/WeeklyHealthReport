@@ -57,6 +57,10 @@ let package = Package(
             name: "FoodLabelTextCapture",
             dependencies: ["FoodLedgerDomain", "FoodLedgerApplication", "NutritionLabelParsing"]
         ),
+        // Label photo AI pre-fill reader (#316, docs/label-photo-ai-prefill-v1.md 12.1 and 17.2):
+        // pure, Foundation only so far (the on-device value matcher); wired only at the
+        // composition root once it has a port to serve.
+        .target(name: "FoodLabelPhotoReading"),
         .target(name: "FoodInventoryImport", dependencies: ["FoodLedgerApplication", "FoodLedgerDomain"]),
         .target(
             name: "FoodLedgerGRDB",
@@ -80,6 +84,7 @@ let package = Package(
             // Parity vectors exported from the frozen Python reference (#93, pasted label PR 1).
             resources: [.copy("Fixtures")]
         ),
+        .testTarget(name: "FoodLabelPhotoReadingTests", dependencies: ["FoodLabelPhotoReading"]),
         .testTarget(
             name: "FoodLabelTextCaptureTests",
             dependencies: [
