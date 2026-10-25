@@ -3012,3 +3012,14 @@ Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A): `claude-opus-5-5` USD 
 | Label photo servings by default and L5 obligation note (#316), subagent | 26,394,199 (21,918,136) | 4,476,001 | 22,056 | 26,416,255 | $27.21 |
 
 Boundary: `phase_usage.py --format claude --since 2026-10-25T20:34:59Z --until 2026-10-25T21:35:14Z` on the subagent transcript alone. Cache writes 4,476,001 5-minute, 0 1-hour; exact USD 27.2050002. Local Swift and Xcode builds and the simulator use no API tokens and are not priced. These totals are a cost comparison, not productivity or quality evidence.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label photo servings review fold: favourites, saved serving size, saved source and fortification copy (#316), subagent | 23,103,030 (20,316,023) | 2,786,957 | 18,150 | 23,121,180 | $18.36 |
+
+Servings review fold (WHR-316-2026-10-26-SERVINGS): `phase_usage.py --format claude --since 2026-10-25T21:38:23Z --until 2026-10-25T22:06:57Z` on the subagent transcript alone. It covers:
+- the #328 review items: favourites through the composite, the saved serving size from the photo projection, the wider pasted-unchanged test and the 17.20 correction;
+- the journey QA copy fixes: the Source row and the label fortification;
+- their tests and every gate.
+
+The window between 21:35:14Z and 21:38:23Z (pushing and opening #328) is outside both rows. Cache writes 2,786,957 5-minute, 0 1-hour; exact USD 18.3611896. Same pricing as above; an API-equivalent comparison, not a charge.
