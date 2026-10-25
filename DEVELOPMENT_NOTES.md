@@ -2881,4 +2881,25 @@ Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A): `claude-opus-5-5` USD 
 
 Boundary: `phase_usage.py --format claude --since 2026-10-25T12:51:02Z --until 2026-10-25T13:10:28Z` on the subagent transcript alone. Cache writes 328,010 5-minute, 0 1-hour; exact USD 3.6060436. Review round 1: `--since 2026-10-25T13:10:28Z --until 2026-10-25T13:49:38Z`, just before this edit: the L1d commits, rebase, push and PR #322, the start of L1b on `main` (reading the spec and the pasted source, fixing the two parked tests), then the G1, G2 and C1 fixes with their regression tests, every reviewer harness (rounds 2 to 7, the round-7 harness in four base modes and both sweeps), the L0 v4 re-run and every gate. The L1b part is not separated out. Cache writes 1,016,506 5-minute, 0 1-hour; exact USD 11.9832182. Review round 2: `--since 2026-10-25T13:49:38Z --until 2026-10-25T14:12:41Z`, just before this edit: the round-1 commits, push and report, L1b's wire mapping port with its parity vectors (not separated out; it falls inside this window), then the H4 and H1 fixes with their regression tests, every reviewer harness, the L0 v4 re-run and every gate. Cache writes 586,090 5-minute, 0 1-hour; exact USD 7.676242. Review round 3: `--since 2026-10-25T14:12:41Z --until 2026-10-25T14:42:32Z`, just before this edit: the round-2 commits, push and report, L1b's reader, manifest, source, serving, admission and ports (not separated out; they fall inside this window), then the I1, I3b and I4b fixes with their regression tests, every reviewer harness, the L0 v4 re-run and every gate. Cache writes 765,003 5-minute, 0 1-hour; exact USD 12.0714432. Local Vision and Swift builds use no API tokens and are not priced.
 
+## WHR-316-2026-10-25-L1B: Claude Code label photo pure core
+
+The same `claude-opus-5-5` subagent and transcript as WHR-316-2026-10-25-L1C, for #316 phase L1b, resumed from `main` while #322 was under review. Its own window is bounded by `date -u` captures, `2026-10-25T14:42:32Z` to `2026-10-25T15:21:33Z`, just before this ledger edit. It covers:
+- the manifest fixtures and contract tests (codec golden, verifier rules, attention recomputation, cross-route, admission and serving parity);
+- the prepared-image tests and the split of admission into its own file;
+- the photo freeze pins and the spec section;
+- squashing the work and rebasing it onto `main` after #322 merged, with conflicts resolved and locator v3 admitted;
+- every gate.
+
+L1b's earlier work falls inside the WHR-316-2026-10-25-L1D review rows for rounds 1 to 3, as their notes say: the two parked tests, the wire mapping and its parity vectors, the reader, manifest, source, serving, admission and ports. The commit after this edit, the push and the PR are outside the window. The orchestrating session and its reviewers are not included.
+
+Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A): `claude-opus-5-5` USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache hit, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label photo L1b pure core (#316), subagent | 38,310,522 (36,808,128) | 1,502,282 | 52,264 | 38,362,786 | $15.92 |
+| Label photo L1b invariant-review fix: left unknown, daily cap, ledger states (#316), subagent | 21,499,472 (19,221,912) | 2,277,500 | 25,775 | 21,525,247 | $15.75 |
+| Label photo L1b re-check fix: repeated rows, E10 charge, factory (#316), subagent | 17,866,428 (17,044,566) | 821,812 | 23,508 | 17,889,936 | $7.99 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-25T14:42:32Z --until 2026-10-25T15:21:33Z` on the subagent transcript alone. Cache writes 1,502,282 5-minute, 0 1-hour; exact USD 15.9187636. Invariant-review fix: `--since 2026-10-25T15:21:33Z --until 2026-10-25T15:50:21Z`, just before this edit: the L1b commit, push, PR #323 and report, then the left-unknown verifier rule with its regression tests, the daily cap, the per-attempt worst-case charge, the ledger's three states, the moved-back clock, the closed schema, media type and check names, the boundary rule for `PreparedLabelImage`, the retry timeout, the spec section and every gate. Cache writes 2,277,500 5-minute, 0 1-hour; exact USD 15.7476224. Re-check fix: `--since 2026-10-25T15:50:21Z --until 2026-10-25T16:04:55Z`, just before this edit: the previous commits, push and report, then the repeated-row projection and conversion rule with their tests, the E10 charge restored, the attention time bounds, the prepared-image factory and boundary rule, the spec bullets and every gate. Cache writes 821,812 5-minute, 0 1-hour; exact USD 7.9883332. Local Swift builds and the private parity run use no API tokens and are not priced.
+
 Token totals are not evidence of productivity, quality or provider efficiency.
