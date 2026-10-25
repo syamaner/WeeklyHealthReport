@@ -1098,3 +1098,77 @@ Before the route is enabled, L5 also confirms the ZDR listing's live field names
 - **One session per process.** The composition root holds a single `LabelPhotoReadSession`, shared by every scene. It is built in L4, with its test, where the route is first wired. With the atomic update, two sessions are already correct, so this is a second line of defence.
 - **The final write (low).** A failed reconcile or release write is retried once. If it fails again, the reservation stays and the route closes for the session.
 - **The residual window (accepted).** The reservation counts $0.05. If the app is killed after a reply that reported more than $0.05, or more than 6,000 prompt tokens, but before the reconcile, the day keeps $0.05 and is not paused. This needs the provider to exceed the worst case W, which the catalogue prices and `max_tokens` bound, so it is accepted.
+
+### 17.19 L4: the label photo screens over the fake route (26 October 2026, no egress)
+
+**The route stays off.** The Add food row "Photo of nutrition label" appears only when the app is launched with `-LabelPhotoRoute <scenario>`, and then only with the scripted fake transport (`ScriptedLabelPhotoTransport`), which never touches the network. Every other launch, including a shipped build, has no row and no read flow. L5 wires the live transport with the egress records (E16).
+
+**What L4 adds.**
+
+- **`FoodLabelPhotoUI`** is a new iOS-only target. It holds:
+  - Take photo, through the system camera;
+  - Choose from library, through the out-of-process PhotosPicker, with no library permission prompt;
+  - the crop screen, which returns a pure `LabelCropRect`: 44 pt corner handles, drag to move, pinch to scale, and Rotate in quarter turns;
+  - the zoomable photo pane: pinch from 1x to 8x, pan while zoomed in (so a swipe on the fitted photo still scrolls Confirm), double-tap between fit and 3x, Fit and Full screen;
+  - the highlight: a 2 pt accent outline plus a white-backed caption, so it never relies on colour alone;
+  - VoiceOver: the pane is one adjustable element (swipe up or down to zoom, three-finger scroll to pan);
+  - the synthetic label renderer for the fake route.
+
+  Its boundary rules:
+  - It imports only `AVFoundation`, Foundation, the application, the domain, PhotosUI, SwiftUI and UIKit.
+  - Only the composition root and its own tests import it.
+  - AVFoundation is confined to the source buttons, for the camera's authorisation status only.
+  - It never loads a URL.
+- **Presentation** gains:
+  - `LabelPhotoText`, with every 7.1 to 7.3 string and the copy for every failure, preparation and decline code;
+  - `LabelPhotoScreenModel` and its view;
+  - `LabelPhotoSourceModel` and Confirm's "Label photo" and "Nutrition from the photo" sections, in the 4.2 order;
+  - the saved entry's label photo section.
+
+  Presentation still imports no platform framework: the platform views come through a presentation-owned `LabelPhotoViewFactory` that the composition root implements with `FoodLabelPhotoUI`.
+- **Confirm:**
+  - While any attention item is unresolved, Confirm shows a display-only preview in which unresolved values count as unknown, never as the read number.
+  - Its new `sourceBlocker` disables Log and states "Check the n highlighted values against the photo.", after any requirement's sentence.
+  - The Log path itself refuses an unresolved review, and Log goes through the atomic `saveLabelPhoto`.
+  - Fortification is asked exactly as on the pasted route. Its scope predicate is now the label admission composite, so a photo candidate is in scope through its evidence even while its values are unknown.
+- **The file-backed spend ledger** (`FileLabelPhotoSpendLedger`) is one JSON file. Each update is a read-modify-write under `NSFileCoordinator` and an in-process lock, with an atomic, complete-protection write. It sits beside the attachments root under the backup-excluded health-data directory (test 24).
+- **One read session per ledger per process.** The composition root holds the flow in a process-wide registry keyed by the ledger file, shared by every screen and scene, with a test (the #326 re-check).
+- **The saved entry** shows:
+  - the photo, when it is on this device (otherwise "The photo is not on this device.");
+  - "Read by Gemini 4 Argon on Google Vertex through OpenRouter, <date>; checked by you";
+  - each resolved value's state.
+
+**Decisions taken in L4** (the first five were accepted by the coordinator):
+
+1. **No XCUITest target.** The repository has none. The simulator journeys run through launch arguments with the iOS Simulator tools, and view-model tests cover the states; journey-qa walks them.
+2. **The fake route's photo source** yields the rendered synthetic label (`LabelPhotoSyntheticLabel`, drawn in PingFang TC), because a test cannot seed the simulator's photo library. The real PhotosPicker and camera remain for manual checks.
+3. **AVFoundation** is allowed in `FoodLabelPhotoUI` only, for the camera's authorisation status.
+4. **Codes 7.2 and 7.3 do not word** take the closest named sentence, adapted to a photo:
+   - the other table declines;
+   - the kJ to kcal and sub-row checks;
+   - a gate-flagged value: "Flagged when read. Check it.";
+   - a photo that cannot be opened;
+   - an invalid correction.
+5. **`NWPathMonitor` ships with L5's live transport.** In L4, offline is a launch argument (`-LabelPhotoOffline YES`), as are the key states (`-LabelPhotoKey missing|unvalidated`).
+6. **A stored region is in Vision's coordinates, origin bottom left** (17.17). `LabelPhotoFocus.Rect` flips it for the pane, which draws from the top left.
+7. **"Correct" follows the builder's pasted rules** (17.18): only the stored column and the serving size. Other values offer Matches the photo and Leave unknown.
+8. **A check item names the values it covers** under its sentence, so two per-serving items can be told apart. Once every item is resolved the attention count is no longer shown.
+9. **Amount eaten.** In L4, photo entries are logged by weight (or the other existing units). Servings by default when a serving is read (4.2 item 3) need `LabelPhotoServingPolicy` wired into the confirmation state's serving policy. It is a follow-up before L5, recorded here rather than added to this phase.
+
+**What the simulator walk showed (fake route, scenario `answer`, iPhone 17 Pro):**
+
+- The Add food row and its subtitle appear.
+- The synthetic label opens on the crop screen; a corner drags, and Use crop prepares the crop.
+- With the name empty, Read label with AI is disabled under the egress statement, which reads "Today: n of 30 reads".
+- The first read shows the one-time sheet; Send photo reads.
+- On Confirm:
+  - Fortification is asked as on the pasted route.
+  - The two scripted misreads, with the energy and per-serving checks they fail, give 7 attention items, and the pinned bar names them.
+  - Matches the photo, "I've checked them" and No each update the state in words.
+  - Log is enabled only after the last item and an amount.
+- Log saved once (111 kcal at 30 g).
+- The saved entry shows the photo, the "Read by …; checked by you" line and the per-value states.
+- Re-log from Recent opens Confirm on the verified stored manifest.
+- At AX5 the Add food row and the Label photo screen wrap without truncation.
+
+The highlight position was fixed after the walk (decision 6) and is covered by a unit test. journey-qa should confirm it visually, along with the remaining 7.2 states through the other scenarios.

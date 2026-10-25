@@ -11,13 +11,16 @@ struct SavedFoodEntryView: View {
     @StateObject private var favourites: FavouriteSaveModelBox
     private let calendar: Calendar
     private let now: () -> Date
+    /// The logged label photo's bytes, read from the protected attachments directory.
+    private let photoBytes: (AttachmentDescriptor) -> Data?
     @State private var showsEdit = false
     @State private var misreadReport: PastedLabelMisreadPreviewModel?
     @Environment(\.dismiss) private var dismiss
 
     init(model: @autoclosure @escaping () -> SavedFoodEntryViewModel,
          favourites: @autoclosure @escaping () -> FavouriteSaveModel? = nil,
-         calendar: Calendar, now: @escaping () -> Date) {
+         calendar: Calendar, now: @escaping () -> Date, photoBytes: @escaping (AttachmentDescriptor) -> Data? = { _ in nil }) {
+        self.photoBytes = photoBytes
         _model = StateObject(wrappedValue: model())
         _favourites = StateObject(wrappedValue: FavouriteSaveModelBox(favourites()))
         self.calendar = calendar
@@ -107,6 +110,7 @@ struct SavedFoodEntryView: View {
             }
             nutrition(detail)
             if detail.pastedLabel != nil { pastedLabel(detail) }
+            if detail.labelPhoto != nil { labelPhoto(detail) }
             if let saving = favourites.model, !detail.isPlainWater {
                 FavouriteSaveSection(model: saving, logItemVersionID: detail.logItemVersionID)
             }
@@ -128,6 +132,22 @@ struct SavedFoodEntryView: View {
                 Button("Remove from log", role: .destructive) { model.confirmsRemoval = true }
                     .frame(minHeight: 44)
             } footer: { Text(FoodLogText.savedEntryFootnote) }
+        }
+    }
+
+    /// A logged label photo (#316): the photo when it is on this device, who read it, and how
+    /// each checked value was resolved.
+    @ViewBuilder
+    private func labelPhoto(_ detail: SavedFoodEntryDetail) -> some View {
+        Section(LabelPhotoSavedEntryText.sectionTitle) {
+            if let descriptor = detail.labelPhotoAttachment, let bytes = photoBytes(descriptor), let image = UIImage(data: bytes) {
+                Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 240)
+                    .accessibilityLabel("Label photo")
+            } else {
+                Text(LabelPhotoText.photoNotOnDevice).font(.subheadline).foregroundStyle(.secondary)
+            }
+            if let line = LabelPhotoSavedEntryText.sourceLine(detail) { Text(line).font(.subheadline) }
+            ForEach(LabelPhotoSavedEntryText.stateLines(detail), id: \.self) { Text($0).font(.caption) }
         }
     }
 

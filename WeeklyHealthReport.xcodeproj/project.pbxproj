@@ -14,6 +14,7 @@
 		F1940000000000000000001A /* SettingsContributionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000019 /* SettingsContributionTests.swift */; };
 		F19400000000000000000018 /* AppNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000017 /* AppNavigationTests.swift */; };
 		F19700000000000000000007 /* FoodLogAppTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19700000000000000000006 /* FoodLogAppTests.swift */; };
+		F31600000000000000000002 /* LabelPhotoCompositionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F31600000000000000000001 /* LabelPhotoCompositionTests.swift */; };
 		F09300000000000000000402 /* PastedLabelRouteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F09300000000000000000401 /* PastedLabelRouteTests.swift */; };
 		F19400000000000000000016 /* FoodLedgerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000015 /* FoodLedgerSettings.swift */; };
 		F19400000000000000000014 /* DeveloperToolsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000013 /* DeveloperToolsSettingsView.swift */; };
@@ -134,6 +135,8 @@
 		P0000000000000000000000E /* FoodGenericSearch in Frameworks */ = {isa = PBXBuildFile; productRef = X0000000000000000000000E /* FoodGenericSearch */; };
 		P0000000000000000000000F /* FoodInventoryImport in Frameworks */ = {isa = PBXBuildFile; productRef = X0000000000000000000000F /* FoodInventoryImport */; };
 		P00000000000000000000010 /* FoodLabelTextCapture in Frameworks */ = {isa = PBXBuildFile; productRef = X00000000000000000000010 /* FoodLabelTextCapture */; };
+		P00000000000000000000011 /* FoodLabelPhotoCapture in Frameworks */ = {isa = PBXBuildFile; productRef = X00000000000000000000011 /* FoodLabelPhotoCapture */; };
+		P00000000000000000000012 /* FoodLabelPhotoUI in Frameworks */ = {isa = PBXBuildFile; productRef = X00000000000000000000012 /* FoodLabelPhotoUI */; };
 		A00000000000000000000071 /* LocalHealthStorageDirectory.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000071 /* LocalHealthStorageDirectory.swift */; };
 		A00000000000000000000072 /* PrivacyPolicyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000072 /* PrivacyPolicyView.swift */; };
 		A00000000000000000000073 /* privacy-policy.txt in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000073 /* privacy-policy.txt */; };
@@ -171,6 +174,7 @@
 		F19400000000000000000019 /* SettingsContributionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsContributionTests.swift; sourceTree = "<group>"; };
 		F19400000000000000000017 /* AppNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNavigationTests.swift; sourceTree = "<group>"; };
 		F19700000000000000000006 /* FoodLogAppTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodLogAppTests.swift; sourceTree = "<group>"; };
+		F31600000000000000000001 /* LabelPhotoCompositionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabelPhotoCompositionTests.swift; sourceTree = "<group>"; };
 		F09300000000000000000401 /* PastedLabelRouteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PastedLabelRouteTests.swift; sourceTree = "<group>"; };
 		F19400000000000000000015 /* FoodLedgerSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodLedgerSettings.swift; sourceTree = "<group>"; };
 		F19400000000000000000013 /* DeveloperToolsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperToolsSettingsView.swift; sourceTree = "<group>"; };
@@ -321,6 +325,8 @@
 				P0000000000000000000000E /* FoodGenericSearch in Frameworks */,
 				P0000000000000000000000F /* FoodInventoryImport in Frameworks */,
 				P00000000000000000000010 /* FoodLabelTextCapture in Frameworks */,
+				P00000000000000000000011 /* FoodLabelPhotoCapture in Frameworks */,
+				P00000000000000000000012 /* FoodLabelPhotoUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -479,6 +485,7 @@
 				F19400000000000000000019 /* SettingsContributionTests.swift */,
 				F19400000000000000000017 /* AppNavigationTests.swift */,
 				F19700000000000000000006 /* FoodLogAppTests.swift */,
+				F31600000000000000000001 /* LabelPhotoCompositionTests.swift */,
 				F09300000000000000000401 /* PastedLabelRouteTests.swift */,
 				F20000000000000000000009 /* DailyExportPhaseTests.swift */,
 				F21700000000000000000003 /* DailyExportIncludedSummaryTests.swift */,
@@ -612,6 +619,8 @@
 				X0000000000000000000000E /* FoodGenericSearch */,
 				X0000000000000000000000F /* FoodInventoryImport */,
 				X00000000000000000000010 /* FoodLabelTextCapture */,
+				X00000000000000000000011 /* FoodLabelPhotoCapture */,
+				X00000000000000000000012 /* FoodLabelPhotoUI */,
 			);
 			productName = WeeklyHealthReport;
 			productReference = B0000000000000000000000C /* WeeklyHealthReport.app */;
@@ -828,6 +837,7 @@
 				F1940000000000000000001A /* SettingsContributionTests.swift in Sources */,
 				F19400000000000000000018 /* AppNavigationTests.swift in Sources */,
 				F19700000000000000000007 /* FoodLogAppTests.swift in Sources */,
+				F31600000000000000000002 /* LabelPhotoCompositionTests.swift in Sources */,
 				F09300000000000000000402 /* PastedLabelRouteTests.swift in Sources */,
 				F2000000000000000000000A /* DailyExportPhaseTests.swift in Sources */,
 				F21700000000000000000004 /* DailyExportIncludedSummaryTests.swift in Sources */,
@@ -1088,6 +1098,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = X00000000000000000000008 /* XCLocalSwiftPackageReference "Packages/FoodLedgerKit" */;
 			productName = FoodLabelTextCapture;
+		};
+		X00000000000000000000011 /* FoodLabelPhotoCapture */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = X00000000000000000000008 /* XCLocalSwiftPackageReference "Packages/FoodLedgerKit" */;
+			productName = FoodLabelPhotoCapture;
+		};
+		X00000000000000000000012 /* FoodLabelPhotoUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = X00000000000000000000008 /* XCLocalSwiftPackageReference "Packages/FoodLedgerKit" */;
+			productName = FoodLabelPhotoUI;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
