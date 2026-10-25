@@ -2782,3 +2782,18 @@ Boundary: `phase_usage.py --format claude --since 2026-10-24T13:16:33Z --until 2
 Review fold-in: `phase_usage.py --format claude --since 2026-10-24T15:58:13Z --until 2026-10-24T16:21:37Z` on the implementation transcript. It includes the first commit, push and PR #314, and then the coordinator's review points: favourites matched on source, preparation and amount, one read per list refresh, and the docs index and section groups notes. It also covers a gate rerun in which the simulator-backed `xcodebuild` gates were blocked by a CoreSimulator version mismatch. Cache writes: 398,717 5-minute, 0 1-hour. Exact API-equivalent USD 5.811127. Same rates.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-316-2026-10-25: Claude Code label photo AI pre-fill spec and L0
+
+One subagent transcript (`subagents/agent-aada712dd743c7b94.jsonl`) for #316: the design spec, egress checklist and architecture gate, the owner approval and gate amendments, and phase L0 (offline locate-rate measurement, no egress). The two spec passes before L0 (heads `3b950f72` and `563f4603`) ran without a captured boundary and are recorded as Unmeasured. The L0 window runs from `2026-10-25T04:09:05Z` (captured with `date -u` at the start) to `2026-10-25T04:49:44Z`, just before this ledger edit (UTC): the re-check clarifications, the L0 Swift and Python tooling, the local Vision runs, the results, and the full gate run. The commit after the ledger edit, the push and the PR are outside the window. The orchestrating session and the architecture-gate reviewer are not included.
+
+Pricing uses the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output); they were not re-checked on the day of this entry. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label photo spec, egress checklist and gate amendments (#316), subagent | Unmeasured | Unmeasured | Unmeasured | Unmeasured | Unmeasured |
+| Label photo L0 locate rate and re-check clarifications (#316), subagent | 24,673,517 (23,752,036) | 921,339 | 67,206 | 24,740,723 | $10.70 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-25T04:09:05Z --until 2026-10-25T04:49:44Z` on the subagent transcript alone. Cache writes: 921,339 5-minute, 0 1-hour. Exact API-equivalent USD 10.7017902. Local Vision and Swift builds use no API tokens and are not priced.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
