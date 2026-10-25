@@ -134,11 +134,21 @@ final class LabelPhotoSpendPolicyTests: XCTestCase {
         day = record([.init(reportedCost: Decimal(string: "0.01"), promptTokens: 2_000)], today, day)
         XCTAssertEqual(day.reads, 30)
         XCTAssertEqual(S.admission(today: today, stored: .day(day)), .limitReached)
-        // An attempt with no reported cost is charged its worst case W ($0.024) on top of the
-        // reported costs, never zero.
+        // E10 and test 10: a read with no reported cost counts $0.05; with reported costs as well it
+        // counts the larger of $0.05 and those costs plus W ($0.024) per unreported attempt.
+        XCTAssertEqual(record([.init(reportedCost: nil, promptTokens: nil)], today, nil).cost, Decimal(string: "0.05"))
         let mixed = record([.init(reportedCost: Decimal(string: "0.01"), promptTokens: 2_000), .init(reportedCost: nil, promptTokens: nil)],
                            today, nil)
-        XCTAssertEqual(mixed.cost, Decimal(string: "0.034"))
+        XCTAssertEqual(mixed.cost, Decimal(string: "0.05"), "max(0.05, 0.034)")
+        let costly = record([.init(reportedCost: Decimal(string: "0.03"), promptTokens: 2_000), .init(reportedCost: nil, promptTokens: nil)],
+                            today, nil)
+        XCTAssertEqual(costly.cost, Decimal(string: "0.054"), "max(0.05, 0.054)")
+        XCTAssertEqual(record([.init(reportedCost: Decimal(string: "0.01"), promptTokens: 2_000)], today, nil).cost, Decimal(string: "0.01"))
+        // Ten reads with no reported cost reach $0.50.
+        var tenUnknown = S.Day.empty(today)
+        for _ in 0..<10 { tenUnknown = record([.init(reportedCost: nil, promptTokens: nil)], today, tenUnknown) }
+        XCTAssertEqual(tenUnknown.cost, Decimal(string: "0.50"))
+        XCTAssertEqual(S.admission(today: today, stored: .day(tenUnknown)), .limitReached)
         // E10: a tap is admitted only while the day plus a whole tap's $0.05 stays within $0.50,
         // so the day can never exceed it.
         XCTAssertEqual(S.admission(today: today, stored: .day(S.Day(day: today, reads: 5, cost: Decimal(string: "0.45")!, paused: false))),
@@ -150,7 +160,7 @@ final class LabelPhotoSpendPolicyTests: XCTestCase {
             unknown = record([.init(reportedCost: nil, promptTokens: nil), .init(reportedCost: nil, promptTokens: nil)], today, unknown)
         }
         XCTAssertLessThanOrEqual(unknown.cost, S.dailyCostLimit)
-        XCTAssertEqual(unknown.reads, 10, "ten taps of two unreported attempts ($0.048 each) fit; the eleventh would not")
+        XCTAssertEqual(unknown.reads, 10, "ten taps of two unreported attempts ($0.05 each) fit; the eleventh would not")
     }
 
     func testOverCapCostAndInputCeilingPauseTheDay() {

@@ -3,8 +3,9 @@ import FoodLedgerDomain
 
 /// Prepared bytes of a label photo crop (docs/label-photo-ai-prefill-v1.md E3, 12.1 and 17.8 M6):
 /// a JPEG decoded from pixels, oriented, cropped, in sRGB, scaled and encoded without metadata.
-/// Its initialiser is `package`: only the preparer in this package builds one, and the request
-/// builder accepts only this type, so no other bytes can be sent (invariant 3).
+/// Its initialiser is private to this file and reached only through `PreparedLabelImageFactory`,
+/// which the boundary script lets only the preparer (and tests) call; the request builder accepts
+/// only this type, so no other bytes can be sent (invariant 3).
 public struct PreparedLabelImage: Equatable, Sendable {
     /// E3 bounds: a long edge of at most 2,048 px, at most 3.2 megapixels and 1,500,000 bytes.
     public static let maximumLongEdge = 2_048
@@ -19,7 +20,7 @@ public struct PreparedLabelImage: Equatable, Sendable {
     /// Decimal text, as recorded in the manifest.
     public let jpegQuality: String
 
-    package init(bytes: Data, pixelWidth: Int, pixelHeight: Int, sha256: String, jpegQuality: String) throws {
+    fileprivate init(bytes: Data, pixelWidth: Int, pixelHeight: Int, sha256: String, jpegQuality: String) throws {
         guard !bytes.isEmpty, bytes.count <= Self.maximumBytes, pixelWidth > 0, pixelHeight > 0,
               max(pixelWidth, pixelHeight) <= Self.maximumLongEdge, pixelWidth * pixelHeight <= Self.maximumPixels,
               sha256.count == 64, sha256.allSatisfy({ $0.isHexDigit && !$0.isUppercase }),
@@ -32,6 +33,14 @@ public struct PreparedLabelImage: Equatable, Sendable {
     /// The manifest's `image` record for these bytes.
     public var manifestImage: LabelPhotoManifest.Image {
         LabelPhotoManifest.Image(sha256: sha256, byteCount: bytes.count, pixelWidth: pixelWidth, pixelHeight: pixelHeight, jpegQuality: jpegQuality)
+    }
+}
+
+/// The one way to build a `PreparedLabelImage` (17.8 M6). `package` access keeps it out of the
+/// app; `check-boundaries.sh` refuses any call outside the photo capture adapter and tests.
+package enum PreparedLabelImageFactory {
+    package static func make(bytes: Data, pixelWidth: Int, pixelHeight: Int, sha256: String, jpegQuality: String) throws -> PreparedLabelImage {
+        try PreparedLabelImage(bytes: bytes, pixelWidth: pixelWidth, pixelHeight: pixelHeight, sha256: sha256, jpegQuality: jpegQuality)
     }
 }
 

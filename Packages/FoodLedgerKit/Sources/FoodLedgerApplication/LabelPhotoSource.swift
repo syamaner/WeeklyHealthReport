@@ -65,20 +65,22 @@ public enum LabelPhotoSource {
 
     /// The pasted manifest the shared rules read. The photo route has no pasted text; the
     /// serving rules of `pasted-label-serving-v3` apply through parser v3's version (P10). A value
-    /// the user left unknown is not in the projected candidate, so it is stored unknown, and a
-    /// conversion from it is dropped with it.
+    /// the user left unknown takes every cell of its nutrient in its column out of the projected
+    /// candidate (leaving one of two repeated rows unknown never chooses the other), so the
+    /// nutrient is stored unknown, and a conversion from those cells is dropped with them.
     static func projection(_ manifest: LabelPhotoManifest) -> PastedLabelEvidenceManifest {
         let leftUnknown = Set(manifest.attention.filter { $0.resolution == .leftUnknown }.map(\.item))
         let candidate = manifest.candidate
-        let cells = candidate.cells.filter { !leftUnknown.contains(LabelPhotoManifest.cellItem(rowID: $0.rowID, headerID: $0.headerID)) }
+        let unknownInColumn = Set(candidate.cells.filter { leftUnknown.contains(LabelPhotoManifest.cellItem(rowID: $0.rowID, headerID: $0.headerID)) }
+            .map { $0.nutrient + "@" + $0.headerID })
+        let cells = candidate.cells.filter { !unknownInColumn.contains($0.nutrient + "@" + $0.headerID) }
+        let kept = Set(cells.map { LabelPhotoManifest.cellItem(rowID: $0.rowID, headerID: $0.headerID) })
         let projected = PastedLabelManifest.Candidate(route: candidate.route, inputSHA256: candidate.inputSHA256, declined: candidate.declined,
             declineReasons: candidate.declineReasons, wouldMarkReady: candidate.wouldMarkReady, language: candidate.language,
             servingSize: leftUnknown.contains(PastedLabelManifest.Correction.servingSize) ? nil : candidate.servingSize,
             servingsPerPack: leftUnknown.contains(PastedLabelManifest.Correction.servingsPerPack) ? nil : candidate.servingsPerPack,
             headers: candidate.headers, cells: cells, warnings: candidate.warnings)
-        let conversions = manifest.conversions.filter {
-            !leftUnknown.contains(LabelPhotoManifest.cellItem(rowID: $0.sourceRowID, headerID: $0.sourceHeaderID))
-        }
+        let conversions = manifest.conversions.filter { kept.contains(LabelPhotoManifest.cellItem(rowID: $0.sourceRowID, headerID: $0.sourceHeaderID)) }
         return .v1(PastedLabelManifest(pastedText: "", pastedTextSHA256: manifest.image.sha256, parserVersion: PastedLabelSource.parserVersionV3,
             gateVersion: manifest.gateVersion, arithmeticVersion: manifest.arithmeticVersion, conversionVersion: manifest.conversionVersion,
             labelFormat: manifest.labelFormat, launchScope: manifest.launchScope, identityMapping: manifest.identityMapping,
@@ -138,7 +140,10 @@ public enum LabelPhotoSource {
             (LabelPhotoManifest.cellItem(rowID: $0.rowID, headerID: $0.headerID), $0)
         })
         for record in manifest.attention {
-            guard record.at <= captured else { throw LabelPhotoSourceError.invalidManifest("attention time") }
+            // Resolved after the answer arrived and no later than the capture.
+            guard manifest.response.completedAt <= record.at, record.at <= captured else {
+                throw LabelPhotoSourceError.invalidManifest("attention time")
+            }
             let line = record.item == PastedLabelManifest.Correction.servingSize || record.item == PastedLabelManifest.Correction.servingsPerPack
             let matching = manifest.corrections.filter { correction in
                 if line { return correction.nutrient == record.item }
@@ -165,8 +170,14 @@ public enum LabelPhotoSource {
         })
         for record in manifest.attention where record.resolution == .leftUnknown {
             if let cell = cells[record.item] {
+                // No conversion may start from any cell of the left-unknown nutrient in its column.
+                let fromLeftUnknown = manifest.conversions.contains { conversion in
+                    conversion.sourceHeaderID == cell.headerID
+                        && cells[LabelPhotoManifest.cellItem(rowID: conversion.sourceRowID, headerID: conversion.sourceHeaderID)]?.nutrient == cell.nutrient
+                }
                 guard !manifest.corrections.contains(where: { $0.nutrient == cell.nutrient && $0.headerID == cell.headerID }),
-                      !manifest.conversions.contains(where: { $0.nutrient == cell.nutrient && $0.sourceHeaderID == cell.headerID }) else {
+                      !manifest.conversions.contains(where: { $0.nutrient == cell.nutrient && $0.sourceHeaderID == cell.headerID }),
+                      !fromLeftUnknown else {
                     throw LabelPhotoSourceError.invalidManifest("left unknown supplied")
                 }
             } else {

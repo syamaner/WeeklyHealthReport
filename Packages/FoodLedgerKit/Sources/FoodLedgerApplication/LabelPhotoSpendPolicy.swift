@@ -9,9 +9,10 @@ import Foundation
 ///   fit in what the tap has left. An attempt is charged its reported cost, or W when none is
 ///   reported (including one cut by Cancel).
 /// - Per local calendar day, at most 30 reads and $0.50. A tap is admitted only while the day's
-///   cost plus a whole tap's $0.05 stays within $0.50, so the day never exceeds it. A tap is
-///   charged its reported costs plus the worst case W for every attempt that reported none (an
-///   unreported cost is never counted as zero).
+///   cost plus a whole tap's $0.05 stays within $0.50, so the day never exceeds it. A tap with
+///   any attempt lacking a reported cost counts as at least $0.05 toward the day (E10): the larger
+///   of $0.05 and its reported costs plus W for each unreported attempt. Otherwise a tap counts its
+///   reported cost.
 /// - A stored day later than today (the clock moved back) is treated as the same day: the
 ///   allowance never resets early.
 /// - A tap whose reported cost exceeds $0.05, or whose reported prompt tokens exceed 6,000, pauses
@@ -108,8 +109,12 @@ public enum LabelPhotoSpendPolicy {
         return .allowed
     }
 
-    /// What one tap costs the day: its reported costs, plus W for each attempt that reported none.
-    public static func tapCost(_ attempts: [Attempt], prices: Prices) -> Decimal { charged(attempts, prices: prices) }
+    /// What one tap costs the day (E10): its reported cost; with any unreported attempt, the larger
+    /// of $0.05 and its reported costs plus W for each unreported attempt.
+    public static func tapCost(_ attempts: [Attempt], prices: Prices) -> Decimal {
+        let charged = charged(attempts, prices: prices)
+        return attempts.contains { $0.reportedCost == nil } ? max(perTapLimit, charged) : charged
+    }
 
     /// The day after a finished tap (success, failure or Cancel) that sent at least one attempt.
     public static func record(_ attempts: [Attempt], prices: Prices, today: String, stored: Day?) -> Day {

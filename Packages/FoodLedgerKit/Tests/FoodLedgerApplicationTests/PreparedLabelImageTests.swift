@@ -3,8 +3,8 @@ import Foundation
 import XCTest
 
 /// The preparer's output type (docs/label-photo-ai-prefill-v1.md E3 and 17.8 M6): built only
-/// within this package (its initialiser is `package`, so the app and other packages cannot make
-/// one), and only within the E3 bounds. The metadata, orientation and size behaviour of the real
+/// through the package's factory (its initialiser is private to its file), and only within the E3
+/// bounds. The metadata, orientation and size behaviour of the real
 /// preparer are tests 13, 14 and 23 in L2.
 final class PreparedLabelImageTests: XCTestCase {
     let digest = String(repeating: "0f", count: 32)
@@ -16,7 +16,7 @@ final class PreparedLabelImageTests: XCTestCase {
     }
 
     func testAnImageWithinTheBoundsRecordsItsManifestImage() throws {
-        let image = try PreparedLabelImage(bytes: Data(repeating: 1, count: 100), pixelWidth: 2_048, pixelHeight: 1_500, sha256: digest,
+        let image = try PreparedLabelImageFactory.make(bytes: Data(repeating: 1, count: 100), pixelWidth: 2_048, pixelHeight: 1_500, sha256: digest,
                                            jpegQuality: "0.8")
         let record = image.manifestImage
         XCTAssertEqual(record.sha256, digest)
@@ -37,7 +37,7 @@ final class PreparedLabelImageTests: XCTestCase {
             (Data([1]), 100, 100, digest, "high"),
         ]
         for (bytes, width, height, sha, quality) in cases {
-            XCTAssertThrowsError(try PreparedLabelImage(bytes: bytes, pixelWidth: width, pixelHeight: height, sha256: sha, jpegQuality: quality))
+            XCTAssertThrowsError(try PreparedLabelImageFactory.make(bytes: bytes, pixelWidth: width, pixelHeight: height, sha256: sha, jpegQuality: quality))
         }
     }
 }

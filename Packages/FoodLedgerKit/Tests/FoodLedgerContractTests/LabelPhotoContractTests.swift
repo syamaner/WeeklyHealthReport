@@ -199,6 +199,45 @@ final class LabelPhotoContractTests: XCTestCase {
         XCTAssertFalse(F.verify(try F.rebound(good, manifest: withConversion)))
     }
 
+    /// The fixture table with extra cells; `unknown` cells are not found and left unknown.
+    func withExtraCells(_ extra: [PastedLabelManifest.Candidate.Cell], unknown: [String],
+                        conversions: [PastedLabelManifest.Conversion] = [PastedLabelFixtures.kcal, PastedLabelFixtures.sodium]) throws -> M {
+        let base = try F.candidate()
+        let candidate = PastedLabelManifest.Candidate(route: "C", inputSHA256: base.inputSHA256, declined: false, declineReasons: [],
+            wouldMarkReady: base.wouldMarkReady, language: base.language, servingSize: base.servingSize, servingsPerPack: base.servingsPerPack,
+            headers: base.headers, cells: base.cells + extra, warnings: [])
+        var overriding: [String: LabelPhotoAttention.Location] = [:]
+        var resolutions: [String: LabelPhotoAttention.Resolution] = ["蛋白質@h2": .corrected]
+        for item in unknown { overriding[item] = .notFound; resolutions[item] = .leftUnknown }
+        return try F.manifest(candidate: candidate, locations: F.locations(candidate, overriding: overriding), resolutions: resolutions,
+                              conversions: conversions)
+    }
+
+    func testLeavingOneOfTwoRepeatedRowsUnknownNeverChoosesTheOther() throws {
+        // Two sugars rows in the stored column: the pasted rule stores sugars unknown (two printed
+        // values); leaving one unknown must not make the other the stored value.
+        let sugars = PastedLabelFixtures.cell("sugars", "sugars", "h2", "1公克", "1", "公克", canonical: "g")
+        let sugars2 = PastedLabelFixtures.cell("sugars_2", "sugars", "h2", "2公克", "2", "公克", canonical: "g")
+        let input = try F.input(try withExtraCells([sugars, sugars2], unknown: ["sugars_2@h2"]))
+        XCTAssertTrue(F.verify(input))
+        let stored = input.candidates[0].candidate.nutrients.entries.first { $0.key == .sugar }
+        guard case .unknown = stored?.value else { return XCTFail("sugars must stay unknown, got \(String(describing: stored?.value))") }
+        // Two kJ rows: a conversion from one while the other is left unknown is refused.
+        let kj2 = PastedLabelFixtures.cell("熱量_2", "energy_kj", "h2", "1600 kJ", "1600", "kJ")
+        XCTAssertThrowsError(try F.input(try withExtraCells([kj2], unknown: ["熱量_2@h2"])))
+        // Without the conversion, kcal is not calculated and stays unknown.
+        let noConversion = try F.input(try withExtraCells([kj2], unknown: ["熱量_2@h2"], conversions: [PastedLabelFixtures.sodium]))
+        XCTAssertTrue(F.verify(noConversion))
+        let kcal = noConversion.candidates[0].candidate.nutrients.entries.first { $0.key == .energyConsumed }
+        guard case .unknown = kcal?.value else { return XCTFail("kcal must stay unknown") }
+    }
+
+    func testAttentionIsResolvedAfterTheAnswerArrived() throws {
+        let good = try F.manifest()
+        let early = good.attention.map { M.Attention(item: $0.item, reasons: $0.reasons, resolution: $0.resolution, at: 1_700_000_600_000) }
+        XCTAssertThrowsError(try F.input(try F.manifest(attention: early)), "before completed_at")
+    }
+
     func testRequestSchemaMediaTypeAndCheckNamesAreClosed() throws {
         let request = F.request()
         let otherSchema = M.Request(model: request.model, endpoint: request.endpoint, reasoningLimit: 500, maxOutputTokens: 1_200,
