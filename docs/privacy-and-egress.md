@@ -30,6 +30,10 @@ HealthKit access is read-only: authorisation `toShare` stays empty. No analytics
 - Responses are evidence for review, never authority: citations or model confidence alone never authorise nutrition or saving.
 - Adding a destination, widening a payload or changing when a request happens needs a versioned contract, an update to this file and `privacy-policy.txt`, and explicit user approval. Prove a new transport with synthetic data before integrating it with HealthKit or any other personal data.
 
+## Pending owner approval (not in force)
+
+- **Label photo reading through OpenRouter** (#316): proposed row, retry amendment and on-device photo rule in [label-photo-ai-prefill-v1.md](label-photo-ai-prefill-v1.md) section 11. Until the owner approves its egress checklist (section 10) line by line, no label photo leaves the device and the current app sends none.
+
 ## Retired
 
 Gemini is no longer used by the app. Its contracts remain in [`archive/`](archive/) as regression evidence only.
