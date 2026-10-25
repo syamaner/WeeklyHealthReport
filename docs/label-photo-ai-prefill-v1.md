@@ -520,7 +520,7 @@ The gate returned **PASS WITH CHANGES**. Each finding is applied below and overr
 | `NutrientValueOrigin.swift:89` (`PastedLabelValueOrigins.manifest`) | No | nil, so the export uses its "without a pasted-label manifest" row (`label_checked_by_you`) | Confirm and saved-entry origins come from the photo manifest's own projection; the export is unchanged |
 | `CanonicalFoodArchive.swift:111` (`minimumContractVersion`) | No | Not matched | A new first check returns 8 when `label-photo-ai-v1` evidence exists (17.7) |
 
-L1 re-runs `rg 'isVersion|captureMethodVersion'` and adds any further site to this table before merging.
+L1 re-runs `rg 'isVersion|captureMethodVersion'` and adds any further site to this table before merging. L1b re-ran it (17.16): the further sites are `ReviewedFoodProposalConfirmation.swift:361` and `:415` and `CanonicalFoodArchive.swift:120`, which match only `label_text` evidence of a reviewed web version, so none matches photo evidence (`package_image`, `label-photo-ai-v1` or `label-photo-preparation-v1`); each returns its "other route" answer.
 
 ### 17.5 M2, M3 and M4: attention, catalogue check and spend
 
@@ -836,3 +836,40 @@ H4 at 0.60 and 0.64 and H1 are regression tests. The round-2 harness (A to F and
   - A serving line printed with the servings-per-pack line (每一份量30公克，本包裝含2份) still counts.
 
 I1 (centre distances 0.04 and 0.045), I3b, I4b and the joined-line control are regression tests. The round-3 harness (A to H and I1 to I4, 121 scenarios) is clean in every base mode, and all earlier harnesses stay clean. On L0 the value counts do not change; Luna finds one serving line fewer (33).
+
+### 17.16 L1b: the pure core (25 October 2026, no egress)
+
+L1b adds the application's and the pure reader's label photo types, all with contract tests and no transport, image or Vision code:
+
+- **Wire mapping.** `LabelPhotoWire` (a strict decoder of `label-photo-wire-schema-v1`: every member required, no other member, the enumerations closed) and `LabelPhotoWireMapping` (`label-photo-wire-mapping-v1`), the Swift port of `route_c_mapping.map_wire`, including Python's `re` digit and space classes and `repr`.
+  - **Parity (tests 1 and 16).** `export_photo_parity.py` writes 171 committed vectors from the committed Taiwan truth, a mutation family and synthetic branch cases; its `check` mode re-derives them.
+  - **Private parity.** Its `private` mode maps every saved route C answer outside the repository. All 742 saved answers (untouched and development, every arm) map to the reference candidate; only that count is reported.
+- **Reader (test 2).** `LabelPhotoReader` conforms to the application's `LabelPhotoInterpreting` port and returns `LabelPhotoReading`. It runs the frozen format inference, gate v2 on the Taiwan format, `label-arithmetic-checks-v2` over the amount bases and `pasted-label-conversions-v1`, calling them and never copying them. Any inferred format other than Taiwan is declined `layout_not_supported`, and an answer that is not schema-valid gives nothing to show.
+- **Manifest (test 5).** `LabelPhotoManifest` is the strict codec of 8.1. It is pinned by a golden SHA-256, and unknown, missing or malformed members throw. It amends 8.1 in five places, recorded here:
+  - `label_format` is `taiwan_nutrition_labelling`, as in the pasted manifests and the launch scope;
+  - `request.reasoning` is `reasoning_limit`, the limit sent;
+  - `catalogue_check` holds `at`, `slug`, `endpoint`, `input_modalities`, `zero_data_retention`, `prompt_price` and `completion_price`;
+  - each attention record carries `reasons`, a list, since one value can be not found, gate-flagged and in a failed check at once;
+  - a new `checks_failed` member records the failed checks, so attention is recomputed without re-running the checks or parsing warning codes (`warnings_shown` must equal their codes).
+- **Source and verifier (tests 6 and 20).** `LabelPhotoSource` builds the confirmation input: the image evidence, the manifest evidence, the release and the candidate.
+  - **One derivation.** It derives values by projecting the stored manifest, in memory only, onto the pasted manifest's shape, and calling the pasted rules on it (stored basis, nutrients, corrections, conversions). Only each value's source ID changes. A value left unknown is not in the projection, so it is stored unknown.
+  - **What the verifier checks.** It checks 8.2 against the stored bytes:
+    - the digest and canonical bytes;
+    - the admitted pipeline;
+    - the wire digest and the 65,536-byte limit;
+    - the image evidence and its attachment;
+    - the admitted locator versions;
+    - one location record per cell and serving line, with a region exactly on found values and inside the unit square;
+    - the attention set, recomputed and equal to the stored one, every resolution agreeing with the corrections;
+    - every stored value.
+  - **Cross-route.** Each route's verifier refuses the other's evidence, including relabelled manifests.
+- **Admission.** `LabelSourceAdmission` routes a candidate with any photo evidence, release or value to the photo verifier only when nothing in it names the pasted source. It sends a pasted candidate to `PanelSourceAdmission`, and refuses a mixed one.
+- **Serving (test 3).** `LabelPhotoServingPolicy` (`label-photo-serving-v1`) reads the projection with the pasted per-serving rule and `pasted-label-serving-v3`'s per-100 rule. Parity with the pasted policy holds for twelve printed serving lines, both per-100 bases, exact and approximate packs, and both per-serving cases.
+- **Ports and preparer types.**
+  - The ports are `LabelImagePreparing`, `LabelImageReading`, `LabelValueLocating`, `LabelPhotoRouteChecking`, `LabelPhotoSpendLedger` and `ConnectivityStatus`.
+  - The other types are `LabelPhotoWireReply`, `LabelCropRect` and `PreparedLabelImage`; the last has a `package` initialiser and the E3 bounds.
+  - The one admitted route is Gemini 4 Argon on `google-vertex`. L3 confirms the endpoint tag; any other tag is a new entry.
+- **Policies (tests 4, 9, 10, 21 and 26).** Attention v1, the retry schedule and the spend caps are pure and tested: the per-tap $0.05 total across attempts and the 6,000 prompt-token ceiling.
+- **Freeze.** `LabelPhotoFreezeTests` now also pins the wire schema and mapping, serving v1, attention v1 and the manifest codec.
+
+L1b adds no target. `FoodLabelPhotoReading` gains its planned dependencies (the application, the domain and `NutritionLabelParsing`), which the boundary script already allowed. The copy for decline and failure codes (test 2's copy mapping) and the request and response checks (tests 7 and 8) belong to L3 and L4.
