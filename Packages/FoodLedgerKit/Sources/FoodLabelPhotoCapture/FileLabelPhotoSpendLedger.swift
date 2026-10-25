@@ -13,6 +13,15 @@ public final class FileLabelPhotoSpendLedger: LabelPhotoSpendLedger, @unchecked 
 
     public init(url: URL) { self.url = url }
 
+    /// Atomic everywhere; complete file protection where the platform has it (iOS).
+    static var writeOptions: Data.WritingOptions {
+        #if os(iOS)
+        [.atomic, .completeFileProtection]
+        #else
+        [.atomic]
+        #endif
+    }
+
     public func load() -> LabelPhotoSpendPolicy.Stored {
         lock.withLock { Self.read(url) }
     }
@@ -35,7 +44,7 @@ public final class FileLabelPhotoSpendLedger: LabelPhotoSpendLedger, @unchecked 
                     let day = try transform(Self.read(target))
                     let encoder = JSONEncoder()
                     encoder.outputFormatting = [.sortedKeys]
-                    try encoder.encode(day).write(to: target, options: [.atomic, .completeFileProtection])
+                    try encoder.encode(day).write(to: target, options: Self.writeOptions)
                     return day
                 }
             }

@@ -67,8 +67,20 @@ public enum LabelPhotoSpendPolicy {
         public let reads: Int
         public let cost: Decimal
         public let paused: Bool
-        public init(day: String, reads: Int, cost: Decimal, paused: Bool) {
-            self.day = day; self.reads = reads; self.cost = cost; self.paused = paused
+        /// Taps reserved and not yet settled (#326 re-check): a settle acts only on its own open
+        /// tap, so a retried settle never applies twice.
+        public let openTaps: [String]
+        public init(day: String, reads: Int, cost: Decimal, paused: Bool, openTaps: [String] = []) {
+            self.day = day; self.reads = reads; self.cost = cost; self.paused = paused; self.openTaps = openTaps
+        }
+
+        enum CodingKeys: String, CodingKey { case day, reads, cost, paused, openTaps }
+
+        public init(from decoder: any Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            day = try c.decode(String.self, forKey: .day); reads = try c.decode(Int.self, forKey: .reads)
+            cost = try c.decode(Decimal.self, forKey: .cost); paused = try c.decode(Bool.self, forKey: .paused)
+            openTaps = try c.decodeIfPresent([String].self, forKey: .openTaps) ?? []
         }
         public static func empty(_ day: String) -> Day { Day(day: day, reads: 0, cost: 0, paused: false) }
     }
@@ -118,9 +130,29 @@ public enum LabelPhotoSpendPolicy {
 
     /// The day with a tap reserved before its first send (#326 review): one read and a whole tap's
     /// $0.05, so a tap cut short by a crash or a kill still counts. `record` later reconciles it.
-    public static func reservation(today: String, stored: Day?) -> Day {
+    public static func reservation(today: String, stored: Day?, tap: String = "") -> Day {
         let base = current(today: today, stored: stored)
-        return Day(day: base.day, reads: base.reads + 1, cost: base.cost + perTapLimit, paused: base.paused)
+        return Day(day: base.day, reads: base.reads + 1, cost: base.cost + perTapLimit, paused: base.paused,
+                   openTaps: tap.isEmpty ? base.openTaps : base.openTaps + [tap])
+    }
+
+    /// The reconcile of an open tap on the day its reservation was written (the day the
+    /// reservation's update returned, which may be later than today when the clock moved back).
+    /// Nil when the tap is no longer open on that day: nothing to do, so a retry never applies twice.
+    public static func reconciled(_ now: Day, reservedOn: String, tap: String, attempts: [Attempt], prices: Prices) -> Day? {
+        guard now.day == reservedOn, now.openTaps.contains(tap) else { return nil }
+        let settled = reconciled(Day(day: now.day, reads: now.reads, cost: now.cost, paused: now.paused), today: reservedOn,
+                                 attempts: attempts, prices: prices)
+        return Day(day: settled.day, reads: settled.reads, cost: settled.cost, paused: settled.paused,
+                   openTaps: now.openTaps.filter { $0 != tap })
+    }
+
+    /// The release of an open tap that sent nothing, on the day its reservation was written.
+    public static func released(_ now: Day, reservedOn: String, tap: String) -> Day? {
+        guard now.day == reservedOn, now.openTaps.contains(tap) else { return nil }
+        let settled = released(now, today: reservedOn)
+        return Day(day: settled.day, reads: settled.reads, cost: settled.cost, paused: settled.paused,
+                   openTaps: now.openTaps.filter { $0 != tap })
     }
 
     /// The reservation turned into the tap's cost, as a delta on the day as it is now (#326

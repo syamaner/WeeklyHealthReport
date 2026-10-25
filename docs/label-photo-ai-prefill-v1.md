@@ -1172,3 +1172,12 @@ Before the route is enabled, L5 also confirms the ZDR listing's live field names
 - At AX5 the Add food row and the Label photo screen wrap without truncation.
 
 The highlight position was fixed after the walk (decision 6) and is covered by a unit test. journey-qa should confirm it visually, along with the remaining 7.2 states through the other scenarios.
+
+**The #326 re-check's two Low items, folded into L4.**
+
+- **A clock moved back.** The reservation can land on a later stored day than today, because a clock moved back never resets the allowance. The settle now acts on the day the reservation's update returned, not on today, so it reconciles instead of skipping.
+- **An idempotent settle.**
+  - Each reservation is tagged with a tap ID (injected; the composition root uses a UUID), and the day keeps its open tap IDs (`openTaps`, decoded as empty from older files).
+  - A reconcile or release acts only on its own open tap and closes it, so a retry after a write that was stored but reported an error changes nothing.
+  - The file ledger's contract tests pin that `update` throws only when nothing was stored: a refusing transform and a failed write both leave the file unchanged.
+  - Complete file protection is applied on iOS, where it exists.

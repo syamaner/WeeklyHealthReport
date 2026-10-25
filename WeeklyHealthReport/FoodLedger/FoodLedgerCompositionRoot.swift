@@ -1430,7 +1430,7 @@ extension FoodLedgerCompositionRoot {
             let attempt = OpenRouterLabelPhotoAttempt(transport: transport, keys: keys, request: try OpenRouterLabelPhotoRequest())
             let session = LabelPhotoReadSession(checker: OpenRouterLabelRouteChecker(transport: transport, clock: clock), attempter: attempt,
                 ledger: FileLabelPhotoSpendLedger(url: ledgerURL), keys: keys, clock: clock, calendar: calendar,
-                sleeper: TaskLabelPhotoSleeper(), jitter: { Double.random(in: 0...1) })
+                sleeper: TaskLabelPhotoSleeper(), jitter: { Double.random(in: 0...1) }, tapIDs: { UUID().uuidString })
             return LabelPhotoReadFlow(preparer: ImageIOLabelImagePreparer(), session: session,
                 interpreter: LabelPhotoComponents.interpreter(), locator: VisionLabelValueLocator(), builder: labelPhotoBuilder)
         }
