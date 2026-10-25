@@ -304,6 +304,136 @@ final class LabelValueMatcherTests: XCTestCase {
         XCTAssertEqual(found.map(\.status), [.ambiguous])
     }
 
+    // MARK: A found value never corroborates a wrong number, unit or bound (final re-check of #320)
+
+    /// The fat row's printed text and the model's value; the other rows hold aligned values.
+    func fatValue(printed: String, model: String) -> M.Status {
+        let lines = rowLines(values: [("2公克", 0.80), (printed, 0.72), ("1公克", 0.64)])
+        let queries: [M.Query] = zip(rows, ["2公克", model, "1公克"]).enumerated().map {
+            .init(id: "q\($0.offset)", rowLabel: $0.element.0, headerText: nil, printedText: $0.element.1)
+        }
+        return M.locate(queries, lines: lines, headers: [], rowLabels: rows, columnCount: 1) { _, _ in nil }[1].status
+    }
+
+    func testS1UnitMisreadOnTheSameLineIsNotFound() {
+        XCTAssertNotEqual(fatValue(printed: "20毫克", model: "20公克"), .found)
+        XCTAssertEqual(fatValue(printed: "20毫克", model: "20毫克"), .found)
+    }
+
+    func testS1NumberAloneOnlyWhenTheUnitIsOnItsOwnLine() {
+        // "20" ends its line but no unit line sits beside it: never found by number alone (R1).
+        XCTAssertEqual(fatValue(printed: "20", model: "20毫克"), .ambiguous)
+        // The positive case, with 毫克 read just to the right, is testUnitReadAsItsOwnLineFallsBackToTheNumber.
+        // "20" followed on the same line by another word is not a split unit.
+        XCTAssertNotEqual(fatValue(printed: "20份", model: "20毫克"), .found)
+    }
+
+    func testS2DroppedOrAddedComparatorIsNotFound() {
+        XCTAssertNotEqual(fatValue(printed: "<0.5公克", model: "0.5公克"), .found)
+        XCTAssertNotEqual(fatValue(printed: "＜0.5公克", model: "0.5公克"), .found)
+        XCTAssertNotEqual(fatValue(printed: "未滿0.5公克", model: "0.5公克"), .found)
+        XCTAssertNotEqual(fatValue(printed: "0.5公克以下", model: "0.5公克"), .found)
+        XCTAssertNotEqual(fatValue(printed: "Less than 0.5g", model: "0.5g"), .found)
+        XCTAssertNotEqual(fatValue(printed: "0.5公克", model: "<0.5公克"), .found)
+        XCTAssertNotEqual(fatValue(printed: "0.5公克", model: "未滿0.5公克"), .found)
+        XCTAssertEqual(fatValue(printed: "<0.5公克", model: "<0.5公克"), .found)
+        XCTAssertEqual(fatValue(printed: "＜0.5 公克", model: "<0.5公克"), .found)
+        XCTAssertEqual(fatValue(printed: "≦0.5公克", model: "≦0.5公克"), .found)
+    }
+
+    func testS3ThousandsSeparatorIsPartOfTheNumber() {
+        XCTAssertNotEqual(fatValue(printed: "1,234公克", model: "234公克"), .found)
+        XCTAssertNotEqual(fatValue(printed: "1,234公克", model: "34公克"), .found)
+        XCTAssertEqual(fatValue(printed: "1,234公克", model: "1,234公克"), .found)
+    }
+
+    func testS4TwoColumnsWithoutReadableHeadersAreNeverFound() {
+        // Per serving 3公克 and per 100 g 6公克; the headers were not read, and the model puts 6公克
+        // in the per serving column.
+        let lines: [M.Line] = [
+            .init(text: "蛋白質", box: .init(x: 0.05, y: 0.80, width: 0.1, height: 0.04)),
+            .init(text: "脂肪", box: .init(x: 0.05, y: 0.72, width: 0.1, height: 0.04)),
+            .init(text: "3公克", box: .init(x: 0.45, y: 0.72, width: 0.1, height: 0.04)),
+            .init(text: "6公克", box: .init(x: 0.75, y: 0.72, width: 0.1, height: 0.04)),
+        ]
+        let found = M.locate([.init(id: "f", rowLabel: "脂肪", headerText: "每份", printedText: "6公克")], lines: lines,
+                             headers: ["每份", "每100公克"], rowLabels: ["蛋白質", "脂肪"], columnCount: 2) { _, _ in nil }
+        XCTAssertNotEqual(found[0].status, .found)
+        // No header text returned at all: still never found.
+        let bare = M.locate([.init(id: "g", rowLabel: "脂肪", headerText: nil, printedText: "6公克")], lines: lines,
+                            headers: [], rowLabels: ["蛋白質", "脂肪"], columnCount: 2) { _, _ in nil }
+        XCTAssertNotEqual(bare[0].status, .found)
+    }
+
+    func testDecimalPointDroppedOrAddedIsNotFound() {
+        XCTAssertNotEqual(fatValue(printed: "1.5公克", model: "15公克"), .found)
+        XCTAssertNotEqual(fatValue(printed: "15公克", model: "1.5公克"), .found)
+        XCTAssertNotEqual(fatValue(printed: "1.5公克", model: "5公克"), .found)
+    }
+
+    func testFullWidthDigitsAndUnitsNormalise() {
+        XCTAssertEqual(fatValue(printed: "３．５ｇ", model: "3.5g"), .found)
+        XCTAssertEqual(fatValue(printed: "１２％", model: "12%"), .found)
+    }
+
+    func testANumberInsideALongerNumberIsNotFound() {
+        XCTAssertNotEqual(fatValue(printed: "123公克", model: "23公克"), .found)
+        XCTAssertNotEqual(fatValue(printed: "230公克", model: "23公克"), .found)
+        XCTAssertNotEqual(fatValue(printed: "230", model: "23公克"), .found)
+    }
+
+    func testPercentValuesNeedTheirPercentSign() {
+        XCTAssertNotEqual(fatValue(printed: "12%", model: "12公克"), .found)
+        XCTAssertNotEqual(fatValue(printed: "12公克", model: "12%"), .found)
+        XCTAssertEqual(fatValue(printed: "12%", model: "12%"), .found)
+    }
+
+    func testKilocaloriesAndKilojoulesOnOneLineAreTold_apart() {
+        // The energy line prints both; the model's kJ value equal to the kcal number is not found.
+        let lines: [M.Line] = [
+            .init(text: "熱量", box: .init(x: 0.05, y: 0.80, width: 0.1, height: 0.04)),
+            .init(text: "蛋白質", box: .init(x: 0.05, y: 0.72, width: 0.1, height: 0.04)),
+            .init(text: "1550kJ / 370kcal", box: .init(x: 0.45, y: 0.80, width: 0.3, height: 0.04)),
+        ]
+        let wrong = M.locate([.init(id: "e", rowLabel: "熱量", headerText: nil, printedText: "370kJ")], lines: lines, headers: [],
+                             rowLabels: ["熱量", "蛋白質"], columnCount: 2) { _, _ in nil }
+        XCTAssertNotEqual(wrong[0].status, .found)
+        let kcalOnly = M.locate([.init(id: "k", rowLabel: "熱量", headerText: nil, printedText: "1550kcal")], lines: lines, headers: [],
+                                rowLabels: ["熱量", "蛋白質"], columnCount: 2) { _, _ in nil }
+        XCTAssertNotEqual(kcalOnly[0].status, .found)
+    }
+
+    func testAValueInsideARangeIsNotFound() {
+        XCTAssertNotEqual(fatValue(printed: "25-30公克", model: "30公克"), .found)
+        XCTAssertNotEqual(fatValue(printed: "25公克~30公克", model: "25公克"), .found)
+        XCTAssertNotEqual(fatValue(printed: "25至30公克", model: "30公克"), .found)
+        // A dash straight before a number is its sign (R4), so a dropped minus is not found.
+        XCTAssertNotEqual(fatValue(printed: "-3公克", model: "3公克"), .found)
+        XCTAssertNotEqual(fatValue(printed: "−3公克", model: "3公克"), .found)
+        XCTAssertNotEqual(fatValue(printed: "3公克", model: "-3公克"), .found)
+    }
+
+    func testUnitBesideMustReadAsTheModelsUnit() {
+        // "20" ends its line and the line beside it reads 公克, not the model's 毫克 (R1).
+        let lines = rowLines(values: [("2公克", 0.80), ("20", 0.72), ("1公克", 0.64)])
+            + [.init(text: "公克", box: .init(x: 0.6, y: 0.72, width: 0.05, height: 0.04))]
+        let queries: [M.Query] = zip(rows, ["2公克", "20毫克", "1公克"]).enumerated().map {
+            .init(id: "b\($0.offset)", rowLabel: $0.element.0, headerText: nil, printedText: $0.element.1)
+        }
+        let found = M.locate(queries, lines: lines, headers: [], rowLabels: rows, columnCount: 1) { _, _ in nil }
+        XCTAssertNotEqual(found[1].status, .found)
+    }
+
+    func testAReadingWithNoUnitIsNeverFound() {
+        XCTAssertNotEqual(fatValue(printed: "20", model: "20"), .found)
+        XCTAssertNotEqual(fatValue(printed: "20公克", model: "20"), .found)
+    }
+
+    func testThousandsSeparatorOnAOneColumnRowIsOneNumber() {
+        // R3: "2,030千焦" is one number, so the unlisted-number rule does not count two.
+        XCTAssertEqual(fatValue(printed: "2,030千焦", model: "2,030千焦"), .found)
+    }
+
     func testFoundRegionIsRoundedAndInsideTheUnitSquare() throws {
         let location = M.locate([.init(id: "j", rowLabel: "熱量", headerText: "每份", printedText: "485大卡")], lines: lines,
                                 headers: headers, rowLabels: rowLabels, columnCount: 2) { index, _ in

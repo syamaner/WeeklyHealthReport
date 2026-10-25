@@ -113,51 +113,82 @@ public enum LabelValueMatcher {
             guard let label = query.rowLabel.map({ Normalised($0).key }), rowBoxes[label] != nil, rowBoxes.count > 1 else { return nil }
             return label
         }
-        // Number tokens (a run of digits and points) on a row, outside its label, for the unlisted
-        // column rule: with one value column, a row holding more numbers than the reading lists for
-        // it has a second column the reading does not know, so a match there is not trusted.
+        // Number tokens on a row, outside its label, for the unlisted column rule: with one value
+        // column, a row holding more numbers than the reading lists for it has a second column the
+        // reading does not know, so a match there is not trusted. Tokens come from the value
+        // tokenizer, so "1,234公克" is one number.
         func numberTokens(onRow label: String) -> [Box] {
             guard let own = rowBoxes[label] else { return [] }
             var boxes: [Box] = []
             for (number, line) in normalised.enumerated() {
-                var start: Int?
-                for position in 0...line.characters.count {
-                    let digit = position < line.characters.count && (isDigit(line.characters[position]) || line.characters[position] == ".")
-                    if digit, start == nil { start = position }
-                    if !digit, let first = start {
-                        let token = box(Match(line: number, range: line.origin[first].lowerBound..<line.origin[position - 1].upperBound))
-                        let insideLabel = token.midX >= own.x && token.midX <= own.x + own.width
-                        if !insideLabel, rowFit(label, token) == .near { boxes.append(token) }
-                        start = nil
-                    }
+                for token in valueTokens(line.characters) {
+                    let tokenBox = box(Match(line: number, range: line.origin[token.start].lowerBound..<line.origin[token.end - 1].upperBound))
+                    let insideLabel = tokenBox.midX >= own.x && tokenBox.midX <= own.x + own.width
+                    if !insideLabel, rowFit(label, tokenBox) == .near { boxes.append(tokenBox) }
                 }
             }
             return boxes
         }
         let listedPerRow = Dictionary(grouping: queries.compactMap(rowKey), by: { $0 }).mapValues(\.count)
 
-        // First pass: the row and column filters, trying each needle in turn. An ambiguous result
-        // keeps its candidates (after both filters) for the order pass.
+        // The value's column is confirmed when the reading has one value column, or when at least
+        // two headers are located and the value's own header is one of them. With more than one
+        // column and no confirmed column, a value is never found (S4 of the #320 re-check).
+        func columnConfirmed(_ query: Query) -> Bool {
+            if columnCount <= 1 { return true }
+            guard headerBoxes.count > 1, let header = query.headerText.map({ Normalised($0).key }) else { return false }
+            return headerBoxes[header] != nil
+        }
+
+        // First pass: the row and column filters, trying each tier of matches in turn. An
+        // ambiguous result keeps its candidates (after both filters) for the order pass.
         struct First { let location: Location; let candidates: [Box] }
+        // R1 of the #320 sweep: a number matched alone (its unit read as a separate line) counts
+        // only when a line just to its right, in the same row band, reads as the reading's unit.
+        func unitBeside(_ value: Box, unit: String) -> Bool {
+            lines.indices.contains { index in
+                let other = lines[index].box, text = normalised[index].characters
+                guard starts(text, at: 0, with: unit) else { return false }
+                let next = unit.count < text.count ? text[unit.count] : nil
+                if let next, next.isLetter || isDigit(next) { return false }
+                return other.x >= value.x + value.width / 2 && other.x - (value.x + value.width) < 0.1
+                    && abs(other.midY - value.midY) < max(other.height, value.height) / 2
+            }
+        }
         let first: [First] = queries.map { query in
             let isLine = query.rowLabel == nil
-            for needle in needles(query.printedText, isLine: isLine) {
-                let candidates = occurrences(of: needle, in: normalised, rule: isLine ? .line : .value).map { box($0) }
-                    .filter { inHeader(query, $0) }
+            let wanted = valueTokens(Normalised(query.printedText).characters)
+            for (tierIndex, tier) in matchTiers(query.printedText, isLine: isLine, in: normalised).enumerated() {
+                var candidates = tier.map { box($0) }.filter { inHeader(query, $0) }
+                if !isLine, !candidates.isEmpty {
+                    // A reading with no unit, or a value matched by its number alone without its unit
+                    // beside it, is never found: it can only be ambiguous.
+                    let unit = wanted.count == 1 ? wanted[0].unit : ""
+                    if unit.isEmpty {
+                        return First(location: Location(id: query.id, status: .ambiguous, region: nil), candidates: [])
+                    }
+                    if tierIndex == 1 {
+                        let beside = candidates.filter { unitBeside($0, unit: unit) }
+                        if beside.isEmpty {
+                            return First(location: Location(id: query.id, status: .ambiguous, region: nil), candidates: [])
+                        }
+                        candidates = beside
+                    }
+                }
                 if isLine {
-                    // Serving lines carry their own words; no row to confirm.
+                    // Serving lines carry their own words; no row or column to confirm.
                     switch candidates.count {
                     case 0: continue
                     case 1: return First(location: Location(id: query.id, status: .found, region: rounded(candidates[0])), candidates: candidates)
                     default: return First(location: Location(id: query.id, status: .ambiguous, region: nil), candidates: candidates)
                     }
                 }
+                if candidates.isEmpty { continue }
                 guard let label = rowKey(query), spacing(label) != nil else {
                     // The value's own row cannot be confirmed: its label was not located exactly once
                     // (or is the only label located). It is never found. Candidates near another
                     // located label belong to that row and are dropped; any candidate at all makes
                     // the value ambiguous (the order pass then needs a located label, so it stays so).
-                    if candidates.isEmpty { continue }
                     let own = query.rowLabel.map { Normalised($0).key }
                     let elsewhere = candidates.filter { candidate in
                         rowBoxes.keys.contains { $0 != own && rowFit($0, candidate) == .near }
@@ -169,7 +200,7 @@ public enum LabelValueMatcher {
                 let drifted = candidates.filter { rowFit(label, $0) == .drifted }
                 if near.isEmpty && drifted.isEmpty { continue }
                 let unlisted = columnCount <= 1 && numberTokens(onRow: label).count > (listedPerRow[label] ?? 0)
-                if near.count == 1 && drifted.isEmpty && !unlisted {
+                if near.count == 1 && drifted.isEmpty && !unlisted && columnConfirmed(query) {
                     return First(location: Location(id: query.id, status: .found, region: rounded(near[0])), candidates: near)
                 }
                 return First(location: Location(id: query.id, status: .ambiguous, region: nil), candidates: near + drifted)
@@ -204,7 +235,7 @@ public enum LabelValueMatcher {
             }
             let labelBoxes = expected.compactMap { queries[$0].rowLabel.flatMap { rowBoxes[Normalised($0).key] } }
             let inOrder = labelBoxes.count == expected.count && zip(labelBoxes, labelBoxes.dropFirst()).allSatisfy { $0.midY > $1.midY }
-            let observed = occurrences(of: needle, in: normalised, rule: .value).map { box($0) }
+            let observed = (matchTiers(query.printedText, isLine: false, in: normalised).first ?? []).map { box($0) }
                 .filter { inHeader(query, $0) }
                 .sorted { $0.midY > $1.midY }
             guard inOrder, expected.count > 1, expected.count == observed.count, let rank = expected.firstIndex(of: index),
@@ -214,23 +245,124 @@ public enum LabelValueMatcher {
         }
     }
 
-    /// The texts tried in order: the whole printed text; then, when Vision splits a line, the
-    /// part from the first digit or comparator ("每一份量 185 公克" to "185公克"); then, for a
-    /// value only, its number alone ("5.0 公克" to "5.0", when the unit was read as its own line).
-    /// The first text with any candidate decides.
-    static func needles(_ printed: String, isLine: Bool) -> [String] {
-        let text = Normalised(printed).key
-        var found = [text]
-        if let start = text.firstIndex(where: { isDigit($0) || "<≤≦>".contains($0) }) {
-            found.append(String(text[start...]))
-            if !isLine {
-                let number = text[start...].prefix { isDigit($0) || $0 == "." || "<≤≦>".contains($0) }
-                found.append(String(number))
+    // MARK: Values as tokens (#320 re-check, S1 to S4 and the same family)
+
+    /// One printed value read from a normalised line: its comparator (`=`, `<`, `<=`, `>`, `>=`),
+    /// its number (thousands separators removed), its unit from a closed list (or none), its
+    /// normalised character span, whether it is part of a range, and whether it ends its line.
+    struct ValueToken: Equatable {
+        let comparator: String, number: String, unit: String
+        let start: Int, end: Int
+        let range: Bool, endsLine: Bool
+    }
+
+    /// Units, longest first; a Latin unit followed by a Latin letter is not a unit.
+    static let units = ["kcal", "mcg", "大卡", "千卡", "千焦", "公克", "毫克", "微克", "毫升", "公斤", "公升", "kj", "cal", "μg", "mg", "ml", "kg",
+                        "g", "l", "%", "克"]
+    /// Bound words and marks before a value (after NFKC, so ＜ is <), longest first.
+    static let prefixComparators: [(String, String)] = [
+        ("lessthan", "<"), ("morethan", ">"), ("不超過", "<="), ("<=", "<="), (">=", ">="), ("少於", "<"), ("未滿", "<"), ("低於", "<"),
+        ("小於", "<"), ("不足", "<"), ("大於", ">"), ("高於", ">"), ("超過", ">"), ("≤", "<="), ("≦", "<="), ("≥", ">="), ("≧", ">="),
+        ("<", "<"), (">", ">"),
+    ]
+    /// Bound words straight after a value's unit.
+    static let suffixComparators: [(String, String)] = [("以下", "<="), ("以上", ">="), ("以內", "<=")]
+    /// Range marks between two values (after NFKC, so ～ is ~).
+    static let rangeMarks: Set<Character> = ["-", "~", "〜", "至", "到", "–", "—", "‐", "−"]
+
+    static func starts(_ characters: [Character], at index: Int, with word: String) -> Bool {
+        let pattern = Array(word)
+        guard index >= 0, index + pattern.count <= characters.count else { return false }
+        return Array(characters[index..<(index + pattern.count)]) == pattern
+    }
+
+    /// Every value token of a normalised line. A number starts at an ASCII digit not preceded by a
+    /// digit, a point or a separator between digits, and runs over digits, a point followed by a
+    /// digit, and a comma between digits; "1,234" is one number, so "234" is never found inside it.
+    static func valueTokens(_ c: [Character]) -> [ValueToken] {
+        var tokens: [ValueToken] = []
+        var index = 0
+        var lastEnd = -1
+        while index < c.count {
+            let continues = index > 0 && (isDigit(c[index - 1]) || c[index - 1] == "." || (c[index - 1] == "," && index >= 2 && isDigit(c[index - 2])))
+            guard isDigit(c[index]), !continues else { index += 1; continue }
+            var end = index
+            while end < c.count, isDigit(c[end]) || ((c[end] == "." || c[end] == ",") && end + 1 < c.count && isDigit(c[end + 1]) && end > index) {
+                end += 1
             }
+            var number = String(c[index..<end]).replacingOccurrences(of: ",", with: "")
+            var start = index, comparator = "="
+            if index > 0, c[index - 1] == "-" || c[index - 1] == "−", lastEnd != index - 1 {
+                number = "-" + number; start = index - 1
+            }
+            for (word, kind) in prefixComparators where starts(c, at: start - word.count, with: word) {
+                start -= word.count; comparator = kind; break
+            }
+            var unitEnd = end, unit = ""
+            for candidate in units where starts(c, at: end, with: candidate) {
+                let next = end + candidate.count < c.count ? c[end + candidate.count] : nil
+                let latin = candidate.unicodeScalars.allSatisfy(\.isASCII) && candidate != "%"
+                if latin, let next, next.isASCII, next.isLetter { continue }
+                unit = candidate; unitEnd = end + candidate.count; break
+            }
+            var tokenEnd = unitEnd
+            for (word, kind) in suffixComparators where starts(c, at: unitEnd, with: word) {
+                if comparator == "=" { comparator = kind }
+                tokenEnd = unitEnd + word.count; break
+            }
+            let rangeBefore = start > 0 && rangeMarks.contains(c[start - 1]) && lastEnd == start - 1
+            let rangeAfter = tokenEnd + 1 < c.count && rangeMarks.contains(c[tokenEnd])
+                && (isDigit(c[tokenEnd + 1]) || prefixComparators.contains { starts(c, at: tokenEnd + 1, with: $0.0) })
+            tokens.append(ValueToken(comparator: comparator, number: number, unit: unit, start: start, end: tokenEnd,
+                                     range: rangeBefore || rangeAfter, endsLine: tokenEnd == c.count))
+            if rangeBefore, let previous = tokens.indices.dropLast().last {
+                let p = tokens[previous]
+                tokens[previous] = ValueToken(comparator: p.comparator, number: p.number, unit: p.unit, start: p.start, end: p.end, range: true,
+                                              endsLine: p.endsLine)
+            }
+            lastEnd = tokenEnd
+            index = tokenEnd
         }
-        var unique: [String] = []
-        for needle in found where !needle.isEmpty && !unique.contains(needle) { unique.append(needle) }
-        return unique
+        return tokens
+    }
+
+    /// The matches tried in order for one printed text; the first tier with any match decides.
+    ///
+    /// A value (one token, not a range) matches a printed token with the same comparator, number
+    /// and unit (tier 1); or, when Vision read the unit on its own line, a printed token with the
+    /// same comparator and number, no unit, that ends its line (tier 2). A different unit on the
+    /// same line, a dropped or added comparator, a dropped or added decimal point, a number inside
+    /// a longer number, and a value inside a range never match. Any other printed text (a range,
+    /// several values) matches only by its whole text, bounded by non-digits.
+    ///
+    /// A serving line matches by its whole text, bounded by non-digits; or, when Vision split the
+    /// line, by its quantity's token with a unit (tier 1 only).
+    static func matchTiers(_ printed: String, isLine: Bool, in lines: [Normalised]) -> [[Match]] {
+        let model = Normalised(printed)
+        let modelTokens = valueTokens(model.characters)
+        func tokenMatches(_ accept: (ValueToken, ValueToken) -> Bool, against wanted: ValueToken) -> [Match] {
+            var found: [Match] = []
+            for (number, line) in lines.enumerated() {
+                for token in valueTokens(line.characters) where !token.range && accept(token, wanted) {
+                    found.append(Match(line: number, range: line.origin[token.start].lowerBound..<line.origin[token.end - 1].upperBound))
+                }
+            }
+            return found
+        }
+        func same(_ printed: ValueToken, _ wanted: ValueToken) -> Bool {
+            printed.comparator == wanted.comparator && printed.number == wanted.number && printed.unit == wanted.unit
+        }
+        func unitSplit(_ printed: ValueToken, _ wanted: ValueToken) -> Bool {
+            !wanted.unit.isEmpty && printed.unit.isEmpty && printed.endsLine && printed.comparator == wanted.comparator
+                && printed.number == wanted.number
+        }
+        let whole = occurrences(of: printed, in: lines, rule: .bounded)
+        if isLine {
+            guard let quantity = modelTokens.first, modelTokens.count == 1, !quantity.unit.isEmpty, !quantity.range else { return [whole] }
+            return [whole, tokenMatches(same, against: quantity)]
+        }
+        guard modelTokens.count == 1, let wanted = modelTokens.first, !wanted.range else { return [whole] }
+        return [tokenMatches(same, against: wanted), tokenMatches(unitSplit, against: wanted)]
     }
 
     // MARK: Normalisation and occurrence rules
@@ -266,6 +398,8 @@ public enum LabelValueMatcher {
         case label
         /// A serving line: plain containment.
         case line
+        /// Whole printed text: not preceded or followed by a digit, a point or a separator.
+        case bounded
     }
 
     static func occurrences(of needle: String, in lines: [Normalised], rule: Rule) -> [Match] {
@@ -290,6 +424,9 @@ public enum LabelValueMatcher {
         case .value: return !numeric(before) && !numeric(after)
         case .label: return !(before.map { $0.isLetter } ?? false)
         case .line: return true
+        case .bounded:
+            func edge(_ character: Character?) -> Bool { character.map { isDigit($0) || $0 == "." || $0 == "," } ?? false }
+            return !edge(before) && !edge(after)
         }
     }
 

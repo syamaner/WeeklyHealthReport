@@ -10,8 +10,9 @@ final class LabelPhotoFreezeTests: XCTestCase {
     static let frozenSources: [String: String] = [
         // label-photo-vision-locate-v1, carried unchanged from the L0 tool (17.9). Re-pinned before
         // anything shipped for the #320 reviews: the order-pass safety fix, then the first-pass row
-        // distance limit and unlisted-column rule, then no found value without its own row label (17.10).
-        "Sources/FoodLabelPhotoReading/LabelValueMatcher.swift": "db15fba7ca61fc599d9a937c59914ebbdce8849d6a2809a9d8ea1623b6b13678",
+        // distance limit and unlisted-column rule, then no found value without its own row label,
+        // then values compared as tokens and the mutation sweep fixes (17.10).
+        "Sources/FoodLabelPhotoReading/LabelValueMatcher.swift": "ea1ab9c9d60f316f37c8e62abbb422f021a0e8d3a4f189369fb4faa131f41b8d",
     ]
 
     var packageRoot: URL {
