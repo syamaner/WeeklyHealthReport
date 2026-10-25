@@ -282,6 +282,47 @@ final class LabelValueMatcherReferenceIntakeTests: XCTestCase {
         XCTAssertNotEqual(locate(misread, lines, headers: ["每份", intakeHeader], bases: [.amount, .referenceIntake])["serving"], .found)
     }
 
+    // MARK: #322 round 3
+
+    func testTwoTouchingPercentColumnsWithMixedWidthsAreTwoPositions() {
+        // I1: touching % columns, tokens 0.03 and 0.05 wide, centres 0.04 or 0.045 apart; the
+        // first is blank on the top rows; neither header read; the model reads the second. Rows
+        // printing both columns hold two % tokens, so there are two positions.
+        for distance in [0.04, 0.045] {
+            var lines = [line("每份", x: 0.30, y: 0.90), line("每100公克", x: 0.80, y: 0.90, width: 0.12),
+                         line(serving, x: 0.2, y: 0.97, width: 0.3)]
+            for (index, row) in rows.enumerated() {
+                let y = 0.80 - Double(index) * 0.08
+                lines.append(line(row.label, x: 0.11, y: y, width: 0.12))
+                lines.append(line(row.amount, x: 0.30, y: y))
+                if index >= 3 { lines.append(line("9%", x: 0.55, y: y, width: 0.03)) }
+                lines.append(line(row.intake, x: 0.55 + distance, y: y, width: 0.05))
+                lines.append(line(row.per100, x: 0.80, y: y))
+            }
+            let reading = queries([("每份", { $0.amount }), (intakeHeader, { $0.intake }), ("每100公克", { $0.per100 })])
+            let status = locate(reading, lines, headers: ["每份", intakeHeader, "每100公克"], bases: [.amount, .referenceIntake, .amount])
+            XCTAssertEqual(status.filter { $0.key.hasSuffix("c1") && $0.value == .found }.map(\.key), [], "\(distance)")
+        }
+    }
+
+    func testAServingLineMatchesOnlyAsTheWholeLine() {
+        // I4b: a suffix serving line 30公克/每份 misread as 3公克/每份; a footnote prints
+        // *糖3公克/每份以下.
+        let suffix = twoColumn.filter { $0.text != serving } + [line("30公克/每份", x: 0.2, y: 0.97, width: 0.2),
+                                                                line("*糖3公克/每份以下", x: 0.25, y: 0.25, width: 0.3)]
+        let suffixRead = withServing(queries([("每份", { $0.amount }), (intakeHeader, { $0.intake })]), "3公克/每份")
+        XCTAssertNotEqual(locate(suffixRead, suffix, headers: ["每份", intakeHeader], bases: [.amount, .referenceIntake])["serving"], .found)
+        // I3b: another block's level line ends with 每一份量 beside 3公克膳食纖維; the printed
+        // serving line is 30 g and the model reads 3 g.
+        let split = twoColumn + [line("另一口味每一份量", x: 0.15, y: 0.25, width: 0.2), line("3公克膳食纖維", x: 0.33, y: 0.25, width: 0.14)]
+        let misread = withServing(queries([("每份", { $0.amount }), (intakeHeader, { $0.intake })]), "每一份量3公克")
+        XCTAssertNotEqual(locate(misread, split, headers: ["每份", intakeHeader], bases: [.amount, .referenceIntake])["serving"], .found)
+        // Control: a serving line printed with the servings-per-pack line on one line is found.
+        let joined = twoColumn.filter { $0.text != serving } + [line("每一份量30公克，本包裝含2份", x: 0.25, y: 0.97, width: 0.4)]
+        XCTAssertEqual(locate(queries([("每份", { $0.amount }), (intakeHeader, { $0.intake })]), joined, headers: ["每份", intakeHeader],
+                              bases: [.amount, .referenceIntake])["serving"], .found)
+    }
+
     // MARK: D4, a per-serving header printed with its serving quantity
 
     func bracketed(_ header: String) -> [M.Line] {

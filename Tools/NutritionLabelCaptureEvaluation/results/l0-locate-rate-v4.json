@@ -247,7 +247,7 @@
           "0.85": 37
         },
         "serving_lines": 72,
-        "serving_lines_found": 34,
+        "serving_lines_found": 33,
         "silent": 52,
         "silent_blocking": 6,
         "silent_by_locator": 52,

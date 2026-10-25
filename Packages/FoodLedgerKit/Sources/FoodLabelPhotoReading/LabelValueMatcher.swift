@@ -425,7 +425,11 @@ public enum LabelValueMatcher {
                 }
                 last = token.midX
             }
-            return count
+            // I1: never fewer positions than % tokens printed on any one direct row.
+            let perRow = rowsTopDown.filter { directRows.contains($0.key) }.map { row in
+                directTokens.filter { $0.token.unit == "%" && abs($0.box.midY - row.value.midY) < 0.5 * max(tableStep, 0.01) }.count
+            }.max() ?? 0
+            return max(count, perRow)
         }()
         let everyHeaderLocated = headerKeys.allSatisfy { headerBoxes[$0] != nil }
         /// The value's own header sits directly above it: the token's centre lies within the
@@ -575,18 +579,33 @@ public enum LabelValueMatcher {
                 line.origin[candidate.start].lowerBound == match.range.lowerBound
             }) else { return false }
             let ownBefore = Array(line.characters[..<printed.start]), ownAfter = Array(line.characters[printed.end...])
-            let wordsAfter = after.isEmpty || ownAfter.starts(with: after)
-            if ownBefore.count >= before.count, Array(ownBefore.suffix(before.count)) == before, wordsAfter {
-                // Words on the same line.
-            } else if printed.start == 0, !before.isEmpty, wordsAfter {
+            // I3b, I4b: the matched text is the serving line itself, apart from whitespace and
+            // punctuation: what is before its words is empty or ends with punctuation, and what is
+            // after them is empty or starts with punctuation, so the line is not part of a longer
+            // phrase ("*糖3公克/每份以下", "另一口味每一份量"), while a serving line printed with the
+            // servings-per-pack line ("每一份量30公克，本包裝含2份") still counts.
+            func isMark(_ character: Character?) -> Bool { character.map { $0.isPunctuation || $0.isSymbol } ?? true }
+            func endsCleanly(_ characters: ArraySlice<Character>) -> Bool { characters.isEmpty || isMark(characters.last) }
+            func startsCleanly(_ characters: ArraySlice<Character>) -> Bool { characters.isEmpty || isMark(characters.first) }
+            func onlyPunctuation(_ characters: ArraySlice<Character>) -> Bool { characters.allSatisfy { isMark($0) } }
+            let wordsAfter = ownAfter.starts(with: after) && startsCleanly(ownAfter.dropFirst(after.count))
+            if ownBefore.count >= before.count, Array(ownBefore.suffix(before.count)) == before,
+               endsCleanly(ownBefore.dropLast(before.count)), wordsAfter {
+                // The whole serving line on one recognised line.
+            } else if onlyPunctuation(ownBefore[...]), !before.isEmpty, wordsAfter {
+                // Split in two: the quantity's line holds only the quantity and its after-words, and
+                // the nearest level line to its left holds only the before-words.
                 let left = lines.indices.filter { index in
                     index != match.line && abs(lines[index].box.midY - value.midY) < max(lines[index].box.height, value.height) / 2
                         && lines[index].box.x + lines[index].box.width <= lines[match.line].box.x + 0.01
                         && lines[match.line].box.x - (lines[index].box.x + lines[index].box.width) < 0.1
                 }
-                guard let nearest = left.max(by: { lines[$0].box.x + lines[$0].box.width < lines[$1].box.x + lines[$1].box.width }),
-                      normalised[nearest].characters.count >= before.count,
-                      Array(normalised[nearest].characters.suffix(before.count)) == before else { return false }
+                guard let nearest = left.max(by: { lines[$0].box.x + lines[$0].box.width < lines[$1].box.x + lines[$1].box.width }) else {
+                    return false
+                }
+                let words = normalised[nearest].characters
+                guard words.count >= before.count, Array(words.suffix(before.count)) == before,
+                      endsCleanly(words.dropLast(before.count)) else { return false }
             } else {
                 return false
             }
@@ -597,11 +616,23 @@ public enum LabelValueMatcher {
             if headerBoxes.values.contains(where: { abs($0.midY - value.midY) < 0.5 * step }) { return false }
             return true
         }
+        /// I4b: a serving line found by its whole printed text is not part of a longer word: the
+        /// characters just before and after it are not letters or ideographs ("*糖3公克/每份以下"
+        /// does not hold the serving line "3公克/每份"; "每一份量30公克，本包裝含8份" holds both lines).
+        func servingTextStandsAlone(_ match: Match) -> Bool {
+            let line = normalised[match.line]
+            guard let start = line.origin.firstIndex(where: { $0.lowerBound == match.range.lowerBound }),
+                  let end = line.origin.lastIndex(where: { $0.upperBound == match.range.upperBound }) else { return false }
+            let before = start > 0 ? line.characters[start - 1] : nil
+            let after = end + 1 < line.characters.count ? line.characters[end + 1] : nil
+            return !(before?.isLetter ?? false) && !(after?.isLetter ?? false)
+        }
         let first: [First] = queries.map { query in
             let isLine = query.rowLabel == nil
             let wanted = valueTokens(Normalised(query.printedText).characters)
             for (tierIndex, tier) in matchTiers(query.printedText, isLine: isLine, in: normalised).enumerated() {
-                let admitted = isLine && tierIndex == 1 ? tier.filter { servingTokenOutsideTable(query, $0) } : tier
+                let admitted = !isLine ? tier : tierIndex == 1 ? tier.filter { servingTokenOutsideTable(query, $0) }
+                    : tier.filter { servingTextStandsAlone($0) }
                 var candidates = admitted.map { box($0) }.filter { inHeader(query, $0) }
                 if !isLine, !candidates.isEmpty {
                     // A reading with no unit, or a value matched by its number alone without its unit

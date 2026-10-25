@@ -10,7 +10,7 @@ final class LabelPhotoFreezeTests: XCTestCase {
     static let frozenSources: [String: String] = [
         // label-photo-vision-locate-v3 (L1d, 17.15), carried unchanged from the L0 tool. v2 was
         // 25bfb4f2… (#321) and v1 ea1ab9c9… (#320), neither shipped; a change to this file is a new version.
-        "Sources/FoodLabelPhotoReading/LabelValueMatcher.swift": "54fa623eabb21055152879266379a79e812e3ca6d90f6f1eb27c551645f77e83",
+        "Sources/FoodLabelPhotoReading/LabelValueMatcher.swift": "8633366a038ec4f71151f4723f524ef00ba33e920dd98b3589b6088345a9cf3a",
     ]
 
     var packageRoot: URL {

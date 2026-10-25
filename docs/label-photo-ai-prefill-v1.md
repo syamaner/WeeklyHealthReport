@@ -825,3 +825,14 @@ F9, F8c, F8d, F5b and the C1 case are regression tests. The round-1 harness (A t
 - **H1 (medium-low):** the serving words could sit anywhere on the matched or a level line, so a footnote (*每一份量含膳食纖維 3公克) vouched for a misread 每一份量3公克. The words must now sit directly before (or after) the quantity on its own line, whitespace ignored. For a line Vision split in two, the quantity must start its line, and the words must end the nearest line directly to its left, level with it.
 
 H4 at 0.60 and 0.64 and H1 are regression tests. The round-2 harness (A to F and H1 to H5, 104 scenarios) is clean in every base mode, and all earlier harnesses stay clean. On L0 the value counts do not change. Serving lines found fall again (Gemini 30 of 68, against 35), because a quantity whose words are not directly beside it now needs a check; Gemini's median to check is 9.5.
+
+**Round 3 of the #322 review** held H4 and H1 at realistic spacing and found three low-severity edges, all fixed by stricter rules:
+
+- **I1:** two touching % columns with mixed token widths still merged into one position. The count of % positions is now never less than the largest number of % tokens on any one direct row, with the span walk kept as a second signal.
+- **I4b:** a suffix serving line (30公克/每份 misread as 3公克/每份) was found inside a footnote, *糖3公克/每份以下, because only the words after the quantity were checked, and the whole-text match had no boundary. **I3b:** a split serving line was matched when another block's level line ended with the serving words (另一口味每一份量, beside 3公克膳食纖維).
+  - A serving line now counts only as the line itself, apart from whitespace and punctuation. Whatever comes before its words is empty or ends with punctuation; whatever comes after is empty or starts with punctuation.
+  - For a split line, the quantity's line starts with the quantity, and the line to its left ends with the words, after nothing but such a boundary.
+  - A whole-text match is likewise refused when a letter or ideograph touches it.
+  - A serving line printed with the servings-per-pack line (每一份量30公克，本包裝含2份) still counts.
+
+I1 (centre distances 0.04 and 0.045), I3b, I4b and the joined-line control are regression tests. The round-3 harness (A to H and I1 to I4, 121 scenarios) is clean in every base mode, and all earlier harnesses stay clean. On L0 the value counts do not change; Luna finds one serving line fewer (33).

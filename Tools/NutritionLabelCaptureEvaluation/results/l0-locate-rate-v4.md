@@ -25,7 +25,7 @@ Locator v3 keeps every v2 rule, including round 6's own-header span and one toke
 | Silent-error tables / fully caught | 2 / 1 | 3 / 3 | 5 / 4 |
 | Tables with no attention item | 5 | 5 | 5 |
 | Attention items per table, median / p90 | 9.5 / 18 | 9 / 18 | 9 / 20 |
-| Serving lines found | 30 / 68 | 32 / 70 | 34 / 72 |
+| Serving lines found | 30 / 68 | 32 / 70 | 33 / 72 |
 
 Against locator v2 as pinned after round 6 (v3 results), the found rate rises:
 - Gemini: 37.2% to 43.6%
@@ -69,7 +69,7 @@ The value counts are unchanged from v3; 27 of 30 serving lines are found, agains
   - a narrow column touching an amount column;
   - bracketed quantities that do not match the serving size.
 - Every silent wrong value of every arm still needs a check, as with v2.
-- After round 1 of the #322 review, a serving line matched by its quantity alone counts only outside the table and with its own words beside it (G1). After round 2, the words must sit directly beside the quantity (H1), and fewer again are found (30, 32 and 34, against 39, 41 and 42 before round 1); the value counts do not change.
+- After round 1 of the #322 review, a serving line matched by its quantity alone counts only outside the table and with its own words beside it (G1). After round 2, the words must sit directly beside the quantity (H1), and fewer again are found (30, 32 and 33 after round 3, against 39, 41 and 42 before round 1); the value counts do not change.
 - Fewer ambiguous values come with a region (93 against 129). That fits values that had a region now being found, but it has not been checked case by case.
 - The limits are those of v1 to v3:
   - public crowd-sourced photos;
