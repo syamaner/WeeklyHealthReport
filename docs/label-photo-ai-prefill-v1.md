@@ -322,7 +322,7 @@ Add one row to "Allowed egress" when the live transport is wired:
 
 ```diff
  | OpenRouter and its configured providers | Displayed food terms and captured public source text | Only on an explicit web lookup, with the user's own validated key | [generic-food-proposal-integration-v1.md](generic-food-proposal-integration-v1.md) |
-+| OpenRouter and its one allow-listed model endpoint (ZDR, data collection denied, no fallbacks) | One cropped, downscaled label photo re-encoded with all metadata removed, plus a fixed instruction and output schema; no name, brand, food log, health data or identifiers | Only when the user taps Read label with AI on the Label photo screen, with the user's own validated key; on the first tap of a session a catalogue request with no key and no user data first confirms the endpoint; at most 3 attempts for retryable failures and $0.05 in total per tap; at most 30 reads and $0.50 per day | [label-photo-ai-prefill-v1.md](label-photo-ai-prefill-v1.md) |
++| OpenRouter and its one allow-listed model endpoint (ZDR, data collection denied, no fallbacks) | One cropped, downscaled label photo re-encoded with all metadata removed, plus a fixed instruction and output schema; no name, brand, food log, health data or identifiers | Only when the user taps Read label with AI on the Label photo screen, with the user's own validated key; on the first tap of a session, and on the first tap of each new local day, two catalogue requests (the model's endpoint listing and the ZDR endpoint listing) with no key and no user data first confirm the endpoint; at most 3 attempts for retryable failures and $0.05 in total per tap; at most 30 reads and $0.50 per day | [label-photo-ai-prefill-v1.md](label-photo-ai-prefill-v1.md) |
 ```
 
 Amend the first rule for every egress path:
@@ -526,7 +526,7 @@ L1 re-runs `rg 'isVersion|captureMethodVersion'` and adds any further site to th
 
 **Attention (M2).** `label-photo-attention-v1` is in the manifest and the pipeline string. The per serving against per 100 check is versioned as `label-photo-serving-consistency-v1` (the per serving value equals the per 100 value times the serving grams over 100, within the printed rounding of the evaluation's section 7), because it is not part of `label-arithmetic-checks-v2`. The verifier **recomputes** the attention set from the stored `locations`, `flags_shown` and recorded check outcomes (`warnings_shown`) under the stored attention version, and requires it to equal the stored `attention` items exactly, each with a resolution. It does not re-run the checks (17.1).
 
-**Catalogue check (M3).** E7's runtime check runs on the **first Read tap of a session, before the image is sent**: a GET of the model's public endpoint listing with **no Authorization header** and no user data. A mismatch or failure ends the tap with the "route unavailable" copy and nothing is sent; a pass is cached for the session. The egress row in 11.1 states it.
+**Catalogue check (M3).** E7's runtime check runs on the **first Read tap of a session, and on the first tap of each new local day, before the image is sent**: two catalogue requests (the model's endpoint listing and the ZDR endpoint listing), each with **no Authorization header** and no user data. A mismatch or failure ends the tap with the "route unavailable" copy and nothing is sent; a pass is cached for the rest of that local day in the session. The egress row in 11.1 states it.
 
 **Spend (M4).**
 
@@ -948,3 +948,153 @@ L2 adds the `FoodLabelPhotoCapture` target, with no network code and nothing wir
   - **(b) Memory.** The photo is decoded subsampled, to the size the crop needs at the output bounds, rather than at full size. A large synthetic source is tested end to end, and the decode size is tested directly.
   - **(c) An L5/E13 gate.** Before the route is enabled, `FoodLabelPhotoCaptureTests` run once on a physical iPhone and the result is recorded, so the metadata guarantee is checked on iOS's ImageIO as well as macOS's.
 - Quarter turns 2 and 3 are tested as well.
+
+**The #324 re-review (PASS) and its Low hardening, folded into L3.** The structure is now exact as well as allow-listed:
+
+- APP0 is accepted only once, and only as the first segment after SOI.
+- DRI has length exactly 4 and appears at most once.
+- SOF0 has length 8 + 3 x Nf and SOS 6 + 2 x Ns, with 1 to 4 components each.
+- Restart markers in the scan are accepted only under a declared non-zero restart interval, and only in sequence `FF D0` to `FF D7` modulo 8. ImageIO writes its own DRI and restart markers, which pass.
+- The subsampled-decode test adds a large orientation-6 source, which comes out portrait with the long edge at 2,048 px and the asymmetric marker in the right place.
+
+### 17.18 L3: the read orchestrator, the OpenRouter adapter over a fake transport, the Confirm builder and atomic Log (26 October 2026, no egress)
+
+L3 adds no live transport. The adapter talks to a `LabelPhotoHTTPTransporting` protocol, and its tests use a fake. No code loads a URL: the live conformer is L5's, in `OpenRouterTransport.swift`, the one file the boundary script allows to, and it ships with the egress records (E16).
+
+**The read orchestrator (`LabelPhotoReadSession`, tests 9, 10, 21, 22 and 26).** One actor per app session. For each Read tap, in order:
+
+1. The day's admission from the spend ledger. An unreadable ledger fails closed with the daily limit state; a paused day or a full allowance sends nothing.
+2. On the session's first tap, and again on the first tap of each new local day (prices are per day), the catalogue check, before any image request. The slug, the endpoint, image input, zero data retention and the prices must match the route, and the worst case W of one attempt must fit the tap's $0.05. A mismatch or a failure ends the tap with "route unavailable" and nothing sent. A pass is kept for the session.
+3. Attempts. Each one starts only while the tap's remaining budget covers a whole W, with the retry policy's delay and the clamped timeout of min(45 s, what is left of 90 s), until one of these:
+   - an answer;
+   - a failure that is not retried;
+   - the attempt or deadline limit;
+   - Cancel.
+4. The tap is recorded on the day (E10).
+
+**Cancel.**
+- Cancel during an attempt stops at once. The attempt counts as sent, so a tap with no reported cost is charged $0.05 under E10.
+- Cancel while waiting to retry starts no further attempt.
+- Cancel before anything is sent charges nothing.
+
+**The answer** carries the reply and the request record (instruction and schema digests, limits and the session's catalogue check), through the attempt port's `manifestRequest`.
+
+**The adapter (`FoodLabelPhotoCapture`, tests 7, 8, 21 and 22).**
+
+- **The request (E1, E2, E5).** One POST to `https://openrouter.ai/api/v1/chat/completions`. The body is exactly:
+  - the model;
+  - one user message holding the fixed instruction and the prepared JPEG as a data URI;
+  - the strict wire schema, without `$comment`, under the evaluation's schema name and description;
+  - the provider block: `only` and `order` the one endpoint, no fallbacks, parameters required, data collection denied and ZDR;
+  - `max_tokens` 1,200, `reasoning: {"max_tokens": 500}`, `stream: false` and `usage: {"include": true}`.
+
+  The body is serialised with sorted keys, and its bytes for a fixed image are pinned by SHA-256 (the golden). The key travels only as `Authorization: Bearer`, and a body that would contain the key is refused. No other header is sent: no referrer and no app title. The instruction and schema ship as package resources whose SHA-256 equal the evaluation's frozen contract pins, and a changed resource refuses to build a request.
+- **The response checks (E5, E12).** A reply is an answer only when all of these hold:
+  - it is at most 200,000 bytes (the transport stops reading past that);
+  - HTTP 200, with exactly one choice;
+  - `finish_reason` is `stop`, with no tool call and no refusal;
+  - the model is exactly the requested slug, or one of its dated slugs pinned at E13 qualification (`pinnedSnapshots`, empty until then; no pattern is matched);
+  - the provider, lower-cased with spaces as hyphens, equals the endpoint tag;
+  - it has a generation ID, and its content (at most 65,536 bytes) decodes under the strict wire schema.
+
+  Each other case is a failed read with nothing shown:
+  - `length` gives truncated;
+  - `content_filter` or a refusal gives refused;
+  - a wrong model or provider gives its own code;
+  - oversize gives oversize;
+  - anything else gives an unreadable answer.
+
+  A missing, negative or non-numeric cost is unknown, never zero; a reported zero is a reported cost.
+- **Retry classification (E11, 17.5).**
+  - HTTP 408, 429, 500, 502, 503 and 504, transport errors and timeouts are retried.
+  - The overloaded answer is retried: an error object with code 502, 503 or 529 and no choices, in an HTTP error or a 200 envelope.
+  - 401 and 403 give "key rejected" and are not retried; nor is any other status.
+  - `Retry-After` is passed to the retry policy as received.
+- **The catalogue check (E7, M3, test 22).** Two GETs of OpenRouter's public catalogue, with no Authorization header, no body and no user data: the model's endpoint listing (slug, image input, the endpoint's prices) and the ZDR endpoint listing, which must hold the same model on the same endpoint tag.
+
+**Open for L5, before the live transport is wired.** These are not guessed here:
+- The live catalogue's field names in the ZDR listing (`model_id` or `model`, and `tag`).
+- Whether Gemini 4 Argon on Vertex bills reasoning outside `max_tokens`. `reasoningBilledSeparately` stays an explicit composition choice; with it, W is about $0.029 and an unreported failure leaves no retry.
+
+L5 confirms both against the catalogue and a fictional qualification label, and records them here.
+
+**The Confirm builder (`LabelPhotoConfirmation`, test 4 as Confirm applies it).**
+
+- **The review.** `review(reading:image:reply:request:locations:)` refuses three things:
+  - a declined or unusable reading (its codes);
+  - a reading, reply or image that do not belong together;
+  - locations that do not give exactly one record per cell and printed serving line.
+
+  It computes the attention items and check groups with the same `LabelPhotoSource.attention` the verifier recomputes.
+- **What it records.**
+  - `flags_shown` holds every gate flag as shown with the reading. It is never reduced by a correction, unlike the pasted route, because attention is recomputed from it.
+  - `checks_failed` holds the failed `label-arithmetic-checks-v2` results.
+  - **Decision:** the per serving against per 100 check of 17.5 is v2's own `serving_scaling` (evaluation section 7, called and never copied), so v1 never emits a separate `serving_consistency` record. The name stays admitted and `consistency_version` stays as recorded.
+- **Actions.** Each returns a new review:
+  - "Matches the photo";
+  - "I've checked them" on a check group, which keeps any correction or left-unknown already made;
+  - "Leave unknown";
+  - "Correct";
+  - entering a serving line the label does not print.
+
+  "Correct" follows the pasted rules. Only a value of the stored column, printed once in its ledger unit, can be corrected, and so can the serving size; a printed servings-per-pack line and other columns can only be checked or left unknown. A later resolution replaces the earlier one and its correction.
+- **The shown-conversions rule (17.16).** Leaving a value unknown takes every value of its nutrient in its column out of the stored values. Any conversion from it, or to that nutrient in that column, is removed from `conversions` and reads "Left unknown"; changing the resolution brings it back.
+- **Log.** Log stays disabled until every item is resolved. Each record's time is clamped between the answer's `completed_at` and the capture, even if the clock moved. The built input is checked with the save verifier before it is returned, so the builder fails closed.
+
+**Atomic Log (17.3, test 15).**
+
+- **The path.** `FoodConfirmationService.saveLabelPhoto` is the only way a new photo entry is logged:
+  1. It checks that the bytes hash to the image evidence.
+  2. It persists them through `EvidenceAttachmentStoring.persist`.
+  3. It binds the image evidence to the descriptor.
+  4. It saves with one commit whose evidence may reference only that descriptor (`FoodLedgerService`'s commit with `persistedAttachments`).
+- **On failure.** On a policy rejection, a verifier rejection or a commit failure it calls `removeIfUnreferenced`.
+- **What the tests show.** On the GRDB store with its real attachments directory:
+  - each failure leaves no evidence row, no release and no file;
+  - a successful Log is exactly one commit, and the entry reopens and verifies;
+  - the plain `save` refuses a new photo entry without its photo.
+- **Admission.** Save and reopen now route label candidates through `LabelSourceAdmission`, so a photo candidate reaches the photo verifier and a mixed one is refused. Pasted entries are unchanged, and their whole suite passes.
+
+**Not in L3.** These are not in L3:
+- the live transport and its egress records (L5);
+- the file-backed spend ledger and the screens (L4);
+- the copy for decline and failure codes (L4).
+
+**The #324 re-review's Low hardening** is folded in (17.17).
+
+**Invariant review of #326 (BLOCK on spend accounting, fixed; decisions by the coordinator under the owner's delegation).**
+
+- **The tap is reserved before the first send (medium).** Before attempt 1 the session stores one more read and a whole tap's $0.05. At the end it reconciles that reservation to the tap's cost, up as well as down: a reported cost above $0.05 counts in full and pauses the day. A kill or crash mid-attempt leaves the reservation counted. A tap that sent nothing releases it. A test holds an attempt that never returns and reads the stored reservation.
+- **A failed ledger write fails closed (medium).** If the reservation cannot be stored, nothing is sent. If the final write fails, the reservation stays. Either way every further read in that session is refused with the daily limit state.
+- **One tap at a time (low to medium).** An in-flight flag is set before the first suspension, so a concurrent tap is refused and sends nothing. The admission is checked again on a fresh ledger read just before the reservation. At 29 reads and $0.45, two concurrent taps send once.
+- **An unreadable ledger is never overwritten (low).** If the ledger reads as unreadable at the end of a tap, it is left as it is and the route stays closed.
+- **No attempt without time (low).** If the clamped timeout is zero or less (for example after a suspension while waiting to retry), no attempt starts and the read ends timed out.
+- **Q1, model identity (E5).** The response model must equal the request exactly, or appear in an explicit list of dated slugs for the approved model pinned at E13 qualification (`OpenRouterLabelPhotoAttempt.pinnedSnapshots`, empty until then). The evaluation's date-pattern rule is no longer used.
+- **Q2, the key.** The session checks that a key is present and well formed before anything leaves, the catalogue requests included. The validated-key gate on the screen belongs to L4.
+- **Q3, the day.** The catalogue check runs again on the first tap of a new local day, because prices are per day.
+- **Q4, Cancel.** Accepted as built. L5's transport maps `.cancelled` only to task cancellation.
+
+**Live transport obligations for L5.** `OpenRouterTransport.swift`, the one file allowed to load URLs, must do all of these:
+
+- send a fixed, neutral `User-Agent` and no `Accept-Language`;
+- use an ephemeral configuration with no cookies, no URL cache and no credential storage;
+- refuse every redirect;
+- cap the streamed reply at the requested byte maximum and report `exceededLimit` instead of reading on;
+- apply the per-attempt timeout it is given;
+- map `.cancelled` only to task cancellation, `.timedOut` to the timeout, `.offline` to no network path, and anything else to `.failed`;
+- use the same anonymous configuration for the catalogue GETs, with no Authorization header.
+
+Before the route is enabled, L5 also confirms the ZDR listing's live field names and whether reasoning is billed outside `max_tokens`, and records both here.
+
+**Re-check of #326 (one medium, fixed).**
+
+- **Two sessions on one ledger (medium).** The reconcile and the release used to write an absolute day built from the snapshot taken before the reservation, so a second session's spend could be lost. The spend ledger port is now one atomic read-modify-write, `update(_:)`.
+  - **Reserve.** The admission and the reservation happen in one update.
+  - **Reconcile.** A delta on the day as it is now: reads unchanged, the cost moves from $0.05 to the tap's cost, and a reported cost over $0.05 or an input over the ceiling pauses the day.
+  - **Release.** One read and $0.05 fewer.
+  - A day other than the tap's is never changed.
+  - The test fakes implement the update under a lock. L4's file ledger implements it under file coordination.
+  - A two-session test reproduces the worked example: start at 10 reads and $0.10; A reserves; B reserves; B finishes at $0.01; A finishes unreported. The ledger ends at 12 reads and $0.16. A release by one session keeps the other's reservation.
+- **One session per process.** The composition root holds a single `LabelPhotoReadSession`, shared by every scene. It is built in L4, with its test, where the route is first wired. With the atomic update, two sessions are already correct, so this is a second line of defence.
+- **The final write (low).** A failed reconcile or release write is retried once. If it fails again, the reservation stays and the route closes for the session.
+- **The residual window (accepted).** The reservation counts $0.05. If the app is killed after a reply that reported more than $0.05, or more than 6,000 prompt tokens, but before the reconcile, the day keeps $0.05 and is not paused. This needs the provider to exceed the worst case W, which the catalogue prices and `max_tokens` bound, so it is accepted.

@@ -2924,3 +2924,34 @@ Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A): `claude-opus-5-5` USD 
 Boundary: `phase_usage.py --format claude --since 2026-10-25T16:04:55Z --until 2026-10-25T16:52:56Z` on the subagent transcript alone. Cache writes 3,418,077 5-minute, 0 1-hour; exact USD 24.9185814. Review fix: `--since 2026-10-25T16:52:56Z --until 2026-10-25T17:21:34Z`, just before this edit: the L2 commits, push, PR #324 and report, the start of L3 on its own branch (the read session, its ports and tests; not separated out), then the allow-listed JPEG sanitiser with its adversarial vectors, the confinement and factory rules, the plan with the subsampled decode, the short edge after scaling and the aspect ratio, the ladder and quarter-turn tests, the spec and every gate. Cache writes 1,990,085 5-minute, 0 1-hour; exact USD 19.0908446. Local Swift builds, ImageIO and Vision use no API tokens and are not priced.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-316-2026-10-26-L3: Claude Code label photo read orchestrator, adapter, Confirm builder and atomic Log
+
+The same `claude-opus-5-5` subagent and transcript as WHR-316-2026-10-25-L2, for #316 phase L3. The window runs from `2026-10-25T17:21:34Z` (where the L2 review-fix row ends, so no L3 token is counted twice) to `2026-10-25T18:10:50Z`, captured with `date -u` just before this ledger edit. It covers:
+- the read session's tests after the rebase;
+- the #324 re-review's Low hardening;
+- the OpenRouter adapter over a fake transport, with tests 7, 8, 21, 22 and 23;
+- the Confirm builder, atomic Log (test 15) and the mutation checks;
+- spec 17.18, every gate and the commit split.
+
+The read session itself was written inside the L2 review-fix window, which says so. The commit after this edit, the push and the PR are outside the window. The orchestrating session and its reviewers are not included.
+
+Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A): `claude-opus-5-5` USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache hit, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label photo L3 orchestrator, adapter, Confirm builder and atomic Log (#316), subagent | 36,308,243 (35,090,724) | 1,217,255 | 116,398 | 36,424,641 | $15.43 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-25T17:21:34Z --until 2026-10-25T18:10:50Z` on the subagent transcript alone. Cache writes 1,217,255 5-minute, 0 1-hour; exact USD 15.4334358. Local Swift and Xcode builds and the simulator use no API tokens and are not priced. These totals are a cost comparison, not productivity or quality evidence.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label photo L3 invariant-review fix: tap reservation, fail-closed ledger, exact model (#316), subagent | 6,403,131 (5,932,248) | 470,853 | 22,436 | 6,425,567 | $3.99 |
+
+L3 review fix (WHR-316-2026-10-26-L3): `phase_usage.py --format claude --since 2026-10-25T18:16:56Z --until 2026-10-25T18:26:58Z` on the subagent transcript alone. It covers parking the L4 work, the session reservation, the fail-closed ledger, the in-flight guard, the deadline guard, the key and per-day catalogue checks, the exact model rule, their tests, spec 17.18 and the gates. Cache writes 470,853 5-minute, 0 1-hour; exact USD 3.9895546. The L4 work from 18:12:28Z to 18:16:56Z is not in this row; it belongs to L4's row. Same pricing as above; an API-equivalent comparison, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label photo L3 re-check fix: atomic spend ledger update (#316), subagent | 4,737,482 (4,243,214) | 494,248 | 11,092 | 4,748,574 | $3.54 |
+
+L3 re-check fix (WHR-316-2026-10-26-L3): `phase_usage.py --format claude --since 2026-10-25T18:32:33Z --until 2026-10-25T18:41:12Z` on the subagent transcript alone. It covers parking L4 again, the atomic `update` port, the delta reconcile and release, the retried final write, the two-session tests, 17.18 and the gates. Cache writes 494,248 5-minute, 0 1-hour; exact USD 3.5418028. L4's own minutes (18:12:28Z to 18:16:56Z, 18:26:58Z to 18:32:33Z, and from 18:41:12Z on) are not in this row. Same pricing as above; an API-equivalent comparison, not a charge.

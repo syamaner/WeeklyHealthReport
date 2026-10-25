@@ -73,7 +73,9 @@ public final class FoodLedgerService: SourceReleaseInstalling, @unchecked Sendab
         return item.logItemID
     }
 
-    private func commit(
+    /// A ledger commit whose evidence may reference only the attachments the caller has just
+    /// persisted (the label photo Log, docs/label-photo-ai-prefill-v1.md 17.3).
+    func commit(
         _ mutation: LedgerMutation,
         type: LedgerOperationType,
         operationID: OperationID,

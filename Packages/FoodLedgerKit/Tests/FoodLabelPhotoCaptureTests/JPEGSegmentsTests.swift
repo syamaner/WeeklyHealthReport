@@ -93,4 +93,54 @@ final class JPEGSegmentsTests: XCTestCase {
         refuse(Array(base.prefix(sos + 3)), "truncated in the scan header")
         refuse(Array("GIF89a".utf8), "not a JPEG")
     }
+
+    /// The #324 re-review hardening: APP0 only directly after SOI, exact DRI, SOF0 and SOS lengths,
+    /// and restart markers only under a declared interval and in sequence modulo 8.
+    func testSegmentLengthsAndPositionsAreExact() {
+        let base = Self.baseline
+        let sos = Self.sosIndex
+        let app0 = Array(base[2..<20])
+        // A second APP0, and an APP0 after a dropped segment, are refused.
+        refuse(Array(base[..<20]) + app0 + Array(base[20...]), "second APP0")
+        let comment = Self.segment(0xFE, Array("c".utf8))
+        refuse(Array(base[..<2]) + comment + Array(base[2...]), "APP0 not directly after SOI")
+        // DRI must be exactly 4 bytes long, and only once.
+        refuse(Array(base[..<sos]) + Self.segment(0xDD, [0, 4, 0]) + Array(base[sos...]), "DRI of length 5")
+        let dri = Self.segment(0xDD, [0, 4])
+        refuse(Array(base[..<sos]) + dri + dri + Array(base[sos...]), "two DRI")
+        // SOF0 and SOS lengths must match their component counts.
+        let frameStart = (2..<sos).first { base[$0] == 0xFF && base[$0 + 1] == 0xC0 }!
+        var frame = base; frame[frameStart + 9] = frame[frameStart + 9] &+ 1     // Nf off by one
+        refuse(frame, "SOF0 length does not match its components")
+        var scan = base; scan[sos + 4] = scan[sos + 4] &+ 1                          // Ns off by one
+        refuse(scan, "SOS length does not match its components")
+    }
+
+    func testRestartMarkersNeedADeclaredIntervalAndTheirSequence() throws {
+        // The header of the baseline without the encoder's own DRI, and a synthetic scan: the
+        // sanitiser is structural, so the entropy-coded bytes need not decode.
+        let base = Self.baseline
+        let sos = Self.sosIndex
+        var header: [UInt8] = [0xFF, 0xD8]
+        var index = 2
+        while index < sos {
+            let end = index + 2 + (Int(base[index + 2]) << 8 | Int(base[index + 3]))
+            if base[index + 1] != 0xDD { header += base[index..<end] }
+            index = end
+        }
+        let sosLength = Int(base[sos + 2]) << 8 | Int(base[sos + 3])
+        let scanHeader = Array(base[sos..<(sos + 2 + sosLength)])
+        func withRestarts(_ dri: [UInt8]?, _ restarts: [UInt8]) -> [UInt8] {
+            header + (dri.map { Self.segment(0xDD, $0) } ?? []) + scanHeader + [0x12, 0x34]
+                + restarts.flatMap { [0xFF, $0, 0x12] } + [0xFF, 0xD9]
+        }
+        XCTAssertNotNil(JPEGSegments.sanitised(Data(withRestarts(nil, []))), "no restarts and no DRI")
+        let sequence: [UInt8] = (0..<10).map { 0xD0 + UInt8($0 % 8) }
+        let accepted = withRestarts([0, 4], sequence)
+        XCTAssertEqual(JPEGSegments.sanitised(Data(accepted)), Data(accepted), "in sequence, wrapping modulo 8")
+        refuse(withRestarts(nil, [0xD0]), "RST without DRI")
+        refuse(withRestarts([0, 0], [0xD0]), "RST under a zero restart interval")
+        refuse(withRestarts([0, 4], [0xD1]), "RST out of sequence")
+        refuse(withRestarts([0, 4], [0xD0, 0xD0]), "RST repeated")
+    }
 }

@@ -94,10 +94,30 @@ public enum LabelImageReadingFailure: Error, Equatable, Sendable {
     case providerUnavailable, wrongModel, wrongProvider, truncated, refused, oversize, unreadableAnswer, failed
 }
 
-/// Prepared image in, wire reply out (12.1). The OpenRouter adapter conforms in L3, against a fake
-/// transport only until L5.
-public protocol LabelImageReading: Sendable {
-    func read(_ image: PreparedLabelImage) async throws -> LabelPhotoWireReply
+/// What one attempt that sent the prepared bytes returned (12.1, 17.5). A failed attempt carries
+/// its retry outcome and, when the reply reported it, its cost.
+public enum LabelPhotoAttemptResult: Equatable, Sendable {
+    /// A reply that passed every response check (E5, E12): the wire text and its identity and usage.
+    case answered(wireText: String, model: String, provider: String, generationID: String, finishReason: String,
+                  usage: LabelPhotoManifest.Usage)
+    /// No usable answer; `failure` is what the user is told if the read ends here.
+    case failed(LabelPhotoRetryPolicy.Outcome, failure: LabelImageReadingFailure, reportedCost: Decimal?, promptTokens: Int?)
+    /// The attempt was cancelled before it could send any bytes (nothing is charged).
+    case notSent(LabelImageReadingFailure)
+}
+
+/// One attempt: the prepared bytes in, the checked result out, within `timeout` seconds (12.1).
+/// The OpenRouter adapter conforms, over an injected transport; until L5 only a fake transport is
+/// wired. It must stop at once when its task is cancelled.
+public protocol LabelPhotoAttempting: Sendable {
+    func attempt(_ image: PreparedLabelImage, timeout: TimeInterval) async -> LabelPhotoAttemptResult
+    /// The manifest's record of what every attempt sends under the session's catalogue check.
+    func manifestRequest(catalogue: LabelPhotoManifest.CatalogueCheck) -> LabelPhotoManifest.Request
+}
+
+/// Waits between attempts; throws when the task is cancelled (an injected clock in tests).
+public protocol LabelPhotoSleeping: Sendable {
+    func sleep(seconds: TimeInterval) async throws
 }
 
 /// Image and candidate in, one location record per cell and serving line out (12.1). The Vision
@@ -117,7 +137,11 @@ public protocol LabelPhotoRouteChecking: Sendable {
 /// (`LabelPhotoSpendPolicy.admission`).
 public protocol LabelPhotoSpendLedger: Sendable {
     func load() -> LabelPhotoSpendPolicy.Stored
-    func store(_ day: LabelPhotoSpendPolicy.Day) throws
+    /// One atomic read-modify-write (#326 re-check): `transform` sees the day as stored now and
+    /// returns the day to store, or throws to store nothing. No other write, from this process or
+    /// another, can come between the read and the write. Returns the day stored.
+    @discardableResult
+    func update(_ transform: (LabelPhotoSpendPolicy.Stored) throws -> LabelPhotoSpendPolicy.Day) throws -> LabelPhotoSpendPolicy.Day
 }
 
 /// Whether the device can reach the network now (7.2, offline state).

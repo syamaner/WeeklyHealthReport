@@ -215,6 +215,15 @@ final class ImageIOLabelImagePreparerTests: XCTestCase {
         XCTAssertTrue(Self.isRed(Images.pixel(prepared.bytes, x: prepared.pixelWidth / 4, y: prepared.pixelHeight / 4)))
         XCTAssertTrue(Self.isWhite(Images.pixel(prepared.bytes, x: prepared.pixelWidth * 3 / 4, y: prepared.pixelHeight * 3 / 4)))
         try assertClean(prepared.bytes)
+        // A large source stored sideways (orientation 6): the decode keeps the long edge, and the
+        // upright result is portrait with red in the top-right quarter.
+        let sideways = Images.jpegWithEverything(Images.asymmetric(width: 6_000, height: 4_500), orientation: 6)
+        let upright = try preparer.prepare(sideways, crop: .whole)
+        XCTAssertEqual(max(upright.pixelWidth, upright.pixelHeight), 2_048)
+        XCTAssertLessThan(upright.pixelWidth, upright.pixelHeight)
+        XCTAssertTrue(Self.isRed(Images.pixel(upright.bytes, x: upright.pixelWidth * 3 / 4, y: upright.pixelHeight / 4)))
+        XCTAssertTrue(Self.isWhite(Images.pixel(upright.bytes, x: upright.pixelWidth / 4, y: upright.pixelHeight / 4)))
+        try assertClean(upright.bytes)
     }
 
     func testQuarterTurnsTwoAndThree() throws {

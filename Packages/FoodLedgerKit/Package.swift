@@ -63,7 +63,11 @@ let package = Package(
         .target(name: "FoodLabelPhotoReading", dependencies: ["FoodLedgerApplication", "FoodLedgerDomain", "NutritionLabelParsing"]),
         // Label photo capture adapters (#316, docs/label-photo-ai-prefill-v1.md 12.1 and 17.2): the
         // ImageIO preparer and the Vision locator; wired only at the composition root.
-        .target(name: "FoodLabelPhotoCapture", dependencies: ["FoodLedgerApplication", "FoodLedgerDomain", "FoodLabelPhotoReading"]),
+        .target(
+            name: "FoodLabelPhotoCapture",
+            dependencies: ["FoodLedgerApplication", "FoodLedgerDomain", "FoodLabelPhotoReading"],
+            resources: [.copy("Resources/label-photo-instruction-v1.txt"), .copy("Resources/label-photo-wire-schema-v1.json")]
+        ),
         .target(name: "FoodInventoryImport", dependencies: ["FoodLedgerApplication", "FoodLedgerDomain"]),
         .target(
             name: "FoodLedgerGRDB",
