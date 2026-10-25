@@ -41,7 +41,14 @@ private let rows2: [Row] = [
 private let headers2 = ["每份", "每100公克"]
 private let servings = [("serving_size", "每一份量 185 公克"), ("servings_per_pack", "本包裝含 2 份")]
 
-private struct Layout { let name: String; let cols: Int; let headersRead: Bool; let merged: Bool; let unitSplit: Bool }
+private struct Layout {
+  let name: String; let cols: Int; let headersRead: Bool; let merged: Bool; let unitSplit: Bool
+  // Locator v2 attacks (L1c): every third inner row label misread by one character, or not read at
+  // all, and a table-wide downward drift of the values (as a share of the row step).
+  var misreadLabels = false
+  var missingLabels = false
+  var drift = 0.0
+}
 
 private func box(_ x: Double, _ y: Double, _ w: Double) -> M.Box { .init(x: x, y: y, width: w, height: 0.03) }
 private func yOf(_ i: Int) -> Double { 0.85 - 0.07 * Double(i) }
@@ -56,13 +63,18 @@ private func lines(_ L: Layout) -> [M.Line] {
       let text = ([r.label] + r.values.prefix(L.cols)).joined(separator: " ")
       out.append(.init(text: text, box: box(0.05, y, 0.8)))
     } else {
-      out.append(.init(text: r.label, box: box(0.05, y, 0.15)))
+      let inner = i > 0 && i < rows2.count - 1 && i % 3 == 1
+      if !(L.missingLabels && inner) {
+        let text = L.misreadLabels && inner ? String(r.label.dropLast()) + "舫" : r.label
+        out.append(.init(text: text, box: box(0.05, y, 0.15)))
+      }
+      let vy = y - L.drift * 0.07
       for c in 0..<L.cols {
         let v = r.values[c]
         if L.unitSplit, let k = v.firstIndex(where: { !($0.isNumber || $0 == "." || $0 == "," || $0 == "<") }) {
-          out.append(.init(text: String(v[..<k]), box: box(colX[c], y, 0.06)))
-          out.append(.init(text: String(v[k...]), box: box(colX[c] + 0.07, y, 0.04)))
-        } else { out.append(.init(text: v, box: box(colX[c], y, 0.1))) }
+          out.append(.init(text: String(v[..<k]), box: box(colX[c], vy, 0.06)))
+          out.append(.init(text: String(v[k...]), box: box(colX[c] + 0.07, vy, 0.04)))
+        } else { out.append(.init(text: v, box: box(colX[c], vy, 0.1))) }
       }
     }
   }
@@ -121,7 +133,14 @@ final class LabelValueMatcherSweepTests: XCTestCase {
                        Layout(name: "2col unit split", cols: 2, headersRead: true, merged: false, unitSplit: true),
                        Layout(name: "1col clean", cols: 1, headersRead: true, merged: false, unitSplit: false),
                        Layout(name: "1col merged lines", cols: 1, headersRead: true, merged: true, unitSplit: false),
-                       Layout(name: "1col unit split", cols: 1, headersRead: true, merged: false, unitSplit: true)]
+                       Layout(name: "1col unit split", cols: 1, headersRead: true, merged: false, unitSplit: true),
+                       Layout(name: "2col labels misread", cols: 2, headersRead: true, merged: false, unitSplit: false, misreadLabels: true),
+                       Layout(name: "2col labels missing", cols: 2, headersRead: true, merged: false, unitSplit: false, missingLabels: true),
+                       Layout(name: "2col headers unread, labels missing", cols: 2, headersRead: false, merged: false, unitSplit: false,
+                              missingLabels: true),
+                       Layout(name: "2col drift 0.45", cols: 2, headersRead: true, merged: false, unitSplit: false, drift: 0.45),
+                       Layout(name: "1col drift 0.45, labels misread", cols: 1, headersRead: true, merged: false, unitSplit: false,
+                              misreadLabels: true, drift: 0.45)]
 
         for L in layouts {
           let ls = lines(L); let sb = subBox(ls)
@@ -199,5 +218,16 @@ final class LabelValueMatcherSweepTests: XCTestCase {
         XCTAssertEqual(baselines["1col merged lines"], 12)
         XCTAssertGreaterThanOrEqual(baselines["2col unit split"] ?? 0, 20)
         XCTAssertGreaterThanOrEqual(baselines["1col unit split"] ?? 0, 11)
+        // Locator v2 (17.12): recovery locates but never confirms. Rows placed by a near-miss or by
+        // row order and columns inferred without a located header give ambiguous values (with a
+        // region), so these baselines count only directly confirmed values (and the serving lines).
+        XCTAssertEqual(baselines["2col headers unread"], 2)
+        XCTAssertEqual(baselines["2col labels misread"], 16)
+        XCTAssertEqual(baselines["2col labels missing"], 16)
+        XCTAssertEqual(baselines["2col headers unread, labels missing"], 2)
+        // A drift of 0.45 of a row is beyond the third of a row the offset may remove (17.13): its
+        // values stay ambiguous, never found on a row they may not belong to.
+        XCTAssertEqual(baselines["2col drift 0.45"], 2)
+        XCTAssertEqual(baselines["1col drift 0.45, labels misread"], 2)
     }
 }

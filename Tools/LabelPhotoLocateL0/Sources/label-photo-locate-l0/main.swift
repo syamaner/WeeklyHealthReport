@@ -25,7 +25,7 @@ struct Job: Decodable {
 
 struct Result: Encodable {
     struct Prepared: Encodable { let width: Int; let height: Int; let bytes: Int; let quality: Double; let sha256: String }
-    struct Located: Encodable { let id: String; let status: String }
+    struct Located: Encodable { let id: String; let status: String; let evidence: String; let has_region: Bool }
     let id: String
     let refused: String?
     let prepared: Prepared?
@@ -126,7 +126,7 @@ for job in jobs {
     results.append(Result(id: job.id, refused: nil,
                           prepared: .init(width: width, height: height, bytes: jpeg.count, quality: quality, sha256: digest),
                           vision: vision, line_count: lines.count,
-                          locations: located.map { .init(id: $0.id, status: $0.status.rawValue) }))
+                          locations: located.map { .init(id: $0.id, status: $0.status.rawValue, evidence: $0.evidence.rawValue, has_region: $0.region != nil) }))
 }
 let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys, .prettyPrinted]
 try encoder.encode(results).write(to: URL(fileURLWithPath: arguments[2]))

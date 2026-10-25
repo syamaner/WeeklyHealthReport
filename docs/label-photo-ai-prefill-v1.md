@@ -434,6 +434,7 @@ Section 17.8 adds eleven contract tests from the architecture gate (tests 15 to 
 |---|---|---|
 | L0 | Offline locate-rate measurement (6.1, with the inputs and method of 17.6); report found rate and how many silent errors would be not found. **Done 25 October 2026 (17.9)** | None |
 | L1a | Matcher ambiguity reduced (order within the column, headers on one line), L0 re-run at 240 px, matcher moved unchanged into `FoodLabelPhotoReading` with a hash pin, boundary script for the new target (17.10) | None |
+| L1c | Locator v2 (17.11), before L1b at the owner's request ("Let's try to resolve"): row labels recovered between located neighbours, columns inferred from value tokens, a table-wide offset; measured by L0 against v1 with the adversarial suite and an extended sweep; and the alternative attention policy measured, not adopted. **Done 25 October 2026** | None |
 | L1b | Pure core: wire mapping port, `LabelPhotoReading`, attention v1, serving v1 with its parity test, manifest codec, verifier, composite admission, preparer types, retry and spend policies, tests 1 to 12 | None |
 | L2 | Image preparation and Vision locator, tests 13 and 14 | None |
 | L3 | OpenRouter adapter and route checker against a fake transport only | None |
@@ -636,3 +637,126 @@ With the 480 px minimum lifted (sensitivity only), Gemini 4 Argon pre-fills 37 t
 On the same 29 tables at 480 px, the pinned matcher finds 41.1%. Sol finds 42.7% at 240 px and catches 4 of 4 silent wrong values; Luna 42.8% and all 52 of 52. On the 15 development photos Gemini finds 133 of 238 (55.9%), median 8.
 
 **Reading.** v1 is now a strict corroborator: a value is "Found on photo" only when the same comparator, number and unit are printed on its own located row, within a third of the label spacing, under its own located header. Every safety step has narrowed it: 81.7% (blocked order pass), 81.0% (fixed), 73.6% (1/3 distance limit), 61.8% (own label located), 42.2% (tokens, unit beside, column confirmed). A comparison run (not committed) shows the column rule alone costs 81 values (56.7% without it): on these photos the two headers are often not located exactly once. In exchange, the silent wrong values of all three arms are now flagged except one serving line, so a found value can be trusted; the cost is an attention median of 11 per table, with almost every table needing checks. Recovering found values safely is planned as phase L1c (recorded in L1b, not here): placing a misread or unlocated row label, and a header, by their order between located neighbours, as locator v2, measured by L0 against v1 with the same adversarial suite and the sweep.
+
+### 17.11 L1c: locator v2 and the attention policy measured (25 October 2026, no egress)
+
+The owner asked for the attention burden of v1 (a median of 11 values to check per table) to be resolved, so L1c ran before L1b. Two levers were measured on the same photos and the same truth as 17.10; counts and case IDs only in [`results/l0-locate-rate-v3.md`](../Tools/NutritionLabelCaptureEvaluation/results/l0-locate-rate-v3.md).
+
+**Locator v2 (`label-photo-vision-locate-v2`).** Every v1 safety rule stays; v2 recovers rows and columns v1 could not confirm, and every recovered placement still has to pass the token rule (comparator, number, unit):
+
+1. **Row labels not located exactly once** are placed between their located neighbours above and below (both required; never across a located label, never at the table's top or bottom edge), and only for a label whose values form one run of the reading: by its own text printed once between them; else by a line in the label column one character different from it (a near-miss; labels of two or more characters); else by the reading's row order, only when nothing at all was read in the label column between the neighbours (a line there is some other label, so the order cannot be trusted for that slot) and the gap fits the table's row step within a quarter.
+2. **Columns whose headers were not located** are inferred from the x-positions of unit-bearing value tokens on located rows, when they split into exactly the reading's column count with gaps over 0.03 and more than twice the widest group, agree with any single located header, and the reading lists one header per column in left-to-right order (a stated precondition).
+3. **A table-wide vertical offset** is estimated from values whose token is printed exactly once on the photo, and removed before the 1/3 row distance limit, only when at least three rows agree within 0.15 of a row (and at least three quarters of the contributing rows), and the offset is at least 0.1 of a row.
+
+It also reports **evidence** for a value that is not found: its token printed only in another row or column (`elsewhere`), or a different token in its own located cell (`conflicting_in_cell`).
+
+**Safety.** The reviewer's cases 1 to 10, S1 to S4 and the fourteen named regression tests still pass; case 10 is now not found rather than ambiguous (the misspelt 脂舫 is placed on the printed 脂肪 line, and the wrong value is plainly elsewhere). The ported sweep (`LabelValueMatcherSweepTests`) gained five layouts that attack recovery itself: labels misread by one character, labels not read at all, unread headers with missing labels, a table-wide drift of 0.45 of a row, and a one-column table with drift and misread labels. Over all eleven layouts it finds **zero false found** (only the harness's own artefacts), no moved box and no side-effect upgrade. The sweep caught two recovery faults while it was being built, both fixed before measurement: placing a label by row order into a slot where another (misread) label was printed, and placing a label the reading gives to two places. The reviewer's original harness, run on v2: 22/22, **22/22** (headers unread, from 2/22), 20/22, 12/12, 12/12, 11/12, 3,297 mutations, 18 findings, all artefacts.
+
+**Results, untouched Taiwan at 240 px (current blocking policy, P12):**
+
+| | v1 Gemini | v2 Gemini | v2 Sol | v2 Luna |
+|---|---|---|---|---|
+| Correct values found on the photo | 235 / 557 (42.2%) | 341 / 557 (61.2%) | 347 / 564 (61.5%) | 346 / 566 (61.1%) |
+| Not found / ambiguous | 76 / 246 | 77 / 139 | 96 / 121 | 70 / 150 |
+| Silent wrong values that need a check | 4 of 4 | 4 of 4 | 4 of 4 | 52 of 52 |
+| Silent-error tables fully caught | 1 of 2 | 1 of 2 | 3 of 3 | 4 of 5 |
+| Tables opening with nothing to check | 1 of 34 | 5 of 34 | 5 of 35 | 5 of 37 |
+| Values to check per table, median / p90 | 11 / 17 | 6.5 / 17 | 7 / 17 | 8 / 17 |
+
+On the 15 development photos v2 finds 79.4% (Gemini), median 2 and p90 9.
+
+**The alternative attention policy, measured and not adopted.** Under it only items with evidence block Log (a gate flag, a failed check, or a contradicting token: `elsewhere` or `conflicting_in_cell`), while a value merely not located is a soft marker plus one table-level "I've checked against the photo". With locator v2:
+
+| Untouched Taiwan | Gemini 4 Argon | GPT-6.1 Sol | Luna |
+|---|---|---|---|
+| Blocking items per table, median / p90 | 0 / 2 | 0 / 2 | 0 / 5 |
+| Tables with no blocking item | 22 of 34 | 21 of 35 | 22 of 37 |
+| Silent wrong values that would still block | **1 of 4** | **2 of 4** | **12 of 52** |
+| Silent-error tables fully blocked | 0 of 2 | 2 of 3 | 0 of 5 |
+
+**Reading and recommendation.** Locator v2 is the safe lever: it recovers about half of what the safety rounds took (42.2% to 61.2% found, a median of 11 to 6.5 values to check) while every silent wrong value still needs a check and the sweep stays at zero false found. The alternative policy would remove almost all blocking (median 0), but it lets most silent errors through as soft markers: 3 of Gemini's 4, 2 of Sol's 4 and 40 of Luna's 52 would no longer block Log, because for most of them the matcher sees no contradicting token on the photo, only an absent or unconfirmed one. **Recommendation: adopt locator v2 with the current blocking policy (P12) for v1 of the route.** If the median of 6.5 is still too much, the next lever is presentation, not policy: group the checks by row, show each beside its region, and make "Matches the photo" one tap per row, which the burden measure counts per value. The alternative policy is not recommended unless the owner accepts that most silent errors would rest on the table-level confirmation.
+
+### 17.12 Locator v2 after the #321 review: recovery locates, never confirms (25 October 2026)
+
+The review of #321 (BLOCK) reproduced, for every recovery mechanism of 17.11, a single model error that v2 then confirmed. The guiding principle now in the matcher: **recovery may locate (to zoom and highlight the region) and narrow candidates; "Found on photo" needs direct evidence**, which is the row's own label text located on the photo (once, or once between its located neighbours) and, with two or more columns, a located header agreeing with the column.
+
+- **Offset:** only rows whose value sits within 0.45 of a row of its label contribute, and the centre must be within 0.45 too, so a reading shifted by a whole row can no longer move the table (it was accepted up to 0.75).
+- **Near-miss labels:** a line that is itself a row label of another nutrient (the reading's labels, or a closed vocabulary of Taiwan and English row names such as 維生素B12) is never a near-miss; a label ending in a digit or Latin letter is not found inside a longer one (維生素B1 is not in 維生素B12). Values on near-miss rows are at most ambiguous.
+- **Row-order placement:** values on such rows are at most ambiguous; the placement is refused when any value token between the neighbours sits off the expected row slots (a tall wrapped label).
+- **Inferred columns:** they filter but never confirm; found needs at least one located header agreeing with its inferred group. A group may not hold two unit tokens of one row, and each group must be narrower than about one token width, so an omitted third column cannot merge two.
+- **Evidence** (`elsewhere`, `conflicting_in_cell`) is reported only on rows whose own label is located and columns separated by located headers.
+- When a value has exactly one candidate on an indirect row or an inferred column, it is ambiguous **with its region**, so Confirm can still zoom to it.
+
+Both reviewer harnesses run clean on the pinned matcher: the base sweep (3,297 mutations, 18 findings, all its artefacts) and the attack harness (20 scenarios, A1 to A6, no false found and no false evidence on correct values). The attack scenarios are ported into `FoodLabelPhotoReadingTests` as `LabelValueMatcherAttackTests`; the sweep's recovery baselines now count only directly confirmed values (2/22 with headers unread, 16/22 with labels misread or missing).
+
+**Results, untouched Taiwan at 240 px** ([`results/l0-locate-rate-v3.md`](../Tools/NutritionLabelCaptureEvaluation/results/l0-locate-rate-v3.md), replacing the 17.11 figures):
+
+| | v1 Gemini | v2 Gemini | v2 Sol | v2 Luna |
+|---|---|---|---|---|
+| Correct values found on the photo | 42.2% | 334 / 557 (60.0%) | 340 / 564 (60.3%) | 339 / 566 (59.9%) |
+| Ambiguous values / with a located region | 246 / 0 | 150 / 10 | 133 / 10 | 183 / 10 |
+| Silent wrong values that need a check | 4 of 4 | 4 of 4 | 4 of 4 | 52 of 52 |
+| Tables opening with nothing to check | 1 of 34 | 5 of 34 | 5 of 35 | 5 of 37 |
+| Values to check per table, median / p90 | 11 / 17 | 6.5 / 17 | 7 / 17 | 8 / 18 |
+| Evidence-only policy: silent wrong values still blocking | | 0 of 4 | 2 of 4 | 6 of 52 |
+| Evidence-only policy: blocking items per table, median / p90 | | 0 / 2 | 0 / 2 | 0 / 5 |
+
+Development photos: v2 Gemini finds 75.2%, median 2.
+
+**Reading.** The found rate is almost unchanged by the review (61.2% to 60.0%): most of v2's gain comes from rows whose own label is located and columns a located header confirms, which still count. Recovery now rarely gives a single located candidate on these photos (10 ambiguous values per arm come with a region). The evidence-only policy is weaker than before (it would block none of Gemini's 4 silent wrong values), because evidence is now reported only where it is direct. **The recommendation of 17.11 stands: adopt locator v2 with the current blocking policy.**
+
+### 17.13 Locator v2 after the #321 re-check: headers in their band, own header, whole words (25 October 2026)
+
+The re-check of `a371b043` confirmed the 17.12 fixes and reproduced four more single-model-error false founds, all fixed:
+
+- **B6, B6c: headers anywhere on the photo.** A header now counts as located only in the **header band**: above the top directly located row label and within about two and a half row steps of it, below any serving line printed above the table, next to a value token of a direct row, and on a line that carries no other value with a unit once the headers' own text is removed (so "每份 185公克", a serving line, is not a header line, while "每份 每100公克" and "每100公克" are).
+- **B6b: any header instead of the value's own.** With two or more columns, found needs the value's **own** header located in the band; inferred columns only narrow candidates and choose the region to highlight.
+- **B1: a label inside a longer word.** A CJK label followed by another ideograph is part of a longer word (糖 is not in 糖醇), except a known non-nutrient suffix (含量, 總量) or a unit written straight after the label.
+- **B5: the offset window.** Rows contribute to the table-wide offset only within a third of a row, and the offset itself is at most a third of a row. A reading shifted by one whole row can be confirmed only if the values drift about two thirds of a row from their own labels, which is the irreducible limit of matching by position alone (the value is then nearer the wrong label than its own); v1 had the same limit. Evidence `elsewhere` is now reported only when every printed occurrence of the value is clearly on another direct row (not in the band between rows), so correct values drifted between rows no longer come back `elsewhere`.
+- **Found while fixing (the sweep's side-effect check):** a row whose label is not located left a double gap that inflated the median row step, and with it the offset and the distance limit, so one model error elsewhere could upgrade correct values. The row step is now the lower quartile of the gaps between adjacent located labels, and no row's distance limit is wider than that step.
+
+The reviewer's attack harness (A1 to A6 and B1 to B7, 39 scenarios) runs clean on the pinned matcher: no wrong value found and no correct value with contradicting evidence. The base sweep shows only its 18 artefacts with the original baselines (22/22, 2/22, 20/22, 12/12, 12/12, 11/12). All 39 scenarios are in `LabelValueMatcherAttackTests`; the sweep's drift layouts at 0.45 of a row now expect no confirmed values (beyond the offset window).
+
+**Results, untouched Taiwan at 240 px** ([`results/l0-locate-rate-v3.md`](../Tools/NutritionLabelCaptureEvaluation/results/l0-locate-rate-v3.md), replacing 17.12):
+
+| | v1 Gemini | v2 Gemini | v2 Sol | v2 Luna |
+|---|---|---|---|---|
+| Correct values found on the photo | 42.2% | 292 / 557 (52.4%) | 298 / 564 (52.8%) | 299 / 566 (52.8%) |
+| Ambiguous values / with a located region | 246 / 0 | 196 / 44 | 179 / 44 | 223 / 42 |
+| Silent wrong values that need a check | 4 of 4 | 4 of 4 | 4 of 4 | 52 of 52 |
+| Tables opening with nothing to check | 1 of 34 | 3 of 34 | 3 of 35 | 3 of 37 |
+| Values to check per table, median / p90 | 11 / 17 | 7 / 18 | 8 / 17 | 8 / 18 |
+| Evidence-only policy: silent wrong values still blocking | | 0 of 4 | 2 of 4 | 6 of 52 |
+| Evidence-only policy: blocking items per table, median / p90 | | 0 / 1 | 0 / 2 | 0 / 3 |
+
+Development photos: v2 Gemini finds 64.7%, median 6.
+
+**Reading.** Requiring each value's own header in the header band costs most of this round (60.0% to 52.4%): on these photos one of the two column headers is often not read, and those values are now ambiguous, though 44 of them come with a located region to zoom to. Every silent wrong value of every arm still needs a check. **Recommendation unchanged:** adopt locator v2 with the current blocking policy (P12); it still roughly halves the gap to v1's attention burden (median 11 to 7), and the region highlight shortens the checks it leaves.
+
+### 17.14 Locator v2 after round 4: every header in place before a column confirms (25 October 2026)
+
+Round 4 on `4fa597f6` confirmed A1 to A6 and B1 to B7 and found two more single-model-error false founds, both header confirmation, plus one low finding; all fixed:
+
+- **C1:** a split serving line left 每份 alone in the header band; with the real headers unread and the model reversing them, the right column was found under 每份. **C2, C2b:** 每份 was located by containment inside the reference-intake header 每份參考值%, so a swapped reading was confirmed and correct values got a false `conflicting_in_cell`.
+- **Fixes.** (1) A header line counts only when, after removing the reading's header texts, nothing but punctuation remains. (2) For found, the value's own header must sit directly above it, within about one token width. (3) With two or more columns, found and evidence require **every** one of the reading's headers located in the band, at distinct x positions in the reading's left-to-right order; one header alone, or headers out of order, confirm nothing, and inferred columns only narrow candidates and choose the region. **C7d:** a unit straight after a CJK label is accepted only when the unit ends the word (糖克數 is not the 糖 row).
+
+**Round 5** on `5bb10927` held every header rule and found one more false found, **D1:** the order-within-column pass checked the row and the column but not the own header above the value. With three printed columns, a reading of two (both headers read in order) and an unheaded middle column holding 0公克 on three rows read under 每份, the first pass was rightly ambiguous, but the order pass counted the middle tokens as 每份's (nearest header) and placed all three. **Fix:** with two or more columns the order pass counts only tokens under the value's own header, and places a value only when its token sits under that header. D1 and its control D1b are regression tests; the fix left the L0 counts unchanged.
+
+**Round 6** on `8353536e` held the order pass and found one last route, **E2** (low realism): the own-header test admitted any token within one token width of the header's centre, so a narrow unheaded column touching the 每份 column (or read on one line with it, "3公克 5公克") was found when the model read it under 每份, 8 of 8. **Fix:** the value's centre must lie within its header's x span, or the header's centre within the value's span; and with two or more columns the value's cell (its row, under its own header) must hold exactly one value token, which also closes a narrow column overlapping the header's span. Both apply to the first pass and the order pass; for evidence, the cell is the tokens under the own header, and a conflict is claimed only when no token in the wider column matches either. E2 at several positions and the merged-line variant are regression tests.
+
+All six reviewer harnesses run clean on the pinned matcher: round 6 (A to E, 70 scenarios, and E2 swept from x 0.47 to 0.65), round 5 (63), round 4 (54), round 3 (39), round 2 (20), each with no false found and no false evidence on correct values; and the base sweep with only its 18 artefacts and its original baselines. All 70 scenarios are in `LabelValueMatcherAttackTests`.
+
+**Results, untouched Taiwan at 240 px** (replacing 17.13; after the round-6 fix):
+
+| | v1 Gemini | v2 Gemini | v2 Sol | v2 Luna |
+|---|---|---|---|---|
+| Correct values found on the photo | 42.2% | 207 / 557 (37.2%) | 214 / 564 (37.9%) | 214 / 566 (37.8%) |
+| Ambiguous values / with a located region | 246 / 0 | 281 / 129 | 263 / 128 | 308 / 127 |
+| Silent wrong values that need a check | 4 of 4 | 4 of 4 | 4 of 4 | 52 of 52 |
+| Tables opening with nothing to check | 1 of 34 | 3 of 34 | 3 of 35 | 3 of 37 |
+| Values to check per table, median / p90 | 11 / 17 | 14 / 18 | 14 / 18 | 13 / 19 |
+| Evidence-only policy: silent wrong values still blocking | | 0 of 4 | 2 of 4 | 6 of 52 |
+
+Development photos: v2 Gemini finds 55.5%, median 8. Before the round-6 fix the untouched counts were 39.0%, 39.7% and 39.6% found (medians 14, 14, 12); the stricter own-header test costs about two points.
+
+**Reading.** With every header required, v2 now confirms fewer values than v1 did (37.2% against 42.2%) and leaves more to check (median 14 against 11), although 129 of its ambiguous values come with a region to zoom to. A comparison run (not committed) shows the header-above rule costs nothing; the cost is requiring all of the reading's headers, which on these photos often fails; the likely blocker, not yet measured case by case, is the reference-intake column's header (每日參考值百分比), often printed over two lines. Note that v1's lower bar is exactly what rounds 2 to 4 showed to be unsafe (one header, or a header found anywhere, could confirm a swapped column). **Recommendation:** keep v2 as pinned (safe), and as the next lever require only the reading's **amount** column headers (per serving, per 100 g or ml) to be located in order, with the reference-intake column confirmed by its % unit instead. That needs the reading to pass each header's basis to the matcher, a small API change, and its own attack scenarios (a % column mislabelled as an amount column, and the reverse) before it is measured.
