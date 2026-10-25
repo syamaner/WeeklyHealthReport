@@ -394,11 +394,18 @@ final class LabelValueMatcherTests: XCTestCase {
         let found = M.locate(queries, lines: lines, headers: ["每份", "每100公克"], rowLabels: labels, columnCount: 2) { _, _ in nil }
         XCTAssertEqual(found.map(\.status), Array(repeating: .ambiguous, count: 6))
         XCTAssertTrue(found.allSatisfy { $0.region != nil })
-        // One header located in the header band: only its own column is confirmed (B6b, 17.13); the
-        // other column's values stay ambiguous, with their regions.
+        // One header alone in the band cannot say which column is which (C1, 17.14): every value
+        // stays ambiguous, with its region.
         let oneHeader = lines + [.init(text: "每份", box: .init(x: 0.45, y: 0.86, width: 0.1, height: 0.04))]
         XCTAssertEqual(M.locate(queries, lines: oneHeader, headers: ["每份", "每100公克"], rowLabels: labels, columnCount: 2) { _, _ in nil }
-            .map(\.status), [.found, .ambiguous, .found, .ambiguous, .found, .ambiguous])
+            .map(\.status), Array(repeating: .ambiguous, count: 6))
+        // Both headers in the band, left to right as the reading lists them: all six found.
+        let bothHeaders = oneHeader + [.init(text: "每100公克", box: .init(x: 0.73, y: 0.86, width: 0.14, height: 0.04))]
+        XCTAssertEqual(M.locate(queries, lines: bothHeaders, headers: ["每份", "每100公克"], rowLabels: labels, columnCount: 2) { _, _ in nil }
+            .map(\.status), Array(repeating: .found, count: 6))
+        // The same headers in the reading's reversed order: none found.
+        XCTAssertFalse(M.locate(queries, lines: bothHeaders, headers: ["每100公克", "每份"], rowLabels: labels, columnCount: 2) { _, _ in nil }
+            .contains { $0.status == .found })
         // A header printed once outside the band (a footnote below the table) is not located.
         let footnote = lines + [.init(text: "每份", box: .init(x: 0.45, y: 0.30, width: 0.1, height: 0.04))]
         XCTAssertFalse(M.locate(queries, lines: footnote, headers: ["每份", "每100公克"], rowLabels: labels, columnCount: 2) { _, _ in nil }
@@ -451,6 +458,10 @@ final class LabelValueMatcherTests: XCTestCase {
             .init(id: "w\($0.offset)", rowLabel: $0.element.0, headerText: nil, printedText: $0.element.1)
         }
         XCTAssertNotEqual(M.locate(queries, lines: lines, headers: [], rowLabels: labels, columnCount: 1) { _, _ in nil }[1].status, .found)
+        // A unit straight after the label only when it ends the word: 糖克數 is not the 糖 row (C7d).
+        var unitWord = lines
+        unitWord[1] = .init(text: "糖克數", box: .init(x: 0.05, y: 0.72, width: 0.1, height: 0.04))
+        XCTAssertNotEqual(M.locate(queries, lines: unitWord, headers: [], rowLabels: labels, columnCount: 1) { _, _ in nil }[1].status, .found)
         // A known suffix after the label is still that row (糖含量).
         var suffixed = lines
         suffixed[1] = .init(text: "糖含量", box: .init(x: 0.05, y: 0.72, width: 0.1, height: 0.04))

@@ -230,7 +230,9 @@ public enum LabelValueMatcher {
                     for other in headers.map({ Normalised($0).key }).sorted(by: { $0.count > $1.count }) where !other.isEmpty {
                         rest = rest.replacingOccurrences(of: other, with: " ")
                     }
-                    return !valueTokens(Array(rest)).contains { !$0.unit.isEmpty }
+                    // Nothing but the headers and punctuation may remain (C2: 每份參考值% is the
+                    // reference-intake column's header, not 每份).
+                    return rest.allSatisfy { $0 == " " || $0.isPunctuation || $0.isSymbol }
                 }
                 let inBand = headerLines.map { box($0) }.filter { header in
                     header.midY > top.midY + 0.5 * tableStep && header.midY < top.midY + 2.5 * tableStep
@@ -331,18 +333,27 @@ public enum LabelValueMatcher {
         /// Found needs the column confirmed by a located header: one value column; at least two
         /// headers located with its own among them; or inferred columns that a located header agrees
         /// with (checked when the groups were accepted) and its header's position known.
+        /// With two or more columns, found and evidence need every one of the reading's headers
+        /// located in the band, at distinct x positions in the reading's left-to-right order (C1,
+        /// C2: one header alone, or headers out of order, cannot say which column is which).
+        let headersConfirmed: Bool = {
+            guard columnCount > 1, headers.count == columnCount else { return false }
+            let located = headerKeys.compactMap { headerBoxes[$0] }
+            guard located.count == columnCount else { return false }
+            return zip(located, located.dropFirst()).allSatisfy { $1.midX - $0.midX > max(tokenWidth, 0.03) }
+        }()
+        /// The value's own header sits directly above it (within about one token width).
+        func underOwnHeader(_ query: Query, _ value: Box) -> Bool {
+            guard let header = query.headerText.map({ Normalised($0).key }), let box = headerBoxes[header] else { return false }
+            return abs(box.midX - value.midX) <= max(tokenWidth, 0.05)
+        }
         func columnForFound(_ query: Query) -> Bool {
             if columnCount <= 1 { return true }
-            guard let header = query.headerText.map({ Normalised($0).key }), headerBoxes[header] != nil else { return false }
-            if headerBoxes.count > 1 { return true }
-            return clusters != nil && columnIndex(query) != nil
-        }
-        /// Evidence needs columns separated by located headers.
-        func columnByHeaders(_ query: Query) -> Bool {
-            if columnCount <= 1 { return true }
-            guard headerBoxes.count > 1, let header = query.headerText.map({ Normalised($0).key }) else { return false }
+            guard headersConfirmed, let header = query.headerText.map({ Normalised($0).key }) else { return false }
             return headerBoxes[header] != nil
         }
+        /// Evidence needs the same confirmation as found.
+        func columnByHeaders(_ query: Query) -> Bool { columnForFound(query) }
         /// The value's column is known enough to narrow candidates: as for found, or inferred columns
         /// with its header's position known.
         func columnConfirmed(_ query: Query) -> Bool {
@@ -451,7 +462,7 @@ public enum LabelValueMatcher {
                     // Found needs direct evidence: the row's own label text and, with two or more
                     // columns, a located header agreeing with the column. Otherwise the single
                     // candidate is kept as the region to highlight, and the value is ambiguous.
-                    if directRows.contains(label) && columnForFound(query) {
+                    if directRows.contains(label) && columnForFound(query) && (columnCount <= 1 || underOwnHeader(query, near[0])) {
                         return First(location: Location(id: query.id, status: .found, region: rounded(near[0])), candidates: near)
                     }
                     return First(location: Location(id: query.id, status: .ambiguous, region: rounded(near[0])), candidates: near)
@@ -693,7 +704,13 @@ public enum LabelValueMatcher {
                     // non-nutrient suffix (含量, 總量) or a unit written straight after the label.
                     if isIdeograph(last) && isIdeograph(after) {
                         let rest = Array(line.characters[(start + pattern.count)...])
-                        let allowed = labelSuffixes.contains { starts(rest, at: 0, with: $0) }
+                        let allowed = labelWordSuffixes.contains { starts(rest, at: 0, with: $0) }
+                            || labelUnitSuffixes.contains { unit in
+                                guard starts(rest, at: 0, with: unit) else { return false }
+                                guard unit.count < rest.count else { return true }
+                                let next = rest[unit.count]
+                                return isDigit(next) || next.isPunctuation || next.isSymbol
+                            }
                         if !allowed { continue }
                     }
                 }
@@ -716,7 +733,9 @@ public enum LabelValueMatcher {
     }
 
     /// Words allowed straight after a CJK row label: non-nutrient suffixes and units.
-    static let labelSuffixes = ["含量", "總量", "大卡", "千卡", "千焦", "公克", "毫克", "微克", "毫升", "克"]
+    static let labelWordSuffixes = ["含量", "總量"]
+    /// A unit straight after the label, only when the unit ends the word (糖克數 is not 糖).
+    static let labelUnitSuffixes = ["大卡", "千卡", "千焦", "公克", "毫克", "微克", "毫升", "克"]
 
     static func isIdeograph(_ character: Character) -> Bool {
         character.unicodeScalars.allSatisfy { (0x3400...0x4DBF).contains($0.value) || (0x4E00...0x9FFF).contains($0.value) }

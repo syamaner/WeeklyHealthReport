@@ -4,7 +4,7 @@ import XCTest
 
 private typealias M = LabelValueMatcher
 
-// Locator v2 attack scenarios (#321 reviews, A1 to A6 and B1 to B7), ported from the reviewer's harness (synthetic
+// Locator v2 attack scenarios (#321 reviews, A1 to A6, B1 to B7 and C1 to C8), ported from the reviewer's harness (synthetic
 // data only): near-miss labels of other nutrients, unread labels with swapped readings, tall wrapped
 // labels, offset poisoning by a reading off by one row, non-uniform drift, and unread headers with
 // reversed, footnote and extra columns. A wrong value must never be found, and a correct value must
@@ -159,7 +159,52 @@ final class LabelValueMatcherAttackTests: XCTestCase {
         runAttack("B7 糖 also in a footnote; model correct", build(base, extra: foot3), q(base))
         var q7 = q(base); q7[4] = ("糖", "每份", "65.2公克", true); q7[5] = ("碳水化合物", "每份", "8.4公克", true)
         runAttack("B7b 糖 also in a footnote; model swaps the carb and sugar labels", build(base, extra: foot3), q7)
-        XCTAssertGreaterThanOrEqual(attackScenarios, 39)
+        print("=========== round 4 attacks")
+        // Geometry: first row centre 0.845, step 0.07; header band 0.88..1.02 (0.5..2.5 steps above).
+        func hl(_ t: String, _ x: Double, _ y: Double, _ w: Double = 0.1) -> M.Line { .init(text: t, box: .init(x: x, y: y - 0.015, width: w, height: 0.03)) }
+        let rev = two2.flatMap { r in [(r.name, "每100公克", r.values[0], true), (r.name, "每份", r.values[1], true)] } as [(String, String?, String, Bool)]
+        let fwd = q2(two2, hdr: ["每份", "每100公克"], swapCols: false)
+        // C1 serving line split: "每份" alone in the band above the right column (its quantity on the next line); real headers unread; model reverses
+        runAttack("C1 split serving 每份 above right column, headers unread, model reverses", build(two2, cols: [0.45, 0.72], headers: nil,
+            extra: [hl("每份", 0.72, 0.95), hl("30公克", 0.72, 0.99)]), rev, headers: ["每100公克", "每份"], cols: 2)
+        runAttack("C1b same, real 每100公克 header read over right column", build(two2, cols: [0.45, 0.72], headers: nil,
+            extra: [hl("每份", 0.45, 0.95), hl("每100公克", 0.72, 0.92)]), fwd, headers: ["每份", "每100公克"], cols: 2)
+        // C2 third column (%DV) header containing 每份, per-serving header unread, model reads 2 columns and swaps their headers
+        let three2: [PRow] = base.map { .init(label: $0.label, values: [$0.values[0], "9\($0.values[0])", "5%"]) }
+        let c2lines = build(three2, cols: [0.45, 0.72, 0.9], headers: nil, extra: [hl("每100公克", 0.72, 0.92), hl("每份參考值%", 0.9, 0.92)])
+        let c2q = three2.flatMap { r in [(r.name, "每100公克", r.values[0], true), (r.name, "每份", r.values[1], true)] } as [(String, String?, String, Bool)]
+        runAttack("C2 %DV header contains 每份; per-serving header unread; model swaps the two headers", c2lines, c2q, headers: ["每100公克", "每份"], cols: 2)
+        let c2q2 = three2.flatMap { r in [(r.name, "每份", r.values[0], false), (r.name, "每100公克", r.values[1], false)] } as [(String, String?, String, Bool)]
+        runAttack("C2b same photo, model correct", c2lines, c2q2, headers: ["每份", "每100公克"], cols: 2)
+        // C3 sub-heading row inside the band, e.g. a "每日參考值百分比" line, plus both headers read; model puts per-100 value in per-serving cell
+        var c3 = fwd; c3[4] = (c3[4].0, "每份", two2[2].values[1], true)
+        runAttack("C3 sub-heading line in band; column confusion", build(two2, cols: [0.45, 0.72], headers: ["每份", "每100公克"], extra: [hl("每日參考值百分比", 0.6, 0.97, 0.2)]), c3, headers: ["每份", "每100公克"], cols: 2)
+        // C4 header split across two lines
+        runAttack("C4 header 每100公克 split as 每100 / 公克; model reverses", build(two2, cols: [0.45, 0.72], headers: nil,
+            extra: [hl("每份", 0.45, 0.92), hl("每100", 0.72, 0.95), hl("公克", 0.72, 0.92)]), rev, headers: ["每100公克", "每份"], cols: 2)
+        // C5 serving line printed below the table containing 每份 (no unit on its own line)
+        runAttack("C5 每份 printed below the table; headers unread; model reverses", build(two2, cols: [0.45, 0.72], headers: nil, extra: [hl("每份", 0.72, 0.25)]), rev, headers: ["每100公克", "每份"], cols: 2)
+        // C6 model header text is a substring of the other printed header (每100公克 vs 每100公克每份?): model header "100公克" for the per-100 column
+        let c6 = build(two2, cols: [0.45, 0.72], headers: nil, extra: [hl("每份", 0.45, 0.92), hl("每100公克", 0.72, 0.92)])
+        runAttack("C6 model per-serving header written as 公克 (contained in 每100公克)", c6,
+            two2.flatMap { r in [(r.name, "公克", r.values[0], true), (r.name, "每100公克", r.values[1], false)] }, headers: ["公克", "每100公克"], cols: 2)
+        runAttack("C6b model per-100 header written as 每 (contained in both)", c6,
+            two2.flatMap { r in [(r.name, "每份", r.values[0], false), (r.name, "每", r.values[1], true)] }, headers: ["每份", "每"], cols: 2)
+        // C7 label suffix cases
+        var c7 = base; c7[5] = .init(label: "糖含量", values: ["8.4公克"])
+        runAttack("C7 糖含量 printed, model 糖 (same nutrient; expect found)", build(c7), q(c7, wrong: [5: ("糖", "8.4公克")]).map { ($0.0, $0.1, $0.2, false) })
+        var c7b = base; c7b[5] = .init(label: "糖5公克", values: [])
+        runAttack("C7b label and value on one line 糖5公克, model 糖 5公克", build(c7b), q(base, wrong: [5: (nil, "5公克")]).map { ($0.0, $0.1, $0.2, false) })
+        var c7c = base; c7c[5] = .init(label: "糖醇5公克", values: [])
+        runAttack("C7c 糖醇5公克 on one line, model 糖 5公克", build(c7c), q(base, wrong: [5: (nil, "5公克")]))
+        var c7d = base; c7d[5] = .init(label: "糖克數", values: ["8.4公克"])
+        runAttack("C7d label followed by 克 then more text (糖克數)", build(c7d), q(c7d, wrong: [5: ("糖", "8.4公克")]).map { ($0.0, $0.1, $0.2, false) })
+        // C8 lower-quartile step with two close labels (a small sub-row printed tight under its parent)
+        var c8: [PRow] = base; c8.insert(.init(label: "其中糖", tall: 0.4, values: ["8公克"]), at: 5)
+        runAttack("C8 tight sub-row, correct", build(c8), q(c8))
+        var q8 = q(c8); q8[4] = ("碳水化合物", "每份", "8公克", true); q8[5] = ("其中糖", "每份", "65.2公克", true)
+        runAttack("C8b tight sub-row, model swaps parent and sub-row values", build(c8), q8)
+        XCTAssertGreaterThanOrEqual(attackScenarios, 54)
         XCTAssertEqual(attackFailures, [])
     }
 }

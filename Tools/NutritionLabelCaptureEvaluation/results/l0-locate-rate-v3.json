@@ -8,14 +8,14 @@
   "strata": {
     "development_taiwan": {
       "gemini-on": {
-        "ambiguous_total": 62,
-        "ambiguous_with_region": 25,
-        "attention_per_table_median": 6,
+        "ambiguous_total": 85,
+        "ambiguous_with_region": 48,
+        "attention_per_table_median": 8,
         "attention_per_table_p90": 14,
-        "correct_ambiguous": 62,
+        "correct_ambiguous": 85,
         "correct_cells": 238,
-        "correct_found": 154,
-        "correct_found_share": 0.6471,
+        "correct_found": 131,
+        "correct_found_share": 0.5504,
         "correct_not_found": 22,
         "evidence_policy": {
           "blocking_per_table_median": 0,
@@ -55,14 +55,14 @@
         "wrong_flagged": 0
       },
       "luna-off": {
-        "ambiguous_total": 60,
-        "ambiguous_with_region": 23,
-        "attention_per_table_median": 5,
+        "ambiguous_total": 83,
+        "ambiguous_with_region": 46,
+        "attention_per_table_median": 9,
         "attention_per_table_p90": 14,
-        "correct_ambiguous": 60,
+        "correct_ambiguous": 83,
         "correct_cells": 229,
-        "correct_found": 152,
-        "correct_found_share": 0.6638,
+        "correct_found": 129,
+        "correct_found_share": 0.5633,
         "correct_not_found": 17,
         "evidence_policy": {
           "blocking_per_table_median": 0,
@@ -105,14 +105,14 @@
         "wrong_flagged": 0
       },
       "sol-on": {
-        "ambiguous_total": 62,
-        "ambiguous_with_region": 25,
-        "attention_per_table_median": 6,
+        "ambiguous_total": 85,
+        "ambiguous_with_region": 48,
+        "attention_per_table_median": 8,
         "attention_per_table_p90": 14,
-        "correct_ambiguous": 62,
+        "correct_ambiguous": 85,
         "correct_cells": 237,
-        "correct_found": 154,
-        "correct_found_share": 0.6498,
+        "correct_found": 131,
+        "correct_found_share": 0.5527,
         "correct_not_found": 21,
         "evidence_policy": {
           "blocking_per_table_median": 0,
@@ -156,21 +156,21 @@
     },
     "untouched_taiwan": {
       "gemini-on": {
-        "ambiguous_total": 196,
-        "ambiguous_with_region": 44,
-        "attention_per_table_median": 7.0,
+        "ambiguous_total": 271,
+        "ambiguous_with_region": 119,
+        "attention_per_table_median": 14.0,
         "attention_per_table_p90": 18,
-        "correct_ambiguous": 195,
+        "correct_ambiguous": 270,
         "correct_cells": 557,
-        "correct_found": 292,
-        "correct_found_share": 0.5242,
+        "correct_found": 217,
+        "correct_found_share": 0.3896,
         "correct_not_found": 70,
         "evidence_policy": {
           "blocking_per_table_median": 0.0,
           "blocking_per_table_p90": 1,
           "silent_error_tables_fully_blocked": [],
           "silent_wrong_values_blocking": 0,
-          "tables_with_no_blocking": 27
+          "tables_with_no_blocking": 28
         },
         "photos_missing": [],
         "photos_refused": {
@@ -214,21 +214,21 @@
         "wrong_flagged": 0
       },
       "luna-off": {
-        "ambiguous_total": 223,
-        "ambiguous_with_region": 42,
-        "attention_per_table_median": 8,
-        "attention_per_table_p90": 18,
-        "correct_ambiguous": 200,
+        "ambiguous_total": 298,
+        "ambiguous_with_region": 117,
+        "attention_per_table_median": 12,
+        "attention_per_table_p90": 19,
+        "correct_ambiguous": 275,
         "correct_cells": 566,
-        "correct_found": 299,
-        "correct_found_share": 0.5283,
+        "correct_found": 224,
+        "correct_found_share": 0.3958,
         "correct_not_found": 67,
         "evidence_policy": {
           "blocking_per_table_median": 0,
           "blocking_per_table_p90": 3,
           "silent_error_tables_fully_blocked": [],
           "silent_wrong_values_blocking": 6,
-          "tables_with_no_blocking": 27
+          "tables_with_no_blocking": 28
         },
         "photos_missing": [],
         "photos_refused": {
@@ -278,14 +278,14 @@
         "wrong_flagged": 0
       },
       "sol-on": {
-        "ambiguous_total": 179,
-        "ambiguous_with_region": 44,
-        "attention_per_table_median": 8,
-        "attention_per_table_p90": 17,
-        "correct_ambiguous": 177,
+        "ambiguous_total": 253,
+        "ambiguous_with_region": 118,
+        "attention_per_table_median": 14,
+        "attention_per_table_p90": 18,
+        "correct_ambiguous": 251,
         "correct_cells": 564,
-        "correct_found": 298,
-        "correct_found_share": 0.5284,
+        "correct_found": 224,
+        "correct_found_share": 0.3972,
         "correct_not_found": 89,
         "evidence_policy": {
           "blocking_per_table_median": 0,
@@ -295,7 +295,7 @@
             "off-taiwan:4711957513876:nutrition_zh.3"
           ],
           "silent_wrong_values_blocking": 2,
-          "tables_with_no_blocking": 26
+          "tables_with_no_blocking": 27
         },
         "photos_missing": [],
         "photos_refused": {

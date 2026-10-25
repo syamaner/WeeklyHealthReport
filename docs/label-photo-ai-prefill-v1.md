@@ -732,3 +732,27 @@ The reviewer's attack harness (A1 to A6 and B1 to B7, 39 scenarios) runs clean o
 Development photos: v2 Gemini finds 64.7%, median 6.
 
 **Reading.** Requiring each value's own header in the header band costs most of this round (60.0% to 52.4%): on these photos one of the two column headers is often not read, and those values are now ambiguous, though 44 of them come with a located region to zoom to. Every silent wrong value of every arm still needs a check. **Recommendation unchanged:** adopt locator v2 with the current blocking policy (P12); it still roughly halves the gap to v1's attention burden (median 11 to 7), and the region highlight shortens the checks it leaves.
+
+### 17.14 Locator v2 after round 4: every header in place before a column confirms (25 October 2026)
+
+Round 4 on `4fa597f6` confirmed A1 to A6 and B1 to B7 and found two more single-model-error false founds, both header confirmation, plus one low finding; all fixed:
+
+- **C1:** a split serving line left 每份 alone in the header band; with the real headers unread and the model reversing them, the right column was found under 每份. **C2, C2b:** 每份 was located by containment inside the reference-intake header 每份參考值%, so a swapped reading was confirmed and correct values got a false `conflicting_in_cell`.
+- **Fixes.** (1) A header line counts only when, after removing the reading's header texts, nothing but punctuation remains. (2) For found, the value's own header must sit directly above it, within about one token width. (3) With two or more columns, found and evidence require **every** one of the reading's headers located in the band, at distinct x positions in the reading's left-to-right order; one header alone, or headers out of order, confirm nothing, and inferred columns only narrow candidates and choose the region. **C7d:** a unit straight after a CJK label is accepted only when the unit ends the word (糖克數 is not the 糖 row).
+
+All four reviewer harnesses run clean on the pinned matcher: round 4 (A, B and C1 to C8, 54 scenarios), round 3 (39), round 2 (20), each with no false found and no false evidence on correct values; and the base sweep with only its 18 artefacts and its original baselines. All 54 scenarios are in `LabelValueMatcherAttackTests`.
+
+**Results, untouched Taiwan at 240 px** (replacing 17.13):
+
+| | v1 Gemini | v2 Gemini | v2 Sol | v2 Luna |
+|---|---|---|---|---|
+| Correct values found on the photo | 42.2% | 217 / 557 (39.0%) | 224 / 564 (39.7%) | 224 / 566 (39.6%) |
+| Ambiguous values / with a located region | 246 / 0 | 271 / 119 | 253 / 118 | 298 / 117 |
+| Silent wrong values that need a check | 4 of 4 | 4 of 4 | 4 of 4 | 52 of 52 |
+| Tables opening with nothing to check | 1 of 34 | 3 of 34 | 3 of 35 | 3 of 37 |
+| Values to check per table, median / p90 | 11 / 17 | 14 / 18 | 14 / 18 | 12 / 19 |
+| Evidence-only policy: silent wrong values still blocking | | 0 of 4 | 2 of 4 | 6 of 52 |
+
+Development photos: v2 Gemini finds 55.0%, median 8.
+
+**Reading.** With every header required, v2 now confirms fewer values than v1 did (39.0% against 42.2%) and leaves more to check (median 14 against 11), although 119 of its ambiguous values come with a region to zoom to. A comparison run (not committed) shows the header-above rule costs nothing; the cost is requiring all of the reading's headers, which on these photos often fails; the likely blocker, not yet measured case by case, is the reference-intake column's header (每日參考值百分比), often printed over two lines. Note that v1's lower bar is exactly what rounds 2 to 4 showed to be unsafe (one header, or a header found anywhere, could confirm a swapped column). **Recommendation:** keep v2 as pinned (safe), and as the next lever require only the reading's **amount** column headers (per serving, per 100 g or ml) to be located in order, with the reference-intake column confirmed by its % unit instead. That needs the reading to pass each header's basis to the matcher, a small API change, and its own attack scenarios (a % column mislabelled as an amount column, and the reverse) before it is measured.
