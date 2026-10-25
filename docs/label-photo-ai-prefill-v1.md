@@ -124,7 +124,9 @@ After the model's reading is mapped (P8), `LabelValueLocating` runs `VNRecognize
 3. Candidates for a value are occurrences of its normalised printed text not preceded or followed by a digit or decimal point (so 5公克 is not found inside 15公克), with the box of that substring.
 4. When the value's row label was found, keep only candidates whose **nearest row label** (by vertical centre) is that label; when its header was found, keep only candidates whose **nearest header** (by horizontal centre) is that header. Nearest, not a fixed band, because Vision often reads the label column and the value columns as separate lines and photos are often tilted.
 5. Exactly one candidate left: **found**, with its bounding box (normalised to the image, rounded to four decimals). Several: **ambiguous**. None: try the next text in order, the part from the first digit or comparator ("每一份量 185 公克" to "185公克"), then, for a value, its number alone (when Vision reads the unit as its own line); if none has a candidate, **not found**. Ambiguous and not found are both shown as "Not found on the photo".
-6. **Order within the column** (17.10): a value whose text repeats in its column is placed by rank when that column holds exactly as many occurrences of the text as the table has values with it there; this replaces steps 4 and 5 for those values, and does nothing when the counts differ.
+6. **Order within the column** (17.10): only a value that step 5 left **ambiguous** can be placed by rank, never one found or not found. Its text must repeat in a known column (the reading has one value column, or the headers separate them), the column must hold exactly as many occurrences of the text as the reading has values with it there, every one of those values must have its row label found exactly once with the labels running top to bottom in the reading's row order, and the occurrence of its rank must be one of its own step 4 candidates. Otherwise it stays ambiguous.
+
+**Precondition.** The reading lists each column's values in the table's printed row order, top to bottom, as the model's rows are. The order pass checks this against the row labels found on the photo and places nothing when they disagree or cannot be checked.
 
 Serving lines and the servings per pack line are located the same way on their printed text, with no row or column constraint. The matcher (`LabelValueMatcher`, `label-photo-vision-locate-v1`) is pure Swift; L0 built and measured it (17.9) and L1 carries the file into the package unchanged.
 
@@ -375,7 +377,7 @@ The camera usage string (`NSCameraUsageDescription`) becomes: `Weekly Health Rep
 
 ### 12.2 Dependency direction
 
-presentation → application → domain; `FoodLabelPhotoReading` → application, domain, `NutritionLabelParsing`; `FoodLabelPhotoCapture` → application, domain, `FoodLabelPhotoReading`, Apple frameworks. `check-boundaries.sh` gains `check_imports FoodLabelPhotoReading '^(Foundation|FoodLedgerApplication|FoodLedgerDomain|NutritionLabelParsing)$'` and an allow-list for `FoodLabelPhotoCapture` (`Foundation|ImageIO|CoreGraphics|UniformTypeIdentifiers|Vision|Network|CryptoKit|FoodLedgerApplication|FoodLedgerDomain|FoodLabelPhotoReading`), plus: only the composition root and their tests import either target; `NutritionLabelParsing` is still imported only by its existing users and `FoodLabelPhotoReading`. The OpenRouter key store stays in `FoodGenericSearch` and is passed in through the existing `FoodWebKeyStoring` port.
+presentation → application → domain; `FoodLabelPhotoReading` → application, domain, `NutritionLabelParsing`; `FoodLabelPhotoCapture` → application, domain, `FoodLabelPhotoReading`, Apple frameworks. `check-boundaries.sh` gains `check_imports FoodLabelPhotoReading '^(Foundation|FoodLedgerApplication|FoodLedgerDomain|NutritionLabelParsing)$'` and an allow-list for `FoodLabelPhotoCapture` (`Foundation|ImageIO|CoreGraphics|UniformTypeIdentifiers|Vision|Network|CryptoKit|FoodLedgerApplication|FoodLedgerDomain|FoodLabelPhotoReading`), plus the importer rules of 17.2: `FoodLabelPhotoCapture` is imported only by the composition root and its tests, and `FoodLabelPhotoReading` only by its own tests, `FoodLabelPhotoCapture` and that adapter's tests (the app is never linked to it directly); `NutritionLabelParsing` is still imported only by its existing users and `FoodLabelPhotoReading`. The OpenRouter key store stays in `FoodGenericSearch` and is passed in through the existing `FoodWebKeyStoring` port.
 
 ### 12.3 Invariants
 
@@ -611,22 +613,23 @@ With the 480 px minimum lifted (sensitivity only), Gemini 4 Argon pre-fills 37 t
 **Matcher changes** (still `label-photo-vision-locate-v1`, since nothing has shipped; pinned from here by `LabelPhotoFreezeTests`):
 
 - **Headers by containment.** Headers are often printed on one line ("每份 每100公克"), where the label rule refused the second header, so the column filter never ran. Headers now need only to occur exactly once; row labels keep the label rule.
-- **Order within the column.** A value whose text repeats in its column (such as 0公克) is placed by rank when the column holds exactly as many occurrences of that text as the table has values with that text there: the k-th such value in row order is the k-th from the top. If the counts differ, the first pass stands (ambiguous or not found). Columns must be separable by their headers, or the table must have one header.
+- **Order within the column, ambiguous values only.** A value the first pass left ambiguous whose text repeats in its column (such as 0公克) is placed by rank under the conditions of 6.1 step 6: a known column, equal counts, every such value's row label found once and in the reading's row order, and the rank's occurrence among the value's own candidates. It never changes a found or not found value.
+- **Invariant review of #320 (BLOCK, fixed).** The first version of the order pass placed by counts and order alone and overrode found and not found values. The reviewer reproduced a swap (fat 0公克 and saturated fat 3公克 exchanged by the model) where it marked the wrong fat value as found on saturated fat's row, hiding a silent error; and with no header text on a two-column table it treated the whole photo as one column. Both are now regression tests (the swapped values are not found; the two-column case stays ambiguous), with a third for query order that differs from printed order (no placement). The matcher is re-pinned once, before anything shipped; the reading passes the number of value columns (`columnCount`).
 
 **Re-run** with the decided 240 px minimum (P5), same inputs and method as 17.9: [`results/l0-locate-rate-v2.md`](../Tools/NutritionLabelCaptureEvaluation/results/l0-locate-rate-v2.md).
 
-| Untouched Taiwan, Gemini 4 Argon | L0 (17.9; 480 px, first matcher) | L1a (240 px, this matcher) |
+| Untouched Taiwan, Gemini 4 Argon | L0 (17.9; 480 px, first matcher) | L1a (240 px, fixed matcher) |
 |---|---|---|
 | Photos refused by the short-edge minimum | 8 of 40 | 3 of 40 |
 | Pre-filled tables | 29 | 34 |
-| Correct values found on the photo | 356 / 479 (74.3%) | 455 / 557 (81.7%) |
-| Correct values not found / ambiguous | 54 / 69 | 67 / 35 |
+| Correct values found on the photo | 356 / 479 (74.3%) | 451 / 557 (81.0%) |
+| Correct values not found / ambiguous | 54 / 69 | 67 / 39 |
 | Silent wrong values that became attention items | 4 of 4 | 4 of 4 |
 | Silent-error tables fully caught | 1 of 2 | 1 of 2 |
 | Tables opening with no attention item | 3 of 29 | 8 of 34 |
 | Attention items per table, median / p90 | 3 / 13 | 2 / 11 |
 | Serving lines found | 40 / 58 | 49 / 68 |
 
-On the same 29 tables at 480 px, the new matcher alone finds 81.0% and opens 6 tables clear (median 2, p90 12). Sol finds 78.7% at 240 px and catches 2 of 4 silent wrong values; Luna 83.4% and 32 of 52. On the 15 development photos (none refused at 240 px) Gemini finds 219 of 238 (92.0%), with 7 tables clear and a median of 1.
+On the same 29 tables at 480 px, the fixed matcher finds 80.2% and opens 6 tables clear (median 2, p90 12). Sol finds 77.8% at 240 px and catches 2 of 4 silent wrong values; Luna 82.2% and 32 of 52. On the 15 development photos (none refused at 240 px) Gemini finds 209 of 238 (87.8%), with 6 tables clear, a median of 1 and a p90 of 7. Before the review fix the same run found 81.7% (untouched) and 92.0% (development); the difference is the values the unsafe pass had placed by count alone.
 
-**Reading.** Ambiguity falls by about half and the attention burden drops to a median of 2 per table; about one table in four opens clear. Not found (12%) is now the larger remainder: mostly numbers and units that Vision misreads or splits on small or blurred photos, which is the case an attention item exists for. Every silent wrong value of the chosen arm is still caught.
+**Reading.** With the order pass restricted to ambiguous values, the found rate is 81.0% against 81.7% before the fix; the restricted pass can no longer move a value onto another row. Ambiguity falls from 69 to 39 values and the attention burden drops to a median of 2 per table; about one table in four opens clear. Not found (12%) is now the larger remainder: mostly numbers and units that Vision misreads or splits on small or blurred photos, which is the case an attention item exists for. Every silent wrong value of the chosen arm is still caught.

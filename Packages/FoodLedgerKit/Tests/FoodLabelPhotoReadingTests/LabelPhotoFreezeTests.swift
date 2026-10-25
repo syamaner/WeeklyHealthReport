@@ -8,8 +8,9 @@ import XCTest
 final class LabelPhotoFreezeTests: XCTestCase {
     /// Paths relative to the FoodLedgerKit package root.
     static let frozenSources: [String: String] = [
-        // label-photo-vision-locate-v1, carried unchanged from the L0 tool (17.9).
-        "Sources/FoodLabelPhotoReading/LabelValueMatcher.swift": "48a77a341f9861c93188cd58e216200fd99e8a88aa00cdc35f36afd8614d4f2b",
+        // label-photo-vision-locate-v1, carried unchanged from the L0 tool (17.9). Re-pinned once
+        // before anything shipped, for the order-pass safety fix of the #320 invariant review (17.10).
+        "Sources/FoodLabelPhotoReading/LabelValueMatcher.swift": "51837a1ca0ff39f672b668fb2398a3160ef6706e5e8cc662487d0a0104dd7a3b",
     ]
 
     var packageRoot: URL {

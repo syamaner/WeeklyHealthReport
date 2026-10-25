@@ -52,8 +52,13 @@ public enum LabelValueMatcher {
     public typealias SubBox = (_ index: Int, _ range: Range<String.Index>) -> Box?
 
     /// `headers` and `rowLabels` are every header's and row label's printed text in the table, so a
-    /// value can be assigned to its nearest one.
-    public static func locate(_ queries: [Query], lines: [Line], headers: [String], rowLabels: [String],
+    /// value can be assigned to its nearest one; `columnCount` is the number of value columns the
+    /// reading has (headers with or without printed text).
+    ///
+    /// Precondition for the order pass: `queries` list each column's values in the table's printed
+    /// row order, top to bottom, as the reading's rows are. The pass checks this against the row
+    /// labels found on the photo and places nothing when they disagree or cannot be checked.
+    public static func locate(_ queries: [Query], lines: [Line], headers: [String], rowLabels: [String], columnCount: Int,
                               subBox: SubBox) -> [Location] {
         let normalised = lines.map(Normalised.init)
         func box(_ match: Match) -> Box { subBox(match.line, match.range) ?? lines[match.line].box }
@@ -81,8 +86,10 @@ public enum LabelValueMatcher {
             return nearest(headerBoxes, to: value) { abs($0.midX - $1.midX) } == header
         }
 
-        // First pass: the row and column filters, trying each needle in turn.
-        let first: [Location] = queries.map { query in
+        // First pass: the row and column filters, trying each needle in turn. An ambiguous result
+        // keeps its candidates (after both filters) for the order pass.
+        struct First { let location: Location; let candidates: [Box] }
+        let first: [First] = queries.map { query in
             let isLine = query.rowLabel == nil
             for needle in needles(query.printedText, isLine: isLine) {
                 var candidates = occurrences(of: needle, in: normalised, rule: isLine ? .line : .value).map { box($0) }
@@ -92,39 +99,44 @@ public enum LabelValueMatcher {
                 candidates = candidates.filter { inHeader(query, $0) }
                 switch candidates.count {
                 case 0: continue
-                case 1: return Location(id: query.id, status: .found, region: rounded(candidates[0]))
-                default: return Location(id: query.id, status: .ambiguous, region: nil)
+                case 1: return First(location: Location(id: query.id, status: .found, region: rounded(candidates[0])), candidates: candidates)
+                default: return First(location: Location(id: query.id, status: .ambiguous, region: nil), candidates: candidates)
                 }
             }
-            return Location(id: query.id, status: .notFound, region: nil)
+            return First(location: Location(id: query.id, status: .notFound, region: nil), candidates: [])
         }
 
-        // Second pass, order within the column: a value whose text repeats in its column (such as
-        // 0公克) is placed by rank when the column holds exactly as many occurrences of that text
-        // as the table has values with that text there. The k-th such value in row order (the
-        // queries' order) is the k-th from the top. This replaces the first pass for those values,
-        // which may leave them ambiguous or put two on one row. Columns must be separable by
-        // their headers, or the table must have one header; otherwise the first pass stands.
+        // Second pass, order within the column. It may only turn a first-pass **ambiguous** value
+        // into found; it never changes a found or not found value. A value whose text repeats in
+        // its column is placed by rank only when all of these hold:
+        // - its column is known: the reading has one value column, or the headers separate them;
+        // - the column holds exactly as many occurrences of that text as the reading has values
+        //   with that text in that column;
+        // - every one of those values has its row label found exactly once, and the labels run top
+        //   to bottom in the queries' order (the precondition above);
+        // - the occurrence of the value's rank is one of its own first-pass candidates.
+        // Otherwise the value stays ambiguous.
         func columnKey(_ query: Query) -> String? {
-            if headers.count <= 1 { return "" }
+            if columnCount <= 1 { return "" }
             guard headerBoxes.count > 1, let header = query.headerText.map({ Normalised($0).key }),
                   headerBoxes[header] != nil else { return nil }
             return header
         }
         return queries.enumerated().map { index, query in
             let result = first[index]
-            guard query.rowLabel != nil, let key = columnKey(query) else { return result }
+            guard result.location.status == .ambiguous, query.rowLabel != nil, let key = columnKey(query) else { return result.location }
             let needle = Normalised(query.printedText).key
             let expected = queries.indices.filter { other in
                 queries[other].rowLabel != nil && columnKey(queries[other]) == key
                     && Normalised(queries[other].printedText).key == needle
             }
+            let labelBoxes = expected.compactMap { queries[$0].rowLabel.flatMap { rowBoxes[Normalised($0).key] } }
+            let inOrder = labelBoxes.count == expected.count && zip(labelBoxes, labelBoxes.dropFirst()).allSatisfy { $0.midY > $1.midY }
             let observed = occurrences(of: needle, in: normalised, rule: .value).map { box($0) }
                 .filter { inHeader(query, $0) }
                 .sorted { $0.midY > $1.midY }
-            guard expected.count > 1, expected.count == observed.count, let rank = expected.firstIndex(of: index) else {
-                return result
-            }
+            guard inOrder, expected.count > 1, expected.count == observed.count, let rank = expected.firstIndex(of: index),
+                  result.candidates.contains(observed[rank]) else { return result.location }
             return Location(id: query.id, status: .found, region: rounded(observed[rank]))
         }
     }

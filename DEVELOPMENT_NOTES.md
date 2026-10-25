@@ -2825,7 +2825,7 @@ Token totals are not evidence of productivity, quality or provider efficiency.
 
 The same `claude-opus-5-5` subagent as WHR-316-2026-10-25, transcript `subagents/agent-aada712dd743c7b94.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`. Two windows, both bounded by `date -u` captures: the PR #319 commit, push and PR, the review folds and the wait for its merge (`2026-10-25T04:49:44Z` to `2026-10-25T05:13:29Z`); then L1a from a new branch off `main` (`2026-10-25T05:13:29Z` to `2026-10-25T05:37:41Z`, just before this ledger edit): the matcher ambiguity changes and tests, the L0 re-run at 240 px with local Vision, the package target with its hash pin, the boundary script and its fixtures, the spec and results, and every gate. The commit after this edit, the push and the PR are outside the windows. The orchestrating session and its reviewers are not included.
 
-Pricing uses the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output); they were not re-checked on the day of this entry. API-equivalent comparison under a Claude subscription, not a charge.
+Pricing checked 25 October 2026: [official model rates](https://platform.claude.com/docs/en/about-claude/pricing), `claude-opus-5-5` USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache hit, 20/M output, unchanged from WHR-296-2026-10-23. API-equivalent comparison under a Claude subscription, not a charge.
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |

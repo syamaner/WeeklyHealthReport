@@ -238,7 +238,8 @@ def run_arm(
             missing.append(row["id"])
             continue
         headers, found = queries(row["candidate"] or {})
-        jobs.append({"id": row["id"], "image_path": str(path), "headers": headers, "queries": found})
+        column_count = len((row["candidate"] or {}).get("headers") or [])
+        jobs.append({"id": row["id"], "image_path": str(path), "headers": headers, "column_count": column_count, "queries": found})
     work.mkdir(parents=True, exist_ok=True)
     jobs_path, out_path = work / f"{name}-jobs.json", work / f"{name}-located.json"
     jobs_path.write_text(json.dumps(jobs, ensure_ascii=False), encoding="utf-8")

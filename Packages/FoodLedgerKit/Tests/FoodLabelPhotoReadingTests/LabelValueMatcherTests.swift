@@ -25,7 +25,7 @@ final class LabelValueMatcherTests: XCTestCase {
     let rowLabels = ["熱量", "脂肪", "飽和脂肪", "鈉"]
 
     func locate(_ queries: [M.Query]) -> [M.Status] {
-        M.locate(queries, lines: lines, headers: headers, rowLabels: rowLabels) { _, _ in nil }.map(\.status)
+        M.locate(queries, lines: lines, headers: headers, rowLabels: rowLabels, columnCount: 2) { _, _ in nil }.map(\.status)
     }
 
     func testFullWidthDigitsAndSpacesNormalise() {
@@ -69,7 +69,7 @@ final class LabelValueMatcherTests: XCTestCase {
         ]
         let found = M.locate([.init(id: "k", rowLabel: "鈉", headerText: nil, printedText: "20 毫克"),
                               .init(id: "l", rowLabel: "糖", headerText: nil, printedText: "20公克")],
-                             lines: split, headers: [], rowLabels: ["鈉", "糖"]) { _, _ in nil }.map(\.status)
+                             lines: split, headers: [], rowLabels: ["鈉", "糖"], columnCount: 1) { _, _ in nil }.map(\.status)
         XCTAssertEqual(found, [.found, .found])
     }
 
@@ -77,7 +77,7 @@ final class LabelValueMatcherTests: XCTestCase {
         let split: [M.Line] = [.init(text: "每一份量", box: .init(x: 0.05, y: 0.9, width: 0.2, height: 0.04)),
                                .init(text: "185公克", box: .init(x: 0.3, y: 0.9, width: 0.1, height: 0.04))]
         XCTAssertEqual(M.locate([.init(id: "m", rowLabel: nil, headerText: nil, printedText: "每一份量 185 公克")], lines: split,
-                                headers: [], rowLabels: []) { _, _ in nil }.map(\.status), [.found])
+                                headers: [], rowLabels: [], columnCount: 1) { _, _ in nil }.map(\.status), [.found])
     }
 
     func testNearestRowCopesWithATiltedTable() {
@@ -89,7 +89,7 @@ final class LabelValueMatcherTests: XCTestCase {
             .init(text: "0公克", box: .init(x: 0.6, y: 0.525, width: 0.1, height: 0.04)),
         ]
         XCTAssertEqual(M.locate([.init(id: "n", rowLabel: "脂肪", headerText: nil, printedText: "0公克")], lines: tilted,
-                                headers: [], rowLabels: ["蛋白質", "脂肪"]) { _, _ in nil }.map(\.status), [.found])
+                                headers: [], rowLabels: ["蛋白質", "脂肪"], columnCount: 1) { _, _ in nil }.map(\.status), [.found])
     }
 
     func testRepeatedValuesAreResolvedByOrderWithinTheirColumn() {
@@ -107,7 +107,7 @@ final class LabelValueMatcherTests: XCTestCase {
         let queries: [M.Query] = ["蛋白質", "脂肪", "飽和脂肪"].enumerated().map {
             .init(id: "r\($0.offset)", rowLabel: $0.element, headerText: "每份", printedText: "0 公克")
         }
-        let found = M.locate(queries, lines: shifted, headers: ["每份"], rowLabels: ["蛋白質", "脂肪", "飽和脂肪"]) { _, _ in nil }
+        let found = M.locate(queries, lines: shifted, headers: ["每份"], rowLabels: ["蛋白質", "脂肪", "飽和脂肪"], columnCount: 1) { _, _ in nil }
         XCTAssertEqual(found.map(\.status), [.found, .found, .found])
         XCTAssertEqual(found.map { $0.region?.y }, [0.765, 0.685, 0.605])
     }
@@ -124,7 +124,7 @@ final class LabelValueMatcherTests: XCTestCase {
         let queries: [M.Query] = ["蛋白質", "脂肪", "飽和脂肪"].enumerated().map {
             .init(id: "s\($0.offset)", rowLabel: $0.element, headerText: nil, printedText: "0公克")
         }
-        let found = M.locate(queries, lines: short, headers: [], rowLabels: ["蛋白質", "脂肪", "飽和脂肪"]) { _, _ in nil }
+        let found = M.locate(queries, lines: short, headers: [], rowLabels: ["蛋白質", "脂肪", "飽和脂肪"], columnCount: 1) { _, _ in nil }
         XCTAssertEqual(found.map(\.status), [.notFound, .ambiguous, .notFound])
     }
 
@@ -137,7 +137,7 @@ final class LabelValueMatcherTests: XCTestCase {
         ]
         // Sub-boxes: 每份 on the left half of the header line, 每100公克 on the right.
         let found = M.locate([.init(id: "t", rowLabel: "反式脂肪", headerText: "每100公克", printedText: "0公克")],
-                             lines: oneLine, headers: ["每份", "每100公克"], rowLabels: ["反式脂肪"]) { index, range in
+                             lines: oneLine, headers: ["每份", "每100公克"], rowLabels: ["反式脂肪"], columnCount: 2) { index, range in
             guard index == 1 else { return nil }
             let left = oneLine[1].text.distance(from: oneLine[1].text.startIndex, to: range.lowerBound) == 0
             return left ? .init(x: 0.42, y: 0.9, width: 0.1, height: 0.04) : .init(x: 0.72, y: 0.9, width: 0.16, height: 0.04)
@@ -146,9 +146,81 @@ final class LabelValueMatcherTests: XCTestCase {
         XCTAssertEqual(found.first?.region?.x, 0.75)
     }
 
+    // MARK: Order pass safety (invariant review of #320)
+
+    /// One column printed 蛋白質 0公克 / 脂肪 3公克 / 飽和脂肪 0公克 / 反式脂肪 0公克; the model
+    /// swaps fat (0公克, wrong) and saturated fat (3公克, wrong). Neither wrong value may be found,
+    /// or the photo would hide a silent error.
+    let swapLines: [M.Line] = [
+        .init(text: "蛋白質", box: .init(x: 0.05, y: 0.80, width: 0.1, height: 0.04)),
+        .init(text: "脂肪", box: .init(x: 0.05, y: 0.72, width: 0.1, height: 0.04)),
+        .init(text: "飽和脂肪", box: .init(x: 0.05, y: 0.64, width: 0.1, height: 0.04)),
+        .init(text: "反式脂肪", box: .init(x: 0.05, y: 0.56, width: 0.1, height: 0.04)),
+        .init(text: "0公克", box: .init(x: 0.5, y: 0.80, width: 0.1, height: 0.04)),
+        .init(text: "3公克", box: .init(x: 0.5, y: 0.72, width: 0.1, height: 0.04)),
+        .init(text: "0公克", box: .init(x: 0.5, y: 0.64, width: 0.1, height: 0.04)),
+        .init(text: "0公克", box: .init(x: 0.5, y: 0.56, width: 0.1, height: 0.04)),
+    ]
+    let swapLabels = ["蛋白質", "脂肪", "飽和脂肪", "反式脂肪"]
+
+    func testSwappedValuesAreNotFoundAndTheOrderPassNeverMovesThem() {
+        let queries: [M.Query] = zip(swapLabels, ["0公克", "0公克", "3公克", "0公克"]).enumerated().map {
+            .init(id: "w\($0.offset)", rowLabel: $0.element.0, headerText: nil, printedText: $0.element.1)
+        }
+        let found = M.locate(queries, lines: swapLines, headers: [], rowLabels: swapLabels, columnCount: 1) { _, _ in nil }
+        XCTAssertEqual(found.map(\.status), [.found, .notFound, .notFound, .found])
+        XCTAssertEqual(found[0].region?.y, 0.80)
+        XCTAssertEqual(found[3].region?.y, 0.56)
+    }
+
+    func testOrderPassUpgradesOnlyAnAmbiguousValueToOneOfItsOwnCandidates() {
+        // Two 0公克 values both nearest the protein label: protein is ambiguous, fat not found. The
+        // column holds two 0公克 for two such values, labels in order: protein takes the top one,
+        // which is its own candidate; fat stays not found.
+        let crowded: [M.Line] = [
+            .init(text: "蛋白質", box: .init(x: 0.05, y: 0.80, width: 0.1, height: 0.04)),
+            .init(text: "脂肪", box: .init(x: 0.05, y: 0.60, width: 0.1, height: 0.04)),
+            .init(text: "0公克", box: .init(x: 0.5, y: 0.81, width: 0.1, height: 0.04)),
+            .init(text: "0公克", box: .init(x: 0.5, y: 0.75, width: 0.1, height: 0.04)),
+        ]
+        let queries: [M.Query] = [.init(id: "a", rowLabel: "蛋白質", headerText: nil, printedText: "0公克"),
+                                  .init(id: "b", rowLabel: "脂肪", headerText: nil, printedText: "0公克")]
+        let found = M.locate(queries, lines: crowded, headers: [], rowLabels: ["蛋白質", "脂肪"], columnCount: 1) { _, _ in nil }
+        XCTAssertEqual(found.map(\.status), [.found, .notFound])
+        XCTAssertEqual(found[0].region?.y, 0.81)
+    }
+
+    func testNoOrderPassForTwoValueColumnsWithoutSeparableHeaders() {
+        // Two value columns, no header text returned: the "column" would be the whole photo.
+        let twoColumns: [M.Line] = [
+            .init(text: "脂肪", box: .init(x: 0.05, y: 0.70, width: 0.1, height: 0.04)),
+            .init(text: "飽和脂肪", box: .init(x: 0.05, y: 0.60, width: 0.1, height: 0.04)),
+            .init(text: "0公克", box: .init(x: 0.45, y: 0.70, width: 0.1, height: 0.04)),
+            .init(text: "0公克", box: .init(x: 0.75, y: 0.70, width: 0.1, height: 0.04)),
+        ]
+        let queries: [M.Query] = [.init(id: "c", rowLabel: "脂肪", headerText: nil, printedText: "0公克"),
+                                  .init(id: "d", rowLabel: "脂肪", headerText: nil, printedText: "0公克")]
+        let found = M.locate(queries, lines: twoColumns, headers: [], rowLabels: ["脂肪", "飽和脂肪"], columnCount: 2) { _, _ in nil }
+        XCTAssertEqual(found.map(\.status), [.ambiguous, .ambiguous])
+    }
+
+    func testNoOrderPassWhenQueryOrderDiffersFromPrintedOrder() {
+        // The same crowded column as above, but the queries list fat before protein.
+        let crowded: [M.Line] = [
+            .init(text: "蛋白質", box: .init(x: 0.05, y: 0.80, width: 0.1, height: 0.04)),
+            .init(text: "脂肪", box: .init(x: 0.05, y: 0.60, width: 0.1, height: 0.04)),
+            .init(text: "0公克", box: .init(x: 0.5, y: 0.81, width: 0.1, height: 0.04)),
+            .init(text: "0公克", box: .init(x: 0.5, y: 0.75, width: 0.1, height: 0.04)),
+        ]
+        let queries: [M.Query] = [.init(id: "b", rowLabel: "脂肪", headerText: nil, printedText: "0公克"),
+                                  .init(id: "a", rowLabel: "蛋白質", headerText: nil, printedText: "0公克")]
+        let found = M.locate(queries, lines: crowded, headers: [], rowLabels: ["蛋白質", "脂肪"], columnCount: 1) { _, _ in nil }
+        XCTAssertEqual(found.map(\.status), [.notFound, .ambiguous])
+    }
+
     func testFoundRegionIsRoundedAndInsideTheUnitSquare() throws {
         let location = M.locate([.init(id: "j", rowLabel: "熱量", headerText: "每份", printedText: "485大卡")], lines: lines,
-                                headers: headers, rowLabels: rowLabels) { index, _ in
+                                headers: headers, rowLabels: rowLabels, columnCount: 2) { index, _ in
             index == 3 ? .init(x: -0.000_01, y: 0.802_345, width: 0.123_456, height: 0.04) : nil
         }[0]
         let region = try XCTUnwrap(location.region)

@@ -19,6 +19,7 @@ struct Job: Decodable {
     let id: String
     let image_path: String
     let headers: [String]
+    let column_count: Int
     let queries: [Query]
 }
 
@@ -115,7 +116,8 @@ for job in jobs {
     let (lines, texts) = try recognise(jpeg)
     let queries = job.queries.map { LabelValueMatcher.Query(id: $0.id, rowLabel: $0.row_label, headerText: $0.header_text, printedText: $0.printed_text) }
     let rowLabels = Array(Set(job.queries.compactMap(\.row_label))).sorted()
-    let located = LabelValueMatcher.locate(queries, lines: lines, headers: job.headers, rowLabels: rowLabels) { index, range in
+    let located = LabelValueMatcher.locate(queries, lines: lines, headers: job.headers, rowLabels: rowLabels,
+                                           columnCount: job.column_count) { index, range in
         guard let box = try? texts[index].boundingBox(for: range)?.boundingBox else { return nil }
         return .init(x: box.minX, y: box.minY, width: box.width, height: box.height)
     }
