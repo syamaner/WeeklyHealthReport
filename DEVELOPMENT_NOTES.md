@@ -2919,7 +2919,8 @@ Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A): `claude-opus-5-5` USD 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Label photo L2 image preparation and Vision locator (#316), subagent | 37,216,073 (33,797,902) | 3,418,077 | 53,412 | 37,269,485 | $24.92 |
+| Label photo L2 invariant-review fix: allow-listed JPEG, confinement, plan (#316), subagent | 42,172,997 (40,182,818) | 1,990,085 | 55,174 | 42,228,171 | $19.09 |
 
-Boundary: `phase_usage.py --format claude --since 2026-10-25T16:04:55Z --until 2026-10-25T16:52:56Z` on the subagent transcript alone. Cache writes 3,418,077 5-minute, 0 1-hour; exact USD 24.9185814. Local Swift builds, ImageIO and Vision use no API tokens and are not priced.
+Boundary: `phase_usage.py --format claude --since 2026-10-25T16:04:55Z --until 2026-10-25T16:52:56Z` on the subagent transcript alone. Cache writes 3,418,077 5-minute, 0 1-hour; exact USD 24.9185814. Review fix: `--since 2026-10-25T16:52:56Z --until 2026-10-25T17:21:34Z`, just before this edit: the L2 commits, push, PR #324 and report, the start of L3 on its own branch (the read session, its ports and tests; not separated out), then the allow-listed JPEG sanitiser with its adversarial vectors, the confinement and factory rules, the plan with the subsampled decode, the short edge after scaling and the aspect ratio, the ladder and quarter-turn tests, the spec and every gate. Cache writes 1,990,085 5-minute, 0 1-hour; exact USD 19.0908446. Local Swift builds, ImageIO and Vision use no API tokens and are not priced.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
