@@ -2943,3 +2943,9 @@ Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A): `claude-opus-5-5` USD 
 | Label photo L3 orchestrator, adapter, Confirm builder and atomic Log (#316), subagent | 36,308,243 (35,090,724) | 1,217,255 | 116,398 | 36,424,641 | $15.43 |
 
 Boundary: `phase_usage.py --format claude --since 2026-10-25T17:21:34Z --until 2026-10-25T18:10:50Z` on the subagent transcript alone. Cache writes 1,217,255 5-minute, 0 1-hour; exact USD 15.4334358. Local Swift and Xcode builds and the simulator use no API tokens and are not priced. These totals are a cost comparison, not productivity or quality evidence.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label photo L3 invariant-review fix: tap reservation, fail-closed ledger, exact model (#316), subagent | 6,403,131 (5,932,248) | 470,853 | 22,436 | 6,425,567 | $3.99 |
+
+L3 review fix (WHR-316-2026-10-26-L3): `phase_usage.py --format claude --since 2026-10-25T18:16:56Z --until 2026-10-25T18:26:58Z` on the subagent transcript alone. It covers parking the L4 work, the session reservation, the fail-closed ledger, the in-flight guard, the deadline guard, the key and per-day catalogue checks, the exact model rule, their tests, spec 17.18 and the gates. Cache writes 470,853 5-minute, 0 1-hour; exact USD 3.9895546. The L4 work from 18:12:28Z to 18:16:56Z is not in this row; it belongs to L4's row. Same pricing as above; an API-equivalent comparison, not a charge.
