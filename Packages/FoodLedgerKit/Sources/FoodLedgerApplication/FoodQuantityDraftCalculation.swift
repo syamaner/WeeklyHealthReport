@@ -54,6 +54,14 @@ extension FoodQuantityDraft {
                 }
                 return conversion.convertedQuantity
             }
+            // count-portion-estimate-v1: a selected guide size gives count × that size's grams,
+            // from the frozen table; the service resolves the same code through its port at save.
+            if let code = portionGuideCode, entered.unit == .count {
+                guard let grams = CountPortionGuidePolicy.grams(code: code, count: entered.value) else {
+                    throw FoodQuantityValidationError.missingConversion
+                }
+                return try PositiveQuantity(value: grams, unit: .grams)
+            }
             guard entered.unit != .count else {
                 throw FoodQuantityValidationError.missingConversion
             }

@@ -394,7 +394,7 @@ public struct FoodDailyExportRequest: Sendable {
 
 /// Projects one reporting date of a ledger snapshot into the export document. Pure: the snapshot,
 /// zone and instants are injected. Head-version selection and totals come from
-/// `FoodIntakeProjection` (`food-intake-summary-v5`) and plain water from `PlainWaterDayTotal`, so
+/// `FoodIntakeProjection` (`food-intake-summary-v6`) and plain water from `PlainWaterDayTotal`, so
 /// Home, the Health food section and the file cannot disagree. Any error means no document.
 public enum FoodDailyExportBuilder {
     public static func make(_ request: FoodDailyExportRequest) throws -> FoodDailyExportDocument {

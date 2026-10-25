@@ -2763,6 +2763,29 @@ Journey-QA notes: `phase_usage.py --format claude --since 2026-10-24T08:00:04Z -
 
 Re-check and re-walk fixes: `phase_usage.py --format claude --since 2026-10-24T08:53:14Z --until 2026-10-24T10:13:31Z` on the same transcript, including the previous handback and two full gate runs (one app-test rerun after a test compile fix). Cache writes: 3,461,276 5-minute, 0 1-hour. Exact API-equivalent USD 23.439773.
 
+## WHR-307-2026-10-24: Claude Code assistive count amounts (spec and implementation)
+
+One `claude-opus-5-5` subagent, transcript `subagents/agent-a47b37ffd7f2c1513.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`, for #307. Two rows on the same transcript, split at the coordinator's gate re-check message.
+
+Spec row: from the transcript's first message (`2026-10-24T08:54:35Z`) to the gate re-check message (`2026-10-24T09:32:18Z`). It covers reading the contracts, code and UX review screenshots, the spec and architecture gate (`docs/count-portion-estimate-v1.md`), the owner's size amendment with the offline re-read of the USDA archive, and folding the first architecture-gate findings (F1 to F11). No start time was captured with `date -u`; the boundary is the transcript's own first timestamp.
+
+Implementation row: from `2026-10-24T09:32:18Z` to `2026-10-24T11:17:15Z` (captured with `date -u`), just before this ledger edit. It covers folding G1 to G6 into the spec, the manifest projection, the application, adapter, presentation and app changes, the contract and presentation tests, the v5 golden freeze and v6 goldens, and the gate runs completed before the edit (the app test gate was still running and is outside the row only for its remaining minutes). This ledger edit, the commit, the push and the PR are outside both rows. The orchestrator and the architecture-gate reviewers are not included. Times are UTC (24 October local time, UTC+8).
+
+Pricing: Claude Opus 5.5 rates as recorded by the 24 October 2026 check in WHR-305-2026-10-24 and WHR-304-2026-10-24 (not re-checked for this row): USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Assistive count amounts (#307), spec, amendment and gate fold-in | 5,383,256 (5,074,446) | 308,734 | 61,141 | 5,444,397 | $3.78 |
+| Assistive count amounts (#307), implementation and gates | 68,030,769 (64,979,540) | 3,050,897 | 151,894 | 68,182,663 | $31.29 |
+| Assistive count amounts (#307), merge, invariant review and journey QA fold-in | 71,520,992 (59,045,250) | 12,475,498 | 73,752 | 71,594,744 | $75.66 |
+| Assistive count amounts (#307), journey QA D1 fix (separate subagent) | 3,413,050 (3,353,227) | 59,753 | 15,318 | 3,428,368 | $1.28 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-24T08:54:35Z --until 2026-10-24T09:32:18Z` and `--since 2026-10-24T09:32:18Z --until 2026-10-24T11:17:15Z` on the subagent transcript alone. Cache writes are all 5-minute (308,734 and 3,050,897), 0 1-hour. Exact API-equivalent USD 3.7816832 and 31.289601. Output counts are as the transcript records them and are likely lower bounds, because messages record streaming-time snapshots.
+
+Fold-in row: same transcript, `phase_usage.py --format claude --since 2026-10-24T11:17:15Z --until 2026-10-24T15:56:49Z` (end captured with `date -u`). It covers the PR, the merge of main after #311, the invariant review fixes (servings predicate, reopened corrected eggs, header method, reuse bound to the record, method as an estimate, contract tests 6, 9, 10 and 15), the USDA allow-list release fix and manifest regeneration, the journey QA fix (method shown once), and the gate reruns. It spans a session restart, whose context reload accounts for most of the 12,475,498 5-minute cache writes. Exact API-equivalent USD 75.662556. The final gate run, this ledger edit, the commit, push and PR edit are outside the row.
+
+D1 fix row: a separate `claude-opus-5-5` subagent, transcript `subagents/agent-a5cb55c083a02f94b.jsonl` in the same session, working in the #307 worktree. `phase_usage.py --format claude --since 2026-10-25T03:47:33Z --until 2026-10-25T04:02:22Z` (both captured with `date -u`). It covers the journey QA D1 fix (no "Enter measured weight" beside the count's weight row after Change; "Use original amount instead" applies the visible count fields again), its presentation tests, the spec note and all gate runs. Cache writes are all 5-minute (59,753), 0 1-hour. Exact API-equivalent USD 1.2760504, same rates. This ledger edit, the commit, push and PR edit are outside the row; the orchestrator is not included.
+
 Token totals are not evidence of productivity, quality or provider efficiency.
 
 ## WHR-308-2026-10-24: Claude Code presentation follow-ups (search, Health, Dynamic Type, Food Log, favourites)

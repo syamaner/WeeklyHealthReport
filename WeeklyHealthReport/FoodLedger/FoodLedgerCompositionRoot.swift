@@ -18,6 +18,8 @@ final class FoodLedgerCompositionRoot {
     private let ledger: FoodLedgerService
     private let genericFoodSearch: any GenericFoodSearching
     private let milkVolumeConversion: CoFIDWholeMilkVolumeConversion
+    /// Count portion guides (count-portion-estimate-v1, #307): bundled, hash-pinned, no network.
+    private let countPortionGuides: USDACountPortionGuides
     private let offSearchTransport: OFFHTTPSearchTransport
     private let searchPreferences: FoodSearchUserDefaultsPreferences
     /// The store shared by food search preferences and Settings.
@@ -96,6 +98,8 @@ final class FoodLedgerCompositionRoot {
         )
         // Save and reopen recompute pasted-label conversions through the adapter's checker.
         let pastedLabelConversions = NutritionLabelConversionChecker()
+        let guides = try USDACountPortionGuides()
+        countPortionGuides = guides
         pastedLabelReader = PastedLabelReader(reader: NutritionLabelTextReader(), digester: SHA256Digester())
         pastedLabelConfirmation = PastedLabelConfirmation(ids: ids, clock: confirmationClock,
             encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester(), conversions: pastedLabelConversions)
@@ -106,7 +110,8 @@ final class FoodLedgerCompositionRoot {
             ids: ids,
             digester: SHA256Digester(),
             calendar: confirmationCalendar,
-            pastedLabelConversions: pastedLabelConversions
+            pastedLabelConversions: pastedLabelConversions,
+            portionGuides: guides
         )
         favourites = try FavouritesService(ledger: ledger, reader: store, confirmations: confirmations,
             clock: confirmationClock, ids: ids, digester: SHA256Digester(), calendar: confirmationCalendar)
@@ -128,7 +133,7 @@ final class FoodLedgerCompositionRoot {
         let when = entryWhen(day: entryDay)
         state.occurredAt = when.occurredAt
         let clock = confirmationClock
-        return FoodConfirmationViewModel(state: state, volumeConversionOffering: offering, searchInterpretation: searchInterpretation,
+        return FoodConfirmationViewModel(state: state, volumeConversionOffering: offering, portionGuides: countPortionGuides, searchInterpretation: searchInterpretation,
                                          now: { clock.now() }, calendar: confirmationCalendar,
                                          savesFavourite: savesFavourite, favouriteAction: favouriteAction,
                                          whenNotice: FoodLogText.whenNotice(when)) { [confirmations, ids] state in
@@ -142,21 +147,33 @@ final class FoodLedgerCompositionRoot {
 
     private func withMilkVolumeSource(_ input: PopulatedFoodConfirmation)
         -> (PopulatedFoodConfirmation, (any FoodVolumeConversionOffering)?) {
-        var prepared = input
+        var prepared = withCountPortionGuideSource(input)
         var offering: (any FoodVolumeConversionOffering)?
-        if input.candidates.contains(where: milkVolumeConversion.applies(to:)) {
+        if prepared.candidates.contains(where: milkVolumeConversion.applies(to:)) {
             let release = milkVolumeConversion.sourceRelease
-            let releases = input.sourceReleases.contains(where: { $0.sourceReleaseID == release.sourceReleaseID })
-                ? input.sourceReleases : input.sourceReleases + [release]
+            let releases = prepared.sourceReleases.contains(where: { $0.sourceReleaseID == release.sourceReleaseID })
+                ? prepared.sourceReleases : prepared.sourceReleases + [release]
             if let enriched = try? PopulatedFoodConfirmation(
-                evidence: input.evidence, sourceReleases: releases, candidates: input.candidates,
-                expectedIdentity: input.expectedIdentity, expectedEdibleQuantity: input.expectedEdibleQuantity
+                evidence: prepared.evidence, sourceReleases: releases, candidates: prepared.candidates,
+                expectedIdentity: prepared.expectedIdentity, expectedEdibleQuantity: prepared.expectedEdibleQuantity
             ) {
                 prepared = enriched
                 offering = milkVolumeConversion
             }
         }
         return (prepared, offering)
+    }
+
+    /// Adds the guide `SourceRelease` to the input whenever any candidate has a count portion
+    /// guide, so it is saved with the entry exactly as the PHE milk release is (gate F3, G4).
+    func withCountPortionGuideSource(_ input: PopulatedFoodConfirmation) -> PopulatedFoodConfirmation {
+        guard countPortionGuides.appliesToAny(input.candidates) else { return input }
+        let release = countPortionGuides.sourceRelease
+        guard !input.sourceReleases.contains(where: { $0.sourceReleaseID == release.sourceReleaseID }) else { return input }
+        return (try? PopulatedFoodConfirmation(
+            evidence: input.evidence, sourceReleases: input.sourceReleases + [release], candidates: input.candidates,
+            expectedIdentity: input.expectedIdentity, expectedEdibleQuantity: input.expectedEdibleQuantity
+        )) ?? input
     }
 
     /// When for a new entry from Add food at this moment (owner decision D): a past Food Log day
@@ -179,7 +196,7 @@ final class FoodLedgerCompositionRoot {
         let when = entryWhen(day: entryDay)
         state.occurredAt = when.occurredAt
         let clock = confirmationClock
-        return FoodConfirmationViewModel(state: state, volumeConversionOffering: offering,
+        return FoodConfirmationViewModel(state: state, volumeConversionOffering: offering, portionGuides: countPortionGuides,
                                          now: { clock.now() }, calendar: confirmationCalendar,
                                          favouriteAction: favouriteAction(unlessFavourite: state),
                                          whenNotice: FoodLogText.whenNotice(when)) { [confirmations, ids] state in
@@ -277,7 +294,7 @@ final class FoodLedgerCompositionRoot {
             prepared.occurredAt = when.occurredAt
             whenNotice = FoodLogText.whenNotice(when)
         }
-        return FoodConfirmationViewModel(state: prepared, volumeConversionOffering: offering, now: { clock.now() },
+        return FoodConfirmationViewModel(state: prepared, volumeConversionOffering: offering, portionGuides: countPortionGuides, now: { clock.now() },
                                          calendar: confirmationCalendar,
                                          favouriteAction: favouriteAction(unlessFavourite: prepared), whenNotice: whenNotice) { [confirmations, ids] state in
             try confirmations.save(state, operationID: ids.makeID(OperationTag.self), idempotencyKey: nil)
@@ -319,7 +336,7 @@ final class FoodLedgerCompositionRoot {
             state.decision = .accepted
         }
         let clock = confirmationClock
-        return FoodConfirmationViewModel(state: state, volumeConversionOffering: offering,
+        return FoodConfirmationViewModel(state: state, volumeConversionOffering: offering, portionGuides: countPortionGuides,
                                          now: { clock.now() }, calendar: confirmationCalendar,
                                          favouriteAction: favouriteAction) { [confirmations, ids] state in
             try confirmations.save(
@@ -419,7 +436,8 @@ final class FoodLedgerCompositionRoot {
             confirmationCalendar: confirmationCalendar,
             amountLocale: locale,
             // The same whole-milk volume source and offering as the search route.
-            prepareConfirmation: { [weak self] state in self?.withMilkVolumeSource(state) ?? (state: state, offering: nil) }
+            prepareConfirmation: { [weak self] state in self?.withMilkVolumeSource(state) ?? (state: state, offering: nil) },
+            portionGuides: countPortionGuides
         ) { [confirmations] state, operationID in
             try confirmations.save(
                 state, operationID: operationID,
@@ -532,7 +550,8 @@ extension FoodLedgerCompositionRoot: DailyFoodLedgerSnapshotReading {
 /// Maps `FoodLogReadingService.day(reportingDate:)` to the Health report's plain day facts
 /// (docs/health-food-and-water-v1.md, section 6). Plain water is `PlainWaterDayTotal` (plain water
 /// entries only, never water in foods). Energy, and fibre (contract v1.2, #288), is the day's total under
-/// `food-intake-summary-v5` over its food entries: plain water entries are identified by the saved
+/// `food-intake-summary-v6` over its food entries (v6, #307: a typical-weight or whole-milk volume
+/// estimate marks the day as including estimates): plain water entries are identified by the saved
 /// entry's `isPlainWater` (the existing saved-entry read) and do not make a logged food day
 /// (contract v1.1). Under v5 (contract v1.3, #304) the day totals already leave plain water out of
 /// energy and fibre, scaled or not, so it neither adds a known 0 nor an incomplete contribution.

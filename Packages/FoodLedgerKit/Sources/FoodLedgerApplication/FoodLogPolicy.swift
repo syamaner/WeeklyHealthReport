@@ -45,8 +45,11 @@ public enum FoodLogPolicy {
             if direct.basis == nil { result.append(.weightBasisMissing) }
             if direct.needsReconfirmation { result.append(.retainedWeightNeedsConfirmation) }
         }
+        // count-portion-estimate-v1: a selected guide size on a record counted in pieces satisfies it.
+        let guideSelected = quantity.portionGuideCode.map { CountPortionGuideCode.entry($0) != nil } == true
+            && CountPortionGuidePolicy.applies(state)
         if quantity.directWeight == nil && quantity.unit == .count && quantity.conversion == nil && !state.usesSourceDeclaredServing
-            && !state.logsPastedLabelServings {
+            && !state.logsPastedLabelServings && !guideSelected {
             result.append(.countNeedsMeasuredAmount)
         }
         result += plateRequirements(quantity)

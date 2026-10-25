@@ -1,0 +1,190 @@
+{
+ "guide_set_id": "count-portion-guides-v1",
+ "guides": [
+  {
+   "applies_to": [
+    [
+     "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:projection:6759b10f419ecdfd5395d469b0ff51d58e59e29d40f31e2087ae9455da6a4bd4",
+     "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171287"
+    ],
+    [
+     "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+     "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1096:a72b3e44d2dadad3"
+    ]
+   ],
+   "default": false,
+   "derivation": "none",
+   "grams": 38.0,
+   "guide_id": "count_portion_guide_v1:usda_sr_legacy_171287_88379",
+   "part": "whole_without_shell",
+   "preparation": "raw",
+   "size": "small",
+   "source_descriptor": "small",
+   "source_fdc_id": 171287,
+   "source_portion_id": 88379
+  },
+  {
+   "applies_to": [
+    [
+     "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:projection:6759b10f419ecdfd5395d469b0ff51d58e59e29d40f31e2087ae9455da6a4bd4",
+     "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171287"
+    ],
+    [
+     "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+     "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1096:a72b3e44d2dadad3"
+    ]
+   ],
+   "default": false,
+   "derivation": "none",
+   "grams": 44.0,
+   "guide_id": "count_portion_guide_v1:usda_sr_legacy_171287_88378",
+   "part": "whole_without_shell",
+   "preparation": "raw",
+   "size": "medium",
+   "source_descriptor": "medium",
+   "source_fdc_id": 171287,
+   "source_portion_id": 88378
+  },
+  {
+   "applies_to": [
+    [
+     "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:projection:6759b10f419ecdfd5395d469b0ff51d58e59e29d40f31e2087ae9455da6a4bd4",
+     "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171287"
+    ],
+    [
+     "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+     "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1096:a72b3e44d2dadad3"
+    ]
+   ],
+   "default": true,
+   "derivation": "none",
+   "grams": 50.0,
+   "guide_id": "count_portion_guide_v1:usda_sr_legacy_171287_88374",
+   "part": "whole_without_shell",
+   "preparation": "raw",
+   "size": "large",
+   "source_descriptor": "large",
+   "source_fdc_id": 171287,
+   "source_portion_id": 88374
+  },
+  {
+   "applies_to": [
+    [
+     "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:projection:6759b10f419ecdfd5395d469b0ff51d58e59e29d40f31e2087ae9455da6a4bd4",
+     "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171287"
+    ],
+    [
+     "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+     "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1096:a72b3e44d2dadad3"
+    ]
+   ],
+   "default": false,
+   "derivation": "none",
+   "grams": 56.0,
+   "guide_id": "count_portion_guide_v1:usda_sr_legacy_171287_88375",
+   "part": "whole_without_shell",
+   "preparation": "raw",
+   "size": "extra_large",
+   "source_descriptor": "extra large",
+   "source_fdc_id": 171287,
+   "source_portion_id": 88375
+  },
+  {
+   "applies_to": [
+    [
+     "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:projection:6759b10f419ecdfd5395d469b0ff51d58e59e29d40f31e2087ae9455da6a4bd4",
+     "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173424"
+    ],
+    [
+     "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+     "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1091:0fe190b81c244ccf"
+    ]
+   ],
+   "default": false,
+   "derivation": "raw_size_weight_for_boiled",
+   "grams": 38.0,
+   "guide_id": "count_portion_guide_v1:usda_sr_legacy_boiled_from_171287_88379",
+   "part": "whole_without_shell",
+   "preparation": "boiled",
+   "size": "small",
+   "source_descriptor": "small",
+   "source_fdc_id": 171287,
+   "source_portion_id": 88379
+  },
+  {
+   "applies_to": [
+    [
+     "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:projection:6759b10f419ecdfd5395d469b0ff51d58e59e29d40f31e2087ae9455da6a4bd4",
+     "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173424"
+    ],
+    [
+     "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+     "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1091:0fe190b81c244ccf"
+    ]
+   ],
+   "default": false,
+   "derivation": "raw_size_weight_for_boiled",
+   "grams": 44.0,
+   "guide_id": "count_portion_guide_v1:usda_sr_legacy_boiled_from_171287_88378",
+   "part": "whole_without_shell",
+   "preparation": "boiled",
+   "size": "medium",
+   "source_descriptor": "medium",
+   "source_fdc_id": 171287,
+   "source_portion_id": 88378
+  },
+  {
+   "applies_to": [
+    [
+     "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:projection:6759b10f419ecdfd5395d469b0ff51d58e59e29d40f31e2087ae9455da6a4bd4",
+     "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173424"
+    ],
+    [
+     "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+     "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1091:0fe190b81c244ccf"
+    ]
+   ],
+   "default": true,
+   "derivation": "none",
+   "grams": 50.0,
+   "guide_id": "count_portion_guide_v1:usda_sr_legacy_173424_92500",
+   "part": "whole_without_shell",
+   "preparation": "boiled",
+   "size": "large",
+   "source_descriptor": "large",
+   "source_fdc_id": 173424,
+   "source_portion_id": 92500
+  },
+  {
+   "applies_to": [
+    [
+     "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:projection:6759b10f419ecdfd5395d469b0ff51d58e59e29d40f31e2087ae9455da6a4bd4",
+     "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173424"
+    ],
+    [
+     "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+     "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1091:0fe190b81c244ccf"
+    ]
+   ],
+   "default": false,
+   "derivation": "raw_size_weight_for_boiled",
+   "grams": 56.0,
+   "guide_id": "count_portion_guide_v1:usda_sr_legacy_boiled_from_171287_88375",
+   "part": "whole_without_shell",
+   "preparation": "boiled",
+   "size": "extra_large",
+   "source_descriptor": "extra large",
+   "source_fdc_id": 171287,
+   "source_portion_id": 88375
+  }
+ ],
+ "source": {
+  "archive_file": "FoodData_Central_sr_legacy_food_json_2018-04.zip",
+  "archive_sha256": "0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+  "attribution": "USDA FoodData Central, SR Legacy, April 2018 (public domain, CC0 1.0). Typical edible weights of one egg without shell.",
+  "documentation_url": "https://fdc.nal.usda.gov/data-documentation/",
+  "licence": "CC0 1.0",
+  "release_date": "2018-04-01",
+  "title": "USDA FoodData Central, SR Legacy, April 2018"
+ }
+}

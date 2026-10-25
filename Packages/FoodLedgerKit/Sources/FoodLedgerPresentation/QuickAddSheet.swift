@@ -26,7 +26,7 @@ public enum QuickAddText {
     }
 
     /// The unit word for the sheet's "Other amount" field.
-    public static func countWord(servings: Bool) -> String { servings ? "servings" : "pieces" }
+    public static func countWord(servings: Bool) -> String { servings ? "servings" : FoodAmountNoun.countUnitLabel }
 
     public static func title(_ item: QuickAddItem) -> String {
         switch item {
@@ -287,7 +287,7 @@ public struct QuickAddSheet: View {
                             .amountKeyboard($editingAmount, .quickAddOther)
                             .onChange(of: text) { _, value in model.setCustomText(FoodAmountFieldText.reducerText(value, locale: locale)) }
                             .accessibilityLabel("Other amount in \(model.unit == .millilitres ? "millilitres" : model.unit == .grams ? "grams" : QuickAddText.countWord(servings: model.amountIsServings))")
-                        Text(model.unit == .count ? QuickAddText.countWord(servings: model.amountIsServings) : model.unit.rawValue).foregroundStyle(.secondary)
+                        Text(model.unit == .count ? QuickAddText.countWord(servings: model.amountIsServings) : model.unit == .millilitres ? "mL" : "g").foregroundStyle(.secondary)
                     }.frame(minHeight: 44)
                 }
             }

@@ -43,16 +43,20 @@ public struct FoodLogReadingService: Sendable {
     /// Nil when the entry is missing or removed.
     public func savedEntry(_ logItemID: LogItemID) throws -> SavedFoodEntryDetail? {
         guard let stored = try confirmationReader.foodConfirmation(logItemID: logItemID) else { return nil }
+        let release = stored.sourceReleases.first { $0.sourceReleaseID == stored.candidateDecision.candidate.sourceReleaseID }
+        let entered = FoodConfirmationService.lastEnteredAmount(stored.logItemVersion, conversion: stored.quantityConversion)
+        let servings = FoodAmountServings.isServings(enteredUnit: entered.unit, conversion: stored.quantityConversion,
+                                                     sourceID: release?.sourceID.value, basis: stored.resolution.basis)
         return SavedFoodEntryDetail(stored: stored, isEstimate: (try? confirmations.isEstimate(stored)) == true,
-                                    history: try historyEvents(logItemID))
+                                    history: try historyEvents(logItemID, isServings: servings))
     }
 
-    public func historyEvents(_ logItemID: LogItemID) throws -> [FoodEntryHistoryEvent] {
+    public func historyEvents(_ logItemID: LogItemID, isServings: Bool = false) throws -> [FoodEntryHistoryEvent] {
         let versions = try history.versions(for: logItemID)
         let referenced = Set(versions.compactMap(\.quantityConversionVersionID))
         let conversions = referenced.isEmpty ? [] : try archive.archiveState().records.quantityConversions
             .filter { referenced.contains($0.quantityConversionVersionID) }
-        return FoodEntryHistory.events(versions: versions, conversions: conversions)
+        return FoodEntryHistory.events(versions: versions, conversions: conversions, isServings: isServings)
     }
 
     public func remove(_ logItemID: LogItemID, expected: LogItemVersionID) -> FoodLogChangeOutcome {

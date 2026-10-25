@@ -31,7 +31,7 @@ public struct FoodReresolutionView: View {
                 ForEach(model.records, id: \.logItem.logItemID) { record in
                     VStack(alignment: .leading, spacing: 6) {
                         Text(record.productVersion.name.value).font(.headline)
-                        Text("\(record.logItemVersion.reportingDate.value) · \(record.logItemVersion.edibleQuantity.value.formatted()) \(record.logItemVersion.edibleQuantity.unit.rawValue)")
+                        Text("\(record.logItemVersion.reportingDate.value) · \(record.logItemVersion.edibleQuantity.value.formatted()) \(FoodAmountNoun.unit(record.logItemVersion.edibleQuantity.unit, value: record.logItemVersion.edibleQuantity.value))")
                         Text("Current resolution \(record.resolutionVersion.ordinal.value): \(record.resolutionVersion.methodVersion.value)").font(.caption)
                         Button("Find proposals") { model.preview(record) }
                             .disabled(model.selectedTargetID == nil || model.pending != nil)
@@ -163,9 +163,9 @@ public struct FoodReresolutionView: View {
         switch basis {
         case .per100Grams: "per 100 g"
         case .per100Millilitres: "per 100 ml"
-        case let .perServing(quantity): "per serving (\(quantity.value.formatted()) \(quantity.unit.rawValue))"
-        case let .perUnit(quantity): "per unit (\(quantity.value.formatted()) \(quantity.unit.rawValue))"
-        case let .named(name, quantity): "\(name.value) (\(quantity.value.formatted()) \(quantity.unit.rawValue))"
+        case let .perServing(quantity): "per serving (\(quantity.value.formatted()) \(FoodAmountNoun.unit(quantity.unit, value: quantity.value)))"
+        case let .perUnit(quantity): "per unit (\(quantity.value.formatted()) \(FoodAmountNoun.unit(quantity.unit, value: quantity.value)))"
+        case let .named(name, quantity): "\(name.value) (\(quantity.value.formatted()) \(FoodAmountNoun.unit(quantity.unit, value: quantity.value)))"
         case .unknown: "Unknown"
         }
     }

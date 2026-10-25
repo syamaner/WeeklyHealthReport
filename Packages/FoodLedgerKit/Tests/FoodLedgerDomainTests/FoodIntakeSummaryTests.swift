@@ -72,7 +72,7 @@ final class FoodIntakeSummaryTests: XCTestCase {
         XCTAssertEqual(protein, FoodIntakeTotal(key: .protein, knownAmount: nil, incompleteContributions: 2,
                                                 includesEstimates: true, overflowed: true),
                        "the fixture's protein is augmented, so the v3 estimate flag stays set")
-        XCTAssertEqual(FoodIntakeSummary.version, "food-intake-summary-v5")
+        XCTAssertEqual(FoodIntakeSummary.version, "food-intake-summary-v6")
     }
 
     func testNothingKnownIsNotAnOverflow() throws {
