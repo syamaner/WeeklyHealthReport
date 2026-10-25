@@ -2875,7 +2875,8 @@ Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A): `claude-opus-5-5` USD 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Label photo L1d locator v3, header bases (#316), subagent | 7,788,714 (7,460,648) | 328,010 | 23,682 | 7,812,396 | $3.61 |
+| Label photo L1d review round 1: serving lines outside the table, one % column (#316), subagent | 30,477,317 (29,460,641) | 1,016,506 | 50,394 | 30,527,711 | $11.98 |
 
-Boundary: `phase_usage.py --format claude --since 2026-10-25T12:51:02Z --until 2026-10-25T13:10:28Z` on the subagent transcript alone. Cache writes 328,010 5-minute, 0 1-hour; exact USD 3.6060436. Local Vision and Swift builds use no API tokens and are not priced.
+Boundary: `phase_usage.py --format claude --since 2026-10-25T12:51:02Z --until 2026-10-25T13:10:28Z` on the subagent transcript alone. Cache writes 328,010 5-minute, 0 1-hour; exact USD 3.6060436. Review round 1: `--since 2026-10-25T13:10:28Z --until 2026-10-25T13:49:38Z`, just before this edit: the L1d commits, rebase, push and PR #322, the start of L1b on `main` (reading the spec and the pasted source, fixing the two parked tests), then the G1, G2 and C1 fixes with their regression tests, every reviewer harness (rounds 2 to 7, the round-7 harness in four base modes and both sweeps), the L0 v4 re-run and every gate. The L1b part is not separated out. Cache writes 1,016,506 5-minute, 0 1-hour; exact USD 11.9832182. Local Vision and Swift builds use no API tokens and are not priced.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
