@@ -1,0 +1,48 @@
+# L0 locate rate v2 (label photo AI pre-fill L1a, #316)
+
+Status: **offline measurement, 25 October 2026. No model, provider or network call.** It repeats [v1](l0-locate-rate-v1.md) with the L1a matcher (headers by containment, order within the column; [spec 6.1 and 17.10](../../../docs/label-photo-ai-prefill-v1.md)) and the decided 240 px short-edge minimum (P5). Inputs, preparation otherwise, recognition, truth and attention draft rules are unchanged from v1. Counts and case IDs only: [`l0-locate-rate-v2.json`](l0-locate-rate-v2.json), written by [`../l0_locate.py`](../l0_locate.py).
+
+## Untouched Taiwan, 240 px
+
+| | Gemini 4 Argon | GPT-6.1 Sol | Luna |
+|---|---|---|---|
+| Photos refused (short edge under 240 px) | 3 | 3 | 3 |
+| Pre-filled tables | 34 | 35 | 37 |
+| Correct values | 557 | 564 | 566 |
+| found | 455 (81.7%) | 444 (78.7%) | 472 (83.4%) |
+| not found | 67 | 81 | 58 |
+| ambiguous | 35 | 39 | 36 |
+| Wrong values (all silent) | 4 | 4 | 52 |
+| silent, attention by the locator | 4 | 2 | 29 |
+| silent, attention by the locator or a check | 4 | 2 | 32 |
+| Silent-error tables / fully caught | 2 / 1 | 3 / 2 | 5 / 2 |
+| Tables with no attention item | 8 | 8 | 9 |
+| Attention items per table, median / p90 | 2 / 11 | 2 / 12 | 2 / 14 |
+| Serving lines found | 49 / 68 | 51 / 70 | 51 / 72 |
+
+## Comparison: untouched, 480 px (the v1 photo set) with the v2 matcher
+
+| | Gemini 4 Argon | GPT-6.1 Sol | Luna |
+|---|---|---|---|
+| Pre-filled tables | 29 | 30 | 32 |
+| Correct values found | 388 / 479 (81.0%) | 378 / 487 (77.6%) | 411 / 505 (81.4%) |
+| Tables with no attention item | 6 | 7 | 7 |
+| Attention items per table, median / p90 | 2 / 12 | 2 / 12 | 2 / 14 |
+
+v1 on the same photos found 74.3%, 70.8% and 74.3%, with 3 tables clear in each arm and a median of 3.
+
+## Development Taiwan, 240 px (15 photos, none refused)
+
+| | Gemini 4 Argon | GPT-6.1 Sol | Luna |
+|---|---|---|---|
+| Correct values found | 219 / 238 (92.0%) | 219 / 237 (92.4%) | 215 / 229 (93.9%) |
+| Silent wrong values / caught | 0 / 0 | 1 / 0 | 7 / 4 |
+| Tables with no attention item | 7 | 8 | 8 |
+| Attention items per table, median / p90 | 1 / 6 | 0 / 6 | 0 / 6 |
+
+## Plain reading
+
+- The matcher change alone lifts the found rate from about 74% to 81% on the v1 photo set, mostly by halving the ambiguous values; lowering the minimum to 240 px adds 5 tables without lowering it.
+- For Gemini 4 Argon every silent wrong value is still an attention item; the table that stays partly silent has a wrong serving line found on the photo.
+- The attention burden falls to a median of 2 per table, and about one table in four opens clear. Not found values (12%) are now the larger remainder, mostly numbers or units that Vision misreads or splits on small photos.
+- Limits are those of v1: public crowd-sourced photos, one Mac and Vision revision, truth with an unknown per-cell error rate, and user behaviour unmeasured.

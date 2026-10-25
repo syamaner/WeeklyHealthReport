@@ -120,10 +120,11 @@ The pasted route's Edit label text becomes **Retake or adjust photo**, which ret
 After the model's reading is mapped (P8), `LabelValueLocating` runs `VNRecognizeTextRequest` (accurate level, `zh-Hant` and `en-US` as advertised by the running Vision revision, language correction off) on the **same prepared image** that was sent. For each row and each value cell:
 
 1. Normalise both sides: Unicode NFKC (full-width digits and letters to half-width), remove whitespace, lower case, keep the comparator and unit characters. Only ASCII digits count as digits (Han numerals such as 一 are words on a label).
-2. Find every **row label** and every **header** of the table that occurs exactly once; a label or header may not be preceded by a letter or ideograph, so 脂肪 is not found inside 飽和脂肪.
+2. Find every **row label** and every **header** of the table that occurs exactly once. A row label may not be preceded by a letter or ideograph, so 脂肪 is not found inside 飽和脂肪; a header needs only to occur once, because headers are often printed on one line (17.10).
 3. Candidates for a value are occurrences of its normalised printed text not preceded or followed by a digit or decimal point (so 5公克 is not found inside 15公克), with the box of that substring.
 4. When the value's row label was found, keep only candidates whose **nearest row label** (by vertical centre) is that label; when its header was found, keep only candidates whose **nearest header** (by horizontal centre) is that header. Nearest, not a fixed band, because Vision often reads the label column and the value columns as separate lines and photos are often tilted.
 5. Exactly one candidate left: **found**, with its bounding box (normalised to the image, rounded to four decimals). Several: **ambiguous**. None: try the next text in order, the part from the first digit or comparator ("每一份量 185 公克" to "185公克"), then, for a value, its number alone (when Vision reads the unit as its own line); if none has a candidate, **not found**. Ambiguous and not found are both shown as "Not found on the photo".
+6. **Order within the column** (17.10): a value whose text repeats in its column is placed by rank when that column holds exactly as many occurrences of the text as the table has values with it there; this replaces steps 4 and 5 for those values, and does nothing when the counts differ.
 
 Serving lines and the servings per pack line are located the same way on their printed text, with no row or column constraint. The matcher (`LabelValueMatcher`, `label-photo-vision-locate-v1`) is pure Swift; L0 built and measured it (17.9) and L1 carries the file into the package unchanged.
 
@@ -430,7 +431,8 @@ Section 17.8 adds eleven contract tests from the architecture gate (tests 15 to 
 | Phase | Content | Egress |
 |---|---|---|
 | L0 | Offline locate-rate measurement (6.1, with the inputs and method of 17.6); report found rate and how many silent errors would be not found. **Done 25 October 2026 (17.9)** | None |
-| L1 | Pure core: wire mapping port, `LabelPhotoReading`, attention, serving, manifest, verifier, composite admission, retry and spend policies, tests 1 to 12 | None |
+| L1a | Matcher ambiguity reduced (order within the column, headers on one line), L0 re-run at 240 px, matcher moved unchanged into `FoodLabelPhotoReading` with a hash pin, boundary script for the new target (17.10) | None |
+| L1b | Pure core: wire mapping port, `LabelPhotoReading`, attention v1, serving v1 with its parity test, manifest codec, verifier, composite admission, preparer types, retry and spend policies, tests 1 to 12 | None |
 | L2 | Image preparation and Vision locator, tests 13 and 14 | None |
 | L3 | OpenRouter adapter and route checker against a fake transport only | None |
 | L4 | UI: source, crop, Label photo screen, Confirm photo pane and attention, with the fake transport in UI tests | None |
@@ -488,7 +490,7 @@ The gate returned **PASS WITH CHANGES**. Each finding is applied below and overr
 - `check-boundaries.sh` edits, made in L1 with matching self-test fixtures:
   - new lines `check_imports FoodLabelPhotoReading '^(Foundation|FoodLedgerApplication|FoodLedgerDomain|NutritionLabelParsing)$'`, `check_imports FoodLabelPhotoCapture '^(CoreGraphics|CryptoKit|Foundation|ImageIO|Network|UniformTypeIdentifiers|Vision|FoodLedgerApplication|FoodLedgerDomain|FoodLabelPhotoReading)$'` and `check_imports FoodLabelPhotoUI '^(FoodLedgerApplication|FoodLedgerDomain|PhotosUI|SwiftUI|UIKit)$'`;
   - the `NutritionLabelParsing` importer regex (near line 82) admits `Sources/FoodLabelPhotoReading` and `Tests/FoodLabelPhotoReadingTests`;
-  - an importer rule like the `FoodLabelTextCapture` one (near line 89) for each of `FoodLabelPhotoReading`, `FoodLabelPhotoCapture` and `FoodLabelPhotoUI`: only the composition root and the target's own tests import it, and `FoodLedgerPresentation` never does;
+  - an importer rule like the `FoodLabelTextCapture` one (near line 89) for each of `FoodLabelPhotoCapture` and `FoodLabelPhotoUI`: only the composition root and the target's own tests import it, and `FoodLedgerPresentation` never does. `FoodLabelPhotoReading` is narrower (built in L1a): only its own tests, `FoodLabelPhotoCapture` and that adapter's tests import it, because the app is never linked to it directly (next item), so the composition root reaches it through the adapter;
   - the `Package.swift` dependency rule (near line 111) covers the three targets and their allowed dependents, and the link rule (near lines 119 and 120) also refuses an app target that links `FoodLabelPhotoReading` directly;
   - self-test negative fixtures, beside the existing ones (near lines 174 to 209): presentation importing `FoodLabelPhotoUI`, `PhotosUI` or `ImageIO`; application importing `NutritionLabelParsing` or `FoodLabelPhotoReading`; a `Package.swift` edge from presentation to a photo target. Each must fail.
 - Within `FoodLabelPhotoCapture` each framework is confined to its adapter file: ImageIO and CoreGraphics to the preparer, Vision to the locator, Network to the connectivity adapter, URLSession to the OpenRouter transport. A script check fails on any other file importing them.
@@ -603,3 +605,28 @@ With the 480 px minimum lifted (sensitivity only), Gemini 4 Argon pre-fills 37 t
 2. **Decided (coordinator, under the owner's delegation, 25 October 2026):** the P5 short-edge minimum becomes **240 px**, to be confirmed by E13, because the evaluation's models read these photos. It is not an egress term. L0 measured 480 px; the L1 re-run uses 240 px.
 3. Port the attention draft of `l0_locate.py` (`table_result` and `arithmetic_attention`) into `label-photo-attention-v1` exactly as measured here, so the L0 counts describe the shipped rules.
 4. Keep the L0 numbers in the E13 report beside the ZDR-endpoint run, re-measured on that run's answers.
+
+### 17.10 L1a: matcher ambiguity and the L0 re-run at 240 px (25 October 2026, no egress)
+
+**Matcher changes** (still `label-photo-vision-locate-v1`, since nothing has shipped; pinned from here by `LabelPhotoFreezeTests`):
+
+- **Headers by containment.** Headers are often printed on one line ("每份 每100公克"), where the label rule refused the second header, so the column filter never ran. Headers now need only to occur exactly once; row labels keep the label rule.
+- **Order within the column.** A value whose text repeats in its column (such as 0公克) is placed by rank when the column holds exactly as many occurrences of that text as the table has values with that text there: the k-th such value in row order is the k-th from the top. If the counts differ, the first pass stands (ambiguous or not found). Columns must be separable by their headers, or the table must have one header.
+
+**Re-run** with the decided 240 px minimum (P5), same inputs and method as 17.9: [`results/l0-locate-rate-v2.md`](../Tools/NutritionLabelCaptureEvaluation/results/l0-locate-rate-v2.md).
+
+| Untouched Taiwan, Gemini 4 Argon | L0 (17.9; 480 px, first matcher) | L1a (240 px, this matcher) |
+|---|---|---|
+| Photos refused by the short-edge minimum | 8 of 40 | 3 of 40 |
+| Pre-filled tables | 29 | 34 |
+| Correct values found on the photo | 356 / 479 (74.3%) | 455 / 557 (81.7%) |
+| Correct values not found / ambiguous | 54 / 69 | 67 / 35 |
+| Silent wrong values that became attention items | 4 of 4 | 4 of 4 |
+| Silent-error tables fully caught | 1 of 2 | 1 of 2 |
+| Tables opening with no attention item | 3 of 29 | 8 of 34 |
+| Attention items per table, median / p90 | 3 / 13 | 2 / 11 |
+| Serving lines found | 40 / 58 | 49 / 68 |
+
+On the same 29 tables at 480 px, the new matcher alone finds 81.0% and opens 6 tables clear (median 2, p90 12). Sol finds 78.7% at 240 px and catches 2 of 4 silent wrong values; Luna 83.4% and 32 of 52. On the 15 development photos (none refused at 240 px) Gemini finds 219 of 238 (92.0%), with 7 tables clear and a median of 1.
+
+**Reading.** Ambiguity falls by about half and the attention burden drops to a median of 2 per table; about one table in four opens clear. Not found (12%) is now the larger remainder: mostly numbers and units that Vision misreads or splits on small or blurred photos, which is the case an attention item exists for. Every silent wrong value of the chosen arm is still caught.

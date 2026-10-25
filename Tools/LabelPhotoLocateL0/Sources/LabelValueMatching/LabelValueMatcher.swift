@@ -60,36 +60,72 @@ public enum LabelValueMatcher {
         // Each header and row label found exactly once, so a candidate value can be assigned to
         // its nearest header (by x) and its nearest row label (by y). Nearest rather than a fixed
         // band copes with tilted photos and with Vision reading labels and values as separate lines.
-        func unique(_ texts: [String]) -> [String: Box] {
+        // Headers are found by plain containment, because they are often printed on one line
+        // ("每份 每100公克"); a row label may not follow a letter or ideograph.
+        func unique(_ texts: [String], rule: Rule) -> [String: Box] {
             var boxes: [String: Box] = [:]
             for text in Set(texts) {
-                let found = occurrences(of: text, in: normalised, rule: .label)
+                let found = occurrences(of: text, in: normalised, rule: rule)
                 if found.count == 1 { boxes[Normalised(text).key] = box(found[0]) }
             }
             return boxes
         }
-        let headerBoxes = unique(headers)
-        let rowBoxes = unique(rowLabels)
+        let headerBoxes = unique(headers, rule: .line)
+        let rowBoxes = unique(rowLabels, rule: .label)
         func nearest(_ boxes: [String: Box], to value: Box, by distance: (Box, Box) -> Double) -> String? {
             boxes.sorted { $0.key < $1.key }.min { distance($0.value, value) < distance($1.value, value) }?.key
         }
-        return queries.map { query in
+        func inHeader(_ query: Query, _ value: Box) -> Bool {
+            guard let header = query.headerText.map({ Normalised($0).key }), headerBoxes[header] != nil,
+                  headerBoxes.count > 1 else { return true }
+            return nearest(headerBoxes, to: value) { abs($0.midX - $1.midX) } == header
+        }
+
+        // First pass: the row and column filters, trying each needle in turn.
+        let first: [Location] = queries.map { query in
             let isLine = query.rowLabel == nil
             for needle in needles(query.printedText, isLine: isLine) {
-                var candidates = occurrences(of: needle, in: normalised, rule: isLine ? .line : .value).map { ($0, box($0)) }
+                var candidates = occurrences(of: needle, in: normalised, rule: isLine ? .line : .value).map { box($0) }
                 if let label = query.rowLabel.map({ Normalised($0).key }), rowBoxes[label] != nil, rowBoxes.count > 1 {
-                    candidates = candidates.filter { nearest(rowBoxes, to: $0.1) { abs($0.midY - $1.midY) } == label }
+                    candidates = candidates.filter { nearest(rowBoxes, to: $0) { abs($0.midY - $1.midY) } == label }
                 }
-                if let header = query.headerText.map({ Normalised($0).key }), headerBoxes[header] != nil, headerBoxes.count > 1 {
-                    candidates = candidates.filter { nearest(headerBoxes, to: $0.1) { abs($0.midX - $1.midX) } == header }
-                }
+                candidates = candidates.filter { inHeader(query, $0) }
                 switch candidates.count {
                 case 0: continue
-                case 1: return Location(id: query.id, status: .found, region: rounded(candidates[0].1))
+                case 1: return Location(id: query.id, status: .found, region: rounded(candidates[0]))
                 default: return Location(id: query.id, status: .ambiguous, region: nil)
                 }
             }
             return Location(id: query.id, status: .notFound, region: nil)
+        }
+
+        // Second pass, order within the column: a value whose text repeats in its column (such as
+        // 0公克) is placed by rank when the column holds exactly as many occurrences of that text
+        // as the table has values with that text there. The k-th such value in row order (the
+        // queries' order) is the k-th from the top. This replaces the first pass for those values,
+        // which may leave them ambiguous or put two on one row. Columns must be separable by
+        // their headers, or the table must have one header; otherwise the first pass stands.
+        func columnKey(_ query: Query) -> String? {
+            if headers.count <= 1 { return "" }
+            guard headerBoxes.count > 1, let header = query.headerText.map({ Normalised($0).key }),
+                  headerBoxes[header] != nil else { return nil }
+            return header
+        }
+        return queries.enumerated().map { index, query in
+            let result = first[index]
+            guard query.rowLabel != nil, let key = columnKey(query) else { return result }
+            let needle = Normalised(query.printedText).key
+            let expected = queries.indices.filter { other in
+                queries[other].rowLabel != nil && columnKey(queries[other]) == key
+                    && Normalised(queries[other].printedText).key == needle
+            }
+            let observed = occurrences(of: needle, in: normalised, rule: .value).map { box($0) }
+                .filter { inHeader(query, $0) }
+                .sorted { $0.midY > $1.midY }
+            guard expected.count > 1, expected.count == observed.count, let rank = expected.firstIndex(of: index) else {
+                return result
+            }
+            return Location(id: query.id, status: .found, region: rounded(observed[rank]))
         }
     }
 

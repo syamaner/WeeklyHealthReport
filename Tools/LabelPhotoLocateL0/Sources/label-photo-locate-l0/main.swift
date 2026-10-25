@@ -37,12 +37,12 @@ struct Refusal: Error { let reason: String; init(_ reason: String) { self.reason
 
 enum Preparation {
     static let longEdge = 2048.0, maxPixels = 3_200_000.0, maxBytes = 1_500_000
-    /// 480 px is E3; `L0_MIN_SHORT_EDGE` overrides it for a sensitivity run only.
-    static let minShortEdge = Double(ProcessInfo.processInfo.environment["L0_MIN_SHORT_EDGE"] ?? "") ?? 480
+    /// 240 px is P5 as decided after L0 (480 px in the first L0 run); `L0_MIN_SHORT_EDGE` overrides it for a comparison run only.
+    static let minShortEdge = Double(ProcessInfo.processInfo.environment["L0_MIN_SHORT_EDGE"] ?? "") ?? 240
     static let qualities = [0.85, 0.75, 0.65]
 
     /// E3: orientation applied to pixels, sRGB, long edge <= 2,048 px and <= 3.2 MP, JPEG with no
-    /// metadata dictionary, quality ladder 0.85 / 0.75 / 0.65, <= 1,500,000 bytes, short edge >= 480.
+    /// metadata dictionary, quality ladder 0.85 / 0.75 / 0.65, <= 1,500,000 bytes, short edge >= 240 (P5).
     static func prepare(_ data: Data) -> Swift.Result<(Data, Int, Int, Double), Refusal> {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil),
               let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],

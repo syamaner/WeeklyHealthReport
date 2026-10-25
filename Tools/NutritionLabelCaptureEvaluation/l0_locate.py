@@ -16,7 +16,7 @@ Jobs and raw results (photo paths and model text) stay under the private runs fo
 and case ids are written to the repository.
 
     .venv/bin/python l0_locate.py --runs ~/WHR-label-eval-private/runs --photos ~/WHR-label-eval-private/off-taiwan-v1 \\
-        --out results/l0-locate-rate-v1.json
+        --out results/l0-locate-rate-v2.json
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ import score as scoring
 
 HERE = Path(__file__).resolve().parent
 TOOL = HERE.parent / "LabelPhotoLocateL0"
-ANALYSIS_VERSION = "label-photo-l0-locate-rate-v1"
+ANALYSIS_VERSION = "label-photo-l0-locate-rate-v2"
 ATTENTION_DRAFT = "label-photo-attention-v1 (draft used by L0)"
 ARMS = ("gemini-on", "sol-on", "luna-off")
 ENERGY_ROWS = ("energy_kcal", "protein", "fat", "carbohydrate", "fibre")
@@ -275,7 +275,7 @@ def main(argv: list[str] | None = None) -> int:
     private = Path.home() / "WHR-label-eval-private"
     parser.add_argument("--runs", type=Path, default=private / "runs")
     parser.add_argument("--photos", type=Path, default=private / "off-taiwan-v1")
-    parser.add_argument("--out", type=Path, default=HERE / "results" / "l0-locate-rate-v1.json")
+    parser.add_argument("--out", type=Path, default=HERE / "results" / "l0-locate-rate-v2.json")
     args = parser.parse_args(argv)
     photos = photo_index(args.photos)
     work = args.runs / "l0-locate-v1"
@@ -285,10 +285,10 @@ def main(argv: list[str] | None = None) -> int:
         "view": "assisted",
         "egress": "none",
         "matcher": "Tools/LabelPhotoLocateL0 LabelValueMatcher (label-photo-vision-locate-v1)",
-        "sensitivity": "untouched_taiwan_no_short_edge_minimum lifts the E3 480 px short-edge refusal only",
+        "comparison": "untouched_taiwan_480 keeps the first run's 480 px short-edge minimum; the others use the decided 240 px",
         "strata": {},
     }
-    passes = (("untouched_taiwan", None), ("development_taiwan", None), ("untouched_taiwan_no_short_edge_minimum", 0))
+    passes = (("untouched_taiwan", None), ("development_taiwan", None), ("untouched_taiwan_480", 480))
     for stratum, minimum in passes:
         report["strata"][stratum] = {}
         for arm in ARMS:
