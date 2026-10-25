@@ -246,11 +246,11 @@ public struct FoodConfirmationState: Codable, Equatable, Sendable {
         // Pasted label Confirm v1 (#306) C8: servings by default when the label states a serving.
         // Only the unit; the amount stays empty.
         if reopened == nil, pastedLabel, quantity.value == nil, quantity.directWeight == nil,
-           PastedLabelServingPolicy.serving(input, candidate: input.candidates[0]) != nil {
+           LabelServingPolicy.serving(input, candidate: input.candidates[0]) != nil {
             quantity = FoodQuantityDraft(unit: .count)
         }
         if reopened == nil, FoodSourceServingPolicy.applies(input, candidate: input.candidates[0])
-            || PastedLabelServingPolicy.servingsOnly(input, candidate: input.candidates[0]) {
+            || LabelServingPolicy.servingsOnly(input, candidate: input.candidates[0]) {
             quantity = FoodQuantityDraft(unit: .count)
         }
         // A parsed exact amount is consumed quantity, distinct from the source's 100-unit basis.
@@ -617,10 +617,10 @@ public final class FoodConfirmationService: @unchecked Sendable {
             reportingDate = try LedgerText(FoodReportingDay.key(for: occurredAt, calendar: calendar))
         }
         // pasted-label-serving-v1 or -v2 supplies its own conversion for servings, or none (v1 case 3).
-        let quantity = try state.policyQuantity()
+        let quantity = try state.labelPolicyQuantity()
         let declaration = try quantity.declaration()
         let entered = try quantity.calculationInput()
-        let countedServings = state.usesSourceDeclaredServing || (state.logsPastedLabelServings && quantity.conversion == nil)
+        let countedServings = state.usesSourceDeclaredServing || (state.logsLabelServings && quantity.conversion == nil)
         let conversion = declaration == nil
             ? try makeConversion(quantity, entered: entered, previous: previous, at: now, sourceRecipe: countedServings,
                                  state: state)
@@ -814,8 +814,8 @@ public final class FoodConfirmationService: @unchecked Sendable {
         // A stored conversion naming a pasted-label serving method must be exactly what that
         // method records on this label (contract section 6.3), never another method's or a stale one.
         if let conversion = saved.quantityConversion,
-           PastedLabelServingPolicy.admittedVersions.contains(conversion.methodVersion.value),
-           !PastedLabelServingPolicy.verifies(conversion, input: input, candidate: input.candidates[0]) {
+           LabelServingPolicy.admittedVersions.contains(conversion.methodVersion.value),
+           !LabelServingPolicy.verifies(conversion, input: input, candidate: input.candidates[0]) {
             throw FoodLedgerStoreError.integrityFailure("pasted label servings conversion does not match its label")
         }
         var state = FoodConfirmationState(input: input, reopened: saved)

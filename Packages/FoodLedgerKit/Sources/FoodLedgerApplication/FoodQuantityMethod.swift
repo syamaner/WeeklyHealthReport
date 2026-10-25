@@ -68,22 +68,22 @@ public enum FoodQuantityMethod: Equatable, Sendable {
         default: break
         }
         // A pasted-label servings conversion is the label's own serving, not a user method.
-        if PastedLabelServingPolicy.admittedVersions.contains(method.value) { return .direct }
+        if LabelServingPolicy.admittedVersions.contains(method.value) { return .direct }
         return .recorded(method.value)
     }
 }
 
 /// Whether an entered count is servings rather than pieces: one predicate for the Food Log row,
 /// the saved entry, Recent and history (count-portion-estimate-v1, C8). Pasted-label servings
-/// (`PastedLabelServingPolicy.isServingsAmount`) and counts on a per-serving or named-serving
+/// (`LabelServingPolicy.isServingsAmount`, pasted and photo) and counts on a per-serving or named-serving
 /// basis (source-declared and recipe servings) read "servings"; everything else reads "pieces".
 public enum FoodAmountServings {
     public static func isServings(enteredUnit: QuantityUnit, conversion: QuantityConversionVersion?,
                                   sourceID: String?, basis: ResolutionBasis?) -> Bool {
         guard enteredUnit == .count else { return false }
-        if PastedLabelServingPolicy.isServingsAmount(enteredUnit: enteredUnit, conversion: conversion, sourceID: sourceID) { return true }
+        if LabelServingPolicy.isServingsAmount(enteredUnit: enteredUnit, conversion: conversion, sourceID: sourceID) { return true }
         // A conversion through a portion guide or a user method converts pieces, never servings.
-        if let conversion, !PastedLabelServingPolicy.admittedVersions.contains(conversion.methodVersion.value) { return false }
+        if let conversion, !LabelServingPolicy.admittedVersions.contains(conversion.methodVersion.value) { return false }
         switch basis {
         case .perServing?, .named?: return true
         default: return false

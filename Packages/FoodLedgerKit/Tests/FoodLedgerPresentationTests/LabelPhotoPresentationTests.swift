@@ -358,6 +358,20 @@ final class LabelPhotoPresentationTests: XCTestCase {
         XCTAssertEqual(model.underButton, "Uses your OpenRouter key and credit. Today: 6 of 30 reads.")
     }
 
+    func testTheSavedPhotoEntrysSourceRowAndDecisionsMatchThePastedRoute() throws {
+        XCTAssertEqual(FoodLogText.source(family: .otherSource, basis: .per100Grams, isPlainWater: false, isLabelPhoto: true),
+                       "From a label photo · per 100 g · Traditional Chinese, Taiwan layout")
+        XCTAssertEqual(FoodLogText.source(family: .otherSource, basis: .per100Grams, isPlainWater: false, isLabelPhoto: false),
+                       "Other source · per 100 g", "other sources are unchanged")
+        // Not stated is shown once, as the label's answer, never again as "Not sure" under Source.
+        let notStated = try FoodLogFacetDecision(facet: .fortification, sourceState: FoodLogSourceState(facet: .fortification, token: "unknown"),
+                                                 choice: .notSure)
+        let preparation = try FoodLogFacetDecision(facet: .preparation, sourceState: FoodLogSourceState(facet: .preparation, token: "as_sold"),
+                                                   choice: .notSure)
+        XCTAssertEqual(PastedLabelSavedEntryText.sourceDecisions([notStated, preparation], isLabel: true), [preparation])
+        XCTAssertEqual(PastedLabelSavedEntryText.sourceDecisions([notStated, preparation], isLabel: false), [notStated, preparation])
+    }
+
     private func waitUntil(_ condition: @escaping () -> Bool, file: StaticString = #filePath, line: UInt = #line) async throws {
         for _ in 0..<2_000 {
             if condition() { return }

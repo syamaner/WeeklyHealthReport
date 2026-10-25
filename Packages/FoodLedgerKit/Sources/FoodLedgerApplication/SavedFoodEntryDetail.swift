@@ -51,6 +51,8 @@ public struct SavedFoodEntryDetail: Sendable {
     public let labelPhoto: LabelPhotoManifest?
     /// The logged photo's attachment, when it is on this device (E15).
     public let labelPhotoAttachment: AttachmentDescriptor?
+    /// "Fortification on the label" for a photo entry, worded as for a pasted label (#328 QA).
+    public let labelPhotoFortification: String?
     /// Each stored value's origin under `NutrientValueOrigin`, for a pasted label only.
     public let valueOrigins: [NutrientKey: NutrientValueOrigin]
     /// A pasted label's stored values by key, so a bound can be shown as a bound ("Less than
@@ -103,13 +105,18 @@ public struct SavedFoodEntryDetail: Sendable {
             labelPhotoAttachment = nil
         }
         pastedLabelFortification = manifest.map { PastedLabelFortificationText.value(stored, manifest: $0) }
+        labelPhotoFortification = labelPhoto.map { PastedLabelFortificationText.value(stored, manifest: LabelPhotoSource.projection($0)) }
         valueOrigins = manifest.map { PastedLabelValueOrigins.origins(stored.resolutionVersion.nutrients, manifest: $0) } ?? [:]
         pastedLabelValues = manifest == nil ? [:]
             : Dictionary(stored.resolutionVersion.nutrients.entries.map { ($0.key, $0.value) }, uniquingKeysWith: { first, _ in first })
         amountIsServings = FoodAmountServings.isServings(enteredUnit: enteredAmount.unit, conversion: stored.quantityConversion,
                                                          sourceID: release?.sourceID.value, basis: stored.resolution.basis)
+        // The serving a servings amount went through: from the pasted manifest, or from a photo
+        // manifest's projection onto the pasted shape (the same rule, 17.20).
         servingSize = amountIsServings && stored.quantityConversion != nil
-            ? manifest.flatMap { PastedLabelServingPolicy.storedServingSize($0, basis: stored.resolution.basis) } : nil
+            ? (manifest.flatMap { PastedLabelServingPolicy.storedServingSize($0, basis: stored.resolution.basis) }
+               ?? labelPhoto.flatMap { PastedLabelServingPolicy.storedServingSize(LabelPhotoSource.projection($0), basis: stored.resolution.basis) })
+            : nil
     }
 
     /// One scaling rule: `FoodIntakeContribution.isScalable`, as the summary applies it.

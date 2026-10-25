@@ -219,7 +219,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
     /// The whole-pack amount option for a pasted label (contract section 2.3), or nil.
     public var pastedLabelWholePack: PastedLabelWholePack? {
         guard state.reopened == nil else { return nil }
-        return PastedLabelServingPolicy.wholePack(state.input, candidate: state.selectedCandidate)
+        return LabelServingPolicy.wholePack(state.input, candidate: state.selectedCandidate)
     }
 
     /// Whole pack: that many servings, through the same servings conversion as any servings amount.
@@ -239,10 +239,10 @@ public final class FoodConfirmationViewModel: ObservableObject {
     }
 
     /// Servings of a pasted label are the count unit's meaning on this Confirm.
-    public var countsPastedLabelServings: Bool { state.pastedLabelServing != nil }
+    public var countsPastedLabelServings: Bool { state.labelServing != nil }
 
     /// A pasted label without a readable serving size can be logged in servings only.
-    public var pastedLabelServingsOnly: Bool { state.pastedLabelServing?.unit == .count }
+    public var pastedLabelServingsOnly: Bool { state.labelServing?.unit == .count }
 
     public var availableVolumeConversion: QuantityConversionDraft? {
         guard state.correction == nil, state.quantity.directWeight == nil,
