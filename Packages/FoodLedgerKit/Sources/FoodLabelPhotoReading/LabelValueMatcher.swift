@@ -233,7 +233,9 @@ public enum LabelValueMatcher {
         // "每份（30公克）". That remainder is allowed only when it is exactly one bracketed quantity
         // equal to a quantity on the reading's serving lines, so it adds no position the photo
         // does not show.
-        let servingQuantities = queries.filter { $0.rowLabel == nil }
+        // Only a serving line whose whole printed text is on the photo (F8c: a serving size the
+        // model misread must not vouch for a bracketed quantity).
+        let servingQuantities = queries.filter { $0.rowLabel == nil && !occurrences(of: $0.printedText, in: normalised, rule: .bounded).isEmpty }
             .flatMap { valueTokens(Normalised($0.printedText).characters) }
             .filter { !$0.unit.isEmpty && !$0.range }
         func bracketedServingQuantity(_ rest: [Character]) -> Bool {
@@ -380,12 +382,37 @@ public enum LabelValueMatcher {
             let located = amountKeys.compactMap { headerBoxes[$0] }
             guard located.count == amountKeys.count,
                   zip(located, located.dropFirst()).allSatisfy({ $1.midX - $0.midX > max(tokenWidth, 0.03) }) else { return false }
-            return intakeIndices.allSatisfy { intake in
+            let intakeInPlace = intakeIndices.allSatisfy { intake in
                 guard let box = headerBoxes[headerKeys[intake]] else { return true }
                 return zip(amountIndices, located).allSatisfy { amount, header in
                     amount < intake ? box.midX - header.midX > max(tokenWidth, 0.03) : header.midX - box.midX > max(tokenWidth, 0.03)
                 }
             }
+            guard intakeInPlace else { return false }
+            // With a reference-intake header not located, most of the reading's reference-intake
+            // values must be printed in %: a column the reading calls reference intake that holds
+            // amounts says its bases are wrong (C1 under a first-column reference intake). One
+            // misread unit does not, and that value itself is never found (it is not in %).
+            if intakeIndices.contains(where: { headerBoxes[headerKeys[$0]] == nil }) {
+                let intake = queries.filter { query in
+                    guard query.rowLabel != nil, let key = query.headerText.map({ Normalised($0).key }),
+                          let index = headerKeys.firstIndex(of: key) else { return false }
+                    return bases[index] == .referenceIntake
+                }
+                let percent = intake.filter { query in
+                    let wanted = valueTokens(Normalised(query.printedText).characters)
+                    return wanted.count == 1 && wanted[0].unit == "%"
+                }
+                return 2 * percent.count > intake.count || intake.isEmpty
+            }
+            return true
+        }()
+        // The distinct x positions of % tokens on direct rows (G2: two % columns cannot be told
+        // apart by position, so a reference-intake value then needs its own header located).
+        let percentColumns: Int = {
+            let xs = directTokens.filter { $0.token.unit == "%" }.map(\.box.midX).sorted()
+            guard !xs.isEmpty else { return 0 }
+            return 1 + zip(xs, xs.dropFirst()).filter { $1 - $0 > max(tokenWidth, 0.03) }.count
         }()
         let everyHeaderLocated = headerKeys.allSatisfy { headerBoxes[$0] != nil }
         /// The value's own header sits directly above it: the token's centre lies within the
@@ -415,7 +442,7 @@ public enum LabelValueMatcher {
             case .referenceIntake:
                 guard intakePosition(query, value), let key = query.headerText.map({ Normalised($0).key }) else { return false }
                 if headerBoxes[key] != nil { return underOwnHeader(query, value) }
-                return intakeIndices.count == 1
+                return intakeIndices.count == 1 && percentColumns <= 1
             }
         }
         /// The value's column is known enough to narrow candidates: as for found, or inferred columns
@@ -517,11 +544,35 @@ public enum LabelValueMatcher {
                     && abs(other.midY - value.midY) < max(other.height, value.height) / 2
             }
         }
+        /// G1: a serving line matched by its quantity alone counts only on a line outside the table
+        /// (not level with a located row label or header, nor between the top and bottom rows) that
+        /// also carries the serving line's own words.
+        func servingTokenOutsideTable(_ query: Query, _ match: Match) -> Bool {
+            let model = Normalised(query.printedText).characters
+            let tokens = valueTokens(model)
+            guard tokens.count == 1, let token = tokens.first else { return false }
+            let value = box(match)
+            // The words may be on the same recognised line or on one level with it (a serving line
+            // Vision split in two).
+            let level = lines.indices.filter { index in
+                index == match.line || abs(lines[index].box.midY - value.midY) < max(lines[index].box.height, value.height) / 2
+            }.map { normalised[$0].key }
+            let before = String(model[..<token.start]), after = String(model[token.end...])
+            guard !(before + after).isEmpty, before.isEmpty || level.contains(where: { $0.contains(before) }),
+                  after.isEmpty || level.contains(where: { $0.contains(after) }) else { return false }
+            let step = max(medianStep, 0.01)
+            if let top = rowsTopDown.first?.value, let bottom = rowsTopDown.last?.value, rowsTopDown.count > 1,
+               value.midY > bottom.midY - 0.5 * step, value.midY < top.midY + 0.5 * step { return false }
+            if rowBoxes.values.contains(where: { abs($0.midY - value.midY) < 0.5 * step }) { return false }
+            if headerBoxes.values.contains(where: { abs($0.midY - value.midY) < 0.5 * step }) { return false }
+            return true
+        }
         let first: [First] = queries.map { query in
             let isLine = query.rowLabel == nil
             let wanted = valueTokens(Normalised(query.printedText).characters)
             for (tierIndex, tier) in matchTiers(query.printedText, isLine: isLine, in: normalised).enumerated() {
-                var candidates = tier.map { box($0) }.filter { inHeader(query, $0) }
+                let admitted = isLine && tierIndex == 1 ? tier.filter { servingTokenOutsideTable(query, $0) } : tier
+                var candidates = admitted.map { box($0) }.filter { inHeader(query, $0) }
                 if !isLine, !candidates.isEmpty {
                     // A reading with no unit, or a value matched by its number alone without its unit
                     // beside it, is never found: it can only be ambiguous.

@@ -200,6 +200,58 @@ final class LabelValueMatcherReferenceIntakeTests: XCTestCase {
         }
     }
 
+    // MARK: #322 round 1
+
+    func withServing(_ reading: [M.Query], _ text: String) -> [M.Query] {
+        reading.map { $0.id == "serving" ? M.Query(id: "serving", rowLabel: nil, headerText: nil, printedText: text) : $0 }
+    }
+
+    func testAServingSizeMisreadAsATableValueIsNeverFound() {
+        // G1 / F9: the photo prints 每一份量30公克; the model reads 3公克, which is 脂肪's value.
+        let misread = withServing(queries([("每份", { $0.amount }), (intakeHeader, { $0.intake })]), "每一份量3公克")
+        let status = locate(misread, twoColumn, headers: ["每份", intakeHeader], bases: [.amount, .referenceIntake])
+        XCTAssertNotEqual(status["serving"], .found)
+        // F8d: the same misread beside a header printed with its quantity: the header is not vouched for.
+        let d4 = locate(misread, bracketed("每份（30公克）"), headers: ["每份", intakeHeader], bases: [.amount, .referenceIntake])
+        XCTAssertEqual(d4.filter { $0.value == .found }.map(\.key), [])
+        // F8c: the bracket says 35 g, the printed serving line 30 g, and the model reads 35 g.
+        let f8c = withServing(queries([("每份", { $0.amount }), (intakeHeader, { $0.intake })]), "每一份量35公克")
+        XCTAssertEqual(locate(f8c, bracketed("每份（35公克）"), headers: ["每份", intakeHeader], bases: [.amount, .referenceIntake])
+            .filter { $0.value == .found }.map(\.key), [])
+        // Control: read correctly, the serving line is found on its own line.
+        XCTAssertEqual(locate(queries([("每份", { $0.amount }), (intakeHeader, { $0.intake })]), twoColumn, headers: ["每份", intakeHeader],
+                              bases: [.amount, .referenceIntake])["serving"], .found)
+    }
+
+    func testTwoPercentColumnsNeedTheReferenceIntakeHeader() {
+        // G2 / F5b: two % columns between the amount columns, neither % header read, the first
+        // blank on the top rows so their token count fits; the model reads the second.
+        var lines = [line("每份", x: 0.30, y: 0.90), line("每100公克", x: 0.80, y: 0.90, width: 0.12), line(serving, x: 0.2, y: 0.97, width: 0.3)]
+        for (index, row) in rows.enumerated() {
+            let y = 0.80 - Double(index) * 0.08
+            lines.append(line(row.label, x: 0.11, y: y, width: 0.12))
+            lines.append(line(row.amount, x: 0.30, y: y))
+            if index >= 3 { lines.append(line("9%", x: 0.48, y: y)) }
+            lines.append(line(row.intake, x: 0.62, y: y))
+            lines.append(line(row.per100, x: 0.80, y: y))
+        }
+        let reading = queries([("每份", { $0.amount }), (intakeHeader, { $0.intake }), ("每100公克", { $0.per100 })])
+        let status = locate(reading, lines, headers: ["每份", intakeHeader, "每100公克"], bases: [.amount, .referenceIntake, .amount])
+        XCTAssertEqual(status.filter { $0.key.hasSuffix("c1") && $0.value == .found }.map(\.key), [])
+        // Per serving is still found on the top rows; on the rows that print both % columns the row
+        // holds more tokens than the reading has columns, so nothing there is confirmed.
+        XCTAssertEqual(status.filter { $0.key.hasSuffix("c0") && $0.value == .found }.map(\.key).sorted(), ["r0c0", "r1c0", "r2c0"])
+    }
+
+    func testAReferenceIntakeColumnHoldingAmountsConfirmsNothing() {
+        // C1 under a first-column reference intake: the reading calls a column of amounts reference
+        // intake, and its header is not located; its bases are wrong, so nothing confirms.
+        let lines = table(columns: [(0.45, { $0.amount }), (0.72, { $0.per100 })], headerLines: [line("每份", x: 0.72, y: 0.90)])
+        let reading = queries([("每100公克", { $0.amount }), ("每份", { $0.per100 })])
+        XCTAssertEqual(locate(reading, lines, headers: ["每100公克", "每份"], bases: [.referenceIntake, .amount])
+            .filter { $0.key != "serving" && $0.value == .found }.map(\.key), [])
+    }
+
     // MARK: D4, a per-serving header printed with its serving quantity
 
     func bracketed(_ header: String) -> [M.Line] {

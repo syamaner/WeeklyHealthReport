@@ -24,8 +24,8 @@ Locator v3 keeps every v2 rule, including round 6's own-header span and one toke
 | Silent wrong values / needing a check | 4 / 4 | 4 / 4 | 52 / 52 |
 | Silent-error tables / fully caught | 2 / 1 | 3 / 3 | 5 / 4 |
 | Tables with no attention item | 5 | 5 | 5 |
-| Attention items per table, median / p90 | 9 / 18 | 9 / 18 | 9 / 19 |
-| Serving lines found | 39 / 68 | 41 / 70 | 42 / 72 |
+| Attention items per table, median / p90 | 9 / 18 | 9 / 18 | 9 / 20 |
+| Serving lines found | 35 / 68 | 37 / 70 | 39 / 72 |
 
 Against locator v2 as pinned after round 6 (v3 results), the found rate rises:
 - Gemini: 37.2% to 43.6%
@@ -51,12 +51,12 @@ Evidence keeps v2's bar (every header located), so these counts are unchanged fr
 
 ## Development Taiwan, 240 px (15 photos)
 
-These counts are unchanged from v3.
+The value counts are unchanged from v3; 27 of 30 serving lines are found, against 28.
 
 | | Gemini 4 Argon | GPT-6.1 Sol | Luna |
 |---|---|---|---|
 | Correct values found | 132 / 238 (55.5%) | 132 / 237 (55.7%) | 130 / 229 (56.8%) |
-| Attention items per table, median / p90 | 8 / 14 | 8 / 14 | 8 / 14 |
+| Attention items per table, median / p90 | 8 / 15 | 8 / 15 | 8 / 14 |
 
 ## Plain reading
 
@@ -69,6 +69,7 @@ These counts are unchanged from v3.
   - a narrow column touching an amount column;
   - bracketed quantities that do not match the serving size.
 - Every silent wrong value of every arm still needs a check, as with v2.
+- After round 1 of the #322 review, a serving line matched by its quantity alone counts only outside the table and with its own words beside it (G1). Fewer serving lines are found (35, 37 and 39, against 39, 41 and 42); the value counts do not change.
 - Fewer ambiguous values come with a region (93 against 129). That fits values that had a region now being found, but it has not been checked case by case.
 - The limits are those of v1 to v3:
   - public crowd-sourced photos;
