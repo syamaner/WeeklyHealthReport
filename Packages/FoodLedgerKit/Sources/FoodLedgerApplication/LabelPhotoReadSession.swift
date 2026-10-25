@@ -26,18 +26,24 @@ public actor LabelPhotoReadSession {
     let checker: any LabelPhotoRouteChecking
     let attempter: any LabelPhotoAttempting
     let ledger: any LabelPhotoSpendLedger
+    let keys: any FoodWebKeyStoring
     let clock: any LedgerClock
     let calendar: Calendar
     let sleeper: any LabelPhotoSleeping
     let jitter: @Sendable () -> Double
-    /// Whether the endpoint bills reasoning outside `max_tokens` (L3 confirms it for the route).
+    /// Whether the endpoint bills reasoning outside `max_tokens` (an explicit composition choice; 17.18).
     let reasoningBilledSeparately: Bool
-    private(set) var catalogue: LabelPhotoManifest.CatalogueCheck?
+    /// The catalogue check that passed, and the local day it passed on (prices are per day).
+    private(set) var catalogue: (check: LabelPhotoManifest.CatalogueCheck, day: String)?
+    /// Set before the first suspension of a tap, so a second tap waits for nothing and sends nothing.
+    private(set) var inFlight = false
+    /// A spend ledger write failed: every further read this session is refused (fails closed).
+    private(set) var ledgerFailed = false
 
     public init(route: LabelPhotoRoute.Route = LabelPhotoRoute.v1, checker: any LabelPhotoRouteChecking, attempter: any LabelPhotoAttempting,
-                ledger: any LabelPhotoSpendLedger, clock: any LedgerClock, calendar: Calendar, sleeper: any LabelPhotoSleeping,
-                jitter: @escaping @Sendable () -> Double, reasoningBilledSeparately: Bool = false) {
-        self.route = route; self.checker = checker; self.attempter = attempter; self.ledger = ledger; self.clock = clock
+                ledger: any LabelPhotoSpendLedger, keys: any FoodWebKeyStoring, clock: any LedgerClock, calendar: Calendar,
+                sleeper: any LabelPhotoSleeping, jitter: @escaping @Sendable () -> Double, reasoningBilledSeparately: Bool = false) {
+        self.route = route; self.checker = checker; self.attempter = attempter; self.ledger = ledger; self.keys = keys; self.clock = clock
         self.calendar = calendar; self.sleeper = sleeper; self.jitter = jitter; self.reasoningBilledSeparately = reasoningBilledSeparately
     }
 
@@ -53,6 +59,11 @@ public actor LabelPhotoReadSession {
     }
 
     public func read(_ image: PreparedLabelImage) async -> Outcome {
+        // No suspension before this point: a concurrent tap is refused, never interleaved.
+        guard !inFlight else { return .failed(.failed) }
+        guard !ledgerFailed else { return .failed(.dailyLimit) }
+        inFlight = true
+        defer { inFlight = false }
         let started = clock.now()
         let today = LabelPhotoSpendPolicy.dayKey(started, calendar: calendar)
         switch LabelPhotoSpendPolicy.admission(today: today, stored: ledger.load()) {
@@ -60,11 +71,13 @@ public actor LabelPhotoReadSession {
         case .limitReached: return .failed(.dailyLimit)
         case .paused: return .failed(.paused)
         }
+        // The key must be present and well formed before anything leaves, the catalogue GETs included.
+        guard let key = try? keys.load(), FoodWebKeySyntax.isValid(key) else { return .failed(.keyMissing) }
         if Task.isCancelled { return .failed(.cancelled) }
-        // E7 / M3: once per session, before the first image request.
+        // E7 / M3: on the session's first tap, and again on the first tap of a new local day.
         let check: LabelPhotoManifest.CatalogueCheck
-        if let cached = catalogue {
-            check = cached
+        if let cached = catalogue, cached.day == today {
+            check = cached.check
         } else {
             guard let fresh = try? await checker.check(route), !Task.isCancelled else {
                 return .failed(Task.isCancelled ? .cancelled : .routeUnavailable)
@@ -72,11 +85,26 @@ public actor LabelPhotoReadSession {
             guard Self.prices(fresh, route: route, reasoningBilledSeparately: reasoningBilledSeparately) != nil else {
                 return .failed(.routeUnavailable)
             }
-            catalogue = fresh
+            catalogue = (fresh, today)
             check = fresh
         }
         guard let prices = Self.prices(check, route: route, reasoningBilledSeparately: reasoningBilledSeparately) else {
             return .failed(.routeUnavailable)
+        }
+        // Reserve the tap before the first send (E10, #326 review): a kill mid-attempt leaves it
+        // counted. Re-read after the catalogue wait, and never write over an unreadable ledger.
+        let base: LabelPhotoSpendPolicy.Day?
+        switch ledger.load() {
+        case .unreadable: return .failed(.dailyLimit)
+        case .absent: base = nil
+        case let .day(day): base = day
+        }
+        guard LabelPhotoSpendPolicy.admission(today: today, stored: base.map { .day($0) } ?? .absent) == .allowed else {
+            return .failed(.dailyLimit)
+        }
+        do { try ledger.store(LabelPhotoSpendPolicy.reservation(today: today, stored: base)) } catch {
+            ledgerFailed = true
+            return .failed(.dailyLimit)
         }
         var attempts: [LabelPhotoSpendPolicy.Attempt] = []
         var outcome: Outcome = .failed(.failed)
@@ -88,9 +116,11 @@ public actor LabelPhotoReadSession {
                 break loop
             }
             if Task.isCancelled { outcome = .failed(.cancelled); break loop }
+            let timeout = LabelPhotoRetryPolicy.attemptTimeout(elapsed: clock.now().timeIntervalSince(started))
+            // No time left in the whole-call deadline: no attempt starts.
+            guard timeout > 0 else { outcome = .failed(.timedOut); break loop }
             number += 1
-            let elapsed = clock.now().timeIntervalSince(started)
-            let result = await attempter.attempt(image, timeout: LabelPhotoRetryPolicy.attemptTimeout(elapsed: elapsed))
+            let result = await attempter.attempt(image, timeout: timeout)
             switch result {
             case let .notSent(failure):
                 number -= 1
@@ -119,9 +149,14 @@ public actor LabelPhotoReadSession {
                 }
             }
         }
-        if !attempts.isEmpty {
-            let stored: LabelPhotoSpendPolicy.Day? = if case let .day(day) = ledger.load() { day } else { nil }
-            try? ledger.store(LabelPhotoSpendPolicy.record(attempts, prices: prices, today: today, stored: stored))
+        // Reconcile the reservation to the tap's cost (up or down). A tap that sent nothing is
+        // released. A failed write leaves the reservation and closes the route for the session.
+        let final = attempts.isEmpty ? (base ?? LabelPhotoSpendPolicy.Day.empty(today))
+            : LabelPhotoSpendPolicy.record(attempts, prices: prices, today: today, stored: base)
+        if case .unreadable = ledger.load() {
+            ledgerFailed = true
+        } else {
+            do { try ledger.store(final) } catch { ledgerFailed = true }
         }
         return outcome
     }

@@ -135,33 +135,15 @@ public struct OpenRouterLabelPhotoAttempt: LabelPhotoAttempting {
         return nil
     }
 
-    /// The model slug rule shared with the evaluation: the requested slug exactly, or that slug
-    /// followed by `-` and one calendar date as YYYYMMDD, YYYY-MM-DD, MM-DD or MMDD.
+    /// The dated slugs OpenRouter may return for each admitted model, pinned at E13 qualification
+    /// (append-only; a change is reviewed like any route change). Empty until L5 records them.
+    public static let pinnedSnapshots: [String: Set<String>] = [LabelPhotoRoute.v1.model: []]
+
+    /// E5 (the #326 review, decision Q1): the response names the requested model exactly, or one of
+    /// its pinned dated slugs. No pattern is matched, so no family member can pass for it.
     static func modelMatches(requested: String, returned: Any?) -> Bool {
         guard let returned = returned as? String, !requested.isEmpty else { return false }
-        if returned == requested { return true }
-        guard returned.hasPrefix(requested + "-") else { return false }
-        let suffix = String(returned.dropFirst(requested.count + 1))
-        let digits = suffix.filter(\.isNumber)
-        let (year, month, day): (Int, Int, Int)
-        switch suffix.count {
-        case 8 where digits.count == 8:
-            (year, month, day) = (Int(suffix.prefix(4))!, Int(suffix.dropFirst(4).prefix(2))!, Int(suffix.suffix(2))!)
-        case 10 where digits.count == 8 && Array(suffix)[4] == "-" && Array(suffix)[7] == "-":
-            (year, month, day) = (Int(suffix.prefix(4))!, Int(suffix.dropFirst(5).prefix(2))!, Int(suffix.suffix(2))!)
-        case 5 where digits.count == 4 && Array(suffix)[2] == "-":
-            (year, month, day) = (2000, Int(suffix.prefix(2))!, Int(suffix.suffix(2))!)
-        case 4 where digits.count == 4:
-            (year, month, day) = (2000, Int(suffix.prefix(2))!, Int(suffix.suffix(2))!)
-        default:
-            return false
-        }
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "UTC")!
-        let components = DateComponents(year: year, month: month, day: day)
-        guard let date = calendar.date(from: components) else { return false }
-        let back = calendar.dateComponents([.year, .month, .day], from: date)
-        return back.year == year && back.month == month && back.day == day
+        return returned == requested || pinnedSnapshots[requested]?.contains(returned) == true
     }
 
     /// OpenRouter returns the provider's display name ("Google Vertex"); it matches the endpoint

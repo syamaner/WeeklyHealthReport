@@ -191,10 +191,10 @@ final class OpenRouterLabelPhotoRouteTests: XCTestCase {
         XCTAssertEqual(classify(Self.reply(Self.answer(), exceeded: true)), .oversize)
         XCTAssertEqual(classify(LabelPhotoHTTPResponse(status: 200, headers: [:], body: Data(repeating: 0x20, count: 200_001), exceededLimit: false)), .oversize)
         XCTAssertEqual(classify(LabelPhotoHTTPResponse(status: 200, headers: [:], body: Data("not json".utf8), exceededLimit: false)), .unreadableAnswer)
-        // A dated snapshot of the requested model is the same model.
-        if case .answered = OpenRouterLabelPhotoAttempt.classify(Self.reply(Self.answer(model: "google/gemini-4-argon-2026-10-01")), route: route) {} else {
-            XCTFail("dated snapshot")
-        }
+        // No pattern: a dated slug matches only once pinned at E13 (none yet).
+        XCTAssertEqual(classify(Self.reply(Self.answer(model: "google/gemini-4-argon-2026-10-01"))), .wrongModel)
+        XCTAssertEqual(classify(Self.reply(Self.answer(model: "google/gemini-4-argon-20261001"))), .wrongModel)
+        XCTAssertEqual(OpenRouterLabelPhotoAttempt.pinnedSnapshots, ["google/gemini-4-argon": []])
     }
 
     func testUnknownCostIsNeverZero() {

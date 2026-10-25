@@ -21,10 +21,16 @@ final class LabelPhotoReadSessionTests: XCTestCase {
         var script: [LabelPhotoAttemptResult]
         var timeouts: [TimeInterval] = []
         var cancelDuring: Int?
+        /// When set, an attempt waits here until the test resumes it (an attempt that never returns).
+        var hold: CheckedContinuation<Void, Never>?
+        var holds = false
+        var during: (() -> Void)?
         let clock: Clock
         init(_ script: [LabelPhotoAttemptResult], clock: Clock) { self.script = script; self.clock = clock }
         func attempt(_ image: PreparedLabelImage, timeout: TimeInterval) async -> LabelPhotoAttemptResult {
             timeouts.append(timeout)
+            if holds { await withCheckedContinuation { hold = $0 } }
+            during?()
             clock.value += 5
             if cancelDuring == timeouts.count { withUnsafeCurrentTask { $0?.cancel() } }
             return script.isEmpty ? .failed(.contentFailure, failure: .failed, reportedCost: nil, promptTokens: nil) : script.removeFirst()
@@ -40,19 +46,34 @@ final class LabelPhotoReadSessionTests: XCTestCase {
     final class Sleeper: LabelPhotoSleeping, @unchecked Sendable {
         var sleeps: [TimeInterval] = []
         var fail = false
+        /// Extra seconds the clock moves during a sleep (the device was suspended).
+        var overrun: TimeInterval = 0
         let clock: Clock
         init(clock: Clock) { self.clock = clock }
         func sleep(seconds: TimeInterval) async throws {
             if fail { throw CancellationError() }
-            sleeps.append(seconds); clock.value += seconds
+            sleeps.append(seconds); clock.value += seconds + overrun
         }
     }
 
     final class Ledger: LabelPhotoSpendLedger, @unchecked Sendable {
+        struct WriteFailed: Error {}
         var stored: LabelPhotoSpendPolicy.Stored = .absent
+        var failsWrites = false
+        var writes = 0
         func load() -> LabelPhotoSpendPolicy.Stored { stored }
-        func store(_ day: LabelPhotoSpendPolicy.Day) throws { stored = .day(day) }
+        func store(_ day: LabelPhotoSpendPolicy.Day) throws {
+            if failsWrites { throw WriteFailed() }
+            writes += 1; stored = .day(day)
+        }
         var day: LabelPhotoSpendPolicy.Day? { if case let .day(day) = stored { day } else { nil } }
+    }
+
+    final class Keys: FoodWebKeyStoring, @unchecked Sendable {
+        var key: String? = "sk-or-v1-0123456789abcdef0123456789abcdef"
+        func load() throws -> String? { key }
+        func save(_ key: String) throws { self.key = key }
+        func delete() throws { key = nil }
     }
 
     static let good = LabelPhotoManifest.CatalogueCheck(at: 1, slug: "google/gemini-4-argon", endpoint: "google-vertex",
@@ -71,13 +92,13 @@ final class LabelPhotoReadSessionTests: XCTestCase {
 
     var calendar: Calendar { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "Asia/Taipei")!; return c }
 
-    func makeSession(_ script: [LabelPhotoAttemptResult], checker: Checker = Checker(.success(good)), ledger: Ledger = Ledger())
+    func makeSession(_ script: [LabelPhotoAttemptResult], checker: Checker = Checker(.success(good)), ledger: Ledger = Ledger(),
+                     keys: Keys = Keys(), clock: Clock = Clock())
         -> (LabelPhotoReadSession, Attempter, Checker, Ledger, Sleeper) {
-        let clock = Clock()
         let attempter = Attempter(script, clock: clock)
         let sleeper = Sleeper(clock: clock)
-        let session = LabelPhotoReadSession(checker: checker, attempter: attempter, ledger: ledger, clock: clock, calendar: calendar,
-                                            sleeper: sleeper, jitter: { 0 })
+        let session = LabelPhotoReadSession(checker: checker, attempter: attempter, ledger: ledger, keys: keys, clock: clock,
+                                            calendar: calendar, sleeper: sleeper, jitter: { 0 })
         return (session, attempter, checker, ledger, sleeper)
     }
 
@@ -192,5 +213,110 @@ final class LabelPhotoReadSessionTests: XCTestCase {
         let waited = await waiting.read(image)
         XCTAssertEqual(waited, .failed(.cancelled))
         XCTAssertEqual(waitingAttempter.timeouts.count, 1)
+    }
+
+    // MARK: #326 review: reservation, fail closed, concurrency, deadline, key, day
+
+    func testTheTapIsReservedBeforeTheFirstSendAndSurvivesAnAttemptThatNeverReturns() async throws {
+        let ledger = Ledger(); ledger.stored = .day(.init(day: "2026-10-25", reads: 3, cost: Decimal(string: "0.10")!, paused: false))
+        let (session, attempter, _, _, _) = makeSession([Self.answer], ledger: ledger)
+        attempter.holds = true
+        let prepared = image
+        let task = Task { [session, prepared] in await session.read(prepared) }
+        while attempter.hold == nil { await Task.yield() }
+        // The attempt is in flight and has not returned: the reservation is already stored.
+        XCTAssertEqual(ledger.day, .init(day: "2026-10-25", reads: 4, cost: Decimal(string: "0.15")!, paused: false))
+        attempter.hold?.resume()
+        _ = await task.value
+        // Reconciled down to the reported $0.01.
+        XCTAssertEqual(ledger.day, .init(day: "2026-10-25", reads: 4, cost: Decimal(string: "0.11")!, paused: false))
+    }
+
+    func testTheReservationIsReconciledUpwards() async {
+        let dear = LabelPhotoManifest.Usage(promptTokens: 2_000, completionTokens: 600, reasoningTokens: nil, costUSD: "0.07")
+        let (session, _, _, ledger, _) = makeSession([.answered(wireText: "{}", model: "google/gemini-4-argon", provider: "Google Vertex",
+                                                                generationID: "g", finishReason: "stop", usage: dear)])
+        _ = await session.read(image)
+        XCTAssertEqual(ledger.day?.cost, Decimal(string: "0.07"))
+        XCTAssertEqual(ledger.day?.paused, true, "a reported cost over $0.05 pauses the day")
+    }
+
+    func testAFailedLedgerWriteClosesTheRouteForTheSession() async {
+        let ledger = Ledger(); ledger.failsWrites = true
+        let (session, attempter, _, _, _) = makeSession([Self.answer, Self.answer], ledger: ledger)
+        let first = await session.read(image)
+        XCTAssertEqual(first, .failed(.dailyLimit))
+        XCTAssertTrue(attempter.timeouts.isEmpty, "nothing is sent without a reservation")
+        ledger.failsWrites = false
+        let second = await session.read(image)
+        XCTAssertEqual(second, .failed(.dailyLimit), "refused for the rest of the session")
+        XCTAssertTrue(attempter.timeouts.isEmpty)
+        // A write that fails at the end of a tap also closes the route, keeping the reservation.
+        let late = Ledger()
+        let (lateSession, lateAttempter, _, _, _) = makeSession([Self.answer, Self.answer], ledger: late)
+        lateAttempter.during = { late.failsWrites = true }
+        _ = await lateSession.read(image)
+        XCTAssertEqual(late.day?.cost, Decimal(string: "0.05"), "the reservation stays")
+        late.failsWrites = false
+        let after = await lateSession.read(image)
+        XCTAssertEqual(after, .failed(.dailyLimit))
+    }
+
+    func testAConcurrentTapIsRefusedSoTheDayCannotBeExceeded() async {
+        let ledger = Ledger(); ledger.stored = .day(.init(day: "2026-10-25", reads: 29, cost: Decimal(string: "0.45")!, paused: false))
+        let (session, attempter, _, _, _) = makeSession([Self.answer, Self.answer], ledger: ledger)
+        attempter.holds = true
+        let prepared = image
+        let first = Task { [session, prepared] in await session.read(prepared) }
+        while attempter.hold == nil { await Task.yield() }
+        let second = await session.read(prepared)
+        XCTAssertEqual(second, .failed(.failed))
+        attempter.hold?.resume()
+        _ = await first.value
+        XCTAssertEqual(attempter.timeouts.count, 1)
+        XCTAssertEqual(ledger.day?.reads, 30)
+        let third = await session.read(prepared)
+        XCTAssertEqual(third, .failed(.dailyLimit))
+    }
+
+    func testAnUnreadableLedgerAtTheEndIsNeverOverwritten() async {
+        let ledger = Ledger()
+        let (session, attempter, _, _, _) = makeSession([Self.answer], ledger: ledger)
+        attempter.during = { ledger.stored = .unreadable }
+        _ = await session.read(image)
+        XCTAssertEqual(ledger.stored, .unreadable)
+        let next = await session.read(image)
+        XCTAssertEqual(next, .failed(.dailyLimit))
+    }
+
+    func testNoAttemptStartsWithNoTimeLeft() async {
+        let (session, attempter, _, _, sleeper) = makeSession([Self.failed(.httpStatus(503, retryAfter: "1"), cost: 0), Self.answer])
+        sleeper.overrun = 90   // suspended past the whole-call deadline while waiting to retry
+        let outcome = await session.read(image)
+        XCTAssertEqual(outcome, .failed(.timedOut))
+        XCTAssertEqual(attempter.timeouts.count, 1)
+    }
+
+    func testAMissingOrMalformedKeySendsNothingNotEvenTheCatalogueCheck() async {
+        for key in [nil, "short", String(repeating: "k", count: 30) + " x"] as [String?] {
+            let keys = Keys(); keys.key = key
+            let (session, attempter, checker, ledger, _) = makeSession([Self.answer], keys: keys)
+            let outcome = await session.read(image)
+            XCTAssertEqual(outcome, .failed(.keyMissing))
+            XCTAssertEqual(checker.calls, 0)
+            XCTAssertTrue(attempter.timeouts.isEmpty)
+            XCTAssertNil(ledger.day)
+        }
+    }
+
+    func testTheCatalogueCheckRunsAgainOnANewLocalDay() async {
+        let clock = Clock()
+        let (session, _, checker, _, _) = makeSession([Self.answer, Self.answer, Self.answer], clock: clock)
+        _ = await session.read(image)
+        _ = await session.read(image)
+        XCTAssertEqual(checker.calls, 1)
+        clock.value += 86_400
+        _ = await session.read(image)
+        XCTAssertEqual(checker.calls, 2)
     }
 }

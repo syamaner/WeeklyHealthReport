@@ -116,6 +116,13 @@ public enum LabelPhotoSpendPolicy {
         return attempts.contains { $0.reportedCost == nil } ? max(perTapLimit, charged) : charged
     }
 
+    /// The day with a tap reserved before its first send (#326 review): one read and a whole tap's
+    /// $0.05, so a tap cut short by a crash or a kill still counts. `record` later reconciles it.
+    public static func reservation(today: String, stored: Day?) -> Day {
+        let base = current(today: today, stored: stored)
+        return Day(day: base.day, reads: base.reads + 1, cost: base.cost + perTapLimit, paused: base.paused)
+    }
+
     /// The day after a finished tap (success, failure or Cancel) that sent at least one attempt.
     public static func record(_ attempts: [Attempt], prices: Prices, today: String, stored: Day?) -> Day {
         let base = current(today: today, stored: stored)
