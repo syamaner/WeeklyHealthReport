@@ -25,8 +25,8 @@ public enum LabelPhotoText {
     public static let adjustCrop = "Adjust crop"
     public static let egressStatement = "Read label with AI sends this cropped photo to OpenRouter, which passes it to \(modelName) on \(providerName) to read the table. Location and camera details are removed first. Your name, brand and food log are not sent. Nothing is saved until you tap Log."
     public static let readButton = "Read label with AI"
-    public static func underButton(reads: Int?) -> String {
-        "Uses your OpenRouter key and credit. Today: \(reads ?? LabelPhotoSpendPolicy.dailyReadLimit) of \(LabelPhotoSpendPolicy.dailyReadLimit) reads."
+    public static func underButton(reads: Int) -> String {
+        "Uses your OpenRouter key and credit. Today: \(reads) of \(LabelPhotoSpendPolicy.dailyReadLimit) reads."
     }
     public static let firstUseTitle = "Send label photos to OpenRouter?"
     public static let firstUseBody = "To read a label photo, the app sends the cropped photo to OpenRouter and the model it names, using your key. OpenRouter is asked to use only an endpoint that keeps no copy and does not train on it, with no fallback to other providers. OpenRouter keeps its own account and usage records. You check and correct every value before anything is saved."
@@ -157,8 +157,13 @@ public enum LabelPhotoText {
     }
     public static let sourceFooter = "To read a different photo, use Retake or adjust photo. To change a value, correct it in Nutrition from the photo."
     public static let retakeOrAdjust = "Retake or adjust photo"
-    public static func savedSource(date: String) -> String {
-        "Read by \(modelName) on \(providerName) through OpenRouter, \(date); checked by you"
+    /// Display names for the stored model and provider of an admitted route; anything else is
+    /// shown exactly as stored.
+    public static let modelNames = ["google/gemini-4-argon": modelName]
+    public static let providerNames = ["Google Vertex": providerName, "google-vertex": providerName]
+
+    public static func savedSource(model: String, provider: String, date: String) -> String {
+        "Read by \(modelNames[model] ?? model) on \(providerNames[provider] ?? provider) through OpenRouter, \(date); checked by you"
     }
     public static let fit = "Fit"
     public static let fullScreen = "Full screen"
@@ -201,7 +206,8 @@ public enum LabelPhotoSavedEntryText {
         formatter.locale = locale
         formatter.setLocalizedDateFormatFromTemplate("d MMM yyyy")
         let date = Date(timeIntervalSince1970: TimeInterval(manifest.response.completedAt) / 1_000)
-        return LabelPhotoText.savedSource(date: formatter.string(from: date))
+        return LabelPhotoText.savedSource(model: manifest.response.model, provider: manifest.response.provider,
+                                          date: formatter.string(from: date))
     }
 
     /// One line per value the user resolved: "Protein, per 100 g: Checked by you".

@@ -427,4 +427,52 @@ final class LabelPhotoReadSessionTests: XCTestCase {
         XCTAssertEqual(day.openTaps, [])
         XCTAssertEqual(day.reads, 2)
     }
+
+    // MARK: Invariant review of #327: the day's status and the route failure kept for the day
+
+    func testStatusReportsTheDaysAdmission() async {
+        let ledger = Ledger()
+        let (session, _, _, _, _) = makeSession([Self.answer], ledger: ledger)
+        var status = await session.status()
+        XCTAssertEqual(status, .init(day: .open(reads: 0), routeUnavailable: false))
+        ledger.stored = .day(.init(day: "2026-10-25", reads: 7, cost: Decimal(string: "0.20")!, paused: false))
+        status = await session.status()
+        XCTAssertEqual(status.day, .open(reads: 7))
+        ledger.stored = .day(.init(day: "2026-10-25", reads: 30, cost: Decimal(string: "0.20")!, paused: false))
+        status = await session.status()
+        XCTAssertEqual(status.day, .limitReached)
+        ledger.stored = .day(.init(day: "2026-10-25", reads: 2, cost: Decimal(string: "0.10")!, paused: true))
+        status = await session.status()
+        XCTAssertEqual(status.day, .paused)
+        ledger.stored = .unreadable
+        status = await session.status()
+        XCTAssertEqual(status.day, .unreadable)
+        // A failed ledger write makes the session report unreadable even if the file reads again.
+        let failing = Ledger(); failing.failsWrites = true
+        let (closed, _, _, _, _) = makeSession([Self.answer], ledger: failing)
+        _ = await closed.read(image)
+        failing.failsWrites = false
+        let closedStatus = await closed.status()
+        XCTAssertEqual(closedStatus.day, .unreadable)
+    }
+
+    func testARouteFailureIsKeptForTheDayAndCheckedAgainTomorrow() async {
+        let clock = Clock()
+        let checker = Checker(.failure(URLError(.notConnectedToInternet)))
+        let (session, attempter, _, _, _) = makeSession([Self.answer], checker: checker, clock: clock)
+        let first = await session.read(image)
+        XCTAssertEqual(first, .failed(.routeUnavailable))
+        let status = await session.status()
+        XCTAssertTrue(status.routeUnavailable)
+        let second = await session.read(image)
+        XCTAssertEqual(second, .failed(.routeUnavailable))
+        XCTAssertEqual(checker.calls, 1, "not checked again the same day")
+        XCTAssertTrue(attempter.timeouts.isEmpty)
+        clock.value += 86_400
+        checker.result = .success(Self.good)
+        let nextDay = await session.status()
+        XCTAssertFalse(nextDay.routeUnavailable)
+        guard case .answered = await session.read(image) else { return XCTFail("checked again on a new day") }
+        XCTAssertEqual(checker.calls, 2)
+    }
 }

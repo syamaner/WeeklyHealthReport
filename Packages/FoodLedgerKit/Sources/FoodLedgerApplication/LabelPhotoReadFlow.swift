@@ -34,7 +34,7 @@ public struct LabelPhotoReadFlow: Sendable {
         }
     }
 
-    public func todayReads() async -> Int? { await session.todayReads() }
+    public func status() async -> LabelPhotoReadSession.Status { await session.status() }
 
     public func read(_ image: PreparedLabelImage, progress: (@Sendable (Int) -> Void)? = nil) async -> Outcome {
         switch await session.read(image, progress: progress) {

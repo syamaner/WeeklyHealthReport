@@ -62,15 +62,43 @@ public actor LabelPhotoReadSession {
         return LabelPhotoSpendPolicy.worstCase(prices) <= LabelPhotoSpendPolicy.perTapLimit ? prices : nil
     }
 
-    /// Today's counted reads, or nil when the spend ledger cannot be read (7.1, "Today: n of 30").
-    public func todayReads() -> Int? {
-        let today = LabelPhotoSpendPolicy.dayKey(clock.now(), calendar: calendar)
-        switch ledger.load() {
-        case .absent: return 0
-        case .unreadable: return nil
-        case let .day(day): return LabelPhotoSpendPolicy.current(today: today, stored: day).reads
+    /// Whether a tap may start today, from the spend ledger (7.2, section 9), and whether this
+    /// session already found the route unavailable today.
+    public struct Status: Equatable, Sendable {
+        public enum Day: Equatable, Sendable {
+            /// Open, with today's counted reads ("Today: n of 30").
+            case open(reads: Int)
+            case limitReached
+            case paused
+            /// The spend ledger cannot be read: the route fails closed, as the daily limit.
+            case unreadable
         }
+        public let day: Day
+        public let routeUnavailable: Bool
+        public init(day: Day, routeUnavailable: Bool) { self.day = day; self.routeUnavailable = routeUnavailable }
     }
+
+    public func status() -> Status {
+        let today = LabelPhotoSpendPolicy.dayKey(clock.now(), calendar: calendar)
+        let stored = ledger.load()
+        let day: Status.Day
+        if ledgerFailed {
+            day = .unreadable
+        } else {
+            switch (stored, LabelPhotoSpendPolicy.admission(today: today, stored: stored)) {
+            case (.unreadable, _): day = .unreadable
+            case (_, .paused): day = .paused
+            case (_, .limitReached): day = .limitReached
+            case (.absent, .allowed): day = .open(reads: 0)
+            case let (.day(record), .allowed): day = .open(reads: LabelPhotoSpendPolicy.current(today: today, stored: record).reads)
+            }
+        }
+        return Status(day: day, routeUnavailable: routeUnavailableOn == today)
+    }
+
+    /// The local day on which this session's catalogue check failed: no further tap that day
+    /// checks again or sends anything (the route unavailable state, section 9).
+    private(set) var routeUnavailableOn: String?
 
     /// `progress` is told the number of each attempt as it starts (1, 2, 3), for the Retrying copy.
     public func read(_ image: PreparedLabelImage, progress: (@Sendable (Int) -> Void)? = nil) async -> Outcome {
@@ -89,15 +117,19 @@ public actor LabelPhotoReadSession {
         // The key must be present and well formed before anything leaves, the catalogue GETs included.
         guard let key = try? keys.load(), FoodWebKeySyntax.isValid(key) else { return .failed(.keyMissing) }
         if Task.isCancelled { return .failed(.cancelled) }
-        // E7 / M3: on the session's first tap, and again on the first tap of a new local day.
+        // E7 / M3: on the session's first tap, and again on the first tap of a new local day. A
+        // failure is kept for the rest of that day in this session.
+        guard routeUnavailableOn != today else { return .failed(.routeUnavailable) }
         let check: LabelPhotoManifest.CatalogueCheck
         if let cached = catalogue, cached.day == today {
             check = cached.check
         } else {
             guard let fresh = try? await checker.check(route), !Task.isCancelled else {
+                if !Task.isCancelled { routeUnavailableOn = today }
                 return .failed(Task.isCancelled ? .cancelled : .routeUnavailable)
             }
             guard Self.prices(fresh, route: route, reasoningBilledSeparately: reasoningBilledSeparately) != nil else {
+                routeUnavailableOn = today
                 return .failed(.routeUnavailable)
             }
             catalogue = (fresh, today)

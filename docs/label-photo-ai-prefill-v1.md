@@ -1181,3 +1181,16 @@ The highlight position was fixed after the walk (decision 6) and is covered by a
   - A reconcile or release acts only on its own open tap and closes it, so a retry after a write that was stored but reported an error changes nothing.
   - The file ledger's contract tests pin that `update` throws only when nothing was stored: a refusing transform and a failed write both leave the file unchanged.
   - Complete file protection is applied on iOS, where it exists.
+
+**Invariant review of #327 (PASS, with items folded in).**
+
+- **The screen knows the day (medium).**
+  - The session reports a `Status`: the day open (with its reads), at the limit, paused or unreadable, plus whether this session found the route unavailable today. A catalogue failure is kept for the rest of that local day in the session, so a further tap sends nothing and does not check again.
+  - The screen derives its daily limit, paused (the per-call cost copy) and route unavailable blockers from it.
+  - Read stays disabled and no "Today: n of 30" is shown until the status is known; an unreadable ledger counts as the limit.
+- **OpenRouter settings and Validate key (medium)** open the OpenRouter key screen (`OpenRouterFoodKeyView`), not Search foods.
+- **Saved provenance** comes from the stored response's model and provider, through a display-name table for admitted routes, falling back to the raw stored strings.
+- **Log logs only the source's own verified input.** The save closure also requires Confirm's input to equal the source's, so a preview or a stale input is refused.
+- **The scripted route's consent has its own key** (`labelPhoto.egressConsent.scripted.v1`). L5's live route uses a fresh key, so a consent given to the fake never stands for real egress.
+- **The crop frame has VoiceOver actions:** adjustable (swipe up to enlarge, down to shrink), and Move up, down, left or right, Inset, and Fill the photo, with its size as the value.
+- **A refused correction** is said in the section (`actionFailure`); the unused local state is gone.

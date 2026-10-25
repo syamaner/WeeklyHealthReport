@@ -84,6 +84,17 @@ public struct LabelPhotoCropView: View {
                     rect = Self.clamped(start.offsetBy(dx: delta.width, dy: delta.height), keepingSize: true)
                 }.onEnded { _ in dragStart = nil })
                 .accessibilityLabel("Crop frame")
+                .accessibilityValue("\(Int((rect.width * 100).rounded())) by \(Int((rect.height * 100).rounded())) percent of the photo")
+                .accessibilityAdjustableAction { direction in
+                    // Swipe up enlarges the frame, swipe down shrinks it, about its centre.
+                    rect = Self.scaled(rect, by: direction == .increment ? 1.1 : 0.9)
+                }
+                .accessibilityAction(named: "Move up") { rect = Self.clamped(rect.offsetBy(dx: 0, dy: -0.05), keepingSize: true) }
+                .accessibilityAction(named: "Move down") { rect = Self.clamped(rect.offsetBy(dx: 0, dy: 0.05), keepingSize: true) }
+                .accessibilityAction(named: "Move left") { rect = Self.clamped(rect.offsetBy(dx: -0.05, dy: 0), keepingSize: true) }
+                .accessibilityAction(named: "Move right") { rect = Self.clamped(rect.offsetBy(dx: 0.05, dy: 0), keepingSize: true) }
+                .accessibilityAction(named: "Inset") { rect = Self.scaled(rect, by: 0.9) }
+                .accessibilityAction(named: "Fill the photo") { rect = CGRect(x: 0, y: 0, width: 1, height: 1) }
             ForEach(0..<4, id: \.self) { corner in
                 let point = Self.corner(corner, of: shown)
                 Circle().fill(Color.white).overlay(Circle().stroke(Color.black, lineWidth: 1))

@@ -98,7 +98,7 @@ public struct LabelPhotoScreenView: View {
                 .accessibilityIdentifier("labelPhoto.read")
             }
         } footer: {
-            Text(model.underButton)
+            if let underButton = model.underButton { Text(underButton) }
         }
     }
 
@@ -161,7 +161,6 @@ public struct LabelPhotoSourceSections: View {
     @State private var correcting: LabelPhotoSourceModel.Row?
     @State private var correctionText = ""
     @State private var correctionComparator = "="
-    @State private var correctionFailure: String?
     @State private var showsPhotoAtLargeSizes = false
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -212,7 +211,8 @@ public struct LabelPhotoSourceSections: View {
         .alert(LabelPhotoText.correctTitle, isPresented: Binding(get: { correcting != nil }, set: { if !$0 { correcting = nil } })) {
             TextField(correcting?.unit ?? "", text: $correctionText).labelPhotoDecimalPad()
             Button(LabelPhotoText.correctSave) {
-                if let row = correcting { correctionFailure = model.correct(row.id, text: correctionText, comparator: correctionComparator) }
+                // A refused value is said in the section (model.actionFailure), beside the rows.
+                if let row = correcting { model.correct(row.id, text: correctionText, comparator: correctionComparator) }
                 correcting = nil
             }
             Button(LabelPhotoText.cancel, role: .cancel) { correcting = nil }

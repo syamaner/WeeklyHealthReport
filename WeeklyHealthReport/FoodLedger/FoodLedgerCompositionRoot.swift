@@ -1417,7 +1417,9 @@ extension FoodLedgerCompositionRoot {
     var labelPhotoMode: LabelPhotoRouteMode { LabelPhotoRouteMode.from(userDefaults) }
     var labelPhotoEnabled: Bool { labelPhotoMode != .off }
 
-    static let labelPhotoConsentKey = "labelPhoto.egressConsent.v1"
+    /// The fake route's first-use consent (17.19). L5's live route uses its own, fresh key, so a
+    /// consent given to the scripted transport never stands for real egress.
+    static let labelPhotoConsentKey = "labelPhoto.egressConsent.scripted.v1"
 
     /// The read flow for the enabled route, shared per process, or nil when the route is off.
     @MainActor
@@ -1451,7 +1453,7 @@ extension FoodLedgerCompositionRoot {
         return LabelPhotoScreenModel(environment: .init(
             prepare: { flow.prepare($0, crop: $1) },
             read: { image, progress in await flow.read(image, progress: progress) },
-            todayReads: { await flow.todayReads() },
+            status: { await flow.status() },
             keyState: { keyArgument == "missing" ? .missing : keyArgument == "unvalidated" ? .notValidated : .valid },
             isOnline: { !defaults.bool(forKey: "LabelPhotoOffline") },
             hasConsented: { defaults.bool(forKey: Self.labelPhotoConsentKey) },
@@ -1469,7 +1471,9 @@ extension FoodLedgerCompositionRoot {
     func labelPhotoConfirmationModel(_ source: LabelPhotoSourceModel, entryDay: String?) -> FoodConfirmationViewModel {
         let confirmations = confirmations, store = store, ids = ids
         let model = model(for: source.input, prefillSourceQuantity: false, entryDay: entryDay) { [weak source] state in
-            guard let source, source.canLog else { throw FoodConfirmationSaveError.invalidPastedLabelSource }
+            // Only the source's own verified input is logged: never a preview, and never an input
+            // that no longer matches the source (invariant review of #327).
+            guard let source, source.canLog, state.input == source.input else { throw FoodConfirmationSaveError.invalidPastedLabelSource }
             return try confirmations.saveLabelPhoto(state, imageBytes: source.imageBytes, attachmentStore: store,
                                                      operationID: ids.makeID(OperationTag.self))
         }
@@ -1537,6 +1541,7 @@ struct LabelPhotoFlowView: View {
     @State private var showsConfirmation = false
     @State private var showsPaste = false
     @State private var showsSearch = false
+    @State private var showsKeySettings = false
     @Environment(\.openURL) private var openURL
 
     @MainActor
@@ -1550,7 +1555,7 @@ struct LabelPhotoFlowView: View {
     var body: some View {
         LabelPhotoScreenView(model: model, views: views,
                              openSettings: { if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) } },
-                             openRouterSettings: { showsSearch = true },
+                             openRouterSettings: { showsKeySettings = true },
                              pasteLabel: { showsPaste = true }, searchFoods: { showsSearch = true },
                              privacyPolicy: { openURL(PrivacyPolicy.publicURL) }, leave: close)
             .onChange(of: model.confirmSource.map(ObjectIdentifier.init)) { _, _ in
@@ -1570,6 +1575,7 @@ struct LabelPhotoFlowView: View {
                 }
             }
             .navigationDestination(isPresented: $showsPaste) { PastedLabelFlowView(root: root, finish: finish) { showsPaste = false } }
+            .navigationDestination(isPresented: $showsKeySettings) { OpenRouterFoodKeyView(model: root.webDiscovery) }
             .navigationDestination(isPresented: $showsSearch) {
                 if let flow = GenericFoodSearchFlowView(root: root, finish: finish) { flow }
                 else { ContentUnavailableView("Food search unavailable", systemImage: "exclamationmark.triangle") }

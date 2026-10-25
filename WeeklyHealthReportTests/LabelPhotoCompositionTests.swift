@@ -41,4 +41,9 @@ final class LabelPhotoCompositionTests: XCTestCase {
         XCTAssertNotNil(root.labelPhotoScreenModel())
         XCTAssertTrue(try XCTUnwrap(root.labelPhotoFlow()).session === first.session)
     }
+
+    func testTheScriptedRoutesConsentIsItsOwn() {
+        // A consent given to the scripted transport never stands for live egress (L5 uses a fresh key).
+        XCTAssertEqual(FoodLedgerCompositionRoot.labelPhotoConsentKey, "labelPhoto.egressConsent.scripted.v1")
+    }
 }

@@ -181,7 +181,7 @@ final class LabelPhotoPresentationTests: XCTestCase {
         var consented = false
         var key: LabelPhotoScreenModel.KeyState = .valid
         var online = true
-        var today: Int? = 3
+        var status = LabelPhotoReadSession.Status(day: .open(reads: 3), routeUnavailable: false)
         var hold = false
     }
 
@@ -199,16 +199,17 @@ final class LabelPhotoPresentationTests: XCTestCase {
                 }
                 return script.outcome
             },
-            todayReads: { script.today },
+            status: { script.status },
             keyState: { script.key }, isOnline: { script.online },
             hasConsented: { script.consented }, recordConsent: { script.consented = true },
             makeConfirm: { _, _, _ in source }))
     }
 
-    func ready(_ model: LabelPhotoScreenModel) {
+    func ready(_ model: LabelPhotoScreenModel) async {
         model.choose(Data([1]))
         model.useCrop(.whole)
         model.name = "Synthetic crackers"
+        await model.refresh()
     }
 
     func testReadIsDisabledInEveryBlockingState() async throws {
@@ -220,6 +221,8 @@ final class LabelPhotoPresentationTests: XCTestCase {
         model.name = "  "
         XCTAssertFalse(model.canRead)
         model.name = "Synthetic crackers"
+        XCTAssertFalse(model.canRead, "nothing is known about today's allowance yet")
+        XCTAssertNil(model.underButton, "never a count before it is known")
         await model.refresh()
         XCTAssertTrue(model.canRead)
         XCTAssertEqual(model.underButton, "Uses your OpenRouter key and credit. Today: 3 of 30 reads.")
@@ -231,18 +234,30 @@ final class LabelPhotoPresentationTests: XCTestCase {
         script.key = .valid; script.online = false
         XCTAssertEqual(model.blocker, .offline)
         XCTAssertEqual(model.blocker?.action, "Paste nutrition label")
-        script.online = true; script.today = 30
+        script.online = true
+        let states: [(LabelPhotoReadSession.Status.Day, Bool, LabelPhotoScreenModel.Blocker?)] = [
+            (.limitReached, false, .dailyLimit), (.unreadable, false, .dailyLimit), (.paused, false, .paused),
+            (.open(reads: 29), true, .routeUnavailable), (.open(reads: 29), false, nil),
+        ]
+        for (day, routeUnavailable, expected) in states {
+            script.status = .init(day: day, routeUnavailable: routeUnavailable)
+            await model.refresh()
+            XCTAssertEqual(model.blocker, expected, "\(day) \(routeUnavailable)")
+            XCTAssertEqual(model.canRead, expected == nil)
+        }
+        script.status = .init(day: .limitReached, routeUnavailable: false)
         await model.refresh()
-        XCTAssertEqual(model.blocker, .dailyLimit)
-        script.today = nil
+        XCTAssertNil(model.underButton, "no count is shown at the limit; the limit copy says it")
+        XCTAssertEqual(model.blocker?.text, LabelPhotoText.dailyLimit)
+        script.status = .init(day: .paused, routeUnavailable: false)
         await model.refresh()
-        XCTAssertNil(model.blocker, "an unreadable ledger is refused by the session itself, with the daily limit copy")
+        XCTAssertEqual(model.blocker?.text, LabelPhotoText.failedCostPaused)
     }
 
     func testTheFirstUseSheetComesOnceAndNotNowSendsNothing() async throws {
         let script = Script()
         let model = try screen(script)
-        ready(model)
+        await ready(model)
         model.readTapped()
         XCTAssertTrue(model.showsFirstUseSheet)
         model.firstUseDeclined()
@@ -260,7 +275,7 @@ final class LabelPhotoPresentationTests: XCTestCase {
     func testOutcomesShowTheirCopyAndTryAgainIsANewTap() async throws {
         let script = Script(); script.consented = true
         let model = try screen(script)
-        ready(model)
+        await ready(model)
         model.readTapped()
         try await waitUntil { !model.isBusy && script.reads == 1 }
         XCTAssertEqual(model.phase, .failed("Reading the photo timed out. You can try again."))
@@ -278,7 +293,7 @@ final class LabelPhotoPresentationTests: XCTestCase {
     func testRetryingShowsTheAttemptAndCancelStopsWithItsCopy() async throws {
         let script = Script(); script.consented = true; script.hold = true
         let model = try screen(script)
-        ready(model)
+        await ready(model)
         model.readTapped()
         try await waitUntil { model.phase == .retrying(attempt: 2) }
         XCTAssertEqual(model.progressText, "OpenRouter is busy. Trying again (attempt 2 of 3)…")
@@ -310,6 +325,14 @@ final class LabelPhotoPresentationTests: XCTestCase {
         XCTAssertEqual(LabelPhotoText.declines([]), [LabelPhotoText.failedUnusable])
         let all = [LabelPhotoText.egressStatement, LabelPhotoText.firstUseBody, LabelPhotoText.honestyNote, LabelPhotoText.dailyLimit]
         XCTAssertTrue(all.allSatisfy { !$0.contains("—") && !$0.lowercased().contains("verified") && !$0.lowercased().contains("confidence") })
+    }
+
+    func testSavedProvenanceComesFromTheStoredResponse() {
+        XCTAssertEqual(LabelPhotoText.savedSource(model: "google/gemini-4-argon", provider: "Google Vertex", date: "26 Oct 2026"),
+                       "Read by Gemini 4 Argon on Google Vertex through OpenRouter, 26 Oct 2026; checked by you")
+        // Anything not in the table is shown exactly as stored, never as the current route's name.
+        XCTAssertEqual(LabelPhotoText.savedSource(model: "openai/gpt-6.1-sol", provider: "Azure", date: "1 Nov 2026"),
+                       "Read by openai/gpt-6.1-sol on Azure through OpenRouter, 1 Nov 2026; checked by you")
     }
 
     private func waitUntil(_ condition: @escaping () -> Bool, file: StaticString = #filePath, line: UInt = #line) async throws {

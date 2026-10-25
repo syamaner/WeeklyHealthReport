@@ -10,7 +10,7 @@ import SwiftUI
 public final class LabelPhotoScreenModel: ObservableObject {
     /// Why Read label with AI is disabled before any tap (section 9), each with its 7.2 copy.
     public enum Blocker: Equatable, Sendable {
-        case noKey, keyNotValidated, offline, dailyLimit
+        case noKey, keyNotValidated, offline, dailyLimit, paused, routeUnavailable
 
         public var text: String {
             switch self {
@@ -18,6 +18,8 @@ public final class LabelPhotoScreenModel: ObservableObject {
             case .keyNotValidated: LabelPhotoText.keyNotValidated
             case .offline: LabelPhotoText.offline
             case .dailyLimit: LabelPhotoText.dailyLimit
+            case .paused: LabelPhotoText.failedCostPaused
+            case .routeUnavailable: LabelPhotoText.routeUnavailable
             }
         }
 
@@ -27,7 +29,7 @@ public final class LabelPhotoScreenModel: ObservableObject {
             case .noKey: LabelPhotoText.openRouterSettings
             case .keyNotValidated: LabelPhotoText.validateKey
             case .offline: LabelPhotoText.pasteLabel
-            case .dailyLimit: nil
+            case .dailyLimit, .paused, .routeUnavailable: nil
             }
         }
     }
@@ -47,7 +49,7 @@ public final class LabelPhotoScreenModel: ObservableObject {
     public struct Environment {
         public let prepare: (Data, LabelCropRect) -> Result<PreparedLabelImage, LabelImagePreparationError>
         public let read: (PreparedLabelImage, @escaping @Sendable (Int) -> Void) async -> LabelPhotoReadFlow.Outcome
-        public let todayReads: () async -> Int?
+        public let status: () async -> LabelPhotoReadSession.Status
         public let keyState: () -> KeyState
         public let isOnline: () -> Bool
         public let hasConsented: () -> Bool
@@ -56,10 +58,10 @@ public final class LabelPhotoScreenModel: ObservableObject {
 
         public init(prepare: @escaping (Data, LabelCropRect) -> Result<PreparedLabelImage, LabelImagePreparationError>,
                     read: @escaping (PreparedLabelImage, @escaping @Sendable (Int) -> Void) async -> LabelPhotoReadFlow.Outcome,
-                    todayReads: @escaping () async -> Int?, keyState: @escaping () -> KeyState, isOnline: @escaping () -> Bool,
+                    status: @escaping () async -> LabelPhotoReadSession.Status, keyState: @escaping () -> KeyState, isOnline: @escaping () -> Bool,
                     hasConsented: @escaping () -> Bool, recordConsent: @escaping () -> Void,
                     makeConfirm: @escaping (LabelPhotoReview, PreparedLabelImage, PastedLabelDetails) throws -> LabelPhotoSourceModel) {
-            self.prepare = prepare; self.read = read; self.todayReads = todayReads; self.keyState = keyState; self.isOnline = isOnline
+            self.prepare = prepare; self.read = read; self.status = status; self.keyState = keyState; self.isOnline = isOnline
             self.hasConsented = hasConsented; self.recordConsent = recordConsent; self.makeConfirm = makeConfirm
         }
     }
@@ -75,7 +77,9 @@ public final class LabelPhotoScreenModel: ObservableObject {
     @Published public private(set) var cameraDenied = false
     @Published public private(set) var phase: Phase = .editing
     @Published public var showsFirstUseSheet = false
-    @Published public private(set) var todayReads: Int?
+    /// The day's admission and the session's route state; nil until first read, when nothing is
+    /// claimed about the allowance and Read stays disabled.
+    @Published public private(set) var status: LabelPhotoReadSession.Status?
     /// Confirm for a usable reading; the flow pushes it.
     @Published public var confirmSource: LabelPhotoSourceModel?
     /// A send attempted this tap, for the "Cancelled after sending" copy.
@@ -93,8 +97,13 @@ public final class LabelPhotoScreenModel: ObservableObject {
         case .valid: break
         }
         if !environment.isOnline() { return .offline }
-        if let reads = todayReads, reads >= LabelPhotoSpendPolicy.dailyReadLimit { return .dailyLimit }
-        return nil
+        guard let status else { return nil }
+        if status.routeUnavailable { return .routeUnavailable }
+        switch status.day {
+        case .open: return nil
+        case .limitReached, .unreadable: return .dailyLimit
+        case .paused: return .paused
+        }
     }
 
     public var isBusy: Bool {
@@ -106,7 +115,7 @@ public final class LabelPhotoScreenModel: ObservableObject {
 
     /// Read label with AI: disabled with no photo, no name, a blocking state, or a read in flight.
     public var canRead: Bool {
-        prepared != nil && !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && blocker == nil && !isBusy
+        prepared != nil && !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && status != nil && blocker == nil && !isBusy
     }
 
     public var progressText: String? {
@@ -117,11 +126,15 @@ public final class LabelPhotoScreenModel: ObservableObject {
         }
     }
 
-    public var underButton: String { LabelPhotoText.underButton(reads: todayReads) }
+    /// "Uses your OpenRouter key and credit. Today: n of 30 reads.", only once the count is known.
+    public var underButton: String? {
+        guard case let .open(reads)? = status?.day else { return nil }
+        return LabelPhotoText.underButton(reads: reads)
+    }
 
     // MARK: Actions
 
-    public func refresh() async { todayReads = await environment.todayReads() }
+    public func refresh() async { status = await environment.status() }
 
     /// A photo from the camera or the library: the crop screen opens over it.
     public func choose(_ data: Data) {
