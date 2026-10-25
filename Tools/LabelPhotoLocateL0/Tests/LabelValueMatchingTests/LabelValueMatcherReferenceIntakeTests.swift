@@ -252,6 +252,36 @@ final class LabelValueMatcherReferenceIntakeTests: XCTestCase {
             .filter { $0.key != "serving" && $0.value == .found }.map(\.key), [])
     }
 
+    // MARK: #322 round 2
+
+    func testTwoNarrowPercentColumnsCloseTogetherAreTwoPositions() {
+        // H4: narrow % tokens (0.04 wide) at 0.55 (blank on the top rows) and a second column close
+        // by; neither reference-intake header read; the model reads the second column.
+        for second in [0.60, 0.64] {
+            var lines = [line("每份", x: 0.30, y: 0.90), line("每100公克", x: 0.80, y: 0.90, width: 0.12),
+                         line(serving, x: 0.2, y: 0.97, width: 0.3)]
+            for (index, row) in rows.enumerated() {
+                let y = 0.80 - Double(index) * 0.08
+                lines.append(line(row.label, x: 0.11, y: y, width: 0.12))
+                lines.append(line(row.amount, x: 0.30, y: y))
+                if index >= 3 { lines.append(line("9%", x: 0.55, y: y, width: 0.04)) }
+                lines.append(line(row.intake, x: second, y: y, width: 0.04))
+                lines.append(line(row.per100, x: 0.80, y: y))
+            }
+            let reading = queries([("每份", { $0.amount }), (intakeHeader, { $0.intake }), ("每100公克", { $0.per100 })])
+            let status = locate(reading, lines, headers: ["每份", intakeHeader, "每100公克"], bases: [.amount, .referenceIntake, .amount])
+            XCTAssertEqual(status.filter { $0.key.hasSuffix("c1") && $0.value == .found }.map(\.key), [], "\(second)")
+        }
+    }
+
+    func testServingWordsElsewhereDoNotVouchForAQuantity() {
+        // H1: a footnote below the table prints the serving words beside a stray 3公克; the serving
+        // line prints 30 g and the model reads 3 g.
+        let lines = twoColumn + [line("*每一份量含膳食纖維 3公克", x: 0.25, y: 0.25, width: 0.4)]
+        let misread = withServing(queries([("每份", { $0.amount }), (intakeHeader, { $0.intake })]), "每一份量3公克")
+        XCTAssertNotEqual(locate(misread, lines, headers: ["每份", intakeHeader], bases: [.amount, .referenceIntake])["serving"], .found)
+    }
+
     // MARK: D4, a per-serving header printed with its serving quantity
 
     func bracketed(_ header: String) -> [M.Line] {

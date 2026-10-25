@@ -158,7 +158,7 @@
       "gemini-on": {
         "ambiguous_total": 245,
         "ambiguous_with_region": 93,
-        "attention_per_table_median": 9.0,
+        "attention_per_table_median": 9.5,
         "attention_per_table_p90": 18,
         "correct_ambiguous": 244,
         "correct_cells": 557,
@@ -189,7 +189,7 @@
           "0.85": 37
         },
         "serving_lines": 68,
-        "serving_lines_found": 35,
+        "serving_lines_found": 30,
         "silent": 4,
         "silent_blocking": 0,
         "silent_by_locator": 4,
@@ -247,7 +247,7 @@
           "0.85": 37
         },
         "serving_lines": 72,
-        "serving_lines_found": 39,
+        "serving_lines_found": 34,
         "silent": 52,
         "silent_blocking": 6,
         "silent_by_locator": 52,
@@ -314,7 +314,7 @@
           "0.85": 37
         },
         "serving_lines": 70,
-        "serving_lines_found": 37,
+        "serving_lines_found": 32,
         "silent": 4,
         "silent_blocking": 2,
         "silent_by_locator": 4,

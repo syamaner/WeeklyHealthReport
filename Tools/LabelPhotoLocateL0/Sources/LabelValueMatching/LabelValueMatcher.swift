@@ -409,10 +409,23 @@ public enum LabelValueMatcher {
         }()
         // The distinct x positions of % tokens on direct rows (G2: two % columns cannot be told
         // apart by position, so a reference-intake value then needs its own header located).
+        // Positions are told apart by the % tokens' own spans, never the width of all tokens (H4):
+        // a token starts a new position when it does not overlap the current one or its centre is
+        // further than about one % token from the last.
         let percentColumns: Int = {
-            let xs = directTokens.filter { $0.token.unit == "%" }.map(\.box.midX).sorted()
-            guard !xs.isEmpty else { return 0 }
-            return 1 + zip(xs, xs.dropFirst()).filter { $1 - $0 > max(tokenWidth, 0.03) }.count
+            let percent = directTokens.filter { $0.token.unit == "%" }.map(\.box).sorted { $0.midX < $1.midX }
+            guard let first = percent.first else { return 0 }
+            let gap = max(median(percent.map(\.width)) ?? 0, 0.02)
+            var count = 1, right = first.x + first.width, last = first.midX
+            for token in percent.dropFirst() {
+                if token.x > right || token.midX - last > gap {
+                    count += 1; right = token.x + token.width
+                } else {
+                    right = max(right, token.x + token.width)
+                }
+                last = token.midX
+            }
+            return count
         }()
         let everyHeaderLocated = headerKeys.allSatisfy { headerBoxes[$0] != nil }
         /// The value's own header sits directly above it: the token's centre lies within the
@@ -552,14 +565,31 @@ public enum LabelValueMatcher {
             let tokens = valueTokens(model)
             guard tokens.count == 1, let token = tokens.first else { return false }
             let value = box(match)
-            // The words may be on the same recognised line or on one level with it (a serving line
-            // Vision split in two).
-            let level = lines.indices.filter { index in
-                index == match.line || abs(lines[index].box.midY - value.midY) < max(lines[index].box.height, value.height) / 2
-            }.map { normalised[$0].key }
-            let before = String(model[..<token.start]), after = String(model[token.end...])
-            guard !(before + after).isEmpty, before.isEmpty || level.contains(where: { $0.contains(before) }),
-                  after.isEmpty || level.contains(where: { $0.contains(after) }) else { return false }
+            let before = Array(model[..<token.start]), after = Array(model[token.end...])
+            guard !(before + after).isEmpty else { return false }
+            // H1: the serving line's words sit directly around the quantity on its own line
+            // (whitespace ignored), or, for a line Vision split in two, the quantity starts its line
+            // and the words end the line just to its left, level with it.
+            let line = normalised[match.line]
+            guard let printed = valueTokens(line.characters).first(where: { candidate in
+                line.origin[candidate.start].lowerBound == match.range.lowerBound
+            }) else { return false }
+            let ownBefore = Array(line.characters[..<printed.start]), ownAfter = Array(line.characters[printed.end...])
+            let wordsAfter = after.isEmpty || ownAfter.starts(with: after)
+            if ownBefore.count >= before.count, Array(ownBefore.suffix(before.count)) == before, wordsAfter {
+                // Words on the same line.
+            } else if printed.start == 0, !before.isEmpty, wordsAfter {
+                let left = lines.indices.filter { index in
+                    index != match.line && abs(lines[index].box.midY - value.midY) < max(lines[index].box.height, value.height) / 2
+                        && lines[index].box.x + lines[index].box.width <= lines[match.line].box.x + 0.01
+                        && lines[match.line].box.x - (lines[index].box.x + lines[index].box.width) < 0.1
+                }
+                guard let nearest = left.max(by: { lines[$0].box.x + lines[$0].box.width < lines[$1].box.x + lines[$1].box.width }),
+                      normalised[nearest].characters.count >= before.count,
+                      Array(normalised[nearest].characters.suffix(before.count)) == before else { return false }
+            } else {
+                return false
+            }
             let step = max(medianStep, 0.01)
             if let top = rowsTopDown.first?.value, let bottom = rowsTopDown.last?.value, rowsTopDown.count > 1,
                value.midY > bottom.midY - 0.5 * step, value.midY < top.midY + 0.5 * step { return false }

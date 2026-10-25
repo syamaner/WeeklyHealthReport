@@ -818,3 +818,10 @@ Development photos are unchanged (Gemini 55.5%, median 8). Against v2 as it stoo
 - **C1 under a first-column reference intake (two errors, optional):** with a reference-intake header not located, more than half of the reading's reference-intake values must be printed in %; a column the reading calls reference intake that holds amounts confirms nothing.
 
 F9, F8c, F8d, F5b and the C1 case are regression tests. The round-1 harness (A to E and F1 to F9, 87 scenarios) is clean with no bases, amount bases, a first-column and a last-column reference intake, and the bases-enabled sweep has no finding. All earlier harnesses stay clean. On L0 the cell counts do not change, and fewer serving lines are found (Gemini 35 of 68, against 39): those found only by their quantity, without their words, now need a check.
+
+**Round 2 of the #322 review** held G1, G2 and the C1 rule and found two more single-error routes, both fixed:
+
+- **H4 (medium):** % positions were separated by a gap larger than the median width of all tokens, so two narrow % columns close together counted as one. Positions are now told apart by the % tokens' own spans: a token starts a new position when it does not overlap the current one, or its centre is more than about one % token (at least 0.02) from the last.
+- **H1 (medium-low):** the serving words could sit anywhere on the matched or a level line, so a footnote (*每一份量含膳食纖維 3公克) vouched for a misread 每一份量3公克. The words must now sit directly before (or after) the quantity on its own line, whitespace ignored. For a line Vision split in two, the quantity must start its line, and the words must end the nearest line directly to its left, level with it.
+
+H4 at 0.60 and 0.64 and H1 are regression tests. The round-2 harness (A to F and H1 to H5, 104 scenarios) is clean in every base mode, and all earlier harnesses stay clean. On L0 the value counts do not change. Serving lines found fall again (Gemini 30 of 68, against 35), because a quantity whose words are not directly beside it now needs a check; Gemini's median to check is 9.5.
