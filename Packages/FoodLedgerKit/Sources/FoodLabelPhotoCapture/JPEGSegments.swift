@@ -3,9 +3,11 @@ import Foundation
 /// The prepared JPEG's structure, allow-listed (docs/label-photo-ai-prefill-v1.md 17.8 M6 and the
 /// #324 review). Pure: bytes in, bytes or nil out. The sanitised file is exactly:
 ///
-/// SOI; optionally one APP0 that is a plain JFIF header (16 bytes, no thumbnail); quantisation and
-/// Huffman tables and a restart interval; exactly one baseline frame (SOF0); exactly one scan
-/// (SOS); entropy-coded data holding only stuffed `FF 00` and restart markers `FF D0` to `FF D7`;
+/// SOI; optionally one APP0, directly after SOI, that is a plain JFIF header (16 bytes, no
+/// thumbnail); quantisation and Huffman tables and at most one restart interval (DRI, length
+/// exactly 4); exactly one baseline frame (SOF0, length 8 + 3 x components); exactly one scan (SOS,
+/// length 6 + 2 x components); entropy-coded data holding only stuffed `FF 00` and, only when a
+/// non-zero restart interval was declared, restart markers `FF D0` to `FF D7` in sequence modulo 8;
 /// and one EOI as the final two bytes. Application segments other than APP0, and comments, before
 /// the scan are dropped (they hold the encoder's metadata, such as an ICC profile). Anything else
 /// (an APP0 that is not a plain JFIF header, a standalone or reserved marker before the scan, a
@@ -24,6 +26,7 @@ enum JPEGSegments {
         var out: [UInt8] = [0xFF, 0xD8]
         var index = 2
         var frames = 0
+        var restartInterval: Int?
         while true {
             guard index + 4 <= bytes.count, bytes[index] == 0xFF else { return nil }
             let marker = bytes[index + 1]
@@ -40,14 +43,23 @@ enum JPEGSegments {
             if droppable { index = end; continue }
             switch marker {
             case 0xE0:
-                // A plain JFIF header only: identifier `JFIF\0`, no thumbnail (JFXX or a JFIF
-                // thumbnail is refused).
-                guard length == 16, Array(segment[4..<9]) == [0x4A, 0x46, 0x49, 0x46, 0x00], segment[16] == 0, segment[17] == 0 else {
+                // A plain JFIF header only, and only as the first segment after SOI: identifier
+                // `JFIF\0`, no thumbnail (JFXX or a JFIF thumbnail is refused).
+                guard index == 2, length == 16, Array(segment[4..<9]) == [0x4A, 0x46, 0x49, 0x46, 0x00], segment[16] == 0, segment[17] == 0 else {
                     return nil
                 }
             case 0xC0:
                 frames += 1
-                guard frames == 1 else { return nil }
+                guard frames == 1, length >= 8 else { return nil }
+                let components = Int(segment[9])
+                guard (1...4).contains(components), length == 8 + 3 * components else { return nil }
+            case 0xDD:
+                guard restartInterval == nil, length == 4 else { return nil }
+                restartInterval = Int(segment[4]) << 8 | Int(segment[5])
+            case 0xDA:
+                guard frames == 1, length >= 6 else { return nil }
+                let components = Int(segment[4])
+                guard (1...4).contains(components), length == 6 + 2 * components else { return nil }
             default: break
             }
             out += segment
@@ -55,13 +67,22 @@ enum JPEGSegments {
             if marker == 0xDA { break }
         }
         guard frames == 1 else { return nil }
-        // The entropy-coded data: only stuffed bytes and restart markers, then EOI as the last two bytes.
+        // The entropy-coded data: only stuffed bytes and, under a declared non-zero restart
+        // interval, restart markers in sequence; then EOI as the last two bytes.
+        let restarts = (restartInterval ?? 0) > 0
+        var nextRestart: UInt8 = 0xD0
         var position = index
         while position < bytes.count {
             if bytes[position] != 0xFF { position += 1; continue }
             guard position + 1 < bytes.count else { return nil }
             let next = bytes[position + 1]
-            if next == 0x00 || (0xD0...0xD7).contains(next) { position += 2; continue }
+            if next == 0x00 { position += 2; continue }
+            if (0xD0...0xD7).contains(next) {
+                guard restarts, next == nextRestart else { return nil }
+                nextRestart = next == 0xD7 ? 0xD0 : next + 1
+                position += 2
+                continue
+            }
             guard next == 0xD9, position + 2 == bytes.count else { return nil }
             out += bytes[index..<bytes.count]
             return Data(out)

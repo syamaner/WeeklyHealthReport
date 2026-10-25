@@ -948,3 +948,11 @@ L2 adds the `FoodLabelPhotoCapture` target, with no network code and nothing wir
   - **(b) Memory.** The photo is decoded subsampled, to the size the crop needs at the output bounds, rather than at full size. A large synthetic source is tested end to end, and the decode size is tested directly.
   - **(c) An L5/E13 gate.** Before the route is enabled, `FoodLabelPhotoCaptureTests` run once on a physical iPhone and the result is recorded, so the metadata guarantee is checked on iOS's ImageIO as well as macOS's.
 - Quarter turns 2 and 3 are tested as well.
+
+**The #324 re-review (PASS) and its Low hardening, folded into L3.** The structure is now exact as well as allow-listed:
+
+- APP0 is accepted only once, and only as the first segment after SOI.
+- DRI has length exactly 4 and appears at most once.
+- SOF0 has length 8 + 3 x Nf and SOS 6 + 2 x Ns, with 1 to 4 components each.
+- Restart markers in the scan are accepted only under a declared non-zero restart interval, and only in sequence `FF D0` to `FF D7` modulo 8. ImageIO writes its own DRI and restart markers, which pass.
+- The subsampled-decode test adds a large orientation-6 source, which comes out portrait with the long edge at 2,048 px and the asymmetric marker in the right place.
