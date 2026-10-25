@@ -2897,7 +2897,8 @@ Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A): `claude-opus-5-5` USD 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Label photo L1b pure core (#316), subagent | 38,310,522 (36,808,128) | 1,502,282 | 52,264 | 38,362,786 | $15.92 |
+| Label photo L1b invariant-review fix: left unknown, daily cap, ledger states (#316), subagent | 21,499,472 (19,221,912) | 2,277,500 | 25,775 | 21,525,247 | $15.75 |
 
-Boundary: `phase_usage.py --format claude --since 2026-10-25T14:42:32Z --until 2026-10-25T15:21:33Z` on the subagent transcript alone. Cache writes 1,502,282 5-minute, 0 1-hour; exact USD 15.9187636. Local Swift builds and the private parity run use no API tokens and are not priced.
+Boundary: `phase_usage.py --format claude --since 2026-10-25T14:42:32Z --until 2026-10-25T15:21:33Z` on the subagent transcript alone. Cache writes 1,502,282 5-minute, 0 1-hour; exact USD 15.9187636. Invariant-review fix: `--since 2026-10-25T15:21:33Z --until 2026-10-25T15:50:21Z`, just before this edit: the L1b commit, push, PR #323 and report, then the left-unknown verifier rule with its regression tests, the daily cap, the per-attempt worst-case charge, the ledger's three states, the moved-back clock, the closed schema, media type and check names, the boundary rule for `PreparedLabelImage`, the retry timeout, the spec section and every gate. Cache writes 2,277,500 5-minute, 0 1-hour; exact USD 15.7476224. Local Swift builds and the private parity run use no API tokens and are not priced.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
