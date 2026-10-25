@@ -89,7 +89,6 @@ public enum LabelValueMatcher {
             }
             return boxes
         }
-        let headerBoxes = unique(headers, rule: .line)
         func median(_ values: [Double]) -> Double? {
             guard !values.isEmpty else { return nil }
             let sorted = values.sorted()
@@ -180,23 +179,72 @@ public enum LabelValueMatcher {
             boxes.sorted { $0.key < $1.key }.min { distance($0.value, value) < distance($1.value, value) }?.key
         }
         let rowsTopDown = rowBoxes.sorted { $0.value.midY > $1.value.midY }
+        // The table's row step: the lower quartile of the gaps between adjacent located labels. A row
+        // whose label was not located leaves a double gap, which a median would let inflate the step
+        // (and with it the offset and the distance limit); the lower quartile does not (17.13).
+        let medianStep: Double = {
+            let gaps = zip(rowsTopDown, rowsTopDown.dropFirst()).map { $0.value.midY - $1.value.midY }.sorted()
+            guard !gaps.isEmpty else { return 0 }
+            return gaps[(gaps.count - 1) / 4]
+        }()
         func spacing(_ label: String) -> Double? {
             guard let index = rowsTopDown.firstIndex(where: { $0.key == label }), rowsTopDown.count > 1 else { return nil }
             var gaps: [Double] = []
             if index > 0 { gaps.append(rowsTopDown[index - 1].value.midY - rowsTopDown[index].value.midY) }
             if index + 1 < rowsTopDown.count { gaps.append(rowsTopDown[index].value.midY - rowsTopDown[index + 1].value.midY) }
-            return gaps.min()
+            // Never wider than the table's typical row step: a row whose label was not located
+            // must not widen its neighbours' limit (17.13).
+            guard let local = gaps.min() else { return nil }
+            return medianStep > 0 ? min(local, medianStep) : local
         }
         func rowKey(_ query: Query) -> String? {
             guard let label = query.rowLabel.map({ Normalised($0).key }), rowBoxes[label] != nil, rowBoxes.count > 1 else { return nil }
             return label
         }
 
+        // Headers count as located only in the header band (17.13, B6): above the top directly
+        // located row label, within about two row steps of it, below any serving line printed above
+        // the table, and next to a value token on a direct row. A header text printed once in a
+        // footnote or a serving line elsewhere is not a header.
+        let tableStep = medianStep
+        let topDirect = rowsTopDown.first { directRows.contains($0.key) }?.value
+        let servingTops = queries.filter { $0.rowLabel == nil }
+            .flatMap { occurrences(of: $0.printedText, in: normalised, rule: .bounded).map { box($0) } }
+            .filter { line in topDirect.map { line.midY > $0.midY } ?? false }
+            .map(\.midY)
+        let directTokens = tokensOnPhoto.filter { entry in
+            rowsTopDown.contains { row in
+                directRows.contains(row.key) && abs(entry.box.midY - row.value.midY) < 0.5 * max(tableStep, 0.01)
+            }
+        }
+        let tokenWidth = median(directTokens.map(\.box.width)) ?? 0.05
+        var headerBoxes: [String: Box] = [:]
+        if let top = topDirect, tableStep > 0 {
+            for text in Set(headers) {
+                // A line that also carries a value with a unit is a serving or value line, not a
+                // header line ("每份 185公克").
+                // The header's own text ("每100公克") is removed first, and so are the other
+                // headers, since a header line may hold them all ("每份 每100公克").
+                let headerLines = occurrences(of: text, in: normalised, rule: .line).filter { match in
+                    var rest = normalised[match.line].key
+                    for other in headers.map({ Normalised($0).key }).sorted(by: { $0.count > $1.count }) where !other.isEmpty {
+                        rest = rest.replacingOccurrences(of: other, with: " ")
+                    }
+                    return !valueTokens(Array(rest)).contains { !$0.unit.isEmpty }
+                }
+                let inBand = headerLines.map { box($0) }.filter { header in
+                    header.midY > top.midY + 0.5 * tableStep && header.midY < top.midY + 2.5 * tableStep
+                        && !servingTops.contains { header.midY >= $0 }
+                        && directTokens.contains { abs($0.box.midX - header.midX) < max(0.08, 1.5 * tokenWidth) }
+                }
+                if inBand.count == 1 { headerBoxes[Normalised(text).key] = inBand[0] }
+            }
+        }
+
         // Table-wide vertical offset (17.11 c): from values whose token is printed exactly once on
         // the photo, on their own located label's side of the neighbours; used only when at least
         // three rows agree within 0.15 of a row and the offset is at least 0.1 of a row.
-        let stepForOffset = rowsTopDown.count > 1
-            ? (median(zip(rowsTopDown, rowsTopDown.dropFirst()).map { $0.value.midY - $1.value.midY }) ?? 0) : 0
+        let stepForOffset = medianStep
         var offset = 0.0
         if stepForOffset > 0 {
             var ratios: [String: Double] = [:]
@@ -208,12 +256,12 @@ public enum LabelValueMatcher {
                     && $0.token.number == wanted[0].number && $0.token.unit == wanted[0].unit }
                 guard same.count == 1 else { continue }
                 let ratio = (same[0].box.midY - own.midY) / stepForOffset
-                if abs(ratio) <= 0.45 { ratios[key] = ratio }
+                if abs(ratio) <= 1.0 / 3.0 { ratios[key] = ratio }
             }
             if let centre = median(Array(ratios.values)) {
                 let agreeing = ratios.values.filter { abs($0 - centre) <= 0.15 }
                 if ratios.count >= 3, agreeing.count >= 3, Double(agreeing.count) >= 0.75 * Double(ratios.count), abs(centre) >= 0.1,
-                   abs(centre) <= 0.45 {
+                   abs(centre) <= 1.0 / 3.0 {
                     offset = centre * stepForOffset
                 }
             }
@@ -285,8 +333,9 @@ public enum LabelValueMatcher {
         /// with (checked when the groups were accepted) and its header's position known.
         func columnForFound(_ query: Query) -> Bool {
             if columnCount <= 1 { return true }
-            if headerBoxes.count > 1, let header = query.headerText.map({ Normalised($0).key }), headerBoxes[header] != nil { return true }
-            return clusters != nil && !headerBoxes.isEmpty && columnIndex(query) != nil
+            guard let header = query.headerText.map({ Normalised($0).key }), headerBoxes[header] != nil else { return false }
+            if headerBoxes.count > 1 { return true }
+            return clusters != nil && columnIndex(query) != nil
         }
         /// Evidence needs columns separated by located headers.
         func columnByHeaders(_ query: Query) -> Bool {
@@ -332,7 +381,12 @@ public enum LabelValueMatcher {
                 if !inCell.isEmpty, !inCell.contains(where: { equal($0.token) }) { return .conflictingInCell }
             }
             let same = tokensOnPhoto.filter { !$0.token.range && equal($0.token) }
-            if !same.isEmpty, !same.contains(where: { rowFit(label, $0.box) != .other && inHeader(query, $0.box) }) { return .elsewhere }
+            let clearlyElsewhere = same.allSatisfy { entry in
+                rowFit(label, entry.box) == .other
+                    && rowBoxes.keys.contains { $0 != label && directRows.contains($0) && rowFit($0, entry.box) == .near }
+                    || !inHeader(query, entry.box)
+            }
+            if !same.isEmpty, clearlyElsewhere { return .elsewhere }
             return .none
         }
 
@@ -635,6 +689,13 @@ public enum LabelValueMatcher {
                 if rule == .label, let last = pattern.last, let after {
                     if isDigit(last) && isDigit(after) { continue }
                     if last.isASCII && last.isLetter && after.isASCII && after.isLetter { continue }
+                    // 糖 is not in 糖醇: a following ideograph continues the word, except a known
+                    // non-nutrient suffix (含量, 總量) or a unit written straight after the label.
+                    if isIdeograph(last) && isIdeograph(after) {
+                        let rest = Array(line.characters[(start + pattern.count)...])
+                        let allowed = labelSuffixes.contains { starts(rest, at: 0, with: $0) }
+                        if !allowed { continue }
+                    }
                 }
                 found.append(Match(line: number, range: line.origin[start].lowerBound..<line.origin[start + pattern.count - 1].upperBound))
             }
@@ -652,6 +713,13 @@ public enum LabelValueMatcher {
             func edge(_ character: Character?) -> Bool { character.map { isDigit($0) || $0 == "." || $0 == "," } ?? false }
             return !edge(before) && !edge(after)
         }
+    }
+
+    /// Words allowed straight after a CJK row label: non-nutrient suffixes and units.
+    static let labelSuffixes = ["含量", "總量", "大卡", "千卡", "千焦", "公克", "毫克", "微克", "毫升", "克"]
+
+    static func isIdeograph(_ character: Character) -> Bool {
+        character.unicodeScalars.allSatisfy { (0x3400...0x4DBF).contains($0.value) || (0x4E00...0x9FFF).contains($0.value) }
     }
 
     /// ASCII digits only (after NFKC): Han numerals such as 一 are words on a label, not values.

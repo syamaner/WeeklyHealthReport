@@ -704,3 +704,31 @@ Both reviewer harnesses run clean on the pinned matcher: the base sweep (3,297 m
 Development photos: v2 Gemini finds 75.2%, median 2.
 
 **Reading.** The found rate is almost unchanged by the review (61.2% to 60.0%): most of v2's gain comes from rows whose own label is located and columns a located header confirms, which still count. Recovery now rarely gives a single located candidate on these photos (10 ambiguous values per arm come with a region). The evidence-only policy is weaker than before (it would block none of Gemini's 4 silent wrong values), because evidence is now reported only where it is direct. **The recommendation of 17.11 stands: adopt locator v2 with the current blocking policy.**
+
+### 17.13 Locator v2 after the #321 re-check: headers in their band, own header, whole words (25 October 2026)
+
+The re-check of `a371b043` confirmed the 17.12 fixes and reproduced four more single-model-error false founds, all fixed:
+
+- **B6, B6c: headers anywhere on the photo.** A header now counts as located only in the **header band**: above the top directly located row label and within about two and a half row steps of it, below any serving line printed above the table, next to a value token of a direct row, and on a line that carries no other value with a unit once the headers' own text is removed (so "每份 185公克", a serving line, is not a header line, while "每份 每100公克" and "每100公克" are).
+- **B6b: any header instead of the value's own.** With two or more columns, found needs the value's **own** header located in the band; inferred columns only narrow candidates and choose the region to highlight.
+- **B1: a label inside a longer word.** A CJK label followed by another ideograph is part of a longer word (糖 is not in 糖醇), except a known non-nutrient suffix (含量, 總量) or a unit written straight after the label.
+- **B5: the offset window.** Rows contribute to the table-wide offset only within a third of a row, and the offset itself is at most a third of a row. A reading shifted by one whole row can be confirmed only if the values drift about two thirds of a row from their own labels, which is the irreducible limit of matching by position alone (the value is then nearer the wrong label than its own); v1 had the same limit. Evidence `elsewhere` is now reported only when every printed occurrence of the value is clearly on another direct row (not in the band between rows), so correct values drifted between rows no longer come back `elsewhere`.
+- **Found while fixing (the sweep's side-effect check):** a row whose label is not located left a double gap that inflated the median row step, and with it the offset and the distance limit, so one model error elsewhere could upgrade correct values. The row step is now the lower quartile of the gaps between adjacent located labels, and no row's distance limit is wider than that step.
+
+The reviewer's attack harness (A1 to A6 and B1 to B7, 39 scenarios) runs clean on the pinned matcher: no wrong value found and no correct value with contradicting evidence. The base sweep shows only its 18 artefacts with the original baselines (22/22, 2/22, 20/22, 12/12, 12/12, 11/12). All 39 scenarios are in `LabelValueMatcherAttackTests`; the sweep's drift layouts at 0.45 of a row now expect no confirmed values (beyond the offset window).
+
+**Results, untouched Taiwan at 240 px** ([`results/l0-locate-rate-v3.md`](../Tools/NutritionLabelCaptureEvaluation/results/l0-locate-rate-v3.md), replacing 17.12):
+
+| | v1 Gemini | v2 Gemini | v2 Sol | v2 Luna |
+|---|---|---|---|---|
+| Correct values found on the photo | 42.2% | 292 / 557 (52.4%) | 298 / 564 (52.8%) | 299 / 566 (52.8%) |
+| Ambiguous values / with a located region | 246 / 0 | 196 / 44 | 179 / 44 | 223 / 42 |
+| Silent wrong values that need a check | 4 of 4 | 4 of 4 | 4 of 4 | 52 of 52 |
+| Tables opening with nothing to check | 1 of 34 | 3 of 34 | 3 of 35 | 3 of 37 |
+| Values to check per table, median / p90 | 11 / 17 | 7 / 18 | 8 / 17 | 8 / 18 |
+| Evidence-only policy: silent wrong values still blocking | | 0 of 4 | 2 of 4 | 6 of 52 |
+| Evidence-only policy: blocking items per table, median / p90 | | 0 / 1 | 0 / 2 | 0 / 3 |
+
+Development photos: v2 Gemini finds 64.7%, median 6.
+
+**Reading.** Requiring each value's own header in the header band costs most of this round (60.0% to 52.4%): on these photos one of the two column headers is often not read, and those values are now ambiguous, though 44 of them come with a located region to zoom to. Every silent wrong value of every arm still needs a check. **Recommendation unchanged:** adopt locator v2 with the current blocking policy (P12); it still roughly halves the gap to v1's attention burden (median 11 to 7), and the region highlight shortens the checks it leaves.

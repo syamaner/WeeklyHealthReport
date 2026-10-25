@@ -4,7 +4,7 @@ import XCTest
 
 private typealias M = LabelValueMatcher
 
-// Locator v2 attack scenarios (#321 review, A1 to A6), ported from the reviewer's harness (synthetic
+// Locator v2 attack scenarios (#321 reviews, A1 to A6 and B1 to B7), ported from the reviewer's harness (synthetic
 // data only): near-miss labels of other nutrients, unread labels with swapped readings, tall wrapped
 // labels, offset poisoning by a reading off by one row, non-uniform drift, and unread headers with
 // reversed, footnote and extra columns. A wrong value must never be found, and a correct value must
@@ -109,7 +109,57 @@ final class LabelValueMatcherAttackTests: XCTestCase {
         var q3 = three.flatMap { r in [(r.name, "每份", r.values[0], false), (r.name, "每100公克", r.values[1], false)] } as [(String, String?, String, Bool)]
         q3[2] = (q3[2].0, "每份", three[1].values[1], true)
         runAttack("A4d close g columns + far % column, per-100 value in per-serving cell", build(three, cols: [0.40, 0.48, 0.85], headers: nil), q3, headers: ["每份", "每100公克"], cols: 2)
-        XCTAssertGreaterThanOrEqual(attackScenarios, 20)
+
+        print("=========== round 3 attacks")
+        // B1 label prefix: table prints 糖醇 (no 糖 row); model labels it 糖 (truncation)
+        var sa = base; sa[5] = .init(label: "糖醇", values: ["5公克"])
+        runAttack("B1 糖醇 printed, model says 糖", build(sa), q(sa, wrong: [5: ("糖", "5公克")]))
+        // B1b both 糖 and 糖醇 printed, model omits 糖 row and labels 糖醇 as 糖
+        var sb = base; sb.insert(.init(label: "糖醇", values: ["5公克"]), at: 6)
+        var qb = q(sb); qb.remove(at: 5); qb[5] = ("糖", "每份", "5公克", true)
+        runAttack("B1b 糖 and 糖醇 printed, model drops 糖 row and calls 糖醇 糖", build(sb), qb)
+        // B2 Omega-3脂肪酸 row; model labels it 脂肪 and omits the real fat row
+        var so = base; so.insert(.init(label: "Omega-3脂肪酸", values: ["0.4公克"]), at: 4)
+        var qo = q(so); qo[2] = ("脂肪", "每份", "0.4公克", true); qo.remove(at: 4)
+        runAttack("B2 omega-3 row read as 脂肪 (real fat row value replaced)", build(so), qo)
+        var qo2 = q(so); qo2[4] = ("脂肪", "每份", "0.4公克", true)
+        runAttack("B2b omega-3 row labelled 脂肪 (two 脂肪 rows in reading)", build(so), qo2)
+        // B3 English prefix pairs
+        let en: [PRow] = [.init(label: "Energy", values: ["485kcal"]), .init(label: "Fat", values: ["3g"]), .init(label: "Saturates", values: ["1.2g"]),
+          .init(label: "Carbohydrate", values: ["65g"]), .init(label: "Sugar alcohols", values: ["5g"]), .init(label: "Protein", values: ["12g"]), .init(label: "Salt", values: ["0.3g"])]
+        runAttack("B3 English: Sugar alcohols read as Sugars", build(en), q(en, wrong: [4: ("Sugars", "5g")]))
+        runAttack("B3b English: Sugar alcohols read as Sugar", build(en), q(en, wrong: [4: ("Sugar", "5g")]))
+        // B4 one-character CJK pairs: 鈉 vs 鈣 (single-character labels), model swaps the label of a row
+        let mi: [PRow] = base + [.init(label: "鈣", values: ["15毫克"])]
+        runAttack("B4 鈣 row labelled 鈉 (鈉 row also present)", build(mi), q(mi, wrong: [7: ("鈉", "15毫克")]))
+        var mi2 = base; mi2[6] = .init(label: "鈣", values: ["120毫克"])
+        runAttack("B4b only 鈣 printed, model says 鈉", build(mi2), q(mi2, wrong: [6: ("鈉", "120毫克")]))
+        // B5 offset window near 0.5: uniform drift d above labels, reading off by one
+        for d in [0.5, 0.55, 0.6] { runAttack("B5 drift \(d), reading off by one", build(base, drift: d), shiftedReading(base)) }
+        runAttack("B5b drift 0.55, correct reading", build(base, drift: 0.55), q(base))
+        // B5c mixed sign: half the rows +0.4, half -0.4 (alternating), reading off by one
+        func altBuild() -> ([M.Line], [Double]) { var (ls, c) = build(base); ls = ls.map { l in
+          if let i = base.firstIndex(where: { $0.values[0] == l.text }) { let d = i % 2 == 0 ? 0.4 : -0.4
+            return M.Line(text: l.text, box: .init(x: l.box.x, y: l.box.y + d * step, width: l.box.width, height: l.box.height)) }; return l }; return (ls, c) }
+        runAttack("B5c alternating ±0.4 drift, reading off by one", altBuild(), shiftedReading(base))
+        runAttack("B5d alternating ±0.4 drift, correct", altBuild(), q(base))
+        // B6 one header located (from a footnote at the left), the other unread; model reverses headers
+        let foot2 = [M.Line(text: "*每100公克含量", box: .init(x: 0.42, y: 0.30, width: 0.16, height: 0.03))]
+        runAttack("B6 header 每100公克 located only in a footnote under the left column; model reverses headers", build(two2, cols: [0.45, 0.72], headers: nil, extra: foot2),
+            two2.flatMap { r in [(r.name, "每100公克", r.values[0], true), (r.name, "每份", r.values[1], true)] }, headers: ["每100公克", "每份"], cols: 2)
+        // B6b real left header read, right unread; model's right header text is wrong (e.g. 每100毫升); values right
+        runAttack("B6b left header read, right header text wrong in the model", build(two2, cols: [0.45, 0.72], headers: ["每份"]),
+            two2.flatMap { r in [(r.name, "每份", r.values[0], false), (r.name, "每100毫升", r.values[1], true)] }, headers: ["每份", "每100毫升"], cols: 2)
+        // B6c header 每份 located only inside the serving line (left side), real headers unread; model reverses
+        let servingLine = [M.Line(text: "每份 185公克", box: .init(x: 0.70, y: 0.96, width: 0.12, height: 0.03))]
+        runAttack("B6c 每份 located only in a serving line above the right column; model reverses headers", build(two2, cols: [0.45, 0.72], headers: nil, extra: servingLine),
+            two2.flatMap { r in [(r.name, "每100公克", r.values[0], true), (r.name, "每份", r.values[1], true)] }, headers: ["每100公克", "每份"], cols: 2)
+        // B7 own label printed twice (once in a footnote outside the neighbours): direct via between; model mislabels the adjacent row with it
+        let foot3 = [M.Line(text: "糖", box: .init(x: 0.05, y: 0.20, width: 0.05, height: 0.03))]
+        runAttack("B7 糖 also in a footnote; model correct", build(base, extra: foot3), q(base))
+        var q7 = q(base); q7[4] = ("糖", "每份", "65.2公克", true); q7[5] = ("碳水化合物", "每份", "8.4公克", true)
+        runAttack("B7b 糖 also in a footnote; model swaps the carb and sugar labels", build(base, extra: foot3), q7)
+        XCTAssertGreaterThanOrEqual(attackScenarios, 39)
         XCTAssertEqual(attackFailures, [])
     }
 }

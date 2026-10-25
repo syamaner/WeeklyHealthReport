@@ -225,7 +225,9 @@ final class LabelValueMatcherSweepTests: XCTestCase {
         XCTAssertEqual(baselines["2col labels misread"], 16)
         XCTAssertEqual(baselines["2col labels missing"], 16)
         XCTAssertEqual(baselines["2col headers unread, labels missing"], 2)
-        XCTAssertEqual(baselines["2col drift 0.45"], 22)
-        XCTAssertEqual(baselines["1col drift 0.45, labels misread"], 9)
+        // A drift of 0.45 of a row is beyond the third of a row the offset may remove (17.13): its
+        // values stay ambiguous, never found on a row they may not belong to.
+        XCTAssertEqual(baselines["2col drift 0.45"], 2)
+        XCTAssertEqual(baselines["1col drift 0.45, labels misread"], 2)
     }
 }

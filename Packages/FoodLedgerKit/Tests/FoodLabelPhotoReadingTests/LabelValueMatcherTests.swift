@@ -131,7 +131,8 @@ final class LabelValueMatcherTests: XCTestCase {
     func testHeadersPrintedOnOneLineAreBothFound() {
         let oneLine: [M.Line] = [
             .init(text: "反式脂肪", box: .init(x: 0.05, y: 0.5, width: 0.1, height: 0.04)),
-            .init(text: "每份 每100公克", box: .init(x: 0.4, y: 0.9, width: 0.5, height: 0.04)),
+            // The header line sits one row above the table (the header band, 17.13).
+            .init(text: "每份 每100公克", box: .init(x: 0.4, y: 0.58, width: 0.5, height: 0.04)),
             .init(text: "碳水化合物", box: .init(x: 0.05, y: 0.42, width: 0.1, height: 0.04)),
             .init(text: "0公克", box: .init(x: 0.45, y: 0.5, width: 0.1, height: 0.04)),
             .init(text: "0公克", box: .init(x: 0.75, y: 0.5, width: 0.1, height: 0.04)),
@@ -141,7 +142,7 @@ final class LabelValueMatcherTests: XCTestCase {
                              lines: oneLine, headers: ["每份", "每100公克"], rowLabels: ["反式脂肪", "碳水化合物"], columnCount: 2) { index, range in
             guard index == 1 else { return nil }
             let left = oneLine[1].text.distance(from: oneLine[1].text.startIndex, to: range.lowerBound) == 0
-            return left ? .init(x: 0.42, y: 0.9, width: 0.1, height: 0.04) : .init(x: 0.72, y: 0.9, width: 0.16, height: 0.04)
+            return left ? .init(x: 0.42, y: 0.58, width: 0.1, height: 0.04) : .init(x: 0.72, y: 0.58, width: 0.16, height: 0.04)
         }
         XCTAssertEqual(found.map(\.status), [.found])
         XCTAssertEqual(found.first?.region?.x, 0.75)
@@ -353,14 +354,15 @@ final class LabelValueMatcherTests: XCTestCase {
     }
 
     func testTableWideOffsetIsRemovedWhenRowsAgree() {
-        // Every value printed 0.035 below its label (spacing 0.08), beyond the 1/3 limit in v1.
+        // Values printed 0.3 of a row below their labels, one of them 0.4 (beyond the 1/3 limit
+        // alone); the table-wide offset (accepted only within a third of a row, 17.13) brings it in.
         let labels = ["蛋白質", "脂肪", "飽和脂肪", "反式脂肪"]
         let values = ["2公克", "5公克", "1公克", "0公克"]
         var lines: [M.Line] = []
         for (index, label) in labels.enumerated() {
             let y = 0.80 - 0.08 * Double(index)
             lines.append(.init(text: label, box: .init(x: 0.05, y: y, width: 0.1, height: 0.04)))
-            lines.append(.init(text: values[index], box: .init(x: 0.5, y: y - 0.035, width: 0.1, height: 0.04)))
+            lines.append(.init(text: values[index], box: .init(x: 0.5, y: y - (index == 2 ? 0.032 : 0.024), width: 0.1, height: 0.04)))
         }
         let queries: [M.Query] = zip(labels, values).enumerated().map {
             .init(id: "t\($0.offset)", rowLabel: $0.element.0, headerText: nil, printedText: $0.element.1)
@@ -392,10 +394,15 @@ final class LabelValueMatcherTests: XCTestCase {
         let found = M.locate(queries, lines: lines, headers: ["每份", "每100公克"], rowLabels: labels, columnCount: 2) { _, _ in nil }
         XCTAssertEqual(found.map(\.status), Array(repeating: .ambiguous, count: 6))
         XCTAssertTrue(found.allSatisfy { $0.region != nil })
-        // One header located and agreeing with its group: the columns are confirmed and values found.
-        let oneHeader = lines + [.init(text: "每份", box: .init(x: 0.45, y: 0.9, width: 0.1, height: 0.04))]
+        // One header located in the header band: only its own column is confirmed (B6b, 17.13); the
+        // other column's values stay ambiguous, with their regions.
+        let oneHeader = lines + [.init(text: "每份", box: .init(x: 0.45, y: 0.86, width: 0.1, height: 0.04))]
         XCTAssertEqual(M.locate(queries, lines: oneHeader, headers: ["每份", "每100公克"], rowLabels: labels, columnCount: 2) { _, _ in nil }
-            .map(\.status), Array(repeating: .found, count: 6))
+            .map(\.status), [.found, .ambiguous, .found, .ambiguous, .found, .ambiguous])
+        // A header printed once outside the band (a footnote below the table) is not located.
+        let footnote = lines + [.init(text: "每份", box: .init(x: 0.45, y: 0.30, width: 0.1, height: 0.04))]
+        XCTAssertFalse(M.locate(queries, lines: footnote, headers: ["每份", "每100公克"], rowLabels: labels, columnCount: 2) { _, _ in nil }
+            .contains { $0.status == .found })
         // The model reversing the two headers, neither read: never found on the wrong basis.
         let reversed = queries.map { query in
             M.Query(id: query.id, rowLabel: query.rowLabel, headerText: query.headerText == "每份" ? "每100公克" : "每份", printedText: query.printedText)
@@ -427,6 +434,27 @@ final class LabelValueMatcherTests: XCTestCase {
                        .conflictingInCell)
         // A found value carries no evidence.
         XCTAssertEqual(found[0].evidence, .none)
+    }
+
+    func testALabelInsideALongerWordIsNotItsRow() {
+        // 糖 printed only as part of 糖醇 (sugar alcohols): the reading's 糖 row is not located there.
+        let lines: [M.Line] = [
+            .init(text: "蛋白質", box: .init(x: 0.05, y: 0.80, width: 0.1, height: 0.04)),
+            .init(text: "糖醇", box: .init(x: 0.05, y: 0.72, width: 0.1, height: 0.04)),
+            .init(text: "鈉", box: .init(x: 0.05, y: 0.64, width: 0.1, height: 0.04)),
+            .init(text: "2公克", box: .init(x: 0.5, y: 0.80, width: 0.1, height: 0.04)),
+            .init(text: "5公克", box: .init(x: 0.5, y: 0.72, width: 0.1, height: 0.04)),
+            .init(text: "9毫克", box: .init(x: 0.5, y: 0.64, width: 0.1, height: 0.04)),
+        ]
+        let labels = ["蛋白質", "糖", "鈉"]
+        let queries: [M.Query] = zip(labels, ["2公克", "5公克", "9毫克"]).enumerated().map {
+            .init(id: "w\($0.offset)", rowLabel: $0.element.0, headerText: nil, printedText: $0.element.1)
+        }
+        XCTAssertNotEqual(M.locate(queries, lines: lines, headers: [], rowLabels: labels, columnCount: 1) { _, _ in nil }[1].status, .found)
+        // A known suffix after the label is still that row (糖含量).
+        var suffixed = lines
+        suffixed[1] = .init(text: "糖含量", box: .init(x: 0.05, y: 0.72, width: 0.1, height: 0.04))
+        XCTAssertEqual(M.locate(queries, lines: suffixed, headers: [], rowLabels: labels, columnCount: 1) { _, _ in nil }[1].status, .found)
     }
 
     func testNoRowLabelLocatedMeansAmbiguousNotFound() {
