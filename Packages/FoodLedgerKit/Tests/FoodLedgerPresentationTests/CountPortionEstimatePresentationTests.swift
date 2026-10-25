@@ -79,6 +79,62 @@ final class CountPortionEstimatePresentationTests: XCTestCase {
         XCTAssertNil(model.state.quantity.conversion)
     }
 
+    /// Journey QA D1 (PR #313): "2 eggs", the raw record, Change, 120 g, Kitchen scale. One layout:
+    /// no "Enter measured weight" beside the count's weight row, and Log is enabled.
+    func testChangeThenKitchenScaleOffersOneLayoutAndLogs() throws {
+        let guides = try USDACountPortionGuides()
+        var state = try eggs(name: "Eggs, chicken, whole, raw", guides: guides)
+        FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(2, .count))
+        let model = FoodConfirmationViewModel(state: state, portionGuides: guides,
+                                              now: { [now] in now }, calendar: calendar) { _ in throw CocoaError(.fileWriteUnknown) }
+        XCTAssertTrue(model.showsPortionGuide)
+        XCTAssertFalse(model.offersEnterMeasuredWeight, "not beside the typical weight")
+        model.changeTypicalWeight()
+        XCTAssertFalse(model.offersEnterMeasuredWeight, "after Change the count's weight row is the one layout")
+        let fields = FoodConfirmationView.ConversionFields(text: "120", unit: .grams, method: .choice(.kitchenScale))
+        model.send(.setConversion(fields.draft(locale: locale)))
+        XCTAssertFalse(model.offersEnterMeasuredWeight, "no second layout after Kitchen scale")
+        XCTAssertTrue(model.showsCountMethodPicker)
+        XCTAssertTrue(model.requirements.isEmpty, "\(model.requirements)")
+        XCTAssertTrue(model.canLog)
+        XCTAssertNil(model.blockedReason)
+        XCTAssertFalse(model.logButtonTitle.contains("about"), model.logButtonTitle)
+    }
+
+    /// If the direct weight is entered another way while the count fields show 120 g, Kitchen scale,
+    /// "Use original amount instead" applies those fields again (Log enabled); with empty fields the
+    /// state is clearly blocked and says why. Visible state and requirements never disagree.
+    func testUseOriginalAmountRestoresTheVisibleConversionOrBlocksClearly() throws {
+        let guides = try USDACountPortionGuides()
+        var state = try eggs(name: "Eggs, chicken, whole, raw", guides: guides)
+        FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(2, .count))
+        let model = FoodConfirmationViewModel(state: state, portionGuides: guides,
+                                              now: { [now] in now }, calendar: calendar) { _ in throw CocoaError(.fileWriteUnknown) }
+        model.changeTypicalWeight()
+        let fields = FoodConfirmationView.ConversionFields(text: "120", unit: .grams, method: .choice(.kitchenScale))
+        model.send(.setConversion(fields.draft(locale: locale)))
+        XCTAssertTrue(model.canLog)
+        model.send(.beginDirectWeight)
+        XCTAssertNil(model.state.quantity.conversion, "a direct weight replaces the conversion")
+        XCTAssertFalse(model.canLog, "an empty direct weight is blocked")
+        model.endDirectWeight(restoring: fields.draft(locale: locale))
+        XCTAssertNil(model.state.quantity.directWeight)
+        XCTAssertEqual(model.state.quantity.conversion?.convertedQuantity, try PositiveQuantity(value: 120, unit: .grams))
+        XCTAssertEqual(model.state.quantity.conversion?.methodVersion, CountConversionMethod.kitchenScale.storedCode)
+        XCTAssertEqual(model.state.quantity.value, 2, "the count is kept")
+        XCTAssertTrue(model.requirements.isEmpty, "\(model.requirements)")
+        XCTAssertTrue(model.canLog, "the 120 g and Kitchen scale shown are what Log saves")
+        XCTAssertTrue(model.offersTypicalWeight)
+        XCTAssertFalse(model.offersEnterMeasuredWeight)
+
+        model.send(.beginDirectWeight)
+        model.endDirectWeight(restoring: FoodConfirmationView.ConversionFields.cleared.draft(locale: locale))
+        XCTAssertNil(model.state.quantity.conversion)
+        XCTAssertFalse(model.canLog)
+        XCTAssertEqual(model.blockedReason, "Enter the total weight and how you got it, or change the unit to g or mL.",
+                       "empty fields: blocked, and the reason matches what is shown")
+    }
+
     func testNoGuideOnGramsOrForAnotherFood() throws {
         let guides = try USDACountPortionGuides()
         var state = try eggs(guides: guides)
@@ -255,6 +311,7 @@ final class CountPortionEstimatePresentationTests: XCTestCase {
             }
             XCTAssertFalse(model.showsPortionGuide, name)
             XCTAssertTrue(model.offersTypicalWeight, name)
+            XCTAssertFalse(model.offersEnterMeasuredWeight, name)
             XCTAssertTrue(model.requirements.isEmpty, "\(name): \(model.requirements)")
             model.useTypicalWeight()
             XCTAssertTrue(model.showsPortionGuide, name)

@@ -89,6 +89,25 @@ public final class FoodConfirmationViewModel: ObservableObject {
         portionGuideDismissed && portionGuideSet != nil && state.quantity.unit == .count && savedResult == nil
     }
 
+    /// "Enter measured weight" is offered only when no count weight layout is active: not beside the
+    /// typical weight, and not after Change, where the count's own weight row is the one layout
+    /// (journey QA D1 of PR #313). The view also hides it for the by-eye count layout.
+    public var offersEnterMeasuredWeight: Bool {
+        !showsPortionGuide && !offersTypicalWeight
+    }
+
+    /// "Use original amount instead": the direct weight ends and the count conversion the fields
+    /// still show is applied again, so the visible fields and Log's requirements agree. Starting a
+    /// direct weight cleared the state's conversion; without this the old fields would show while
+    /// Log asked for a weight.
+    public func endDirectWeight(restoring conversion: QuantityConversionDraft?) {
+        guard savedResult == nil else { return }
+        send(.endDirectWeight)
+        guard state.quantity.unit == .count, !state.usesSourceDeclaredServing, !countsPastedLabelServings,
+              !showsPortionGuide else { return }
+        send(.setConversion(conversion))
+    }
+
     /// The selected size, from the frozen table (the service resolves it again through its port).
     public var selectedPortionGuide: CountPortionGuideCode.Entry? {
         state.quantity.portionGuideCode.flatMap(CountPortionGuideCode.entry)
@@ -1393,7 +1412,7 @@ public struct FoodConfirmationView: View {
                 Text((pack.origin == .printed ? "Servings per pack printed on the label. " : "Servings per pack entered by you. ")
                      + PastedLabelText.wholePackNote(servingSize: model.pastedLabelServingSizeOrigin)).font(.caption)
             }
-            if !model.showsPortionGuide && !countEstimateLayout {
+            if model.offersEnterMeasuredWeight && !countEstimateLayout {
                 Button("Enter measured weight") { model.send(.beginDirectWeight); directWeightText = "" }
                     .disabled(model.state.quantity.directWeight != nil || model.state.usesSourceDeclaredServing || model.pastedLabelServingsOnly)
             }
@@ -1416,7 +1435,10 @@ public struct FoodConfirmationView: View {
                     Button("Keep this weight") { model.send(.confirmRetainedWeight) }.frame(minHeight: 44)
                 }
                 Text("The original amount below is kept as well. Changing it does not change your weight in grams.").font(.caption)
-                Button("Use original amount instead") { model.send(.endDirectWeight) }
+                Button("Use original amount instead") {
+                    model.endDirectWeight(restoring: ConversionFields(text: conversionText, unit: conversionUnit,
+                                                                      method: conversionMethod).draft(locale: locale))
+                }
             }
             TextField(model.state.isSourceRecipe ? "Recipe servings eaten" : model.state.usesSourceDeclaredServing ? "Source servings eaten" : model.state.quantity.directWeight == nil ? "Quantity" : "Original amount (optional)", text: $totalText)
                 .amountKeyboard($editingAmount, .confirmQuantity)

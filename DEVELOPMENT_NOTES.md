@@ -2778,10 +2778,13 @@ Pricing: Claude Opus 5.5 rates as recorded by the 24 October 2026 check in WHR-3
 | Assistive count amounts (#307), spec, amendment and gate fold-in | 5,383,256 (5,074,446) | 308,734 | 61,141 | 5,444,397 | $3.78 |
 | Assistive count amounts (#307), implementation and gates | 68,030,769 (64,979,540) | 3,050,897 | 151,894 | 68,182,663 | $31.29 |
 | Assistive count amounts (#307), merge, invariant review and journey QA fold-in | 71,520,992 (59,045,250) | 12,475,498 | 73,752 | 71,594,744 | $75.66 |
+| Assistive count amounts (#307), journey QA D1 fix (separate subagent) | 3,413,050 (3,353,227) | 59,753 | 15,318 | 3,428,368 | $1.28 |
 
 Boundary: `phase_usage.py --format claude --since 2026-10-24T08:54:35Z --until 2026-10-24T09:32:18Z` and `--since 2026-10-24T09:32:18Z --until 2026-10-24T11:17:15Z` on the subagent transcript alone. Cache writes are all 5-minute (308,734 and 3,050,897), 0 1-hour. Exact API-equivalent USD 3.7816832 and 31.289601. Output counts are as the transcript records them and are likely lower bounds, because messages record streaming-time snapshots.
 
 Fold-in row: same transcript, `phase_usage.py --format claude --since 2026-10-24T11:17:15Z --until 2026-10-24T15:56:49Z` (end captured with `date -u`). It covers the PR, the merge of main after #311, the invariant review fixes (servings predicate, reopened corrected eggs, header method, reuse bound to the record, method as an estimate, contract tests 6, 9, 10 and 15), the USDA allow-list release fix and manifest regeneration, the journey QA fix (method shown once), and the gate reruns. It spans a session restart, whose context reload accounts for most of the 12,475,498 5-minute cache writes. Exact API-equivalent USD 75.662556. The final gate run, this ledger edit, the commit, push and PR edit are outside the row.
+
+D1 fix row: a separate `claude-opus-5-5` subagent, transcript `subagents/agent-a5cb55c083a02f94b.jsonl` in the same session, working in the #307 worktree. `phase_usage.py --format claude --since 2026-10-25T03:47:33Z --until 2026-10-25T04:02:22Z` (both captured with `date -u`). It covers the journey QA D1 fix (no "Enter measured weight" beside the count's weight row after Change; "Use original amount instead" applies the visible count fields again), its presentation tests, the spec note and all gate runs. Cache writes are all 5-minute (59,753), 0 1-hour. Exact API-equivalent USD 1.2760504, same rates. This ledger edit, the commit, push and PR edit are outside the row; the orchestrator is not included.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
 
