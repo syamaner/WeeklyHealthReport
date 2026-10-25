@@ -260,6 +260,18 @@ public struct LabelPhotoConfirmation: Sendable {
         return build(try .init(fortificationAnswer: details.fortification, servingBasis: basis))
     }
 
+    /// Confirm's display input while items are still unresolved: each unresolved item is shown as
+    /// left unknown, so no value the user has not checked is counted, and it is never zero. It is
+    /// for display only. Log stays disabled until `review.canLog` (the source model's blocker), and
+    /// the Log path builds its input with `confirmation`, which refuses an unresolved review.
+    public func preview(_ review: LabelPhotoReview, details: PastedLabelDetails, imageEvidenceID: EvidenceID,
+                        manifestEvidenceID: EvidenceID, locale: LedgerText) throws -> PopulatedFoodConfirmation {
+        var shown = review
+        for item in review.unresolved { shown = try leaveUnknown(item, in: shown) }
+        return try confirmation(shown, details: details, imageEvidenceID: imageEvidenceID, manifestEvidenceID: manifestEvidenceID,
+                                attachment: nil, locale: locale)
+    }
+
     /// The shared Confirm input for Log, verified with the save verifier before it is returned.
     /// The image evidence carries `attachment` once the bytes are persisted (17.3).
     public func confirmation(_ review: LabelPhotoReview, details: PastedLabelDetails, imageEvidenceID: EvidenceID,

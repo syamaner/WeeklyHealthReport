@@ -62,6 +62,8 @@ final class LabelPhotoReadSessionTests: XCTestCase {
         var failsWrites = false
         /// Fails only this many further writes, then succeeds.
         var failNextWrites = 0
+        /// Stores the next write, then throws as if it had failed (a write that landed but errored).
+        var storeThenThrowNext = false
         var writes = 0
         private let lock = NSLock()
         func load() -> LabelPhotoSpendPolicy.Stored { lock.withLock { stored } }
@@ -72,6 +74,7 @@ final class LabelPhotoReadSessionTests: XCTestCase {
                 if failsWrites { throw WriteFailed() }
                 if failNextWrites > 0 { failNextWrites -= 1; throw WriteFailed() }
                 writes += 1; stored = .day(day)
+                if storeThenThrowNext { storeThenThrowNext = false; throw WriteFailed() }
                 return day
             }
         }
@@ -84,6 +87,14 @@ final class LabelPhotoReadSessionTests: XCTestCase {
         func save(_ key: String) throws { self.key = key }
         func delete() throws { key = nil }
     }
+
+    /// Sequential tap IDs, "tap-1", "tap-2", ...
+    final class Taps: @unchecked Sendable {
+        private var count = 0
+        private let lock = NSLock()
+        func next() -> String { lock.withLock { count += 1; return "tap-\(count)" } }
+    }
+    static let taps = Taps()
 
     static let good = LabelPhotoManifest.CatalogueCheck(at: 1, slug: "google/gemini-4-argon", endpoint: "google-vertex",
         inputModalities: ["text", "image"], zeroDataRetention: true, promptPrice: "0.000002", completionPrice: "0.00001")
@@ -107,7 +118,7 @@ final class LabelPhotoReadSessionTests: XCTestCase {
         let attempter = Attempter(script, clock: clock)
         let sleeper = Sleeper(clock: clock)
         let session = LabelPhotoReadSession(checker: checker, attempter: attempter, ledger: ledger, keys: keys, clock: clock,
-                                            calendar: calendar, sleeper: sleeper, jitter: { 0 })
+                                            calendar: calendar, sleeper: sleeper, jitter: { 0 }, tapIDs: Self.taps.next)
         return (session, attempter, checker, ledger, sleeper)
     }
 
@@ -234,11 +245,11 @@ final class LabelPhotoReadSessionTests: XCTestCase {
         let task = Task { [session, prepared] in await session.read(prepared) }
         while attempter.hold == nil { await Task.yield() }
         // The attempt is in flight and has not returned: the reservation is already stored.
-        XCTAssertEqual(ledger.day, .init(day: "2026-10-25", reads: 4, cost: Decimal(string: "0.15")!, paused: false))
+        assertDay(ledger.day, reads: 4, cost: Decimal(string: "0.15")!, open: 1)
         attempter.hold?.resume()
         _ = await task.value
         // Reconciled down to the reported $0.01.
-        XCTAssertEqual(ledger.day, .init(day: "2026-10-25", reads: 4, cost: Decimal(string: "0.11")!, paused: false))
+        assertDay(ledger.day, reads: 4, cost: Decimal(string: "0.11")!, open: 0)
     }
 
     func testTheReservationIsReconciledUpwards() async {
@@ -342,12 +353,12 @@ final class LabelPhotoReadSessionTests: XCTestCase {
         while attemptsA.hold == nil { await Task.yield() }
         let tapB = Task { [b, prepared] in await b.read(prepared) }
         while attemptsB.hold == nil { await Task.yield() }
-        XCTAssertEqual(ledger.day, .init(day: "2026-10-25", reads: 12, cost: Decimal(string: "0.20")!, paused: false), "both reserved")
+        assertDay(ledger.day, reads: 12, cost: Decimal(string: "0.20")!, open: 2, "both reserved")
         attemptsB.hold?.resume()
         _ = await tapB.value
         attemptsA.hold?.resume()
         _ = await tapA.value
-        XCTAssertEqual(ledger.day, .init(day: "2026-10-25", reads: 12, cost: Decimal(string: "0.16")!, paused: false))
+        assertDay(ledger.day, reads: 12, cost: Decimal(string: "0.16")!, open: 0)
     }
 
     func testAReleaseNeverWipesAnotherSessionsReservation() async {
@@ -359,10 +370,10 @@ final class LabelPhotoReadSessionTests: XCTestCase {
         let tapA = Task { [a, prepared] in await a.read(prepared) }
         while attemptsA.hold == nil { await Task.yield() }
         _ = await b.read(prepared)   // reserves, sends nothing, releases
-        XCTAssertEqual(ledger.day, .init(day: "2026-10-25", reads: 11, cost: Decimal(string: "0.15")!, paused: false), "A's reservation kept")
+        assertDay(ledger.day, reads: 11, cost: Decimal(string: "0.15")!, open: 1, "A's reservation kept")
         attemptsA.hold?.resume()
         _ = await tapA.value
-        XCTAssertEqual(ledger.day, .init(day: "2026-10-25", reads: 11, cost: Decimal(string: "0.11")!, paused: false))
+        assertDay(ledger.day, reads: 11, cost: Decimal(string: "0.11")!, open: 0)
     }
 
     func testAFailedReconcileWriteIsRetriedOnce() async {
@@ -373,5 +384,95 @@ final class LabelPhotoReadSessionTests: XCTestCase {
         XCTAssertEqual(ledger.day?.cost, Decimal(string: "0.01"), "reconciled on the retry")
         attempter.during = nil
         guard case .answered = await session.read(image) else { return XCTFail("the route stays open") }
+    }
+
+    /// The day's counts and how many reservations are still open (tap IDs are per process).
+    func assertDay(_ day: LabelPhotoSpendPolicy.Day?, reads: Int, cost: Decimal, open: Int, _ message: String = "",
+                   file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertEqual(day?.day, "2026-10-25", message, file: file, line: line)
+        XCTAssertEqual(day?.reads, reads, message, file: file, line: line)
+        XCTAssertEqual(day?.cost, cost, message, file: file, line: line)
+        XCTAssertEqual(day?.paused, false, message, file: file, line: line)
+        XCTAssertEqual(day?.openTaps.count, open, message, file: file, line: line)
+    }
+
+    // MARK: #326 re-check 2: the clock moved back, and an idempotent settle
+
+    func testAClockMovedBackSettlesOnTheReservationsDay() async {
+        // Stored for tomorrow (the clock has since moved back a day): the reservation counts there,
+        // and the settle reconciles there too instead of skipping.
+        let ledger = Ledger(); ledger.stored = .day(.init(day: "2026-10-26", reads: 2, cost: Decimal(string: "0.10")!, paused: false))
+        let (session, _, _, _, _) = makeSession([Self.answer], ledger: ledger)
+        _ = await session.read(image)
+        XCTAssertEqual(ledger.day?.day, "2026-10-26")
+        XCTAssertEqual(ledger.day?.reads, 3)
+        XCTAssertEqual(ledger.day?.cost, Decimal(string: "0.11"), "reconciled, not left at the $0.05 reservation")
+        XCTAssertEqual(ledger.day?.openTaps, [])
+    }
+
+    func testARetriedSettleNeverAppliesTwice() async {
+        // The first settle is stored but reported as failed; the retry finds the tap closed.
+        let ledger = Ledger()
+        let (session, attempter, _, _, _) = makeSession([Self.answer], ledger: ledger)
+        attempter.during = { ledger.storeThenThrowNext = true }
+        _ = await session.read(image)
+        XCTAssertEqual(ledger.day?.reads, 1)
+        XCTAssertEqual(ledger.day?.cost, Decimal(string: "0.01"), "reconciled once: not 0.01 - 0.05 + 0.01")
+        XCTAssertEqual(ledger.day?.openTaps, [])
+    }
+
+    func testOldDaysWithoutOpenTapsStillDecode() throws {
+        let old = Data(#"{"cost":0.1,"day":"2026-10-25","paused":false,"reads":2}"#.utf8)
+        let day = try JSONDecoder().decode(LabelPhotoSpendPolicy.Day.self, from: old)
+        XCTAssertEqual(day.openTaps, [])
+        XCTAssertEqual(day.reads, 2)
+    }
+
+    // MARK: Invariant review of #327: the day's status and the route failure kept for the day
+
+    func testStatusReportsTheDaysAdmission() async {
+        let ledger = Ledger()
+        let (session, _, _, _, _) = makeSession([Self.answer], ledger: ledger)
+        var status = await session.status()
+        XCTAssertEqual(status, .init(day: .open(reads: 0), routeUnavailable: false))
+        ledger.stored = .day(.init(day: "2026-10-25", reads: 7, cost: Decimal(string: "0.20")!, paused: false))
+        status = await session.status()
+        XCTAssertEqual(status.day, .open(reads: 7))
+        ledger.stored = .day(.init(day: "2026-10-25", reads: 30, cost: Decimal(string: "0.20")!, paused: false))
+        status = await session.status()
+        XCTAssertEqual(status.day, .limitReached)
+        ledger.stored = .day(.init(day: "2026-10-25", reads: 2, cost: Decimal(string: "0.10")!, paused: true))
+        status = await session.status()
+        XCTAssertEqual(status.day, .paused)
+        ledger.stored = .unreadable
+        status = await session.status()
+        XCTAssertEqual(status.day, .unreadable)
+        // A failed ledger write makes the session report unreadable even if the file reads again.
+        let failing = Ledger(); failing.failsWrites = true
+        let (closed, _, _, _, _) = makeSession([Self.answer], ledger: failing)
+        _ = await closed.read(image)
+        failing.failsWrites = false
+        let closedStatus = await closed.status()
+        XCTAssertEqual(closedStatus.day, .unreadable)
+    }
+
+    func testARouteFailureIsKeptForTheDayAndCheckedAgainTomorrow() async {
+        let clock = Clock()
+        let checker = Checker(.failure(URLError(.notConnectedToInternet)))
+        let (session, attempter, _, _, _) = makeSession([Self.answer], checker: checker, clock: clock)
+        let first = await session.read(image)
+        XCTAssertEqual(first, .failed(.routeUnavailable))
+        let status = await session.status()
+        XCTAssertTrue(status.routeUnavailable)
+        let second = await session.read(image)
+        XCTAssertEqual(second, .failed(.routeUnavailable))
+        XCTAssertEqual(checker.calls, 1, "not checked again the same day")
+        XCTAssertTrue(attempter.timeouts.isEmpty)
+        clock.value += 86_400
+        checker.result = .success(Self.good)
+        let nextDay = await session.status()
+        XCTAssertFalse(nextDay.routeUnavailable)
+        guard case .answered = await session.read(image) else { return XCTFail("checked again on a new day") }
+        XCTAssertEqual(checker.calls, 2)
     }
 }

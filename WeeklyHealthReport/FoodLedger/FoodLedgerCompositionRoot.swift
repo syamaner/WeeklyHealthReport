@@ -5,6 +5,8 @@ import FoodLedgerGRDB
 import FoodLedgerPresentation
 import FoodBarcodeCapture
 import FoodInventoryImport
+import FoodLabelPhotoCapture
+import FoodLabelPhotoUI
 import FoodLabelTextCapture
 import Foundation
 import SwiftUI
@@ -39,6 +41,10 @@ final class FoodLedgerCompositionRoot {
     private let confirmationClock: any LedgerClock
     private let confirmationCalendar: Calendar
     private let draftURL: URL
+    /// Under the backup-excluded, file-protected health-data directory (17.8, test 24).
+    let healthDirectory: URL
+    let attachmentsRoot: URL
+    let labelPhotoSpendLedgerURL: URL
     private var activeInventory: LocalInventoryViewModel?
     private var inventoryService: LocalInventoryService?
     private var activeReresolution: FoodReresolutionViewModel?
@@ -71,6 +77,9 @@ final class FoodLedgerCompositionRoot {
             .appendingPathComponent("v1", isDirectory: true)
         inventoryURL = applicationSupport.appendingPathComponent("WeeklyHealthReport/Inventory/v1/inventory.sqlite")
         draftURL = root.appendingPathComponent("food-list-draft.sqlite")
+        attachmentsRoot = root.appendingPathComponent("Attachments", isDirectory: true)
+        labelPhotoSpendLedgerURL = root.appendingPathComponent("label-photo-spend-v1.json")
+        self.healthDirectory = healthDirectory
         store = try FoodLedgerGRDBStore(
             databaseURL: root.appendingPathComponent("food-ledger.sqlite"),
             attachmentsRoot: root.appendingPathComponent("Attachments", isDirectory: true)
@@ -127,7 +136,8 @@ final class FoodLedgerCompositionRoot {
         milkVolumeConversion = try CoFIDWholeMilkVolumeConversion()
     }
 
-    func model(for input: PopulatedFoodConfirmation, queryQuantity: ParsedFoodQuery.Quantity? = nil, searchInterpretation: FoodQueryInterpretation? = nil, prefillSourceQuantity: Bool = true, savesFavourite: Bool = false, entryDay: String? = nil) -> FoodConfirmationViewModel {
+    func model(for input: PopulatedFoodConfirmation, queryQuantity: ParsedFoodQuery.Quantity? = nil, searchInterpretation: FoodQueryInterpretation? = nil, prefillSourceQuantity: Bool = true, savesFavourite: Bool = false, entryDay: String? = nil,
+               save: (@MainActor (FoodConfirmationState) throws -> StoredFoodConfirmation)? = nil) -> FoodConfirmationViewModel {
         let (prepared, offering) = withMilkVolumeSource(input)
         var state = FoodConfirmationState(input: prepared, queryQuantity: queryQuantity, prefillSourceQuantity: prefillSourceQuantity)
         let when = entryWhen(day: entryDay)
@@ -137,7 +147,8 @@ final class FoodLedgerCompositionRoot {
                                          now: { clock.now() }, calendar: confirmationCalendar,
                                          savesFavourite: savesFavourite, favouriteAction: favouriteAction,
                                          whenNotice: FoodLogText.whenNotice(when)) { [confirmations, ids] state in
-            try confirmations.save(
+            if let save { return try save(state) }
+            return try confirmations.save(
                 state,
                 operationID: ids.makeID(OperationTag.self),
                 idempotencyKey: nil
@@ -715,6 +726,7 @@ struct AddFoodFlowView: View {
     @State private var showsList = false
     @State private var showsFavourites = false
     @State private var showsLabel = false
+    @State private var showsPhotoLabel = false
     @State private var confirmationModel: FoodConfirmationViewModel?
     @State private var showsConfirmation = false
     @State private var relogFailed = false
@@ -735,6 +747,7 @@ struct AddFoodFlowView: View {
                     scanBarcode: { showsBarcode = true },
                     pasteOrDictate: { showsList = true },
                     pasteLabel: { showsLabel = true },
+                    photoLabel: root.labelPhotoEnabled ? { showsPhotoLabel = true } : nil,
                     favourites: { showsFavourites = true },
                     favouriteItems: quickAddItems,
                     favouriteAmountIsServings: { root.favouriteAmountIsServings($0) },
@@ -767,6 +780,11 @@ struct AddFoodFlowView: View {
             PastedLabelFlowView(root: root, finish: finish) {
                 showsLabel = false; now = root.confirmationNow; recents = root.recentFoods()
             }
+        }
+        .navigationDestination(isPresented: $showsPhotoLabel) {
+            if let flow = LabelPhotoFlowView(root: root, finish: finish, close: {
+                showsPhotoLabel = false; now = root.confirmationNow; recents = root.recentFoods()
+            }) { flow } else { ContentUnavailableView("Label photo unavailable", systemImage: "exclamationmark.triangle") }
         }
         .navigationDestination(isPresented: $showsConfirmation) {
             if let confirmationModel {
@@ -1349,5 +1367,221 @@ extension View {
     func quickAdd(root: FoodLedgerCompositionRoot, request: Binding<QuickAddItem?>, finish: FoodEntryFinish? = nil,
                   logged: @escaping () -> Void) -> some View {
         modifier(QuickAddPresenter(root: root, request: request, finish: finish, logged: logged))
+    }
+}
+
+// MARK: Label photo (#316, docs/label-photo-ai-prefill-v1.md L4)
+
+/// The label photo route's mode. Off by default: the route is enabled only by the launch argument
+/// `-LabelPhotoRoute <scenario>`, and then only with the scripted fake transport (no network). L5
+/// wires the live transport with the egress records (E16).
+enum LabelPhotoRouteMode: Equatable {
+    case off
+    case fake(ScriptedLabelPhotoTransport.Scenario)
+
+    static func from(_ defaults: UserDefaults) -> LabelPhotoRouteMode {
+        guard let raw = defaults.string(forKey: "LabelPhotoRoute"), let scenario = ScriptedLabelPhotoTransport.Scenario(rawValue: raw) else {
+            return .off
+        }
+        return .fake(scenario)
+    }
+}
+
+/// A key store for the fake route: a syntactically valid placeholder that never leaves the device
+/// (the scripted transport sends nothing). `-LabelPhotoKey missing` removes it.
+struct LabelPhotoFakeKeys: FoodWebKeyStoring {
+    let present: Bool
+    func load() throws -> String? { present ? "sk-or-v1-scripted-placeholder-0000000000" : nil }
+    func save(_ key: String) throws {}
+    func delete() throws {}
+}
+
+/// One read session per spend ledger per process (#326 re-check): every scene and every Label
+/// photo screen shares it, so taps are serialised by the session's in-flight guard as well as by
+/// the ledger's atomic update.
+@MainActor
+enum LabelPhotoSessions {
+    private static var flows: [String: LabelPhotoReadFlow] = [:]
+
+    static func flow(ledgerURL: URL, make: () throws -> LabelPhotoReadFlow) rethrows -> LabelPhotoReadFlow {
+        if let existing = flows[ledgerURL.path] { return existing }
+        let flow = try make()
+        flows[ledgerURL.path] = flow
+        return flow
+    }
+
+    static var count: Int { flows.count }
+}
+
+extension FoodLedgerCompositionRoot {
+    var labelPhotoMode: LabelPhotoRouteMode { LabelPhotoRouteMode.from(userDefaults) }
+    var labelPhotoEnabled: Bool { labelPhotoMode != .off }
+
+    /// The fake route's first-use consent (17.19). L5's live route uses its own, fresh key, so a
+    /// consent given to the scripted transport never stands for real egress.
+    static let labelPhotoConsentKey = "labelPhoto.egressConsent.scripted.v1"
+
+    /// The read flow for the enabled route, shared per process, or nil when the route is off.
+    @MainActor
+    func labelPhotoFlow() -> LabelPhotoReadFlow? {
+        guard case let .fake(scenario) = labelPhotoMode else { return nil }
+        let keys = LabelPhotoFakeKeys(present: userDefaults.string(forKey: "LabelPhotoKey") != "missing")
+        let clock = confirmationClock, calendar = confirmationCalendar, ledgerURL = labelPhotoSpendLedgerURL
+        return try? LabelPhotoSessions.flow(ledgerURL: ledgerURL) {
+            let transport = ScriptedLabelPhotoTransport(scenario: scenario)
+            let attempt = OpenRouterLabelPhotoAttempt(transport: transport, keys: keys, request: try OpenRouterLabelPhotoRequest())
+            let session = LabelPhotoReadSession(checker: OpenRouterLabelRouteChecker(transport: transport, clock: clock), attempter: attempt,
+                ledger: FileLabelPhotoSpendLedger(url: ledgerURL), keys: keys, clock: clock, calendar: calendar,
+                sleeper: TaskLabelPhotoSleeper(), jitter: { Double.random(in: 0...1) }, tapIDs: { UUID().uuidString })
+            return LabelPhotoReadFlow(preparer: ImageIOLabelImagePreparer(), session: session,
+                interpreter: LabelPhotoComponents.interpreter(), locator: VisionLabelValueLocator(), builder: labelPhotoBuilder)
+        }
+    }
+
+    var labelPhotoBuilder: LabelPhotoConfirmation {
+        LabelPhotoConfirmation(clock: confirmationClock, encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester(),
+                               conversions: NutritionLabelConversionChecker())
+    }
+
+    /// The Label photo screen's model, or nil when the route is off.
+    @MainActor
+    func labelPhotoScreenModel(locale: Locale = .current) -> LabelPhotoScreenModel? {
+        guard let flow = labelPhotoFlow() else { return nil }
+        let defaults = userDefaults, builder = labelPhotoBuilder, ids = ids
+        let identifier = locale.identifier.isEmpty ? "und" : locale.identifier
+        let keyArgument = defaults.string(forKey: "LabelPhotoKey")
+        return LabelPhotoScreenModel(environment: .init(
+            prepare: { flow.prepare($0, crop: $1) },
+            read: { image, progress in await flow.read(image, progress: progress) },
+            status: { await flow.status() },
+            keyState: { keyArgument == "missing" ? .missing : keyArgument == "unvalidated" ? .notValidated : .valid },
+            isOnline: { !defaults.bool(forKey: "LabelPhotoOffline") },
+            hasConsented: { defaults.bool(forKey: Self.labelPhotoConsentKey) },
+            recordConsent: { defaults.set(true, forKey: Self.labelPhotoConsentKey) },
+            makeConfirm: { review, image, details in
+                try LabelPhotoSourceModel(review: review, imageBytes: image.bytes, details: details, builder: builder,
+                    imageEvidenceID: ids.makeID(EvidenceTag.self), manifestEvidenceID: ids.makeID(EvidenceTag.self),
+                    locale: LedgerText(identifier))
+            }))
+    }
+
+    /// Confirm for a label photo: the same Confirm and Log as every route. Log goes through the
+    /// atomic photo save (17.3), and only once every attention item is resolved.
+    @MainActor
+    func labelPhotoConfirmationModel(_ source: LabelPhotoSourceModel, entryDay: String?) -> FoodConfirmationViewModel {
+        let confirmations = confirmations, store = store, ids = ids
+        let model = model(for: source.input, prefillSourceQuantity: false, entryDay: entryDay) { [weak source] state in
+            // Only the source's own verified input is logged: never a preview, and never an input
+            // that no longer matches the source (invariant review of #327).
+            guard let source, source.canLog, state.input == source.input else { throw FoodConfirmationSaveError.invalidPastedLabelSource }
+            return try confirmations.saveLabelPhoto(state, imageBytes: source.imageBytes, attachmentStore: store,
+                                                     operationID: ids.makeID(OperationTag.self))
+        }
+        model.answersLabelFortification(for: source)
+        model.sourceBlocker = source.blocker
+        source.onInputChange = { [weak model] input in model?.replaceSourceInput(input) }
+        source.onBlockerChange = { [weak model] blocker in model?.sourceBlocker = blocker }
+        return model
+    }
+
+    /// A logged label photo's bytes from the attachments directory, or nil when it is not on this
+    /// device (for example after restoring an archive, which omits raw attachments).
+    func labelPhotoBytes(_ descriptor: AttachmentDescriptor) -> Data? {
+        let url = attachmentsRoot.appendingPathComponent(descriptor.relativePath.value).standardizedFileURL
+        guard url.path.hasPrefix(attachmentsRoot.standardizedFileURL.path + "/") else { return nil }
+        return FileManager.default.contents(atPath: url.path)
+    }
+
+    /// The fake route's photo source yields the rendered synthetic label (17.19).
+    var labelPhotoSample: Data? {
+        labelPhotoEnabled ? LabelPhotoSyntheticRenderer.jpeg(lines: LabelPhotoSyntheticLabel.lines) : nil
+    }
+}
+
+/// `FoodLabelPhotoUI`'s views behind presentation's factory port (17.2).
+struct AppLabelPhotoViews: LabelPhotoViewFactory {
+    let sample: Data?
+
+    func sourceButtons(photo: @escaping (Data) -> Void, cameraDenied: @escaping () -> Void) -> AnyView {
+        AnyView(LabelPhotoSourceButtons(photo: photo, cameraDenied: cameraDenied, sample: sample))
+    }
+
+    func crop(photo: Data, initial: LabelCropRect, use: @escaping (LabelCropRect) -> Void, cancel: @escaping () -> Void) -> AnyView {
+        AnyView(LabelPhotoCropView(photo: photo, initial: initial, use: use, cancel: cancel))
+    }
+
+    func preparedPhoto(_ bytes: Data) -> AnyView {
+        AnyView(LabelPhotoPreview(photo: bytes))
+    }
+
+    func pane(_ bytes: Data, focus: LabelPhotoFocus?, fullScreen: @escaping () -> Void) -> AnyView {
+        AnyView(LabelPhotoPane(photo: bytes, highlight: Self.highlight(focus), fullScreen: fullScreen))
+    }
+
+    func fullScreenPane(_ bytes: Data, focus: LabelPhotoFocus?, done: @escaping () -> Void) -> AnyView {
+        AnyView(LabelPhotoFullScreenPane(photo: bytes, highlight: Self.highlight(focus), done: done))
+    }
+
+    static func highlight(_ focus: LabelPhotoFocus?) -> LabelPhotoPane.Highlight? {
+        guard let focus else { return nil }
+        let rect = focus.region.map { CGRect(x: $0.x, y: $0.y, width: $0.width, height: $0.height) }
+        return LabelPhotoPane.Highlight(rect: rect, caption: focus.caption, request: focus.request)
+    }
+}
+
+/// Photo of nutrition label (#316): Label photo, then the shared Confirm with one Log action.
+/// Leaving, or logging, drops the photo from memory; it is kept only with a logged entry (E15).
+struct LabelPhotoFlowView: View {
+    private let root: FoodLedgerCompositionRoot
+    private let finish: FoodEntryFinish?
+    private let close: () -> Void
+    private let views: AppLabelPhotoViews
+    @StateObject private var model: LabelPhotoScreenModel
+    @State private var confirmationModel: FoodConfirmationViewModel?
+    @State private var showsConfirmation = false
+    @State private var showsPaste = false
+    @State private var showsSearch = false
+    @State private var showsKeySettings = false
+    @Environment(\.openURL) private var openURL
+
+    @MainActor
+    init?(root: FoodLedgerCompositionRoot, finish: FoodEntryFinish?, close: @escaping () -> Void) {
+        guard let model = root.labelPhotoScreenModel() else { return nil }
+        self.root = root; self.finish = finish; self.close = close
+        views = AppLabelPhotoViews(sample: root.labelPhotoSample)
+        _model = StateObject(wrappedValue: model)
+    }
+
+    var body: some View {
+        LabelPhotoScreenView(model: model, views: views,
+                             openSettings: { if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) } },
+                             openRouterSettings: { showsKeySettings = true },
+                             pasteLabel: { showsPaste = true }, searchFoods: { showsSearch = true },
+                             privacyPolicy: { openURL(PrivacyPolicy.publicURL) }, leave: close)
+            .onChange(of: showsConfirmation) { _, shown in
+                if !shown { Task { await model.returnedFromConfirm() } }
+            }
+            .onChange(of: model.confirmSource.map(ObjectIdentifier.init)) { _, _ in
+                guard let source = model.confirmSource else { return }
+                confirmationModel = root.labelPhotoConfirmationModel(source, entryDay: finish?.entryDay)
+                showsConfirmation = true
+            }
+            .navigationDestination(isPresented: $showsConfirmation) {
+                if let confirmationModel, let source = model.confirmSource {
+                    FoodConfirmationView(model: confirmationModel, labelPhoto: source, labelPhotoViews: views,
+                                         retakePhoto: { showsConfirmation = false; model.retake() },
+                                         logged: { [banner = root.loggedBanner] in banner.show($0) }) {
+                        guard let saved = confirmationModel.savedResult else { showsConfirmation = false; return }
+                        model.leave()
+                        if !FoodEntryFinish.complete(finish, saved: saved) { close() }
+                    }
+                }
+            }
+            .navigationDestination(isPresented: $showsPaste) { PastedLabelFlowView(root: root, finish: finish) { showsPaste = false } }
+            .navigationDestination(isPresented: $showsKeySettings) { OpenRouterFoodKeyView(model: root.webDiscovery) }
+            .navigationDestination(isPresented: $showsSearch) {
+                if let flow = GenericFoodSearchFlowView(root: root, finish: finish) { flow }
+                else { ContentUnavailableView("Food search unavailable", systemImage: "exclamationmark.triangle") }
+            }
     }
 }

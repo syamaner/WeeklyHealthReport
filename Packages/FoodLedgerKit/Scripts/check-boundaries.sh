@@ -129,6 +129,30 @@ check_label_reader_edges() {
     done < <(find "$capture" -name '*.swift' -type f)
   fi
 
+  # Label photo UI (17.2, 17.19): only the composition root and the target's own tests import it,
+  # and presentation never does. AVFoundation stays in the source buttons (camera authorisation
+  # status only), and the UI never loads a URL.
+  while IFS= read -r file; do
+    if [[ -z "$file" ]]; then continue; fi
+    if [[ "$file" != "$app/WeeklyHealthReport/FoodLedger/FoodLedgerCompositionRoot.swift" && ! "$file" =~ /Tests/FoodLabelPhotoUITests/ ]]; then
+      violations+="FoodLabelPhotoUI imported by $file"$'\n'
+    fi
+  done < <(files_importing FoodLabelPhotoUI "${scanned[@]}")
+  local photoUI="$pkg/Sources/FoodLabelPhotoUI"
+  if [[ -d "$photoUI" ]]; then
+    while IFS= read -r file; do
+      if [[ -z "$file" ]]; then continue; fi
+      base="${file##*/}"
+      modules="$(module_imports "$file" | sort -u)"
+      if grep -qxE 'AVFoundation' <<< "$modules" && [[ "$base" != "LabelPhotoSourceButtons.swift" ]]; then
+        violations+="$file imports AVFoundation outside the source buttons"$'\n'
+      fi
+      if grep -qE 'URLSession|NSURLConnection|CFNetwork|CFStream|Data\(contentsOf:|String\(contentsOf:' "$file"; then
+        violations+="$file loads a URL in the label photo UI"$'\n'
+      fi
+    done < <(find "$photoUI" -name '*.swift' -type f)
+  fi
+
   # Only the preparer builds a PreparedLabelImage (docs/label-photo-ai-prefill-v1.md 17.8 M6): its
   # initialiser is private to LabelPhotoPorts.swift, and the package factory there is called only
   # in the preparer's own file and in tests.
@@ -161,12 +185,13 @@ check_label_reader_edges() {
     if [[ -z "$line" ]]; then continue; fi
     name="$(sed -nE 's/^[^"]*name:[[:space:]]*"([A-Za-z0-9_]+)".*/\1/p' <<< "$line")"
     rest="$(sed -E 's/name:[[:space:]]*"[A-Za-z0-9_]+"//' <<< "$line")"
-    for dep in NutritionLabelParsing FoodLabelTextCapture FoodLabelPhotoReading FoodLabelPhotoCapture; do
+    for dep in NutritionLabelParsing FoodLabelTextCapture FoodLabelPhotoReading FoodLabelPhotoCapture FoodLabelPhotoUI; do
       if [[ "$rest" != *"\"$dep\""* ]]; then continue; fi
       case "$dep" in
         NutritionLabelParsing) allowed='^(FoodLabelTextCapture|FoodLabelPhotoReading|NutritionLabelTextParse|NutritionLabelParsingTests|FoodLabelTextCaptureTests|FoodLabelPhotoReadingTests)$' ;;
         FoodLabelPhotoReading) allowed='^(FoodLabelPhotoReadingTests|FoodLabelPhotoCapture|FoodLabelPhotoCaptureTests)$' ;;
         FoodLabelPhotoCapture) allowed='^(FoodLabelPhotoCaptureTests)$' ;;
+        FoodLabelPhotoUI) allowed='^(FoodLabelPhotoUITests)$' ;;
         *) allowed='^(FoodLabelTextCaptureTests)$' ;;
       esac
       if [[ ! "$name" =~ $allowed ]]; then violations+="Package.swift: $name depends on $dep"$'\n'; fi
@@ -295,6 +320,8 @@ check_imports FoodLabelTextCapture '^(Foundation|FoodLedgerApplication|FoodLedge
 check_imports FoodLabelPhotoReading '^(Foundation|FoodLedgerApplication|FoodLedgerDomain|NutritionLabelParsing)$'
 # Label photo capture adapters (17.2): platform frameworks, each confined to its adapter file above.
 check_imports FoodLabelPhotoCapture '^(CoreGraphics|Foundation|ImageIO|UniformTypeIdentifiers|Vision|FoodLedgerApplication|FoodLedgerDomain|FoodLabelPhotoReading)$'
+# Label photo UI (17.2, 17.19): camera, PhotosPicker, crop and the photo pane.
+check_imports FoodLabelPhotoUI '^(AVFoundation|Foundation|FoodLedgerApplication|FoodLedgerDomain|PhotosUI|SwiftUI|UIKit)$'
 check_imports FoodLedgerDomain '^(Foundation)$'
 # Pure label-text parser under evaluation (#255): no app, platform or hashing dependency.
 check_imports NutritionLabelParsing '^(Foundation)$'

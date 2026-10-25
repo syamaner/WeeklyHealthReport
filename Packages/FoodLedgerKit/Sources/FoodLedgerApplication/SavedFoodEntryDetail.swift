@@ -46,6 +46,11 @@ public struct SavedFoodEntryDetail: Sendable {
     public let pastedLabel: PastedLabelEvidenceManifest?
     /// Pasted label Confirm v1 (#306) 4.5: "Fortification on the label", nil for other sources.
     public let pastedLabelFortification: String?
+    /// A label photo's stored manifest (#316), for the saved source line and per-value states;
+    /// nil for every other route.
+    public let labelPhoto: LabelPhotoManifest?
+    /// The logged photo's attachment, when it is on this device (E15).
+    public let labelPhotoAttachment: AttachmentDescriptor?
     /// Each stored value's origin under `NutrientValueOrigin`, for a pasted label only.
     public let valueOrigins: [NutrientKey: NutrientValueOrigin]
     /// A pasted label's stored values by key, so a bound can be shown as a bound ("Less than
@@ -87,6 +92,16 @@ public struct SavedFoodEntryDetail: Sendable {
         let manifest = release?.sourceID.value == PastedLabelSource.sourceID
             ? PastedLabelValueOrigins.manifest(evidence: stored.evidence, evidenceIDs: stored.candidateDecision.candidate.evidenceIDs) : nil
         pastedLabel = manifest
+        let photoEvidence = stored.evidence.filter { stored.candidateDecision.candidate.evidenceIDs.contains($0.evidenceID) }
+        if release?.sourceID.value == LabelPhotoSource.sourceID,
+           let manifestEvidence = photoEvidence.first(where: { $0.captureMethodVersion.value == LabelPhotoManifest.version }),
+           case let .text(payload) = manifestEvidence.originalPayload {
+            labelPhoto = LabelPhotoManifest.decode(Data(payload.value.utf8))
+            labelPhotoAttachment = photoEvidence.first { $0.attachment != nil }?.attachment
+        } else {
+            labelPhoto = nil
+            labelPhotoAttachment = nil
+        }
         pastedLabelFortification = manifest.map { PastedLabelFortificationText.value(stored, manifest: $0) }
         valueOrigins = manifest.map { PastedLabelValueOrigins.origins(stored.resolutionVersion.nutrients, manifest: $0) } ?? [:]
         pastedLabelValues = manifest == nil ? [:]

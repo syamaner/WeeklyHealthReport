@@ -92,6 +92,8 @@ public struct LabelPhotoWireReply: Equatable, Sendable {
 public enum LabelImageReadingFailure: Error, Equatable, Sendable {
     case offline, keyMissing, keyRejected, routeUnavailable, dailyLimit, paused, timedOut, cancelled
     case providerUnavailable, wrongModel, wrongProvider, truncated, refused, oversize, unreadableAnswer, failed
+    /// HTTP 429: OpenRouter reports a quota or rate limit (7.2, its own copy). Still retried (E11).
+    case quotaLimited
 }
 
 /// What one attempt that sent the prepared bytes returned (12.1, 17.5). A failed attempt carries

@@ -478,8 +478,12 @@ public final class FoodConfirmationViewModel: ObservableObject {
         FoodLogPolicy.requirements(state, now: now(), calendar: calendar)
     }
 
+    /// A source that is not ready to log yet (the label photo's unresolved attention items, P12):
+    /// its sentence disables Log and is stated beside it, after any requirement's sentence.
+    @Published public var sourceBlocker: String?
+
     public var canLog: Bool {
-        guard requirements.isEmpty, hasChangesToSave else { return false }
+        guard requirements.isEmpty, hasChangesToSave, sourceBlocker == nil else { return false }
         switch state.phase {
         case .editing, .saveFailed: return true
         case .saving, .saved: return false
@@ -488,7 +492,9 @@ public final class FoodConfirmationViewModel: ObservableObject {
 
     /// The first blocking requirement, stated beside the disabled Log button.
     public var blockedReason: String? {
-        requirements.first.map(requirementText) ?? (hasChangesToSave ? nil : Self.noChangesReason)
+        let requirement = requirements.first.map(requirementText)
+        if let sourceBlocker { return [requirement, sourceBlocker].compactMap { $0 }.joined(separator: " ") }
+        return requirement ?? (hasChangesToSave ? nil : Self.noChangesReason)
     }
 
     /// One renderer for requirements: the pasted-label fortification decision has its own label
@@ -529,11 +535,11 @@ public final class FoodConfirmationViewModel: ObservableObject {
     public enum LabelFortification: Equatable, Sendable { case unanswered, yes, no, notStated }
 
     /// The editable source the Yes and No answers rebuild. Held weakly: the route owns it.
-    private weak var labelSource: PastedLabelSourceModel?
+    private weak var labelSource: (any LabelFortificationSource)?
 
     /// The one entry point that marks this Confirm as answering a pasted label's fortification
     /// (C4, R2). Only an editable source (a new reading) sets the flag; a stored source never does.
-    public func answersLabelFortification(for source: PastedLabelSourceModel) {
+    public func answersLabelFortification(for source: any LabelFortificationSource) {
         guard source.isEditable, state.reopened == nil, savedResult == nil else { return }
         labelSource = source
         state.answersLabelFortification = true
@@ -933,13 +939,19 @@ public struct FoodConfirmationView: View {
     /// route, or the read-only model of a stored label (Edit, Recent foods, a favourite).
     @State private var pastedLabel: PastedLabelSourceModel?
     private let editLabelText: (() -> Void)?
+    /// A label photo's sections (#316): the photo pane and the values with their attention items.
+    private let labelPhoto: LabelPhotoSourceModel?
+    private let labelPhotoViews: (any LabelPhotoViewFactory)?
+    private let retakePhoto: (() -> Void)?
 
     public init(
         model: FoodConfirmationViewModel, context: String? = nil,
         completionTitle: String = "Done", showsCancelButton: Bool = true,
         pastedLabel: PastedLabelSourceModel? = nil, editLabelText: (() -> Void)? = nil,
+        labelPhoto: LabelPhotoSourceModel? = nil, labelPhotoViews: (any LabelPhotoViewFactory)? = nil, retakePhoto: (() -> Void)? = nil,
         logged: ((FoodLoggedNotice) -> Void)? = nil, leave: @escaping () -> Void
     ) {
+        self.labelPhoto = labelPhoto; self.labelPhotoViews = labelPhotoViews; self.retakePhoto = retakePhoto
         self.model = model
         _pastedLabel = State(initialValue: pastedLabel ?? PastedLabelSourceModel.stored(model.state))
         self.editLabelText = pastedLabel == nil ? nil : editLabelText
@@ -993,6 +1005,10 @@ public struct FoodConfirmationView: View {
                 // Pasted label Confirm v1 (#306) C7: the label's values come after the amount.
                 if let pastedLabel {
                     PastedLabelSourceSections(model: pastedLabel, editLabelText: model.savedResult == nil ? editLabelText : nil)
+                }
+                // Label photo (4.2 items 4 and 5): the photo pane, then Nutrition from the photo.
+                if let labelPhoto, let labelPhotoViews {
+                    LabelPhotoSourceSections(model: labelPhoto, views: labelPhotoViews, retake: model.savedResult == nil ? retakePhoto : nil)
                 }
                 compactNutritionSection
             }
@@ -1291,6 +1307,13 @@ public struct FoodConfirmationView: View {
 
     /// The one line pinned beside a disabled Log when the full hint is in "Before you log".
     public static let pinnedBlockedReason = "Not ready to log yet. See “Before you log” below."
+    /// At accessibility text sizes the pinned line is shorter, so the bar stays small (#327 journey
+    /// QA); the full reason is in "Before you log".
+    public static let pinnedBlockedReasonCompact = "Not ready to log"
+
+    public static func pinnedReason(isAccessibilitySize: Bool) -> String {
+        isAccessibilitySize ? pinnedBlockedReasonCompact : pinnedBlockedReason
+    }
 
     /// Whether "Before you log" has anything to show; an empty section is never rendered.
     public static func showsBeforeLog(pinsOnlyLog: Bool, warningCount: Int, hasBlockedReason: Bool, hasEstimate: Bool) -> Bool {
@@ -1349,7 +1372,7 @@ public struct FoodConfirmationView: View {
                     blockedReasonText
                 } else if model.blockedReason != nil {
                     // Beside the disabled Log, one short line (it may wrap); the full hint scrolls.
-                    Text(Self.pinnedBlockedReason).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                    Text(Self.pinnedReason(isAccessibilitySize: dynamicTypeSize.isAccessibilitySize)).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -2006,3 +2029,15 @@ public struct FoodConfirmationView: View {
     private static func editableNumber(_ value: Double, locale: Locale) -> String { FoodAmountFieldText.text(value, locale: locale) }
     private func editableNumber(_ value: Double) -> String { Self.editableNumber(value, locale: locale) }
 }
+
+
+/// A label source whose fortification answer Confirm asks inline (pasted label Confirm v1, #306,
+/// and the label photo route, which keeps it unchanged): Yes and No rebuild the source.
+@MainActor
+public protocol LabelFortificationSource: AnyObject {
+    var isEditable: Bool { get }
+    var fortificationAnswer: PastedLabelIdentity.FortificationAnswer { get }
+    func answerFortification(_ answer: PastedLabelIdentity.FortificationAnswer) throws
+}
+
+extension PastedLabelSourceModel: LabelFortificationSource {}

@@ -71,6 +71,7 @@ public struct OpenRouterLabelPhotoAttempt: LabelPhotoAttempting {
             let outcome = LabelPhotoRetryPolicy.Outcome.httpStatus(response.status, retryAfter: retryAfter)
             let failure: LabelImageReadingFailure = switch response.status {
             case 401, 403: .keyRejected
+            case 429: .quotaLimited
             case _ where LabelPhotoRetryPolicy.isRetryable(outcome): .providerUnavailable
             default: .failed
             }

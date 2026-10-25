@@ -53,6 +53,8 @@ public struct AddFoodView: View {
     private let pasteOrDictate: (() -> Void)?
     /// Paste nutrition label (#93): its own row, separate from the food list (decision 1).
     private let pasteLabel: (() -> Void)?
+    /// Photo of nutrition label (#316): shown only when the route is enabled (off until L5).
+    private let photoLabel: (() -> Void)?
     private let favourites: (() -> Void)?
     /// Nil when favourites cannot be read: shown as a failure with a way to Favourites, never as empty.
     private let favouriteItems: [QuickAddItem]?
@@ -70,6 +72,7 @@ public struct AddFoodView: View {
                 initialText: String = "",
                 search: @escaping (String) -> Void, scanBarcode: (() -> Void)?, pasteOrDictate: (() -> Void)?,
                 pasteLabel: (() -> Void)? = nil,
+                photoLabel: (() -> Void)? = nil,
                 favourites: (() -> Void)?, favouriteItems: [QuickAddItem]? = [], favouriteAmountIsServings: @escaping (QuickAddItem) -> Bool = { _ in false },
                 quickAdd: ((QuickAddItem) -> Void)? = nil,
                 favouriteSaving: FavouriteSaveModel? = nil,
@@ -79,6 +82,7 @@ public struct AddFoodView: View {
         self.recents = recents; self.now = now; self.calendar = calendar
         self.favouriteSaving = favouriteSaving
         self.search = search; self.scanBarcode = scanBarcode; self.pasteOrDictate = pasteOrDictate; self.pasteLabel = pasteLabel
+        self.photoLabel = photoLabel
         self.favourites = favourites; self.favouriteItems = favouriteItems; self.favouriteAmountIsServings = favouriteAmountIsServings; self.quickAdd = quickAdd; self.relog = relog
         _text = State(initialValue: initialText)
     }
@@ -107,6 +111,25 @@ public struct AddFoodView: View {
                 if let scanBarcode { routeRow("Scan barcode", systemImage: "barcode.viewfinder", action: scanBarcode) }
                 if let pasteOrDictate { routeRow("Paste or dictate a list", systemImage: "list.bullet", action: pasteOrDictate) }
                 if let pasteLabel { routeRow(PastedLabelText.addFoodRow, systemImage: "doc.text.magnifyingglass", action: pasteLabel) }
+                if let photoLabel {
+                    Button(action: photoLabel) {
+                        HStack {
+                            Label {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(LabelPhotoText.addFoodRow)
+                                    Text(LabelPhotoText.addFoodRowSubtitle).font(.footnote).foregroundStyle(.secondary)
+                                }
+                            } icon: { Image(systemName: "camera.viewfinder") }
+                            .foregroundStyle(.primary)
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary).accessibilityHidden(true)
+                        }
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("addFood.photoLabel")
+                }
                 if let favourites { routeRow("Favourites", systemImage: "star", action: favourites) }
             } footer: {
                 if pasteOrDictate != nil, let listImportNote { Text(listImportNote) }
