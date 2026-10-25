@@ -30,9 +30,9 @@ HealthKit access is read-only: authorisation `toShare` stays empty. No analytics
 - Responses are evidence for review, never authority: citations or model confidence alone never authorise nutrition or saving.
 - Adding a destination, widening a payload or changing when a request happens needs a versioned contract, an update to this file and `privacy-policy.txt`, and explicit user approval. Prove a new transport with synthetic data before integrating it with HealthKit or any other personal data.
 
-## Pending owner approval (not in force)
+## Approved, not yet in force
 
-- **Label photo reading through OpenRouter** (#316): proposed row, retry amendment and on-device photo rule in [label-photo-ai-prefill-v1.md](label-photo-ai-prefill-v1.md) section 11. Until the owner approves its egress checklist (section 10) line by line, no label photo leaves the device and the current app sends none.
+- **Label photo reading through OpenRouter** (#316): the owner approved egress terms E1 to E16 on 25 October 2026 ([label-photo-ai-prefill-v1.md](label-photo-ai-prefill-v1.md) sections 10 and 17). The row, retry amendment and on-device photo rule in its section 11 are added here in the PR that wires the live transport; until then the app sends no label photo.
 
 ## Retired
 

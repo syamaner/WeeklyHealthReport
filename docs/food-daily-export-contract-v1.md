@@ -83,6 +83,8 @@ One element per log item whose head version is on the day and not removed, sorte
 | `reviewed_web_proposal` | `web_review` |
 | `app_reference_definition` | `app_reference` (plain water) |
 
+- **Label photo entries ([label photo AI pre-fill v1](label-photo-ai-prefill-v1.md), #316): no field change.** Their values are `user_verified_panel` without a pasted-label manifest, so they export as `label_checked_by_you` (corrected or entered values as `entered_by_you`), with `source_release_id` `label-photo-ai:<manifest SHA-256>`. Photo-specific per-value origins are deferred to food export v2 (#312).
+
 - The basis choice is reported once per entry, not per value: `basis_origin` is `chosen_by_you` when the entry's stored `PastedLabelEvidenceManifest.basisOrigin` records an assisted choice (manifest v2), otherwise absent. The ledger snapshot passed to the builder includes the pasted-label evidence manifests for the day's entries; `PastedLabelBasisChoice` is the in-review value and is not read.
 
 Removed entries (head version is a removal) are **omitted** from `entries` and from totals: the file describes what the day's log says now, and the ledger keeps removal history locally. (D1, owner decision 23 October 2026.)
