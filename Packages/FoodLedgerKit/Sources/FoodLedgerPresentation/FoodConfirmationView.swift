@@ -1307,6 +1307,13 @@ public struct FoodConfirmationView: View {
 
     /// The one line pinned beside a disabled Log when the full hint is in "Before you log".
     public static let pinnedBlockedReason = "Not ready to log yet. See “Before you log” below."
+    /// At accessibility text sizes the pinned line is shorter, so the bar stays small (#327 journey
+    /// QA); the full reason is in "Before you log".
+    public static let pinnedBlockedReasonCompact = "Not ready to log"
+
+    public static func pinnedReason(isAccessibilitySize: Bool) -> String {
+        isAccessibilitySize ? pinnedBlockedReasonCompact : pinnedBlockedReason
+    }
 
     /// Whether "Before you log" has anything to show; an empty section is never rendered.
     public static func showsBeforeLog(pinsOnlyLog: Bool, warningCount: Int, hasBlockedReason: Bool, hasEstimate: Bool) -> Bool {
@@ -1365,7 +1372,7 @@ public struct FoodConfirmationView: View {
                     blockedReasonText
                 } else if model.blockedReason != nil {
                     // Beside the disabled Log, one short line (it may wrap); the full hint scrolls.
-                    Text(Self.pinnedBlockedReason).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                    Text(Self.pinnedReason(isAccessibilitySize: dynamicTypeSize.isAccessibilitySize)).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }

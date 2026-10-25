@@ -1194,3 +1194,16 @@ The highlight position was fixed after the walk (decision 6) and is covered by a
 - **The scripted route's consent has its own key** (`labelPhoto.egressConsent.scripted.v1`). L5's live route uses a fresh key, so a consent given to the fake never stands for real egress.
 - **The crop frame has VoiceOver actions:** adjustable (swipe up to enlarge, down to shrink), and Move up, down, left or right, Inset, and Fill the photo, with its size as the value.
 - **A refused correction** is said in the section (`actionFailure`); the unused local state is gone.
+
+**Journey QA of #327 (all items pass).** Two Low items are folded in:
+- At accessibility text sizes the pinned line beside a disabled Log is the short "Not ready to log". The full reason stays in "Before you log", so the bar no longer takes about a third of the screen.
+- "Today: n of 30" is read again after every read outcome and on every return from Confirm (`returnedFromConfirm`), with a view-model test.
+
+**Not yet covered:**
+- VoiceOver was checked in code only and needs an on-device pass.
+- These were not walked on the fake route:
+  - the camera-denied state;
+  - the real PhotosPicker;
+  - a too-small crop;
+  - the daily limit;
+  - Developer tools.

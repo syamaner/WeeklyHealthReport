@@ -335,6 +335,29 @@ final class LabelPhotoPresentationTests: XCTestCase {
                        "Read by openai/gpt-6.1-sol on Azure through OpenRouter, 1 Nov 2026; checked by you")
     }
 
+    func testTodaysCountRefreshesAfterEveryReadAndOnReturnFromConfirm() async throws {
+        let script = Script(); script.consented = true
+        script.outcome = .review(try review())
+        let model = try screen(script)
+        await ready(model)
+        XCTAssertEqual(model.underButton, "Uses your OpenRouter key and credit. Today: 3 of 30 reads.")
+        // The session counts the tap before it answers; the screen shows the new count with Confirm.
+        script.status = .init(day: .open(reads: 4), routeUnavailable: false)
+        model.readTapped()
+        try await waitUntil { model.confirmSource != nil }
+        XCTAssertEqual(model.underButton, "Uses your OpenRouter key and credit. Today: 4 of 30 reads.")
+        // Another session's read while Confirm was open is shown on return.
+        script.status = .init(day: .open(reads: 5), routeUnavailable: false)
+        await model.returnedFromConfirm()
+        XCTAssertEqual(model.underButton, "Uses your OpenRouter key and credit. Today: 5 of 30 reads.")
+        // A failed read refreshes too.
+        script.outcome = .failed(.timedOut)
+        script.status = .init(day: .open(reads: 6), routeUnavailable: false)
+        model.readTapped()
+        try await waitUntil { model.phase == .failed("Reading the photo timed out. You can try again.") }
+        XCTAssertEqual(model.underButton, "Uses your OpenRouter key and credit. Today: 6 of 30 reads.")
+    }
+
     private func waitUntil(_ condition: @escaping () -> Bool, file: StaticString = #filePath, line: UInt = #line) async throws {
         for _ in 0..<2_000 {
             if condition() { return }

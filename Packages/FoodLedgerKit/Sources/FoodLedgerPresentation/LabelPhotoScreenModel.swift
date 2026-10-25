@@ -136,6 +136,10 @@ public final class LabelPhotoScreenModel: ObservableObject {
 
     public func refresh() async { status = await environment.status() }
 
+    /// Back from Confirm (Retake, back, or a failed save): today's count is read again, so it is
+    /// never one behind (#327 journey QA). Every read outcome refreshes it too (`finish`).
+    public func returnedFromConfirm() async { await refresh() }
+
     /// A photo from the camera or the library: the crop screen opens over it.
     public func choose(_ data: Data) {
         photo = data; crop = .whole; prepared = nil; preparationFailure = nil; phase = .editing; cameraDenied = false

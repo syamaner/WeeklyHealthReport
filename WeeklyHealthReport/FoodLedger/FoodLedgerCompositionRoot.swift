@@ -1558,6 +1558,9 @@ struct LabelPhotoFlowView: View {
                              openRouterSettings: { showsKeySettings = true },
                              pasteLabel: { showsPaste = true }, searchFoods: { showsSearch = true },
                              privacyPolicy: { openURL(PrivacyPolicy.publicURL) }, leave: close)
+            .onChange(of: showsConfirmation) { _, shown in
+                if !shown { Task { await model.returnedFromConfirm() } }
+            }
             .onChange(of: model.confirmSource.map(ObjectIdentifier.init)) { _, _ in
                 guard let source = model.confirmSource else { return }
                 confirmationModel = root.labelPhotoConfirmationModel(source, entryDay: finish?.entryDay)
