@@ -435,6 +435,7 @@ Section 17.8 adds eleven contract tests from the architecture gate (tests 15 to 
 | L0 | Offline locate-rate measurement (6.1, with the inputs and method of 17.6); report found rate and how many silent errors would be not found. **Done 25 October 2026 (17.9)** | None |
 | L1a | Matcher ambiguity reduced (order within the column, headers on one line), L0 re-run at 240 px, matcher moved unchanged into `FoodLabelPhotoReading` with a hash pin, boundary script for the new target (17.10) | None |
 | L1c | Locator v2 (17.11), before L1b at the owner's request ("Let's try to resolve"): row labels recovered between located neighbours, columns inferred from value tokens, a table-wide offset; measured by L0 against v1 with the adversarial suite and an extended sweep; and the alternative attention policy measured, not adopted. **Done 25 October 2026** | None |
+| L1d | Locator v3 (17.15): each header's basis passed to the matcher; only the amount headers must be located, the reference-intake column confirmed by its % unit and position, never as an amount column; a per-serving header with its bracketed serving quantity (D4); attack scenarios first, measured by L0 against v2 as pinned | None |
 | L1b | Pure core: wire mapping port, `LabelPhotoReading`, attention v1, serving v1 with its parity test, manifest codec, verifier, composite admission, preparer types, retry and spend policies, tests 1 to 12 | None |
 | L2 | Image preparation and Vision locator, tests 13 and 14 | None |
 | L3 | OpenRouter adapter and route checker against a fake transport only | None |
@@ -760,3 +761,52 @@ All six reviewer harnesses run clean on the pinned matcher: round 6 (A to E, 70 
 Development photos: v2 Gemini finds 55.5%, median 8. Before the round-6 fix the untouched counts were 39.0%, 39.7% and 39.6% found (medians 14, 14, 12); the stricter own-header test costs about two points.
 
 **Reading.** With every header required, v2 now confirms fewer values than v1 did (37.2% against 42.2%) and leaves more to check (median 14 against 11), although 129 of its ambiguous values come with a region to zoom to. A comparison run (not committed) shows the header-above rule costs nothing; the cost is requiring all of the reading's headers, which on these photos often fails; the likely blocker, not yet measured case by case, is the reference-intake column's header (每日參考值百分比), often printed over two lines. Note that v1's lower bar is exactly what rounds 2 to 4 showed to be unsafe (one header, or a header found anywhere, could confirm a swapped column). **Recommendation:** keep v2 as pinned (safe), and as the next lever require only the reading's **amount** column headers (per serving, per 100 g or ml) to be located in order, with the reference-intake column confirmed by its % unit instead. That needs the reading to pass each header's basis to the matcher, a small API change, and its own attack scenarios (a % column mislabelled as an amount column, and the reverse) before it is measured.
+
+### 17.15 L1d: locator v3, header bases (25 October 2026, no egress)
+
+Round 4 left v2 requiring every header of the reading in the header band, and the likely blocker was the reference-intake column's header (每日參考值百分比), often printed over two lines (17.14). Under the owner's delegation (Option 2), v3 takes each header's basis and relaxes that one rule. Its attack scenarios were written before the change (`LabelValueMatcherReferenceIntakeTests`).
+
+- **API.** `locate` gains `headerBases: [HeaderBasis]` (amount or reference intake), one per header, with an empty text for a header that has none printed. Without bases every column is an amount column, which is v2's rule, so existing callers are unchanged. L0 now passes every header with its basis.
+- **Amount headers.** With two or more columns, found needs every **amount** header (per serving, per 100 g or ml) located in the band, with distinct texts, at distinct x positions in the reading's order. A reference-intake header need not be located; when it is, it must sit on its own side of every amount header, or nothing confirms.
+- **Amount values.** An amount value needs its own header directly above it (round 6's span rule) and a unit other than %.
+- **Reference-intake values.** A reference-intake value needs a % unit and a token outside every amount column, on the side the reading's column order gives it. When its own header is located, the value must sit under it; with more than one reference-intake column, that header must be located. It is never confirmed as an amount column.
+- **Unlocated headers.** When any header of the reading is not located, the value's row may hold no more value tokens than the reading has columns, so a column the reading left out cannot be taken for one it has. The cell must still hold one token (round 6).
+- **D4.** A header line may carry, besides the reading's header texts and punctuation, exactly one bracketed quantity equal to a quantity on the reading's serving lines ("每份（30公克）" with 每一份量30公克). Any other remainder still rejects the line: 35公克, 毫升, two brackets, a % inside, no brackets, or 約.
+- **Evidence** keeps v2's bar (every header located, its own among them), so the evidence-only policy measure does not change.
+
+**Attacks.** The new scenarios all hold, with no wrong value found:
+- a % column mislabelled as an amount column, and the reverse;
+- every column called reference intake;
+- an amount header missing while the % header is read;
+- an amount header with no printed text;
+- a % value with a matching amount-like number (12公克 and 12%);
+- an adjacent row's %;
+- a % column printed on the other side;
+- an omitted per-100 column, including a stray 每份 above it;
+- an unheaded second % column;
+- swapped amount columns and swapped headers among three columns;
+- a narrow column touching an amount column, read either way;
+- bracketed quantities that do not match the serving size.
+
+The two-line header no longer blocks a correct reading: 12 of 12 are found, against none under v2's rule.
+
+**Harnesses.** All six reviewer harnesses (rounds 2 to 6 and the base sweep) run clean on v3 three ways:
+- without bases;
+- with bases named from the header text (參考 or %);
+- with the last column of every multi-column reading forced to reference intake, which stresses the relaxed path.
+
+The E2 position sweep is also clean.
+
+**Results, untouched Taiwan at 240 px** (counts in `results/l0-locate-rate-v4.json`):
+
+| | v2 Gemini (pinned) | v3 Gemini | v3 Sol | v3 Luna |
+|---|---|---|---|---|
+| Correct values found on the photo | 207 / 557 (37.2%) | 243 / 557 (43.6%) | 250 / 564 (44.3%) | 248 / 566 (43.8%) |
+| Ambiguous values / with a located region | 281 / 129 | 245 / 93 | 227 / 92 | 274 / 93 |
+| Silent wrong values that need a check | 4 of 4 | 4 of 4 | 4 of 4 | 52 of 52 |
+| Tables opening with nothing to check | 3 of 34 | 5 of 34 | 5 of 35 | 5 of 37 |
+| Values to check per table, median / p90 | 14 / 18 | 9 / 18 | 9 / 18 | 9 / 19 |
+
+Development photos are unchanged (Gemini 55.5%, median 8). Against v2 as it stood after round 4 (39.0%, median 14), v3 is 4.6 points higher. A comparison run with D4 switched off, before the round-6 tolerance was carried over, gave the same counts. On these photos the gain comes from the header bases.
+
+**Reading.** v3 confirms more values than either v2 or v1 (43.6% against 37.2% and 42.2%) and halves the typical number of values to check from v2's 14 to 9. Every silent wrong value of every arm still needs a check.

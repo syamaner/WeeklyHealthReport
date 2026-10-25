@@ -89,11 +89,25 @@ class L0LocateTests(unittest.TestCase):
 
     def test_queries_carry_row_label_header_and_printed_text(self) -> None:
         output, _ = table()
-        headers, queries = l0.queries(output)
+        headers, bases, queries = l0.queries(output)
         self.assertTrue(headers)
+        self.assertEqual(len(bases), len(headers))
+        self.assertTrue(set(bases) <= {"amount", "reference_intake"})
         first = queries[0]
         self.assertEqual(set(first), {"id", "row_label", "header_text", "printed_text"})
         self.assertTrue(any(q["id"] == "serving_size" for q in queries))
+
+    def test_every_header_is_passed_with_its_basis(self) -> None:
+        output, _ = table()
+        output = copy.deepcopy(output)
+        output["headers"] = [
+            {"header_id": "a", "printed_text": "每份", "basis": "per_serving"},
+            {"header_id": "b", "printed_text": "", "basis": "per_100g"},
+            {"header_id": "c", "printed_text": "每日參考值百分比", "basis": "reference_intake"},
+        ]
+        headers, bases, _ = l0.queries(output)
+        self.assertEqual(headers, ["每份", "", "每日參考值百分比"])
+        self.assertEqual(bases, ["amount", "amount", "reference_intake"])
 
 
 if __name__ == "__main__":
