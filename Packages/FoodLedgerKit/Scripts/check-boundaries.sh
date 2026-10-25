@@ -106,33 +106,36 @@ check_label_reader_edges() {
 
   # Within FoodLabelPhotoCapture each framework stays in its adapter file (17.2): ImageIO,
   # CoreGraphics and UniformTypeIdentifiers in the preparer, Vision in the locator, Network in the
-  # connectivity adapter, URLSession in the transport.
-  local capture="$pkg/Sources/FoodLabelPhotoCapture" base
+  # connectivity adapter, and URL loading only in the transport. Every import form counts
+  # (attributes, `import struct X.Y`, trailing comments, indentation), as for check_imports.
+  local capture="$pkg/Sources/FoodLabelPhotoCapture" base modules
   if [[ -d "$capture" ]]; then
     while IFS= read -r file; do
       if [[ -z "$file" ]]; then continue; fi
       base="${file##*/}"
-      if grep -qE '^import (ImageIO|CoreGraphics|UniformTypeIdentifiers)$' "$file" && [[ "$base" != "ImageIOLabelImagePreparer.swift" ]]; then
+      modules="$(module_imports "$file" | sort -u)"
+      if grep -qxE '(ImageIO|CoreGraphics|UniformTypeIdentifiers)' <<< "$modules" && [[ "$base" != "ImageIOLabelImagePreparer.swift" ]]; then
         violations+="$file imports an image framework outside the preparer"$'\n'
       fi
-      if grep -qE '^import Vision$' "$file" && [[ "$base" != "VisionLabelValueLocator.swift" ]]; then
+      if grep -qxE 'Vision' <<< "$modules" && [[ "$base" != "VisionLabelValueLocator.swift" ]]; then
         violations+="$file imports Vision outside the locator"$'\n'
       fi
-      if grep -qE '^import Network$' "$file" && [[ "$base" != "NWPathConnectivityStatus.swift" ]]; then
+      if grep -qxE 'Network' <<< "$modules" && [[ "$base" != "NWPathConnectivityStatus.swift" ]]; then
         violations+="$file imports Network outside the connectivity adapter"$'\n'
       fi
-      if grep -qE 'URLSession' "$file" && [[ "$base" != "OpenRouterTransport.swift" ]]; then
-        violations+="$file uses URLSession outside the transport"$'\n'
+      if grep -qE 'URLSession|NSURLConnection|CFNetwork|CFStream|Data\(contentsOf:|String\(contentsOf:' "$file" && [[ "$base" != "OpenRouterTransport.swift" ]]; then
+        violations+="$file loads a URL outside the transport"$'\n'
       fi
     done < <(find "$capture" -name '*.swift' -type f)
   fi
 
   # Only the preparer builds a PreparedLabelImage (docs/label-photo-ai-prefill-v1.md 17.8 M6): its
   # initialiser is private to LabelPhotoPorts.swift, and the package factory there is called only
-  # in the photo capture adapter and in tests.
+  # in the preparer's own file and in tests.
   while IFS= read -r file; do
     if [[ -z "$file" ]]; then continue; fi
-    if [[ ! "$file" =~ /(Sources/FoodLabelPhotoCapture|Tests)/ && "$file" != */Sources/FoodLedgerApplication/LabelPhotoPorts.swift ]]; then
+    if [[ ! "$file" =~ /Tests/ && "$file" != */Sources/FoodLabelPhotoCapture/ImageIOLabelImagePreparer.swift \
+          && "$file" != */Sources/FoodLedgerApplication/LabelPhotoPorts.swift ]]; then
       violations+="PreparedLabelImage built in $file"$'\n'
     fi
   done < <(grep -rlE --include='*.swift' 'PreparedLabelImageFactory|PreparedLabelImage(\.init)?\(' "${scanned[@]}" 2>/dev/null || true)
@@ -291,7 +294,7 @@ check_imports FoodLabelTextCapture '^(Foundation|FoodLedgerApplication|FoodLedge
 # Label photo reader (#316, docs/label-photo-ai-prefill-v1.md 17.2): pure, no platform framework.
 check_imports FoodLabelPhotoReading '^(Foundation|FoodLedgerApplication|FoodLedgerDomain|NutritionLabelParsing)$'
 # Label photo capture adapters (17.2): platform frameworks, each confined to its adapter file above.
-check_imports FoodLabelPhotoCapture '^(CoreGraphics|CryptoKit|Foundation|ImageIO|Network|UniformTypeIdentifiers|Vision|FoodLedgerApplication|FoodLedgerDomain|FoodLabelPhotoReading)$'
+check_imports FoodLabelPhotoCapture '^(CoreGraphics|Foundation|ImageIO|UniformTypeIdentifiers|Vision|FoodLedgerApplication|FoodLedgerDomain|FoodLabelPhotoReading)$'
 check_imports FoodLedgerDomain '^(Foundation)$'
 # Pure label-text parser under evaluation (#255): no app, platform or hashing dependency.
 check_imports NutritionLabelParsing '^(Foundation)$'

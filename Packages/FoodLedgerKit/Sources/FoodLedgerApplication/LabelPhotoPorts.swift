@@ -39,18 +39,26 @@ public struct PreparedLabelImage: Equatable, Sendable {
 /// The one way to build a `PreparedLabelImage` (17.8 M6). `package` access keeps it out of the
 /// app; `check-boundaries.sh` refuses any call outside the photo capture adapter and tests.
 package enum PreparedLabelImageFactory {
-    package static func make(bytes: Data, pixelWidth: Int, pixelHeight: Int, sha256: String, jpegQuality: String) throws -> PreparedLabelImage {
-        try PreparedLabelImage(bytes: bytes, pixelWidth: pixelWidth, pixelHeight: pixelHeight, sha256: sha256, jpegQuality: jpegQuality)
+    /// The image for `bytes`, its SHA-256 computed here by the injected digester, so the recorded
+    /// hash is always that of the bytes.
+    package static func make(bytes: Data, pixelWidth: Int, pixelHeight: Int, jpegQuality: String,
+                             digester: any Digesting) throws -> PreparedLabelImage {
+        let digest = try digester.sha256(bytes).value
+        return try PreparedLabelImage(bytes: bytes, pixelWidth: pixelWidth, pixelHeight: pixelHeight, sha256: digest, jpegQuality: jpegQuality)
     }
 }
 
 public enum LabelImagePreparationError: Error, Equatable, Sendable {
     /// The photo could not be decoded.
     case unreadable
-    /// The crop's short edge is under `LabelCropRect.minimumShortEdge` pixels.
+    /// The crop's short edge is under `LabelCropRect.minimumShortEdge` pixels, before or after scaling.
     case cropTooSmall
+    /// The crop is longer than 8 times its width (or the reverse).
+    case cropTooNarrow
     /// No encoding fits the E3 bounds.
     case outOfBounds
+    /// The encoder's output is not the allow-listed JPEG structure.
+    case malformedOutput
 }
 
 /// Crop rectangle and source bytes in, prepared bytes out (12.1). The conformer lives in the

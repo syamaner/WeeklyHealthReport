@@ -86,9 +86,16 @@ final class ImageIOLabelImagePreparerTests: XCTestCase {
     /// A second JPEG start (FF D8) inside an application segment: an embedded thumbnail.
     static func hasEmbeddedThumbnail(_ data: Data) -> Bool {
         let bytes = [UInt8](data)
-        return (JPEGSegments.segments(data) ?? []).contains { segment in
-            (0xE1...0xEF).contains(segment.marker) && Array(bytes[segment.range].dropFirst(4)).firstIndex(ofSequence: [0xFF, 0xD8]) != nil
+        var index = 2
+        while index + 4 <= bytes.count, bytes[index] == 0xFF, bytes[index + 1] != 0xDA {
+            let end = index + 2 + (Int(bytes[index + 2]) << 8 | Int(bytes[index + 3]))
+            guard end <= bytes.count else { return false }
+            if (0xE0...0xEF).contains(bytes[index + 1]), Array(bytes[(index + 4)..<end]).firstIndex(ofSequence: [0xFF, 0xD8]) != nil { return true }
+            index = end
         }
+        // Anything after EOI (an appended image) also counts.
+        if let eoi = bytes.lastIndex(of: 0xD9), eoi > 0, bytes[eoi - 1] == 0xFF, eoi + 1 < bytes.count { return true }
+        return false
     }
 
     // MARK: Test 13: upright pixels from a known asymmetric fixture
@@ -165,17 +172,62 @@ final class ImageIOLabelImagePreparerTests: XCTestCase {
         }
     }
 
-    // MARK: The segment stripper
+    // MARK: The quality ladder (injectable encoder)
 
-    func testTheStripperKeepsOnlyAPP0AndTheImage() throws {
-        let fixture = Images.jpegWithEverything(Images.asymmetric(width: 64, height: 48), orientation: 1)
-        let before = try XCTUnwrap(JPEGSegments.markers(fixture))
-        XCTAssertTrue(before.contains(0xE1), "the fixture has an APP1 segment")
-        let stripped = try XCTUnwrap(JPEGSegments.strippingMetadata(fixture))
-        let after = try XCTUnwrap(JPEGSegments.markers(stripped))
-        XCTAssertFalse(after.contains { (0xE1...0xEF).contains($0) || $0 == 0xFE })
-        XCTAssertNotNil(CGImageSourceCreateImageAtIndex(try XCTUnwrap(CGImageSourceCreateWithData(stripped as CFData, nil)), 0, nil))
-        XCTAssertNil(JPEGSegments.strippingMetadata(Data([0xFF, 0xD8, 0xFF])))
-        XCTAssertNil(JPEGSegments.markers(Data("GIF89a".utf8)))
+    func testTheLadderStepsDownAndRefusesPastTheLastQuality() throws {
+        func sizes(_ map: [Double: Int]) -> (Double) throws -> Data { { Data(count: map[$0]!) } }
+        let at075 = try ImageIOLabelImagePreparer.ladder(sizes([0.85: 2_000_000, 0.75: 1_400_000, 0.65: 900_000]))
+        XCTAssertEqual(at075.1, 0.75)
+        let at065 = try ImageIOLabelImagePreparer.ladder(sizes([0.85: 2_000_000, 0.75: 1_600_000, 0.65: 1_500_000]))
+        XCTAssertEqual(at065.1, 0.65)
+        XCTAssertThrowsError(try ImageIOLabelImagePreparer.ladder(sizes([0.85: 3_000_000, 0.75: 2_000_000, 0.65: 1_500_001]))) {
+            XCTAssertEqual($0 as? LabelImagePreparationError, .outOfBounds)
+        }
+        XCTAssertEqual(ImageIOLabelImagePreparer.qualityText(0.75), "0.75")
+    }
+
+    // MARK: The plan: decode size, short edge after scaling, aspect ratio (#324 decisions)
+
+    func testTheDecodeSizeIsWhatTheCropNeedsAtTheOutputBounds() throws {
+        let whole = try ImageIOLabelImagePreparer.plan(uprightWidth: 8_000, uprightHeight: 6_000, crop: .whole)
+        XCTAssertLessThanOrEqual(whole.decodeMaxPixelSize, 2_050, "a full 8,000 px photo is decoded near the output size")
+        XCTAssertLessThanOrEqual(whole.outputWidth * whole.outputHeight, 3_200_000)
+        let corner = try ImageIOLabelImagePreparer.plan(uprightWidth: 8_000, uprightHeight: 6_000,
+                                                         crop: try XCTUnwrap(LabelCropRect(x: 0, y: 0, width: 0.1, height: 0.1)))
+        XCTAssertEqual(corner.decodeMaxPixelSize, 8_000, "a small crop needs the full resolution")
+        XCTAssertEqual(corner.outputWidth, 800)
+    }
+
+    func testANarrowCropIsRefusedAndTheShortEdgeHoldsAfterScaling() throws {
+        XCTAssertThrowsError(try ImageIOLabelImagePreparer.plan(uprightWidth: 4_500, uprightHeight: 500, crop: .whole)) {
+            XCTAssertEqual($0 as? LabelImagePreparationError, .cropTooNarrow)
+        }
+        XCTAssertNoThrow(try ImageIOLabelImagePreparer.plan(uprightWidth: 4_000, uprightHeight: 500, crop: .whole))
+        let eightToOne = try ImageIOLabelImagePreparer.plan(uprightWidth: 4_000, uprightHeight: 500, crop: .whole)
+        XCTAssertGreaterThanOrEqual(min(eightToOne.outputWidth, eightToOne.outputHeight), 240)
+        XCTAssertEqual(ImageIOLabelImagePreparer.maximumAspectRatio, 8)
+    }
+
+    func testALargeSourceIsPreparedThroughTheSubsampledDecode() throws {
+        let fixture = Images.jpegWithEverything(Images.asymmetric(width: 6_000, height: 4_500), orientation: 1)
+        let prepared = try preparer.prepare(fixture, crop: .whole)
+        XCTAssertLessThanOrEqual(max(prepared.pixelWidth, prepared.pixelHeight), 2_048)
+        XCTAssertTrue(Self.isRed(Images.pixel(prepared.bytes, x: prepared.pixelWidth / 4, y: prepared.pixelHeight / 4)))
+        XCTAssertTrue(Self.isWhite(Images.pixel(prepared.bytes, x: prepared.pixelWidth * 3 / 4, y: prepared.pixelHeight * 3 / 4)))
+        try assertClean(prepared.bytes)
+    }
+
+    func testQuarterTurnsTwoAndThree() throws {
+        let upright = Images.jpegWithEverything(Images.asymmetric(width: 800, height: 600), orientation: 1)
+        // Red is the top-left quarter. Two turns put it bottom right; three put it bottom left.
+        let half = try preparer.prepare(upright, crop: try XCTUnwrap(LabelCropRect(x: 0, y: 0, width: 1, height: 1, quarterTurns: 2)))
+        XCTAssertEqual(half.pixelWidth, 800)
+        XCTAssertTrue(Self.isRed(Images.pixel(half.bytes, x: 600, y: 450)))
+        XCTAssertTrue(Self.isWhite(Images.pixel(half.bytes, x: 200, y: 150)))
+        let three = try preparer.prepare(upright, crop: try XCTUnwrap(LabelCropRect(x: 0, y: 0, width: 1, height: 1, quarterTurns: 3)))
+        XCTAssertEqual(three.pixelWidth, 600)
+        XCTAssertEqual(three.pixelHeight, 800)
+        XCTAssertTrue(Self.isRed(Images.pixel(three.bytes, x: 150, y: 600)))
+        XCTAssertTrue(Self.isWhite(Images.pixel(three.bytes, x: 450, y: 200)))
     }
 }

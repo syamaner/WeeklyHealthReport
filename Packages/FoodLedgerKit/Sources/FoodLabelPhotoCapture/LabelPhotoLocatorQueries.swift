@@ -41,8 +41,8 @@ enum LabelPhotoLocatorQueries {
             guard let location = byID[query.id] else { return .init(item: query.id, status: .notFound, region: nil) }
             switch location.status {
             case .found:
-                // A found value whose region cannot be recorded inside the unit square is shown as
-                // not found on the photo, never found without its region.
+                // A found value whose region cannot be recorded inside the unit square is recorded
+                // ambiguous (shown as "Not found on the photo"), never found without its region.
                 guard let box = location.region, case let recorded = region(box), recorded.isInsideUnitSquare else {
                     return .init(item: query.id, status: .ambiguous, region: nil)
                 }
