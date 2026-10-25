@@ -47,7 +47,7 @@ Each row is a design decision. Rows marked **Owner** need an answer before the p
 | P2 | **Sources.** Camera, photo library and screenshots (screenshots arrive through the library) | Camera through `UIImagePickerController` (camera source, still photo only, no video, no Live Photo); library through SwiftUI `PhotosPicker`, which runs out of process and needs no photo library permission. VisionKit's document camera was considered: its edge detection suits flat sheets, not curved packs, so the app's own crop step is used for every source | No |
 | P3 | **Crop before sending.** A mandatory crop screen; the user frames the table. Nothing outside the crop is sent or kept | Free-form rectangle with handles, pinch-zoom and pan under it, initial crop the whole image; rotate in 90° steps. No automatic table detection in v1 (it would be another on-device model to qualify) | No |
 | P4 | **Metadata.** The sent image is re-encoded from decoded pixels: orientation applied to the pixels, colour converted to sRGB, written by ImageIO as baseline JPEG with no metadata dictionary. No EXIF, GPS, TIFF, IPTC, XMP, maker notes (including Apple's), thumbnails, depth, gain maps or auxiliary images survive | As stated, proven by the tests in 12.5 | No (owner decided) |
-| P5 | **Size.** After crop: long edge at most **2,048 px** and at most **3,200,000 px** in total, JPEG quality 0.85; if the encoded file exceeds **1,500,000 bytes**, re-encode at 0.75 then 0.65; if still over, the read is refused with the copy in 7.2. A crop whose short edge is under **240 px** is refused as too small (lowered from 480 px after L0, 17.9; to be confirmed by E13) | As stated; 2,048 px keeps small Chinese print legible. **The evaluation sent full-size images**, so section 10 E13 re-qualifies at this size before release | Approved (E3); minimum decided 25 October 2026 (17.9) |
+| P5 | **Size.** After crop: long edge at most **2,048 px** and at most **3,200,000 px** in total, JPEG quality 0.85; if the encoded file exceeds **1,500,000 bytes**, re-encode at 0.75 then 0.65; if still over, the read is refused with the copy in 7.2. A crop whose short edge is under **240 px**, before or after scaling, is refused as too small (lowered from 480 px after L0, 17.9; to be confirmed by E13), and a crop whose sides differ by more than **8 times** is refused as too narrow (17.17) | As stated; 2,048 px keeps small Chinese print legible. **The evaluation sent full-size images**, so section 10 E13 re-qualifies at this size before release | Approved (E3); minimum decided 25 October 2026 (17.9) |
 | P6 | **Explicit send.** Nothing leaves the device until the user taps **Read label with AI**, beside a statement that the photo goes to OpenRouter and the model. The first read on a device shows a one-time confirmation sheet | As stated; copy in 7.1 | Approved (E4) |
 | P7 | **What is sent.** The prepared image, a fixed instruction and a fixed strict output schema. Not the name, brand, notes, food log, health data, device or account identifiers | As stated; name and brand stay on device | Approved (E2) |
 | P8 | **Output.** The model returns the evaluation's wire shape (headers with printed text and basis; rows with printed label, nutrient, parent and per-header printed text; serving lines as printed text). The app, not the model, turns printed text into numbers, units and comparators, and builds the same `label-capture-candidate-v1` the pasted route produces | Port the evaluation's `route_c_mapping.py` to Swift as `label-photo-wire-mapping-v1`, behind exported parity vectors, as the gate was ported | No |
@@ -437,7 +437,7 @@ Section 17.8 adds eleven contract tests from the architecture gate (tests 15 to 
 | L1c | Locator v2 (17.11), before L1b at the owner's request ("Let's try to resolve"): row labels recovered between located neighbours, columns inferred from value tokens, a table-wide offset; measured by L0 against v1 with the adversarial suite and an extended sweep; and the alternative attention policy measured, not adopted. **Done 25 October 2026** | None |
 | L1d | Locator v3 (17.15): each header's basis passed to the matcher; only the amount headers must be located, the reference-intake column confirmed by its % unit and position, never as an amount column; a per-serving header with its bracketed serving quantity (D4); attack scenarios first, measured by L0 against v2 as pinned | None |
 | L1b | Pure core: wire mapping port, `LabelPhotoReading`, attention v1, serving v1 with its parity test, manifest codec, verifier, composite admission, preparer types, retry and spend policies, tests 1 to 12 | None |
-| L2 | Image preparation and Vision locator, tests 13 and 14 | None |
+| L2 | Image preparation and Vision locator, tests 13 and 14 (17.17) | None |
 | L3 | OpenRouter adapter and route checker against a fake transport only | None |
 | L4 | UI: source, crop, Label photo screen, Confirm photo pane and attention, with the fake transport in UI tests | None |
 | L5 | E13 qualification (owner-run, approved), then wire the live transport with the section 11 policy updates | As approved |
@@ -891,3 +891,60 @@ L1b adds the application's and the pure reader's label photo types, all with con
 - **Q3, the accepted H2 limit.** The verifier recomputes attention from the stored locations, flags and failed checks, and never re-runs the locator or the checks (17.1). A stored `found` status, or a failed check left out of `checks_failed`, therefore cannot be re-derived at verify. This is accepted: the reading and the locator are not replayed by design. Both are written only by the app's own pipeline, and the manifest digest binds them.
 
 L1b adds no target. `FoodLabelPhotoReading` gains its planned dependencies (the application, the domain and `NutritionLabelParsing`), which the boundary script already allowed. The copy for decline and failure codes (test 2's copy mapping) and the request and response checks (tests 7 and 8) belong to L3 and L4.
+
+### 17.17 L2: image preparation and the Vision locator (25 October 2026, no egress)
+
+L2 adds the `FoodLabelPhotoCapture` target, with no network code and nothing wired into the app yet. The boundary script gains three rules:
+- the target's import allow-list (17.2);
+- that only the composition root and the target's own tests import it;
+- that each framework stays in its adapter file: ImageIO, CoreGraphics and UniformTypeIdentifiers in the preparer, Vision in the locator, Network and URLSession reserved for L3's connectivity adapter and transport.
+
+- **`ImageIOLabelImagePreparer` (`label-photo-preparation-v1`).**
+  - It decodes the primary image with its orientation applied to the pixels.
+  - It crops to the user's rectangle and refuses a crop whose short edge is under 240 px, then turns the crop by the user's quarter turns.
+  - It scales so the long edge is at most 2,048 px and the area at most 3.2 megapixels, and draws into an 8-bit sRGB bitmap.
+  - It encodes a JPEG from those pixels alone at 0.85, then 0.75, then 0.65 while it exceeds 1,500,000 bytes; past that it refuses.
+  - It then keeps only the allow-listed JPEG structure (see the #324 review below), so the output is untagged sRGB with no metadata block whatever the encoder wrote, or the read is refused.
+  - The bytes' SHA-256 is computed from the bytes it returns, and `PreparedLabelImage` is built only through the package factory.
+- **`VisionLabelValueLocator`.**
+  - It runs `VNRecognizeTextRequest` on the prepared bytes themselves: revision 3, accurate, `zh-Hant` and `en-US` (those the running revision supports), language correction off.
+  - It then calls the pinned matcher (`label-photo-vision-locate-v3`) with every header of the reading and its basis.
+  - It records one location per cell (`<row_id>@<header_id>`) and per printed serving line, with a region only on a found value: decimal text with four places, inside the unit square.
+- **Decisions the spec left open, taken here.**
+  - **The crop rectangle** is normalised to the upright photo (after its orientation) with the origin top left. The user's quarter turns apply to the cropped part, clockwise.
+  - **Regions** are recorded in Vision's normalised coordinates, origin bottom left, as the matcher reads them. L4's photo view converts them when it draws.
+- **Tests 13, 14 and 23 run in the package** (`FoodLabelPhotoCaptureTests`), so they run with `swift test` on macOS, where ImageIO and Vision are the same frameworks; the simulator app tests are unchanged.
+  - **Fixtures**, built at test time, are synthetic:
+    - a JPEG with EXIF, GPS, TIFF, IPTC, the Apple maker note, XMP (including a Photoshop block), an embedded thumbnail and orientation 6;
+    - a HEIC with a depth map and an HDR gain map;
+    - a PNG with `eXIf` and `tEXt` chunks.
+  - **Positive controls** assert each fixture holds them first.
+  - **After preparation:**
+    - no metadata dictionary, XMP, auxiliary data or embedded thumbnail;
+    - orientation 1 or absent, and one image;
+    - none of the byte signatures `Exif\0\0`, `http://ns.adobe.com/xap`, `Photoshop 3.0`, `ICC_PROFILE` or a TIFF header;
+    - no application segment but APP0.
+  - **Pixels** are upright (a known asymmetric fixture with orientation 6, then a crop with a quarter turn).
+  - **Bounds:** every output is within 2,048 px, 3.2 MP and 1,500,000 bytes or is refused, and a 239 px crop is refused while 240 px is accepted.
+  - **Hash:** the recorded SHA-256 is that of the bytes.
+  - **End to end:** a synthetic Taiwan label rendered at test time is located with most values found, and a misread value is not.
+
+**Invariant review of #324 (BLOCK, fixed).**
+
+- **An allow-listed JPEG structure.** The sanitiser no longer copies everything after the scan. The prepared file must be exactly:
+  - SOI;
+  - optionally one APP0 that is a plain 16-byte JFIF header with no thumbnail;
+  - quantisation and Huffman tables, and a restart interval;
+  - exactly one SOF0 and one SOS;
+  - scan data holding only stuffed `FF 00` and restart markers;
+  - one EOI as the last two bytes.
+
+  Other application segments and comments before the scan (the encoder's metadata, such as its ICC profile) are dropped. Anything else refuses the read (`malformedOutput`): a standalone or reserved marker before the scan, a progressive or second frame, a second scan, a marker or comment inside the scan, trailing bytes, an appended image with its MPF segment, or a JFXX or thumbnail-bearing APP0. Pure adversarial vectors cover each case.
+- **Confinement checks every import form.** The per-file framework confinement uses the script's own import parsing, so attributes, `import struct X.Y`, trailing comments and indentation all count. URL loading (URLSession, NSURLConnection, CFNetwork, CFStream, `Data(contentsOf:)`) is refused outside the transport. Network leaves the target's allow-list until L3 adds its adapter.
+- **The factory.** It is called only from the preparer's own file and tests, and it computes the SHA-256 of the bytes itself, through an injected digester.
+- **The quality ladder is a pure function.** Its test is discriminating: an encoding that fits only at 0.75, one that fits only at 0.65, and one refused.
+- **Decisions taken on the review.**
+  - **(a) Shape.** The 240 px short-edge minimum applies after scaling as well, and a crop whose sides differ by more than 8 times is refused (`cropTooNarrow`; P5 amended).
+  - **(b) Memory.** The photo is decoded subsampled, to the size the crop needs at the output bounds, rather than at full size. A large synthetic source is tested end to end, and the decode size is tested directly.
+  - **(c) An L5/E13 gate.** Before the route is enabled, `FoodLabelPhotoCaptureTests` run once on a physical iPhone and the result is recorded, so the metadata guarantee is checked on iOS's ImageIO as well as macOS's.
+- Quarter turns 2 and 3 are tested as well.

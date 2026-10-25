@@ -61,6 +61,9 @@ let package = Package(
         // pure (Foundation, the application and domain, and the frozen parser rules): the value
         // matcher, the wire mapping and the reader; reached only through the capture adapter.
         .target(name: "FoodLabelPhotoReading", dependencies: ["FoodLedgerApplication", "FoodLedgerDomain", "NutritionLabelParsing"]),
+        // Label photo capture adapters (#316, docs/label-photo-ai-prefill-v1.md 12.1 and 17.2): the
+        // ImageIO preparer and the Vision locator; wired only at the composition root.
+        .target(name: "FoodLabelPhotoCapture", dependencies: ["FoodLedgerApplication", "FoodLedgerDomain", "FoodLabelPhotoReading"]),
         .target(name: "FoodInventoryImport", dependencies: ["FoodLedgerApplication", "FoodLedgerDomain"]),
         .target(
             name: "FoodLedgerGRDB",
@@ -83,6 +86,10 @@ let package = Package(
             dependencies: ["NutritionLabelParsing"],
             // Parity vectors exported from the frozen Python reference (#93, pasted label PR 1).
             resources: [.copy("Fixtures")]
+        ),
+        .testTarget(
+            name: "FoodLabelPhotoCaptureTests",
+            dependencies: ["FoodLabelPhotoCapture", "FoodLabelPhotoReading", "FoodLedgerApplication", "FoodLedgerDomain"]
         ),
         .testTarget(
             name: "FoodLabelPhotoReadingTests",

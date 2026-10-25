@@ -95,12 +95,47 @@ check_label_reader_edges() {
     fi
   done < <(files_importing FoodLabelPhotoReading "${scanned[@]}")
 
-  # Only the preparer builds a PreparedLabelImage (docs/label-photo-ai-prefill-v1.md 17.8 M6): its
-  # initialiser is private to LabelPhotoPorts.swift, and the package factory there is called only
-  # in the photo capture adapter and in tests.
+  # Label photo capture adapters (17.2): only the composition root and the target's own tests
+  # import it, and presentation never does.
   while IFS= read -r file; do
     if [[ -z "$file" ]]; then continue; fi
-    if [[ ! "$file" =~ /(Sources/FoodLabelPhotoCapture|Tests)/ && "$file" != */Sources/FoodLedgerApplication/LabelPhotoPorts.swift ]]; then
+    if [[ "$file" != "$app/WeeklyHealthReport/FoodLedger/FoodLedgerCompositionRoot.swift" && ! "$file" =~ /Tests/FoodLabelPhotoCaptureTests/ ]]; then
+      violations+="FoodLabelPhotoCapture imported by $file"$'\n'
+    fi
+  done < <(files_importing FoodLabelPhotoCapture "${scanned[@]}")
+
+  # Within FoodLabelPhotoCapture each framework stays in its adapter file (17.2): ImageIO,
+  # CoreGraphics and UniformTypeIdentifiers in the preparer, Vision in the locator, Network in the
+  # connectivity adapter, and URL loading only in the transport. Every import form counts
+  # (attributes, `import struct X.Y`, trailing comments, indentation), as for check_imports.
+  local capture="$pkg/Sources/FoodLabelPhotoCapture" base modules
+  if [[ -d "$capture" ]]; then
+    while IFS= read -r file; do
+      if [[ -z "$file" ]]; then continue; fi
+      base="${file##*/}"
+      modules="$(module_imports "$file" | sort -u)"
+      if grep -qxE '(ImageIO|CoreGraphics|UniformTypeIdentifiers)' <<< "$modules" && [[ "$base" != "ImageIOLabelImagePreparer.swift" ]]; then
+        violations+="$file imports an image framework outside the preparer"$'\n'
+      fi
+      if grep -qxE 'Vision' <<< "$modules" && [[ "$base" != "VisionLabelValueLocator.swift" ]]; then
+        violations+="$file imports Vision outside the locator"$'\n'
+      fi
+      if grep -qxE 'Network' <<< "$modules" && [[ "$base" != "NWPathConnectivityStatus.swift" ]]; then
+        violations+="$file imports Network outside the connectivity adapter"$'\n'
+      fi
+      if grep -qE 'URLSession|NSURLConnection|CFNetwork|CFStream|Data\(contentsOf:|String\(contentsOf:' "$file" && [[ "$base" != "OpenRouterTransport.swift" ]]; then
+        violations+="$file loads a URL outside the transport"$'\n'
+      fi
+    done < <(find "$capture" -name '*.swift' -type f)
+  fi
+
+  # Only the preparer builds a PreparedLabelImage (docs/label-photo-ai-prefill-v1.md 17.8 M6): its
+  # initialiser is private to LabelPhotoPorts.swift, and the package factory there is called only
+  # in the preparer's own file and in tests.
+  while IFS= read -r file; do
+    if [[ -z "$file" ]]; then continue; fi
+    if [[ ! "$file" =~ /Tests/ && "$file" != */Sources/FoodLabelPhotoCapture/ImageIOLabelImagePreparer.swift \
+          && "$file" != */Sources/FoodLedgerApplication/LabelPhotoPorts.swift ]]; then
       violations+="PreparedLabelImage built in $file"$'\n'
     fi
   done < <(grep -rlE --include='*.swift' 'PreparedLabelImageFactory|PreparedLabelImage(\.init)?\(' "${scanned[@]}" 2>/dev/null || true)
@@ -126,11 +161,12 @@ check_label_reader_edges() {
     if [[ -z "$line" ]]; then continue; fi
     name="$(sed -nE 's/^[^"]*name:[[:space:]]*"([A-Za-z0-9_]+)".*/\1/p' <<< "$line")"
     rest="$(sed -E 's/name:[[:space:]]*"[A-Za-z0-9_]+"//' <<< "$line")"
-    for dep in NutritionLabelParsing FoodLabelTextCapture FoodLabelPhotoReading; do
+    for dep in NutritionLabelParsing FoodLabelTextCapture FoodLabelPhotoReading FoodLabelPhotoCapture; do
       if [[ "$rest" != *"\"$dep\""* ]]; then continue; fi
       case "$dep" in
         NutritionLabelParsing) allowed='^(FoodLabelTextCapture|FoodLabelPhotoReading|NutritionLabelTextParse|NutritionLabelParsingTests|FoodLabelTextCaptureTests|FoodLabelPhotoReadingTests)$' ;;
         FoodLabelPhotoReading) allowed='^(FoodLabelPhotoReadingTests|FoodLabelPhotoCapture|FoodLabelPhotoCaptureTests)$' ;;
+        FoodLabelPhotoCapture) allowed='^(FoodLabelPhotoCaptureTests)$' ;;
         *) allowed='^(FoodLabelTextCaptureTests)$' ;;
       esac
       if [[ ! "$name" =~ $allowed ]]; then violations+="Package.swift: $name depends on $dep"$'\n'; fi
@@ -257,6 +293,8 @@ check_label_reader_edges "$package_root" "$app_root"
 check_imports FoodLabelTextCapture '^(Foundation|FoodLedgerApplication|FoodLedgerDomain|NutritionLabelParsing)$'
 # Label photo reader (#316, docs/label-photo-ai-prefill-v1.md 17.2): pure, no platform framework.
 check_imports FoodLabelPhotoReading '^(Foundation|FoodLedgerApplication|FoodLedgerDomain|NutritionLabelParsing)$'
+# Label photo capture adapters (17.2): platform frameworks, each confined to its adapter file above.
+check_imports FoodLabelPhotoCapture '^(CoreGraphics|Foundation|ImageIO|UniformTypeIdentifiers|Vision|FoodLedgerApplication|FoodLedgerDomain|FoodLabelPhotoReading)$'
 check_imports FoodLedgerDomain '^(Foundation)$'
 # Pure label-text parser under evaluation (#255): no app, platform or hashing dependency.
 check_imports NutritionLabelParsing '^(Foundation)$'
