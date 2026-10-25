@@ -2831,7 +2831,8 @@ Pricing checked 25 October 2026: [official model rates](https://platform.claude.
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Label photo L0 PR and review folds (#316), subagent | 6,515,793 (6,082,158) | 433,599 | 11,808 | 6,527,601 | $3.62 |
 | Label photo L1a matcher and L0 re-run (#316), subagent | 19,943,982 (19,394,608) | 549,286 | 39,709 | 19,983,691 | $7.42 |
+| Label photo L1a PR, paused L1b start and invariant-review fix (#316), subagent | 23,321,780 (22,191,124) | 1,130,568 | 55,315 | 23,377,095 | $11.20 |
 
-Boundaries: `phase_usage.py --format claude --since 2026-10-25T04:49:44Z --until 2026-10-25T05:13:29Z` and `--since 2026-10-25T05:13:29Z --until 2026-10-25T05:37:41Z` on the subagent transcript alone. Cache writes: 433,599 and 549,286 5-minute, 0 1-hour. Exact API-equivalent USD 3.6207306 and 7.4198836. Local Vision and Swift builds use no API tokens and are not priced.
+Boundaries: `phase_usage.py --format claude --since 2026-10-25T04:49:44Z --until 2026-10-25T05:13:29Z` and `--since 2026-10-25T05:13:29Z --until 2026-10-25T05:37:41Z` on the subagent transcript alone. Cache writes: 433,599 and 549,286 5-minute, 0 1-hour. Exact API-equivalent USD 3.6207306 and 7.4198836. Third window: `--since 2026-10-25T05:37:41Z --until 2026-10-25T06:03:51Z`, just before this edit: the L1a commit, push and PR #320, the start of L1b (pure policies, parked as a local WIP commit when the review arrived), and the fix for the #320 invariant review (BLOCK) with its L0 re-run, the pricing re-check and every gate. Cache writes 1,130,568 5-minute, 0 1-hour; exact USD 11.1977168. Local Vision and Swift builds use no API tokens and are not priced.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
