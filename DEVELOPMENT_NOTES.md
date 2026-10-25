@@ -2857,4 +2857,25 @@ Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A): `claude-opus-5-5` USD 
 
 Boundary: `phase_usage.py --format claude --since 2026-10-25T09:05:21Z --until 2026-10-25T10:00:51Z` on the subagent transcript alone. Cache writes: 3,192,870 5-minute, 0 1-hour. Exact API-equivalent USD 24.323941. Review fix: `--since 2026-10-25T10:00:51Z --until 2026-10-25T10:33:39Z`, just before this edit: the L1c ledger commit, push and PR #321, then the fix for the #321 review (BLOCK) with its tests, the attack-scenario port, both reviewer harness runs, the L0 v3 re-run and every gate. Cache writes 2,582,122 5-minute, 0 1-hour; exact USD 18.9243982. Re-check fix: `--since 2026-10-25T10:33:39Z --until 2026-10-25T11:26:03Z`, just before this edit: the previous ledger commit and PR update, the header band, own-header, whole-word, offset-window and row-step fixes with their tests, the v3 attack harness port, both reviewer harness runs and two debugging builds, the L0 v3 re-run and every gate. Cache writes 2,821,750 5-minute, 0 1-hour; exact USD 21.3582042. Round-4 fix: `--since 2026-10-25T11:26:03Z --until 2026-10-25T12:04:55Z`, just before this edit: the previous ledger commit and PR update, the header-line, all-headers, header-above and unit-suffix fixes with their tests, the round-4 scenario port, all four reviewer harness runs, the L0 v3 re-run and one uncommitted comparison run, and every gate. Cache writes 2,901,906 5-minute, 0 1-hour; exact USD 19.125802. Round-5 fix: `--since 2026-10-25T12:04:55Z --until 2026-10-25T12:26:55Z`, just before this edit: the previous ledger commit and PR update, a context compaction, the start of L1d (branch, reading, its attack tests and a draft run in a scratch copy, which fell inside this window), the D1 order-pass fix with its regression test, the round-5 scenario port, all five reviewer harness runs, the L0 v3 re-run and every gate. Cache writes 163,222 5-minute, 0 1-hour; exact USD 5.07681. Round-6 fix: `--since 2026-10-25T12:26:55Z --until 2026-10-25T12:51:02Z`, just before this edit: the previous ledger commit and PR update, the report, applying L1d on its branch with an L0 run and one uncommitted comparison run (which fell inside this window), then the E2 fix with its regression test, the round-6 scenario port, all six reviewer harness runs and an E2 position sweep, the L0 v3 re-run and every gate. Cache writes 327,734 5-minute, 0 1-hour; exact USD 5.2298592. Local Vision and Swift builds use no API tokens and are not priced.
 
+## WHR-316-2026-10-25-L1D: Claude Code label photo locator v3, header bases
+
+The same `claude-opus-5-5` subagent and transcript as WHR-316-2026-10-25-L1C, for #316 phase L1d (owner delegation, Option 2). The window is bounded by `date -u` captures, `2026-10-25T12:51:02Z` to `2026-10-25T13:10:28Z`, just before this ledger edit. It covers:
+- the round-6 ledger commit, push and report;
+- moving L1d onto the round-6 matcher with the span and one-token rules;
+- the E2 attack test with bases;
+- every reviewer harness run three ways, and the E2 sweep;
+- the L0 v4 run;
+- the spec section and results;
+- every gate.
+
+L1d's earlier work falls inside the L1c round-5 and round-6 windows above, as their notes say. That earlier work is the branch, its attack tests written first, a draft run in a scratch copy, the first apply on the branch, the first L0 v4 run and one uncommitted comparison run. The commit after this edit, the rebase onto `main`, the push and the PR are outside the window. The orchestrating session and its reviewers are not included.
+
+Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A): `claude-opus-5-5` USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache hit, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label photo L1d locator v3, header bases (#316), subagent | 7,788,714 (7,460,648) | 328,010 | 23,682 | 7,812,396 | $3.61 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-25T12:51:02Z --until 2026-10-25T13:10:28Z` on the subagent transcript alone. Cache writes 328,010 5-minute, 0 1-hour; exact USD 3.6060436. Local Vision and Swift builds use no API tokens and are not priced.
+
 Token totals are not evidence of productivity, quality or provider efficiency.
