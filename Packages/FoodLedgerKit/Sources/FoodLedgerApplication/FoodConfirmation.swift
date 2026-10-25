@@ -160,7 +160,7 @@ public struct StoredFoodConfirmation: Codable, Equatable, Sendable {
 }
 
 public struct FoodConfirmationState: Codable, Equatable, Sendable {
-    public let input: PopulatedFoodConfirmation
+    public internal(set) var input: PopulatedFoodConfirmation
     public var selectedCandidateIndex: Int
     public var decision: FoodConfirmationDecision
     public var correction: FoodCorrection?
@@ -502,6 +502,61 @@ public final class FoodConfirmationService: @unchecked Sendable {
         operationID: OperationID,
         idempotencyKey: LedgerText? = nil
     ) throws -> StoredFoodConfirmation {
+        try save(state, operationID: operationID, idempotencyKey: idempotencyKey, persistedAttachments: [])
+    }
+
+    /// Log for a label photo entry (docs/label-photo-ai-prefill-v1.md 17.3, test 15): the prepared
+    /// bytes are persisted first, the image evidence is bound to their attachment, and one ledger
+    /// commit then holds the image evidence, the manifest evidence, the release and the log records.
+    /// If the bytes do not match the image evidence, policy or the verifier rejects the save, or
+    /// the commit fails, the attachment is removed again when nothing references it, so nothing is
+    /// kept before a successful Log. `FoodLedgerService.recordEvidenceWithAttachment` is never used
+    /// here, because it commits the evidence on its own.
+    public func saveLabelPhoto(
+        _ state: FoodConfirmationState,
+        imageBytes: Data,
+        attachmentStore: any EvidenceAttachmentStoring,
+        operationID: OperationID,
+        idempotencyKey: LedgerText? = nil
+    ) throws -> StoredFoodConfirmation {
+        if let idempotencyKey, try ledger.confirmedLogItemID(operationID: operationID, idempotencyKey: idempotencyKey) != nil {
+            return try save(state, operationID: operationID, idempotencyKey: idempotencyKey)
+        }
+        let selected = state.selectedCandidate
+        guard state.reopened == nil, LabelSourceAdmission.route(state.input, candidate: selected) == .photo,
+              selected.candidate.evidenceIDs.count == 2,
+              let index = state.input.evidence.firstIndex(where: { $0.evidenceID == selected.candidate.evidenceIDs[1] }),
+              state.input.evidence[index].attachment == nil,
+              try digester.sha256(imageBytes) == state.input.evidence[index].byteHash else {
+            throw FoodConfirmationSaveError.invalidPastedLabelSource
+        }
+        let image = state.input.evidence[index]
+        let descriptor = try attachmentStore.persist(imageBytes, mediaKind: LedgerText(LabelPhotoManifest.mediaType))
+        do {
+            guard descriptor.sha256 == image.byteHash, descriptor.byteCount == imageBytes.count else {
+                throw FoodLedgerStoreError.attachmentFailure("persisted label photo does not match its evidence")
+            }
+            var evidence = state.input.evidence
+            evidence[index] = try CaptureEvidence(evidenceID: image.evidenceID, kind: image.kind, capturedAt: image.capturedAt,
+                locale: image.locale, captureMethod: image.captureMethod, captureMethodVersion: image.captureMethodVersion,
+                originalPayload: image.originalPayload, byteHash: image.byteHash, attachment: descriptor)
+            var attached = state
+            attached.input = try PopulatedFoodConfirmation(evidence: evidence, sourceReleases: state.input.sourceReleases,
+                candidates: state.input.candidates, expectedIdentity: state.input.expectedIdentity,
+                expectedEdibleQuantity: state.input.expectedEdibleQuantity)
+            return try save(attached, operationID: operationID, idempotencyKey: idempotencyKey, persistedAttachments: [descriptor])
+        } catch {
+            try? attachmentStore.removeIfUnreferenced(descriptor)
+            throw error
+        }
+    }
+
+    private func save(
+        _ state: FoodConfirmationState,
+        operationID: OperationID,
+        idempotencyKey: LedgerText?,
+        persistedAttachments: Set<AttachmentDescriptor>
+    ) throws -> StoredFoodConfirmation {
         if let idempotencyKey,
            let logItemID = try ledger.confirmedLogItemID(operationID: operationID, idempotencyKey: idempotencyKey) {
             guard let stored = try reader.foodConfirmation(logItemID: logItemID) else {
@@ -526,14 +581,21 @@ public final class FoodConfirmationService: @unchecked Sendable {
                 throw FoodConfirmationSaveError.invalidReviewedSource
             }
         }
-        // Panel admission (pasted label v1): verified against the stored manifest, before policy.
-        if PanelSourceAdmission.applies(state.input, candidate: selected) {
-            guard PanelSourceAdmission.verify(state.input, candidate: selected, encoder: encoder, digester: digester,
+        // Label admission (pasted label or label photo, P19): routed by the composite to exactly one
+        // verifier against the stored manifest, before policy. A mixed candidate is refused.
+        if LabelSourceAdmission.applies(state.input, candidate: selected) {
+            guard LabelSourceAdmission.verify(state.input, candidate: selected, encoder: encoder, digester: digester,
                                               conversions: pastedLabelConversions),
                   identity.servingBasis == selected.candidate.identity.servingBasis,
                   (state.correction?.nutrients ?? state.reopened?.resolutionVersion.nutrients ?? selected.candidate.nutrients) == selected.candidate.nutrients else {
                 throw FoodConfirmationSaveError.invalidPastedLabelSource
             }
+        }
+        // A new label photo entry is logged only through `saveLabelPhoto`, which binds the image
+        // evidence to the persisted photo in the same commit (17.3).
+        if state.reopened == nil, LabelSourceAdmission.route(state.input, candidate: selected) == .photo,
+           !state.input.evidence.contains(where: { selected.candidate.evidenceIDs.contains($0.evidenceID) && $0.attachment != nil }) {
+            throw FoodConfirmationSaveError.invalidPastedLabelSource
         }
         let now = clock.now()
         // The service is authoritative: the same pure policy that drives the Log button.
@@ -716,7 +778,8 @@ public final class FoodConfirmationService: @unchecked Sendable {
             mutation,
             type: assertion?.confirmation != nil ? .confirmFoodV3 : (declaration == nil ? .confirmFood : .confirmFoodV2),
             operationID: operationID,
-            idempotencyKey: idempotencyKey
+            idempotencyKey: idempotencyKey,
+            persistedAttachments: persistedAttachments
         )
         let returnedReleases = (previous?.sourceReleases ?? []) + state.input.sourceReleases.filter { source in
             !(previous?.sourceReleases.contains { $0.sourceReleaseID == source.sourceReleaseID } ?? false)
@@ -877,11 +940,22 @@ public final class FoodConfirmationService: @unchecked Sendable {
             input = try PopulatedFoodConfirmation(evidence: input.evidence, sourceReleases: input.sourceReleases,
                 candidates: [restored], expectedIdentity: input.expectedIdentity, expectedEdibleQuantity: input.expectedEdibleQuantity)
         }
-        if PanelSourceAdmission.applies(input, candidate: input.candidates[0]) {
+        if LabelSourceAdmission.route(input, candidate: input.candidates[0]) == .photo {
+            // The label photo route, verified against its stored manifest, never re-read.
+            guard let restored = try? LabelPhotoSource.restoredSourceCandidate(input, candidate: input.candidates[0]),
+                  LabelSourceAdmission.verify(input, candidate: restored, encoder: encoder, digester: digester,
+                                              conversions: pastedLabelConversions),
+                  saved.resolutionVersion.nutrients == restored.candidate.nutrients,
+                  saved.productVersion.identity.servingBasis == restored.candidate.identity.servingBasis else {
+                throw FoodLedgerStoreError.integrityFailure("label photo manifest does not match the retained candidate")
+            }
+            input = try PopulatedFoodConfirmation(evidence: input.evidence, sourceReleases: input.sourceReleases,
+                candidates: [restored], expectedIdentity: input.expectedIdentity, expectedEdibleQuantity: input.expectedEdibleQuantity)
+        } else if LabelSourceAdmission.applies(input, candidate: input.candidates[0]) {
             // Verified against the stored manifest, never a re-parse. The source candidate's
             // name, brand and class are restored from the manifest, not from the saved product.
             guard let restored = try? PastedLabelSource.restoredSourceCandidate(input, candidate: input.candidates[0]),
-                  PanelSourceAdmission.verify(input, candidate: restored, encoder: encoder, digester: digester,
+                  LabelSourceAdmission.verify(input, candidate: restored, encoder: encoder, digester: digester,
                                               conversions: pastedLabelConversions),
                   saved.resolutionVersion.nutrients == restored.candidate.nutrients,
                   saved.productVersion.identity.servingBasis == restored.candidate.identity.servingBasis else {
