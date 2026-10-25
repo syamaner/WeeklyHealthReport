@@ -119,13 +119,13 @@ The pasted route's Edit label text becomes **Retake or adjust photo**, which ret
 
 After the model's reading is mapped (P8), `LabelValueLocating` runs `VNRecognizeTextRequest` (accurate level, `zh-Hant` and `en-US` as advertised by the running Vision revision, language correction off) on the **same prepared image** that was sent. For each row and each value cell:
 
-1. Normalise both sides: Unicode NFKC (full-width digits and letters to half-width), remove whitespace, keep the comparator and unit characters.
-2. Find the **row label** observation whose normalised text equals or contains the printed label.
-3. Candidate value observations are those whose normalised text equals the cell's normalised printed text, or contains it as a whole token.
-4. When the row label was found, keep only candidates whose vertical centre lies within the row label's line band (its height, expanded by half a line). When the header was found, keep only candidates whose horizontal centre lies within the header's column band.
-5. Exactly one candidate left: **found**, with its bounding box (normalised to the image, rounded to four decimals). Otherwise: **not found** (zero) or **ambiguous** (several), both shown as "Not found on the photo".
+1. Normalise both sides: Unicode NFKC (full-width digits and letters to half-width), remove whitespace, lower case, keep the comparator and unit characters. Only ASCII digits count as digits (Han numerals such as 一 are words on a label).
+2. Find every **row label** and every **header** of the table that occurs exactly once; a label or header may not be preceded by a letter or ideograph, so 脂肪 is not found inside 飽和脂肪.
+3. Candidates for a value are occurrences of its normalised printed text not preceded or followed by a digit or decimal point (so 5公克 is not found inside 15公克), with the box of that substring.
+4. When the value's row label was found, keep only candidates whose **nearest row label** (by vertical centre) is that label; when its header was found, keep only candidates whose **nearest header** (by horizontal centre) is that header. Nearest, not a fixed band, because Vision often reads the label column and the value columns as separate lines and photos are often tilted.
+5. Exactly one candidate left: **found**, with its bounding box (normalised to the image, rounded to four decimals). Several: **ambiguous**. None: try the next text in order, the part from the first digit or comparator ("每一份量 185 公克" to "185公克"), then, for a value, its number alone (when Vision reads the unit as its own line); if none has a candidate, **not found**. Ambiguous and not found are both shown as "Not found on the photo".
 
-Serving lines and the servings per pack line are located the same way on their printed text.
+Serving lines and the servings per pack line are located the same way on their printed text, with no row or column constraint. The matcher (`LabelValueMatcher`, `label-photo-vision-locate-v1`) is pure Swift; L0 built and measured it (17.9) and L1 carries the file into the package unchanged.
 
 Being found is **corroboration, not verification**: two independent readers agree that this text appears at this place in this row and column. It cannot prove the model bound the value to the right nutrient when the row label itself was misread, so found values are still values the user checks; they are just not attention items.
 
@@ -407,7 +407,7 @@ Pure (package):
 4. Attention rules: every reason creates an item; Log stays disabled until each has a resolution; arithmetic items resolve their implicated rows together; Leave unknown stores unknown.
 5. Manifest strict codec goldens; canonical bytes; unknown or missing keys throw; generation ID, usage and unknown cost round-trip.
 6. Verifier: every rule in 8.2 (no mapping replay; 17.1), including the attention recomputation, region bounds, a missing attachment and all cross-route rejections; `LabelSourceAdmission` routes photo and pasted candidates correctly, and a mixed candidate (one value naming each source) is refused.
-7. Request builder golden: the exact JSON body, provider block, `max_tokens` 4,000, one image part; the body never contains the key, name, brand or any field outside E2.
+7. Request builder golden: the exact JSON body, provider block, `max_tokens` 1,200 and the `reasoning` limit of 500 (17.5), one image part; the body never contains the key, name, brand or any field outside E2.
 8. Response checks: wrong model, wrong provider, `finish_reason` other than `stop`, tool calls, refusal, oversize, schema-invalid each fail with nothing shown.
 9. Retry policy: each retryable status retries; content failures do not; `Retry-After` in seconds and HTTP-date forms; a `Retry-After` past the deadline stops; at most 3 attempts in 90 s; cancellation stops at once (fake clock and jitter).
 10. Spend policy: 30 reads, $0.50, unknown cost counted at $0.05, over-cap cost pauses the day, local-midnight reset with an injected calendar.
@@ -429,7 +429,7 @@ Section 17.8 adds eleven contract tests from the architecture gate (tests 15 to 
 
 | Phase | Content | Egress |
 |---|---|---|
-| L0 | Offline locate-rate measurement (6.1, with the inputs and method of 17.6); report found rate and how many silent errors would be not found | None |
+| L0 | Offline locate-rate measurement (6.1, with the inputs and method of 17.6); report found rate and how many silent errors would be not found. **Done 25 October 2026 (17.9)** | None |
 | L1 | Pure core: wire mapping port, `LabelPhotoReading`, attention, serving, manifest, verifier, composite admission, retry and spend policies, tests 1 to 12 | None |
 | L2 | Image preparation and Vision locator, tests 13 and 14 | None |
 | L3 | OpenRouter adapter and route checker against a fake transport only | None |
@@ -525,8 +525,9 @@ L1 re-runs `rg 'isVersion|captureMethodVersion'` and adds any further site to th
 **Spend (M4).**
 
 - Every attempt that sent bytes is counted, including one cut by Cancel: its reported `usage.cost` when reconciled, otherwise its worst case.
-- **The approved $0.05 is a total per tap, across all attempts.** Before each attempt the reader computes its worst case W, 6,000 input tokens at the day's prompt price plus `max_tokens` at the completion price, and does not start the attempt if W exceeds $0.05 less what the tap has already been charged (reported cost, or W for an attempt with no reported cost). A retry happens only when the remaining budget covers a whole worst-case attempt.
-- The request golden pins `max_tokens` **1,200** and an explicit `reasoning` limit of **500** tokens, sized from the evaluation's median Gemini cost. At the catalogue prices recorded for Gemini 4 Argon ($2 and $10 per million tokens), W is about $0.024, so an unreported failure leaves room for one retry. E13 measures the 6,000-token input ceiling and the truncation rate at 1,200; any change is a new route version within the same $0.05.
+- **The approved $0.05 is a total per tap, across all attempts.** Before each attempt the reader computes its worst case W, 6,000 input tokens at the day's prompt price plus `max_tokens` at the completion price (plus the reasoning limit as well, if the endpoint bills reasoning tokens outside `max_tokens`; L3 confirms the endpoint's semantics and test 21 pins W), and does not start the attempt if W exceeds $0.05 less what the tap has already been charged (reported cost, or W for an attempt with no reported cost). A retry happens only when the remaining budget covers a whole worst-case attempt.
+- The request golden pins `max_tokens` **1,200** and an explicit `reasoning` limit of **500** tokens, sized from the evaluation's median Gemini cost. At the catalogue prices recorded for Gemini 4 Argon ($2 and $10 per million tokens), W is about $0.024, so an unreported failure leaves room for one retry; if reasoning is billed separately W rises to about $0.029, so after a failure with no reported cost no retry fits and the rule stops the tap (a failure whose cost is reported, often as zero for a rejected request, still leaves room). E13 measures the 6,000-token input ceiling and the truncation rate at 1,200; any change is a new route version within the same $0.05.
+- **Input ceiling, fail closed.** A reply whose reported `usage.prompt_tokens` exceeds 6,000 means the worst case was understated, so the route pauses for the rest of the local day (the same state and copy as a per-call cost over $0.05) and the read's answer is still shown for checking. Test 26.
 - The daily caps are unchanged (E10): a tap with any attempt lacking a reported cost counts as $0.05 toward the daily $0.50.
 - **Provider-overloaded answer** (E11): an OpenRouter error object whose numeric `code` is 502, 503 or 529, in an HTTP error reply or an HTTP 200 envelope, with no `choices`. Nothing else is retried on content grounds.
 
@@ -570,3 +571,35 @@ L1 re-runs `rg 'isVersion|captureMethodVersion'` and adds any further site to th
 23. **Image hardening (M6):** positive controls assert each fixture **contains** GPS, MakerApple, XMP, depth data and a gain map before preparation; output APP segments are as stated; `PreparedLabelImage` cannot be built outside the preparer (a compile-time test); the request's data URI decodes to exactly the prepared bytes.
 24. **Directories (L2):** the attachments root and the spend ledger sit under the backup-excluded directory.
 25. **Failure modes and freeze (L3, L4):** an unreadable ledger reports the limit reached; the locked-data save copy; the reset by the injected calendar; the photo freeze test.
+26. **Input ceiling (17.5):** a reply reporting 6,001 prompt tokens pauses the route until the injected calendar's next local day; 6,000 does not; a pause survives relaunch through the spend ledger.
+
+### 17.9 L0 result (25 October 2026, no egress)
+
+Run once on this Mac (macOS 27.0.1, Vision revision 3, accurate, `zh-Hant` and `en-US`, language correction off) with `Tools/NutritionLabelCaptureEvaluation/l0_locate.py` and the Swift tool `Tools/LabelPhotoLocateL0`. Inputs, as 17.6 names them: the saved route C answers of the untouched run (`~/WHR-label-eval-private/runs/untouched-v1/<arm>/untouched/*.eval`) and of the development run (`runs/route-c-dev`), and the public Open Food Facts Taiwan photos in `~/WHR-label-eval-private/off-taiwan-v1/`, matched by SHA-256. The stored route B outputs carry no per-substring geometry, so Vision was re-run locally on the E3-prepared bytes. Photos are used uncropped (they are already panel photos). Assisted view (the product design); attention uses the draft attention rules (not found or ambiguous, a failed arithmetic or consistency check, a G3 or G4 flag). Counts and case IDs only: [`results/l0-locate-rate-v1.md`](../Tools/NutritionLabelCaptureEvaluation/results/l0-locate-rate-v1.md).
+
+| Untouched Taiwan, E3 as specified | Gemini 4 Argon | GPT-6.1 Sol | Luna |
+|---|---|---|---|
+| Photos refused by the 480 px short-edge minimum | 8 of 40 | 8 of 40 | 8 of 40 |
+| Pre-filled tables | 29 | 30 | 32 |
+| Correct values found on the photo | 356 / 479 (74.3%) | 345 / 487 (70.8%) | 375 / 505 (74.3%) |
+| Correct values not found / ambiguous | 54 / 69 | 69 / 73 | 57 / 73 |
+| Silent wrong values that became attention items | 4 of 4 | 1 of 3 | 29 of 44 |
+| Silent-error tables fully caught | 1 of 2 | 1 of 2 | 2 of 4 |
+| Tables opening with no attention item | 3 of 29 | 3 of 30 | 3 of 32 |
+| Attention items per table, median / p90 | 3 / 13 | 3 / 13 | 3.5 / 15 |
+| Serving lines found | 40 / 58 | 42 / 60 | 44 / 64 |
+
+With the 480 px minimum lifted (sensitivity only), Gemini 4 Argon pre-fills 37 tables, finds 443 of 603 correct values (73.5%) and catches all 4 silent wrong values (1 of 2 silent-error tables fully); Sol finds 70.7% and catches 2 of 4. On the 15 development photos (12 pre-filled, 3 refused by the minimum) Gemini finds 74.7% with no silent error.
+
+**Reading.**
+
+- The found rate (71 to 74%) is just above the 70% line of 6.1, so P12 stands; but with a median of 3 and a p90 of 13 attention items per table, and only about 1 table in 10 opening clear, it costs more taps than the correction-effort analysis suggested. Ambiguity (repeated values such as 0公克 where a row label is not found exactly once) is the largest source.
+- For the arm the contract chose, every silent wrong value Gemini 4 Argon made became an attention item. One silent-error table stays partly silent because its wrong serving line was found on the photo, which a locator cannot catch.
+- The 480 px minimum refuses 8 of the 40 public photos, small crowd-sourced panel crops; Gemini read those 8 with no silent error. Camera photos will rarely be that small, but screenshots may.
+
+**What L1 needs from this.**
+
+1. Reduce ambiguity in `label-photo-vision-locate-v1` **before** it is frozen (L3): for example resolve a repeated value by its order within its column when the row labels are read in the same order. Re-run L0 after the change and keep the version string, since nothing has shipped.
+2. Decide the short-edge minimum (P5, not an egress term): recommendation, lower it to 240 px and let E13 confirm, because the evaluation's models read these photos.
+3. Port `classify_cells`' attention draft into `label-photo-attention-v1` exactly as measured here, so the L0 counts describe the shipped rules.
+4. Keep the L0 numbers in the E13 report beside the ZDR-endpoint run, re-measured on that run's answers.
