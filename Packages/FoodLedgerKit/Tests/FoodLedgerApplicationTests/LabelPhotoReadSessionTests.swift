@@ -29,7 +29,7 @@ final class LabelPhotoReadSessionTests: XCTestCase {
         init(_ script: [LabelPhotoAttemptResult], clock: Clock) { self.script = script; self.clock = clock }
         func attempt(_ image: PreparedLabelImage, timeout: TimeInterval) async -> LabelPhotoAttemptResult {
             timeouts.append(timeout)
-            if holds { await withCheckedContinuation { hold = $0 } }
+            if holds { holds = false; await withCheckedContinuation { hold = $0 } }
             during?()
             clock.value += 5
             if cancelDuring == timeouts.count { withUnsafeCurrentTask { $0?.cancel() } }
@@ -60,11 +60,20 @@ final class LabelPhotoReadSessionTests: XCTestCase {
         struct WriteFailed: Error {}
         var stored: LabelPhotoSpendPolicy.Stored = .absent
         var failsWrites = false
+        /// Fails only this many further writes, then succeeds.
+        var failNextWrites = 0
         var writes = 0
-        func load() -> LabelPhotoSpendPolicy.Stored { stored }
-        func store(_ day: LabelPhotoSpendPolicy.Day) throws {
-            if failsWrites { throw WriteFailed() }
-            writes += 1; stored = .day(day)
+        private let lock = NSLock()
+        func load() -> LabelPhotoSpendPolicy.Stored { lock.withLock { stored } }
+        @discardableResult
+        func update(_ transform: (LabelPhotoSpendPolicy.Stored) throws -> LabelPhotoSpendPolicy.Day) throws -> LabelPhotoSpendPolicy.Day {
+            try lock.withLock {
+                let day = try transform(stored)
+                if failsWrites { throw WriteFailed() }
+                if failNextWrites > 0 { failNextWrites -= 1; throw WriteFailed() }
+                writes += 1; stored = .day(day)
+                return day
+            }
         }
         var day: LabelPhotoSpendPolicy.Day? { if case let .day(day) = stored { day } else { nil } }
     }
@@ -318,5 +327,51 @@ final class LabelPhotoReadSessionTests: XCTestCase {
         clock.value += 86_400
         _ = await session.read(image)
         XCTAssertEqual(checker.calls, 2)
+    }
+
+    // MARK: #326 re-check: two sessions on one ledger, and the retried write
+
+    func testTwoSessionsOnOneLedgerKeepEachOthersSpend() async {
+        // Start 10 / $0.10. A reserves; B reserves; B finishes at $0.01; A finishes unreported.
+        let ledger = Ledger(); ledger.stored = .day(.init(day: "2026-10-25", reads: 10, cost: Decimal(string: "0.10")!, paused: false))
+        let (a, attemptsA, _, _, _) = makeSession([Self.failed(.transportError), Self.failed(.transportError)], ledger: ledger)
+        let (b, attemptsB, _, _, _) = makeSession([Self.answer], ledger: ledger)
+        attemptsA.holds = true; attemptsB.holds = true
+        let prepared = image
+        let tapA = Task { [a, prepared] in await a.read(prepared) }
+        while attemptsA.hold == nil { await Task.yield() }
+        let tapB = Task { [b, prepared] in await b.read(prepared) }
+        while attemptsB.hold == nil { await Task.yield() }
+        XCTAssertEqual(ledger.day, .init(day: "2026-10-25", reads: 12, cost: Decimal(string: "0.20")!, paused: false), "both reserved")
+        attemptsB.hold?.resume()
+        _ = await tapB.value
+        attemptsA.hold?.resume()
+        _ = await tapA.value
+        XCTAssertEqual(ledger.day, .init(day: "2026-10-25", reads: 12, cost: Decimal(string: "0.16")!, paused: false))
+    }
+
+    func testAReleaseNeverWipesAnotherSessionsReservation() async {
+        let ledger = Ledger(); ledger.stored = .day(.init(day: "2026-10-25", reads: 10, cost: Decimal(string: "0.10")!, paused: false))
+        let (a, attemptsA, _, _, _) = makeSession([Self.answer], ledger: ledger)
+        let (b, _, _, _, _) = makeSession([.notSent(.cancelled)], ledger: ledger)
+        attemptsA.holds = true
+        let prepared = image
+        let tapA = Task { [a, prepared] in await a.read(prepared) }
+        while attemptsA.hold == nil { await Task.yield() }
+        _ = await b.read(prepared)   // reserves, sends nothing, releases
+        XCTAssertEqual(ledger.day, .init(day: "2026-10-25", reads: 11, cost: Decimal(string: "0.15")!, paused: false), "A's reservation kept")
+        attemptsA.hold?.resume()
+        _ = await tapA.value
+        XCTAssertEqual(ledger.day, .init(day: "2026-10-25", reads: 11, cost: Decimal(string: "0.11")!, paused: false))
+    }
+
+    func testAFailedReconcileWriteIsRetriedOnce() async {
+        let ledger = Ledger()
+        let (session, attempter, _, _, _) = makeSession([Self.answer, Self.answer], ledger: ledger)
+        attempter.during = { ledger.failNextWrites = 1 }
+        _ = await session.read(image)
+        XCTAssertEqual(ledger.day?.cost, Decimal(string: "0.01"), "reconciled on the retry")
+        attempter.during = nil
+        guard case .answered = await session.read(image) else { return XCTFail("the route stays open") }
     }
 }

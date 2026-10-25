@@ -123,6 +123,26 @@ public enum LabelPhotoSpendPolicy {
         return Day(day: base.day, reads: base.reads + 1, cost: base.cost + perTapLimit, paused: base.paused)
     }
 
+    /// The reservation turned into the tap's cost, as a delta on the day as it is now (#326
+    /// re-check): another session's taps since the reservation are kept. Reads are unchanged (the
+    /// reservation already counted this one); the cost moves from $0.05 to the tap's cost, up or
+    /// down; a reported cost over $0.05 or an input over the ceiling pauses the day. A day other
+    /// than the tap's is left as it is.
+    public static func reconciled(_ now: Day, today: String, attempts: [Attempt], prices: Prices) -> Day {
+        guard now.day == today else { return now }
+        let reported = attempts.reduce(Decimal(0)) { $0 + ($1.reportedCost ?? 0) }
+        let overCap = reported > perTapLimit
+        let overInput = attempts.contains { ($0.promptTokens ?? 0) > promptTokenCeiling }
+        return Day(day: now.day, reads: now.reads, cost: max(0, now.cost - perTapLimit + tapCost(attempts, prices: prices)),
+                   paused: now.paused || overCap || overInput)
+    }
+
+    /// A reservation released by a tap that sent nothing: one read and $0.05 fewer, as a delta.
+    public static func released(_ now: Day, today: String) -> Day {
+        guard now.day == today else { return now }
+        return Day(day: now.day, reads: max(0, now.reads - 1), cost: max(0, now.cost - perTapLimit), paused: now.paused)
+    }
+
     /// The day after a finished tap (success, failure or Cancel) that sent at least one attempt.
     public static func record(_ attempts: [Attempt], prices: Prices, today: String, stored: Day?) -> Day {
         let base = current(today: today, stored: stored)

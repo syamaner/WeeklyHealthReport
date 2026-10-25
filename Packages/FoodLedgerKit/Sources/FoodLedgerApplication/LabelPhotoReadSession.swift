@@ -91,18 +91,24 @@ public actor LabelPhotoReadSession {
         guard let prices = Self.prices(check, route: route, reasoningBilledSeparately: reasoningBilledSeparately) else {
             return .failed(.routeUnavailable)
         }
-        // Reserve the tap before the first send (E10, #326 review): a kill mid-attempt leaves it
-        // counted. Re-read after the catalogue wait, and never write over an unreadable ledger.
-        let base: LabelPhotoSpendPolicy.Day?
-        switch ledger.load() {
-        case .unreadable: return .failed(.dailyLimit)
-        case .absent: base = nil
-        case let .day(day): base = day
-        }
-        guard LabelPhotoSpendPolicy.admission(today: today, stored: base.map { .day($0) } ?? .absent) == .allowed else {
+        // Reserve the tap before the first send (E10, #326 review), with the admission, in one
+        // atomic update of the ledger as it is now: a kill mid-attempt leaves it counted, another
+        // session's taps are never overwritten, and an unreadable ledger is never written.
+        do {
+            try ledger.update { stored in
+                switch LabelPhotoSpendPolicy.admission(today: today, stored: stored) {
+                case .allowed: break
+                case .limitReached: throw Refusal.limitReached
+                case .paused: throw Refusal.paused
+                }
+                guard case let .day(day) = stored else { return LabelPhotoSpendPolicy.reservation(today: today, stored: nil) }
+                return LabelPhotoSpendPolicy.reservation(today: today, stored: day)
+            }
+        } catch Refusal.paused {
+            return .failed(.paused)
+        } catch Refusal.limitReached {
             return .failed(.dailyLimit)
-        }
-        do { try ledger.store(LabelPhotoSpendPolicy.reservation(today: today, stored: base)) } catch {
+        } catch {
             ledgerFailed = true
             return .failed(.dailyLimit)
         }
@@ -149,15 +155,22 @@ public actor LabelPhotoReadSession {
                 }
             }
         }
-        // Reconcile the reservation to the tap's cost (up or down). A tap that sent nothing is
-        // released. A failed write leaves the reservation and closes the route for the session.
-        let final = attempts.isEmpty ? (base ?? LabelPhotoSpendPolicy.Day.empty(today))
-            : LabelPhotoSpendPolicy.record(attempts, prices: prices, today: today, stored: base)
-        if case .unreadable = ledger.load() {
+        // Reconcile the reservation to the tap's cost (up or down), or release it if nothing was
+        // sent, as a delta on the ledger as it is now. A failed write is retried once; if it still
+        // fails, or the ledger has become unreadable, the reservation stays and the route closes
+        // for the session.
+        let settle: (LabelPhotoSpendPolicy.Stored) throws -> LabelPhotoSpendPolicy.Day = { stored in
+            guard case let .day(day) = stored else { throw Refusal.unreadable }
+            return attempts.isEmpty ? LabelPhotoSpendPolicy.released(day, today: today)
+                : LabelPhotoSpendPolicy.reconciled(day, today: today, attempts: attempts, prices: prices)
+        }
+        do { try ledger.update(settle) } catch Refusal.unreadable {
             ledgerFailed = true
-        } else {
-            do { try ledger.store(final) } catch { ledgerFailed = true }
+        } catch {
+            do { try ledger.update(settle) } catch { ledgerFailed = true }
         }
         return outcome
     }
+
+    enum Refusal: Error { case limitReached, paused, unreadable }
 }

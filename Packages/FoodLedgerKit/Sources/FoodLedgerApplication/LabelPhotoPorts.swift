@@ -137,7 +137,11 @@ public protocol LabelPhotoRouteChecking: Sendable {
 /// (`LabelPhotoSpendPolicy.admission`).
 public protocol LabelPhotoSpendLedger: Sendable {
     func load() -> LabelPhotoSpendPolicy.Stored
-    func store(_ day: LabelPhotoSpendPolicy.Day) throws
+    /// One atomic read-modify-write (#326 re-check): `transform` sees the day as stored now and
+    /// returns the day to store, or throws to store nothing. No other write, from this process or
+    /// another, can come between the read and the write. Returns the day stored.
+    @discardableResult
+    func update(_ transform: (LabelPhotoSpendPolicy.Stored) throws -> LabelPhotoSpendPolicy.Day) throws -> LabelPhotoSpendPolicy.Day
 }
 
 /// Whether the device can reach the network now (7.2, offline state).

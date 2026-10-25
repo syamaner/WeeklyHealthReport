@@ -1085,3 +1085,16 @@ L5 confirms both against the catalogue and a fictional qualification label, and 
 - use the same anonymous configuration for the catalogue GETs, with no Authorization header.
 
 Before the route is enabled, L5 also confirms the ZDR listing's live field names and whether reasoning is billed outside `max_tokens`, and records both here.
+
+**Re-check of #326 (one medium, fixed).**
+
+- **Two sessions on one ledger (medium).** The reconcile and the release used to write an absolute day built from the snapshot taken before the reservation, so a second session's spend could be lost. The spend ledger port is now one atomic read-modify-write, `update(_:)`.
+  - **Reserve.** The admission and the reservation happen in one update.
+  - **Reconcile.** A delta on the day as it is now: reads unchanged, the cost moves from $0.05 to the tap's cost, and a reported cost over $0.05 or an input over the ceiling pauses the day.
+  - **Release.** One read and $0.05 fewer.
+  - A day other than the tap's is never changed.
+  - The test fakes implement the update under a lock. L4's file ledger implements it under file coordination.
+  - A two-session test reproduces the worked example: start at 10 reads and $0.10; A reserves; B reserves; B finishes at $0.01; A finishes unreported. The ledger ends at 12 reads and $0.16. A release by one session keeps the other's reservation.
+- **One session per process.** The composition root holds a single `LabelPhotoReadSession`, shared by every scene. It is built in L4, with its test, where the route is first wired. With the atomic update, two sessions are already correct, so this is a second line of defence.
+- **The final write (low).** A failed reconcile or release write is retried once. If it fails again, the reservation stays and the route closes for the session.
+- **The residual window (accepted).** The reservation counts $0.05. If the app is killed after a reply that reported more than $0.05, or more than 6,000 prompt tokens, but before the reconcile, the day keeps $0.05 and is not paused. This needs the provider to exceed the worst case W, which the catalogue prices and `max_tokens` bound, so it is accepted.
