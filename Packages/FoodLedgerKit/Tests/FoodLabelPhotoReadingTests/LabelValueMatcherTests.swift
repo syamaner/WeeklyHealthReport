@@ -605,6 +605,43 @@ final class LabelValueMatcherTests: XCTestCase {
         XCTAssertEqual(fatValue(printed: "2,030千焦", model: "2,030千焦"), .found)
     }
 
+    /// D1 (#321 round 5): three printed columns, the reading has two with both headers read in order.
+    /// An unheaded middle column holds 0公克 on three rows; read under 每份, the order pass must not place
+    /// them (the counts compared are only of tokens under the value's own header).
+    func d1Table(middle: [String]) -> [M.Line] {
+        let rows: [(String, String, String)] = [("熱量", "485大卡", "262大卡"), ("蛋白質", "12.5公克", "6.8公克"),
+                                                 ("脂肪", "3公克", "1.6公克"), ("飽和脂肪", "1.2公克", "0.6公克"),
+                                                 ("碳水化合物", "65.2公克", "35.2公克"), ("鈉", "120毫克", "65毫克")]
+        var lines: [M.Line] = [.init(text: "每份", box: .init(x: 0.36, y: 0.90, width: 0.08, height: 0.04)),
+                               .init(text: "每100公克", box: .init(x: 0.78, y: 0.90, width: 0.12, height: 0.04))]
+        for (index, row) in rows.enumerated() {
+            let y = 0.80 - Double(index) * 0.08
+            lines.append(.init(text: row.0, box: .init(x: 0.05, y: y, width: 0.12, height: 0.04)))
+            lines.append(.init(text: row.1, box: .init(x: 0.36, y: y, width: 0.08, height: 0.04)))
+            lines.append(.init(text: middle[index], box: .init(x: 0.52, y: y, width: 0.08, height: 0.04)))
+            lines.append(.init(text: row.2, box: .init(x: 0.80, y: y, width: 0.08, height: 0.04)))
+        }
+        return lines
+    }
+
+    func testAnUnheadedColumnReadUnderAHeaderIsNeverFound() {
+        let labels = ["熱量", "蛋白質", "脂肪", "飽和脂肪", "碳水化合物", "鈉"]
+        let repeated = ["300大卡", "0公克", "0公克", "0公克", "5公克", "60毫克"]
+        let distinct = ["300大卡", "0.1公克", "0.2公克", "0.3公克", "5公克", "60毫克"]
+        for middle in [repeated, distinct] {
+            let queries = labels.indices.map { M.Query(id: "d\($0)", rowLabel: labels[$0], headerText: "每份", printedText: middle[$0]) }
+            let located = M.locate(queries, lines: d1Table(middle: middle), headers: ["每份", "每100公克"], rowLabels: labels,
+                                   columnCount: 2) { _, _ in nil }
+            XCTAssertFalse(located.contains { $0.status == .found }, "\(middle)")
+        }
+        // Control: the correct reading of the 每份 column is still found.
+        let correct = [("熱量", "485大卡"), ("蛋白質", "12.5公克"), ("脂肪", "3公克")].enumerated().map {
+            M.Query(id: "c\($0.offset)", rowLabel: $0.element.0, headerText: "每份", printedText: $0.element.1)
+        }
+        XCTAssertEqual(M.locate(correct, lines: d1Table(middle: repeated), headers: ["每份", "每100公克"], rowLabels: labels,
+                                columnCount: 2) { _, _ in nil }.map(\.status), [.found, .found, .found])
+    }
+
     func testFoundRegionIsRoundedAndInsideTheUnitSquare() throws {
         let location = M.locate([.init(id: "j", rowLabel: "熱量", headerText: "每份", printedText: "485大卡")], lines: lines,
                                 headers: headers, rowLabels: rowLabels, columnCount: 2) { index, _ in

@@ -492,11 +492,13 @@ public enum LabelValueMatcher {
             let labelBoxes = expected.compactMap { queries[$0].rowLabel.flatMap { rowBoxes[Normalised($0).key] } }
             let inOrder = labelBoxes.count == expected.count && zip(labelBoxes, labelBoxes.dropFirst()).allSatisfy { $0.midY > $1.midY }
             let observed = (matchTiers(query.printedText, isLine: false, in: normalised).first ?? []).map { box($0) }
-                .filter { inHeader(query, $0) }
+                // With two or more columns, count only the tokens under the value's own header (D1:
+                // an unheaded column's matching values must not make the counts agree).
+                .filter { columnCount <= 1 ? inHeader(query, $0) : underOwnHeader(query, $0) }
                 .sorted { $0.midY > $1.midY }
             guard inOrder, expected.count > 1, expected.count == observed.count, let rank = expected.firstIndex(of: index),
                   result.candidates.contains(observed[rank]), let label = rowKey(query), rowFit(label, observed[rank]) == .near,
-                  directRows.contains(label), columnForFound(query),
+                  directRows.contains(label), columnForFound(query), columnCount <= 1 || underOwnHeader(query, observed[rank]),
                   !(columnCount <= 1 && numberTokens(onRow: label).count > (listedPerRow[label] ?? 0)) else { return result.location }
             return Location(id: query.id, status: .found, region: rounded(observed[rank]))
         }

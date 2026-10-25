@@ -4,7 +4,7 @@ import XCTest
 
 private typealias M = LabelValueMatcher
 
-// Locator v2 attack scenarios (#321 reviews, A1 to A6, B1 to B7 and C1 to C8), ported from the reviewer's harness (synthetic
+// Locator v2 attack scenarios (#321 reviews, A1 to A6, B1 to B7, C1 to C8 and D1 to D7), ported from the reviewer's harness (synthetic
 // data only): near-miss labels of other nutrients, unread labels with swapped readings, tall wrapped
 // labels, offset poisoning by a reading off by one row, non-uniform drift, and unread headers with
 // reversed, footnote and extra columns. A wrong value must never be found, and a correct value must
@@ -204,7 +204,41 @@ final class LabelValueMatcherAttackTests: XCTestCase {
         runAttack("C8 tight sub-row, correct", build(c8), q(c8))
         var q8 = q(c8); q8[4] = ("碳水化合物", "每份", "8公克", true); q8[5] = ("其中糖", "每份", "65.2公克", true)
         runAttack("C8b tight sub-row, model swaps parent and sub-row values", build(c8), q8)
-        XCTAssertGreaterThanOrEqual(attackScenarios, 54)
+        print("=========== round 5 attacks")
+        // D1 order pass without the own-header-above check: three physical columns, the reading has two (每份 at 0.40, 每100公克 at 0.84);
+        // an unheaded middle column at 0.56 holds three 0公克; the model reads the middle column's values under 每份 (one error: wrong column).
+        let d1rows: [PRow] = [
+          .init(label: "熱量", values: ["485大卡", "300大卡", "262大卡"]), .init(label: "蛋白質", values: ["12.5公克", "0公克", "6.8公克"]),
+          .init(label: "脂肪", values: ["3公克", "0公克", "1.6公克"]), .init(label: "飽和脂肪", values: ["1.2公克", "0公克", "0.6公克"]),
+          .init(label: "碳水化合物", values: ["65.2公克", "5公克", "35.2公克"]), .init(label: "鈉", values: ["120毫克", "60毫克", "65毫克"])]
+        let d1 = build(d1rows, cols: [0.40, 0.56, 0.84], headers: nil, extra: [hl("每份", 0.40, 0.92), hl("每100公克", 0.84, 0.92)])
+        let d1q = d1rows.flatMap { r in [(r.name, "每份", r.values[1], r.values[1] != r.values[0]), (r.name, "每100公克", r.values[2], false)] } as [(String, String?, String, Bool)]
+        runAttack("D1 unheaded middle column read under 每份 (repeated 0公克)", d1, d1q, headers: ["每份", "每100公克"], cols: 2)
+        // D1b same without repeats (every middle value distinct) - first pass only
+        var d1r2 = d1rows; d1r2[1].values[1] = "0.1公克"; d1r2[2].values[1] = "0.2公克"; d1r2[3].values[1] = "0.3公克"
+        let d1q2 = d1r2.flatMap { r in [(r.name, "每份", r.values[1], true), (r.name, "每100公克", r.values[2], false)] } as [(String, String?, String, Bool)]
+        runAttack("D1b unheaded middle column read under 每份 (distinct values)", build(d1r2, cols: [0.40, 0.56, 0.84], headers: nil, extra: [hl("每份", 0.40, 0.92), hl("每100公克", 0.84, 0.92)]), d1q2, headers: ["每份", "每100公克"], cols: 2)
+        // D2 identical header text for two columns
+        runAttack("D2 two columns both headed 每份", build(two2, cols: [0.45, 0.72], headers: ["每份", "每份"]),
+            two2.flatMap { r in [(r.name, "每份", r.values[1], true), (r.name, "每份", r.values[0], true)] }, headers: ["每份", "每份"], cols: 2)
+        // D3 headers glued on one line, sub-boxes proportional; model reverses
+        runAttack("D3 glued header line 每份每100公克, model reverses", build(two2, cols: [0.45, 0.72], headers: nil, extra: [hl("每份每100公克", 0.40, 0.92, 0.45)]), rev, headers: ["每100公克", "每份"], cols: 2)
+        runAttack("D3b glued header line, model correct", build(two2, cols: [0.45, 0.72], headers: nil, extra: [hl("每份每100公克", 0.40, 0.92, 0.45)]), fwd.map { ($0.0, $0.1, $0.2, false) }, headers: ["每份", "每100公克"], cols: 2)
+        // D4 full-width brackets and spaces in headers
+        runAttack("D4 headers 每份（30公克） / 每 100 公克, model correct", build(two2, cols: [0.45, 0.72], headers: nil, extra: [hl("每份（30公克）", 0.45, 0.92), hl("每 100 公克", 0.72, 0.92)]),
+            fwd.map { ($0.0, $0.1, $0.2, false) }, headers: ["每份", "每100公克"], cols: 2)
+        // D5 headers in band but over the label column / equal x within tolerance; model reverses
+        runAttack("D5 both headers stacked over one column (x equal); model reverses", build(two2, cols: [0.45, 0.72], headers: nil,
+            extra: [hl("每份", 0.45, 0.92), hl("每100公克", 0.46, 0.97)]), rev, headers: ["每100公克", "每份"], cols: 2)
+        // D6 three-column reading, middle header misattributed (model swaps 2nd and 3rd headers); all headers read
+        let three3: [PRow] = base.map { .init(label: $0.label, values: [$0.values[0], "9\($0.values[0])", "8\($0.values[0])"]) }
+        let d6 = build(three3, cols: [0.40, 0.60, 0.80], headers: ["每份", "每100公克", "每100毫升"])
+        runAttack("D6 three columns, model swaps headers of columns 2 and 3", d6,
+            three3.flatMap { r in [(r.name, "每份", r.values[0], false), (r.name, "每100毫升", r.values[1], true), (r.name, "每100公克", r.values[2], true)] }, headers: ["每份", "每100毫升", "每100公克"], cols: 3)
+        // D7 one-model-error: header text of the per-100 column read as 每100毫升 while photo prints both 每100公克 (col 2) and 每100毫升 (col 3); model reads 2 columns
+        runAttack("D7 photo has 每100公克 and 每100毫升 columns, model reads col 2 values under 每100毫升", d6,
+            three3.flatMap { r in [(r.name, "每份", r.values[0], false), (r.name, "每100毫升", r.values[1], true)] }, headers: ["每份", "每100毫升"], cols: 2)
+        XCTAssertGreaterThanOrEqual(attackScenarios, 63)
         XCTAssertEqual(attackFailures, [])
     }
 }
