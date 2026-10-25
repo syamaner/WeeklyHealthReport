@@ -342,10 +342,12 @@ public enum LabelValueMatcher {
             guard located.count == columnCount else { return false }
             return zip(located, located.dropFirst()).allSatisfy { $1.midX - $0.midX > max(tokenWidth, 0.03) }
         }()
-        /// The value's own header sits directly above it (within about one token width).
+        /// The value's own header sits directly above it: the token's centre lies within the
+        /// header's x span, or the header's centre within the token's (E2: a fixed tolerance of one
+        /// token width admitted a narrow unheaded column touching the header's column).
         func underOwnHeader(_ query: Query, _ value: Box) -> Bool {
             guard let header = query.headerText.map({ Normalised($0).key }), let box = headerBoxes[header] else { return false }
-            return abs(box.midX - value.midX) <= max(tokenWidth, 0.05)
+            return (value.midX >= box.x && value.midX <= box.x + box.width) || (box.midX >= value.x && box.midX <= value.x + value.width)
         }
         func columnForFound(_ query: Query) -> Bool {
             if columnCount <= 1 { return true }
@@ -377,6 +379,12 @@ public enum LabelValueMatcher {
             }
         }
         let listedPerRow = Dictionary(grouping: queries.compactMap(rowKey), by: { $0 }).mapValues(\.count)
+        /// With two or more columns, the value's cell (its row, directly under its own header) holds
+        /// exactly one value token (E2: a narrow column overlapping the header's span).
+        func soleInCell(_ query: Query, row label: String) -> Bool {
+            columnCount <= 1
+                || tokensOnPhoto.filter { rowFit(label, $0.box) == .near && underOwnHeader(query, $0.box) }.count == 1
+        }
 
         // Evidence against a value that is not found (17.11, attention policy).
         func evidence(_ query: Query) -> Evidence {
@@ -388,8 +396,14 @@ public enum LabelValueMatcher {
                 other.comparator == token.comparator && other.number == token.number && other.unit == token.unit
             }
             do {
-                let inCell = tokensOnPhoto.filter { !$0.token.unit.isEmpty && rowFit(label, $0.box) == .near && inHeader(query, $0.box) }
-                if !inCell.isEmpty, !inCell.contains(where: { equal($0.token) }) { return .conflictingInCell }
+                // The cell is the tokens directly under the value's own header (E2); a conflict is
+                // claimed only when no token in the wider column (nearest header) matches either.
+                let onRow = tokensOnPhoto.filter { !$0.token.unit.isEmpty && rowFit(label, $0.box) == .near }
+                let inCell = onRow.filter { columnCount <= 1 ? inHeader(query, $0.box) : underOwnHeader(query, $0.box) }
+                let inColumn = onRow.filter { inHeader(query, $0.box) }
+                if !inCell.isEmpty, !inCell.contains(where: { equal($0.token) }), !inColumn.contains(where: { equal($0.token) }) {
+                    return .conflictingInCell
+                }
             }
             let same = tokensOnPhoto.filter { !$0.token.range && equal($0.token) }
             let clearlyElsewhere = same.allSatisfy { entry in
@@ -462,7 +476,8 @@ public enum LabelValueMatcher {
                     // Found needs direct evidence: the row's own label text and, with two or more
                     // columns, a located header agreeing with the column. Otherwise the single
                     // candidate is kept as the region to highlight, and the value is ambiguous.
-                    if directRows.contains(label) && columnForFound(query) && (columnCount <= 1 || underOwnHeader(query, near[0])) {
+                    if directRows.contains(label) && columnForFound(query) && (columnCount <= 1 || underOwnHeader(query, near[0]))
+                        && soleInCell(query, row: label) {
                         return First(location: Location(id: query.id, status: .found, region: rounded(near[0])), candidates: near)
                     }
                     return First(location: Location(id: query.id, status: .ambiguous, region: rounded(near[0])), candidates: near)
@@ -499,6 +514,7 @@ public enum LabelValueMatcher {
             guard inOrder, expected.count > 1, expected.count == observed.count, let rank = expected.firstIndex(of: index),
                   result.candidates.contains(observed[rank]), let label = rowKey(query), rowFit(label, observed[rank]) == .near,
                   directRows.contains(label), columnForFound(query), columnCount <= 1 || underOwnHeader(query, observed[rank]),
+                  soleInCell(query, row: label),
                   !(columnCount <= 1 && numberTokens(onRow: label).count > (listedPerRow[label] ?? 0)) else { return result.location }
             return Location(id: query.id, status: .found, region: rounded(observed[rank]))
         }

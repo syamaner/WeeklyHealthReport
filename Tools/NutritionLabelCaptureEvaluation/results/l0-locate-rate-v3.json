@@ -8,14 +8,14 @@
   "strata": {
     "development_taiwan": {
       "gemini-on": {
-        "ambiguous_total": 85,
-        "ambiguous_with_region": 48,
+        "ambiguous_total": 84,
+        "ambiguous_with_region": 47,
         "attention_per_table_median": 8,
         "attention_per_table_p90": 14,
-        "correct_ambiguous": 85,
+        "correct_ambiguous": 84,
         "correct_cells": 238,
-        "correct_found": 131,
-        "correct_found_share": 0.5504,
+        "correct_found": 132,
+        "correct_found_share": 0.5546,
         "correct_not_found": 22,
         "evidence_policy": {
           "blocking_per_table_median": 0,
@@ -55,14 +55,14 @@
         "wrong_flagged": 0
       },
       "luna-off": {
-        "ambiguous_total": 83,
-        "ambiguous_with_region": 46,
-        "attention_per_table_median": 9,
+        "ambiguous_total": 82,
+        "ambiguous_with_region": 45,
+        "attention_per_table_median": 8,
         "attention_per_table_p90": 14,
-        "correct_ambiguous": 83,
+        "correct_ambiguous": 82,
         "correct_cells": 229,
-        "correct_found": 129,
-        "correct_found_share": 0.5633,
+        "correct_found": 130,
+        "correct_found_share": 0.5677,
         "correct_not_found": 17,
         "evidence_policy": {
           "blocking_per_table_median": 0,
@@ -105,14 +105,14 @@
         "wrong_flagged": 0
       },
       "sol-on": {
-        "ambiguous_total": 85,
-        "ambiguous_with_region": 48,
+        "ambiguous_total": 84,
+        "ambiguous_with_region": 47,
         "attention_per_table_median": 8,
         "attention_per_table_p90": 14,
-        "correct_ambiguous": 85,
+        "correct_ambiguous": 84,
         "correct_cells": 237,
-        "correct_found": 131,
-        "correct_found_share": 0.5527,
+        "correct_found": 132,
+        "correct_found_share": 0.557,
         "correct_not_found": 21,
         "evidence_policy": {
           "blocking_per_table_median": 0,
@@ -156,14 +156,14 @@
     },
     "untouched_taiwan": {
       "gemini-on": {
-        "ambiguous_total": 271,
-        "ambiguous_with_region": 119,
+        "ambiguous_total": 281,
+        "ambiguous_with_region": 129,
         "attention_per_table_median": 14.0,
         "attention_per_table_p90": 18,
-        "correct_ambiguous": 270,
+        "correct_ambiguous": 280,
         "correct_cells": 557,
-        "correct_found": 217,
-        "correct_found_share": 0.3896,
+        "correct_found": 207,
+        "correct_found_share": 0.3716,
         "correct_not_found": 70,
         "evidence_policy": {
           "blocking_per_table_median": 0.0,
@@ -214,14 +214,14 @@
         "wrong_flagged": 0
       },
       "luna-off": {
-        "ambiguous_total": 298,
-        "ambiguous_with_region": 117,
-        "attention_per_table_median": 12,
+        "ambiguous_total": 308,
+        "ambiguous_with_region": 127,
+        "attention_per_table_median": 13,
         "attention_per_table_p90": 19,
-        "correct_ambiguous": 275,
+        "correct_ambiguous": 285,
         "correct_cells": 566,
-        "correct_found": 224,
-        "correct_found_share": 0.3958,
+        "correct_found": 214,
+        "correct_found_share": 0.3781,
         "correct_not_found": 67,
         "evidence_policy": {
           "blocking_per_table_median": 0,
@@ -278,14 +278,14 @@
         "wrong_flagged": 0
       },
       "sol-on": {
-        "ambiguous_total": 253,
-        "ambiguous_with_region": 118,
+        "ambiguous_total": 263,
+        "ambiguous_with_region": 128,
         "attention_per_table_median": 14,
         "attention_per_table_p90": 18,
-        "correct_ambiguous": 251,
+        "correct_ambiguous": 261,
         "correct_cells": 564,
-        "correct_found": 224,
-        "correct_found_share": 0.3972,
+        "correct_found": 214,
+        "correct_found_share": 0.3794,
         "correct_not_found": 89,
         "evidence_policy": {
           "blocking_per_table_median": 0,

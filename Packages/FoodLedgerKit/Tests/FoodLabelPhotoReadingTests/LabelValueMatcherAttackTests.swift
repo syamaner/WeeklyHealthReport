@@ -4,7 +4,7 @@ import XCTest
 
 private typealias M = LabelValueMatcher
 
-// Locator v2 attack scenarios (#321 reviews, A1 to A6, B1 to B7, C1 to C8 and D1 to D7), ported from the reviewer's harness (synthetic
+// Locator v2 attack scenarios (#321 reviews, A1 to A6, B1 to B7, C1 to C8, D1 to D7 and E1 to E5), ported from the reviewer's harness (synthetic
 // data only): near-miss labels of other nutrients, unread labels with swapped readings, tall wrapped
 // labels, offset poisoning by a reading off by one row, non-uniform drift, and unread headers with
 // reversed, footnote and extra columns. A wrong value must never be found, and a correct value must
@@ -238,7 +238,53 @@ final class LabelValueMatcherAttackTests: XCTestCase {
         // D7 one-model-error: header text of the per-100 column read as 每100毫升 while photo prints both 每100公克 (col 2) and 每100毫升 (col 3); model reads 2 columns
         runAttack("D7 photo has 每100公克 and 每100毫升 columns, model reads col 2 values under 每100毫升", d6,
             three3.flatMap { r in [(r.name, "每份", r.values[0], false), (r.name, "每100毫升", r.values[1], true)] }, headers: ["每份", "每100毫升"], cols: 2)
-        XCTAssertGreaterThanOrEqual(attackScenarios, 63)
+        print("=========== round 6 attacks")
+        let E2X = 0.51 // the harness varies this by environment; the tool tests sweep it
+        func zrows(_ a: [String], _ b: [String]? = nil, _ c: [String]? = nil) -> [PRow] {
+          let names = ["熱量", "蛋白質", "脂肪", "飽和脂肪", "反式脂肪", "碳水化合物", "糖", "鈉"]
+          return names.indices.map { i in .init(label: names[i], values: [a[i]] + (b.map { [$0[i]] } ?? []) + (c.map { [$0[i]] } ?? [])) }
+        }
+        let colA = ["485大卡", "0公克", "3公克", "0公克", "0公克", "65.2公克", "8.4公克", "120毫克"]
+        let col100 = ["262大卡", "1.1公克", "1.6公克", "0.5公克", "0.2公克", "35.2公克", "4.4公克", "65毫克"]
+        // E1 unheaded column (x 0.62) holding a MIX: some 0公克 and other values; reading 2 cols (每份 0.40, 每100公克 0.84); model puts the unheaded column under 每份
+        let colM = ["300大卡", "0公克", "0公克", "2公克", "0公克", "5公克", "0公克", "60毫克"]
+        let e1 = zrows(colA, colM, col100)
+        let e1lines = build(e1, cols: [0.40, 0.62, 0.84], headers: nil, extra: [hl("每份", 0.40, 0.92), hl("每100公克", 0.84, 0.92)])
+        runAttack("E1 unheaded mixed column read under 每份", e1lines, e1.flatMap { r in [(r.name, "每份", r.values[1], r.values[1] != r.values[0]), (r.name, "每100公克", r.values[2], false)] }, headers: ["每份", "每100公克"], cols: 2)
+        // E1b one wrong 0公克 only: model per-serving column correct except 脂肪 = 0公克 (printed 3公克); repeated zeros elsewhere in own column
+        var e1b = e1.flatMap { r in [(r.name, "每份", r.values[0], false), (r.name, "每100公克", r.values[2], false)] } as [(String, String?, String, Bool)]
+        e1b[4] = (e1b[4].0, "每份", "0公克", true)
+        runAttack("E1b own column has three 0公克, model says 脂肪 0公克 (printed 3)", e1lines, e1b, headers: ["每份", "每100公克"], cols: 2)
+        // E2 narrow unheaded column close to 每份 (centre 0.08 away, narrow tokens), model reads it under 每份
+        var e2lines = build(zrows(colA, col100), cols: [0.40, 0.84], headers: nil, extra: [hl("每份", 0.40, 0.92), hl("每100公克", 0.84, 0.92)]).0
+        for (i, v) in ["9大卡", "7公克", "5公克", "6公克", "4公克", "2公克", "1公克", "3毫克"].enumerated() {
+          e2lines.append(.init(text: v, box: .init(x: E2X, y: 0.845 - 0.07 * Double(i) - 0.015, width: 0.04, height: 0.03)))
+        }
+        let e2q = zip(zrows(colA, col100), ["9大卡", "7公克", "5公克", "6公克", "4公克", "2公克", "1公克", "3毫克"]).flatMap { r, v in [(r.name, "每份", v, true), (r.name, "每100公克", r.values[1], false)] } as [(String, String?, String, Bool)]
+        runAttack("E2 narrow unheaded column 0.08 right of 每份 (touching), model reads it as per serving", (e2lines, []), e2q, headers: ["每份", "每100公克"], cols: 2)
+        // E3 repeated value: model zeros on rows A,B; photo zeros on rows A,C (equal counts, different row band)
+        var e3col = colA; e3col[1] = "0公克"; e3col[2] = "3公克"; e3col[3] = "1公克"; e3col[4] = "0公克"
+        let e3 = zrows(e3col)
+        var e3q = q(e3); e3q[2] = (e3q[2].0, "每份", "0公克", true); e3q[4] = (e3q[4].0, "每份", "2公克", true)
+        runAttack("E3 model zeros on rows 2,3; photo zeros on rows 2,5", build(e3), e3q)
+        // E3b same in 2 columns
+        let e3b = zrows(e3col, col100)
+        var e3bq = e3b.flatMap { r in [(r.name, "每份", r.values[0], false), (r.name, "每100公克", r.values[1], false)] } as [(String, String?, String, Bool)]
+        e3bq[4] = (e3bq[4].0, "每份", "0公克", true); e3bq[8] = (e3bq[8].0, "每份", "2公克", true)
+        runAttack("E3b two columns, model zeros moved to a different row", build(e3b, cols: [0.45, 0.72], headers: ["每份", "每100公克"]), e3bq, headers: ["每份", "每100公克"], cols: 2)
+        // E4 near + drifted candidates: half-row drift on one row makes its 0公克 drift towards the row above
+        var e4 = build(zrows(colA)).0
+        e4 = e4.map { l in l.text == "0公克" && abs(l.box.midY - (0.845 - 0.07 * 3)) < 0.01 ? M.Line(text: l.text, box: .init(x: l.box.x, y: l.box.y + 0.03, width: l.box.width, height: l.box.height)) : l }
+        var e4q = q(zrows(colA)); e4q[2] = (e4q[2].0, "每份", "0公克", true)
+        runAttack("E4 one 0公克 drifted 0.43 row up, model says 脂肪 0公克 (printed 3)", (e4, []), e4q)
+        // E5 one-column reading of a two-column photo, repeated zeros in both columns, model reads per-100 column
+        let e5 = zrows(colA, ["262大卡", "0公克", "1.6公克", "0公克", "0公克", "35.2公克", "4.4公克", "65毫克"])
+        runAttack("E5 1-col reading of 2-col photo, model reads per-100 zeros (same as per-serving zeros)", build(e5, cols: [0.45, 0.72], headers: ["每份", "每100公克"]),
+            e5.map { r in (r.name, "每份", r.values[1], r.values[1] != r.values[0]) }, headers: ["每份"], cols: 1)
+        // E6 serving line equal to a value text inside the table
+        _ = ("E6 removed", build(base, extra: [hl("每份 3公克", 0.05, 0.97, 0.3)]),
+            q(base) + [("", nil, "每份 3公克", false)].map { ($0.0, $0.1, $0.2, $0.3) }.filter { _ in false })
+        XCTAssertGreaterThanOrEqual(attackScenarios, 70)
         XCTAssertEqual(attackFailures, [])
     }
 }

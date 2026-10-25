@@ -642,6 +642,57 @@ final class LabelValueMatcherTests: XCTestCase {
                                 columnCount: 2) { _, _ in nil }.map(\.status), [.found, .found, .found])
     }
 
+    /// E2 (#321 round 6): a narrow unheaded column touching the 每份 column, read under 每份. The
+    /// value's centre must lie within its header's x span (or the header's centre within the
+    /// value's), and its cell must hold one value token; a fixed tolerance of one token width
+    /// admitted the narrow column.
+    let e2Rows: [(String, String, String, String)] = [("熱量", "485大卡", "9大卡", "262大卡"), ("蛋白質", "12.5公克", "7公克", "6.8公克"),
+                                                       ("脂肪", "3公克", "5公克", "1.6公克"), ("飽和脂肪", "1.2公克", "6公克", "0.6公克"),
+                                                       ("碳水化合物", "65.2公克", "4公克", "35.2公克"), ("鈉", "120毫克", "3毫克", "65毫克")]
+    func e2Table(narrowX: Double?, merged: Bool = false) -> [M.Line] {
+        var lines: [M.Line] = [.init(text: "每份", box: .init(x: 0.40, y: 0.90, width: 0.10, height: 0.04)),
+                               .init(text: "每100公克", box: .init(x: 0.74, y: 0.90, width: 0.12, height: 0.04))]
+        for (index, row) in e2Rows.enumerated() {
+            let y = 0.80 - Double(index) * 0.08
+            lines.append(.init(text: row.0, box: .init(x: 0.05, y: y, width: 0.12, height: 0.04)))
+            if merged {
+                // Vision reads the 每份 value and the narrow column's value as one line.
+                lines.append(.init(text: "\(row.1) \(row.2)", box: .init(x: 0.40, y: y, width: 0.15, height: 0.04)))
+            } else {
+                lines.append(.init(text: row.1, box: .init(x: 0.40, y: y, width: 0.10, height: 0.04)))
+                if let narrowX { lines.append(.init(text: row.2, box: .init(x: narrowX, y: y, width: 0.04, height: 0.04))) }
+            }
+            lines.append(.init(text: row.3, box: .init(x: 0.76, y: y, width: 0.08, height: 0.04)))
+        }
+        return lines
+    }
+
+    func e2Locate(_ column: Int, lines: [M.Line]) -> [M.Status] {
+        let queries = e2Rows.enumerated().map { index, row in
+            M.Query(id: "e\(index)", rowLabel: row.0, headerText: "每份", printedText: column == 1 ? row.1 : row.2)
+        }
+        // Sub-boxes in proportion to the characters' positions in their line.
+        return M.locate(queries, lines: lines, headers: ["每份", "每100公克"], rowLabels: e2Rows.map(\.0), columnCount: 2) { index, range in
+            let line = lines[index], count = Double(line.text.count)
+            let start = Double(line.text.distance(from: line.text.startIndex, to: range.lowerBound))
+            let end = Double(line.text.distance(from: line.text.startIndex, to: range.upperBound))
+            return .init(x: line.box.x + line.box.width * start / count, y: line.box.y, width: line.box.width * (end - start) / count,
+                         height: line.box.height)
+        }.map(\.status)
+    }
+
+    func testANarrowColumnTouchingTheHeadersColumnIsNeverFound() {
+        for narrowX in [0.47, 0.49, 0.51, 0.53] {
+            XCTAssertFalse(e2Locate(2, lines: e2Table(narrowX: narrowX)).contains(.found), "narrow column at \(narrowX)")
+        }
+        XCTAssertFalse(e2Locate(2, lines: e2Table(narrowX: nil, merged: true)).contains(.found), "merged line")
+        // Control: with no narrow column, the 每份 column is found; beside a separate narrow column
+        // at 0.51 or on a merged line, it still is.
+        XCTAssertEqual(e2Locate(1, lines: e2Table(narrowX: nil)), Array(repeating: .found, count: 6))
+        XCTAssertEqual(e2Locate(1, lines: e2Table(narrowX: 0.51)), Array(repeating: .found, count: 6))
+        XCTAssertEqual(e2Locate(1, lines: e2Table(narrowX: nil, merged: true)), Array(repeating: .found, count: 6))
+    }
+
     func testFoundRegionIsRoundedAndInsideTheUnitSquare() throws {
         let location = M.locate([.init(id: "j", rowLabel: "熱量", headerText: "每份", printedText: "485大卡")], lines: lines,
                                 headers: headers, rowLabels: rowLabels, columnCount: 2) { index, _ in
