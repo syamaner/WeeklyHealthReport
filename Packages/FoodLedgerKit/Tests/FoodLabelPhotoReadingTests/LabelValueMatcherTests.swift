@@ -283,7 +283,9 @@ final class LabelValueMatcherTests: XCTestCase {
                                   .init(id: "s", rowLabel: "飽和脂肪", headerText: nil, printedText: "3公克")]
         let found = M.locate(queries, lines: lines, headers: [], rowLabels: ["蛋白質", "脂舫", "飽和脂肪"], columnCount: 1) { _, _ in nil }
         XCTAssertNotEqual(found[1].status, .found)
-        XCTAssertEqual(found.map(\.status), [.found, .ambiguous, .found])
+        // v2 places 脂舫 on the printed 脂肪 line (one character different, between its located
+        // neighbours), so the wrong value is plainly not on the fat row.
+        XCTAssertEqual(found.map(\.status), [.found, .notFound, .found])
     }
 
     /// Case 10b: the same misspelt label, with the value printed on the fat row itself (between the
@@ -295,6 +297,119 @@ final class LabelValueMatcherTests: XCTestCase {
         let found = M.locate(queries, lines: lines, headers: [], rowLabels: ["蛋白質", "脂舫"], columnCount: 1) { _, _ in nil }
         XCTAssertNotEqual(found[1].status, .found)
         XCTAssertEqual(found[1].status, .ambiguous)
+    }
+
+    // MARK: Locator v2 recovery (L1c, 17.11)
+
+    func testMisreadLabelBetweenLocatedNeighboursIsRecoveredAndItsValueFound() {
+        // Vision read 脂肪 as 脂舫; the model has the right label and value.
+        let lines: [M.Line] = [
+            .init(text: "蛋白質", box: .init(x: 0.05, y: 0.80, width: 0.1, height: 0.04)),
+            .init(text: "脂舫", box: .init(x: 0.05, y: 0.72, width: 0.1, height: 0.04)),
+            .init(text: "飽和脂肪", box: .init(x: 0.05, y: 0.64, width: 0.1, height: 0.04)),
+            .init(text: "2公克", box: .init(x: 0.5, y: 0.80, width: 0.1, height: 0.04)),
+            .init(text: "5公克", box: .init(x: 0.5, y: 0.72, width: 0.1, height: 0.04)),
+            .init(text: "1公克", box: .init(x: 0.5, y: 0.64, width: 0.1, height: 0.04)),
+        ]
+        let queries: [M.Query] = zip(rows, ["2公克", "5公克", "1公克"]).enumerated().map {
+            .init(id: "m\($0.offset)", rowLabel: $0.element.0, headerText: nil, printedText: $0.element.1)
+        }
+        let found = M.locate(queries, lines: lines, headers: [], rowLabels: rows, columnCount: 1) { _, _ in nil }
+        XCTAssertEqual(found.map(\.status), [.found, .found, .found])
+        // The wrong value read on the recovered row is still not found.
+        var wrong = queries
+        wrong[1] = .init(id: "m1", rowLabel: "脂肪", headerText: nil, printedText: "1公克")
+        XCTAssertNotEqual(M.locate(wrong, lines: lines, headers: [], rowLabels: rows, columnCount: 1) { _, _ in nil }[1].status, .found)
+    }
+
+    func testUnreadLabelIsPlacedByRowOrderOnlyWhenTheGapFitsOneRow() {
+        // 脂肪 was not read at all; its neighbours are one row step apart on either side.
+        let lines: [M.Line] = [
+            .init(text: "蛋白質", box: .init(x: 0.05, y: 0.80, width: 0.1, height: 0.04)),
+            .init(text: "飽和脂肪", box: .init(x: 0.05, y: 0.64, width: 0.1, height: 0.04)),
+            .init(text: "反式脂肪", box: .init(x: 0.05, y: 0.56, width: 0.1, height: 0.04)),
+            .init(text: "2公克", box: .init(x: 0.5, y: 0.80, width: 0.1, height: 0.04)),
+            .init(text: "5公克", box: .init(x: 0.5, y: 0.72, width: 0.1, height: 0.04)),
+            .init(text: "1公克", box: .init(x: 0.5, y: 0.64, width: 0.1, height: 0.04)),
+            .init(text: "0公克", box: .init(x: 0.5, y: 0.56, width: 0.1, height: 0.04)),
+        ]
+        let labels = ["蛋白質", "脂肪", "飽和脂肪", "反式脂肪"]
+        let queries: [M.Query] = zip(labels, ["2公克", "5公克", "1公克", "0公克"]).enumerated().map {
+            .init(id: "o\($0.offset)", rowLabel: $0.element.0, headerText: nil, printedText: $0.element.1)
+        }
+        XCTAssertEqual(M.locate(queries, lines: lines, headers: [], rowLabels: labels, columnCount: 1) { _, _ in nil }[1].status, .found)
+        // An adjacent row's value under the placed label is still never found.
+        var wrong = queries
+        wrong[1] = .init(id: "o1", rowLabel: "脂肪", headerText: nil, printedText: "1公克")
+        XCTAssertNotEqual(M.locate(wrong, lines: lines, headers: [], rowLabels: labels, columnCount: 1) { _, _ in nil }[1].status, .found)
+        // A label missing from the very top or bottom is never placed (only one neighbour).
+        let edge = Array(lines.dropFirst())
+        XCTAssertNotEqual(M.locate(queries, lines: edge, headers: [], rowLabels: labels, columnCount: 1) { _, _ in nil }[0].status, .found)
+    }
+
+    func testTableWideOffsetIsRemovedWhenRowsAgree() {
+        // Every value printed 0.035 below its label (spacing 0.08), beyond the 1/3 limit in v1.
+        let labels = ["蛋白質", "脂肪", "飽和脂肪", "反式脂肪"]
+        let values = ["2公克", "5公克", "1公克", "0公克"]
+        var lines: [M.Line] = []
+        for (index, label) in labels.enumerated() {
+            let y = 0.80 - 0.08 * Double(index)
+            lines.append(.init(text: label, box: .init(x: 0.05, y: y, width: 0.1, height: 0.04)))
+            lines.append(.init(text: values[index], box: .init(x: 0.5, y: y - 0.035, width: 0.1, height: 0.04)))
+        }
+        let queries: [M.Query] = zip(labels, values).enumerated().map {
+            .init(id: "t\($0.offset)", rowLabel: $0.element.0, headerText: nil, printedText: $0.element.1)
+        }
+        XCTAssertEqual(M.locate(queries, lines: lines, headers: [], rowLabels: labels, columnCount: 1) { _, _ in nil }.map(\.status),
+                       [.found, .found, .found, .found])
+        // With the offset removed, the next row's value is a whole row away: never found.
+        var wrong = queries
+        wrong[1] = .init(id: "t1", rowLabel: "脂肪", headerText: nil, printedText: "1公克")
+        XCTAssertNotEqual(M.locate(wrong, lines: lines, headers: [], rowLabels: labels, columnCount: 1) { _, _ in nil }[1].status, .found)
+    }
+
+    func testColumnsAreInferredFromValueTokensWhenHeadersAreUnread() {
+        let labels = ["蛋白質", "脂肪", "飽和脂肪"]
+        let perServing = ["2公克", "3公克", "1公克"], per100 = ["4公克", "6公克", "2公克"]
+        var lines: [M.Line] = []
+        for (index, label) in labels.enumerated() {
+            let y = 0.80 - 0.08 * Double(index)
+            lines.append(.init(text: label, box: .init(x: 0.05, y: y, width: 0.1, height: 0.04)))
+            lines.append(.init(text: perServing[index], box: .init(x: 0.45, y: y, width: 0.1, height: 0.04)))
+            lines.append(.init(text: per100[index], box: .init(x: 0.75, y: y, width: 0.1, height: 0.04)))
+        }
+        var queries: [M.Query] = []
+        for (index, label) in labels.enumerated() {
+            queries.append(.init(id: "s\(index)", rowLabel: label, headerText: "每份", printedText: perServing[index]))
+            queries.append(.init(id: "h\(index)", rowLabel: label, headerText: "每100公克", printedText: per100[index]))
+        }
+        let found = M.locate(queries, lines: lines, headers: ["每份", "每100公克"], rowLabels: labels, columnCount: 2) { _, _ in nil }
+        XCTAssertEqual(found.map(\.status), Array(repeating: .found, count: 6))
+        // S4: the other column's value in this column is never found.
+        var wrong = queries
+        wrong[2] = .init(id: "s1", rowLabel: "脂肪", headerText: "每份", printedText: "6公克")
+        XCTAssertNotEqual(M.locate(wrong, lines: lines, headers: ["每份", "每100公克"], rowLabels: labels, columnCount: 2) { _, _ in nil }[2].status,
+                          .found)
+        // Header order unknown (only one header text for two columns): no inference.
+        XCTAssertFalse(M.locate(queries, lines: lines, headers: ["每份"], rowLabels: labels, columnCount: 2) { _, _ in nil }
+            .contains { $0.status == .found })
+    }
+
+    func testEvidenceSeparatesContradictedFromUnconfirmedValues() {
+        let lines = rowLines(values: [("2公克", 0.80), ("5公克", 0.72), ("1公克", 0.64)])
+        // Fat read as 1公克: printed only on the saturated fat row, and fat's own cell holds 5公克.
+        let queries: [M.Query] = zip(rows, ["2公克", "1公克", "1公克"]).enumerated().map {
+            .init(id: "v\($0.offset)", rowLabel: $0.element.0, headerText: nil, printedText: $0.element.1)
+        }
+        let found = M.locate(queries, lines: lines, headers: [], rowLabels: rows, columnCount: 1) { _, _ in nil }
+        XCTAssertEqual(found[1].evidence, .conflictingInCell)
+        // Fat read as 9公克: nowhere on the photo, own cell holds 5公克.
+        var absent = queries
+        absent[1] = .init(id: "v1", rowLabel: "脂肪", headerText: nil, printedText: "9公克")
+        XCTAssertEqual(M.locate(absent, lines: lines, headers: [], rowLabels: rows, columnCount: 1) { _, _ in nil }[1].evidence,
+                       .conflictingInCell)
+        // A found value carries no evidence.
+        XCTAssertEqual(found[0].evidence, .none)
     }
 
     func testNoRowLabelLocatedMeansAmbiguousNotFound() {

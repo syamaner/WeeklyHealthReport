@@ -1,15 +1,22 @@
 import Foundation
 
-/// `label-photo-vision-locate-v1` matcher (docs/label-photo-ai-prefill-v1.md section 6.1).
+/// `label-photo-vision-locate-v2` matcher (docs/label-photo-ai-prefill-v1.md sections 6.1 and 17.11).
 ///
 /// Pure: Foundation only, no Vision, image, clock or network. The Vision adapter supplies the
 /// recognised lines and a function that returns the box of a substring of one line; the matcher
-/// decides, for each printed value the model returned, whether it appears exactly once on the
-/// photo in its row label's line band and its header's column. Being found is corroboration,
-/// never verification. L0 measures this file; L1 carries it into the package unchanged and pins
-/// it by SHA-256.
+/// decides, for each printed value the model returned, whether the same comparator, number and
+/// unit appear exactly once on the photo on its own row and in its own column. Being found is
+/// corroboration, never verification. L0 measures this file; the package carries it unchanged and
+/// pins it by SHA-256.
+///
+/// v2 keeps every v1 safety rule and recovers rows and columns v1 could not confirm (17.11):
+/// a row label not located exactly once is placed between its located neighbours (by its text,
+/// a near-miss of its text, or the reading's row order); a table-wide vertical offset estimated
+/// from agreeing rows is removed before the row distance limit; and columns whose headers were
+/// not located are inferred from the x-positions of value tokens when they split cleanly into the
+/// reading's column count. Every recovered placement still has to pass the token rule.
 public enum LabelValueMatcher {
-    public static let version = "label-photo-vision-locate-v1"
+    public static let version = "label-photo-vision-locate-v2"
     /// A value belongs to its row label only within this share of the local label spacing.
     public static let rowOffsetLimit = 1.0 / 3.0
 
@@ -44,31 +51,36 @@ public enum LabelValueMatcher {
 
     public enum Status: String, Sendable, Codable { case found, notFound = "not_found", ambiguous }
 
+    /// What the photo says against a value that is not found (17.11, attention policy evidence):
+    /// `elsewhere` when its token is printed only in another row or column; `conflictingInCell`
+    /// when its own row and column are located and hold a different value token; `none` otherwise.
+    public enum Evidence: String, Sendable, Codable { case none, elsewhere, conflictingInCell = "conflicting_in_cell" }
+
     public struct Location: Equatable, Sendable {
         public let id: String
         public let status: Status
         public let region: Box?
+        public let evidence: Evidence
+        init(id: String, status: Status, region: Box?, evidence: Evidence = .none) {
+            self.id = id; self.status = status; self.region = region; self.evidence = evidence
+        }
     }
 
     /// The box of `range` (original indices) within `lines[index]`, or the line's box.
     public typealias SubBox = (_ index: Int, _ range: Range<String.Index>) -> Box?
 
-    /// `headers` and `rowLabels` are every header's and row label's printed text in the table, so a
-    /// value can be assigned to its nearest one; `columnCount` is the number of value columns the
-    /// reading has (headers with or without printed text).
+    /// `headers` are the reading's header texts, left to right; `rowLabels` every row label's
+    /// printed text; `columnCount` the number of value columns the reading has (headers with or
+    /// without printed text).
     ///
-    /// Precondition for the order pass: `queries` list each column's values in the table's printed
-    /// row order, top to bottom, as the reading's rows are. The pass checks this against the row
-    /// labels found on the photo and places nothing when they disagree or cannot be checked.
+    /// Preconditions: `queries` list each column's values in the table's printed row order, top to
+    /// bottom, as the reading's rows are (the order pass and row recovery check this against the
+    /// labels found on the photo and place nothing when it cannot be checked); and when `headers`
+    /// has one entry per column, they are in printed left-to-right order (column inference uses it).
     public static func locate(_ queries: [Query], lines: [Line], headers: [String], rowLabels: [String], columnCount: Int,
                               subBox: SubBox) -> [Location] {
         let normalised = lines.map(Normalised.init)
         func box(_ match: Match) -> Box { subBox(match.line, match.range) ?? lines[match.line].box }
-        // Each header and row label found exactly once, so a candidate value can be assigned to
-        // its nearest header (by x) and its nearest row label (by y). Nearest rather than a fixed
-        // band copes with tilted photos and with Vision reading labels and values as separate lines.
-        // Headers are found by plain containment, because they are often printed on one line
-        // ("每份 每100公克"); a row label may not follow a letter or ideograph.
         func unique(_ texts: [String], rule: Rule) -> [String: Box] {
             var boxes: [String: Box] = [:]
             for text in Set(texts) {
@@ -78,23 +90,75 @@ public enum LabelValueMatcher {
             return boxes
         }
         let headerBoxes = unique(headers, rule: .line)
-        let rowBoxes = unique(rowLabels, rule: .label)
+        func median(_ values: [Double]) -> Double? {
+            guard !values.isEmpty else { return nil }
+            let sorted = values.sorted()
+            return sorted.count % 2 == 1 ? sorted[sorted.count / 2] : (sorted[sorted.count / 2 - 1] + sorted[sorted.count / 2]) / 2
+        }
+
+        // Row labels located exactly once, then recovery (17.11 a).
+        var rowBoxes = unique(rowLabels, rule: .label)
+        var readingOrder: [String] = []
+        for label in queries.compactMap({ $0.rowLabel.map { Normalised($0).key } }) where !readingOrder.contains(label) {
+            readingOrder.append(label)
+        }
+        // A label whose values are not one contiguous run of the reading's queries (the reading
+        // gives it to two places) has no single place in the reading's order.
+        let queryLabels = queries.map { $0.rowLabel.map { Normalised($0).key } }
+        func contiguous(_ key: String) -> Bool {
+            let positions = queryLabels.indices.filter { queryLabels[$0] == key }
+            guard let low = positions.first, let high = positions.last else { return false }
+            return (low...high).allSatisfy { queryLabels[$0] == key || queryLabels[$0] == nil }
+        }
+        let locatedIndices = readingOrder.indices.filter { rowBoxes[readingOrder[$0]] != nil }
+        let orderHolds = zip(locatedIndices, locatedIndices.dropFirst()).allSatisfy { rowBoxes[readingOrder[$0]]!.midY > rowBoxes[readingOrder[$1]]!.midY }
+        if orderHolds, locatedIndices.count >= 2 {
+            let located = locatedIndices.map { rowBoxes[readingOrder[$0]]! }
+            let labelX = median(located.map(\.midX)) ?? 0, labelHeight = median(located.map(\.height)) ?? 0.03
+            let perRow = zip(locatedIndices, locatedIndices.dropFirst()).map { pair -> Double in
+                (rowBoxes[readingOrder[pair.0]]!.midY - rowBoxes[readingOrder[pair.1]]!.midY) / Double(pair.1 - pair.0)
+            }
+            let rowStep = median(perRow) ?? 0
+            let labelLines = Set(locatedIndices.flatMap { index in
+                occurrences(of: readingOrder[index], in: normalised, rule: .label).map(\.line)
+            })
+            var recovered: [String: Box] = [:]
+            for index in readingOrder.indices where rowBoxes[readingOrder[index]] == nil {
+                guard let above = locatedIndices.last(where: { $0 < index }), let below = locatedIndices.first(where: { $0 > index }) else { continue }
+                let key = readingOrder[index]
+                guard contiguous(key) else { continue }
+                let high = rowBoxes[readingOrder[above]]!.midY, low = rowBoxes[readingOrder[below]]!.midY
+                func between(_ value: Box) -> Bool { value.midY < high && value.midY > low }
+                // Its own text, printed once between the neighbours.
+                let exact = occurrences(of: key, in: normalised, rule: .label).map { box($0) }.filter(between)
+                if exact.count == 1 { recovered[key] = exact[0]; continue }
+                if !exact.isEmpty { continue }
+                // A near-miss of its text (one character different) in the label column.
+                let similar = normalised.indices.filter { line in
+                    !labelLines.contains(line) && between(lines[line].box) && abs(lines[line].box.midX - labelX) < 0.1
+                        && nearMiss(normalised[line].characters, Array(key))
+                }
+                if similar.count == 1 { recovered[key] = lines[similar[0]].box; continue }
+                if !similar.isEmpty { continue }
+                // Its place in the reading's row order: only when nothing at all was read in the label
+                // column between the neighbours (a line there is some other label, perhaps misread,
+                // so the reading's order cannot be trusted for this slot), the label occupies one
+                // run of the reading's queries, and the gap fits the table's row step.
+                let occupied = normalised.indices.contains { line in
+                    !labelLines.contains(line) && between(lines[line].box) && abs(lines[line].box.midX - labelX) < 0.1
+                }
+                if occupied { continue }
+                let gap = (high - low) / Double(below - above)
+                guard rowStep > 0, abs(gap - rowStep) <= 0.25 * rowStep else { continue }
+                let y = high - gap * Double(index - above)
+                recovered[key] = Box(x: labelX - 0.05, y: y - labelHeight / 2, width: 0.1, height: labelHeight)
+            }
+            for (key, value) in recovered { rowBoxes[key] = value }
+        }
+
         func nearest(_ boxes: [String: Box], to value: Box, by distance: (Box, Box) -> Double) -> String? {
             boxes.sorted { $0.key < $1.key }.min { distance($0.value, value) < distance($1.value, value) }?.key
         }
-        func inHeader(_ query: Query, _ value: Box) -> Bool {
-            guard let header = query.headerText.map({ Normalised($0).key }), headerBoxes[header] != nil,
-                  headerBoxes.count > 1 else { return true }
-            return nearest(headerBoxes, to: value) { abs($0.midX - $1.midX) } == header
-        }
-
-        // Row geometry. A value belongs to a row label only when that label is its nearest and its
-        // vertical offset from the label is under `rowOffsetLimit` of the local spacing (the gap to
-        // the nearer neighbouring label; the one neighbour at the table's edges). A value nearest
-        // the label but further off has drifted: it could be this row's or the neighbour's, so it
-        // makes the value ambiguous, never found. 1/3 is chosen so that a value drifted by more
-        // than a third of a row is never accepted on either row (a drift of 0.05 at a spacing of
-        // 0.08 sits 0.375 of a row from the neighbour, which "about 0.4" would have accepted).
         let rowsTopDown = rowBoxes.sorted { $0.value.midY > $1.value.midY }
         func spacing(_ label: String) -> Double? {
             guard let index = rowsTopDown.firstIndex(where: { $0.key == label }), rowsTopDown.count > 1 else { return nil }
@@ -103,41 +167,133 @@ public enum LabelValueMatcher {
             if index + 1 < rowsTopDown.count { gaps.append(rowsTopDown[index].value.midY - rowsTopDown[index + 1].value.midY) }
             return gaps.min()
         }
-        enum RowFit { case other, near, drifted }
-        func rowFit(_ label: String, _ value: Box) -> RowFit {
-            guard let own = rowBoxes[label], let gap = spacing(label),
-                  nearest(rowBoxes, to: value, by: { abs($0.midY - $1.midY) }) == label else { return .other }
-            return abs(value.midY - own.midY) < rowOffsetLimit * gap ? .near : .drifted
-        }
         func rowKey(_ query: Query) -> String? {
             guard let label = query.rowLabel.map({ Normalised($0).key }), rowBoxes[label] != nil, rowBoxes.count > 1 else { return nil }
             return label
         }
-        // Number tokens on a row, outside its label, for the unlisted column rule: with one value
-        // column, a row holding more numbers than the reading lists for it has a second column the
-        // reading does not know, so a match there is not trusted. Tokens come from the value
-        // tokenizer, so "1,234公克" is one number.
-        func numberTokens(onRow label: String) -> [Box] {
-            guard let own = rowBoxes[label] else { return [] }
-            var boxes: [Box] = []
-            for (number, line) in normalised.enumerated() {
-                for token in valueTokens(line.characters) {
-                    let tokenBox = box(Match(line: number, range: line.origin[token.start].lowerBound..<line.origin[token.end - 1].upperBound))
-                    let insideLabel = tokenBox.midX >= own.x && tokenBox.midX <= own.x + own.width
-                    if !insideLabel, rowFit(label, tokenBox) == .near { boxes.append(tokenBox) }
+
+        // Every value token on the photo, once.
+        var tokensOnPhoto: [(token: ValueToken, box: Box)] = []
+        for (number, line) in normalised.enumerated() {
+            for token in valueTokens(line.characters) {
+                tokensOnPhoto.append((token, box(Match(line: number, range: line.origin[token.start].lowerBound..<line.origin[token.end - 1].upperBound))))
+            }
+        }
+
+        // Table-wide vertical offset (17.11 c): from values whose token is printed exactly once on
+        // the photo, on their own located label's side of the neighbours; used only when at least
+        // three rows agree within 0.15 of a row and the offset is at least 0.1 of a row.
+        let stepForOffset = rowsTopDown.count > 1
+            ? (median(zip(rowsTopDown, rowsTopDown.dropFirst()).map { $0.value.midY - $1.value.midY }) ?? 0) : 0
+        var offset = 0.0
+        if stepForOffset > 0 {
+            var ratios: [String: Double] = [:]
+            for query in queries {
+                guard let key = rowKey(query), ratios[key] == nil, let own = rowBoxes[key] else { continue }
+                let wanted = valueTokens(Normalised(query.printedText).characters)
+                guard wanted.count == 1, !wanted[0].unit.isEmpty else { continue }
+                let same = tokensOnPhoto.filter { !$0.token.range && $0.token.comparator == wanted[0].comparator
+                    && $0.token.number == wanted[0].number && $0.token.unit == wanted[0].unit }
+                guard same.count == 1 else { continue }
+                let ratio = (same[0].box.midY - own.midY) / stepForOffset
+                if abs(ratio) < 0.75 { ratios[key] = ratio }
+            }
+            if let centre = median(Array(ratios.values)) {
+                let agreeing = ratios.values.filter { abs($0 - centre) <= 0.15 }
+                if ratios.count >= 3, agreeing.count >= 3, Double(agreeing.count) >= 0.75 * Double(ratios.count), abs(centre) >= 0.1 {
+                    offset = centre * stepForOffset
                 }
             }
-            return boxes
+        }
+        func shifted(_ value: Box) -> Box { Box(x: value.x, y: value.y - offset, width: value.width, height: value.height) }
+
+        // Row geometry. A value belongs to a row label only when that label is its nearest and its
+        // vertical offset from the label (after the table-wide offset) is under `rowOffsetLimit` of
+        // the local spacing; nearest but further off has drifted and is ambiguous, never found.
+        enum RowFit { case other, near, drifted }
+        func rowFit(_ label: String, _ value: Box) -> RowFit {
+            let adjusted = shifted(value)
+            guard let own = rowBoxes[label], let gap = spacing(label),
+                  nearest(rowBoxes, to: adjusted, by: { abs($0.midY - $1.midY) }) == label else { return .other }
+            return abs(adjusted.midY - own.midY) < rowOffsetLimit * gap ? .near : .drifted
+        }
+
+        // Columns: located headers when they separate the columns; otherwise inferred from the
+        // x-positions of unit-bearing value tokens on located rows (17.11 b), when they split into
+        // exactly `columnCount` groups with clear gaps and agree with any single located header.
+        let headerKeys = headers.map { Normalised($0).key }
+        var clusters: [(low: Double, high: Double)]?
+        if columnCount > 1, headerBoxes.count < 2 || headerKeys.contains(where: { headerBoxes[$0] == nil }), headers.count == columnCount {
+            let xs = tokensOnPhoto.filter { entry in !entry.token.unit.isEmpty && rowBoxes.keys.contains { rowFit($0, entry.box) == .near } }
+                .map(\.box.midX).sorted()
+            if xs.count >= 2 * columnCount {
+                let gaps = zip(xs, xs.dropFirst()).enumerated().map { (index: $0.offset, size: $0.element.1 - $0.element.0) }
+                let cuts = gaps.sorted { $0.size > $1.size }.prefix(columnCount - 1).map(\.index).sorted()
+                var groups: [(low: Double, high: Double)] = []
+                var start = 0
+                for cut in cuts + [xs.count - 1] {
+                    groups.append((xs[start], xs[cut])); start = cut + 1
+                }
+                let smallestCut = cuts.map { gaps[$0].size }.min() ?? 0
+                let widest = groups.map { $0.high - $0.low }.max() ?? 0
+                var agrees = true
+                for (index, key) in headerKeys.enumerated() {
+                    guard let located = headerBoxes[key] else { continue }
+                    let nearestGroup = groups.indices.min { abs(groups[$0].low - located.midX) + abs(groups[$0].high - located.midX)
+                        < abs(groups[$1].low - located.midX) + abs(groups[$1].high - located.midX) }
+                    if nearestGroup != index { agrees = false }
+                }
+                if groups.count == columnCount, smallestCut > 0.03, smallestCut > 2 * widest, agrees { clusters = groups }
+            }
+        }
+        func columnIndex(_ query: Query) -> Int? {
+            guard let header = query.headerText.map({ Normalised($0).key }) else { return nil }
+            return headerKeys.firstIndex(of: header)
+        }
+        func group(of value: Box) -> Int? {
+            guard let clusters else { return nil }
+            return clusters.indices.min { min(abs(clusters[$0].low - value.midX), abs(clusters[$0].high - value.midX))
+                < min(abs(clusters[$1].low - value.midX), abs(clusters[$1].high - value.midX)) }
+        }
+        /// The value's column is confirmed: one value column; or at least two headers located with
+        /// its own among them; or inferred columns and its header's position known.
+        func columnConfirmed(_ query: Query) -> Bool {
+            if columnCount <= 1 { return true }
+            if headerBoxes.count > 1, let header = query.headerText.map({ Normalised($0).key }), headerBoxes[header] != nil { return true }
+            return clusters != nil && columnIndex(query) != nil
+        }
+        func inHeader(_ query: Query, _ value: Box) -> Bool {
+            if headerBoxes.count > 1, let header = query.headerText.map({ Normalised($0).key }), headerBoxes[header] != nil {
+                return nearest(headerBoxes, to: value) { abs($0.midX - $1.midX) } == header
+            }
+            if clusters != nil, let index = columnIndex(query) { return group(of: value) == index }
+            return true
+        }
+
+        // Number tokens on a row, outside its label, for the unlisted column rule.
+        func numberTokens(onRow label: String) -> [Box] {
+            guard let own = rowBoxes[label] else { return [] }
+            return tokensOnPhoto.map(\.box).filter { token in
+                !(token.midX >= own.x && token.midX <= own.x + own.width) && rowFit(label, token) == .near
+            }
         }
         let listedPerRow = Dictionary(grouping: queries.compactMap(rowKey), by: { $0 }).mapValues(\.count)
 
-        // The value's column is confirmed when the reading has one value column, or when at least
-        // two headers are located and the value's own header is one of them. With more than one
-        // column and no confirmed column, a value is never found (S4 of the #320 re-check).
-        func columnConfirmed(_ query: Query) -> Bool {
-            if columnCount <= 1 { return true }
-            guard headerBoxes.count > 1, let header = query.headerText.map({ Normalised($0).key }) else { return false }
-            return headerBoxes[header] != nil
+        // Evidence against a value that is not found (17.11, attention policy).
+        func evidence(_ query: Query) -> Evidence {
+            let wanted = valueTokens(Normalised(query.printedText).characters)
+            guard wanted.count == 1, let label = rowKey(query) else { return .none }
+            let token = wanted[0]
+            func equal(_ other: ValueToken) -> Bool {
+                other.comparator == token.comparator && other.number == token.number && other.unit == token.unit
+            }
+            if columnConfirmed(query) {
+                let inCell = tokensOnPhoto.filter { !$0.token.unit.isEmpty && rowFit(label, $0.box) == .near && inHeader(query, $0.box) }
+                if !inCell.isEmpty, !inCell.contains(where: { equal($0.token) }) { return .conflictingInCell }
+            }
+            let same = tokensOnPhoto.filter { !$0.token.range && equal($0.token) }
+            if !same.isEmpty, !same.contains(where: { rowFit(label, $0.box) != .other && inHeader(query, $0.box) }) { return .elsewhere }
+            return .none
         }
 
         // First pass: the row and column filters, trying each tier of matches in turn. An
@@ -185,10 +341,7 @@ public enum LabelValueMatcher {
                 }
                 if candidates.isEmpty { continue }
                 guard let label = rowKey(query), spacing(label) != nil else {
-                    // The value's own row cannot be confirmed: its label was not located exactly once
-                    // (or is the only label located). It is never found. Candidates near another
-                    // located label belong to that row and are dropped; any candidate at all makes
-                    // the value ambiguous (the order pass then needs a located label, so it stays so).
+                    // The value's own row cannot be confirmed even after recovery: it is never found.
                     let own = query.rowLabel.map { Normalised($0).key }
                     let elsewhere = candidates.filter { candidate in
                         rowBoxes.keys.contains { $0 != own && rowFit($0, candidate) == .near }
@@ -208,24 +361,16 @@ public enum LabelValueMatcher {
             return First(location: Location(id: query.id, status: .notFound, region: nil), candidates: [])
         }
 
-        // Second pass, order within the column. It may only turn a first-pass **ambiguous** value
-        // into found; it never changes a found or not found value. A value whose text repeats in
-        // its column is placed by rank only when all of these hold:
-        // - its column is known: the reading has one value column, or the headers separate them;
-        // - the column holds exactly as many occurrences of that text as the reading has values
-        //   with that text in that column;
-        // - every one of those values has its row label found exactly once, and the labels run top
-        //   to bottom in the queries' order (the precondition above);
-        // - the occurrence of the value's rank is one of its own first-pass candidates, within the
-        //   row offset limit of its own label, on a row with no unlisted number.
-        // Otherwise the value stays ambiguous.
+        // Second pass, order within the column, unchanged from v1 except that columns may be
+        // inferred: it may only turn a first-pass ambiguous value into found, under the conditions
+        // of 6.1 step 6. Otherwise the value stays ambiguous.
         func columnKey(_ query: Query) -> String? {
             if columnCount <= 1 { return "" }
-            guard headerBoxes.count > 1, let header = query.headerText.map({ Normalised($0).key }),
-                  headerBoxes[header] != nil else { return nil }
-            return header
+            if headerBoxes.count > 1, let header = query.headerText.map({ Normalised($0).key }), headerBoxes[header] != nil { return header }
+            if clusters != nil, let index = columnIndex(query) { return "#\(index)" }
+            return nil
         }
-        return queries.enumerated().map { index, query in
+        let placed: [Location] = queries.enumerated().map { index, query in
             let result = first[index]
             guard result.location.status == .ambiguous, query.rowLabel != nil, let key = columnKey(query) else { return result.location }
             let needle = Normalised(query.printedText).key
@@ -243,6 +388,24 @@ public enum LabelValueMatcher {
                   !(columnCount <= 1 && numberTokens(onRow: label).count > (listedPerRow[label] ?? 0)) else { return result.location }
             return Location(id: query.id, status: .found, region: rounded(observed[rank]))
         }
+        return zip(queries, placed).map { query, location in
+            guard location.status != .found, query.rowLabel != nil else { return location }
+            return Location(id: location.id, status: location.status, region: location.region, evidence: evidence(query))
+        }
+    }
+
+    /// Two label texts differ by exactly one character (a substitution, insertion or deletion),
+    /// and the label has at least two characters.
+    static func nearMiss(_ printed: [Character], _ label: [Character]) -> Bool {
+        guard label.count >= 2, abs(printed.count - label.count) <= 1, printed != label else { return false }
+        var i = 0, j = 0, edits = 0
+        while i < printed.count, j < label.count {
+            if printed[i] == label[j] { i += 1; j += 1; continue }
+            edits += 1
+            if edits > 1 { return false }
+            if printed.count > label.count { i += 1 } else if printed.count < label.count { j += 1 } else { i += 1; j += 1 }
+        }
+        return edits + (printed.count - i) + (label.count - j) == 1
     }
 
     // MARK: Values as tokens (#320 re-check, S1 to S4 and the same family)

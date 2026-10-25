@@ -69,7 +69,7 @@ Where Inspect does not enforce a plan rule natively, a small wrapper does:
 | `score.py` | Pure scoring with the frozen v2 matching rules; called by the Inspect scorer |
 | `decline_gate.py` | Phase 4 decline gate: route-independent, declines or blocks ready, never changes a value |
 | `correction_effort.py` | Post-freeze correction-effort analysis of the saved outputs (no call; not a pass or fail) |
-| `l0_locate.py`, `../LabelPhotoLocateL0/` | Label photo pre-fill phase L0 (#316): E3 preparation, local Vision and the Swift `LabelValueMatcher` on the saved route C answers (no egress); [`results/l0-locate-rate-v1.md`](results/l0-locate-rate-v1.md), and v2 after the L1a matcher at 240 px ([`results/l0-locate-rate-v2.md`](results/l0-locate-rate-v2.md)) |
+| `l0_locate.py`, `../LabelPhotoLocateL0/` | Label photo pre-fill phase L0 (#316): E3 preparation, local Vision and the Swift `LabelValueMatcher` on the saved route C answers (no egress); [`results/l0-locate-rate-v1.md`](results/l0-locate-rate-v1.md), v2 after the L1a matcher at 240 px ([`results/l0-locate-rate-v2.md`](results/l0-locate-rate-v2.md)), and v3 with locator v2 and the attention policy measure ([`results/l0-locate-rate-v3.md`](results/l0-locate-rate-v3.md)) |
 | `rescore_development.py`, `uk_diagnosis.py` | Offline re-score of saved development outputs with the gate, and the UK diagnosis (no API call) |
 | `arithmetic.py` | Section 7 checks (general, UK fibre and Taiwan fibre energy forms; kJ / kcal; serving scaling; sub-rows) and the three frozen mutations |
 | `candidate.py`, `candidate-schema-v1.json` | Shared candidate schema and an offline validator |

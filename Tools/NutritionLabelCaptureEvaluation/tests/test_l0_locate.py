@@ -62,6 +62,22 @@ class L0LocateTests(unittest.TestCase):
         self.assertEqual((result["silent"], result["silent_by_locator"]), (2, 0))
         self.assertFalse(result["silent_caught"])
 
+    def test_evidence_policy_blocks_only_contradicted_values(self) -> None:
+        output, truth = table()
+        wrong = copy.deepcopy(output)
+        for basis in ("per_100g", "per_serving"):
+            cell = wrong["cells"][index_of(wrong, "sodium", basis)]
+            cell["decimal_text"] = str(Decimal(cell["decimal_text"]) * 10)
+        row = {"id": "x", "candidate": wrong, "truth": truth, "label_format": TAIWAN}
+        located = all_found(wrong)
+        i = index_of(wrong, "sodium", "per_100g")
+        located[f"cell:{i}"] = "not_found"
+        soft = l0.table_result(row, located, {f"cell:{i}": "none"})
+        self.assertEqual((soft["silent_by_locator"], soft["silent_blocking"]), (1, 0))
+        contradicted = l0.table_result(row, located, {f"cell:{i}": "conflicting_in_cell"})
+        self.assertEqual(contradicted["silent_blocking"], 1)
+        self.assertEqual(contradicted["blocking"], 1)
+
     def test_energy_failure_implicates_the_energy_inputs_of_its_basis(self) -> None:
         output, _ = table()
         broken = copy.deepcopy(output)

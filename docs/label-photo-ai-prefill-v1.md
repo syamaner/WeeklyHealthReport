@@ -434,6 +434,7 @@ Section 17.8 adds eleven contract tests from the architecture gate (tests 15 to 
 |---|---|---|
 | L0 | Offline locate-rate measurement (6.1, with the inputs and method of 17.6); report found rate and how many silent errors would be not found. **Done 25 October 2026 (17.9)** | None |
 | L1a | Matcher ambiguity reduced (order within the column, headers on one line), L0 re-run at 240 px, matcher moved unchanged into `FoodLabelPhotoReading` with a hash pin, boundary script for the new target (17.10) | None |
+| L1c | Locator v2 (17.11), before L1b at the owner's request ("Let's try to resolve"): row labels recovered between located neighbours, columns inferred from value tokens, a table-wide offset; measured by L0 against v1 with the adversarial suite and an extended sweep; and the alternative attention policy measured, not adopted. **Done 25 October 2026** | None |
 | L1b | Pure core: wire mapping port, `LabelPhotoReading`, attention v1, serving v1 with its parity test, manifest codec, verifier, composite admission, preparer types, retry and spend policies, tests 1 to 12 | None |
 | L2 | Image preparation and Vision locator, tests 13 and 14 | None |
 | L3 | OpenRouter adapter and route checker against a fake transport only | None |
@@ -636,3 +637,41 @@ With the 480 px minimum lifted (sensitivity only), Gemini 4 Argon pre-fills 37 t
 On the same 29 tables at 480 px, the pinned matcher finds 41.1%. Sol finds 42.7% at 240 px and catches 4 of 4 silent wrong values; Luna 42.8% and all 52 of 52. On the 15 development photos Gemini finds 133 of 238 (55.9%), median 8.
 
 **Reading.** v1 is now a strict corroborator: a value is "Found on photo" only when the same comparator, number and unit are printed on its own located row, within a third of the label spacing, under its own located header. Every safety step has narrowed it: 81.7% (blocked order pass), 81.0% (fixed), 73.6% (1/3 distance limit), 61.8% (own label located), 42.2% (tokens, unit beside, column confirmed). A comparison run (not committed) shows the column rule alone costs 81 values (56.7% without it): on these photos the two headers are often not located exactly once. In exchange, the silent wrong values of all three arms are now flagged except one serving line, so a found value can be trusted; the cost is an attention median of 11 per table, with almost every table needing checks. Recovering found values safely is planned as phase L1c (recorded in L1b, not here): placing a misread or unlocated row label, and a header, by their order between located neighbours, as locator v2, measured by L0 against v1 with the same adversarial suite and the sweep.
+
+### 17.11 L1c: locator v2 and the attention policy measured (25 October 2026, no egress)
+
+The owner asked for the attention burden of v1 (a median of 11 values to check per table) to be resolved, so L1c ran before L1b. Two levers were measured on the same photos and the same truth as 17.10; counts and case IDs only in [`results/l0-locate-rate-v3.md`](../Tools/NutritionLabelCaptureEvaluation/results/l0-locate-rate-v3.md).
+
+**Locator v2 (`label-photo-vision-locate-v2`).** Every v1 safety rule stays; v2 recovers rows and columns v1 could not confirm, and every recovered placement still has to pass the token rule (comparator, number, unit):
+
+1. **Row labels not located exactly once** are placed between their located neighbours above and below (both required; never across a located label, never at the table's top or bottom edge), and only for a label whose values form one run of the reading: by its own text printed once between them; else by a line in the label column one character different from it (a near-miss; labels of two or more characters); else by the reading's row order, only when nothing at all was read in the label column between the neighbours (a line there is some other label, so the order cannot be trusted for that slot) and the gap fits the table's row step within a quarter.
+2. **Columns whose headers were not located** are inferred from the x-positions of unit-bearing value tokens on located rows, when they split into exactly the reading's column count with gaps over 0.03 and more than twice the widest group, agree with any single located header, and the reading lists one header per column in left-to-right order (a stated precondition).
+3. **A table-wide vertical offset** is estimated from values whose token is printed exactly once on the photo, and removed before the 1/3 row distance limit, only when at least three rows agree within 0.15 of a row (and at least three quarters of the contributing rows), and the offset is at least 0.1 of a row.
+
+It also reports **evidence** for a value that is not found: its token printed only in another row or column (`elsewhere`), or a different token in its own located cell (`conflicting_in_cell`).
+
+**Safety.** The reviewer's cases 1 to 10, S1 to S4 and the fourteen named regression tests still pass; case 10 is now not found rather than ambiguous (the misspelt 脂舫 is placed on the printed 脂肪 line, and the wrong value is plainly elsewhere). The ported sweep (`LabelValueMatcherSweepTests`) gained five layouts that attack recovery itself: labels misread by one character, labels not read at all, unread headers with missing labels, a table-wide drift of 0.45 of a row, and a one-column table with drift and misread labels. Over all eleven layouts it finds **zero false found** (only the harness's own artefacts), no moved box and no side-effect upgrade. The sweep caught two recovery faults while it was being built, both fixed before measurement: placing a label by row order into a slot where another (misread) label was printed, and placing a label the reading gives to two places. The reviewer's original harness, run on v2: 22/22, **22/22** (headers unread, from 2/22), 20/22, 12/12, 12/12, 11/12, 3,297 mutations, 18 findings, all artefacts.
+
+**Results, untouched Taiwan at 240 px (current blocking policy, P12):**
+
+| | v1 Gemini | v2 Gemini | v2 Sol | v2 Luna |
+|---|---|---|---|---|
+| Correct values found on the photo | 235 / 557 (42.2%) | 341 / 557 (61.2%) | 347 / 564 (61.5%) | 346 / 566 (61.1%) |
+| Not found / ambiguous | 76 / 246 | 77 / 139 | 96 / 121 | 70 / 150 |
+| Silent wrong values that need a check | 4 of 4 | 4 of 4 | 4 of 4 | 52 of 52 |
+| Silent-error tables fully caught | 1 of 2 | 1 of 2 | 3 of 3 | 4 of 5 |
+| Tables opening with nothing to check | 1 of 34 | 5 of 34 | 5 of 35 | 5 of 37 |
+| Values to check per table, median / p90 | 11 / 17 | 6.5 / 17 | 7 / 17 | 8 / 17 |
+
+On the 15 development photos v2 finds 79.4% (Gemini), median 2 and p90 9.
+
+**The alternative attention policy, measured and not adopted.** Under it only items with evidence block Log (a gate flag, a failed check, or a contradicting token: `elsewhere` or `conflicting_in_cell`), while a value merely not located is a soft marker plus one table-level "I've checked against the photo". With locator v2:
+
+| Untouched Taiwan | Gemini 4 Argon | GPT-6.1 Sol | Luna |
+|---|---|---|---|
+| Blocking items per table, median / p90 | 0 / 2 | 0 / 2 | 0 / 5 |
+| Tables with no blocking item | 22 of 34 | 21 of 35 | 22 of 37 |
+| Silent wrong values that would still block | **1 of 4** | **2 of 4** | **12 of 52** |
+| Silent-error tables fully blocked | 0 of 2 | 2 of 3 | 0 of 5 |
+
+**Reading and recommendation.** Locator v2 is the safe lever: it recovers about half of what the safety rounds took (42.2% to 61.2% found, a median of 11 to 6.5 values to check) while every silent wrong value still needs a check and the sweep stays at zero false found. The alternative policy would remove almost all blocking (median 0), but it lets most silent errors through as soft markers: 3 of Gemini's 4, 2 of Sol's 4 and 40 of Luna's 52 would no longer block Log, because for most of them the matcher sees no contradicting token on the photo, only an absent or unconfirmed one. **Recommendation: adopt locator v2 with the current blocking policy (P12) for v1 of the route.** If the median of 6.5 is still too much, the next lever is presentation, not policy: group the checks by row, show each beside its region, and make "Matches the photo" one tap per row, which the burden measure counts per value. The alternative policy is not recommended unless the owner accepts that most silent errors would rest on the table-level confirmation.

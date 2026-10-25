@@ -16,7 +16,7 @@ Jobs and raw results (photo paths and model text) stay under the private runs fo
 and case ids are written to the repository.
 
     .venv/bin/python l0_locate.py --runs ~/WHR-label-eval-private/runs --photos ~/WHR-label-eval-private/off-taiwan-v1 \\
-        --out results/l0-locate-rate-v2.json
+        --out results/l0-locate-rate-v3.json
 """
 
 from __future__ import annotations
@@ -36,8 +36,14 @@ import score as scoring
 
 HERE = Path(__file__).resolve().parent
 TOOL = HERE.parent / "LabelPhotoLocateL0"
-ANALYSIS_VERSION = "label-photo-l0-locate-rate-v2"
+ANALYSIS_VERSION = "label-photo-l0-locate-rate-v3"
 ATTENTION_DRAFT = "label-photo-attention-v1 (draft used by L0)"
+# The alternative attention policy measured for the owner (L1c, 17.11): only items with evidence block
+# Log (a gate flag, a failed check, or the photo contradicting the value: its token printed only in
+# another row or column, or a different token in its own cell); "not located" is a soft marker plus
+# one table-level confirmation.
+EVIDENCE_POLICY = "evidence-blocks-v1 (measured, not adopted)"
+CONTRADICTING = ("elsewhere", "conflicting_in_cell")
 ARMS = ("gemini-on", "sol-on", "luna-off")
 ENERGY_ROWS = ("energy_kcal", "protein", "fat", "carbohydrate", "fibre")
 
@@ -124,7 +130,7 @@ def queries(output: dict[str, Any]) -> tuple[list[str], list[dict[str, Any]]]:
     return [h for h in headers.values() if h], found
 
 
-def table_result(row: dict[str, Any], located: dict[str, str]) -> dict[str, Any]:
+def table_result(row: dict[str, Any], located: dict[str, str], evidence: dict[str, str] | None = None) -> dict[str, Any]:
     output, truth = row["candidate"], row["truth"]
     view, report = ce.assisted_view(output, row["label_format"])
     if report["hard_decline"] is not None or view is None:
@@ -145,15 +151,21 @@ def table_result(row: dict[str, Any], located: dict[str, str]) -> dict[str, Any]
             "silent_by_locator",
             "silent_by_locator_or_checks",
             "attention",
+            "blocking",
+            "silent_blocking",
         )
     }
+    evidence = evidence or {}
     silent_missed = 0
+    silent_unblocked = 0
     for i, kind in classes.items():
         status = located.get(f"cell:{i}", "not_found")
         by_locator = status != "found"
         by_gate = cells[i].get("nutrient") in flagged_rows
         attention = by_locator or by_gate or i in arith
         counts["attention"] += int(attention)
+        blocking = by_gate or i in arith or (by_locator and evidence.get(f"cell:{i}") in CONTRADICTING)
+        counts["blocking"] += int(blocking)
         if kind == "correct":
             counts["correct_" + {"found": "found", "not_found": "not_found", "ambiguous": "ambiguous"}[status]] += 1
         elif kind == "wrong":
@@ -165,6 +177,8 @@ def table_result(row: dict[str, Any], located: dict[str, str]) -> dict[str, Any]
                 counts["silent_by_locator"] += int(by_locator)
                 counts["silent_by_locator_or_checks"] += int(by_locator or i in arith)
                 silent_missed += int(not (by_locator or i in arith))
+                counts["silent_blocking"] += int(blocking)
+                silent_unblocked += int(not blocking)
     serving = {}
     for field in ce.SERVING_FIELDS:
         status = ce._serving_status(field, truth, view)
@@ -180,6 +194,7 @@ def table_result(row: dict[str, Any], located: dict[str, str]) -> dict[str, Any]
         "serving": serving,
         "silent_table": bool(counts["silent"] or silent_serving),
         "silent_caught": bool(counts["silent"] or silent_serving) and silent_missed == 0 and not silent_serving_missed,
+        "silent_blocked": bool(counts["silent"] or silent_serving) and silent_unblocked == 0 and not silent_serving,
     }
 
 
@@ -196,8 +211,10 @@ def summarise(tables: list[dict[str, Any]]) -> dict[str, Any]:
             "silent",
             "silent_by_locator",
             "silent_by_locator_or_checks",
+            "silent_blocking",
         )
     }
+    blocking = sorted(t["blocking"] for t in pre)
     correct = total["correct_found"] + total["correct_not_found"] + total["correct_ambiguous"]
     lines = [s for t in pre for s in t["serving"].values()]
     attention = sorted(t["attention"] for t in pre)
@@ -214,6 +231,13 @@ def summarise(tables: list[dict[str, Any]]) -> dict[str, Any]:
         "attention_per_table_p90": ce.nearest_rank(attention, 0.9) if attention else None,
         "silent_error_tables": sorted(t["id"] for t in pre if t["silent_table"]),
         "silent_error_tables_caught": sorted(t["id"] for t in pre if t["silent_caught"]),
+        "evidence_policy": {
+            "blocking_per_table_median": statistics.median(blocking) if blocking else None,
+            "blocking_per_table_p90": ce.nearest_rank(blocking, 0.9) if blocking else None,
+            "tables_with_no_blocking": sum(1 for t in pre if t["blocking"] == 0),
+            "silent_wrong_values_blocking": total["silent_blocking"],
+            "silent_error_tables_fully_blocked": sorted(t["id"] for t in pre if t["silent_blocked"]),
+        },
     }
 
 
@@ -256,7 +280,13 @@ def run_arm(
         if result is None or result.get("refused"):
             tables.append({"id": row["id"], "prefilled": False})
             continue
-        tables.append(table_result(row, {loc["id"]: loc["status"] for loc in result["locations"]}))
+        tables.append(
+            table_result(
+                row,
+                {loc["id"]: loc["status"] for loc in result["locations"]},
+                {loc["id"]: loc.get("evidence", "none") for loc in result["locations"]},
+            )
+        )
     meta = {
         "photos_missing": missing,
         "photos_refused": {
@@ -276,20 +306,21 @@ def main(argv: list[str] | None = None) -> int:
     private = Path.home() / "WHR-label-eval-private"
     parser.add_argument("--runs", type=Path, default=private / "runs")
     parser.add_argument("--photos", type=Path, default=private / "off-taiwan-v1")
-    parser.add_argument("--out", type=Path, default=HERE / "results" / "l0-locate-rate-v2.json")
+    parser.add_argument("--out", type=Path, default=HERE / "results" / "l0-locate-rate-v3.json")
     args = parser.parse_args(argv)
     photos = photo_index(args.photos)
     work = args.runs / "l0-locate-v1"
     report: dict[str, Any] = {
         "analysis_version": ANALYSIS_VERSION,
         "attention_rules": ATTENTION_DRAFT,
+        "alternative_policy": EVIDENCE_POLICY,
         "view": "assisted",
         "egress": "none",
         "matcher": "Tools/LabelPhotoLocateL0 LabelValueMatcher (label-photo-vision-locate-v1)",
-        "comparison": "untouched_taiwan_480 keeps the first run's 480 px short-edge minimum; the others use the decided 240 px",
+        "locator": "label-photo-vision-locate-v2 (L1c); v1 counts are in l0-locate-rate-v2.json",
         "strata": {},
     }
-    passes = (("untouched_taiwan", None), ("development_taiwan", None), ("untouched_taiwan_480", 480))
+    passes = (("untouched_taiwan", None), ("development_taiwan", None))
     for stratum, minimum in passes:
         report["strata"][stratum] = {}
         for arm in ARMS:
