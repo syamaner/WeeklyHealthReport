@@ -2993,3 +2993,22 @@ L4 follow-up (WHR-316-2026-10-26-L4): `phase_usage.py --format claude --since 20
 - 17.19 and every gate on the final tree.
 
 Idle time between reports carries no tokens. Cache writes 3,313,218 5-minute, 0 1-hour; exact USD 22.889994. Same pricing as above; an API-equivalent comparison, not a charge.
+
+## WHR-316-2026-10-26-SERVINGS: Claude Code label photo servings by default
+
+The same `claude-opus-5-5` subagent and transcript as WHR-316-2026-10-26-L4, for the #316 follow-up after L4. The window runs from `2026-10-25T20:34:59Z` (after the L4 follow-up row ends) to `21:35:14Z`, just before this edit. It covers:
+- the label serving composite and its call sites;
+- `LabelPhotoServingsTests`;
+- the simulator check on the fake route;
+- spec 17.20 and the L5 obligation note;
+- the rebase onto main after #327 merged, and every gate.
+
+The waits for #327's merge carry no tokens. The push and the PR are outside the window.
+
+Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A): `claude-opus-5-5` USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache hit, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label photo servings by default and L5 obligation note (#316), subagent | 26,394,199 (21,918,136) | 4,476,001 | 22,056 | 26,416,255 | $27.21 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-25T20:34:59Z --until 2026-10-25T21:35:14Z` on the subagent transcript alone. Cache writes 4,476,001 5-minute, 0 1-hour; exact USD 27.2050002. Local Swift and Xcode builds and the simulator use no API tokens and are not priced. These totals are a cost comparison, not productivity or quality evidence.
