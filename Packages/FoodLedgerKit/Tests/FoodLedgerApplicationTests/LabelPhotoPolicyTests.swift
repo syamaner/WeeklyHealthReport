@@ -122,39 +122,67 @@ final class LabelPhotoSpendPolicyTests: XCTestCase {
         XCTAssertFalse(S.mayStartAttempt(after: [.init(reportedCost: nil, promptTokens: nil)], prices: separate))
     }
 
+    func record(_ attempts: [S.Attempt], _ today: String, _ stored: S.Day?) -> S.Day {
+        S.record(attempts, prices: gemini, today: today, stored: stored)
+    }
+
     func testDailyReadsAndCostAndUnknownCost() {
         let today = "2026-10-25"
         var day = S.Day.empty(today)
-        for _ in 0..<29 { day = S.record([.init(reportedCost: Decimal(string: "0.01"), promptTokens: 2_000)], today: today, stored: day) }
-        XCTAssertEqual(S.admission(today: today, stored: day, ledgerReadable: true), .allowed)
-        day = S.record([.init(reportedCost: Decimal(string: "0.01"), promptTokens: 2_000)], today: today, stored: day)
+        for _ in 0..<29 { day = record([.init(reportedCost: Decimal(string: "0.01"), promptTokens: 2_000)], today, day) }
+        XCTAssertEqual(S.admission(today: today, stored: .day(day)), .allowed)
+        day = record([.init(reportedCost: Decimal(string: "0.01"), promptTokens: 2_000)], today, day)
         XCTAssertEqual(day.reads, 30)
-        XCTAssertEqual(S.admission(today: today, stored: day, ledgerReadable: true), .limitReached)
-        // A read with no reported cost counts $0.05; ten of them reach $0.50.
+        XCTAssertEqual(S.admission(today: today, stored: .day(day)), .limitReached)
+        // An attempt with no reported cost is charged its worst case W ($0.024) on top of the
+        // reported costs, never zero.
+        let mixed = record([.init(reportedCost: Decimal(string: "0.01"), promptTokens: 2_000), .init(reportedCost: nil, promptTokens: nil)],
+                           today, nil)
+        XCTAssertEqual(mixed.cost, Decimal(string: "0.034"))
+        // E10: a tap is admitted only while the day plus a whole tap's $0.05 stays within $0.50,
+        // so the day can never exceed it.
+        XCTAssertEqual(S.admission(today: today, stored: .day(S.Day(day: today, reads: 5, cost: Decimal(string: "0.45")!, paused: false))),
+                       .allowed)
+        XCTAssertEqual(S.admission(today: today, stored: .day(S.Day(day: today, reads: 5, cost: Decimal(string: "0.4501")!, paused: false))),
+                       .limitReached)
         var unknown = S.Day.empty(today)
-        for _ in 0..<10 { unknown = S.record([.init(reportedCost: nil, promptTokens: nil)], today: today, stored: unknown) }
-        XCTAssertEqual(unknown.cost, Decimal(string: "0.50"))
-        XCTAssertEqual(S.admission(today: today, stored: unknown, ledgerReadable: true), .limitReached)
+        while S.admission(today: today, stored: .day(unknown)) == .allowed {
+            unknown = record([.init(reportedCost: nil, promptTokens: nil), .init(reportedCost: nil, promptTokens: nil)], today, unknown)
+        }
+        XCTAssertLessThanOrEqual(unknown.cost, S.dailyCostLimit)
+        XCTAssertEqual(unknown.reads, 10, "ten taps of two unreported attempts ($0.048 each) fit; the eleventh would not")
     }
 
     func testOverCapCostAndInputCeilingPauseTheDay() {
         let today = "2026-10-25"
-        let over = S.record([.init(reportedCost: Decimal(string: "0.051"), promptTokens: 2_000)], today: today, stored: nil)
-        XCTAssertEqual(S.admission(today: today, stored: over, ledgerReadable: true), .paused)
+        let over = record([.init(reportedCost: Decimal(string: "0.051"), promptTokens: 2_000)], today, nil)
+        XCTAssertEqual(S.admission(today: today, stored: .day(over)), .paused)
         // Test 26: 6,001 prompt tokens pause the day; 6,000 do not.
-        let input = S.record([.init(reportedCost: Decimal(string: "0.01"), promptTokens: 6_001)], today: today, stored: nil)
-        XCTAssertEqual(S.admission(today: today, stored: input, ledgerReadable: true), .paused)
-        let edge = S.record([.init(reportedCost: Decimal(string: "0.01"), promptTokens: 6_000)], today: today, stored: nil)
-        XCTAssertEqual(S.admission(today: today, stored: edge, ledgerReadable: true), .allowed)
+        let input = record([.init(reportedCost: Decimal(string: "0.01"), promptTokens: 6_001)], today, nil)
+        XCTAssertEqual(S.admission(today: today, stored: .day(input)), .paused)
+        let edge = record([.init(reportedCost: Decimal(string: "0.01"), promptTokens: 6_000)], today, nil)
+        XCTAssertEqual(S.admission(today: today, stored: .day(edge)), .allowed)
         // The pause survives a reload of the stored day, and ends at the next local day.
         let reloaded = try! JSONDecoder().decode(S.Day.self, from: JSONEncoder().encode(input))
-        XCTAssertEqual(S.admission(today: today, stored: reloaded, ledgerReadable: true), .paused)
-        XCTAssertEqual(S.admission(today: "2026-10-26", stored: reloaded, ledgerReadable: true), .allowed)
+        XCTAssertEqual(S.admission(today: today, stored: .day(reloaded)), .paused)
+        XCTAssertEqual(S.admission(today: "2026-10-26", stored: .day(reloaded)), .allowed)
     }
 
-    func testUnreadableLedgerFailsClosedAndNoAttemptRecordsNothing() {
-        XCTAssertEqual(S.admission(today: "2026-10-25", stored: nil, ledgerReadable: false), .limitReached)
-        XCTAssertEqual(S.record([], today: "2026-10-25", stored: nil), S.Day.empty("2026-10-25"))
+    func testUnreadableLedgerFailsClosedAbsentIsAFreshDayAndNoAttemptRecordsNothing() {
+        XCTAssertEqual(S.admission(today: "2026-10-25", stored: .unreadable), .limitReached)
+        XCTAssertEqual(S.admission(today: "2026-10-25", stored: .absent), .allowed)
+        XCTAssertEqual(record([], "2026-10-25", nil), S.Day.empty("2026-10-25"))
+    }
+
+    func testAClockMovedBackNeverResetsTheAllowance() {
+        // The stored day is later than today: it still counts, and a new tap adds to it.
+        let full = S.Day(day: "2026-10-26", reads: 30, cost: Decimal(string: "0.20")!, paused: false)
+        XCTAssertEqual(S.admission(today: "2026-10-25", stored: .day(full)), .limitReached)
+        let paused = S.Day(day: "2026-10-26", reads: 1, cost: Decimal(string: "0.01")!, paused: true)
+        XCTAssertEqual(S.admission(today: "2026-10-25", stored: .day(paused)), .paused)
+        let later = S.Day(day: "2026-10-26", reads: 3, cost: Decimal(string: "0.03")!, paused: false)
+        let after = record([.init(reportedCost: Decimal(string: "0.01"), promptTokens: 100)], "2026-10-25", later)
+        XCTAssertEqual(after, S.Day(day: "2026-10-26", reads: 4, cost: Decimal(string: "0.04")!, paused: false))
     }
 
     func testDayFollowsTheInjectedCalendar() {
@@ -202,12 +230,16 @@ final class LabelPhotoRetryPolicyTests: XCTestCase {
     }
 
     func testBackoffHonoursRetryAfterAttemptsAndDeadline() {
-        XCTAssertEqual(R.next(afterAttempt: 1, outcome: .transportError, elapsed: 2, now: now, jitter: 0), .retry(after: 0.5))
-        XCTAssertEqual(R.next(afterAttempt: 2, outcome: .timedOut, elapsed: 47, now: now, jitter: 1), .retry(after: 2))
+        XCTAssertEqual(R.next(afterAttempt: 1, outcome: .transportError, elapsed: 2, now: now, jitter: 0), .retry(after: 0.5, timeout: 45))
+        // Q1: the next attempt's timeout is what is left of the 90 s deadline when that is less than 45 s.
+        XCTAssertEqual(R.next(afterAttempt: 2, outcome: .timedOut, elapsed: 47, now: now, jitter: 1), .retry(after: 2, timeout: 41))
         XCTAssertEqual(R.next(afterAttempt: 1, outcome: .httpStatus(429, retryAfter: "10"), elapsed: 2, now: now, jitter: 0),
-                       .retry(after: 10))
+                       .retry(after: 10, timeout: 45))
         XCTAssertEqual(R.next(afterAttempt: 1, outcome: .providerError(code: 529, hasChoices: false, retryAfter: "3"), elapsed: 2,
-                              now: now, jitter: 0), .retry(after: 3))
+                              now: now, jitter: 0), .retry(after: 3, timeout: 45))
+        XCTAssertEqual(R.attemptTimeout(elapsed: 0), 45)
+        XCTAssertEqual(R.attemptTimeout(elapsed: 60), 30)
+        XCTAssertEqual(R.attemptTimeout(elapsed: 95), 0)
         XCTAssertEqual(R.next(afterAttempt: 3, outcome: .transportError, elapsed: 20, now: now, jitter: 0), .stop(.attemptsExhausted))
         // A Retry-After past the deadline stops.
         XCTAssertEqual(R.next(afterAttempt: 1, outcome: .httpStatus(503, retryAfter: "120"), elapsed: 5, now: now, jitter: 0),

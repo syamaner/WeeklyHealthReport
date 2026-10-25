@@ -36,6 +36,12 @@ public enum LabelPhotoSource {
     public static let attribution = "Label photo read by AI"
     /// The locator versions a stored manifest may name (append-only).
     public static let admittedLocatorVersions = ["label-photo-vision-locate-v3"]
+    /// The one wire schema a v1 request may name (the reader's `LabelPhotoWire.schemaVersion`).
+    public static let wireSchemaVersion = "label-photo-wire-schema-v1"
+    /// The closed set of check names `checks_failed` may hold: `label-arithmetic-checks-v2` and the
+    /// serving consistency check (`label-photo-serving-consistency-v1`).
+    public static let checkNames: Set<String> = ["energy", "kj_kcal_ratio", "serving_scaling", "subrow_not_above_parent",
+                                                 "bound_consistency", "net_weight", "basis_plausibility", "serving_consistency"]
 
     /// `<route>:<model>@<endpoint>:<instruction>:<mapping>:<gate>:<arithmetic>:<consistency>:<conversion>:<serving>:<locator>:<attention>`.
     public static func pipeline(_ manifest: LabelPhotoManifest) -> String {
@@ -118,6 +124,9 @@ public enum LabelPhotoSource {
     /// The stored attention records equal the recomputed set exactly, each resolved, and every
     /// resolution agrees with the corrections (8.2.5).
     static func checkAttention(_ manifest: LabelPhotoManifest, evidence: CaptureEvidence) throws {
+        guard manifest.checksFailed.allSatisfy({ checkNames.contains($0.name) }) else {
+            throw LabelPhotoSourceError.invalidManifest("check name")
+        }
         let findings = try attention(manifest)
         guard manifest.attention.map(\.item) == findings.items.map(\.id),
               manifest.attention.map(\.reasons) == findings.items.map(\.reasons),
@@ -143,6 +152,27 @@ public enum LabelPhotoSource {
                 guard matching.count == 1, matching[0].kind == .corrected else { throw LabelPhotoSourceError.invalidManifest("corrected") }
             case .entered:
                 guard line, matching.count == 1, matching[0].kind == .entered else { throw LabelPhotoSourceError.invalidManifest("entered") }
+            }
+        }
+    }
+
+    /// A value left unknown stays unknown (8.2.5): no correction or entry may supply its nutrient
+    /// in its column, whatever row it names, and no conversion may calculate it. Checked on the
+    /// stored, unprojected manifest, before the projection drops the cell.
+    static func checkLeftUnknown(_ manifest: LabelPhotoManifest) throws {
+        let cells = Dictionary(uniqueKeysWithValues: manifest.candidate.cells.map {
+            (LabelPhotoManifest.cellItem(rowID: $0.rowID, headerID: $0.headerID), $0)
+        })
+        for record in manifest.attention where record.resolution == .leftUnknown {
+            if let cell = cells[record.item] {
+                guard !manifest.corrections.contains(where: { $0.nutrient == cell.nutrient && $0.headerID == cell.headerID }),
+                      !manifest.conversions.contains(where: { $0.nutrient == cell.nutrient && $0.sourceHeaderID == cell.headerID }) else {
+                    throw LabelPhotoSourceError.invalidManifest("left unknown supplied")
+                }
+            } else {
+                guard !manifest.corrections.contains(where: { $0.nutrient == record.item }) else {
+                    throw LabelPhotoSourceError.invalidManifest("left unknown line supplied")
+                }
             }
         }
     }
@@ -220,6 +250,7 @@ public enum LabelPhotoSource {
               wire.count <= LabelPhotoManifest.maximumWireBytes, (try digester.sha256(wire)).value == manifest.response.wireSHA256,
               manifest.response.attempts >= 1, manifest.response.completedAt >= manifest.response.requestedAt,
               manifest.request.model == manifest.request.catalogueCheck.slug,
+              manifest.request.wireSchemaVersion == wireSchemaVersion, manifest.image.mediaType == LabelPhotoManifest.mediaType,
               manifest.request.endpoint == manifest.request.catalogueCheck.endpoint else {
             throw LabelPhotoSourceError.invalidManifest("release")
         }
@@ -236,6 +267,7 @@ public enum LabelPhotoSource {
         }
         guard admittedLocatorVersions.contains(manifest.locations.locatorVersion) else { throw LabelPhotoSourceError.invalidManifest("locator") }
         try checkAttention(manifest, evidence: evidence)
+        try checkLeftUnknown(manifest)
         let projected = projection(manifest)
         let basis = try storedBasis(projected)
         guard manifest.identityMapping.isCoherent(servingBasis: basis) else { throw LabelPhotoSourceError.invalidManifest("identity") }

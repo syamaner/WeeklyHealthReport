@@ -58,6 +58,7 @@ enum LabelPhotoFixtures {
                          resolutions: [String: LabelPhotoAttention.Resolution] = ["蛋白質@h2": .corrected],
                          attention: [M.Attention]? = nil, response: M.Response? = nil, request: M.Request? = nil,
                          flags: [PastedLabelManifest.Flag] = [.init(code: "required_row_missing", concerns: "fibre")],
+                         conversions: [PastedLabelManifest.Conversion] = [PastedLabelFixtures.kcal, PastedLabelFixtures.sodium],
                          checksFailed: [M.FailedCheck] = []) throws -> M {
         let candidate = try candidate ?? self.candidate()
         let locations = locations ?? self.locations(candidate)
@@ -67,7 +68,7 @@ enum LabelPhotoFixtures {
               gateVersion: "label-capture-decline-gate-v2", arithmeticVersion: "label-arithmetic-checks-v2",
               conversionVersion: "pasted-label-conversions-v1",
               identityMapping: try .init(fortificationAnswer: .no, servingBasis: .per100Grams), candidate: candidate, locations: locations,
-              storedHeaderID: "h2", conversions: [PastedLabelFixtures.kcal, PastedLabelFixtures.sodium], flagsShown: flags,
+              storedHeaderID: "h2", conversions: conversions, flagsShown: flags,
               checksFailed: checksFailed, warningsShown: checksFailed.map(\.warningCode), corrections: corrections, attention: attention,
               name: "Synthetic oat crackers", brand: "Synthetic Mill")
         }

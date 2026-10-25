@@ -168,6 +168,49 @@ final class LabelPhotoContractTests: XCTestCase {
         guard case .unknown = protein?.value else { return XCTFail("left unknown must store unknown") }
     }
 
+    /// A kcal cell printed in the stored column, not found on the photo and left unknown.
+    func leftUnknownKcal(corrections: [PastedLabelManifest.Correction], conversions: [PastedLabelManifest.Conversion]) throws -> M {
+        let base = try F.candidate()
+        let kcal = PastedLabelFixtures.cell("熱量kcal", "energy_kcal", "h2", "370大卡", "370", "大卡", canonical: "kcal")
+        let candidate = PastedLabelManifest.Candidate(route: "C", inputSHA256: base.inputSHA256, declined: false, declineReasons: [],
+            wouldMarkReady: base.wouldMarkReady, language: base.language, servingSize: base.servingSize, servingsPerPack: base.servingsPerPack,
+            headers: base.headers, cells: base.cells + [kcal], warnings: [])
+        return try F.manifest(candidate: candidate, locations: F.locations(candidate, overriding: ["熱量kcal@h2": .notFound]),
+                              corrections: corrections, resolutions: ["蛋白質@h2": .corrected, "熱量kcal@h2": .leftUnknown],
+                              conversions: conversions)
+    }
+
+    func testALeftUnknownValueCannotBeSuppliedByAnEntryOrAConversion() throws {
+        // (a) An entered kcal (no row) in the stored column beside the kcal left unknown.
+        let entered = PastedLabelManifest.Correction(kind: .entered, nutrient: "energy_kcal", rowID: nil, headerID: "h2", recognised: nil,
+            corrected: .init(decimalText: "370", unit: "kcal", comparator: "="), at: Date(timeIntervalSince1970: 1_700_000_300))
+        let withEntry = try leftUnknownKcal(corrections: PastedLabelFixtures.corrections + [entered], conversions: [PastedLabelFixtures.sodium])
+        XCTAssertThrowsError(try F.input(withEntry))
+        // (b) A kJ to kcal conversion calculating the kcal left unknown.
+        let withConversion = try leftUnknownKcal(corrections: PastedLabelFixtures.corrections,
+                                                 conversions: [PastedLabelFixtures.kcal, PastedLabelFixtures.sodium])
+        XCTAssertThrowsError(try F.input(withConversion))
+        // Both refused at verification too, with every hash rebound.
+        let good = try F.input(try leftUnknownKcal(corrections: PastedLabelFixtures.corrections, conversions: [PastedLabelFixtures.sodium]))
+        XCTAssertTrue(F.verify(good))
+        let kcal = good.candidates[0].candidate.nutrients.entries.first { $0.key == .energyConsumed }
+        guard case .unknown = kcal?.value else { return XCTFail("left unknown must store unknown") }
+        XCTAssertFalse(F.verify(try F.rebound(good, manifest: withEntry)))
+        XCTAssertFalse(F.verify(try F.rebound(good, manifest: withConversion)))
+    }
+
+    func testRequestSchemaMediaTypeAndCheckNamesAreClosed() throws {
+        let request = F.request()
+        let otherSchema = M.Request(model: request.model, endpoint: request.endpoint, reasoningLimit: 500, maxOutputTokens: 1_200,
+            instructionVersion: request.instructionVersion, instructionSHA256: request.instructionSHA256, wireSchemaVersion: "label-photo-wire-schema-v2",
+            wireSchemaSHA256: request.wireSchemaSHA256, catalogueCheck: request.catalogueCheck)
+        XCTAssertThrowsError(try F.input(try F.manifest(request: otherSchema)))
+        XCTAssertThrowsError(try F.input(try F.manifest(checksFailed: [.init(name: "made_up_check", basis: "per_100g", nutrient: nil, child: nil)])))
+        let data = try LedgerFixtures.encoder.encode(try F.manifest())
+        let png = String(decoding: data, as: UTF8.self).replacingOccurrences(of: #""media_type":"image/jpeg""#, with: #""media_type":"image/png""#)
+        XCTAssertThrowsError(try F.input(try XCTUnwrap(M.decode(Data(png.utf8)))))
+    }
+
     // MARK: Test 6: cross-route rejections (8.2.8) and admission (P19)
 
     func testEachVerifierRejectsTheOtherRoutesEvidence() throws {

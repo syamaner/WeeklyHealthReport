@@ -59,8 +59,16 @@ public enum LabelPhotoRetryPolicy {
     }
 
     public enum Decision: Equatable, Sendable {
-        case retry(after: TimeInterval)
+        /// Wait `after` seconds, then make the next attempt with at most `timeout` seconds, so the
+        /// whole call ends by the deadline by construction.
+        case retry(after: TimeInterval, timeout: TimeInterval)
         case stop(Stop)
+    }
+
+    /// The time an attempt starting `elapsed` seconds into the call may take: the per-attempt
+    /// limit, or what is left of the deadline when that is less.
+    public static func attemptTimeout(elapsed: TimeInterval) -> TimeInterval {
+        max(0, min(attemptTimeout, deadline - elapsed))
     }
 
     public enum Stop: Equatable, Sendable { case notRetryable, attemptsExhausted, deadline }
@@ -81,6 +89,6 @@ public enum LabelPhotoRetryPolicy {
         let backoff = baseDelay * pow(2, Double(attempt - 1)) * (0.5 + min(max(jitter, 0), 1) / 2)
         let delay = max(retryAfter(header, now: now) ?? 0, backoff)
         guard elapsed + delay < deadline else { return .stop(.deadline) }
-        return .retry(after: delay)
+        return .retry(after: delay, timeout: attemptTimeout(elapsed: elapsed + delay))
     }
 }

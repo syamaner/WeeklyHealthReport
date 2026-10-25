@@ -95,10 +95,11 @@ public protocol LabelPhotoRouteChecking: Sendable {
     func check(_ route: LabelPhotoRoute.Route) async throws -> LabelPhotoManifest.CatalogueCheck
 }
 
-/// Today's reads and cost, persisted by a file-backed adapter (17.8, L4). An unreadable ledger
-/// reports nil, which fails closed (`LabelPhotoSpendPolicy.admission`).
+/// Today's reads and cost, persisted by a file-backed adapter (17.8, L4). No record yet is
+/// `.absent` (a fresh day); a record that cannot be read is `.unreadable`, which fails closed
+/// (`LabelPhotoSpendPolicy.admission`).
 public protocol LabelPhotoSpendLedger: Sendable {
-    func load() -> LabelPhotoSpendPolicy.Day?
+    func load() -> LabelPhotoSpendPolicy.Stored
     func store(_ day: LabelPhotoSpendPolicy.Day) throws
 }
 

@@ -95,6 +95,15 @@ check_label_reader_edges() {
     fi
   done < <(files_importing FoodLabelPhotoReading "${scanned[@]}")
 
+  # Only the preparer builds a PreparedLabelImage (docs/label-photo-ai-prefill-v1.md 17.8 M6): the
+  # initialiser is called only in the photo capture adapter and in tests.
+  while IFS= read -r file; do
+    if [[ -z "$file" ]]; then continue; fi
+    if [[ ! "$file" =~ /(Sources/FoodLabelPhotoCapture|Tests)/ ]]; then
+      violations+="PreparedLabelImage built in $file"$'\n'
+    fi
+  done < <(grep -rlE --include='*.swift' 'PreparedLabelImage\(' "${scanned[@]}" 2>/dev/null || true)
+
   while IFS= read -r file; do
     if [[ -z "$file" ]]; then continue; fi
     if [[ "$file" != "$app/WeeklyHealthReport/FoodLedger/FoodLedgerCompositionRoot.swift" && ! "$file" =~ /Tests/FoodLabelTextCaptureTests/ ]]; then

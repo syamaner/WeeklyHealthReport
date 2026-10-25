@@ -872,4 +872,17 @@ L1b adds the application's and the pure reader's label photo types, all with con
 - **Policies (tests 4, 9, 10, 21 and 26).** Attention v1, the retry schedule and the spend caps are pure and tested: the per-tap $0.05 total across attempts and the 6,000 prompt-token ceiling.
 - **Freeze.** `LabelPhotoFreezeTests` now also pins the wire schema and mapping, serving v1, attention v1 and the manifest codec.
 
+**Invariant review of #323 (BLOCK, fixed; decisions under the owner's delegation, within E9 and E10).**
+
+- **Left unknown stays unknown (high).** The projection dropped a left-unknown cell before the pasted rules ran, so an entered value in that column (with no row) or a conversion calculating that nutrient could still store it as known. The verifier now checks the stored, unprojected manifest first: no correction for a left-unknown cell's nutrient in its column (whatever its row), no conversion to that nutrient from that column, and no correction of a serving line left unknown.
+- **The day never exceeds $0.50 (E10).** A tap is admitted only while the day's cost plus a whole tap's $0.05 stays within $0.50.
+- **An unreported cost is charged the worst case.** A tap is charged its reported costs plus W for each attempt that reported none. This replaces a flat $0.05 for the tap; an unreported cost is still never counted as zero.
+- **The spend ledger tells absent from unreadable.** `load()` returns `.absent` (a fresh day), `.day` or `.unreadable`, and unreadable fails closed.
+- **A clock moved back never resets the allowance.** A stored day later than today counts as today.
+- **Closed values at verify.** The request's wire schema must be `label-photo-wire-schema-v1`, the image's media type `image/jpeg`, and every `checks_failed` name one of the closed set: the six `label-arithmetic-checks-v1` names, `basis_plausibility`, and `serving_consistency` for `label-photo-serving-consistency-v1`.
+- **Only the preparer builds a `PreparedLabelImage`.** The boundary script refuses `PreparedLabelImage(` anywhere but the capture adapter and tests. L2's test 13 also pins that the recorded SHA-256 is that of the bytes.
+- **Q1, retry.** The retry policy returns each attempt's timeout as min(45 s, what is left of the 90 s deadline), so the whole call ends by the deadline by construction.
+- **Q2, cancellation.** Cancellation belongs to L3's orchestrator, which stops at once and never retries across a user action.
+- **Q3, the accepted H2 limit.** The verifier recomputes attention from the stored locations, flags and failed checks, and never re-runs the locator or the checks (17.1). A stored `found` status, or a failed check left out of `checks_failed`, therefore cannot be re-derived at verify. This is accepted: the reading and the locator are not replayed by design. Both are written only by the app's own pipeline, and the manifest digest binds them.
+
 L1b adds no target. `FoodLabelPhotoReading` gains its planned dependencies (the application, the domain and `NutritionLabelParsing`), which the boundary script already allowed. The copy for decline and failure codes (test 2's copy mapping) and the request and response checks (tests 7 and 8) belong to L3 and L4.

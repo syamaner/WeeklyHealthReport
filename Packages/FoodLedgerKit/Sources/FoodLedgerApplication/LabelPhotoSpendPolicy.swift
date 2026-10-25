@@ -8,8 +8,12 @@ import Foundation
 ///   plus the reasoning limit as well when the endpoint bills reasoning outside `maxTokens`) must
 ///   fit in what the tap has left. An attempt is charged its reported cost, or W when none is
 ///   reported (including one cut by Cancel).
-/// - Per local calendar day, at most 30 reads and $0.50. A tap with any attempt lacking a reported
-///   cost counts as $0.05 toward the day.
+/// - Per local calendar day, at most 30 reads and $0.50. A tap is admitted only while the day's
+///   cost plus a whole tap's $0.05 stays within $0.50, so the day never exceeds it. A tap is
+///   charged its reported costs plus the worst case W for every attempt that reported none (an
+///   unreported cost is never counted as zero).
+/// - A stored day later than today (the clock moved back) is treated as the same day: the
+///   allowance never resets early.
 /// - A tap whose reported cost exceeds $0.05, or whose reported prompt tokens exceed 6,000, pauses
 ///   reading for the rest of that day.
 /// - A day record that cannot be read fails closed: reading is unavailable, as if the limit were
@@ -76,25 +80,45 @@ public enum LabelPhotoSpendPolicy {
 
     public enum Admission: Equatable, Sendable { case allowed, limitReached, paused }
 
-    /// Whether a new read may start today. `stored` is the ledger's record, or nil when it could
-    /// not be read (fail closed). A record for an earlier day means a fresh day.
-    public static func admission(today: String, stored: Day?, ledgerReadable: Bool) -> Admission {
-        guard ledgerReadable else { return .limitReached }
-        guard let stored, stored.day == today else { return .allowed }
-        if stored.paused { return .paused }
-        if stored.reads >= dailyReadLimit || stored.cost >= dailyCostLimit { return .limitReached }
+    /// The spend ledger's stored day: none yet (a fresh day), a day, or a record that could not be
+    /// read, which fails closed.
+    public enum Stored: Equatable, Sendable {
+        case absent
+        case day(Day)
+        case unreadable
+    }
+
+    /// The day `stored` counts against: its own when it is today or later (a clock moved back
+    /// never resets the allowance), otherwise a fresh day.
+    static func current(today: String, stored: Day?) -> Day {
+        guard let stored, stored.day >= today else { return Day.empty(today) }
+        return stored
+    }
+
+    /// Whether a new read may start today.
+    public static func admission(today: String, stored: Stored) -> Admission {
+        let day: Day
+        switch stored {
+        case .unreadable: return .limitReached
+        case .absent: day = Day.empty(today)
+        case let .day(record): day = current(today: today, stored: record)
+        }
+        if day.paused { return .paused }
+        if day.reads >= dailyReadLimit || day.cost + perTapLimit > dailyCostLimit { return .limitReached }
         return .allowed
     }
 
+    /// What one tap costs the day: its reported costs, plus W for each attempt that reported none.
+    public static func tapCost(_ attempts: [Attempt], prices: Prices) -> Decimal { charged(attempts, prices: prices) }
+
     /// The day after a finished tap (success, failure or Cancel) that sent at least one attempt.
-    public static func record(_ attempts: [Attempt], today: String, stored: Day?) -> Day {
-        let base = stored?.day == today ? stored! : Day.empty(today)
+    public static func record(_ attempts: [Attempt], prices: Prices, today: String, stored: Day?) -> Day {
+        let base = current(today: today, stored: stored)
         guard !attempts.isEmpty else { return base }
-        let unknown = attempts.contains { $0.reportedCost == nil }
         let reported = attempts.reduce(Decimal(0)) { $0 + ($1.reportedCost ?? 0) }
-        let tapCost = unknown ? perTapLimit : reported
         let overCap = reported > perTapLimit
         let overInput = attempts.contains { ($0.promptTokens ?? 0) > promptTokenCeiling }
-        return Day(day: today, reads: base.reads + 1, cost: base.cost + tapCost, paused: base.paused || overCap || overInput)
+        return Day(day: base.day, reads: base.reads + 1, cost: base.cost + tapCost(attempts, prices: prices),
+                   paused: base.paused || overCap || overInput)
     }
 }
