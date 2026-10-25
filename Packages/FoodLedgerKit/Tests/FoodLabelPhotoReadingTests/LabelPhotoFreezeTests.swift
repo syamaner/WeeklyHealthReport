@@ -8,9 +8,9 @@ import XCTest
 final class LabelPhotoFreezeTests: XCTestCase {
     /// Paths relative to the FoodLedgerKit package root.
     static let frozenSources: [String: String] = [
-        // label-photo-vision-locate-v2 (L1c, 17.11), carried unchanged from the L0 tool. v1 was
-        // ea1ab9c9… (merged in #320, never shipped); a change to this file is a new version.
-        "Sources/FoodLabelPhotoReading/LabelValueMatcher.swift": "25bfb4f2f5823ebb06d83416dcaade7596f593ca3c31e50c2c1a8fb1ad6363c9",
+        // label-photo-vision-locate-v3 (L1d, 17.15), carried unchanged from the L0 tool. v2 was
+        // 25bfb4f2… (#321) and v1 ea1ab9c9… (#320), neither shipped; a change to this file is a new version.
+        "Sources/FoodLabelPhotoReading/LabelValueMatcher.swift": "8633366a038ec4f71151f4723f524ef00ba33e920dd98b3589b6088345a9cf3a",
     ]
 
     var packageRoot: URL {
@@ -33,7 +33,7 @@ final class LabelPhotoFreezeTests: XCTestCase {
     }
 
     func testMatcherVersionIsPinned() {
-        XCTAssertEqual(LabelValueMatcher.version, "label-photo-vision-locate-v2")
+        XCTAssertEqual(LabelValueMatcher.version, "label-photo-vision-locate-v3")
     }
 
     static func sha256(_ data: Data) -> String {

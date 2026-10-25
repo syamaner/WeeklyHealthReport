@@ -1,6 +1,6 @@
 import Foundation
 
-/// `label-photo-vision-locate-v2` matcher (docs/label-photo-ai-prefill-v1.md sections 6.1 and 17.11).
+/// `label-photo-vision-locate-v3` matcher (docs/label-photo-ai-prefill-v1.md sections 6.1, 17.11 and 17.15).
 ///
 /// Pure: Foundation only, no Vision, image, clock or network. The Vision adapter supplies the
 /// recognised lines and a function that returns the box of a substring of one line; the matcher
@@ -15,8 +15,13 @@ import Foundation
 /// from agreeing rows is removed before the row distance limit; and columns whose headers were
 /// not located are inferred from the x-positions of value tokens when they split cleanly into the
 /// reading's column count. Every recovered placement still has to pass the token rule.
+///
+/// v3 (17.15) takes each header's basis: only the amount columns' headers (per serving, per 100 g
+/// or ml) must be located in the header band, in order; a reference-intake value (每日參考值百分比,
+/// often printed over two lines) is confirmed by its % unit and its position beside the amount
+/// columns, never as an amount column, and an amount value is never confirmed with a % unit.
 public enum LabelValueMatcher {
-    public static let version = "label-photo-vision-locate-v2"
+    public static let version = "label-photo-vision-locate-v3"
     /// A value belongs to its row label only within this share of the local label spacing.
     public static let rowOffsetLimit = 1.0 / 3.0
 
@@ -51,6 +56,10 @@ public enum LabelValueMatcher {
 
     public enum Status: String, Sendable, Codable { case found, notFound = "not_found", ambiguous }
 
+    /// What a column holds (17.15): an amount (per serving, per 100 g or ml) or a share of the daily
+    /// reference intake, printed with a % unit.
+    public enum HeaderBasis: String, Sendable, Codable { case amount, referenceIntake = "reference_intake" }
+
     /// What the photo says against a value that is not found (17.11, attention policy evidence):
     /// `elsewhere` when its token is printed only in another row or column; `conflictingInCell`
     /// when its own row and column are located and hold a different value token; `none` otherwise.
@@ -71,14 +80,16 @@ public enum LabelValueMatcher {
 
     /// `headers` are the reading's header texts, left to right; `rowLabels` every row label's
     /// printed text; `columnCount` the number of value columns the reading has (headers with or
-    /// without printed text).
+    /// without printed text). `headerBases`, when given, has one entry per header (an empty text
+    /// for a header with no printed text); when empty, every column is taken as an amount column,
+    /// which needs every header located (v2's rule).
     ///
     /// Preconditions: `queries` list each column's values in the table's printed row order, top to
     /// bottom, as the reading's rows are (the order pass and row recovery check this against the
     /// labels found on the photo and place nothing when it cannot be checked); and when `headers`
     /// has one entry per column, they are in printed left-to-right order (column inference uses it).
     public static func locate(_ queries: [Query], lines: [Line], headers: [String], rowLabels: [String], columnCount: Int,
-                              subBox: SubBox) -> [Location] {
+                              headerBases: [HeaderBasis] = [], subBox: SubBox) -> [Location] {
         let normalised = lines.map(Normalised.init)
         func box(_ match: Match) -> Box { subBox(match.line, match.range) ?? lines[match.line].box }
         func unique(_ texts: [String], rule: Rule) -> [String: Box] {
@@ -218,9 +229,26 @@ public enum LabelValueMatcher {
             }
         }
         let tokenWidth = median(directTokens.map(\.box.width)) ?? 0.05
+        // D4 (17.15): a per-serving header may be printed with the serving quantity in brackets,
+        // "每份（30公克）". That remainder is allowed only when it is exactly one bracketed quantity
+        // equal to a quantity on the reading's serving lines, so it adds no position the photo
+        // does not show.
+        // Only a serving line whose whole printed text is on the photo (F8c: a serving size the
+        // model misread must not vouch for a bracketed quantity).
+        let servingQuantities = queries.filter { $0.rowLabel == nil && !occurrences(of: $0.printedText, in: normalised, rule: .bounded).isEmpty }
+            .flatMap { valueTokens(Normalised($0.printedText).characters) }
+            .filter { !$0.unit.isEmpty && !$0.range }
+        func bracketedServingQuantity(_ rest: [Character]) -> Bool {
+            guard rest.count > 2, rest.first == "(", rest.last == ")" else { return false }
+            let inner = Array(rest[1..<(rest.count - 1)])
+            let tokens = valueTokens(inner)
+            guard tokens.count == 1, let token = tokens.first, token.start == 0, token.end == inner.count, !token.unit.isEmpty,
+                  !token.range else { return false }
+            return servingQuantities.contains { $0.comparator == token.comparator && $0.number == token.number && $0.unit == token.unit }
+        }
         var headerBoxes: [String: Box] = [:]
         if let top = topDirect, tableStep > 0 {
-            for text in Set(headers) {
+            for text in Set(headers) where !Normalised(text).key.isEmpty {
                 // A line that also carries a value with a unit is a serving or value line, not a
                 // header line ("每份 185公克").
                 // The header's own text ("每100公克") is removed first, and so are the other
@@ -231,8 +259,9 @@ public enum LabelValueMatcher {
                         rest = rest.replacingOccurrences(of: other, with: " ")
                     }
                     // Nothing but the headers and punctuation may remain (C2: 每份參考值% is the
-                    // reference-intake column's header, not 每份).
+                    // reference-intake column's header, not 每份), or one bracketed serving quantity (D4).
                     return rest.allSatisfy { $0 == " " || $0.isPunctuation || $0.isSymbol }
+                        || bracketedServingQuantity(rest.filter { $0 != " " })
                 }
                 let inBand = headerLines.map { box($0) }.filter { header in
                     header.midY > top.midY + 0.5 * tableStep && header.midY < top.midY + 2.5 * tableStep
@@ -330,18 +359,79 @@ public enum LabelValueMatcher {
             return clusters.indices.min { min(abs(clusters[$0].low - value.midX), abs(clusters[$0].high - value.midX))
                 < min(abs(clusters[$1].low - value.midX), abs(clusters[$1].high - value.midX)) }
         }
-        /// Found needs the column confirmed by a located header: one value column; at least two
-        /// headers located with its own among them; or inferred columns that a located header agrees
-        /// with (checked when the groups were accepted) and its header's position known.
-        /// With two or more columns, found and evidence need every one of the reading's headers
-        /// located in the band, at distinct x positions in the reading's left-to-right order (C1,
-        /// C2: one header alone, or headers out of order, cannot say which column is which).
+        // Each header's basis (17.15). Without bases every column is an amount column.
+        let basesGiven = !headerBases.isEmpty
+        let bases: [HeaderBasis] = headerBases.count == headers.count ? headerBases : Array(repeating: .amount, count: headers.count)
+        let amountIndices = headers.indices.filter { bases[$0] == .amount }
+        let intakeIndices = headers.indices.filter { bases[$0] == .referenceIntake }
+        func basis(_ query: Query) -> HeaderBasis? {
+            guard let key = query.headerText.map({ Normalised($0).key }), !key.isEmpty,
+                  let index = headerKeys.firstIndex(of: key) else { return nil }
+            return bases[index]
+        }
+        /// With two or more columns, found needs every one of the reading's **amount** headers
+        /// located in the band, with distinct texts, at distinct x positions in the reading's
+        /// left-to-right order (C1, C2: one header alone, or headers out of order, cannot say which
+        /// column is which). A reference-intake header need not be located; when it is, it must
+        /// sit on its own side of every amount header.
         let headersConfirmed: Bool = {
-            guard columnCount > 1, headers.count == columnCount else { return false }
-            let located = headerKeys.compactMap { headerBoxes[$0] }
-            guard located.count == columnCount else { return false }
-            return zip(located, located.dropFirst()).allSatisfy { $1.midX - $0.midX > max(tokenWidth, 0.03) }
+            guard columnCount > 1, headers.count == columnCount, !amountIndices.isEmpty else { return false }
+            let amountKeys = amountIndices.map { headerKeys[$0] }
+            guard !amountKeys.contains(""), Set(amountKeys).count == amountKeys.count,
+                  !intakeIndices.contains(where: { amountKeys.contains(headerKeys[$0]) }) else { return false }
+            let located = amountKeys.compactMap { headerBoxes[$0] }
+            guard located.count == amountKeys.count,
+                  zip(located, located.dropFirst()).allSatisfy({ $1.midX - $0.midX > max(tokenWidth, 0.03) }) else { return false }
+            let intakeInPlace = intakeIndices.allSatisfy { intake in
+                guard let box = headerBoxes[headerKeys[intake]] else { return true }
+                return zip(amountIndices, located).allSatisfy { amount, header in
+                    amount < intake ? box.midX - header.midX > max(tokenWidth, 0.03) : header.midX - box.midX > max(tokenWidth, 0.03)
+                }
+            }
+            guard intakeInPlace else { return false }
+            // With a reference-intake header not located, most of the reading's reference-intake
+            // values must be printed in %: a column the reading calls reference intake that holds
+            // amounts says its bases are wrong (C1 under a first-column reference intake). One
+            // misread unit does not, and that value itself is never found (it is not in %).
+            if intakeIndices.contains(where: { headerBoxes[headerKeys[$0]] == nil }) {
+                let intake = queries.filter { query in
+                    guard query.rowLabel != nil, let key = query.headerText.map({ Normalised($0).key }),
+                          let index = headerKeys.firstIndex(of: key) else { return false }
+                    return bases[index] == .referenceIntake
+                }
+                let percent = intake.filter { query in
+                    let wanted = valueTokens(Normalised(query.printedText).characters)
+                    return wanted.count == 1 && wanted[0].unit == "%"
+                }
+                return 2 * percent.count > intake.count || intake.isEmpty
+            }
+            return true
         }()
+        // The distinct x positions of % tokens on direct rows (G2: two % columns cannot be told
+        // apart by position, so a reference-intake value then needs its own header located).
+        // Positions are told apart by the % tokens' own spans, never the width of all tokens (H4):
+        // a token starts a new position when it does not overlap the current one or its centre is
+        // further than about one % token from the last.
+        let percentColumns: Int = {
+            let percent = directTokens.filter { $0.token.unit == "%" }.map(\.box).sorted { $0.midX < $1.midX }
+            guard let first = percent.first else { return 0 }
+            let gap = max(median(percent.map(\.width)) ?? 0, 0.02)
+            var count = 1, right = first.x + first.width, last = first.midX
+            for token in percent.dropFirst() {
+                if token.x > right || token.midX - last > gap {
+                    count += 1; right = token.x + token.width
+                } else {
+                    right = max(right, token.x + token.width)
+                }
+                last = token.midX
+            }
+            // I1: never fewer positions than % tokens printed on any one direct row.
+            let perRow = rowsTopDown.filter { directRows.contains($0.key) }.map { row in
+                directTokens.filter { $0.token.unit == "%" && abs($0.box.midY - row.value.midY) < 0.5 * max(tableStep, 0.01) }.count
+            }.max() ?? 0
+            return max(count, perRow)
+        }()
+        let everyHeaderLocated = headerKeys.allSatisfy { headerBoxes[$0] != nil }
         /// The value's own header sits directly above it: the token's centre lies within the
         /// header's x span, or the header's centre within the token's (E2: a fixed tolerance of one
         /// token width admitted a narrow unheaded column touching the header's column).
@@ -349,22 +439,43 @@ public enum LabelValueMatcher {
             guard let header = query.headerText.map({ Normalised($0).key }), let box = headerBoxes[header] else { return false }
             return (value.midX >= box.x && value.midX <= box.x + box.width) || (box.midX >= value.x && box.midX <= value.x + value.width)
         }
-        func columnForFound(_ query: Query) -> Bool {
-            if columnCount <= 1 { return true }
-            guard headersConfirmed, let header = query.headerText.map({ Normalised($0).key }) else { return false }
-            return headerBoxes[header] != nil
+        /// A reference-intake value sits outside every amount column, on the side the reading's
+        /// column order gives it.
+        func intakePosition(_ query: Query, _ value: Box) -> Bool {
+            guard let key = query.headerText.map({ Normalised($0).key }), let index = headerKeys.firstIndex(of: key) else { return false }
+            return amountIndices.allSatisfy { amount in
+                guard let header = headerBoxes[headerKeys[amount]] else { return false }
+                guard abs(value.midX - header.midX) > max(tokenWidth, 0.05) else { return false }
+                return amount < index ? value.midX > header.midX : value.midX < header.midX
+            }
         }
-        /// Evidence needs the same confirmation as found.
-        func columnByHeaders(_ query: Query) -> Bool { columnForFound(query) }
+        /// The value's token is in its own column: an amount value directly under its own header; a
+        /// reference-intake value by position, and under its own header when that is located (with
+        /// more than one reference-intake column, its header must be located).
+        func inOwnColumn(_ query: Query, _ value: Box) -> Bool {
+            guard headersConfirmed, let basis = basis(query) else { return false }
+            switch basis {
+            case .amount: return underOwnHeader(query, value)
+            case .referenceIntake:
+                guard intakePosition(query, value), let key = query.headerText.map({ Normalised($0).key }) else { return false }
+                if headerBoxes[key] != nil { return underOwnHeader(query, value) }
+                return intakeIndices.count == 1 && percentColumns <= 1
+            }
+        }
         /// The value's column is known enough to narrow candidates: as for found, or inferred columns
         /// with its header's position known.
         func columnConfirmed(_ query: Query) -> Bool {
             if columnCount <= 1 { return true }
-            if headerBoxes.count > 1, let header = query.headerText.map({ Normalised($0).key }), headerBoxes[header] != nil { return true }
+            if headersConfirmed, basis(query) == .referenceIntake { return true }
+            if headerBoxes.count > 1 || headersConfirmed, let header = query.headerText.map({ Normalised($0).key }), headerBoxes[header] != nil { return true }
             return clusters != nil && columnIndex(query) != nil
         }
         func inHeader(_ query: Query, _ value: Box) -> Bool {
-            if headerBoxes.count > 1, let header = query.headerText.map({ Normalised($0).key }), headerBoxes[header] != nil {
+            if headersConfirmed, basis(query) == .referenceIntake,
+               let key = query.headerText.map({ Normalised($0).key }), headerBoxes[key] == nil {
+                return intakePosition(query, value)
+            }
+            if headerBoxes.count > 1 || headersConfirmed, let header = query.headerText.map({ Normalised($0).key }), headerBoxes[header] != nil {
                 return nearest(headerBoxes, to: value) { abs($0.midX - $1.midX) } == header
             }
             if clusters != nil, let index = columnIndex(query) { return group(of: value) == index }
@@ -379,11 +490,31 @@ public enum LabelValueMatcher {
             }
         }
         let listedPerRow = Dictionary(grouping: queries.compactMap(rowKey), by: { $0 }).mapValues(\.count)
+
+        /// Found with two or more columns (17.15): the token in its own column; with bases given, a
+        /// % unit exactly for a reference-intake value; and, when a header of the reading is not
+        /// located, no more value tokens on the row than the reading has columns (a column the
+        /// reading left out cannot be taken for one it has).
+        func columnForFound(_ query: Query, _ value: Box, row label: String) -> Bool {
+            if columnCount <= 1 { return true }
+            guard inOwnColumn(query, value), let basis = basis(query) else { return false }
+            if basesGiven {
+                let wanted = valueTokens(Normalised(query.printedText).characters)
+                guard wanted.count == 1, (basis == .referenceIntake) == (wanted[0].unit == "%") else { return false }
+            }
+            return everyHeaderLocated || numberTokens(onRow: label).count <= columnCount
+        }
+        /// Evidence keeps v2's bar: every header of the reading located, its own among them.
+        func columnByHeaders(_ query: Query) -> Bool {
+            guard columnCount > 1 else { return true }
+            guard headersConfirmed, everyHeaderLocated, let header = query.headerText.map({ Normalised($0).key }) else { return false }
+            return headerBoxes[header] != nil
+        }
         /// With two or more columns, the value's cell (its row, directly under its own header) holds
         /// exactly one value token (E2: a narrow column overlapping the header's span).
         func soleInCell(_ query: Query, row label: String) -> Bool {
             columnCount <= 1
-                || tokensOnPhoto.filter { rowFit(label, $0.box) == .near && underOwnHeader(query, $0.box) }.count == 1
+                || tokensOnPhoto.filter { rowFit(label, $0.box) == .near && inOwnColumn(query, $0.box) }.count == 1
         }
 
         // Evidence against a value that is not found (17.11, attention policy).
@@ -430,11 +561,79 @@ public enum LabelValueMatcher {
                     && abs(other.midY - value.midY) < max(other.height, value.height) / 2
             }
         }
+        /// G1: a serving line matched by its quantity alone counts only on a line outside the table
+        /// (not level with a located row label or header, nor between the top and bottom rows) that
+        /// also carries the serving line's own words.
+        func servingTokenOutsideTable(_ query: Query, _ match: Match) -> Bool {
+            let model = Normalised(query.printedText).characters
+            let tokens = valueTokens(model)
+            guard tokens.count == 1, let token = tokens.first else { return false }
+            let value = box(match)
+            let before = Array(model[..<token.start]), after = Array(model[token.end...])
+            guard !(before + after).isEmpty else { return false }
+            // H1: the serving line's words sit directly around the quantity on its own line
+            // (whitespace ignored), or, for a line Vision split in two, the quantity starts its line
+            // and the words end the line just to its left, level with it.
+            let line = normalised[match.line]
+            guard let printed = valueTokens(line.characters).first(where: { candidate in
+                line.origin[candidate.start].lowerBound == match.range.lowerBound
+            }) else { return false }
+            let ownBefore = Array(line.characters[..<printed.start]), ownAfter = Array(line.characters[printed.end...])
+            // I3b, I4b: the matched text is the serving line itself, apart from whitespace and
+            // punctuation: what is before its words is empty or ends with punctuation, and what is
+            // after them is empty or starts with punctuation, so the line is not part of a longer
+            // phrase ("*糖3公克/每份以下", "另一口味每一份量"), while a serving line printed with the
+            // servings-per-pack line ("每一份量30公克，本包裝含2份") still counts.
+            func isMark(_ character: Character?) -> Bool { character.map { $0.isPunctuation || $0.isSymbol } ?? true }
+            func endsCleanly(_ characters: ArraySlice<Character>) -> Bool { characters.isEmpty || isMark(characters.last) }
+            func startsCleanly(_ characters: ArraySlice<Character>) -> Bool { characters.isEmpty || isMark(characters.first) }
+            func onlyPunctuation(_ characters: ArraySlice<Character>) -> Bool { characters.allSatisfy { isMark($0) } }
+            let wordsAfter = ownAfter.starts(with: after) && startsCleanly(ownAfter.dropFirst(after.count))
+            if ownBefore.count >= before.count, Array(ownBefore.suffix(before.count)) == before,
+               endsCleanly(ownBefore.dropLast(before.count)), wordsAfter {
+                // The whole serving line on one recognised line.
+            } else if onlyPunctuation(ownBefore[...]), !before.isEmpty, wordsAfter {
+                // Split in two: the quantity's line holds only the quantity and its after-words, and
+                // the nearest level line to its left holds only the before-words.
+                let left = lines.indices.filter { index in
+                    index != match.line && abs(lines[index].box.midY - value.midY) < max(lines[index].box.height, value.height) / 2
+                        && lines[index].box.x + lines[index].box.width <= lines[match.line].box.x + 0.01
+                        && lines[match.line].box.x - (lines[index].box.x + lines[index].box.width) < 0.1
+                }
+                guard let nearest = left.max(by: { lines[$0].box.x + lines[$0].box.width < lines[$1].box.x + lines[$1].box.width }) else {
+                    return false
+                }
+                let words = normalised[nearest].characters
+                guard words.count >= before.count, Array(words.suffix(before.count)) == before,
+                      endsCleanly(words.dropLast(before.count)) else { return false }
+            } else {
+                return false
+            }
+            let step = max(medianStep, 0.01)
+            if let top = rowsTopDown.first?.value, let bottom = rowsTopDown.last?.value, rowsTopDown.count > 1,
+               value.midY > bottom.midY - 0.5 * step, value.midY < top.midY + 0.5 * step { return false }
+            if rowBoxes.values.contains(where: { abs($0.midY - value.midY) < 0.5 * step }) { return false }
+            if headerBoxes.values.contains(where: { abs($0.midY - value.midY) < 0.5 * step }) { return false }
+            return true
+        }
+        /// I4b: a serving line found by its whole printed text is not part of a longer word: the
+        /// characters just before and after it are not letters or ideographs ("*糖3公克/每份以下"
+        /// does not hold the serving line "3公克/每份"; "每一份量30公克，本包裝含8份" holds both lines).
+        func servingTextStandsAlone(_ match: Match) -> Bool {
+            let line = normalised[match.line]
+            guard let start = line.origin.firstIndex(where: { $0.lowerBound == match.range.lowerBound }),
+                  let end = line.origin.lastIndex(where: { $0.upperBound == match.range.upperBound }) else { return false }
+            let before = start > 0 ? line.characters[start - 1] : nil
+            let after = end + 1 < line.characters.count ? line.characters[end + 1] : nil
+            return !(before?.isLetter ?? false) && !(after?.isLetter ?? false)
+        }
         let first: [First] = queries.map { query in
             let isLine = query.rowLabel == nil
             let wanted = valueTokens(Normalised(query.printedText).characters)
             for (tierIndex, tier) in matchTiers(query.printedText, isLine: isLine, in: normalised).enumerated() {
-                var candidates = tier.map { box($0) }.filter { inHeader(query, $0) }
+                let admitted = !isLine ? tier : tierIndex == 1 ? tier.filter { servingTokenOutsideTable(query, $0) }
+                    : tier.filter { servingTextStandsAlone($0) }
+                var candidates = admitted.map { box($0) }.filter { inHeader(query, $0) }
                 if !isLine, !candidates.isEmpty {
                     // A reading with no unit, or a value matched by its number alone without its unit
                     // beside it, is never found: it can only be ambiguous.
@@ -476,8 +675,7 @@ public enum LabelValueMatcher {
                     // Found needs direct evidence: the row's own label text and, with two or more
                     // columns, a located header agreeing with the column. Otherwise the single
                     // candidate is kept as the region to highlight, and the value is ambiguous.
-                    if directRows.contains(label) && columnForFound(query) && (columnCount <= 1 || underOwnHeader(query, near[0]))
-                        && soleInCell(query, row: label) {
+                    if directRows.contains(label) && columnForFound(query, near[0], row: label) && soleInCell(query, row: label) {
                         return First(location: Location(id: query.id, status: .found, region: rounded(near[0])), candidates: near)
                     }
                     return First(location: Location(id: query.id, status: .ambiguous, region: rounded(near[0])), candidates: near)
@@ -492,7 +690,10 @@ public enum LabelValueMatcher {
         // of 6.1 step 6. Otherwise the value stays ambiguous.
         func columnKey(_ query: Query) -> String? {
             if columnCount <= 1 { return "" }
-            if headerBoxes.count > 1, let header = query.headerText.map({ Normalised($0).key }), headerBoxes[header] != nil { return header }
+            if headerBoxes.count > 1 || headersConfirmed, let header = query.headerText.map({ Normalised($0).key }), headerBoxes[header] != nil {
+                return header
+            }
+            if headersConfirmed, basis(query) != nil, let index = columnIndex(query) { return "#\(index)" }
             if clusters != nil, let index = columnIndex(query) { return "#\(index)" }
             return nil
         }
@@ -509,12 +710,11 @@ public enum LabelValueMatcher {
             let observed = (matchTiers(query.printedText, isLine: false, in: normalised).first ?? []).map { box($0) }
                 // With two or more columns, count only the tokens under the value's own header (D1:
                 // an unheaded column's matching values must not make the counts agree).
-                .filter { columnCount <= 1 ? inHeader(query, $0) : underOwnHeader(query, $0) }
+                .filter { columnCount <= 1 ? inHeader(query, $0) : inOwnColumn(query, $0) }
                 .sorted { $0.midY > $1.midY }
             guard inOrder, expected.count > 1, expected.count == observed.count, let rank = expected.firstIndex(of: index),
                   result.candidates.contains(observed[rank]), let label = rowKey(query), rowFit(label, observed[rank]) == .near,
-                  directRows.contains(label), columnForFound(query), columnCount <= 1 || underOwnHeader(query, observed[rank]),
-                  soleInCell(query, row: label),
+                  directRows.contains(label), columnForFound(query, observed[rank], row: label), soleInCell(query, row: label),
                   !(columnCount <= 1 && numberTokens(onRow: label).count > (listedPerRow[label] ?? 0)) else { return result.location }
             return Location(id: query.id, status: .found, region: rounded(observed[rank]))
         }

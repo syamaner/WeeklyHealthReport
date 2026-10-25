@@ -435,6 +435,7 @@ Section 17.8 adds eleven contract tests from the architecture gate (tests 15 to 
 | L0 | Offline locate-rate measurement (6.1, with the inputs and method of 17.6); report found rate and how many silent errors would be not found. **Done 25 October 2026 (17.9)** | None |
 | L1a | Matcher ambiguity reduced (order within the column, headers on one line), L0 re-run at 240 px, matcher moved unchanged into `FoodLabelPhotoReading` with a hash pin, boundary script for the new target (17.10) | None |
 | L1c | Locator v2 (17.11), before L1b at the owner's request ("Let's try to resolve"): row labels recovered between located neighbours, columns inferred from value tokens, a table-wide offset; measured by L0 against v1 with the adversarial suite and an extended sweep; and the alternative attention policy measured, not adopted. **Done 25 October 2026** | None |
+| L1d | Locator v3 (17.15): each header's basis passed to the matcher; only the amount headers must be located, the reference-intake column confirmed by its % unit and position, never as an amount column; a per-serving header with its bracketed serving quantity (D4); attack scenarios first, measured by L0 against v2 as pinned | None |
 | L1b | Pure core: wire mapping port, `LabelPhotoReading`, attention v1, serving v1 with its parity test, manifest codec, verifier, composite admission, preparer types, retry and spend policies, tests 1 to 12 | None |
 | L2 | Image preparation and Vision locator, tests 13 and 14 | None |
 | L3 | OpenRouter adapter and route checker against a fake transport only | None |
@@ -760,3 +761,78 @@ All six reviewer harnesses run clean on the pinned matcher: round 6 (A to E, 70 
 Development photos: v2 Gemini finds 55.5%, median 8. Before the round-6 fix the untouched counts were 39.0%, 39.7% and 39.6% found (medians 14, 14, 12); the stricter own-header test costs about two points.
 
 **Reading.** With every header required, v2 now confirms fewer values than v1 did (37.2% against 42.2%) and leaves more to check (median 14 against 11), although 129 of its ambiguous values come with a region to zoom to. A comparison run (not committed) shows the header-above rule costs nothing; the cost is requiring all of the reading's headers, which on these photos often fails; the likely blocker, not yet measured case by case, is the reference-intake column's header (每日參考值百分比), often printed over two lines. Note that v1's lower bar is exactly what rounds 2 to 4 showed to be unsafe (one header, or a header found anywhere, could confirm a swapped column). **Recommendation:** keep v2 as pinned (safe), and as the next lever require only the reading's **amount** column headers (per serving, per 100 g or ml) to be located in order, with the reference-intake column confirmed by its % unit instead. That needs the reading to pass each header's basis to the matcher, a small API change, and its own attack scenarios (a % column mislabelled as an amount column, and the reverse) before it is measured.
+
+### 17.15 L1d: locator v3, header bases (25 October 2026, no egress)
+
+Round 4 left v2 requiring every header of the reading in the header band, and the likely blocker was the reference-intake column's header (每日參考值百分比), often printed over two lines (17.14). Under the owner's delegation (Option 2), v3 takes each header's basis and relaxes that one rule. Its attack scenarios were written before the change (`LabelValueMatcherReferenceIntakeTests`).
+
+- **API.** `locate` gains `headerBases: [HeaderBasis]` (amount or reference intake), one per header, with an empty text for a header that has none printed. Without bases every column is an amount column, which is v2's rule, so existing callers are unchanged. L0 now passes every header with its basis.
+- **Amount headers.** With two or more columns, found needs every **amount** header (per serving, per 100 g or ml) located in the band, with distinct texts, at distinct x positions in the reading's order. A reference-intake header need not be located; when it is, it must sit on its own side of every amount header, or nothing confirms.
+- **Amount values.** An amount value needs its own header directly above it (round 6's span rule) and a unit other than %.
+- **Reference-intake values.** A reference-intake value needs a % unit and a token outside every amount column, on the side the reading's column order gives it. When its own header is located, the value must sit under it; with more than one reference-intake column, that header must be located. It is never confirmed as an amount column.
+- **Unlocated headers.** When any header of the reading is not located, the value's row may hold no more value tokens than the reading has columns, so a column the reading left out cannot be taken for one it has. The cell must still hold one token (round 6).
+- **D4.** A header line may carry, besides the reading's header texts and punctuation, exactly one bracketed quantity equal to a quantity on the reading's serving lines ("每份（30公克）" with 每一份量30公克). Any other remainder still rejects the line: 35公克, 毫升, two brackets, a % inside, no brackets, or 約.
+- **Evidence** keeps v2's bar (every header located, its own among them), so the evidence-only policy measure does not change.
+
+**Attacks.** The new scenarios all hold, with no wrong value found:
+- a % column mislabelled as an amount column, and the reverse;
+- every column called reference intake;
+- an amount header missing while the % header is read;
+- an amount header with no printed text;
+- a % value with a matching amount-like number (12公克 and 12%);
+- an adjacent row's %;
+- a % column printed on the other side;
+- an omitted per-100 column, including a stray 每份 above it;
+- an unheaded second % column;
+- swapped amount columns and swapped headers among three columns;
+- a narrow column touching an amount column, read either way;
+- bracketed quantities that do not match the serving size.
+
+The two-line header no longer blocks a correct reading: 12 of 12 are found, against none under v2's rule.
+
+**Harnesses.** All six reviewer harnesses (rounds 2 to 6 and the base sweep) run clean on v3 three ways:
+- without bases;
+- with bases named from the header text (參考 or %);
+- with the last column of every multi-column reading forced to reference intake, which stresses the relaxed path.
+
+The E2 position sweep is also clean.
+
+**Results, untouched Taiwan at 240 px** (counts in `results/l0-locate-rate-v4.json`):
+
+| | v2 Gemini (pinned) | v3 Gemini | v3 Sol | v3 Luna |
+|---|---|---|---|---|
+| Correct values found on the photo | 207 / 557 (37.2%) | 243 / 557 (43.6%) | 250 / 564 (44.3%) | 248 / 566 (43.8%) |
+| Ambiguous values / with a located region | 281 / 129 | 245 / 93 | 227 / 92 | 274 / 93 |
+| Silent wrong values that need a check | 4 of 4 | 4 of 4 | 4 of 4 | 52 of 52 |
+| Tables opening with nothing to check | 3 of 34 | 5 of 34 | 5 of 35 | 5 of 37 |
+| Values to check per table, median / p90 | 14 / 18 | 9 / 18 | 9 / 18 | 9 / 19 |
+
+Development photos are unchanged (Gemini 55.5%, median 8). Against v2 as it stood after round 4 (39.0%, median 14), v3 is 4.6 points higher. A comparison run with D4 switched off, before the round-6 tolerance was carried over, gave the same counts. On these photos the gain comes from the header bases.
+
+**Reading.** v3 confirms more values than either v2 or v1 (43.6% against 37.2% and 42.2%) and halves the typical number of values to check from v2's 14 to 9. Every silent wrong value of every arm still needs a check.
+
+**Round 1 of the #322 review** held every basis attack and found two routes, both fixed:
+
+- **G1 (high, from v1):** a serving line matched by its quantity alone could be any token on the photo, so a serving size misread to equal a table value (每一份量30公克 read as 3公克, with 脂肪 3公克 in the table) was found at the fat cell, with or without a D4 header. A serving line matched by its quantity alone now counts only on a line outside the table: not between the top and bottom located rows, and not level with a located row label or header. The line, or one level with it, must also carry the serving line's own words. D4 now accepts a bracketed quantity only from a serving line whose whole printed text is on the photo (F8c: a bracket of 35 g with a printed serving line of 30 g and a model reading of 35 g).
+- **G2 (medium):** two % columns between the amount columns, neither header read, with the first blank on some rows so the row token count still fit; the model read the second. With its header not located, a reference-intake value is now confirmed by position only when the table's % tokens sit at one x position.
+- **C1 under a first-column reference intake (two errors, optional):** with a reference-intake header not located, more than half of the reading's reference-intake values must be printed in %; a column the reading calls reference intake that holds amounts confirms nothing.
+
+F9, F8c, F8d, F5b and the C1 case are regression tests. The round-1 harness (A to E and F1 to F9, 87 scenarios) is clean with no bases, amount bases, a first-column and a last-column reference intake, and the bases-enabled sweep has no finding. All earlier harnesses stay clean. On L0 the cell counts do not change, and fewer serving lines are found (Gemini 35 of 68, against 39): those found only by their quantity, without their words, now need a check.
+
+**Round 2 of the #322 review** held G1, G2 and the C1 rule and found two more single-error routes, both fixed:
+
+- **H4 (medium):** % positions were separated by a gap larger than the median width of all tokens, so two narrow % columns close together counted as one. Positions are now told apart by the % tokens' own spans: a token starts a new position when it does not overlap the current one, or its centre is more than about one % token (at least 0.02) from the last.
+- **H1 (medium-low):** the serving words could sit anywhere on the matched or a level line, so a footnote (*每一份量含膳食纖維 3公克) vouched for a misread 每一份量3公克. The words must now sit directly before (or after) the quantity on its own line, whitespace ignored. For a line Vision split in two, the quantity must start its line, and the words must end the nearest line directly to its left, level with it.
+
+H4 at 0.60 and 0.64 and H1 are regression tests. The round-2 harness (A to F and H1 to H5, 104 scenarios) is clean in every base mode, and all earlier harnesses stay clean. On L0 the value counts do not change. Serving lines found fall again (Gemini 30 of 68, against 35), because a quantity whose words are not directly beside it now needs a check; Gemini's median to check is 9.5.
+
+**Round 3 of the #322 review** held H4 and H1 at realistic spacing and found three low-severity edges, all fixed by stricter rules:
+
+- **I1:** two touching % columns with mixed token widths still merged into one position. The count of % positions is now never less than the largest number of % tokens on any one direct row, with the span walk kept as a second signal.
+- **I4b:** a suffix serving line (30公克/每份 misread as 3公克/每份) was found inside a footnote, *糖3公克/每份以下, because only the words after the quantity were checked, and the whole-text match had no boundary. **I3b:** a split serving line was matched when another block's level line ended with the serving words (另一口味每一份量, beside 3公克膳食纖維).
+  - A serving line now counts only as the line itself, apart from whitespace and punctuation. Whatever comes before its words is empty or ends with punctuation; whatever comes after is empty or starts with punctuation.
+  - For a split line, the quantity's line starts with the quantity, and the line to its left ends with the words, after nothing but such a boundary.
+  - A whole-text match is likewise refused when a letter or ideograph touches it.
+  - A serving line printed with the servings-per-pack line (每一份量30公克，本包裝含2份) still counts.
+
+I1 (centre distances 0.04 and 0.045), I3b, I4b and the joined-line control are regression tests. The round-3 harness (A to H and I1 to I4, 121 scenarios) is clean in every base mode, and all earlier harnesses stay clean. On L0 the value counts do not change; Luna finds one serving line fewer (33).

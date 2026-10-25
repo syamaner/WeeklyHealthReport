@@ -16,7 +16,7 @@ Jobs and raw results (photo paths and model text) stay under the private runs fo
 and case ids are written to the repository.
 
     .venv/bin/python l0_locate.py --runs ~/WHR-label-eval-private/runs --photos ~/WHR-label-eval-private/off-taiwan-v1 \\
-        --out results/l0-locate-rate-v3.json
+        --out results/l0-locate-rate-v4.json
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ import score as scoring
 
 HERE = Path(__file__).resolve().parent
 TOOL = HERE.parent / "LabelPhotoLocateL0"
-ANALYSIS_VERSION = "label-photo-l0-locate-rate-v3"
+ANALYSIS_VERSION = "label-photo-l0-locate-rate-v4"
 ATTENTION_DRAFT = "label-photo-attention-v1 (draft used by L0)"
 # The alternative attention policy measured for the owner (L1c, 17.11): only items with evidence block
 # Log (a gate flag, a failed check, or the photo contradicting the value: its token printed only in
@@ -110,8 +110,10 @@ def arithmetic_parent(child: Any) -> str:
     return {"saturates": "fat", "trans_fat": "fat", "sugars": "carbohydrate", "fibre": "carbohydrate"}.get(str(child), "")
 
 
-def queries(output: dict[str, Any]) -> tuple[list[str], list[dict[str, Any]]]:
-    headers = {h.get("header_id"): h.get("printed_text") or None for h in output.get("headers") or []}
+def queries(output: dict[str, Any]) -> tuple[list[str], list[str], list[dict[str, Any]]]:
+    """Every header (an empty text when none is printed), its basis for the locator, and the queries."""
+    listed = output.get("headers") or []
+    headers = {h.get("header_id"): h.get("printed_text") or None for h in listed}
     found = []
     for i, cell in enumerate(output.get("cells") or []):
         if ce._value_known(cell) and cell.get("printed_text"):
@@ -127,7 +129,9 @@ def queries(output: dict[str, Any]) -> tuple[list[str], list[dict[str, Any]]]:
         line = output.get(field)
         if isinstance(line, dict) and line.get("printed_text"):
             found.append({"id": field, "row_label": None, "header_text": None, "printed_text": line["printed_text"]})
-    return [h for h in headers.values() if h], found
+    texts = [h.get("printed_text") or "" for h in listed]
+    bases = ["reference_intake" if h.get("basis") == "reference_intake" else "amount" for h in listed]
+    return texts, bases, found
 
 
 def table_result(
@@ -271,9 +275,17 @@ def run_arm(
         if path is None:
             missing.append(row["id"])
             continue
-        headers, found = queries(row["candidate"] or {})
-        column_count = len((row["candidate"] or {}).get("headers") or [])
-        jobs.append({"id": row["id"], "image_path": str(path), "headers": headers, "column_count": column_count, "queries": found})
+        headers, bases, found = queries(row["candidate"] or {})
+        jobs.append(
+            {
+                "id": row["id"],
+                "image_path": str(path),
+                "headers": headers,
+                "header_bases": bases,
+                "column_count": len(headers),
+                "queries": found,
+            }
+        )
     work.mkdir(parents=True, exist_ok=True)
     jobs_path, out_path = work / f"{name}-jobs.json", work / f"{name}-located.json"
     jobs_path.write_text(json.dumps(jobs, ensure_ascii=False), encoding="utf-8")
@@ -317,7 +329,7 @@ def main(argv: list[str] | None = None) -> int:
     private = Path.home() / "WHR-label-eval-private"
     parser.add_argument("--runs", type=Path, default=private / "runs")
     parser.add_argument("--photos", type=Path, default=private / "off-taiwan-v1")
-    parser.add_argument("--out", type=Path, default=HERE / "results" / "l0-locate-rate-v3.json")
+    parser.add_argument("--out", type=Path, default=HERE / "results" / "l0-locate-rate-v4.json")
     args = parser.parse_args(argv)
     photos = photo_index(args.photos)
     work = args.runs / "l0-locate-v1"
@@ -327,8 +339,8 @@ def main(argv: list[str] | None = None) -> int:
         "alternative_policy": EVIDENCE_POLICY,
         "view": "assisted",
         "egress": "none",
-        "matcher": "Tools/LabelPhotoLocateL0 LabelValueMatcher (label-photo-vision-locate-v1)",
-        "locator": "label-photo-vision-locate-v2 (L1c); v1 counts are in l0-locate-rate-v2.json",
+        "matcher": "Tools/LabelPhotoLocateL0 LabelValueMatcher (label-photo-vision-locate-v3)",
+        "locator": "label-photo-vision-locate-v3 (L1d); v2 counts in l0-locate-rate-v3.json, v1 in l0-locate-rate-v2.json",
         "strata": {},
     }
     passes = (("untouched_taiwan", None), ("development_taiwan", None))
