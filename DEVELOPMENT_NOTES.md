@@ -2849,7 +2849,8 @@ Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A): `claude-opus-5-5` USD 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Label photo L1c locator v2 and attention policy measure (#316), subagent | 38,975,149 (35,782,175) | 3,192,870 | 60,137 | 39,035,286 | $24.32 |
+| Label photo L1c review fix: recovery locates, never confirms (#316), subagent | 29,225,295 (26,643,101) | 2,582,122 | 34,244 | 29,259,539 | $18.92 |
 
-Boundary: `phase_usage.py --format claude --since 2026-10-25T09:05:21Z --until 2026-10-25T10:00:51Z` on the subagent transcript alone. Cache writes: 3,192,870 5-minute, 0 1-hour. Exact API-equivalent USD 24.323941. Local Vision and Swift builds use no API tokens and are not priced.
+Boundary: `phase_usage.py --format claude --since 2026-10-25T09:05:21Z --until 2026-10-25T10:00:51Z` on the subagent transcript alone. Cache writes: 3,192,870 5-minute, 0 1-hour. Exact API-equivalent USD 24.323941. Review fix: `--since 2026-10-25T10:00:51Z --until 2026-10-25T10:33:39Z`, just before this edit: the L1c ledger commit, push and PR #321, then the fix for the #321 review (BLOCK) with its tests, the attack-scenario port, both reviewer harness runs, the L0 v3 re-run and every gate. Cache writes 2,582,122 5-minute, 0 1-hour; exact USD 18.9243982. Local Vision and Swift builds use no API tokens and are not priced.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
