@@ -58,6 +58,8 @@ public final class FoodListImportViewModel: ObservableObject {
     public typealias ConfirmationPreparation = @MainActor (FoodConfirmationState)
         -> (state: FoodConfirmationState, offering: (any FoodVolumeConversionOffering)?)
     private let prepareConfirmation: ConfirmationPreparation?
+    /// Count portion guides for a row's Confirm, as on the search route (count-portion-estimate-v1).
+    private let portionGuides: (any FoodEdibleWeightGuideProviding)?
 
     public init(
         service: FoodListImportService, locale: LedgerText, ids: any LedgerIDGenerating,
@@ -68,9 +70,11 @@ public final class FoodListImportViewModel: ObservableObject {
         confirmationCalendar: Calendar = .autoupdatingCurrent,
         amountLocale: Locale = .autoupdatingCurrent,
         prepareConfirmation: ConfirmationPreparation? = nil,
+        portionGuides: (any FoodEdibleWeightGuideProviding)? = nil,
         saveAction: @escaping @MainActor (FoodConfirmationState, OperationID) throws -> StoredFoodConfirmation
     ) {
         self.prepareConfirmation = prepareConfirmation
+        self.portionGuides = portionGuides
         self.service = service
         self.locale = locale
         self.amountLocale = amountLocale
@@ -176,7 +180,7 @@ public final class FoodListImportViewModel: ObservableObject {
         // and reads that line back under the convention it was written in, so every portion,
         // 0.125 included, is exact whatever the device locale; the line records that convention.
         let prefix = portion.map {
-            "\(FoodAmountTextParser.editableText($0.value)) \($0.unit == .grams ? "g" : $0.unit == .millilitres ? "ml" : "count") "
+            "\(FoodAmountTextParser.editableText($0.value)) \($0.unit == .grams ? "g" : $0.unit == .millilitres ? "ml" : FoodAmountNoun.count($0.value)) "
         } ?? ""
         let text = prefix + name
         let combined = input.isEmpty ? text : input + "\n" + text
@@ -290,7 +294,7 @@ public final class FoodListImportViewModel: ObservableObject {
             let built = try service.confirmation(for: draft, route: route, candidateIndex: index)
             let prepared = prepareConfirmation?(built) ?? (state: built, offering: nil)
             confirmationRowID = row.id
-            confirmation = FoodConfirmationViewModel(state: prepared.state, volumeConversionOffering: prepared.offering,
+            confirmation = FoodConfirmationViewModel(state: prepared.state, volumeConversionOffering: prepared.offering, portionGuides: portionGuides,
                                                      now: confirmationNow, calendar: confirmationCalendar) { [weak self] state in
                 guard let self else { throw FoodLedgerValidationError.empty("review session") }
                 guard self.persist() else { throw FoodLedgerValidationError.invalidProvenance }
@@ -476,7 +480,7 @@ public struct FoodListImportView: View {
                     Text("Choose unit").tag(Optional<QuantityUnit>.none)
                     Text("g").tag(Optional(QuantityUnit.grams))
                     Text("mL").tag(Optional(QuantityUnit.millilitres))
-                    Text("count").tag(Optional(QuantityUnit.count))
+                    Text(FoodAmountNoun.countUnitLabel).tag(Optional(QuantityUnit.count))
                 }
                 Picker("Preparation", selection: binding(row, \.preparation)) {
                     Text("Unspecified").tag(Optional<PreparationKind>.none)

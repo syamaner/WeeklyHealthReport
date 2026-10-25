@@ -21,7 +21,7 @@ public struct FoodNutritionReviewPresentation: Equatable, Sendable {
         let compatible = edibleQuantity.map { Self.compatible($0.unit, with: sourceBasis) } ?? false
         isConsumed = compatible
         title = compatible ? "Nutrition for amount eaten" : "Nutrition"
-        basis = compatible ? "For \(Self.number(edibleQuantity!.value)) \(edibleQuantity!.unit.rawValue) eaten" : Self.basisLabel(sourceBasis)
+        basis = compatible ? "For \(Self.number(edibleQuantity!.value)) \(FoodAmountNoun.unit(edibleQuantity!.unit, value: edibleQuantity!.value)) eaten" : Self.basisLabel(sourceBasis)
         includesEstimates = compatible && totals.contains { $0.includesEstimates }
         let rows = NutrientKey.allCases.map { key in
             let entry = nutrients.entries.first { $0.key == key }
@@ -110,9 +110,9 @@ public struct FoodNutritionReviewPresentation: Equatable, Sendable {
         switch basis {
         case .per100Grams: "Per 100 g"
         case .per100Millilitres: "Per 100 mL"
-        case let .perServing(q): "Per serving (\(number(q.value)) \(q.unit.rawValue))"
-        case let .perUnit(q): "Per unit (\(number(q.value)) \(q.unit.rawValue))"
-        case let .named(name, q): "\(name.value) (\(number(q.value)) \(q.unit.rawValue))"
+        case let .perServing(q): "Per serving (\(number(q.value)) \(FoodAmountNoun.unit(q.unit, value: q.value)))"
+        case let .perUnit(q): "Per unit (\(number(q.value)) \(FoodAmountNoun.unit(q.unit, value: q.value)))"
+        case let .named(name, q): "\(name.value) (\(number(q.value)) \(FoodAmountNoun.unit(q.unit, value: q.value)))"
         case .unknown: "Source basis not provided"
         }
     }

@@ -674,7 +674,7 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
             try await waitForNativeState("Confirm should render the count block for \(method)",
                 diagnostics: { "\(self.nativeText(host.view))" }) {
                 host.view.layoutIfNeeded()
-                return self.nativeText(host.view).contains("Converted edible amount")
+                return self.nativeText(host.view).contains(FoodConfirmationView.ConversionFields.amountPrompt)
             }
             XCTAssertFalse(descendants(host.view).contains { $0.accessibilityIdentifier == "confirm.conversionMethod" && $0 is UITextField },
                            "the method is a picker, not a free-text field")

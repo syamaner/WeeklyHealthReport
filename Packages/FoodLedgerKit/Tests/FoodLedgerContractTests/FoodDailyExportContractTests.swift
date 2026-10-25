@@ -1,4 +1,5 @@
 import Foundation
+import FoodGenericSearch
 @testable import FoodLedgerApplication
 import FoodLedgerDomain
 import FoodLedgerTestSupport
@@ -138,6 +139,31 @@ final class FoodDailyExportContractTests: XCTestCase {
         try append(to: &records, base: 100, logs: [(101_0, try grams(300), day, LedgerFixtures.date.addingTimeInterval(-3600), false)],
                    declaration: declaration)
         return records
+    }
+
+    /// count-portion-estimate-v1 (#307): three boiled eggs at the Medium typical weight.
+    static func typicalWeightDay(_ harness: TestHarness) throws -> LedgerMutation {
+        let context = try QuickAddContext(harness)
+        let guides = try USDACountPortionGuides()
+        let service = FoodConfirmationService(ledger: context.ledger, reader: harness.reader, clock: LedgerFixtures.clock,
+            ids: context.ids, digester: LedgerFixtures.digester, calendar: QuickAddFixtures.london, portionGuides: guides)
+        let search = try CoFIDGenericFoodSearch(ids: context.ids)
+        let request = GenericFoodSearchRequest(text: try LedgerText("Eggs chicken whole boiled"), identity: GenericFoodIdentityQuery(),
+                                               capturedAt: LedgerFixtures.date, locale: try LedgerText("en_GB"))
+        guard case let .confirmation(route) = try search.search(request),
+              let egg = route.matches.first(where: { $0.candidate.name.value == "Eggs, chicken, whole, boiled" })?.candidate else {
+            throw FoodLedgerValidationError.invalidProvenance
+        }
+        let input = try PopulatedFoodConfirmation(evidence: route.confirmation.evidence,
+            sourceReleases: route.confirmation.sourceReleases + [guides.sourceRelease], candidates: [egg],
+            expectedIdentity: egg.candidate.identity, expectedEdibleQuantity: egg.candidate.edibleQuantity)
+        var state = FoodConfirmationState(input: input, prefillSourceQuantity: false)
+        FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(3, .count))
+        FoodConfirmationReducer.reduce(state: &state, action: .setPortionGuide(
+            try LedgerText("count_portion_guide_v1:usda_sr_legacy_boiled_from_171287_88378")))
+        FoodConfirmationReducer.reduce(state: &state, action: .accept)
+        _ = try service.save(state, operationID: context.ids.makeID(OperationTag.self))
+        return try context.records()
     }
 
     private static func memoryHarness() throws -> TestHarness {
@@ -491,6 +517,31 @@ final class FoodDailyExportContractTests: XCTestCase {
         XCTAssertEqual(decoded.summary.first { $0.key == "energy_consumed" }?.state, "complete")
     }
 
+    /// #307: files written under `food-intake-summary-v5` still decode and re-encode byte for byte.
+    func testFrozenSummaryV5GoldensRoundTripByteForByte() throws {
+        let directory = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("../../../../docs/fixtures/food-daily-v1").standardizedFileURL
+        for name in ["mixed-day", "empty-day", "plain-water-only"] {
+            let golden = try Data(contentsOf: directory.appendingPathComponent("food-daily-" + name + "-summary-v5.json"))
+            let decoded = try FoodDailyExportSerializer.decode(golden)
+            XCTAssertEqual(decoded.summaryVersion, "food-intake-summary-v5", name)
+            XCTAssertEqual(decoded.foodDailySchemaVersion, FoodDailyExportDocument.schemaVersion, "the file shape is unchanged")
+            XCTAssertEqual(try FoodDailyExportSerializer.encode(decoded), golden, name)
+        }
+    }
+
+    /// #307 (C13): a typical-weight day sets `includes_estimates` under v6; the entry's
+    /// `weight_basis` stays "unknown" (no weight declaration; entry fields are #312).
+    func testATypicalWeightDayIncludesEstimatesAndKeepsEntryFields() throws {
+        let document = try FoodDailyExportBuilder.make(Self.request(try Self.typicalWeightDay(try Self.memoryHarness())))
+        XCTAssertEqual(document.summaryVersion, "food-intake-summary-v6")
+        let entry = try XCTUnwrap(document.entries.first)
+        XCTAssertEqual(entry.quantity.amount, 132)
+        XCTAssertEqual(entry.quantity.unit, "g")
+        XCTAssertEqual(entry.quantity.weightBasis, "unknown")
+        XCTAssertEqual(try Self.total(document, .energyConsumed).includesEstimates, true)
+    }
+
     func testGoldenFilesAreByteStable() throws {
         let saved = try Self.savedDay(try Self.memoryHarness())
         let waterOnly: LedgerMutation = try {
@@ -498,7 +549,8 @@ final class FoodDailyExportContractTests: XCTestCase {
             try context.logWater(330)
             return try context.records()
         }()
-        let goldens: [(String, LedgerMutation)] = [("mixed-day", saved), ("empty-day", LedgerMutation()), ("plain-water-only", waterOnly)]
+        let goldens: [(String, LedgerMutation)] = [("mixed-day", saved), ("empty-day", LedgerMutation()), ("plain-water-only", waterOnly),
+                                                   ("typical-weight-day", try Self.typicalWeightDay(try Self.memoryHarness()))]
         let directory = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .appendingPathComponent("../../../../docs/fixtures/food-daily-v1").standardizedFileURL
         let record = ProcessInfo.processInfo.environment["RECORD_FOOD_DAILY_GOLDENS"] == "1"

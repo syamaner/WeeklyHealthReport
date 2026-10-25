@@ -91,7 +91,7 @@ public struct LocalInventoryView: View {
                         Text(product.name).font(.headline)
                         Text([product.category, product.packDescription].filter { !$0.isEmpty }.joined(separator: " · "))
                         if let remaining = product.remaining {
-                            Text("Confirmed remaining: \(remaining.amount.value.formatted()) \(remaining.amount.unit.rawValue), as of \(remaining.assertedAt.formatted(date: .abbreviated, time: .omitted))")
+                            Text("Confirmed remaining: \(remaining.amount.value.formatted()) \(FoodAmountNoun.unit(remaining.amount.unit, value: remaining.amount.value)), as of \(remaining.assertedAt.formatted(date: .abbreviated, time: .omitted))")
                         } else { Text("Remaining stock unknown") }
                         let rows = model.snapshot.sources.flatMap { source in source.lines.compactMap {
                             model.snapshot.review(sourceID: source.contentID, lineNumber: $0.lineNumber)
@@ -154,7 +154,7 @@ public struct LocalInventoryView: View {
                     Picker("Remaining unit", selection: binding(line, \.remainingUnit)) {
                         Text("g").tag(QuantityUnit.grams)
                         Text("ml").tag(QuantityUnit.millilitres)
-                        Text("count").tag(QuantityUnit.count)
+                        Text(FoodAmountNoun.countUnitLabel).tag(QuantityUnit.count)
                     }
                     DatePicker("Amount-left assertion date", selection: binding(line, \.assertionDate), displayedComponents: .date)
                     Text("Only enter an amount you have checked; the receipt does not establish what is left.").font(.caption)
@@ -166,7 +166,7 @@ public struct LocalInventoryView: View {
             Picker("Pack amount unit", selection: binding(line, \.packUnit)) {
                 Text("g").tag(QuantityUnit.grams)
                 Text("ml").tag(QuantityUnit.millilitres)
-                Text("count").tag(QuantityUnit.count)
+                Text(FoodAmountNoun.countUnitLabel).tag(QuantityUnit.count)
             }
             if source.kind == .receipt {
                 Toggle("I confirm this purchase was received", isOn: binding(line, \.received))

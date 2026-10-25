@@ -51,7 +51,7 @@ Top level, in this order of meaning (keys are sorted in the bytes):
 | `data_as_of` | frozen cutoff; for a past day, the next local midnight |
 | `exported_at` | preview preparation time |
 | `nutrient_catalogue_version` | `1` |
-| `summary_version` | `food-intake-summary-v5` (v4 until #304; v5 leaves plain water's exact zeros out of every total except water, see [health-food-and-water-v1.md](health-food-and-water-v1.md) decision 10) |
+| `summary_version` | `food-intake-summary-v6` (v6 from #307: `includes_estimates` also covers source-backed quantity estimates, count portion guides and the whole-milk volume rule, see [count-portion-estimate-v1.md](count-portion-estimate-v1.md); v5 until #307; v4 until #304; v5 leaves plain water's exact zeros out of every total except water, see [health-food-and-water-v1.md](health-food-and-water-v1.md) decision 10) |
 | `entries` | the day's log entries, in deterministic order |
 | `summary` | the day's totals for all 39 nutrients |
 | `plain_water` | plain-water total, separately from water inside foods |
@@ -100,7 +100,7 @@ For each of the 39 nutrients, from `FoodIntakeSummary` v5 (v4 before #304):
 
 No targets, reference values, percentages or interpretation.
 
-**Versioning rule (24 October 2026, #304).** `summary_version` changes whenever the day-total semantics change (which contributions count, how they combine, what makes a total known or incomplete), even when the file shape stays the same. `food_daily_schema_version` changes only when the file shape changes (keys, value forms, byte form). A writer emits only the current `summary_version`; validators, including the Drive identity policy's reconcile and recovery reads, accept every published `summary_version` (currently `food-intake-summary-v4` and `food-intake-summary-v5`), so files already on Drive stay valid. A file keeps the values it was written with; nothing rewrites an earlier file except a fresh export of that day. A frozen v4 golden (`docs/fixtures/food-daily-v1/food-daily-plain-water-only-summary-v4.json`) pins that a v4 file still decodes, re-encodes byte for byte and passes the policy.
+**Versioning rule (24 October 2026, #304).** `summary_version` changes whenever the day-total semantics change (which contributions count, how they combine, what makes a total known or incomplete), even when the file shape stays the same. `food_daily_schema_version` changes only when the file shape changes (keys, value forms, byte form). A writer emits only the current `summary_version`; validators, including the Drive identity policy's reconcile and recovery reads, accept every published `summary_version` (currently `food-intake-summary-v4`, `food-intake-summary-v5` and `food-intake-summary-v6`), so files already on Drive stay valid. A file keeps the values it was written with; nothing rewrites an earlier file except a fresh export of that day. A frozen v4 golden (`docs/fixtures/food-daily-v1/food-daily-plain-water-only-summary-v4.json`) pins that a v4 file still decodes, re-encodes byte for byte and passes the policy. From #307 the v5 goldens are frozen the same way and a v6 golden pins a day with a count portion guide entry. Entry fields, including `weight_basis`, are unchanged by v6; entry-level estimate fields are #312.
 
 ### Plain water
 

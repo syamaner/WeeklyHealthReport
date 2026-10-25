@@ -16,10 +16,11 @@ enum DailyExportDocumentType: Hashable, CaseIterable {
 struct DailyFoodExportIdentityPolicy: DrivePayloadIdentityPolicy {
     static let orderingVersion = "food-v1"
     /// The summary version this build emits.
-    static let summaryVersion = "food-intake-summary-v5"
+    static let summaryVersion = FoodIntakeSummary.version
     /// Every published summary version: files already on Drive (v4 before #304) must still pass
-    /// reconcile and recovery, as the health policy accepts earlier schemas. Only v5 is emitted.
-    static let acceptedSummaryVersions: Set<String> = ["food-intake-summary-v4", summaryVersion]
+    /// reconcile and recovery, as the health policy accepts earlier schemas. Only the current
+    /// version (v6 from #307) is emitted; the writer derives it so it cannot drift (gate G1).
+    static let acceptedSummaryVersions: Set<String> = ["food-intake-summary-v4", "food-intake-summary-v5", "food-intake-summary-v6"]
     let ownerPropertyKey = "whrDailyFood"
     let orderingPropertyKey = "whrDataAsOf"
 

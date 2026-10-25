@@ -67,28 +67,36 @@ final class DailyFoodDriveExportTests: XCTestCase {
         }
     }
 
-    /// #304: v4 files already on Drive still validate (reconcile and recovery read them); the
-    /// policy emits v5 only, and an unpublished summary version is rejected.
+    /// #304, #307: v4 and v5 files already on Drive still validate (reconcile and recovery read
+    /// them); the policy emits the current version (v6) only, derived from `FoodIntakeSummary`
+    /// (gate G1), and an unpublished summary version is rejected.
     func testPolicyAcceptsEveryPublishedSummaryVersion() throws {
         let policy = DailyFoodExportIdentityPolicy()
-        XCTAssertEqual(DailyFoodExportIdentityPolicy.summaryVersion, "food-intake-summary-v5")
-        XCTAssertEqual(DailyFoodExportIdentityPolicy.acceptedSummaryVersions, ["food-intake-summary-v4", "food-intake-summary-v5"])
+        XCTAssertEqual(DailyFoodExportIdentityPolicy.summaryVersion, "food-intake-summary-v6")
+        XCTAssertEqual(DailyFoodExportIdentityPolicy.summaryVersion, FoodIntakeSummary.version)
+        XCTAssertEqual(DailyFoodExportIdentityPolicy.acceptedSummaryVersions,
+                       ["food-intake-summary-v4", "food-intake-summary-v5", "food-intake-summary-v6"])
         let text = String(decoding: try foodBytes(), as: UTF8.self)
-        XCTAssertTrue(text.contains(#""summary_version":"food-intake-summary-v5""#))
-        let v4 = Data(text.replacingOccurrences(of: "food-intake-summary-v5", with: "food-intake-summary-v4").utf8)
-        XCTAssertEqual(try FoodDailyExportSerializer.encode(FoodDailyExportSerializer.decode(v4)), v4, "a canonical v4 payload")
-        XCTAssertNoThrow(try policy.validate(payload: v4, reportDate: reportDate))
-        let unpublished = Data(text.replacingOccurrences(of: "food-intake-summary-v5", with: "food-intake-summary-v9").utf8)
+        XCTAssertTrue(text.contains(#""summary_version":"food-intake-summary-v6""#))
+        for earlier in ["food-intake-summary-v4", "food-intake-summary-v5"] {
+            let payload = Data(text.replacingOccurrences(of: "food-intake-summary-v6", with: earlier).utf8)
+            XCTAssertEqual(try FoodDailyExportSerializer.encode(FoodDailyExportSerializer.decode(payload)), payload, "a canonical \(earlier) payload")
+            XCTAssertNoThrow(try policy.validate(payload: payload, reportDate: reportDate), earlier)
+        }
+        let unpublished = Data(text.replacingOccurrences(of: "food-intake-summary-v6", with: "food-intake-summary-v9").utf8)
         XCTAssertThrowsError(try policy.validate(payload: unpublished, reportDate: reportDate)) {
             XCTAssertEqual($0 as? DailyDriveExportFailure, .invalidPayload)
         }
 
-        // The frozen v4 golden written before #304 (docs/fixtures/food-daily-v1).
-        let golden = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .appendingPathComponent("../docs/fixtures/food-daily-v1/food-daily-plain-water-only-summary-v4.json").standardizedFileURL
-        let bytes = try Data(contentsOf: golden)
-        XCTAssertEqual(try FoodDailyExportSerializer.decode(bytes).summaryVersion, "food-intake-summary-v4")
-        XCTAssertNoThrow(try policy.validate(payload: bytes, reportDate: "2023-11-14"))
+        // The frozen v4 golden written before #304 and the v5 goldens written before #307.
+        let directory = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("../docs/fixtures/food-daily-v1").standardizedFileURL
+        let v4 = try Data(contentsOf: directory.appendingPathComponent("food-daily-plain-water-only-summary-v4.json"))
+        XCTAssertEqual(try FoodDailyExportSerializer.decode(v4).summaryVersion, "food-intake-summary-v4")
+        XCTAssertNoThrow(try policy.validate(payload: v4, reportDate: "2023-11-14"))
+        let v5 = try Data(contentsOf: directory.appendingPathComponent("food-daily-plain-water-only-summary-v5.json"))
+        XCTAssertEqual(try FoodDailyExportSerializer.decode(v5).summaryVersion, "food-intake-summary-v5")
+        XCTAssertNoThrow(try policy.validate(payload: v5, reportDate: "2023-11-14"))
     }
 
     func testEachPolicyRejectsTheOtherFilesPayload() throws {

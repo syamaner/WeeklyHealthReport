@@ -634,7 +634,7 @@ struct FoodSearchAmountEditor: View {
                 .keyboardType(.decimalPad)
                 #endif
             Picker("Unit", selection: $unit) {
-                Text("g").tag("g"); Text("mL").tag("ml"); Text("pieces").tag("count")
+                Text("g").tag("g"); Text("mL").tag("ml"); Text(FoodAmountNoun.countUnitLabel).tag("count")
             }.pickerStyle(.segmented)
         }
         .navigationTitle("Amount")

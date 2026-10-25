@@ -25,7 +25,7 @@ public enum FoodLogRequirementText {
         case .retainedWeightNeedsConfirmation:
             "The food changed. Check that the weight still describes it, then choose ‘Keep this weight’."
         case .countNeedsMeasuredAmount:
-            "For a count, enter the measured edible weight or volume and how it was measured, or change the unit to g or mL."
+            "Enter the total weight and how you got it, or change the unit to g or mL."
         case .emptyPlateWeightMissing:
             "Enter the empty plate weight, or choose food only."
         case .plateNeedsGramTotal:
