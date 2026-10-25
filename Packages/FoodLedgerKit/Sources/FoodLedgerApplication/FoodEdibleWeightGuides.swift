@@ -134,8 +134,8 @@ public enum CountPortionGuidePolicy {
         let candidate = state.selectedCandidate
         return !FoodSourceServingPolicy.applies(state.input, candidate: candidate)
             && !FoodNamedServingPolicy.applies(state.input, candidate: candidate)
-            && !PastedLabelServingPolicy.servingsOnly(state.input, candidate: candidate)
-            && state.pastedLabelServing == nil
+            && !LabelServingPolicy.servingsOnly(state.input, candidate: candidate)
+            && state.labelServing == nil
     }
 
     /// The edible grams a selected guide gives for a count, from the frozen table.

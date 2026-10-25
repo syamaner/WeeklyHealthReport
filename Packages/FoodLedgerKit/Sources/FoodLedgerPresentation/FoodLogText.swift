@@ -8,7 +8,7 @@ public enum FoodLogText {
     /// Plain copy for a stored quantity conversion method; identifiers stay behind the Developer
     /// tools disclosure (#306 journey QA). Nil for text the user typed, which is shown as typed.
     public static func conversionMethodLabel(_ methodVersion: String) -> String? {
-        if PastedLabelServingPolicy.admittedVersions.contains(methodVersion) { return PastedLabelText.servingConversionMethod }
+        if LabelServingPolicy.admittedVersions.contains(methodVersion) { return PastedLabelText.servingConversionMethod }
         switch methodVersion {
         case FoodNamedServingPolicy.version: return "From the recipe’s serving"
         case FoodSourceServingPolicy.version: return "From the source’s serving size"

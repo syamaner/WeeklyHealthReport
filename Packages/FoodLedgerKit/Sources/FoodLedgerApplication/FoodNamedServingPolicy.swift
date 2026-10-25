@@ -25,10 +25,10 @@ extension FoodConfirmationState {
     /// A source recipe serving is a user-entered fraction/count of that recipe, not food pieces.
     public func calculatedEdibleQuantity() throws -> PositiveQuantity {
         // pasted-label-serving-v1 and -v2: servings scale through the serving size; v1 case 3 by the count.
-        if pastedLabelServing != nil {
-            guard !pastedLabelServingMisuse else { throw FoodLedgerValidationError.invalidUnit }
-            if logsPastedLabelServings {
-                let draft = try policyQuantity()
+        if labelServing != nil {
+            guard !labelServingMisuse else { throw FoodLedgerValidationError.invalidUnit }
+            if logsLabelServings {
+                let draft = try labelPolicyQuantity()
                 return draft.conversion == nil ? try draft.calculationInput() : try draft.calculatedEdibleQuantity()
             }
         }

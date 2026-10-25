@@ -138,7 +138,7 @@ public final class QuickAddSheetModel: ObservableObject, Identifiable {
     public var title: String { "Quick add \(preparation.label)" }
     public var unit: QuantityUnit { preparation.defaultAmount.unit }
     /// A pasted label's count is servings (#306 journey QA), from the rebuilt source itself.
-    public var amountIsServings: Bool { unit == .count && state.pastedLabelServing != nil }
+    public var amountIsServings: Bool { unit == .count && state.labelServing != nil }
 
     /// Water: 150, 250, 330 and 500 mL. A food favourite: its default amount (Q5).
     public var presets: [Double] {

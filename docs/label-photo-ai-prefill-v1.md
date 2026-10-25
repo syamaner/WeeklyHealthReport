@@ -1086,6 +1086,8 @@ L5 confirms both against the catalogue and a fictional qualification label, and 
 
 Before the route is enabled, L5 also confirms the ZDR listing's live field names and whether reasoning is billed outside `max_tokens`, and records both here.
 
+- **Route unavailable only for the route's own reasons (added after #327).** The session keeps a catalogue failure as "route unavailable" for the rest of the day (17.19). With the live transport, only a catalogue **mismatch** (slug, endpoint, image input, ZDR or prices) or a **non-transport** failure is kept as route unavailable: an HTTP error status, or an answer that cannot be parsed. A transport failure of the catalogue GETs (no network path, a timeout, a connection error) is reported as offline or a connection failure, with its 7.2 copy, and is not kept, so the next tap checks again. Until then the scripted transport makes no such distinction; L5 adds it with tests.
+
 **Re-check of #326 (one medium, fixed).**
 
 - **Two sessions on one ledger (medium).** The reconcile and the release used to write an absolute day built from the snapshot taken before the reservation, so a second session's spend could be lost. The spend ledger port is now one atomic read-modify-write, `update(_:)`.
@@ -1207,3 +1209,26 @@ The highlight position was fixed after the walk (decision 6) and is covered by a
   - a too-small crop;
   - the daily limit;
   - Developer tools.
+
+### 17.20 Servings by default for photo entries (26 October 2026, no egress)
+
+**What changes.** A label photo entry now offers and defaults to servings exactly as a pasted label does (4.2 item 3, pasted Confirm v1 C8).
+
+- **The composite.** A new `LabelServingPolicy` asks the pasted policy (`pasted-label-serving-v1` to `-v3`, pinned by the reader v3 freeze and untouched), then the photo's `label-photo-serving-v1` (17.16). A candidate is one or the other, because `LabelSourceAdmission` refuses a mixed one.
+- **Where it is used.** Every caller outside the pinned file now uses the composite:
+  - Confirm's default unit, servings-only and whole-pack offers;
+  - the save path's servings conversion and its misuse rule;
+  - the Log policy's requirements;
+  - the named-serving and portion-guide rules;
+  - reopen verification of a stored servings conversion;
+  - the Food Log's servings wording and quantity method.
+- **How servings are recorded.** A photo entry's servings are stored through the `label-photo-serving-v1` conversion (n x the serving in grams or millilitres, citing the photo release and manifest evidence). They read as servings in the Food Log, are classed as the label's own serving rather than a user method, and are re-derived at reopen. A conversion naming another label method is refused on a photo entry.
+- **Pasted labels are unchanged:** the composite returns exactly the pasted answers for them, and the full pasted suites pass.
+
+**Tests.** `LabelPhotoServingsTests`:
+- a photo entry defaults to servings (30 g);
+- 2 servings save as 60 g under `label-photo-serving-v1` and reopen;
+- a pasted method on a photo entry is refused;
+- pasted answers are identical through the composite.
+
+**Simulator check (fake route, iPhone 17 Pro).** Confirm for the synthetic label opens with the unit set to servings and offers "Whole pack (10 servings)" from the printed servings per pack, as on the pasted route. Saving servings (60 g for 2 servings) and reopening are covered by the contract tests above.
