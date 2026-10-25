@@ -2902,4 +2902,24 @@ Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A): `claude-opus-5-5` USD 
 
 Boundary: `phase_usage.py --format claude --since 2026-10-25T14:42:32Z --until 2026-10-25T15:21:33Z` on the subagent transcript alone. Cache writes 1,502,282 5-minute, 0 1-hour; exact USD 15.9187636. Invariant-review fix: `--since 2026-10-25T15:21:33Z --until 2026-10-25T15:50:21Z`, just before this edit: the L1b commit, push, PR #323 and report, then the left-unknown verifier rule with its regression tests, the daily cap, the per-attempt worst-case charge, the ledger's three states, the moved-back clock, the closed schema, media type and check names, the boundary rule for `PreparedLabelImage`, the retry timeout, the spec section and every gate. Cache writes 2,277,500 5-minute, 0 1-hour; exact USD 15.7476224. Re-check fix: `--since 2026-10-25T15:50:21Z --until 2026-10-25T16:04:55Z`, just before this edit: the previous commits, push and report, then the repeated-row projection and conversion rule with their tests, the E10 charge restored, the attention time bounds, the prepared-image factory and boundary rule, the spec bullets and every gate. Cache writes 821,812 5-minute, 0 1-hour; exact USD 7.9883332. Local Swift builds and the private parity run use no API tokens and are not priced.
 
+## WHR-316-2026-10-25-L2: Claude Code label photo image preparation and Vision locator
+
+The same `claude-opus-5-5` subagent and transcript as WHR-316-2026-10-25-L1C, for #316 phase L2. The window is bounded by `date -u` captures, `2026-10-25T16:04:55Z` to `2026-10-25T16:52:56Z`, just before this ledger edit. It covers:
+- the last L1b spec note and its push, and the wait for #323 to merge;
+- the ImageIO probe;
+- the `FoodLabelPhotoCapture` target, the preparer, the segment stripper, the Vision locator and its query mapping;
+- the boundary rules and the synthetic fixtures;
+- tests 13, 14 and 23 and the end-to-end locator test;
+- the spec section and every gate.
+
+The commit after this edit, the push and the PR are outside the window. The orchestrating session and its reviewers are not included.
+
+Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A): `claude-opus-5-5` USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache hit, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label photo L2 image preparation and Vision locator (#316), subagent | 37,216,073 (33,797,902) | 3,418,077 | 53,412 | 37,269,485 | $24.92 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-25T16:04:55Z --until 2026-10-25T16:52:56Z` on the subagent transcript alone. Cache writes 3,418,077 5-minute, 0 1-hour; exact USD 24.9185814. Local Swift builds, ImageIO and Vision use no API tokens and are not priced.
+
 Token totals are not evidence of productivity, quality or provider efficiency.
