@@ -437,7 +437,7 @@ Section 17.8 adds eleven contract tests from the architecture gate (tests 15 to 
 | L1c | Locator v2 (17.11), before L1b at the owner's request ("Let's try to resolve"): row labels recovered between located neighbours, columns inferred from value tokens, a table-wide offset; measured by L0 against v1 with the adversarial suite and an extended sweep; and the alternative attention policy measured, not adopted. **Done 25 October 2026** | None |
 | L1d | Locator v3 (17.15): each header's basis passed to the matcher; only the amount headers must be located, the reference-intake column confirmed by its % unit and position, never as an amount column; a per-serving header with its bracketed serving quantity (D4); attack scenarios first, measured by L0 against v2 as pinned | None |
 | L1b | Pure core: wire mapping port, `LabelPhotoReading`, attention v1, serving v1 with its parity test, manifest codec, verifier, composite admission, preparer types, retry and spend policies, tests 1 to 12 | None |
-| L2 | Image preparation and Vision locator, tests 13 and 14 | None |
+| L2 | Image preparation and Vision locator, tests 13 and 14 (17.17) | None |
 | L3 | OpenRouter adapter and route checker against a fake transport only | None |
 | L4 | UI: source, crop, Label photo screen, Confirm photo pane and attention, with the fake transport in UI tests | None |
 | L5 | E13 qualification (owner-run, approved), then wire the live transport with the section 11 policy updates | As approved |
@@ -891,3 +891,40 @@ L1b adds the application's and the pure reader's label photo types, all with con
 - **Q3, the accepted H2 limit.** The verifier recomputes attention from the stored locations, flags and failed checks, and never re-runs the locator or the checks (17.1). A stored `found` status, or a failed check left out of `checks_failed`, therefore cannot be re-derived at verify. This is accepted: the reading and the locator are not replayed by design. Both are written only by the app's own pipeline, and the manifest digest binds them.
 
 L1b adds no target. `FoodLabelPhotoReading` gains its planned dependencies (the application, the domain and `NutritionLabelParsing`), which the boundary script already allowed. The copy for decline and failure codes (test 2's copy mapping) and the request and response checks (tests 7 and 8) belong to L3 and L4.
+
+### 17.17 L2: image preparation and the Vision locator (25 October 2026, no egress)
+
+L2 adds the `FoodLabelPhotoCapture` target, with no network code and nothing wired into the app yet. The boundary script gains three rules:
+- the target's import allow-list (17.2);
+- that only the composition root and the target's own tests import it;
+- that each framework stays in its adapter file: ImageIO, CoreGraphics and UniformTypeIdentifiers in the preparer, Vision in the locator, Network and URLSession reserved for L3's connectivity adapter and transport.
+
+- **`ImageIOLabelImagePreparer` (`label-photo-preparation-v1`).**
+  - It decodes the primary image with its orientation applied to the pixels.
+  - It crops to the user's rectangle and refuses a crop whose short edge is under 240 px, then turns the crop by the user's quarter turns.
+  - It scales so the long edge is at most 2,048 px and the area at most 3.2 megapixels, and draws into an 8-bit sRGB bitmap.
+  - It encodes a JPEG from those pixels alone at 0.85, then 0.75, then 0.65 while it exceeds 1,500,000 bytes; past that it refuses.
+  - It then removes every application segment except APP0 and every comment from the encoded bytes, so the output is untagged sRGB with no metadata block whatever the encoder wrote.
+  - The bytes' SHA-256 is computed from the bytes it returns, and `PreparedLabelImage` is built only through the package factory.
+- **`VisionLabelValueLocator`.**
+  - It runs `VNRecognizeTextRequest` on the prepared bytes themselves: revision 3, accurate, `zh-Hant` and `en-US` (those the running revision supports), language correction off.
+  - It then calls the pinned matcher (`label-photo-vision-locate-v3`) with every header of the reading and its basis.
+  - It records one location per cell (`<row_id>@<header_id>`) and per printed serving line, with a region only on a found value: decimal text with four places, inside the unit square.
+- **Decisions the spec left open, taken here.**
+  - **The crop rectangle** is normalised to the upright photo (after its orientation) with the origin top left. The user's quarter turns apply to the cropped part, clockwise.
+  - **Regions** are recorded in Vision's normalised coordinates, origin bottom left, as the matcher reads them. L4's photo view converts them when it draws.
+- **Tests 13, 14 and 23 run in the package** (`FoodLabelPhotoCaptureTests`), so they run with `swift test` on macOS, where ImageIO and Vision are the same frameworks; the simulator app tests are unchanged.
+  - **Fixtures**, built at test time, are synthetic:
+    - a JPEG with EXIF, GPS, TIFF, IPTC, the Apple maker note, XMP (including a Photoshop block), an embedded thumbnail and orientation 6;
+    - a HEIC with a depth map and an HDR gain map;
+    - a PNG with `eXIf` and `tEXt` chunks.
+  - **Positive controls** assert each fixture holds them first.
+  - **After preparation:**
+    - no metadata dictionary, XMP, auxiliary data or embedded thumbnail;
+    - orientation 1 or absent, and one image;
+    - none of the byte signatures `Exif\0\0`, `http://ns.adobe.com/xap`, `Photoshop 3.0`, `ICC_PROFILE` or a TIFF header;
+    - no application segment but APP0.
+  - **Pixels** are upright (a known asymmetric fixture with orientation 6, then a crop with a quarter turn).
+  - **Bounds:** every output is within 2,048 px, 3.2 MP and 1,500,000 bytes or is refused, and a 239 px crop is refused while 240 px is accepted.
+  - **Hash:** the recorded SHA-256 is that of the bytes.
+  - **End to end:** a synthetic Taiwan label rendered at test time is located with most values found, and a misread value is not.

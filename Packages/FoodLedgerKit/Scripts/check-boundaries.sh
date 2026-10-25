@@ -95,6 +95,38 @@ check_label_reader_edges() {
     fi
   done < <(files_importing FoodLabelPhotoReading "${scanned[@]}")
 
+  # Label photo capture adapters (17.2): only the composition root and the target's own tests
+  # import it, and presentation never does.
+  while IFS= read -r file; do
+    if [[ -z "$file" ]]; then continue; fi
+    if [[ "$file" != "$app/WeeklyHealthReport/FoodLedger/FoodLedgerCompositionRoot.swift" && ! "$file" =~ /Tests/FoodLabelPhotoCaptureTests/ ]]; then
+      violations+="FoodLabelPhotoCapture imported by $file"$'\n'
+    fi
+  done < <(files_importing FoodLabelPhotoCapture "${scanned[@]}")
+
+  # Within FoodLabelPhotoCapture each framework stays in its adapter file (17.2): ImageIO,
+  # CoreGraphics and UniformTypeIdentifiers in the preparer, Vision in the locator, Network in the
+  # connectivity adapter, URLSession in the transport.
+  local capture="$pkg/Sources/FoodLabelPhotoCapture" base
+  if [[ -d "$capture" ]]; then
+    while IFS= read -r file; do
+      if [[ -z "$file" ]]; then continue; fi
+      base="${file##*/}"
+      if grep -qE '^import (ImageIO|CoreGraphics|UniformTypeIdentifiers)$' "$file" && [[ "$base" != "ImageIOLabelImagePreparer.swift" ]]; then
+        violations+="$file imports an image framework outside the preparer"$'\n'
+      fi
+      if grep -qE '^import Vision$' "$file" && [[ "$base" != "VisionLabelValueLocator.swift" ]]; then
+        violations+="$file imports Vision outside the locator"$'\n'
+      fi
+      if grep -qE '^import Network$' "$file" && [[ "$base" != "NWPathConnectivityStatus.swift" ]]; then
+        violations+="$file imports Network outside the connectivity adapter"$'\n'
+      fi
+      if grep -qE 'URLSession' "$file" && [[ "$base" != "OpenRouterTransport.swift" ]]; then
+        violations+="$file uses URLSession outside the transport"$'\n'
+      fi
+    done < <(find "$capture" -name '*.swift' -type f)
+  fi
+
   # Only the preparer builds a PreparedLabelImage (docs/label-photo-ai-prefill-v1.md 17.8 M6): its
   # initialiser is private to LabelPhotoPorts.swift, and the package factory there is called only
   # in the photo capture adapter and in tests.
@@ -126,11 +158,12 @@ check_label_reader_edges() {
     if [[ -z "$line" ]]; then continue; fi
     name="$(sed -nE 's/^[^"]*name:[[:space:]]*"([A-Za-z0-9_]+)".*/\1/p' <<< "$line")"
     rest="$(sed -E 's/name:[[:space:]]*"[A-Za-z0-9_]+"//' <<< "$line")"
-    for dep in NutritionLabelParsing FoodLabelTextCapture FoodLabelPhotoReading; do
+    for dep in NutritionLabelParsing FoodLabelTextCapture FoodLabelPhotoReading FoodLabelPhotoCapture; do
       if [[ "$rest" != *"\"$dep\""* ]]; then continue; fi
       case "$dep" in
         NutritionLabelParsing) allowed='^(FoodLabelTextCapture|FoodLabelPhotoReading|NutritionLabelTextParse|NutritionLabelParsingTests|FoodLabelTextCaptureTests|FoodLabelPhotoReadingTests)$' ;;
         FoodLabelPhotoReading) allowed='^(FoodLabelPhotoReadingTests|FoodLabelPhotoCapture|FoodLabelPhotoCaptureTests)$' ;;
+        FoodLabelPhotoCapture) allowed='^(FoodLabelPhotoCaptureTests)$' ;;
         *) allowed='^(FoodLabelTextCaptureTests)$' ;;
       esac
       if [[ ! "$name" =~ $allowed ]]; then violations+="Package.swift: $name depends on $dep"$'\n'; fi
@@ -257,6 +290,8 @@ check_label_reader_edges "$package_root" "$app_root"
 check_imports FoodLabelTextCapture '^(Foundation|FoodLedgerApplication|FoodLedgerDomain|NutritionLabelParsing)$'
 # Label photo reader (#316, docs/label-photo-ai-prefill-v1.md 17.2): pure, no platform framework.
 check_imports FoodLabelPhotoReading '^(Foundation|FoodLedgerApplication|FoodLedgerDomain|NutritionLabelParsing)$'
+# Label photo capture adapters (17.2): platform frameworks, each confined to its adapter file above.
+check_imports FoodLabelPhotoCapture '^(CoreGraphics|CryptoKit|Foundation|ImageIO|Network|UniformTypeIdentifiers|Vision|FoodLedgerApplication|FoodLedgerDomain|FoodLabelPhotoReading)$'
 check_imports FoodLedgerDomain '^(Foundation)$'
 # Pure label-text parser under evaluation (#255): no app, platform or hashing dependency.
 check_imports NutritionLabelParsing '^(Foundation)$'
