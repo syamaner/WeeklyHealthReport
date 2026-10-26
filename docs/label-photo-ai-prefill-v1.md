@@ -1274,10 +1274,23 @@ The owner approved L5 on 26 October 2026 ("Yes, start L5"). This PR wires the li
 - **The provider check is now separate from the tag.** The returned provider name must equal the route's `providerName` exactly once both are trimmed, lower-cased and hyphenated. "Google AI Studio" and "Google Vertex" do not pass for "Google". This check is weaker than the request pin: "Google" cannot tell `/us` from `/global/priority`. The binding control remains `only` and `order` set to the one tag, with `allow_fallbacks` false.
 - **The display name comes from the stored endpoint tag.** A saved entry reads "on Google Vertex" for `google-vertex` and for `google-vertex/us`.
 - **The dated slug is not pinned yet.** `google/gemini-4-argon-20261013` goes into `pinnedSnapshots` only after E13 sees it in a response's `model` field, recorded with its date and a generation ID. Until then a dated reply fails closed as a wrong model.
-- **W covers only prices it models.** The checker refuses the route (kept as unavailable for the day) in any of these cases:
-  - a listed price other than prompt, completion and `internal_reasoning` is non-zero (for example `image` or `request`);
-  - `internal_reasoning` exceeds the completion price;
-  - `internal_reasoning` is non-zero while the session does not bill reasoning separately.
+- **W covers only prices it models.** The full live pricing object for `google-vertex/us`, from a keyless GET at 2026-10-26T02:54Z, is below. All three tags list the same fields, and `/global` now also shows status 0.
+
+  ```json
+  {"prompt": "0.0000022", "completion": "0.000011", "image": "0.0000022", "audio": "0.0000022",
+   "input_audio_cache": "0.00000011", "web_search": "0.014", "internal_reasoning": "0.000011",
+   "input_cache_read": "0.00000011", "input_cache_write": "0.0000001875", "discount": 0.5}
+  ```
+
+  The checker classes each field as follows:
+  - **Input at or below the prompt rate:** `image`, `input_cache_read` and `input_cache_write`. Image tokens are counted in the prompt tokens, and a cached input can only cost less, so W already covers these. A rate above the prompt rate fails closed.
+  - **Never sent:** `audio`, `input_audio_cache` and `web_search`. The request has no audio and no plugins or tools, so any well-formed price passes.
+  - **`internal_reasoning`:** must be at or below the completion rate, and non-zero only when the session bills reasoning separately.
+  - **`discount`:** a number from 0 up to, but not including, 1. W ignores it and stays the undiscounted, larger bound.
+  - **Anything else:** for example `request`, or a field that does not exist today. It fails the route closed when non-zero.
+
+  The test fixture is this object, field for field.
+- **Catalogue reply cap.** The live ZDR listing was 1,098,446 bytes, over the checker's 1,000,000-byte cap, so every live check failed closed. E13's first, keyless start found this. The cap is now 8,000,000 bytes, and a larger reply still fails closed.
 
 **Transport (17.18 obligations).** `OpenRouterTransport` meets each obligation as follows:
 - **Session.** It uses an ephemeral configuration with no cookie store, no URL cache and no credential storage.
@@ -1300,14 +1313,33 @@ The owner approved L5 on 26 October 2026 ("Yes, start L5"). This PR wires the li
 
 The `live` value is compiled out of Release, so an archive or TestFlight build cannot reach it. A user-visible switch, or making the route the default, is a separate decision for the owner after E13 and the device check.
 
-**E13 status.** E13 has **not run**. It is owner-run (section 13), and it is the first paid use of the owner's key on this route. It needs the owner's own go-ahead, with these conditions:
-- it runs on `google-vertex/us` itself, because the $0.02 median-cost bar is measured on the approved endpoint and `/us` is 10% dearer than the catalogue prices E9 assumed;
-- it uses the app's own preparation (E3) and request;
-- the photos are the 20 development, 40 untouched Taiwan and 10 refill photos (orders 78 to 87);
-- the spend stop is $10;
-- outputs go to `~/WHR-label-eval-private/`, and only counts go to the repository.
+**E13 approval and runner.** On 26 October 2026 the owner approved running E13 on `google-vertex/us` directly, answering the coordinator's question "Yes, run on /us". The approved terms are:
+- about 70 public Taiwan label photos, prepared exactly as the app prepares them;
+- the OpenRouter key from the October evaluation, loaded into the process only and never printed, logged or committed;
+- a hard stop of $10.
 
-The existing route C runner sends full-size images under the evaluation's provider block, so it does not qualify E3. E13 needs a small runner over `FoodLabelPhotoCapture`, with the preparer, request, attempt and transport exactly as wired here. It is the next step once the owner confirms.
+The run uses three tools:
+- **`Tools/NutritionLabelCaptureEvaluation/e13_cases.py`** writes the case list outside the repository. It takes the 20 usable development photos and the 40 usable untouched photos, matched by the SHA-256 in their truth records, plus refills 78 to 87. The refills were downloaded on 26 October 2026: 10 public Open Food Facts photos, 1,046,016 bytes, licensed CC BY-SA 3.0. Before downloading, the script re-derived the hash order and confirmed that the manifest's orders 1 to 77 are unchanged. The refills have no truth yet, so they count for identity, cost, latency and declines only.
+- **`Tools/LabelPhotoE13`** is the runner. For each photo it runs `ImageIOLabelImagePreparer` on the whole photo, then the app's `LabelPhotoReadSession`, `OpenRouterLabelPhotoAttempt`, `OpenRouterLabelRouteChecker` and the live `OpenRouterTransport`. This covers E3 preparation, the request, the response checks, E11 retries with `Retry-After`, the $0.05 per-tap limit and W. It differs from the app in these ways:
+  - each photo starts on a fresh in-memory spend day, because 70 reads exceed the app's 30 a day;
+  - it has a hard total stop (at most $10) and stops for a report at $5;
+  - each attempt is charged its reported cost, or W when none is reported;
+  - a recording wrapper keeps each reply's model, provider, usage and timing, so that dated slugs show even when a reply is rejected;
+  - it resumes without repeating a finished photo;
+  - it refuses an output folder inside the repository.
+- **`e13_score.py`** scores the private records against the bars. It reports identity, median cost, p90 tap latency, no-edit tables (the correction-effort assisted view, with development and untouched kept separate), silent-error tables case by case, and any dated slugs observed. Only counts and case ids go into `Tools/NutritionLabelCaptureEvaluation/results/`.
+
+**E13 status: not run, nothing spent.** The first start stopped at the keyless catalogue check (the reply cap above), so nothing was sent. The second start was refused by this session's permission system, which blocks a command that loads the key file. Running it needs the owner's own permission in the session that runs it, or the owner can run it themselves. From the repository root:
+
+```bash
+swift run --package-path Tools/LabelPhotoE13 label-photo-e13 --cases ~/WHR-label-eval-private/runs/e13-v1/e13-cases.json --out ~/WHR-label-eval-private/runs/e13-v1 --env-file ~/git/PacePrompt/.env --stop-usd 10 --pause-usd 5
+python3 -I Tools/NutritionLabelCaptureEvaluation/e13_score.py --out Tools/NutritionLabelCaptureEvaluation/results/e13-qualification-v1.json
+```
+
+The expected spend is about $0.01 to $0.03 a photo, so roughly $1 to $2 for the 70 photos. After the run:
+- record the results here;
+- append any dated slug the replies carry to `pinnedSnapshots`, with its date and a generation ID;
+- only then consider enabling the route.
 
 **iPhone run (17.17 (c)).** The paired iPhone (SiPhone, iOS 27.0.1) was offline on 26 October 2026, so the run is **an open gate**. Command, from `Packages/FoodLedgerKit`, with the device unlocked and connected:
 

@@ -8,7 +8,9 @@ import Foundation
 /// failure throws, and the read session then sends nothing.
 public struct OpenRouterLabelRouteChecker: LabelPhotoRouteChecking {
     public static let zeroDataRetentionURL = URL(string: "https://openrouter.ai/api/v1/endpoints/zdr")!
-    public static let maximumResponseBytes = 1_000_000
+    /// The live ZDR listing was 1,098,446 bytes on 26 October 2026 and grows with the catalogue, so
+    /// the cap leaves room (17.21); a larger reply still fails closed.
+    public static let maximumResponseBytes = 8_000_000
     public static let timeout: TimeInterval = 15
 
     public enum CheckError: Error, Equatable, Sendable {
@@ -86,17 +88,39 @@ public struct OpenRouterLabelRouteChecker: LabelPhotoRouteChecking {
                                                  zeroDataRetention: listed, promptPrice: prompt, completionPrice: completion)
     }
 
-    /// W prices only prompt and completion tokens, plus reasoning at the completion rate when the
-    /// endpoint bills it separately (17.21). Any other listed price must be zero, and a listed
-    /// `internal_reasoning` price must not exceed the completion price, nor be non-zero when
-    /// reasoning is not modelled; otherwise the route fails closed and nothing is sent.
+    /// The live pricing object's fields, as listed on 26 October 2026 (17.21), and how each one
+    /// stands against W, which prices 6,000 prompt tokens and the completion (plus reasoning when
+    /// it is billed separately). Any field not named here fails the route closed.
+    ///
+    /// - `image`, `input_cache_read`, `input_cache_write`: input priced at or below the prompt
+    ///   rate. Image tokens are counted in the prompt tokens, and a cached input can only cost
+    ///   less, so W already covers them. A rate above the prompt rate fails closed.
+    /// - `audio`, `input_audio_cache`, `web_search`: modalities and tools the request never sends
+    ///   (no audio, no plugins or tools), so they cannot be charged. Any well-formed price passes.
+    /// - `internal_reasoning`: at or below the completion rate, and non-zero only when the session
+    ///   bills reasoning separately.
+    /// - `discount`: a number from 0 up to, but not including, 1. W ignores it, so W stays the
+    ///   undiscounted, larger bound.
+    static let inputAtMostPrompt: Set<String> = ["image", "input_cache_read", "input_cache_write"]
+    static let neverSent: Set<String> = ["audio", "input_audio_cache", "web_search"]
+
     static func pricesAreModelled(_ pricing: [String: Any], completion: String, reasoningBilledSeparately: Bool) -> Bool {
-        guard let completion = Decimal(string: completion) else { return false }
+        guard let completion = Decimal(string: completion),
+              let promptText = pricing["prompt"] as? String, let prompt = decimalText(promptText).flatMap({ Decimal(string: $0) }) else {
+            return false
+        }
         for (name, value) in pricing where name != "prompt" && name != "completion" {
+            if name == "discount" {
+                guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(),
+                      number.doubleValue.isFinite, number.doubleValue >= 0, number.doubleValue < 1 else { return false }
+                continue
+            }
             guard let text = value as? String, let price = decimalText(text).flatMap({ Decimal(string: $0) }) else { return false }
             if name == "internal_reasoning" {
                 if price > completion || (price > 0 && !reasoningBilledSeparately) { return false }
-            } else if price != 0 {
+            } else if inputAtMostPrompt.contains(name) {
+                if price > prompt { return false }
+            } else if !neverSent.contains(name), price != 0 {
                 return false
             }
         }

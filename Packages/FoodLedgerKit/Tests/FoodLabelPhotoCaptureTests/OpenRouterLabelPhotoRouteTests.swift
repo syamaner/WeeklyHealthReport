@@ -259,10 +259,14 @@ final class OpenRouterLabelPhotoRouteTests: XCTestCase {
 
     // MARK: Test 22: the catalogue check
 
-    /// Shaped like the live catalogue of 26 October 2026 (17.21): three Google Vertex tags, all
-    /// named "Google", reasoning priced at the completion rate.
-    static func endpoint(_ tag: String, _ prompt: String, _ completion: String, extra: [String: String] = [:]) -> [String: Any] {
-        var pricing = ["prompt": prompt, "completion": completion, "internal_reasoning": completion, "image": "0", "request": "0"]
+    /// The live pricing object of 26 October 2026 at 02:54Z (17.21), field for field: three Google
+    /// Vertex tags, all named "Google", reasoning at the completion rate, image at the prompt rate,
+    /// cache prices below it, audio and web search prices, and a numeric discount.
+    static func endpoint(_ tag: String, _ prompt: String, _ completion: String, extra: [String: Any] = [:]) -> [String: Any] {
+        let p = Decimal(string: prompt)!
+        var pricing: [String: Any] = ["prompt": prompt, "completion": completion, "image": prompt, "audio": prompt,
+                                      "input_audio_cache": "\(p / 20)", "web_search": "0.014", "internal_reasoning": completion,
+                                      "input_cache_read": "\(p / 20)", "input_cache_write": "0.0000001875", "discount": 0.5]
         pricing.merge(extra) { $1 }
         return ["tag": tag, "provider_name": "Google", "name": "Google | google/gemini-4-argon-20261013", "pricing": pricing]
     }
@@ -309,6 +313,8 @@ final class OpenRouterLabelPhotoRouteTests: XCTestCase {
         }
         XCTAssertEqual(LabelPhotoRoute.current.endpoint, "google-vertex/us")
         XCTAssertEqual(LabelPhotoRoute.current.providerName, "Google")
+        // The live ZDR listing was 1,098,446 bytes on 26 October 2026: the old 1 MB cap failed every check.
+        XCTAssertEqual(OpenRouterLabelRouteChecker.maximumResponseBytes, 8_000_000)
         // A ZDR entry naming the model only under `model` is not listed (17.21: `model_id` and `tag`).
         let legacy: [String: Any] = ["data": [["model": "google/gemini-4-argon", "tag": "google-vertex/us"]]]
         let check = try await OpenRouterLabelRouteChecker(transport: FakeTransport([.success(Self.reply(Self.listing)), .success(Self.reply(legacy))]),
@@ -321,12 +327,18 @@ final class OpenRouterLabelPhotoRouteTests: XCTestCase {
     }
 
     func testAPriceWDoesNotModelFailsClosed() async throws {
-        let cases: [([String: String], Bool)] = [
+        let cases: [([String: Any], Bool)] = [
             (["internal_reasoning": "0.00002"], true),
             (["image": "0.001"], true),
+            (["input_cache_read": "0.000003"], true),
+            (["input_cache_write": "0.000003"], true),
             (["request": "0.0001"], true),
-            (["web_search": "0.01"], true),
+            (["unknown_charge": "0.01"], true),
             (["image": "free"], true),
+            (["discount": 1], true),
+            (["discount": -0.1], true),
+            (["discount": "0.5"], true),
+            (["discount": true], true),
             ([:], false),
         ]
         for (extra, separately) in cases {
@@ -339,6 +351,18 @@ final class OpenRouterLabelPhotoRouteTests: XCTestCase {
             } catch {
                 XCTAssertEqual(error as? OpenRouterLabelRouteChecker.CheckError, .unavailable, "kept as route unavailable, nothing sent")
             }
+        }
+    }
+
+    func testTheLivePricingObjectIsAdmitted() async throws {
+        // Unknown-to-W fields that cannot raise the cost pass: cache prices below the prompt rate,
+        // never-sent audio and web search prices, a zero request price and a discount under 1.
+        for extra in [[:], ["request": "0"], ["web_search": "0.02"], ["discount": 0]] as [[String: Any]] {
+            let listing = Self.listing([Self.endpoint("google-vertex/us", "0.0000022", "0.000011", extra: extra)])
+            let transport = FakeTransport([.success(Self.reply(listing)), .success(Self.reply(Self.zdr))])
+            let check = try await OpenRouterLabelRouteChecker(transport: transport, clock: Clock(), reasoningBilledSeparately: true)
+                .check(LabelPhotoRoute.current)
+            XCTAssertEqual(check.promptPrice, "0.0000022", "\(extra)")
         }
     }
 

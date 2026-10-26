@@ -3043,3 +3043,16 @@ Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A): `claude-opus-5-5` USD 
 | Label photo L5 architecture gate (#316), architecture-gate subagent | 370,816 (301,180) | 69,620 | 16,252 | 387,068 | $0.73 |
 
 Boundary: `phase_usage.py --format claude --since 2026-10-26T00:59:13Z --until 2026-10-26T01:44:00Z` on the L5 subagent transcript alone. The gate's whole transcript (`agent-a1427b870f48ef214.jsonl`) is measured on its own. Cache writes: L5 760,840 5-minute and 0 1-hour, exact USD 9.82193; the gate 69,620 5-minute and 0 1-hour, exact USD 0.73344. The keyless catalogue GETs, local Swift and Xcode builds and the simulator use no API tokens and are not priced. No OpenRouter spend occurred. These totals are a cost comparison, not productivity or quality evidence.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label photo L5 E13 preparation: live pricing guard, catalogue cap, E13 runner and scorer (#316), subagent | 22,578,085 (21,668,484) | 909,441 | 57,092 | 22,635,177 | $10.02 |
+
+E13 preparation (WHR-316-2026-10-26-L5): `phase_usage.py --format claude --since 2026-10-26T01:44:00Z --until 2026-10-26T03:10:00Z` on the subagent transcript alone. It starts where the L5 row ends, so it also covers the commit, push and opening of #329 that the L5 row left out. It covers:
+- the live pricing object and its guard;
+- the catalogue reply cap;
+- the ten refill downloads;
+- the E13 runner, case list and scorer;
+- the spec 17.21 update and every gate.
+
+The paid run did not happen (the session's permission system refused loading the key), so there was no OpenRouter spend. Cache writes 909,441 5-minute, 0 1-hour; exact USD 10.0233818. Same pricing as above; an API-equivalent comparison, not a charge.
