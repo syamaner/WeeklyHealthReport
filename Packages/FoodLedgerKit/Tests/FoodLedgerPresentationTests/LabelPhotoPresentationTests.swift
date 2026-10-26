@@ -379,4 +379,26 @@ final class LabelPhotoPresentationTests: XCTestCase {
         }
         XCTFail("condition never held", file: file, line: line)
     }
+
+    // MARK: L5 (E16): the section 11 records take effect with the live transport, verbatim
+
+    func testTheLabelPhotoPrivacyRecordsAreInForceVerbatim() throws {
+        let repo = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+        let docs = repo.appendingPathComponent("docs")
+        let egress = try String(contentsOf: docs.appendingPathComponent("privacy-and-egress.md"), encoding: .utf8)
+        let policy = try String(contentsOf: docs.appendingPathComponent("privacy-policy.txt"), encoding: .utf8)
+        let plist = try String(contentsOf: repo.appendingPathComponent("WeeklyHealthReport/Info.plist"), encoding: .utf8)
+        XCTAssertTrue(egress.contains("| OpenRouter and its one allow-listed model endpoint (ZDR, data collection denied, no fallbacks) | One cropped, downscaled label photo re-encoded with all metadata removed"))
+        XCTAssertTrue(egress.contains("(label photo reading: 3 attempts in 90 s)."))
+        XCTAssertTrue(egress.contains("- **Label photos** leave only as the single prepared image sent when the user taps Read label with AI."))
+        XCTAssertFalse(egress.contains("## Approved, not yet in force"))
+        XCTAssertTrue(policy.contains("Camera access is optional and used to scan food barcodes and, if you choose, to photograph a nutrition label."))
+        XCTAssertFalse(policy.contains("the current app does not offer label-photo OCR upload"))
+        XCTAssertTrue(policy.contains("Label photo reading is optional and uses your own validated OpenRouter key."))
+        XCTAssertTrue(policy.contains("Avoid photographing anything other than the nutrition table."))
+        XCTAssertTrue(policy.contains("receipts, photos or audio to these web nutrition requests."))
+        XCTAssertFalse(policy.contains("Effective 24 October 2026"))
+        XCTAssertTrue(plist.contains("<string>Weekly Health Report uses the camera only when you choose to scan a food barcode or photograph a nutrition label.</string>"))
+    }
 }

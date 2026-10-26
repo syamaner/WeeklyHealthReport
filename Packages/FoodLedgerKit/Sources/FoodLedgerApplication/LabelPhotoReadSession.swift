@@ -124,10 +124,17 @@ public actor LabelPhotoReadSession {
         if let cached = catalogue, cached.day == today {
             check = cached.check
         } else {
-            guard let fresh = try? await checker.check(route), !Task.isCancelled else {
+            let fresh: LabelPhotoManifest.CatalogueCheck
+            do {
+                fresh = try await checker.check(route)
+            } catch let LabelPhotoRouteCheckFailure.transport(failure) {
+                // Not the route's fault: said as offline or a connection failure, and not kept.
+                return .failed(Task.isCancelled ? .cancelled : failure)
+            } catch {
                 if !Task.isCancelled { routeUnavailableOn = today }
                 return .failed(Task.isCancelled ? .cancelled : .routeUnavailable)
             }
+            if Task.isCancelled { return .failed(.cancelled) }
             guard Self.prices(fresh, route: route, reasoningBilledSeparately: reasoningBilledSeparately) != nil else {
                 routeUnavailableOn = today
                 return .failed(.routeUnavailable)

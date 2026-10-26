@@ -42,7 +42,18 @@ public struct OpenRouterLabelRouteChecker: LabelPhotoRouteChecking {
     }
 
     func fetch(_ url: URL) async throws -> Data {
-        let response = try await transport.send(Self.get(url), timeout: Self.timeout, maximumBodyBytes: Self.maximumResponseBytes)
+        let response: LabelPhotoHTTPResponse
+        do {
+            response = try await transport.send(Self.get(url), timeout: Self.timeout, maximumBodyBytes: Self.maximumResponseBytes)
+        } catch let error as LabelPhotoTransportError {
+            // A transport failure is reported as such, never as the route being unavailable.
+            switch error {
+            case .offline: throw LabelPhotoRouteCheckFailure.transport(.offline)
+            case .timedOut: throw LabelPhotoRouteCheckFailure.transport(.timedOut)
+            case .cancelled: throw LabelPhotoRouteCheckFailure.transport(.cancelled)
+            case .failed: throw LabelPhotoRouteCheckFailure.transport(.providerUnavailable)
+            }
+        }
         guard response.status == 200, !response.exceededLimit else { throw CheckError.unavailable }
         return response.body
     }

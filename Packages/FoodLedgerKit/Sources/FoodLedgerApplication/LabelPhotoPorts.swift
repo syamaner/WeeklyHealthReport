@@ -128,6 +128,14 @@ public protocol LabelValueLocating: Sendable {
     func locate(_ image: PreparedLabelImage, candidate: PastedLabelManifest.Candidate) async throws -> LabelPhotoManifest.Locations
 }
 
+/// Why a catalogue check could not be completed (17.18 L5 obligations). A transport failure (no
+/// network path, a timeout, a connection error) is not the route's fault: it is reported as offline
+/// or a connection failure and the next tap checks again. Any other failure throws something else
+/// and is kept as route unavailable for the day.
+public enum LabelPhotoRouteCheckFailure: Error, Equatable, Sendable {
+    case transport(LabelImageReadingFailure)
+}
+
 /// The on-the-day catalogue check (E7, 17.5 M3): free, with no Authorization header and no user
 /// data, once per session before the first image request.
 public protocol LabelPhotoRouteChecking: Sendable {

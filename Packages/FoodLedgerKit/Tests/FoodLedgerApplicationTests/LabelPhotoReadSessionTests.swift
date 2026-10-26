@@ -475,4 +475,19 @@ final class LabelPhotoReadSessionTests: XCTestCase {
         guard case .answered = await session.read(image) else { return XCTFail("checked again on a new day") }
         XCTAssertEqual(checker.calls, 2)
     }
+
+    // MARK: L5: a catalogue transport failure is not the route's fault
+
+    func testACatalogueTransportFailureIsOfflineAndCheckedAgainOnTheNextTap() async {
+        let checker = Checker(.failure(LabelPhotoRouteCheckFailure.transport(.offline)))
+        let (session, attempter, _, _, _) = makeSession([Self.answer], checker: checker)
+        let first = await session.read(image)
+        XCTAssertEqual(first, .failed(.offline))
+        let status = await session.status()
+        XCTAssertFalse(status.routeUnavailable, "not kept for the day")
+        checker.result = .success(Self.good)
+        guard case .answered = await session.read(image) else { return XCTFail("checked again on the next tap") }
+        XCTAssertEqual(checker.calls, 2)
+        XCTAssertEqual(attempter.timeouts.count, 1)
+    }
 }

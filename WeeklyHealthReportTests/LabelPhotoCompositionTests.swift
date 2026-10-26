@@ -20,8 +20,21 @@ final class LabelPhotoCompositionTests: XCTestCase {
         XCTAssertFalse(root.labelPhotoEnabled)
         XCTAssertNil(root.labelPhotoFlow())
         XCTAssertNil(root.labelPhotoScreenModel())
-        let (unknown, _) = try makeRoot(route: "live")
-        XCTAssertFalse(unknown.labelPhotoEnabled, "only a scripted scenario enables it")
+        let (unknown, _) = try makeRoot(route: "Live")
+        XCTAssertFalse(unknown.labelPhotoEnabled, "only a scripted scenario or exactly `live` enables it")
+    }
+
+    func testTheLiveRouteIsALaunchArgumentWithItsOwnConsentLedgerAndNoSample() throws {
+        let (root, _) = try makeRoot(route: "live")
+        XCTAssertEqual(root.labelPhotoMode, .live)
+        XCTAssertEqual(root.labelPhotoActiveConsentKey, "labelPhoto.egressConsent.live.v1")
+        XCTAssertNotEqual(root.labelPhotoActiveSpendLedgerURL, root.labelPhotoSpendLedgerURL, "scripted reads never touch the real allowance")
+        XCTAssertTrue(root.labelPhotoActiveSpendLedgerURL.standardizedFileURL.path.hasPrefix(root.healthDirectory.standardizedFileURL.path + "/"))
+        XCTAssertNil(root.labelPhotoSample, "the live route reads only real photos")
+        let (fake, _) = try makeRoot(route: "answer")
+        XCTAssertEqual(fake.labelPhotoActiveConsentKey, "labelPhoto.egressConsent.scripted.v1")
+        XCTAssertEqual(fake.labelPhotoActiveSpendLedgerURL, fake.labelPhotoSpendLedgerURL)
+        XCTAssertNotNil(fake.labelPhotoSample)
     }
 
     func testTheSpendLedgerAndAttachmentsSitUnderTheBackupExcludedDirectory() throws {
