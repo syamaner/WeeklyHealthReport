@@ -17,9 +17,12 @@ public struct OpenRouterLabelRouteChecker: LabelPhotoRouteChecking {
 
     let transport: any LabelPhotoHTTPTransporting
     let clock: any LedgerClock
+    /// Whether the session's W includes the reasoning limit (17.21): a non-zero reasoning price is
+    /// admitted only then.
+    let reasoningBilledSeparately: Bool
 
-    public init(transport: any LabelPhotoHTTPTransporting, clock: any LedgerClock) {
-        self.transport = transport; self.clock = clock
+    public init(transport: any LabelPhotoHTTPTransporting, clock: any LedgerClock, reasoningBilledSeparately: Bool = false) {
+        self.transport = transport; self.clock = clock; self.reasoningBilledSeparately = reasoningBilledSeparately
     }
 
     public static func endpointsURL(_ route: LabelPhotoRoute.Route) -> URL? {
@@ -38,7 +41,7 @@ public struct OpenRouterLabelRouteChecker: LabelPhotoRouteChecking {
         let listing = try await fetch(url)
         let zeroDataRetention = try await fetch(Self.zeroDataRetentionURL)
         return try Self.parse(listing: listing, zeroDataRetention: zeroDataRetention, route: route,
-                              at: PastedLabelBasisChoice.milliseconds(clock.now()))
+                              at: PastedLabelBasisChoice.milliseconds(clock.now()), reasoningBilledSeparately: reasoningBilledSeparately)
     }
 
     func fetch(_ url: URL) async throws -> Data {
@@ -51,7 +54,7 @@ public struct OpenRouterLabelRouteChecker: LabelPhotoRouteChecking {
             case .offline: throw LabelPhotoRouteCheckFailure.transport(.offline)
             case .timedOut: throw LabelPhotoRouteCheckFailure.transport(.timedOut)
             case .cancelled: throw LabelPhotoRouteCheckFailure.transport(.cancelled)
-            case .failed: throw LabelPhotoRouteCheckFailure.transport(.providerUnavailable)
+            case .failed: throw LabelPhotoRouteCheckFailure.transport(.connectionFailed)
             }
         }
         guard response.status == 200, !response.exceededLimit else { throw CheckError.unavailable }
@@ -60,7 +63,8 @@ public struct OpenRouterLabelRouteChecker: LabelPhotoRouteChecking {
 
     /// Pure: the catalogue check the two listings describe for the route. The read session then
     /// compares it with the route and the spend bound (`LabelPhotoReadSession.prices`).
-    public static func parse(listing: Data, zeroDataRetention: Data, route: LabelPhotoRoute.Route, at: Int64) throws
+    public static func parse(listing: Data, zeroDataRetention: Data, route: LabelPhotoRoute.Route, at: Int64,
+                             reasoningBilledSeparately: Bool = false) throws
         -> LabelPhotoManifest.CatalogueCheck {
         guard let root = (try? JSONSerialization.jsonObject(with: listing)) as? [String: Any],
               let model = root["data"] as? [String: Any], let slug = model["id"] as? String,
@@ -70,13 +74,33 @@ public struct OpenRouterLabelRouteChecker: LabelPhotoRouteChecking {
         guard matches.count == 1, let pricing = matches[0]["pricing"] as? [String: Any],
               let prompt = (pricing["prompt"] as? String).flatMap(decimalText),
               let completion = (pricing["completion"] as? String).flatMap(decimalText) else { throw CheckError.malformed }
+        guard pricesAreModelled(pricing, completion: completion, reasoningBilledSeparately: reasoningBilledSeparately) else {
+            throw CheckError.unavailable
+        }
         guard let zdrRoot = (try? JSONSerialization.jsonObject(with: zeroDataRetention)) as? [String: Any],
               let zdrEntries = zdrRoot["data"] as? [[String: Any]] else { throw CheckError.malformed }
         let listed = zdrEntries.contains { entry in
-            (entry["model_id"] as? String ?? entry["model"] as? String) == route.model && entry["tag"] as? String == route.endpoint
+            entry["model_id"] as? String == route.model && entry["tag"] as? String == route.endpoint
         }
         return LabelPhotoManifest.CatalogueCheck(at: at, slug: slug, endpoint: route.endpoint, inputModalities: modalities,
                                                  zeroDataRetention: listed, promptPrice: prompt, completionPrice: completion)
+    }
+
+    /// W prices only prompt and completion tokens, plus reasoning at the completion rate when the
+    /// endpoint bills it separately (17.21). Any other listed price must be zero, and a listed
+    /// `internal_reasoning` price must not exceed the completion price, nor be non-zero when
+    /// reasoning is not modelled; otherwise the route fails closed and nothing is sent.
+    static func pricesAreModelled(_ pricing: [String: Any], completion: String, reasoningBilledSeparately: Bool) -> Bool {
+        guard let completion = Decimal(string: completion) else { return false }
+        for (name, value) in pricing where name != "prompt" && name != "completion" {
+            guard let text = value as? String, let price = decimalText(text).flatMap({ Decimal(string: $0) }) else { return false }
+            if name == "internal_reasoning" {
+                if price > completion || (price > 0 && !reasoningBilledSeparately) { return false }
+            } else if price != 0 {
+                return false
+            }
+        }
+        return true
     }
 
     /// A price as plain decimal text, or nil when it is not a non-negative number.

@@ -1387,7 +1387,11 @@ enum LabelPhotoRouteMode: Equatable {
 
     static func from(_ defaults: UserDefaults) -> LabelPhotoRouteMode {
         guard let raw = defaults.string(forKey: "LabelPhotoRoute") else { return .off }
+        #if DEBUG
+        // Compiled out of Release: an archived or TestFlight build can never reach the live route
+        // until the owner turns it on (17.21).
         if raw == liveArgument { return .live }
+        #endif
         guard let scenario = ScriptedLabelPhotoTransport.Scenario(rawValue: raw) else { return .off }
         return .fake(scenario)
     }
@@ -1463,7 +1467,8 @@ extension FoodLedgerCompositionRoot {
         let clock = confirmationClock, calendar = confirmationCalendar, ledgerURL = labelPhotoActiveSpendLedgerURL
         return try? LabelPhotoSessions.flow(ledgerURL: ledgerURL) {
             let attempt = OpenRouterLabelPhotoAttempt(transport: transport, keys: keys, request: try OpenRouterLabelPhotoRequest())
-            let session = LabelPhotoReadSession(checker: OpenRouterLabelRouteChecker(transport: transport, clock: clock), attempter: attempt,
+            let session = LabelPhotoReadSession(checker: OpenRouterLabelRouteChecker(transport: transport, clock: clock, reasoningBilledSeparately: reasoningBilledSeparately),
+                attempter: attempt,
                 ledger: FileLabelPhotoSpendLedger(url: ledgerURL), keys: keys, clock: clock, calendar: calendar,
                 sleeper: TaskLabelPhotoSleeper(), jitter: { Double.random(in: 0...1) }, tapIDs: { UUID().uuidString },
                 reasoningBilledSeparately: reasoningBilledSeparately)

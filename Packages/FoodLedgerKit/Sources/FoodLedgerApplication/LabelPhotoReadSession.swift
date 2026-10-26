@@ -42,7 +42,7 @@ public actor LabelPhotoReadSession {
     /// A spend ledger write failed: every further read this session is refused (fails closed).
     private(set) var ledgerFailed = false
 
-    public init(route: LabelPhotoRoute.Route = LabelPhotoRoute.v1, checker: any LabelPhotoRouteChecking, attempter: any LabelPhotoAttempting,
+    public init(route: LabelPhotoRoute.Route = LabelPhotoRoute.current, checker: any LabelPhotoRouteChecking, attempter: any LabelPhotoAttempting,
                 ledger: any LabelPhotoSpendLedger, keys: any FoodWebKeyStoring, clock: any LedgerClock, calendar: Calendar,
                 sleeper: any LabelPhotoSleeping, jitter: @escaping @Sendable () -> Double, tapIDs: @escaping @Sendable () -> String,
                 reasoningBilledSeparately: Bool = false) {
@@ -129,7 +129,7 @@ public actor LabelPhotoReadSession {
                 fresh = try await checker.check(route)
             } catch let LabelPhotoRouteCheckFailure.transport(failure) {
                 // Not the route's fault: said as offline or a connection failure, and not kept.
-                return .failed(Task.isCancelled ? .cancelled : failure)
+                return .failed(Task.isCancelled ? .cancelled : failure.readingFailure)
             } catch {
                 if !Task.isCancelled { routeUnavailableOn = today }
                 return .failed(Task.isCancelled ? .cancelled : .routeUnavailable)

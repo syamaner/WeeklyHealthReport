@@ -157,10 +157,11 @@ public enum LabelPhotoText {
     }
     public static let sourceFooter = "To read a different photo, use Retake or adjust photo. To change a value, correct it in Nutrition from the photo."
     public static let retakeOrAdjust = "Retake or adjust photo"
-    /// Display names for the stored model and provider of an admitted route; anything else is
-    /// shown exactly as stored.
+    /// Display names for the stored model and endpoint tag of an admitted route; anything else is
+    /// shown exactly as stored. The provider is named from the endpoint the request pinned, since
+    /// OpenRouter returns only "Google" for the US endpoint (17.21).
     public static let modelNames = ["google/gemini-4-argon": modelName]
-    public static let providerNames = ["Google Vertex": providerName, "google-vertex": providerName]
+    public static let providerNames = ["Google Vertex": providerName, "google-vertex": providerName, "google-vertex/us": providerName]
 
     public static func savedSource(model: String, provider: String, date: String) -> String {
         "Read by \(modelNames[model] ?? model) on \(providerNames[provider] ?? provider) through OpenRouter, \(date); checked by you"
@@ -210,7 +211,7 @@ public enum LabelPhotoSavedEntryText {
         formatter.locale = locale
         formatter.setLocalizedDateFormatFromTemplate("d MMM yyyy")
         let date = Date(timeIntervalSince1970: TimeInterval(manifest.response.completedAt) / 1_000)
-        return LabelPhotoText.savedSource(model: manifest.response.model, provider: manifest.response.provider,
+        return LabelPhotoText.savedSource(model: manifest.response.model, provider: manifest.request.endpoint,
                                           date: formatter.string(from: date))
     }
 

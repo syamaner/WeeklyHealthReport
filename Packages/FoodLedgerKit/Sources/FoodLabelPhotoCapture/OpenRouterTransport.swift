@@ -100,8 +100,9 @@ public final class OpenRouterTransport: NSObject, LabelPhotoHTTPTransporting, UR
         guard let urlError = error as? URLError else { return .failed }
         switch urlError.code {
         case .timedOut: return .timedOut
-        case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed, .internationalRoamingOff, .cannotFindHost,
-             .dnsLookupFailed:
+        // Offline means no usable network path; a lost connection or a DNS failure happens with a
+        // path present (a captive portal, for example) and is a connection failure.
+        case .notConnectedToInternet, .dataNotAllowed, .internationalRoamingOff:
             return .offline
         default: return .failed
         }

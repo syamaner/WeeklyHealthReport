@@ -306,8 +306,13 @@ final class LabelPhotoContractTests: XCTestCase {
         XCTAssertEqual(LabelPhotoSource.admittedPipelines, [
             "label-photo-ai-route-v1:google/gemini-4-argon@google-vertex:label-photo-instruction-v1:label-photo-wire-mapping-v1:"
                 + "label-capture-decline-gate-v2:label-arithmetic-checks-v2:label-photo-serving-consistency-v1:pasted-label-conversions-v1:"
-                + "label-photo-serving-v1:label-photo-vision-locate-v3:label-photo-attention-v1"
+                + "label-photo-serving-v1:label-photo-vision-locate-v3:label-photo-attention-v1",
+            // L5 (17.21): the live catalogue's US endpoint, appended; the entry above stays for verify only.
+            "label-photo-ai-route-v1:google/gemini-4-argon@google-vertex/us:label-photo-instruction-v1:label-photo-wire-mapping-v1:"
+                + "label-capture-decline-gate-v2:label-arithmetic-checks-v2:label-photo-serving-consistency-v1:pasted-label-conversions-v1:"
+                + "label-photo-serving-v1:label-photo-vision-locate-v3:label-photo-attention-v1",
         ])
+        XCTAssertEqual(LabelPhotoRoute.current, LabelPhotoRoute.v1US, "only the US endpoint is sent")
     }
 
     // MARK: Test 3: serving parity with the pasted policy (P10)

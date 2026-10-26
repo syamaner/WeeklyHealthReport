@@ -87,7 +87,7 @@ public struct OpenRouterLabelPhotoAttempt: LabelPhotoAttempting {
             return failed(.contentFailure, .unreadableAnswer)
         }
         guard modelMatches(requested: route.model, returned: object["model"]) else { return failed(.contentFailure, .wrongModel) }
-        guard normalisedProvider(object["provider"]) == route.endpoint else { return failed(.contentFailure, .wrongProvider) }
+        guard let returned = normalisedProvider(object["provider"]), returned == normalisedProvider(route.providerName) else { return failed(.contentFailure, .wrongProvider) }
         if let calls = message["tool_calls"], !(calls is NSNull), !((calls as? [Any])?.isEmpty ?? false) {
             return failed(.contentFailure, .failed)
         }
@@ -147,8 +147,9 @@ public struct OpenRouterLabelPhotoAttempt: LabelPhotoAttempting {
         return returned == requested || pinnedSnapshots[requested]?.contains(returned) == true
     }
 
-    /// OpenRouter returns the provider's display name ("Google Vertex"); it matches the endpoint
-    /// tag ("google-vertex") once lower-cased with spaces as hyphens, as in the evaluation.
+    /// OpenRouter returns the provider's display name; it must equal the route's provider name
+    /// exactly once both are trimmed, lower-cased and spaced with hyphens (17.21). No prefix or
+    /// family match: "Google AI Studio" is not "Google".
     static func normalisedProvider(_ value: Any?) -> String? {
         guard let name = value as? String else { return nil }
         return name.trimmingCharacters(in: .whitespaces).lowercased().replacingOccurrences(of: " ", with: "-")

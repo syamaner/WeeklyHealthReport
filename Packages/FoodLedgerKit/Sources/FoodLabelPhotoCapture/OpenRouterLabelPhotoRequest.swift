@@ -28,7 +28,7 @@ public struct OpenRouterLabelPhotoRequest: Sendable {
     let wireSchema: Data
 
     /// Loads the bundled instruction and schema, refusing either if its bytes are not the pinned ones.
-    public init(route: LabelPhotoRoute.Route = LabelPhotoRoute.v1, digester: any Digesting = SHA256Digester()) throws {
+    public init(route: LabelPhotoRoute.Route = LabelPhotoRoute.current, digester: any Digesting = SHA256Digester()) throws {
         guard let instructionData = Self.resource(Self.instructionResource), let schemaData = Self.resource(Self.wireSchemaResource) else {
             throw BuildError.resourceMissing
         }

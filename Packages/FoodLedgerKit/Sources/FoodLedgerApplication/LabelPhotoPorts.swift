@@ -133,7 +133,21 @@ public protocol LabelValueLocating: Sendable {
 /// or a connection failure and the next tap checks again. Any other failure throws something else
 /// and is kept as route unavailable for the day.
 public enum LabelPhotoRouteCheckFailure: Error, Equatable, Sendable {
-    case transport(LabelImageReadingFailure)
+    case transport(Transport)
+
+    /// The closed set of transport failures a catalogue check reports.
+    public enum Transport: Equatable, Sendable {
+        case offline, timedOut, cancelled, connectionFailed
+
+        public var readingFailure: LabelImageReadingFailure {
+            switch self {
+            case .offline: .offline
+            case .timedOut: .timedOut
+            case .cancelled: .cancelled
+            case .connectionFailed: .providerUnavailable
+            }
+        }
+    }
 }
 
 /// The on-the-day catalogue check (E7, 17.5 M3): free, with no Authorization header and no user

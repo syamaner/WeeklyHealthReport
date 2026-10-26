@@ -46,7 +46,7 @@ final class ScriptedLabelPhotoRouteTests: XCTestCase {
     func testEveryScenarioAnswersWithoutTheNetwork() async throws {
         for scenario in ScriptedLabelPhotoTransport.Scenario.allCases where scenario != .slow {
             let transport = ScriptedLabelPhotoTransport(scenario: scenario)
-            let check = try await OpenRouterLabelRouteChecker(transport: transport, clock: FixedClock()).check(LabelPhotoRoute.v1)
+            let check = try await OpenRouterLabelRouteChecker(transport: transport, clock: FixedClock()).check(LabelPhotoRoute.current)
             XCTAssertEqual(check.zeroDataRetention, scenario != .routeUnavailable, "\(scenario)")
         }
     }

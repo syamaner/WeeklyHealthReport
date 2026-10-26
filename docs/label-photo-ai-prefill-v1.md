@@ -1245,3 +1245,92 @@ The highlight position was fixed after the walk (decision 6) and is covered by a
 **Journey QA of #328 (all pass), two copy fixes:**
 - The saved photo entry's Source row reads "From a label photo · per 100 g · Traditional Chinese, Taiwan layout", matching the pasted route's line.
 - A photo entry's fortification is shown once, as "Fortification on the label" in its section, worded from the photo manifest as for a pasted label. The Source row no longer repeats it as "Not sure".
+
+### 17.21 L5: the live transport, the live route identity and the records (26 October 2026)
+
+The owner approved L5 on 26 October 2026 ("Yes, start L5"). This PR wires the live transport and puts the section 11 records in force (E16). **The route is not enabled for users.** E13 has not run yet.
+
+**Change of order against section 13.** Section 13 put E13 before the transport wiring. L5 wires the transport first, behind a launch argument that is compiled out of Release builds, so that E13 and the owner's device check exercise the code that would ship. The gate that matters is unchanged: no user can reach the live route until E13 passes, the iPhone run of `FoodLabelPhotoCaptureTests` is recorded (17.17 (c)) and the owner has done the device check.
+
+**Live catalogue facts.** These come from keyless GETs of the model's endpoint listing and the ZDR listing at 2026-10-26T00:59Z. No key and no user data were sent.
+
+| Endpoint tag | Prompt / completion per million tokens | Status | ZDR listed |
+|---|---|---|---|
+| `google-vertex/global` | $2 / $10 | -2 | yes |
+| `google-vertex/us` | $2.20 / $11 | 0 | yes |
+| `google-vertex/global/priority` | $3.60 / $18 | 0 | yes |
+
+- There is no plain `google-vertex` tag, so v1 as designed fails closed at the catalogue check and nothing is sent.
+- `provider_name` is "Google" for all three endpoints.
+- The endpoint name shows the dated slug `google/gemini-4-argon-20261013`.
+- **ZDR field names (the 17.18 open question):** `model_id` and `tag`. The `model` fallback is removed, so an entry carrying only `model` is not listed.
+- **Reasoning billing (the 17.18 open question):** every endpoint lists `internal_reasoning` at the completion rate. The live route is therefore treated as billing reasoning outside `max_tokens`, so W includes the 500-token reasoning limit. On `/us`, W = 6,000 x $0.0000022 + 1,700 x $0.000011 = **$0.0319**. As 17.5 already accepts, after a failure with no reported cost no retry fits in the tap's $0.05. A failure with a reported cost still leaves room.
+
+**Route identity (architecture gate, PASS WITH CHANGES; all changes applied).**
+- **New entry `LabelPhotoRoute.v1US`.** Model `google/gemini-4-argon`, endpoint `google-vertex/us`, provider name "Google". It is appended to `admitted` and is the one route sent (`current`).
+- **v1 is unchanged and verify-only.** It stays admitted, so a manifest that names it (for example one logged over the scripted route before this change) still verifies.
+- **Why `/us`.** It has status 0. Status -2 on `/global` would turn into route-unavailable or retry spend, and `/global/priority` already fails closed because its W exceeds $0.05.
+- **This stays within E6.** E6 admits "the ZDR endpoint OpenRouter lists on the day, expected Google Vertex", and the pipeline string already carries the endpoint, so no route version bump is needed.
+- **The provider check is now separate from the tag.** The returned provider name must equal the route's `providerName` exactly once both are trimmed, lower-cased and hyphenated. "Google AI Studio" and "Google Vertex" do not pass for "Google". This check is weaker than the request pin: "Google" cannot tell `/us` from `/global/priority`. The binding control remains `only` and `order` set to the one tag, with `allow_fallbacks` false.
+- **The display name comes from the stored endpoint tag.** A saved entry reads "on Google Vertex" for `google-vertex` and for `google-vertex/us`.
+- **The dated slug is not pinned yet.** `google/gemini-4-argon-20261013` goes into `pinnedSnapshots` only after E13 sees it in a response's `model` field, recorded with its date and a generation ID. Until then a dated reply fails closed as a wrong model.
+- **W covers only prices it models.** The checker refuses the route (kept as unavailable for the day) in any of these cases:
+  - a listed price other than prompt, completion and `internal_reasoning` is non-zero (for example `image` or `request`);
+  - `internal_reasoning` exceeds the completion price;
+  - `internal_reasoning` is non-zero while the session does not bill reasoning separately.
+
+**Transport (17.18 obligations).** `OpenRouterTransport` meets each obligation as follows:
+- **Session.** It uses an ephemeral configuration with no cookie store, no URL cache and no credential storage.
+- **Headers.** It sends a fixed `User-Agent: WeeklyHealthReport-LabelPhoto/1`.
+- **Redirects** are refused, and a 3xx is never an answer.
+- **The reply** is streamed and stops at the byte cap with `exceededLimit`.
+- **The timeout** ends the whole request, not just an idle interval.
+- **Cancellation** maps to `.cancelled` only when the task was cancelled.
+- **Offline** means no network path: not connected, data not allowed or roaming off. A lost connection or a DNS failure is a connection failure.
+- **The catalogue GETs** use the same anonymous configuration, with no Authorization header.
+- **Catalogue transport failures** are a closed set: offline, timed out, cancelled or connection failed. They are reported as such and are not kept, so the next tap checks again. Only a catalogue mismatch or a non-transport failure (HTTP status, oversize, malformed) is kept as route unavailable for the day.
+- **Decision: `Accept-Language: *`.** The obligation said "no `Accept-Language`", but URLSession adds the device's languages when the header is absent. The transport therefore sets the fixed value `*`, which discloses nothing. A test pins the header set.
+- **Connectivity.** `NWPathConnectivityStatus` observes the path only and opens no connection. It reports online until the first path update; this feeds only the screen's offline state, and the transport maps a real offline failure anyway.
+
+**Turning the route on for the owner's device check.** In Xcode, edit the WeeklyHealthReport scheme, add the launch argument `-LabelPhotoRoute live` under Run, then build and run a Debug build on the iPhone. The live route then uses:
+- the OpenRouter key saved under API key and privacy, which must be validated in that session;
+- a fresh consent key, `labelPhoto.egressConsent.live.v1`, so a consent given to the scripted route never counts;
+- its own spend ledger, `label-photo-spend-live-v1.json`, so scripted reads never touch the real allowance;
+- the real camera and photo library, with no synthetic sample.
+
+The `live` value is compiled out of Release, so an archive or TestFlight build cannot reach it. A user-visible switch, or making the route the default, is a separate decision for the owner after E13 and the device check.
+
+**E13 status.** E13 has **not run**. It is owner-run (section 13), and it is the first paid use of the owner's key on this route. It needs the owner's own go-ahead, with these conditions:
+- it runs on `google-vertex/us` itself, because the $0.02 median-cost bar is measured on the approved endpoint and `/us` is 10% dearer than the catalogue prices E9 assumed;
+- it uses the app's own preparation (E3) and request;
+- the photos are the 20 development, 40 untouched Taiwan and 10 refill photos (orders 78 to 87);
+- the spend stop is $10;
+- outputs go to `~/WHR-label-eval-private/`, and only counts go to the repository.
+
+The existing route C runner sends full-size images under the evaluation's provider block, so it does not qualify E3. E13 needs a small runner over `FoodLabelPhotoCapture`, with the preparer, request, attempt and transport exactly as wired here. It is the next step once the owner confirms.
+
+**iPhone run (17.17 (c)).** The paired iPhone (SiPhone, iOS 27.0.1) was offline on 26 October 2026, so the run is **an open gate**. Command, from `Packages/FoodLedgerKit`, with the device unlocked and connected:
+
+```bash
+xcodebuild test -scheme FoodLedgerKit-Package -destination 'platform=iOS,id=00008150-000261502282401C' -only-testing:FoodLabelPhotoCaptureTests -allowProvisioningUpdates
+```
+
+**Tests added.**
+- Transport (`OpenRouterTransportTests`):
+  - the exact header set;
+  - a refused redirect;
+  - the byte cap;
+  - the whole-request timeout;
+  - cancellation, offline and connection-failure mapping;
+  - a catalogue transport failure that is not kept, while an HTTP failure is kept.
+- Session: a catalogue transport failure reads as offline and is checked again on the next tap.
+- Route identity:
+  - both pipelines are pinned, and only `/us` is sent;
+  - the request golden pins `only` and `order` to `["google-vertex/us"]`;
+  - the checker on a live-shaped fixture passes only `/us`;
+  - the W bound and the price guards;
+  - the provider names;
+  - the unpinned dated slug;
+  - the display line.
+- Composition: the live launch argument gets its own consent key and ledger and no sample, and with no argument the route stays off.
+- Records: the section 11 text and the camera string, verbatim.

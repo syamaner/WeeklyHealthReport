@@ -82,18 +82,18 @@ public final class ScriptedLabelPhotoTransport: LabelPhotoHTTPTransporting, @unc
     }
 
     func catalogue(_ request: LabelPhotoHTTPRequest) throws -> LabelPhotoHTTPResponse {
-        let route = LabelPhotoRoute.v1
+        let route = LabelPhotoRoute.current
         if request.url == OpenRouterLabelRouteChecker.zeroDataRetentionURL {
             let tag = scenario == .routeUnavailable ? "another-endpoint" : route.endpoint
             return Self.reply(["data": [["model_id": route.model, "tag": tag]]])
         }
         return Self.reply(["data": ["id": route.model, "architecture": ["input_modalities": ["text", "image"]],
-                                    "endpoints": [["tag": route.endpoint, "provider_name": "Google Vertex",
+                                    "endpoints": [["tag": route.endpoint, "provider_name": route.providerName,
                                                    "pricing": ["prompt": "0.000002", "completion": "0.00001"]]]]])
     }
 
     static func answer(_ wire: String) -> [String: Any] {
-        ["id": "gen-scripted", "model": LabelPhotoRoute.v1.model, "provider": "Google Vertex",
+        ["id": "gen-scripted", "model": LabelPhotoRoute.current.model, "provider": LabelPhotoRoute.current.providerName,
          "choices": [["index": 0, "finish_reason": "stop", "message": ["role": "assistant", "content": wire]]],
          "usage": ["prompt_tokens": 2_100, "completion_tokens": 600, "cost": 0.01]]
     }

@@ -96,7 +96,7 @@ final class LabelPhotoReadSessionTests: XCTestCase {
     }
     static let taps = Taps()
 
-    static let good = LabelPhotoManifest.CatalogueCheck(at: 1, slug: "google/gemini-4-argon", endpoint: "google-vertex",
+    static let good = LabelPhotoManifest.CatalogueCheck(at: 1, slug: "google/gemini-4-argon", endpoint: "google-vertex/us",
         inputModalities: ["text", "image"], zeroDataRetention: true, promptPrice: "0.000002", completionPrice: "0.00001")
     static let usage = LabelPhotoManifest.Usage(promptTokens: 2_000, completionTokens: 600, reasoningTokens: nil, costUSD: "0.01")
     static let answer = LabelPhotoAttemptResult.answered(wireText: "{}", model: "google/gemini-4-argon", provider: "Google Vertex",
@@ -137,12 +137,12 @@ final class LabelPhotoReadSessionTests: XCTestCase {
         let mismatches = [
             LabelPhotoManifest.CatalogueCheck(at: 1, slug: "google/gemini-4-argon", endpoint: "google-ai-studio", inputModalities: ["image"],
                                               zeroDataRetention: true, promptPrice: "0.000002", completionPrice: "0.00001"),
-            LabelPhotoManifest.CatalogueCheck(at: 1, slug: "google/gemini-4-argon", endpoint: "google-vertex", inputModalities: ["text"],
+            LabelPhotoManifest.CatalogueCheck(at: 1, slug: "google/gemini-4-argon", endpoint: "google-vertex/us", inputModalities: ["text"],
                                               zeroDataRetention: true, promptPrice: "0.000002", completionPrice: "0.00001"),
-            LabelPhotoManifest.CatalogueCheck(at: 1, slug: "google/gemini-4-argon", endpoint: "google-vertex", inputModalities: ["image"],
+            LabelPhotoManifest.CatalogueCheck(at: 1, slug: "google/gemini-4-argon", endpoint: "google-vertex/us", inputModalities: ["image"],
                                               zeroDataRetention: false, promptPrice: "0.000002", completionPrice: "0.00001"),
             // Prices whose worst case exceeds $0.05.
-            LabelPhotoManifest.CatalogueCheck(at: 1, slug: "google/gemini-4-argon", endpoint: "google-vertex", inputModalities: ["image"],
+            LabelPhotoManifest.CatalogueCheck(at: 1, slug: "google/gemini-4-argon", endpoint: "google-vertex/us", inputModalities: ["image"],
                                               zeroDataRetention: true, promptPrice: "0.00001", completionPrice: "0.00004"),
         ]
         for check in mismatches {

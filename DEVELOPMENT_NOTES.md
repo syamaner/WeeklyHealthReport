@@ -3023,3 +3023,23 @@ Servings review fold (WHR-316-2026-10-26-SERVINGS): `phase_usage.py --format cla
 - their tests and every gate.
 
 The window between 21:35:14Z and 21:38:23Z (pushing and opening #328) is outside both rows. Cache writes 2,786,957 5-minute, 0 1-hour; exact USD 18.3611896. Same pricing as above; an API-equivalent comparison, not a charge.
+
+## WHR-316-2026-10-26-L5: Claude Code label photo L5 (live transport, route identity, records)
+
+The same `claude-opus-5-5` subagent and transcript as WHR-316-2026-10-26-SERVINGS, for #316 L5 after the owner's approval. The window runs from `2026-10-26T00:59:13Z` (the first keyless catalogue GET) to `01:44:00Z`, just before this edit. It covers:
+- the live transport, connectivity, the typed catalogue transport failure and their tests;
+- the live launch mode, its consent key and spend ledger;
+- the section 11 records and the camera string;
+- the architecture gate's changes: the US route entry, the provider name, the price guards, the display name and the narrowed offline mapping;
+- spec 17.21, the device check for the iPhone run, and every gate.
+
+The paid E13 run did not happen, and the commit, push and PR are outside the window. The architecture gate ran as its own subagent and has its own row, so nothing is counted twice.
+
+Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A): `claude-opus-5-5` USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache hit, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label photo L5: live transport, route identity and records (#316), subagent | 23,108,856 (22,347,830) | 760,840 | 77,371 | 23,186,227 | $9.82 |
+| Label photo L5 architecture gate (#316), architecture-gate subagent | 370,816 (301,180) | 69,620 | 16,252 | 387,068 | $0.73 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-26T00:59:13Z --until 2026-10-26T01:44:00Z` on the L5 subagent transcript alone. The gate's whole transcript (`agent-a1427b870f48ef214.jsonl`) is measured on its own. Cache writes: L5 760,840 5-minute and 0 1-hour, exact USD 9.82193; the gate 69,620 5-minute and 0 1-hour, exact USD 0.73344. The keyless catalogue GETs, local Swift and Xcode builds and the simulator use no API tokens and are not priced. No OpenRouter spend occurred. These totals are a cost comparison, not productivity or quality evidence.

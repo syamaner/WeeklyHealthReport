@@ -11,14 +11,25 @@ public enum LabelPhotoRoute {
     public struct Route: Equatable, Sendable {
         public let version: String
         public let model: String
+        /// The OpenRouter endpoint tag the request pins in `only` and `order` (the binding control).
         public let endpoint: String
+        /// The provider name OpenRouter returns for that endpoint, compared exactly after
+        /// normalisation (17.21). A secondary check: it cannot tell two tags of one provider apart.
+        public let providerName: String
     }
 
-    /// Gemini 4 Argon on its zero-data-retention endpoint. The endpoint tag is the one the
-    /// catalogue lists on the day (expected Google Vertex); L3 confirms it, and any other tag is
-    /// a new admitted entry, never an edit.
-    public static let v1 = Route(version: LabelPhotoManifest.routeVersion, model: "google/gemini-4-argon", endpoint: "google-vertex")
-    public static let admitted: [Route] = [v1]
+    /// Gemini 4 Argon on the tag the design expected. The live catalogue has no such tag (17.21),
+    /// so it is never sent; it stays admitted so a manifest naming it still verifies.
+    public static let v1 = Route(version: LabelPhotoManifest.routeVersion, model: "google/gemini-4-argon", endpoint: "google-vertex",
+                                 providerName: "Google Vertex")
+    /// Gemini 4 Argon on Google Vertex's US endpoint, zero-data-retention listed with status 0 in the
+    /// live catalogue of 26 October 2026 (17.21). A new admitted entry, not an edit of v1.
+    public static let v1US = Route(version: LabelPhotoManifest.routeVersion, model: "google/gemini-4-argon", endpoint: "google-vertex/us",
+                                   providerName: "Google")
+    /// The one route that is sent.
+    public static let current = v1US
+    /// Closed and append-only: the routes a stored manifest may name.
+    public static let admitted: [Route] = [v1, v1US]
 }
 
 /// The ledger records a label photo manifest stands for, and their verification (8.1 and 8.2).

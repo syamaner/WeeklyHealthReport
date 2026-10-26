@@ -58,6 +58,10 @@ final class OpenRouterTransportTests: XCTestCase {
         _ = try await transport().send(post, timeout: 5, maximumBodyBytes: 1_000)
         _ = try await transport().send(get, timeout: 5, maximumBodyBytes: 1_000)
         XCTAssertEqual(Stub.seen.count, 2)
+        XCTAssertEqual(Set(Stub.seen[0].allHTTPHeaderFields?.keys.map { $0.lowercased() } ?? []),
+                       ["user-agent", "accept-language", "authorization", "content-type", "content-length"], "the POST's exact header set")
+        XCTAssertEqual(Set(Stub.seen[1].allHTTPHeaderFields?.keys.map { $0.lowercased() } ?? []),
+                       ["user-agent", "accept-language", "accept"], "the GET's exact header set")
         for request in Stub.seen {
             XCTAssertEqual(request.value(forHTTPHeaderField: "User-Agent"), OpenRouterTransport.userAgent)
             XCTAssertEqual(request.value(forHTTPHeaderField: "Accept-Language"), "*", "never the device's languages")
@@ -117,6 +121,12 @@ final class OpenRouterTransportTests: XCTestCase {
         do { _ = try await self.transport().send(post, timeout: 5, maximumBodyBytes: 1_000); XCTFail("offline") } catch {
             XCTAssertEqual(error as? LabelPhotoTransportError, .offline)
         }
+        for code in [URLError.Code.cannotFindHost, .dnsLookupFailed, .networkConnectionLost] {
+            Stub.reply = .fail(code)
+            do { _ = try await self.transport().send(post, timeout: 5, maximumBodyBytes: 1_000); XCTFail("\(code)") } catch {
+                XCTAssertEqual(error as? LabelPhotoTransportError, .failed, "a path exists: a connection failure, not offline")
+            }
+        }
         Stub.reply = .fail(.badServerResponse)
         do { _ = try await self.transport().send(post, timeout: 5, maximumBodyBytes: 1_000); XCTFail("failed") } catch {
             XCTAssertEqual(error as? LabelPhotoTransportError, .failed)
@@ -126,11 +136,11 @@ final class OpenRouterTransportTests: XCTestCase {
     func testACatalogueTransportFailureIsNotTheRoutesFault() async {
         Stub.reply = .fail(.notConnectedToInternet)
         let checker = OpenRouterLabelRouteChecker(transport: transport(), clock: ScriptedLabelPhotoRouteTests.FixedClock())
-        do { _ = try await checker.check(LabelPhotoRoute.v1); XCTFail("offline") } catch {
+        do { _ = try await checker.check(LabelPhotoRoute.current); XCTFail("offline") } catch {
             XCTAssertEqual(error as? LabelPhotoRouteCheckFailure, .transport(.offline))
         }
         Stub.reply = .ok(500, Data(), [:])
-        do { _ = try await checker.check(LabelPhotoRoute.v1); XCTFail("unavailable") } catch {
+        do { _ = try await checker.check(LabelPhotoRoute.current); XCTFail("unavailable") } catch {
             XCTAssertNil(error as? LabelPhotoRouteCheckFailure, "an HTTP error is the route's: kept for the day")
         }
     }

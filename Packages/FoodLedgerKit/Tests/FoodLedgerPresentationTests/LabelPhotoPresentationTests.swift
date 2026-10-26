@@ -330,6 +330,9 @@ final class LabelPhotoPresentationTests: XCTestCase {
     func testSavedProvenanceComesFromTheStoredResponse() {
         XCTAssertEqual(LabelPhotoText.savedSource(model: "google/gemini-4-argon", provider: "Google Vertex", date: "26 Oct 2026"),
                        "Read by Gemini 4 Argon on Google Vertex through OpenRouter, 26 Oct 2026; checked by you")
+        // The live route's endpoint tag reads as Google Vertex, although OpenRouter returns "Google" (17.21).
+        XCTAssertEqual(LabelPhotoText.savedSource(model: "google/gemini-4-argon", provider: "google-vertex/us", date: "26 Oct 2026"),
+                       "Read by Gemini 4 Argon on Google Vertex through OpenRouter, 26 Oct 2026; checked by you")
         // Anything not in the table is shown exactly as stored, never as the current route's name.
         XCTAssertEqual(LabelPhotoText.savedSource(model: "openai/gpt-6.1-sol", provider: "Azure", date: "1 Nov 2026"),
                        "Read by openai/gpt-6.1-sol on Azure through OpenRouter, 1 Nov 2026; checked by you")
