@@ -10,7 +10,9 @@ grammar of the pure search parser (`FoodQueryParser`).
 1. **Hard boiled.** `hard boiled` and `hard-boiled` are accepted between a count
    and `egg` or `eggs`, alongside `boiled`, `soft boiled` and the v8 egg methods.
    A Unicode hyphen (U+2010 or U+2011) between two letters is read as the ASCII
-   hyphen, so "hard‑boiled" typed with a non-breaking hyphen also counts. "2 hard
+   hyphen, so "hard‑boiled" typed with a non-breaking hyphen also counts. This
+   normalisation applies to every query, not only hard boiled: "full‑fat milk"
+   now parses like the ASCII "full-fat milk". "2 hard
    boiled eggs", "two hard boiled eggs", "a hard boiled egg" and "2 x hard
    boiled eggs" are read as item counts. Under v8 the number was left
    unresolved, so Confirm opened with an empty amount and offered "Use 2 from
