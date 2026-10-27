@@ -6,6 +6,8 @@ Amendment 1 (24 October 2026, owner input: "Small, medium, large, X-Large estima
 
 Amendment 2 (27 October 2026, #318 and #303, presentation and copy only; the owner delegated these backlog enhancements): one set of method words on Confirm, so the direct weight picker reads `Kitchen scale` and `Estimated by eye` (stored basis unchanged) and a saved direct measured weight reads `Kitchen scale` instead of `Weighed`; the Log bar names the one missing count field with the field's own sentence; a count without a guide shows one layout (no `Enter measured weight` beside its `Total weight` and `How you got it`), and choosing `Total minus empty plate` on such a count opens the gram total of food and plate with the count kept as the original amount, which is the existing direct weight path; the count's weight fields sit above `When`; on the Food Log row and the saved entry header a number and its unit are joined by a no-break space so they never wrap apart. No record, export, summary or requirement changes.
 
+Amendment 3 (27 October 2026, #332 and #315, presentation and copy only; the owner delegated these backlog items): the `Total weight` placeholder reads `Without shell, bone or other parts`, the same words as the no-guide intro; once `Total minus empty plate` is chosen, the food and plate total, the empty plate weight and the grams eaten they give (`For 170 g eaten`, the save path's own calculation, hidden while saving would fail) sit together under `Weighed on a plate`, and `When` follows the amount and plate rows as in the Confirm wireframe; on the plate path the Log bar names the plate total field when it is missing; at accessibility sizes the weighing method shows as full-width rows, and the `Total weight`, plate total and empty plate placeholders show as wrapping labels above their fields at the chosen size. No record, export, summary or requirement changes.
+
 This contract amends [count-conversion-method-v1.md](count-conversion-method-v1.md) (a count without a guide asks for a measured amount), [food-confirmation-contract-v5.md](food-confirmation-contract-v5.md) (`countNeedsMeasuredAmount`, the Log press as acceptance) and [direct-edible-weight-contract-v1.md](direct-edible-weight-contract-v1.md) (no guide estimates admitted). It admits the first source-backed count guide that [count-portion-guide-research-v1.md](archive/count-portion-guide-research-v1.md) prepared, and reuses the persistence pattern of [cofid-whole-milk-volume-admission-v1.md](cofid-whole-milk-volume-admission-v1.md).
 
 ## 1. Problem (UX review of main 53450fb7, screenshots 20 to 30, 35 and 42)
@@ -154,7 +156,7 @@ It is not `retainedWeightNeedsConfirmation`. That requirement protects a weight 
 | Details text, raw egg | `Typical weights of one egg without shell, from USDA FoodData Central SR Legacy (April 2018). US sizes; carton sizes differ by country, so your eggs may weigh more or less. Change it if you know the weight.` |
 | Details text, boiled egg (added sentence) | `USDA gives a boiled egg only as large, 50 g, the same as a raw large egg, so the other boiled sizes use the raw weights.` |
 | Details source line (plain text, no link in v1) | `Source: USDA FoodData Central, SR Legacy, April 2018 · public domain (CC0 1.0)` |
-| Correction layout field | `Total weight` with placeholder `Without shell, bone or skin you did not eat` |
+| Correction layout field (amendment 3) | `Total weight` with placeholder `Without shell, bone or other parts` |
 | Correction layout picker | `How you got it`: `Kitchen scale`, `Package weight`, `Estimated by eye`; start `Choose one` |
 | Return to guide (guide foods only) | `Use typical weight` |
 | No-guide intro (replaces "No source-backed size guide is available…") | `Enter the total weight you ate, without shell, bone or other parts.` |
@@ -164,6 +166,8 @@ It is not `retainedWeightNeedsConfirmation`. That requirement protects a weight 
 | Log bar, `countNeedsMeasuredAmount`, nothing entered | `Enter the total weight and choose how you got it, or change the unit to g or mL.` |
 | Log bar, one part entered (amendment 2) | the field-local sentence for the missing part: `Choose how you got the weight.` or `Enter the total weight.` |
 | Direct weight method (amendment 2) | `How you got it`: `Kitchen scale` (basis measured), `Estimated by eye` (basis estimated); start `Choose one`. Requirement: `Choose how you got the weight.` |
+| Plate rows (amendment 3) | Under `Weighed on a plate`: `Weighing method`, `Total food and plate weight (g)`, `Enter the food and plate total. The empty plate weight below is subtracted to give the grams eaten.`, `Empty plate weight (g)`, then `For 170 g eaten` once both weights give grams eaten; `When` follows |
+| Log bar, plate total missing (amendment 3) | `Enter the total food and plate weight in grams, greater than zero.` |
 
 The details disclosure shows no tappable link in v1 (gate F11); the source is named in plain text.
 

@@ -563,7 +563,11 @@ public final class FoodConfirmationViewModel: ObservableObject {
             weight.needsReconfirmation = false
             quantity.directWeight = weight
         }
-        guard let eaten = try? quantity.calculatedEdibleQuantity(), eaten.unit == .grams else { return nil }
+        // The save path's calculation on a copy of the state, so source-serving and label-serving
+        // rules apply too: whatever saving would reject shows no grams eaten.
+        var copy = state
+        copy.quantity = quantity
+        guard let eaten = try? copy.calculatedEdibleQuantity(), eaten.unit == .grams else { return nil }
         return "For \(FoodNutritionReviewPresentation.number(eaten.value)) g eaten"
     }
 
@@ -1556,7 +1560,8 @@ public struct FoodConfirmationView: View {
             if model.state.quantity.unit == .count && model.state.quantity.directWeight == nil && !model.state.usesSourceDeclaredServing
                 && !model.countsPastedLabelServings && !model.showsPortionGuide {
                 Text(ConversionFields.intro).font(.caption)
-                TextField(ConversionFields.amountTitle, text: $conversionText, prompt: Text(ConversionFields.amountPrompt))
+                fieldLabel(ConversionFields.amountPrompt)
+                TextField(ConversionFields.amountTitle, text: $conversionText, prompt: Text(fieldPrompt(ConversionFields.amountPrompt)))
                     .amountKeyboard($editingAmount, .confirmConversion)
                     .onChange(of: conversionText) { _, _ in updateConversion() }
                     .accessibilityLabel(ConversionFields.amountTitle)
@@ -1639,12 +1644,30 @@ public struct FoodConfirmationView: View {
     }
 
     public static let plateGroupTitle = "Weighed on a plate"
+
+    /// At accessibility sizes a weight field's placeholder would shrink to fit one line, so it
+    /// shows as a wrapping label above the field at the chosen size instead (#332).
+    public static func movesPlaceholderAbove(at size: DynamicTypeSize) -> Bool { size.isAccessibilitySize }
+
+    @ViewBuilder
+    private func fieldLabel(_ text: String) -> some View {
+        if Self.movesPlaceholderAbove(at: dynamicTypeSize) {
+            Text(text).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func fieldPrompt(_ text: String) -> String {
+        Self.movesPlaceholderAbove(at: dynamicTypeSize) ? "" : text
+    }
     public static let plateTotalPlaceholder = "Total food and plate weight (g)"
     public static let emptyPlatePlaceholder = "Empty plate weight (g)"
     public static let plateTotalHelp = "Enter the food and plate total. The empty plate weight below is subtracted to give the grams eaten."
 
+    @ViewBuilder
     private var directWeightField: some View {
-        TextField(usesPlate ? Self.plateTotalPlaceholder : "Total edible weight (g)", text: $directWeightText)
+        let placeholder = usesPlate ? Self.plateTotalPlaceholder : "Total edible weight (g)"
+        fieldLabel(placeholder)
+        TextField(fieldPrompt(placeholder), text: $directWeightText)
             .amountKeyboard($editingAmount, .confirmDirectWeight)
             .onChange(of: directWeightText) { _, value in model.send(.setDirectWeight(FoodAmountFieldText.parse(value, locale: locale))) }
             .accessibilityLabel(Self.directWeightAccessibilityLabel(usesPlate: usesPlate))
@@ -1671,7 +1694,8 @@ public struct FoodConfirmationView: View {
                 directWeightField
                 Text(Self.plateTotalHelp).font(.caption)
             }
-            TextField(Self.emptyPlatePlaceholder, text: $emptyPlateText)
+            fieldLabel(Self.emptyPlatePlaceholder)
+            TextField(fieldPrompt(Self.emptyPlatePlaceholder), text: $emptyPlateText)
                 .accessibilityLabel(Self.emptyPlateAccessibilityLabel)
                 .amountKeyboard($editingAmount, .confirmEmptyPlate)
                 .onChange(of: emptyPlateText) { _, value in
@@ -1797,7 +1821,8 @@ public struct FoodConfirmationView: View {
     private var countEstimateRows: some View {
         Group {
             Text(ConversionFields.intro).font(.caption)
-            TextField(ConversionFields.amountTitle, text: $directWeightText, prompt: Text(ConversionFields.amountPrompt))
+            fieldLabel(ConversionFields.amountPrompt)
+            TextField(ConversionFields.amountTitle, text: $directWeightText, prompt: Text(fieldPrompt(ConversionFields.amountPrompt)))
                 .amountKeyboard($editingAmount, .confirmDirectWeight)
                 .onChange(of: directWeightText) { _, value in model.send(.setDirectWeight(FoodAmountFieldText.parse(value, locale: locale))) }
                 .accessibilityLabel("\(ConversionFields.amountTitle) in grams")

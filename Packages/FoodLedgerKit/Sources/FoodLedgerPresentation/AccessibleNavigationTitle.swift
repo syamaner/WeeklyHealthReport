@@ -72,6 +72,12 @@ public enum FoodSearchFieldText {
             .filter { !$0.isEmpty }
             .joined(separator: " ")
     }
+
+    /// The submission for the field as shown: only the wrapping field (accessibility sizes) takes
+    /// Return as a line break, so at standard sizes a paste never starts a search.
+    public static func submittedQuery(_ text: String, at size: DynamicTypeSize) -> String? {
+        wrapsQuery(at: size) ? submittedQuery(text) : nil
+    }
 }
 
 /// The food and amount field on Add food and Search results. At accessibility sizes the query
@@ -104,7 +110,7 @@ public struct FoodQueryField: View {
         .submitLabel(.search)
         .onSubmit(submit)
         .onChange(of: text) { _, value in
-            guard let submitted = FoodSearchFieldText.submittedQuery(value) else { return }
+            guard let submitted = FoodSearchFieldText.submittedQuery(value, at: dynamicTypeSize) else { return }
             text = submitted
             submit()
         }

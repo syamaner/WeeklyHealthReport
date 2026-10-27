@@ -119,6 +119,8 @@ final class AddFoodSearchPresentationTests: XCTestCase {
         XCTAssertFalse(FavouritesView.rowHidesChevron(at: .large))
         XCTAssertTrue(FavouritesView.rowHidesChevron(at: .accessibility5))
         XCTAssertTrue(AddFoodRecentRowText.stacks(at: .accessibility5), "quick-add favourites stack like Recent")
+        XCTAssertFalse(FoodConfirmationView.movesPlaceholderAbove(at: .xxxLarge), "standard sizes keep the placeholder")
+        XCTAssertTrue(FoodConfirmationView.movesPlaceholderAbove(at: .accessibility5), "AX sizes show it as a wrapping label")
     }
 
     /// #315: a wrapping field takes Return as a line break; the one-line query submits instead.
@@ -128,6 +130,10 @@ final class AddFoodSearchPresentationTests: XCTestCase {
         XCTAssertEqual(FoodSearchFieldText.submittedQuery("3 pieces\nbanana"), "3 pieces banana", "pasted lines join with a space")
         XCTAssertEqual(FoodSearchFieldText.submittedQuery("  2 eggs \r\n\n toast "), "2 eggs toast")
         XCTAssertEqual(FoodSearchFieldText.submittedQuery("\n"), "", "an empty query stays empty; Search rejects it")
+        // Only the wrapping field submits on a line break; a paste at standard sizes never searches.
+        XCTAssertNil(FoodSearchFieldText.submittedQuery("3 pieces\nbanana", at: .large))
+        XCTAssertNil(FoodSearchFieldText.submittedQuery("3 pieces banana\n", at: .xxxLarge))
+        XCTAssertEqual(FoodSearchFieldText.submittedQuery("3 pieces banana\n", at: .accessibility1), "3 pieces banana")
     }
 
     func testConfirmAmountTextHasNoTrailingZeroAndRoundTrips() {

@@ -268,7 +268,7 @@ public struct FavouriteFromLoggedView: View {
         let text = AddFoodRecentRowText(recent, now: now, calendar: calendar)
         let state = model.state(for: id)
         let label = VStack(alignment: .leading, spacing: 3) {
-            Text(text.title).foregroundStyle(.primary)
+            Text(text.title).foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
             // Wraps in full at accessibility sizes ("Last: 1…" was cut short, #315).
             Text(text.detail).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }.accessibilityElement(children: .combine)

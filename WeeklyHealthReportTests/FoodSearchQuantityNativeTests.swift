@@ -743,6 +743,9 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
             }
             func isEmptyPlate(_ field: UITextField) -> Bool {
                 field.placeholder == FoodConfirmationView.emptyPlatePlaceholder || field.text == "330"
+                    // At AX5 the placeholder moves to a label above, so the empty field has none.
+                    || (FoodConfirmationView.movesPlaceholderAbove(at: size) && (field.text ?? "").isEmpty
+                        && (field.placeholder ?? "").isEmpty)
             }
             func describe() -> String {
                 "\(nativeText(host.view)); fields \(fields().map { "\($0.placeholder ?? "")=\($0.text ?? "")" })"
