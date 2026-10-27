@@ -678,6 +678,11 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
             }
             XCTAssertFalse(descendants(host.view).contains { $0.accessibilityIdentifier == "confirm.conversionMethod" && $0 is UITextField },
                            "the method is a picker, not a free-text field")
+            // #318: one layout for a count with no guide, and the Log bar says what the fields need.
+            let shown = nativeText(host.view)
+            XCTAssertFalse(shown.contains { $0.contains("Enter measured weight") }, "no second weight layout beside the count fields")
+            XCTAssertFalse(shown.contains { $0.contains("I weighed it") || $0.contains("I estimated it") }, "one set of method words")
+            XCTAssertFalse(model.offersEnterMeasuredWeight, "the count's fields are the one weight layout")
 
             // What the picker does for each choice.
             var chosen = typed; chosen.method = .choice(method)

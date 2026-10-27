@@ -33,7 +33,7 @@ public enum FoodQuantityEstimate {
 public enum FoodQuantityMethod: Equatable, Sendable {
     /// Grams, millilitres or servings entered directly.
     case direct
-    /// A direct weight the user weighed ("I weighed it").
+    /// A direct weight the user weighed (shown as "Kitchen scale", #318).
     case weighed
     case estimatedByEye
     case kitchenScale

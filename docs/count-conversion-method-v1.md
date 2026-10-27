@@ -26,7 +26,7 @@ There is no free-text option on a new entry, and nothing is chosen for the user:
 - Choosing "Estimated by eye" moves the entry to the direct edible weight path of [direct-edible-weight-contract-v1.md](direct-edible-weight-contract-v1.md) with basis **`estimated` already selected**, because the user has just made that explicit choice. The count stays as the original input (for example 3 count). A gram amount already typed is carried into the gram field; a millilitre amount is not reinterpreted as grams, so the gram field starts empty.
 - The saved record is the existing `weightDeclaration` v1 with `basis = estimated` under `confirm_food_v2`. It is never a `QuantityConversionVersion`.
 - The entry is therefore an estimate everywhere the estimated basis already reaches: Confirm, the saved entry, the Food Log estimate tag, day totals that include estimates, recent foods and the Health report. Nothing new is added to those surfaces.
-- The user can still switch that basis to "I weighed it" or return to the count with "Use original amount instead", exactly as in direct weight v1.
+- The user can still switch that basis to measured ("Kitchen scale" since count-portion-estimate-v1 amendment 2, formerly "I weighed it") or return to the count with "Use original amount instead", exactly as in direct weight v1.
 
 ## 4. Records written before this amendment
 
