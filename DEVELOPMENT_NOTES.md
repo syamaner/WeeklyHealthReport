@@ -3104,6 +3104,21 @@ Invariant review low fixes (WHR-316-2026-10-26-L5): `phase_usage.py --format cla
 
 It also covers the image-pricing wording and the gates. The commit and push fall after 04:50Z and are outside the window. There was no OpenRouter spend. Cache writes 23,462 5-minute, 0 1-hour; exact USD 2.2627164. Same pricing as above; an API-equivalent comparison, not a charge.
 
+## WHR-317-2026-10-27: Claude Code query parser v9 count forms
+
+One `claude-opus-5-5` subagent, transcript `subagents/agent-a992aa3757b7ca1a6.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`, for #317 and the query-parse part of #315 (`food-query-parser-v9`: hard boiled egg counts and "N pieces <item>"). The window is bounded by `date -u` captures, `2026-10-27T05:18:22Z` to `2026-10-27T05:37:04Z`, just before this ledger edit. It covers reading the issues and code, the parser change and tests, the synthetic-v8 evaluation (first run on parser v8, final on v9), the retrieval replay and every gate. The commit after this edit, the push and the PR are outside the window. The orchestrating session and any reviewers are not included.
+
+Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A), not re-checked on the day of this entry: `claude-opus-5-5` USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache hit, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Query parser v9 count forms (#317, #315 parse), subagent | 9,009,081 (8,712,515) | 296,426 | 34,176 | 9,043,257 | $3.91 |
+| Query parser v9 invariant-review fold: end-anchored pieces, eggs-only hard boiled, Unicode hyphens (#317), subagent | 6,098,724 (5,719,441) | 379,213 | 20,532 | 6,119,256 | $3.45 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-27T05:18:22Z --until 2026-10-27T05:37:04Z` on the subagent transcript alone. Cache writes 296,426 5-minute, 0 1-hour; exact USD 3.908713. Review fold: `--since 2026-10-27T05:37:04Z --until 2026-10-27T06:06:44Z`, just before this edit: the first commit, push and PR #330, then the fixes for the #330 invariant review (NEEDS-WORK) with their tests and evaluation cases, the regenerated evaluation, the retrieval replay and every gate (including one `xcodebuild test` rerun after an unrelated Daily export screen test failed once). Cache writes 379,213 5-minute, 0 1-hour; exact USD 3.4508732. Local Swift builds and tests use no API tokens and are not priced.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
+
 ## WHR-318-2026-10-27: Claude Code count entry copy and layout (#318, #303)
 
 One `claude-opus-5-5` subagent, transcript `subagents/agent-a5a5cd6b6e307793c.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`. The window runs from the subagent's first message (`2026-10-27T05:18:16Z`) to `2026-10-27T06:02:13Z`, just before this ledger edit (UTC). It covers reading the issues and the earlier count work, the Confirm, Food Log and saved entry changes, the tests, the contract amendment and the full gate run (twice for the app tests). The commit, push and PR fall after the window. The orchestrating session and any later review or journey QA are not included.
