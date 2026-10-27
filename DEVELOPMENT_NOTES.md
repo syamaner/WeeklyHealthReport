@@ -3056,3 +3056,15 @@ E13 preparation (WHR-316-2026-10-26-L5): `phase_usage.py --format claude --since
 - the spec 17.21 update and every gate.
 
 The paid run did not happen (the session's permission system refused loading the key), so there was no OpenRouter spend. Cache writes 909,441 5-minute, 0 1-hour; exact USD 10.0233818. Same pricing as above; an API-equivalent comparison, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label photo L5 E13 results and offline investigation (#316), subagent | 7,734,179 (6,676,881) | 1,057,254 | 18,446 | 7,752,625 | $6.99 |
+
+E13 results (WHR-316-2026-10-26-L5): `phase_usage.py --format claude --since 2026-10-26T03:10:00Z --until 2026-10-27T02:50:00Z` on the subagent transcript alone. It covers:
+- the fold commit, push and PR note;
+- recording the owner's E13 run;
+- the offline investigation: the preparation refusals, the token budget, the locator exposure (`e13_locate.py`, Vision on this Mac) and the two declines;
+- spec 17.21, and the checks after 02:50Z, which fall outside the window.
+
+The owner's E13 run cost **$0.7929 in OpenRouter charges** on the owner's key. That is a real charge, outside this agent's token use, and it is not included in the token row. Cache writes 1,057,254 5-minute, 0 1-hour; exact USD 6.9907422. Same pricing as above; an API-equivalent comparison, not a charge.

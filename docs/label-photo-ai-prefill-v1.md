@@ -1329,17 +1329,46 @@ The run uses three tools:
   - it refuses an output folder inside the repository.
 - **`e13_score.py`** scores the private records against the bars. It reports identity, median cost, p90 tap latency, no-edit tables (the correction-effort assisted view, with development and untouched kept separate), silent-error tables case by case, and any dated slugs observed. Only counts and case ids go into `Tools/NutritionLabelCaptureEvaluation/results/`.
 
-**E13 status: not run, nothing spent.** The first start stopped at the keyless catalogue check (the reply cap above), so nothing was sent. The second start was refused by this session's permission system, which blocks a command that loads the key file. Running it needs the owner's own permission in the session that runs it, or the owner can run it themselves. From the repository root:
+**E13 run (26 October 2026).** The agent's attempts sent nothing: the first start stopped at the keyless catalogue check (the reply cap above), and the second was refused by the agent session's permission system, which blocks a command that loads the key file. The owner then ran E13 with these commands, from the repository root:
 
 ```bash
 swift run --package-path Tools/LabelPhotoE13 label-photo-e13 --cases ~/WHR-label-eval-private/runs/e13-v1/e13-cases.json --out ~/WHR-label-eval-private/runs/e13-v1 --env-file ~/git/PacePrompt/.env --stop-usd 10 --pause-usd 5
 python3 -I Tools/NutritionLabelCaptureEvaluation/e13_score.py --out Tools/NutritionLabelCaptureEvaluation/results/e13-qualification-v1.json
 ```
 
-The expected spend is about $0.01 to $0.03 a photo, so roughly $1 to $2 for the 70 photos. After the run:
-- record the results here;
-- append any dated slug the replies carry to `pinnedSnapshots`, with its date and a generation ID;
-- only then consider enabling the route.
+**Results** ([`results/e13-qualification-v1.json`](../Tools/NutritionLabelCaptureEvaluation/results/e13-qualification-v1.json), counts and public ids only). The run covered 70 photos:
+- 67 were sent, each answered in one attempt with no retry, at a total cost of **$0.7929**;
+- 3 were refused by preparation and not sent.
+
+| Bar | Result | Verdict |
+|---|---|---|
+| Zero identity mismatches | 67 of 67 replies were `google/gemini-4-argon` from "Google"; no dated slug was returned, so `pinnedSnapshots` stays empty | Pass |
+| Median cost at most $0.02 | $0.0115 (maximum $0.0186) | Pass |
+| p90 latency at most 20 s | 15.5 s (p50 11.4 s, maximum 35.0 s) | Pass |
+| No-edit tables at least 80% of usable, development | 15 of 15 | Pass |
+| No-edit tables at least 80% of usable, untouched | **31 of 40 (77.5%)** | **Fail** |
+| Silent-error tables | 3 untouched, 0 development (see below) | Reported |
+
+The largest prompt was 2,451 tokens, well under the 6,000 ceiling. The 10 refills had 9 answers and 1 truncated answer, and they have no truth yet.
+
+**The 9 untouched tables that need an edit (offline investigation, no spend):**
+1. **Three refused by preparation (`cropTooSmall`, never sent).** These are small public images: 175 x 174, 215 x 350 and 230 x 220 px. The whole photo's short edge is under P5's 240 px minimum, which was set after L0 "to be confirmed by E13". In October, Gemini 4 Argon read all three at this same native size with **no edit**. The model can read them, so the 240 px floor is too strict, for whole photos and crops alike: legibility depends on the pixels the print occupies, not on whether the image was cropped. A phone camera photo rarely meets this floor, but a downloaded or screenshot image can.
+2. **One truncated at `max_tokens` 1,200.** Its completion was 1,200 tokens, including 373 reasoning tokens. A refill was also cut, at 1,200 tokens with no reasoning. In October the untouched one was read with no edit. The answered replies peaked at 1,073 completion tokens, and reasoning reached 537, beyond the 500 limit. **Finding:** this endpoint counts reasoning inside `max_tokens`: the truncated completion equals `max_tokens` with its reasoning included.
+3. **Two route declines, both also declined in October.**
+   - `4710425590197`: a heat seal covers the row labels. The values are legible, but binding them to rows means assuming the statutory row order, which the instruction forbids. This is a correct decline under the no-guessing rule, although a person reading at full zoom can infer the rows.
+   - `4713105808025`: a Taiwan panel and a US Nutrition Facts panel on one photo (`more_than_one_panel`). This is correct for an uncropped photo. In the app it is avoidable, because the user crops to the Taiwan panel; E13 sent whole photos.
+4. **Three silent-error tables.** The assisted scorer counts these, but it does not model the app's locator. `e13_locate.py` runs the shipped locator (`label-photo-vision-locate-v3`, the L0 path) on the E3-prepared bytes. Results are in [`results/e13-locate-v1.json`](../Tools/NutritionLabelCaptureEvaluation/results/e13-locate-v1.json).
+   - **All 6 silent wrong values become attention items** (not found or ambiguous on the photo). None blocks Log, as the adopted attention policy intends.
+   - `4712893950282` and `4972767003715` are fully caught.
+   - `4710022030713` stays partly silent: its wrong servings-per-pack line is found on the photo, so the locator cannot raise it. This is the same table, and the same limitation, as the L0 analysis (17.9).
+   - The same table also carries the **one silent omission**: a row the answer left out entirely, which no locator can raise.
+
+**Projection, not measured.** The following is projected, not measured: lower the P5 minimum so the three refused photos are sent, and raise `max_tokens` so the truncated answer completes. If those 4 photos are then read as they were in October, untouched no-edit becomes **35 of 40 (87.5%)**. Confirming this needs a re-run of those 4 photos (about $0.05), within the owner's $10, and only with the owner's go-ahead.
+
+**Recommended changes (each a route or parameter change for the owner):**
+- **`max_tokens` from 1,200 to 2,400.** This covers the largest observed reasoning (537) plus about 1.6 times the largest visible answer that was cut. Reasoning is billed inside `max_tokens`, so W = 6,000 x $0.0000022 + 2,400 x $0.000011 = **$0.0396**. Keeping the conservative separate-reasoning term (500 more completion tokens) gives W = $0.0451. Either fits the $0.05 per tap. One consequence: after a failed attempt with a reported cost above about $0.0104 (or $0.0049 at $0.0451), no retry fits. Retryable failures (busy, rate limited) usually report no cost or $0, so they still retry. It changes the request golden, and the request-golden note above says any such change is a new route version within the same $0.05.
+- **P5 minimum short edge from 240 px to 160 px.** All three refused photos then pass, and the smallest of them (174 px) was read without an edit in October. The 8-times aspect rule played no part.
+- **No change to declines.** Both are correct under the instruction, and the crop step removes the second in the app.
 
 **iPhone run (17.17 (c)).** The paired iPhone (SiPhone, iOS 27.0.1) was offline on 26 October 2026, so the run is **an open gate**. Command, from `Packages/FoodLedgerKit`, with the device unlocked and connected:
 
