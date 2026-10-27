@@ -21,11 +21,11 @@ public enum FoodLogRequirementText {
         case .measuredWeightMissing:
             "Enter the total edible weight in grams, greater than zero. Weigh only the food you ate."
         case .weightBasisMissing:
-            "Choose whether you weighed it or estimated it."
+            "Choose how you got the weight."
         case .retainedWeightNeedsConfirmation:
             "The food changed. Check that the weight still describes it, then choose ‘Keep this weight’."
         case .countNeedsMeasuredAmount:
-            "Enter the total weight and how you got it, or change the unit to g or mL."
+            "Enter the total weight and choose how you got it, or change the unit to g or mL."
         case .emptyPlateWeightMissing:
             "Enter the empty plate weight, or choose food only."
         case .plateNeedsGramTotal:

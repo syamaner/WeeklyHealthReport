@@ -64,7 +64,7 @@ final class CountPortionEstimatePresentationTests: XCTestCase {
         XCTAssertFalse(model.showsPortionGuide)
         XCTAssertTrue(model.offersTypicalWeight)
         XCTAssertEqual(model.requirements, [.countNeedsMeasuredAmount])
-        XCTAssertEqual(model.blockedReason, "Enter the total weight and how you got it, or change the unit to g or mL.")
+        XCTAssertEqual(model.blockedReason, "Enter the total weight and choose how you got it, or change the unit to g or mL.")
         XCTAssertFalse(model.logButtonTitle.contains("about"), "no estimate while correcting")
         // Kitchen scale 120 g: measured, no "about".
         model.send(.setConversion(QuantityConversionDraft(convertedQuantity: try PositiveQuantity(value: 120, unit: .grams),
@@ -131,8 +131,76 @@ final class CountPortionEstimatePresentationTests: XCTestCase {
         model.endDirectWeight(restoring: FoodConfirmationView.ConversionFields.cleared.draft(locale: locale))
         XCTAssertNil(model.state.quantity.conversion)
         XCTAssertFalse(model.canLog)
-        XCTAssertEqual(model.blockedReason, "Enter the total weight and how you got it, or change the unit to g or mL.",
+        XCTAssertEqual(model.blockedReason, "Enter the total weight and choose how you got it, or change the unit to g or mL.",
                        "empty fields: blocked, and the reason matches what is shown")
+    }
+
+    /// #318 item 1 and #303 item 4: after Change, a weight with no method. The Log bar names the
+    /// missing method with the field's own sentence; with nothing entered it keeps the g or mL way out.
+    func testLogBarNamesTheMissingCountFieldLikeTheField() throws {
+        let guides = try USDACountPortionGuides()
+        let model = FoodConfirmationViewModel(state: try eggs(guides: guides), portionGuides: guides,
+                                              now: { [now] in now }, calendar: calendar) { _ in throw CocoaError(.fileWriteUnknown) }
+        model.changeTypicalWeight()
+        typealias Fields = FoodConfirmationView.ConversionFields
+        let weightOnly = Fields(text: "168", unit: .grams, method: nil)
+        XCTAssertEqual(model.requirements, [.countNeedsMeasuredAmount], "the rule is unchanged")
+        XCTAssertEqual(model.blockedReason(countFields: weightOnly, locale: locale), "Choose how you got the weight.")
+        XCTAssertEqual(model.blockedReason(countFields: weightOnly, locale: locale), weightOnly.requirementText(locale: locale),
+                       "bar and field say the same thing")
+        let methodOnly = Fields(text: "", unit: .grams, method: .choice(.kitchenScale))
+        XCTAssertEqual(model.blockedReason(countFields: methodOnly, locale: locale), "Enter the total weight.")
+        XCTAssertEqual(model.blockedReason(countFields: .cleared, locale: locale),
+                       "Enter the total weight and choose how you got it, or change the unit to g or mL.")
+        XCTAssertEqual(model.blockedReason(countFields: nil, locale: locale), model.blockedReason)
+        XCTAssertFalse(model.canLog)
+    }
+
+    /// #318 items 2 and 3: a count with no guide (a fried egg, like a banana) shows one layout. No "Enter measured
+    /// weight" beside the count's own weight fields; weighing on a plate opens the gram total with
+    /// the count kept, and the direct weight's method uses the count picker's words.
+    func testNoGuideCountShowsOneLayoutAndPlateOpensTheGramTotal() throws {
+        let guides = try USDACountPortionGuides()
+        var state = try eggs(name: "Eggs, chicken, whole, fried in sunflower oil", guides: guides)
+        FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(3, .count))
+        let model = FoodConfirmationViewModel(state: state, portionGuides: guides,
+                                              now: { [now] in now }, calendar: calendar) { _ in throw CocoaError(.fileWriteUnknown) }
+        XCTAssertFalse(model.showsPortionGuide)
+        XCTAssertTrue(model.showsCountMethodPicker)
+        XCTAssertFalse(model.offersEnterMeasuredWeight, "one layout: the count's weight fields")
+        model.send(.setQuantity(nil, .count))
+        XCTAssertEqual(model.originalAmountRequirement, "Enter an amount greater than zero.",
+                       "the copy does not name a control that is not shown")
+        model.send(.setQuantity(3, .count))
+
+        model.beginCountPlateWeighing()
+        XCTAssertNotNil(model.state.quantity.directWeight, "the plate needs a gram total")
+        XCTAssertEqual(model.state.quantity.value, 3, "the count is kept as the original amount")
+        XCTAssertFalse(model.showsCountMethodPicker)
+        XCTAssertFalse(model.offersEnterMeasuredWeight, "journey QA D1 (PR #331): no disabled button on the plate path")
+        model.send(.setPlateChoice(.missing))
+        XCTAssertFalse(model.offersEnterMeasuredWeight, "still hidden once the plate is chosen")
+        XCTAssertEqual(FoodConfirmationView.directWeightAccessibilityLabel(usesPlate: true), "Total food and plate weight in grams")
+        XCTAssertEqual(FoodConfirmationView.directWeightAccessibilityLabel(usesPlate: false), "Total edible weight in grams")
+        XCTAssertEqual(FoodConfirmationView.emptyPlateAccessibilityLabel, "Empty plate weight in grams")
+        model.send(.setDirectWeight(500))
+        XCTAssertEqual(model.blockedReason, "Choose how you got the weight.", "the same words as the count field")
+        XCTAssertEqual(FoodConfirmationView.weightBasisLabel(.measured), "Kitchen scale")
+        XCTAssertEqual(FoodConfirmationView.weightBasisLabel(.estimated), "Estimated by eye")
+        model.send(.setWeightBasis(.measured))
+        model.send(.setPlateChoice(.new(emptyWeight: try PositiveQuantity(value: 330, unit: .grams), superseding: nil)))
+        XCTAssertTrue(model.requirements.isEmpty, "\(model.requirements)")
+        XCTAssertTrue(model.canLog)
+
+        // Not on a saved screen, and not for a gram amount.
+        let grams = FoodConfirmationViewModel(state: try eggs(name: "Eggs, chicken, whole, fried in sunflower oil", guides: guides), portionGuides: guides,
+                                              now: { [now] in now }, calendar: calendar) { _ in throw CocoaError(.fileWriteUnknown) }
+        grams.chooseQuantityUnit(.grams)
+        grams.beginCountPlateWeighing()
+        XCTAssertNil(grams.state.quantity.directWeight)
+        XCTAssertTrue(grams.offersEnterMeasuredWeight, "a gram amount keeps the measured weight route")
+        grams.send(.beginDirectWeight)
+        XCTAssertFalse(grams.offersEnterMeasuredWeight, "hidden while the direct weight it opens is on screen")
     }
 
     func testNoGuideOnGramsOrForAnotherFood() throws {
@@ -234,7 +302,7 @@ final class CountPortionEstimatePresentationTests: XCTestCase {
                                               edible: try PositiveQuantity(value: 60, unit: .grams), isServings: true,
                                               method: .direct, locale: locale), "2 servings · 60 g")
         let labels: [(FoodQuantityMethod, String?)] = [(large, "Typical weight"), (.estimatedByEye, "Estimated by eye"),
-            (.kitchenScale, "Kitchen scale"), (.packageWeight, "Package weight"), (.weighed, "Weighed"),
+            (.kitchenScale, "Kitchen scale"), (.packageWeight, "Package weight"), (.weighed, "Kitchen scale"),
             (.wholeMilkVolume, "Whole milk volume estimate"), (.recorded("on the scale"), "Recorded: on the scale"), (.direct, nil)]
         for (method, label) in labels { XCTAssertEqual(FoodLogText.methodLabel(method), label) }
         XCTAssertEqual(FoodLogText.methodDetail(large, locale: locale), "Typical weight, Large, about 50 g each")
@@ -254,6 +322,25 @@ final class CountPortionEstimatePresentationTests: XCTestCase {
                                      methodFrom: .estimatedByEye, methodTo: .estimatedByEye)),
                        "Weight changed about 150 g to about 120 g")
         XCTAssertFalse(history(.init(from: three, to: three, edibleFrom: g150, edibleTo: g120)).contains("3 pieces to 3 pieces"))
+        // #318: a direct weighed amount reads "Kitchen scale" too, so switching names no change.
+        XCTAssertEqual(history(.init(from: three, to: three, edibleFrom: g150, edibleTo: g120,
+                                     methodFrom: .kitchenScale, methodTo: .weighed)),
+                       "Weight changed 150 g to 120 g")
+        XCTAssertEqual(history(.init(from: three, to: three, edibleFrom: g150, edibleTo: g120,
+                                     methodFrom: .weighed, methodTo: .estimatedByEye)),
+                       "Weight changed 150 g to about 120 g · now Estimated by eye")
+    }
+
+    /// #303: a number never wraps away from its unit at accessibility sizes; nothing else changes.
+    func testKeepingUnitsAttachedJoinsOnlyNumberAndUnit() {
+        let nbsp = "\u{00A0}"
+        XCTAssertEqual(FoodLogText.keepingUnitsAttached("3 pieces · about 168 g"), "3\(nbsp)pieces · about 168\(nbsp)g")
+        XCTAssertEqual(FoodLogText.keepingUnitsAttached("1 piece · 200 mL · 1 serving · 2 servings · 215 kcal"),
+                       "1\(nbsp)piece · 200\(nbsp)mL · 1\(nbsp)serving · 2\(nbsp)servings · 215\(nbsp)kcal")
+        XCTAssertEqual(FoodLogText.keepingUnitsAttached("1,5 g and 12.5 g"), "1,5\(nbsp)g and 12.5\(nbsp)g")
+        XCTAssertEqual(FoodLogText.keepingUnitsAttached("Less than 3 kcal"), "Less than 3\(nbsp)kcal")
+        XCTAssertEqual(FoodLogText.keepingUnitsAttached("3 grapes, 2 go"), "3 grapes, 2 go", "only whole unit words")
+        XCTAssertEqual(FoodLogText.keepingUnitsAttached("Eggs, boiled"), "Eggs, boiled")
     }
 
     func testSavedEntryAndFoodLogRowShowTheEstimateAndMethod() throws {
