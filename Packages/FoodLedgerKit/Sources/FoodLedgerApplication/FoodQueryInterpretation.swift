@@ -115,8 +115,9 @@ public struct FoodQueryInterpretation: Equatable, Sendable {
     /// gives "cheese"), or nil when the text does not start with one. Retrieval only: the
     /// route, reasons and original evidence are unchanged, and the amount is never a quantity
     /// or a suggestion. The units are the parser's household units plus slices. Units that
-    /// also start food names (pot noodle, glass noodles, bottle gourd, pack choi, cup cake)
-    /// are only a portion when "of" follows that leading unit in the original.
+    /// also start food names (pot noodle, glass noodles, bottle gourd, pack choi) are only a
+    /// portion when "of" follows that leading unit in the original. "cup" is a portion without
+    /// "of" ("1 cup rice"), except before "cake" or "cakes".
     static func foodWithoutLeadingPortion(_ food: String, original: String) -> String? {
         let pattern = #"^(?:(\d+(?:\.\d+)?|\.\d+|half|one|two|three|four|five|six|a|an)\s+(?:x\s+)?(bowl|handfuls?|jars?|tubs?|cans?|bags?|packets?|pieces?|ladles?|pot|pack|glass|cup|mug|tins?|sachets?|bottles?|plates?|pints?|dollops?|cartons?|scoops?|servings?|portions?|tablespoons?|teaspoons?|oz|ounce|slices?)|some)\s+(.*\p{L}.*)$"#
         guard let regex = try? NSRegularExpression(pattern: pattern),
@@ -125,7 +126,8 @@ public struct FoodQueryInterpretation: Equatable, Sendable {
         if let amount = Range(match.range(at: 1), in: food), let value = Double(food[amount]), value <= 0 { return nil }
         if let unitRange = Range(match.range(at: 2), in: food) {
             let unit = String(food[unitRange])
-            if ["pot", "glass", "bottle", "bottles", "pack", "cup"].contains(unit),
+            if unit == "cup", food[rest].range(of: #"^cakes?\b"#, options: .regularExpression) != nil { return nil }
+            if ["pot", "glass", "bottle", "bottles", "pack"].contains(unit),
                original.range(of: #"^\s*\S+\s+(?:x\s+)?"# + unit + #"\s+of\b"#, options: [.regularExpression, .caseInsensitive]) == nil { return nil }
         }
         return String(food[rest])
