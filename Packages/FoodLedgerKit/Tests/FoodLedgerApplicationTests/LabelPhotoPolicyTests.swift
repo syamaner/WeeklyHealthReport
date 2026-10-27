@@ -95,15 +95,19 @@ final class LabelPhotoSpendPolicyTests: XCTestCase {
 
     /// Gemini 4 Argon's recorded catalogue prices: $2 and $10 per million tokens.
     let gemini = S.Prices(promptPerToken: Decimal(string: "0.000002")!, completionPerToken: Decimal(string: "0.00001")!,
-                          reasoningBilledSeparately: false)
+                          reasoningBilledSeparately: false, maxOutputTokens: LabelPhotoRoute.v1.maxOutputTokens)
 
     func testWorstCaseIsPinnedForTheRequestGolden() {
         XCTAssertEqual(S.maxTokens, 1_200)
         XCTAssertEqual(S.reasoningLimit, 500)
         XCTAssertEqual(S.worstCase(gemini), Decimal(string: "0.024"))
         let separate = S.Prices(promptPerToken: gemini.promptPerToken, completionPerToken: gemini.completionPerToken,
-                                reasoningBilledSeparately: true)
+                                reasoningBilledSeparately: true, maxOutputTokens: LabelPhotoRoute.v1.maxOutputTokens)
         XCTAssertEqual(S.worstCase(separate), Decimal(string: "0.029"))
+        // Route v2's 2,400 tokens at the same prices.
+        let v2 = S.Prices(promptPerToken: gemini.promptPerToken, completionPerToken: gemini.completionPerToken,
+                          reasoningBilledSeparately: true, maxOutputTokens: LabelPhotoRoute.v2US.maxOutputTokens)
+        XCTAssertEqual(S.worstCase(v2), Decimal(string: "0.041"))
     }
 
     func testPerTapBudgetCountsReportedUnreportedAndCancelledAttempts() {
@@ -118,7 +122,7 @@ final class LabelPhotoSpendPolicyTests: XCTestCase {
                                         prices: gemini))
         // Billed separately, W is $0.029: after an unreported failure no retry fits.
         let separate = S.Prices(promptPerToken: gemini.promptPerToken, completionPerToken: gemini.completionPerToken,
-                                reasoningBilledSeparately: true)
+                                reasoningBilledSeparately: true, maxOutputTokens: LabelPhotoRoute.v1.maxOutputTokens)
         XCTAssertFalse(S.mayStartAttempt(after: [.init(reportedCost: nil, promptTokens: nil)], prices: separate))
     }
 

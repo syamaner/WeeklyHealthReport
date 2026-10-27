@@ -3092,3 +3092,14 @@ E13 re-run record (WHR-316-2026-10-26-L5): `phase_usage.py --format claude --sin
 - spec 17.21.
 
 The commit and push for this record fall after 04:40Z and are outside the window. The coordinator ran the 4-photo re-run under the owner's approval, and it cost **$0.0796 in OpenRouter charges**. E13's total charge on the owner's key is $0.8540. Both are real charges, outside this agent's token use. Cache writes 483,453 5-minute, 0 1-hour; exact USD 3.2342592. Same pricing as above; an API-equivalent comparison, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label photo L5 invariant review low fixes (#316), subagent | 9,240,034 (9,216,532) | 23,462 | 15,097 | 9,255,131 | $2.26 |
+
+Invariant review low fixes (WHR-316-2026-10-26-L5): `phase_usage.py --format claude --since 2026-10-27T04:40:00Z --until 2026-10-27T04:50:00Z` on the subagent transcript alone. It starts where the E13 re-run row ends and covers that row's push and CI check, plus the three fixes:
+- no default for the route's tokens in `Prices`;
+- the records-file identity guard;
+- the true total stop.
+
+It also covers the image-pricing wording and the gates. The commit and push fall after 04:50Z and are outside the window. There was no OpenRouter spend. Cache writes 23,462 5-minute, 0 1-hour; exact USD 2.2627164. Same pricing as above; an API-equivalent comparison, not a charge.

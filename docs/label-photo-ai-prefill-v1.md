@@ -1283,7 +1283,7 @@ The owner approved L5 on 26 October 2026 ("Yes, start L5"). This PR wires the li
   ```
 
   The checker classes each field as follows:
-  - **Input at or below the prompt rate:** `image`, `input_cache_read` and `input_cache_write`. Image tokens are counted in the prompt tokens, and a cached input can only cost less, so W already covers these. A rate above the prompt rate fails closed.
+  - **Input at or below the prompt rate:** `image`, `input_cache_read` and `input_cache_write`. A rate above the prompt rate fails closed. The catalogue does not say whether `image` is charged per token or per image. Bounded at or below the prompt rate it is small either way, and the headroom of W's 6,000-token prompt ceiling over the largest prompt E13 observed (2,451 tokens) covers it. A cached input can only cost less.
   - **Never sent:** `audio`, `input_audio_cache` and `web_search`. The request has no audio and no plugins or tools, so any well-formed price passes.
   - **`internal_reasoning`:** must be at or below the completion rate, and non-zero only when the session bills reasoning separately.
   - **`discount`:** a number from 0 up to, but not including, 1. W ignores it and stays the undiscounted, larger bound.

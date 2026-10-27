@@ -21,7 +21,9 @@ import Foundation
 //         --out ~/WHR-label-eval-private/runs/e13-v1 --env-file ~/git/PacePrompt/.env --stop-usd 10 --pause-usd 5
 //
 // `--only ID,ID,...` re-runs just those case ids, and then `--records NAME.jsonl` is required and
-// must not be the full run's `e13-records.jsonl`, so the full run's records stay intact.
+// must not be the full run's `e13-records.jsonl` (compared ignoring case, and by file identity once
+// resolved), so the full run's records stay intact. `--stop-usd` and `--pause-usd` count the full
+// run's charges as well as this file's, so the stop is a true total.
 
 struct Arguments {
     var cases: URL?
@@ -56,9 +58,22 @@ struct Arguments {
             }
         }
         // A partial re-run never writes into the full run's records.
-        if arguments.only != nil, arguments.records == "e13-records.jsonl" { return nil }
+        if arguments.only != nil, arguments.records.lowercased() == fullRunRecords { return nil }
         return arguments.cases != nil && arguments.out != nil && arguments.envFile != nil ? arguments : nil
     }
+}
+
+let fullRunRecords = "e13-records.jsonl"
+
+/// Whether two paths name the same file: by file identity when both exist (a case-insensitive
+/// volume, a symbolic or hard link), otherwise by resolved path ignoring case.
+func sameFile(_ a: URL, _ b: URL) -> Bool {
+    let ra = a.resolvingSymlinksInPath(), rb = b.resolvingSymlinksInPath()
+    if let ia = try? ra.resourceValues(forKeys: [.fileResourceIdentifierKey]).fileResourceIdentifier,
+       let ib = try? rb.resourceValues(forKeys: [.fileResourceIdentifierKey]).fileResourceIdentifier {
+        return ia.isEqual(ib)
+    }
+    return ra.standardizedFileURL.path.lowercased() == rb.standardizedFileURL.path.lowercased()
 }
 
 struct Case: Codable {
@@ -214,6 +229,9 @@ let outDirectory = arguments.out!.standardizedFileURL
 guard !outDirectory.path.hasPrefix(repository + "/") else { fail("--out must be outside the repository") }
 try FileManager.default.createDirectory(at: outDirectory, withIntermediateDirectories: true)
 let recordsURL = outDirectory.appendingPathComponent(arguments.records)
+let fullRunURL = outDirectory.appendingPathComponent(fullRunRecords)
+let separateRecords = !sameFile(recordsURL, fullRunURL)
+if arguments.only != nil, !separateRecords { fail("--records resolves to the full run's \(fullRunRecords); choose another file") }
 
 let keys = EnvironmentKey(file: arguments.envFile!)
 guard let key = keys.key, FoodWebKeySyntax.isValid(key) else { fail("no well-formed OPENROUTER_API_KEY in --env-file") }
@@ -230,6 +248,13 @@ if let existing = try? String(contentsOf: recordsURL, encoding: .utf8) {
     for line in existing.split(whereSeparator: \.isNewline) {
         guard let record = try? JSONDecoder().decode(Record.self, from: Data(line.utf8)) else { fail("unreadable existing record; refusing to continue") }
         done.insert(record.id)
+        spent += decimal(record.chargedUSD) ?? LabelPhotoSpendPolicy.perTapLimit
+    }
+}
+// A partial re-run's stops count the full run's charges too (invariant review of #329).
+if separateRecords, let full = try? String(contentsOf: fullRunURL, encoding: .utf8) {
+    for line in full.split(whereSeparator: \.isNewline) {
+        guard let record = try? JSONDecoder().decode(Record.self, from: Data(line.utf8)) else { fail("unreadable full-run record; refusing to continue") }
         spent += decimal(record.chargedUSD) ?? LabelPhotoSpendPolicy.perTapLimit
     }
 }

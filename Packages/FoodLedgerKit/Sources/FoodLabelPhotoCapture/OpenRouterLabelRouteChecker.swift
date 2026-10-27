@@ -92,9 +92,11 @@ public struct OpenRouterLabelRouteChecker: LabelPhotoRouteChecking {
     /// stands against W, which prices 6,000 prompt tokens and the completion (plus reasoning when
     /// it is billed separately). Any field not named here fails the route closed.
     ///
-    /// - `image`, `input_cache_read`, `input_cache_write`: input priced at or below the prompt
-    ///   rate. Image tokens are counted in the prompt tokens, and a cached input can only cost
-    ///   less, so W already covers them. A rate above the prompt rate fails closed.
+    /// - `image`, `input_cache_read`, `input_cache_write`: each must be at or below the prompt rate,
+    ///   or the route fails closed. The catalogue does not say whether `image` is per token or per
+    ///   image; at or below the prompt rate it is bounded either way, and W's 6,000-token prompt
+    ///   ceiling leaves headroom over the largest prompt E13 observed (2,451 tokens) that covers it.
+    ///   A cached input can only cost less than the prompt rate.
     /// - `audio`, `input_audio_cache`, `web_search`: modalities and tools the request never sends
     ///   (no audio, no plugins or tools), so they cannot be charged. Any well-formed price passes.
     /// - `internal_reasoning`: at or below the completion rate, and non-zero only when the session

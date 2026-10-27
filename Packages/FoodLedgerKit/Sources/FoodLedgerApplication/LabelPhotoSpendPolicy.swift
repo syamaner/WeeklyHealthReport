@@ -4,8 +4,8 @@ import Foundation
 /// Pure: prices, the day and the recorded counts come in; no clock, network or storage.
 ///
 /// - Per tap, $0.05 in total across every attempt that sent bytes. Before each attempt its worst
-///   case W (6,000 prompt tokens at the prompt price, plus `maxTokens` at the completion price,
-///   plus the reasoning limit as well when the endpoint bills reasoning outside `maxTokens`) must
+///   case W (6,000 prompt tokens at the prompt price, plus the route's `max_tokens` at the completion
+///   price, plus the reasoning limit as well when the endpoint bills reasoning separately) must
 ///   fit in what the tap has left. An attempt is charged its reported cost, or W when none is
 ///   reported (including one cut by Cancel).
 /// - Per local calendar day, at most 30 reads and $0.50. A tap is admitted only while the day's
@@ -36,8 +36,8 @@ public enum LabelPhotoSpendPolicy {
         public let reasoningBilledSeparately: Bool
         /// The route's `max_tokens` (17.21): 1,200 for route v1, 2,400 for route v2.
         public let maxOutputTokens: Int
-        public init(promptPerToken: Decimal, completionPerToken: Decimal, reasoningBilledSeparately: Bool,
-                    maxOutputTokens: Int = LabelPhotoSpendPolicy.maxTokens) {
+        /// `maxOutputTokens` has no default: every caller passes its route's tokens (invariant review of #329).
+        public init(promptPerToken: Decimal, completionPerToken: Decimal, reasoningBilledSeparately: Bool, maxOutputTokens: Int) {
             self.promptPerToken = promptPerToken; self.completionPerToken = completionPerToken
             self.reasoningBilledSeparately = reasoningBilledSeparately; self.maxOutputTokens = maxOutputTokens
         }
