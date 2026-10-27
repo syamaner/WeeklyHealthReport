@@ -91,10 +91,8 @@ public struct AddFoodView: View {
         Form {
             Section {
                 HStack {
-                    TextField(FoodSearchFieldText.prompt(example: "2 scrambled eggs", at: dynamicTypeSize), text: $text)
-                        .accessibilityLabel("Food and amount")
-                        .submitLabel(.search)
-                        .onSubmit(submit)
+                    FoodQueryField(prompt: FoodSearchFieldText.prompt(example: "2 scrambled eggs", at: dynamicTypeSize),
+                                   text: $text, submit: submit)
                     if !text.isEmpty {
                         Button { text = "" } label: {
                             Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
@@ -114,12 +112,8 @@ public struct AddFoodView: View {
                 if let photoLabel {
                     Button(action: photoLabel) {
                         HStack {
-                            Label {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(LabelPhotoText.addFoodRow)
-                                    Text(LabelPhotoText.addFoodRowSubtitle).font(.footnote).foregroundStyle(.secondary)
-                                }
-                            } icon: { Image(systemName: "camera.viewfinder") }
+                            RouteRowLabel(LabelPhotoText.addFoodRow, systemImage: "camera.viewfinder",
+                                          subtitle: LabelPhotoText.addFoodRowSubtitle)
                             .foregroundStyle(.primary)
                             Spacer(minLength: 0)
                             Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary).accessibilityHidden(true)
@@ -144,11 +138,9 @@ public struct AddFoodView: View {
                 case let .items(items):
                     ForEach(Array(items.enumerated()), id: \.offset) { _, item in
                         Button { quickAdd?(item) } label: {
-                            HStack {
-                                Text(QuickAddText.title(item)).foregroundStyle(.primary)
-                                Spacer(minLength: 8)
-                                Text(QuickAddText.defaultAmount(item, servings: favouriteAmountIsServings(item))).font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
-                            }.frame(minHeight: 44).contentShape(Rectangle())
+                            favouriteRow(title: QuickAddText.title(item),
+                                         amount: QuickAddText.defaultAmount(item, servings: favouriteAmountIsServings(item)))
+                                .frame(minHeight: 44).contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .accessibilityHint("Opens quick add. Nothing is logged until you choose Log.")
@@ -232,10 +224,30 @@ public struct AddFoodView: View {
         search(trimmed)
     }
 
+    /// A quick-add favourite: name and default amount side by side, stacked at accessibility sizes
+    /// like the Recent rows, so the name keeps the full width (#315).
+    @ViewBuilder
+    private func favouriteRow(title: String, amount: String) -> some View {
+        if AddFoodRecentRowText.stacks(at: dynamicTypeSize) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title).foregroundStyle(.primary)
+                Text(amount).font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 4)
+        } else {
+            HStack {
+                Text(title).foregroundStyle(.primary)
+                Spacer(minLength: 8)
+                Text(amount).font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
+            }
+        }
+    }
+
     private func routeRow(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack {
-                Label(title, systemImage: systemImage).foregroundStyle(.primary)
+                RouteRowLabel(title, systemImage: systemImage).foregroundStyle(.primary)
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary).accessibilityHidden(true)
             }.frame(minHeight: 44).contentShape(Rectangle())

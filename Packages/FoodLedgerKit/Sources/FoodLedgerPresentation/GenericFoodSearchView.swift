@@ -382,10 +382,9 @@ public struct GenericFoodSearchView: View {
     public var body: some View {
         Form {
             Section {
-                TextField(FoodSearchFieldText.prompt(example: "150 g grilled chicken", at: dynamicTypeSize), text: $model.query)
-                    .accessibilityLabel("Food and amount")
-                    .submitLabel(.search)
-                    .onSubmit { if model.activeEnrichmentStage == nil { model.search() } }
+                // Wraps at accessibility sizes instead of truncating the query (#315).
+                FoodQueryField(prompt: FoodSearchFieldText.prompt(example: "150 g grilled chicken", at: dynamicTypeSize),
+                               text: $model.query) { if model.activeEnrichmentStage == nil { model.search() } }
                 chips
                 if model.phase == .idle, model.activeEnrichmentStage == nil {
                     Button("Search") { model.search() }
