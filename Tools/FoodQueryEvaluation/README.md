@@ -118,18 +118,20 @@ python3 Tools/FoodQueryEvaluation/score.py Tools/FoodQueryEvaluation/synthetic-v
 
 ## Current checkpoint: v8 (food-query-parser-v9)
 
-558 cases: v7 unchanged plus 16 count-form cases (`build_v8.py`, family
+563 cases: v7 unchanged plus 21 count-form cases (`build_v8.py`, family
 `count_forms_v8`) for #317 and the parse part of #315. Nine are counts ("2 hard
 boiled eggs", "a hard boiled egg", "3 pieces banana", "3 pieces of banana",
-"2 pieces apple" and similar); seven are boundaries that must not become counts
-or must reject ("a piece of banana", "3 pieces cheese", "2 hard bananas", a
-count with a mass, and zero). See `docs/food-query-parser-v9.md`. The first run
+"2 pieces apple" and similar); twelve are boundaries that must not become counts
+or must reject ("a piece of banana", "3 pieces cheese", "3 pieces of apple
+pie", "2 pieces banana bread", "2 pieces of egg fried rice", "3 pieces of red
+pepper", "2 hard bananas", "2 hard boiled bananas", a count with a mass, and
+zero). See `docs/food-query-parser-v9.md`. The first run
 used parser v8, whose hash `manifest-v8.json` records.
 
 | Run | Routing | Quantity | Search cases, all fields | Unexpected prefills |
 |---|---:|---:|---:|---:|
-| v8 first run (parser v8) | 549/558 | 549/558 | 372/381 | 0 |
-| v8 final (parser v9) | 558/558 | 558/558 | 381/381 | 0 |
+| v8 first run (parser v8) | 554/563 | 554/563 | 372/381 | 0 |
+| v8 final (parser v9) | 563/563 | 563/563 | 381/381 | 0 |
 
 The v7 gate still passes and parser v9's v7 predictions are byte-identical to
 `predictions/v7-final.json.gz`. CI now gates v8.

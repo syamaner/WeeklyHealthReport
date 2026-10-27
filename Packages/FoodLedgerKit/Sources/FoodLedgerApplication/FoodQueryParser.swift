@@ -79,6 +79,8 @@ public enum FoodQueryParser {
         }
         // Standardise number notation without changing the retained evidence.
         for dash in ["−", "–", "—"] { text = text.replacingOccurrences(of: dash, with: "-") }
+        // v9: a Unicode hyphen (U+2010, U+2011) joining two letters is the ASCII hyphen ("hard‑boiled").
+        text = text.replacingOccurrences(of: #"(?<=\p{L})[\x{2010}\x{2011}](?=\p{L})"#, with: "-", options: .regularExpression)
         for m in matches(#"(?<![\w.])(-?\d+)\s+(\d+)/(\d+)(?![\d/])"#, text).reversed() {
             let whole = Double(capture(m, 1, text)) ?? 0
             let numerator = Double(capture(m, 2, text)) ?? 0
@@ -159,14 +161,14 @@ public enum FoodQueryParser {
         // A bounded whole-item name admits counts, never an estimated mass.
         // The end anchor keeps pepper soup/sauce and other preparations out.
         // v8: scrambled, fried and poached count only before eggs; the method stays in the food text.
-        // v9: hard boiled (spaced or hyphenated) counts like boiled; the words stay in the food text.
-        let countedFood = #"(?:medium\s+)?(?:(?:soft boiled\s+|hard[ -]boiled\s+|boiled\s+)?(?:eggs?|bananas?|avocados?|apples?|clementines?|mandarins?|pretzels?)|(?:scrambled|fried|poached)\s+eggs?)\b"#
+        // v9: hard boiled (spaced or hyphenated) counts before eggs only; the words stay in the food text.
+        let countedFood = #"(?:medium\s+)?(?:(?:soft boiled\s+|boiled\s+)?(?:eggs?|bananas?|avocados?|apples?|clementines?|mandarins?|pretzels?)|(?:scrambled|fried|poached|hard[ -]boiled)\s+eggs?)\b"#
         let discretePepper = #"(?:(?:small|medium|large)\s+)?(?:(?:red|green|yellow|orange|bell)\s+)*peppers?(?:\s+(?:raw|cooked))?\s*$"#
-        let countedItem = #"(?:"# + countedFood + #"|"# + discretePepper + #")"#
         // v9: "3 pieces banana" and "2 pieces of apple" name the count unit the app shows for
-        // "3 bananas". Only a numeral or number word before a bounded whole-item name; "a piece of
-        // apple" stays a portion question, and "pieces" before any other food stays household.
-        text = text.replacingOccurrences(of: #"^(zero|one|two|three|-?\d+(?:\.\d+)?)\s+pieces?\s+(?:of\s+)?(?="# + countedItem + #")"#,
+        // "3 bananas". Only a numeral or number word before a bounded whole-item name that ends the
+        // food text: "pieces of apple pie" or "banana bread" stay household, and so do peppers, whose
+        // pieces are usually chopped. "a piece of apple" stays a portion question.
+        text = text.replacingOccurrences(of: #"^(zero|one|two|three|-?\d+(?:\.\d+)?)\s+pieces?\s+(?:of\s+)?(?="# + countedFood + #"\s*$)"#,
                                          with: "$1 ", options: .regularExpression)
         let householdAmount = !matches(#"\b(bowl|handfuls?|jars?|tubs?|cans?|bags?|packets?|pieces?|ladles?|pot|pack|glass|cup|mug|tins?|sachets?|bottles?|plates?|pints?|dollops?|cartons?|scoops?|servings?|portions?|tablespoons?|teaspoons?|oz|ounce|some)\b"#, text).isEmpty
         let hasSliceDescriptor = !matches(#"\bslices?\b"#, text).isEmpty
@@ -174,7 +176,7 @@ public enum FoodQueryParser {
         if householdAmount || (hasSliceDescriptor && !hasSingleMass) { reasons.append("portion_requires_confirmation") }
         if text.contains("grounds") { reasons.append("grounds_are_not_drink_weight") }
         if text.contains("homemade") || text.contains("smoothie") || text.contains("mixed vegetables") { reasons.append("recipe_unknown") }
-        let countPattern = #"^(half|zero|one|two|three|a|an|-?\d+(?:\.\d+)?)\s*x?\s*(?:an?\s+)?(?="# + countedItem + #")"#
+        let countPattern = #"^(half|zero|one|two|three|a|an|-?\d+(?:\.\d+)?)\s*x?\s*(?:an?\s+)?(?=(?:"# + countedFood + #"|"# + discretePepper + #"))"#
         if let m = matches(countPattern, text).first {
             let token = capture(m, 1, text)
             let words: [String: Double] = ["half": 0.5, "zero": 0, "one": 1, "two": 2, "three": 3, "a": 1, "an": 1]

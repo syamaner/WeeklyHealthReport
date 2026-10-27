@@ -54,7 +54,11 @@ final class FoodQueryParserTests: XCTestCase {
         }
         XCTAssertEqual(FoodQueryParser.parse("2 hard boiled eggs").food, FoodQueryParser.parse("hard boiled eggs").food)
         // Bounded to the counted whole items; a count with a mass still asks which basis to use.
-        for input in ["2 hard bananas", "2 hard boiled eggs 100g", "not hard boiled 2 eggs"] {
+        // A Unicode hyphen between letters reads as the ASCII one.
+        XCTAssertEqual(FoodQueryParser.parse("2 hard\u{2011}boiled eggs").quantity, .init(value: 2, unit: "count"))
+        XCTAssertEqual(FoodQueryParser.parse("2 hard\u{2010}boiled eggs").quantity, .init(value: 2, unit: "count"))
+        // Hard boiled counts before eggs only.
+        for input in ["2 hard bananas", "2 hard boiled bananas", "2 hard boiled eggs 100g", "not hard boiled 2 eggs"] {
             let parsed = FoodQueryParser.parse(input)
             XCTAssertNotEqual(parsed.route, .search, input)
             XCTAssertNil(parsed.quantity, input)
@@ -74,7 +78,9 @@ final class FoodQueryParserTests: XCTestCase {
             XCTAssertEqual(parsed.original, input)
         }
         // "a piece of" is a part, not a whole item; pieces of any other food stay a portion question.
-        for input in ["a piece of banana", "a piece of apple", "3 pieces cheese", "3 pieces of cake", "3 pieces banana 120g"] {
+        // The counted item must end the food text, and peppers' pieces are usually chopped.
+        for input in ["a piece of banana", "a piece of apple", "3 pieces cheese", "3 pieces of cake", "3 pieces banana 120g",
+                      "3 pieces of apple pie", "2 pieces banana bread", "2 pieces of egg fried rice", "3 pieces of red pepper"] {
             let parsed = FoodQueryParser.parse(input)
             XCTAssertEqual(parsed.route, .clarify, input)
             XCTAssertNil(parsed.quantity, input)

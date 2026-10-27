@@ -1,19 +1,19 @@
 {
   "metric_schema_version": 2,
-  "cases": 558,
+  "cases": 563,
   "correct_fields": {
     "food": 416,
-    "attributes": 536,
-    "quantity": 558,
-    "route": 558,
+    "attributes": 540,
+    "quantity": 563,
+    "route": 563,
     "exact": 412
   },
   "field_accuracy": {
-    "food": 0.7455197132616488,
-    "attributes": 0.9605734767025089,
+    "food": 0.738898756660746,
+    "attributes": 0.9591474245115453,
     "quantity": 1.0,
     "route": 1.0,
-    "exact": 0.7383512544802867
+    "exact": 0.7317939609236235
   },
   "search_cases": 381,
   "search_correct_fields": {
@@ -38,7 +38,7 @@
       },
       "clarify": {
         "search": 0,
-        "clarify": 134,
+        "clarify": 139,
         "reject": 0
       },
       "reject": {
@@ -56,8 +56,8 @@
         "f1": 1.0
       },
       "clarify": {
-        "support": 134,
-        "predicted": 134,
+        "support": 139,
+        "predicted": 139,
         "precision": 1.0,
         "recall": 1.0,
         "f1": 1.0
@@ -77,11 +77,11 @@
   },
   "attribute_metrics": {
     "true_positive_pairs": 178,
-    "false_positive_pairs": 25,
+    "false_positive_pairs": 26,
     "false_negative_pairs": 0,
-    "micro_precision": 0.8768472906403941,
+    "micro_precision": 0.8725490196078431,
     "micro_recall": 1.0,
-    "micro_f1": 0.9343832020997376
+    "micro_f1": 0.9319371727748691
   },
   "quantity_metrics": {
     "expected_present": 342,
@@ -109,7 +109,7 @@
     "max_absolute_relative_error_comparable_pairs": 0.0
   },
   "safety_metrics": {
-    "nonsearch_cases": 177,
+    "nonsearch_cases": 182,
     "false_search_eligible": 0,
     "false_search_eligible_rate": 0.0,
     "unexpected_prefill_ids": [],
@@ -293,15 +293,15 @@
       "quantity_correct": 19
     },
     "count_forms_v8": {
-      "cases": 16,
+      "cases": 21,
       "exact": 9,
-      "route_correct": 16,
-      "quantity_correct": 16
+      "route_correct": 21,
+      "quantity_correct": 21
     }
   },
   "scenario_group_metrics": {
-    "groups": 510,
-    "macro_exact": 0.7137254901960784,
+    "groups": 515,
+    "macro_exact": 0.7067961165048544,
     "macro_route_accuracy": 1.0
   },
   "failures": [
@@ -1318,10 +1318,11 @@
       ]
     },
     {
-      "id": "nlp-555",
+      "id": "nlp-550",
       "family": "count_forms_v8",
       "fields": [
-        "food"
+        "food",
+        "attributes"
       ]
     },
     {
@@ -1344,6 +1345,41 @@
       "fields": [
         "food"
       ]
+    },
+    {
+      "id": "nlp-559",
+      "family": "count_forms_v8",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-560",
+      "family": "count_forms_v8",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-561",
+      "family": "count_forms_v8",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-562",
+      "family": "count_forms_v8",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-563",
+      "family": "count_forms_v8",
+      "fields": [
+        "food"
+      ]
     }
   ],
   "independent_acceptance": false,
@@ -1354,6 +1390,6 @@
     "Magnitude errors compare identical units only; no mean mixing grams, ml and counts.",
     "Scenario groups fall back to case IDs where historical grouping is unavailable."
   ],
-  "fixture_sha256": "7e8e963c8e6b5486300145bf51a03b590e24548db180afcb87e5bd121180d158",
-  "predictions_sha256": "d14a22dfb8aa6bdfae28d7e542bc50474b23acc53910021a5a75009a394c3f21"
+  "fixture_sha256": "8d841db6016a843845ebf4b85d391a49d6b46a333ff9809fbe0ebfeff240ccc1",
+  "predictions_sha256": "a9fd818d64406f5f587a0db6806677e702e88cb7d639906ca0ba3ef5e8e6b602"
 }

@@ -23,6 +23,7 @@ NEW = [
     ("2 x hard boiled eggs", "hard egg", BOILED, 2, "search", None),
     ("2 hard boiled eggs 100g", None, {}, None, "clarify", "count_mass_scope"),
     ("2 hard bananas", None, {}, None, "clarify", "unsupported_count_preparation"),
+    ("2 hard boiled bananas", None, {}, None, "clarify", "unsupported_count_preparation"),
     ("0 hard boiled eggs", None, {}, None, "reject", "nonpositive_quantity"),
     # #315: "N pieces <counted item>" is the count shown for "N <items>".
     ("3 pieces banana", "banana", {}, 3, "search", None),
@@ -33,6 +34,11 @@ NEW = [
     ("a piece of banana", None, {}, None, "clarify", "portion_weight_unknown"),
     ("3 pieces cheese", None, {}, None, "clarify", "portion_weight_unknown"),
     ("3 pieces banana 120g", None, {}, None, "clarify", "count_mass_scope"),
+    # The counted item must end the food text; pieces of pepper are usually chopped.
+    ("3 pieces of apple pie", None, {}, None, "clarify", "portion_weight_unknown"),
+    ("2 pieces banana bread", None, {}, None, "clarify", "portion_weight_unknown"),
+    ("2 pieces of egg fried rice", None, {}, None, "clarify", "portion_weight_unknown"),
+    ("3 pieces of red pepper", None, {}, None, "clarify", "portion_weight_unknown"),
     ("0 pieces banana", None, {}, None, "reject", "nonpositive_quantity"),
 ]
 for query, food, attributes, count, route, reason in NEW:
@@ -44,7 +50,7 @@ for query, food, attributes, count, route, reason in NEW:
                      "route": route, "reason": reason},
         "invariants": INVARIANTS,
     })
-data.update(origin="v7 plus 16 invented count-form cases for food-query-parser-v9", cases=cases)
+data.update(origin="v7 plus 21 invented count-form cases for food-query-parser-v9", cases=cases)
 fixture = root / "synthetic-v8.json"
 fixture.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
 manifest = {

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "status": "synthetic_development_challenge",
   "locale": "en-GB",
-  "origin": "v7 plus 16 invented count-form cases for food-query-parser-v9",
+  "origin": "v7 plus 21 invented count-form cases for food-query-parser-v9",
   "independent_holdout": false,
   "cases": [
     {
@@ -11494,6 +11494,25 @@
       "id": "nlp-549",
       "family": "count_forms_v8",
       "scenario_group": "v8-549",
+      "query": "2 hard boiled bananas",
+      "expected": {
+        "food": null,
+        "attributes": {},
+        "quantity": null,
+        "route": "clarify",
+        "reason": "unsupported_count_preparation"
+      },
+      "invariants": [
+        "preserve_original_query",
+        "explicit_selection_and_confirmation",
+        "no_invented_nutrition",
+        "no_inferred_density_or_serving_weight"
+      ]
+    },
+    {
+      "id": "nlp-550",
+      "family": "count_forms_v8",
+      "scenario_group": "v8-550",
       "query": "0 hard boiled eggs",
       "expected": {
         "food": null,
@@ -11510,32 +11529,10 @@
       ]
     },
     {
-      "id": "nlp-550",
-      "family": "count_forms_v8",
-      "scenario_group": "v8-550",
-      "query": "3 pieces banana",
-      "expected": {
-        "food": "banana",
-        "attributes": {},
-        "quantity": {
-          "value": 3,
-          "unit": "count"
-        },
-        "route": "search",
-        "reason": null
-      },
-      "invariants": [
-        "preserve_original_query",
-        "explicit_selection_and_confirmation",
-        "no_invented_nutrition",
-        "no_inferred_density_or_serving_weight"
-      ]
-    },
-    {
       "id": "nlp-551",
       "family": "count_forms_v8",
       "scenario_group": "v8-551",
-      "query": "3 pieces of banana",
+      "query": "3 pieces banana",
       "expected": {
         "food": "banana",
         "attributes": {},
@@ -11557,6 +11554,28 @@
       "id": "nlp-552",
       "family": "count_forms_v8",
       "scenario_group": "v8-552",
+      "query": "3 pieces of banana",
+      "expected": {
+        "food": "banana",
+        "attributes": {},
+        "quantity": {
+          "value": 3,
+          "unit": "count"
+        },
+        "route": "search",
+        "reason": null
+      },
+      "invariants": [
+        "preserve_original_query",
+        "explicit_selection_and_confirmation",
+        "no_invented_nutrition",
+        "no_inferred_density_or_serving_weight"
+      ]
+    },
+    {
+      "id": "nlp-553",
+      "family": "count_forms_v8",
+      "scenario_group": "v8-553",
       "query": "2 pieces apple",
       "expected": {
         "food": "apple",
@@ -11576,9 +11595,9 @@
       ]
     },
     {
-      "id": "nlp-553",
+      "id": "nlp-554",
       "family": "count_forms_v8",
-      "scenario_group": "v8-553",
+      "scenario_group": "v8-554",
       "query": "1 piece banana",
       "expected": {
         "food": "banana",
@@ -11598,9 +11617,9 @@
       ]
     },
     {
-      "id": "nlp-554",
+      "id": "nlp-555",
       "family": "count_forms_v8",
-      "scenario_group": "v8-554",
+      "scenario_group": "v8-555",
       "query": "two pieces of banana",
       "expected": {
         "food": "banana",
@@ -11620,29 +11639,10 @@
       ]
     },
     {
-      "id": "nlp-555",
-      "family": "count_forms_v8",
-      "scenario_group": "v8-555",
-      "query": "a piece of banana",
-      "expected": {
-        "food": null,
-        "attributes": {},
-        "quantity": null,
-        "route": "clarify",
-        "reason": "portion_weight_unknown"
-      },
-      "invariants": [
-        "preserve_original_query",
-        "explicit_selection_and_confirmation",
-        "no_invented_nutrition",
-        "no_inferred_density_or_serving_weight"
-      ]
-    },
-    {
       "id": "nlp-556",
       "family": "count_forms_v8",
       "scenario_group": "v8-556",
-      "query": "3 pieces cheese",
+      "query": "a piece of banana",
       "expected": {
         "food": null,
         "attributes": {},
@@ -11661,6 +11661,25 @@
       "id": "nlp-557",
       "family": "count_forms_v8",
       "scenario_group": "v8-557",
+      "query": "3 pieces cheese",
+      "expected": {
+        "food": null,
+        "attributes": {},
+        "quantity": null,
+        "route": "clarify",
+        "reason": "portion_weight_unknown"
+      },
+      "invariants": [
+        "preserve_original_query",
+        "explicit_selection_and_confirmation",
+        "no_invented_nutrition",
+        "no_inferred_density_or_serving_weight"
+      ]
+    },
+    {
+      "id": "nlp-558",
+      "family": "count_forms_v8",
+      "scenario_group": "v8-558",
       "query": "3 pieces banana 120g",
       "expected": {
         "food": null,
@@ -11677,9 +11696,85 @@
       ]
     },
     {
-      "id": "nlp-558",
+      "id": "nlp-559",
       "family": "count_forms_v8",
-      "scenario_group": "v8-558",
+      "scenario_group": "v8-559",
+      "query": "3 pieces of apple pie",
+      "expected": {
+        "food": null,
+        "attributes": {},
+        "quantity": null,
+        "route": "clarify",
+        "reason": "portion_weight_unknown"
+      },
+      "invariants": [
+        "preserve_original_query",
+        "explicit_selection_and_confirmation",
+        "no_invented_nutrition",
+        "no_inferred_density_or_serving_weight"
+      ]
+    },
+    {
+      "id": "nlp-560",
+      "family": "count_forms_v8",
+      "scenario_group": "v8-560",
+      "query": "2 pieces banana bread",
+      "expected": {
+        "food": null,
+        "attributes": {},
+        "quantity": null,
+        "route": "clarify",
+        "reason": "portion_weight_unknown"
+      },
+      "invariants": [
+        "preserve_original_query",
+        "explicit_selection_and_confirmation",
+        "no_invented_nutrition",
+        "no_inferred_density_or_serving_weight"
+      ]
+    },
+    {
+      "id": "nlp-561",
+      "family": "count_forms_v8",
+      "scenario_group": "v8-561",
+      "query": "2 pieces of egg fried rice",
+      "expected": {
+        "food": null,
+        "attributes": {},
+        "quantity": null,
+        "route": "clarify",
+        "reason": "portion_weight_unknown"
+      },
+      "invariants": [
+        "preserve_original_query",
+        "explicit_selection_and_confirmation",
+        "no_invented_nutrition",
+        "no_inferred_density_or_serving_weight"
+      ]
+    },
+    {
+      "id": "nlp-562",
+      "family": "count_forms_v8",
+      "scenario_group": "v8-562",
+      "query": "3 pieces of red pepper",
+      "expected": {
+        "food": null,
+        "attributes": {},
+        "quantity": null,
+        "route": "clarify",
+        "reason": "portion_weight_unknown"
+      },
+      "invariants": [
+        "preserve_original_query",
+        "explicit_selection_and_confirmation",
+        "no_invented_nutrition",
+        "no_inferred_density_or_serving_weight"
+      ]
+    },
+    {
+      "id": "nlp-563",
+      "family": "count_forms_v8",
+      "scenario_group": "v8-563",
       "query": "0 pieces banana",
       "expected": {
         "food": null,

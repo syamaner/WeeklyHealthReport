@@ -8,15 +8,18 @@ grammar of the pure search parser (`FoodQueryParser`).
 `food-query-parser-v9` makes two additions to the v8 count grammar.
 
 1. **Hard boiled.** `hard boiled` and `hard-boiled` are accepted between a count
-   and a counted whole item, alongside `boiled` and `soft boiled`. "2 hard
+   and `egg` or `eggs`, alongside `boiled`, `soft boiled` and the v8 egg methods.
+   A Unicode hyphen (U+2010 or U+2011) between two letters is read as the ASCII
+   hyphen, so "hard‑boiled" typed with a non-breaking hyphen also counts. "2 hard
    boiled eggs", "two hard boiled eggs", "a hard boiled egg" and "2 x hard
    boiled eggs" are read as item counts. Under v8 the number was left
    unresolved, so Confirm opened with an empty amount and offered "Use 2 from
    your description" instead of pre-filling the count, unlike "2 eggs".
 2. **Numbered pieces.** A numeral or the number words one, two and three (or
    zero, which rejects) followed by `piece` or `pieces`, an optional `of`, and
-   a counted whole item is read as that count: "3 pieces banana", "3 pieces of
-   banana", "2 pieces apple". This is the unit Confirm already shows for "3
+   a counted whole item that ends the food text is read as that count: "3
+   pieces banana", "3 pieces of banana", "2 pieces apple". Peppers are not
+   included, because pieces of pepper are usually chopped. This is the unit Confirm already shows for "3
    bananas" ("3 pieces"). Under v8 "pieces" was always a household portion, so
    the query asked for clarification and searched for "3 pieces banana".
 
@@ -25,9 +28,12 @@ Boundaries that keep their v8 route:
 - "a piece of banana" stays a portion question: an article names a part, not a
   whole item.
 - Pieces of anything outside the counted whole-item list ("3 pieces cheese",
-  "3 pieces of cake") stay a household portion.
+  "3 pieces of cake"), of a dish that starts with a counted item ("3 pieces of
+  apple pie", "2 pieces banana bread", "2 pieces of egg fried rice") and of
+  pepper ("3 pieces of red pepper") stay a household portion.
 - A count with a mass ("2 hard boiled eggs 100g", "3 pieces banana 120g") still
-  asks which basis to use; zero rejects; "2 hard bananas" is not a count.
+  asks which basis to use; zero rejects; "2 hard bananas" and "2 hard boiled
+  bananas" are not counts.
 - The food text is unchanged from the uncounted form: "2 hard boiled eggs"
   hands retrieval the same food and `preparation=boiled` attribute as "hard
   boiled eggs", so the same records are found.
@@ -51,14 +57,14 @@ unchanged.
 ## Evaluation
 
 `Tools/FoodQueryEvaluation/synthetic-v8.json` keeps the 542 v7 cases unchanged
-and adds 16 count-form cases (`build_v8.py`, family `count_forms_v8`).
+and adds 21 count-form cases (`build_v8.py`, family `count_forms_v8`).
 Expectations were written alongside the parser change; the first run used
 parser v8 from `main`, whose hash the manifest records.
 
 | Run | Routing | Quantity | Search cases, all fields | Unexpected prefills |
 |---|---:|---:|---:|---:|
-| v8 first run (parser v8) | 549/558 | 549/558 | 372/381 | 0 |
-| v8 final (parser v9) | 558/558 | 558/558 | 381/381 | 0 |
+| v8 first run (parser v8) | 554/563 | 554/563 | 372/381 | 0 |
+| v8 final (parser v9) | 563/563 | 563/563 | 381/381 | 0 |
 
 Parser v9 produces byte-identical v7 predictions to `predictions/v7-final.json.gz`,
 and the v7 gate still passes. Same-author synthetic cases, not independent

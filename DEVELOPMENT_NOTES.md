@@ -3113,7 +3113,8 @@ Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A), not re-checked on the 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Query parser v9 count forms (#317, #315 parse), subagent | 9,009,081 (8,712,515) | 296,426 | 34,176 | 9,043,257 | $3.91 |
+| Query parser v9 invariant-review fold: end-anchored pieces, eggs-only hard boiled, Unicode hyphens (#317), subagent | 6,098,724 (5,719,441) | 379,213 | 20,532 | 6,119,256 | $3.45 |
 
-Boundary: `phase_usage.py --format claude --since 2026-10-27T05:18:22Z --until 2026-10-27T05:37:04Z` on the subagent transcript alone. Cache writes 296,426 5-minute, 0 1-hour; exact USD 3.908713. Local Swift builds and tests use no API tokens and are not priced.
+Boundary: `phase_usage.py --format claude --since 2026-10-27T05:18:22Z --until 2026-10-27T05:37:04Z` on the subagent transcript alone. Cache writes 296,426 5-minute, 0 1-hour; exact USD 3.908713. Review fold: `--since 2026-10-27T05:37:04Z --until 2026-10-27T06:06:44Z`, just before this edit: the first commit, push and PR #330, then the fixes for the #330 invariant review (NEEDS-WORK) with their tests and evaluation cases, the regenerated evaluation, the retrieval replay and every gate (including one `xcodebuild test` rerun after an unrelated Daily export screen test failed once). Cache writes 379,213 5-minute, 0 1-hour; exact USD 3.4508732. Local Swift builds and tests use no API tokens and are not priced.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
