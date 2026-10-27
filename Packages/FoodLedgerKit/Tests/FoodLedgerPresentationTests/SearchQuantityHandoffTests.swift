@@ -49,6 +49,29 @@ final class SearchQuantityHandoffTests: XCTestCase {
             XCTAssertNil(search.confirmation(at: -1)); XCTAssertNil(search.confirmation(at: route.matches.count))
         }
     }
+    /// #317 and the parse part of #315 (food-query-parser-v9): the count reaches Confirm as an
+    /// editable count, not as a "Use N from your description" suggestion, and nothing is saved.
+    func testHardBoiledEggsAndPiecesOfBananaPrefillTheCountOnConfirm() throws {
+        for (query, count, record) in [("2 hard boiled eggs", 2.0, ":fdc:173424"), ("3 pieces banana", 3.0, nil)] {
+            let search = try model(); search.query = query; search.search()
+            guard case let .results(route) = search.phase else { return XCTFail(query) }
+            XCTAssertEqual(search.parsedQuery?.quantity, .init(value: count, unit: "count"), query)
+            let index = try XCTUnwrap(record.map { suffix in
+                route.matches.firstIndex { $0.candidate.candidate.recordID.value.hasSuffix(suffix) }
+            } ?? 0, query)
+            let input = try XCTUnwrap(search.confirmation(at: index))
+            var saves = 0
+            let confirmation = FoodConfirmationViewModel(
+                state: FoodConfirmationState(input: input, queryQuantity: search.parsedQuery?.quantity)) { _ in
+                saves += 1; throw CocoaError(.fileWriteUnknown)
+            }
+            XCTAssertEqual(confirmation.state.quantity.value, count, query)
+            XCTAssertEqual(confirmation.state.quantity.unit, .count, query)
+            XCTAssertNil(FoodQueryInterpretation(query).quantitySuggestion, query)
+            XCTAssertEqual(confirmation.state.decision, .undecided)
+            XCTAssertEqual(saves, 0)
+        }
+    }
     func testTaiwanSourceLabelAndQuantityHandoffThroughQueryAndFoodList() throws {
         let ids = HandoffIDs()
         let source = try TFDAGenericFoodSearch(ids: ids)
