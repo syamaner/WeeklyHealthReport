@@ -269,7 +269,8 @@ public struct FavouriteFromLoggedView: View {
         let state = model.state(for: id)
         let label = VStack(alignment: .leading, spacing: 3) {
             Text(text.title).foregroundStyle(.primary)
-            Text(text.detail).font(.caption).foregroundStyle(.secondary)
+            // Wraps in full at accessibility sizes ("Last: 1…" was cut short, #315).
+            Text(text.detail).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }.accessibilityElement(children: .combine)
         // Stacked at accessibility sizes and after a failure, so the name never breaks mid-word.
         if AddFoodRecentRowText.stacks(at: dynamicTypeSize) || state == .failed {

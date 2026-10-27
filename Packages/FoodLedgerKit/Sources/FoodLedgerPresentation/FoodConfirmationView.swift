@@ -542,6 +542,23 @@ public final class FoodConfirmationViewModel: ObservableObject {
             .map(FoodLogRequirementText.text)
     }
 
+    /// "For 170 g eaten" beside the plate inputs (#332): the edible grams that the food and plate
+    /// total minus the empty plate weight give, in the nutrition basis's words. Nil off the plate
+    /// or while a plate requirement is unmet; the plate rows state that instead. The subtraction
+    /// does not depend on how the weight was obtained, so it shows before that is chosen; Log
+    /// still asks for it.
+    public var plateEatenSummary: String? {
+        guard state.quantity.plateChoice != .foodOnly, plateRequirements.isEmpty else { return nil }
+        var quantity = state.quantity
+        if var weight = quantity.directWeight {
+            weight.basis = weight.basis ?? .measured
+            weight.needsReconfirmation = false
+            quantity.directWeight = weight
+        }
+        guard let eaten = try? quantity.calculatedEdibleQuantity(), eaten.unit == .grams else { return nil }
+        return "For \(FoodNutritionReviewPresentation.number(eaten.value)) g eaten"
+    }
+
     public var plateRequirements: [String] {
         requirements.filter { [.emptyPlateWeightMissing, .plateNeedsGramTotal, .plateNotLighterThanTotal].contains($0) }
             .map(FoodLogRequirementText.text)
@@ -955,6 +972,8 @@ public struct FoodConfirmationView: View {
     @State private var totalText = ""
     @State private var directWeightText = ""
     @State private var emptyPlateText = ""
+    /// Choosing Food only again keeps the group open on the method picker.
+    @State private var plateGroupExpanded = false
     @State private var conversionText = ""
     @State private var conversionUnit = QuantityUnit.grams
     @State private var conversionMethod: ConversionFields.MethodSelection?
@@ -1488,11 +1507,9 @@ public struct FoodConfirmationView: View {
             }
             if model.state.quantity.directWeight != nil && !countEstimateLayout {
                 Text("Weigh the food as you ate it, for example peeled, boiled or fried. Leave out peel, shell, bone and anything you did not eat.").font(.caption)
-                TextField(usesPlate ? "Total food and plate weight (g)" : "Total edible weight (g)", text: $directWeightText)
-                    .amountKeyboard($editingAmount, .confirmDirectWeight)
-                    .onChange(of: directWeightText) { _, value in model.send(.setDirectWeight(FoodAmountFieldText.parse(value, locale: locale))) }
-                    .accessibilityLabel(Self.directWeightAccessibilityLabel(usesPlate: usesPlate))
-                if usesPlate { Text("Enter the food and plate total here. The empty plate weight below is subtracted to obtain edible grams.").font(.caption) }
+                // On a plate the gram total sits with the empty plate weight under "Weighed on a
+                // plate", so the two inputs of one subtraction stay together (#332).
+                if !usesPlate { directWeightField }
                 // The count picker's words for the same two meanings (#318); stored values unchanged.
                 Picker(ConversionFields.methodTitle, selection: Binding<UserWeightBasis?>(
                     get: { model.state.quantity.directWeight?.basis },
@@ -1569,7 +1586,6 @@ public struct FoodConfirmationView: View {
                         .accessibilityIdentifier("confirm.useTypicalWeight")
                 }
             }
-            whenRow
             if let warning = model.quantityBasisWarning {
                 Label(warning, systemImage: "exclamationmark.triangle").font(.caption)
             }
@@ -1608,37 +1624,84 @@ public struct FoodConfirmationView: View {
                     Button("Remove volume estimate") { model.removeOfferedVolumeConversion() }
                 }
             }
+            plateRows
+            // When follows the amount and the plate, as in the Confirm wireframe (#332).
+            whenRow
+        }
+    }
+
+    public static let plateGroupTitle = "Weighed on a plate"
+    public static let plateTotalPlaceholder = "Total food and plate weight (g)"
+    public static let emptyPlatePlaceholder = "Empty plate weight (g)"
+    public static let plateTotalHelp = "Enter the food and plate total. The empty plate weight below is subtracted to give the grams eaten."
+
+    private var directWeightField: some View {
+        TextField(usesPlate ? Self.plateTotalPlaceholder : "Total edible weight (g)", text: $directWeightText)
+            .amountKeyboard($editingAmount, .confirmDirectWeight)
+            .onChange(of: directWeightText) { _, value in model.send(.setDirectWeight(FoodAmountFieldText.parse(value, locale: locale))) }
+            .accessibilityLabel(Self.directWeightAccessibilityLabel(usesPlate: usesPlate))
+            .accessibilityIdentifier("confirm.directWeight")
+    }
+
+    /// "Weighed on a plate" (#332): the method, then the food and plate total, the empty plate
+    /// weight and the grams eaten they give, together. Once the plate is chosen the rows show in
+    /// full, so the inputs it needs can never be folded away.
+    @ViewBuilder
+    private var plateRows: some View {
+        if model.savedResult != nil {
             ForEach(model.plateRequirements, id: \.self) { Text($0).font(.caption) }
-            if model.savedResult != nil {
-                // Once saved, a static row: a disclosure chevron would look active while every
-                // other control is disabled (#212).
-                LabeledContent("Weighed on a plate", value: Self.savedPlateRowValue(usesPlate: usesPlate, emptyPlateGrams: emptyPlateGrams, locale: locale))
-                    .foregroundStyle(.secondary)
-            } else {
-                DisclosureGroup("Weighed on a plate") {
-                    Picker("Weighing method", selection: plateModeBinding) {
-                        Text(Self.weighingMethodTitle(usesPlate: false)).tag(false)
-                        Text(Self.weighingMethodTitle(usesPlate: true)).tag(true)
-                    }
-                    if usesPlate {
-                        TextField("Empty plate weight (g)", text: $emptyPlateText)
-                            .accessibilityLabel(Self.emptyPlateAccessibilityLabel)
-                            .amountKeyboard($editingAmount, .confirmEmptyPlate)
-                            .onChange(of: emptyPlateText) { _, value in
-                                guard let amount = FoodAmountFieldText.parse(value, locale: locale),
-                                      let quantity = try? PositiveQuantity(value: amount, unit: .grams) else {
-                                    model.send(.setPlateChoice(.missing))
-                                    return
-                                }
-                                model.send(.setPlateChoice(.new(
-                                    emptyWeight: quantity,
-                                    superseding: model.state.reopened?.plateWeightVersion
-                                )))
-                            }
-                            .accessibilityHint("The food weight is total weight minus this saved immutable plate version")
-                    }
-                }
+            // Once saved, a static row: a disclosure chevron would look active while every
+            // other control is disabled (#212).
+            LabeledContent(Self.plateGroupTitle, value: Self.savedPlateRowValue(usesPlate: usesPlate, emptyPlateGrams: emptyPlateGrams, locale: locale))
+                .foregroundStyle(.secondary)
+        } else if usesPlate {
+            Text(Self.plateGroupTitle)
+                .accessibilityAddTraits(.isHeader)
+                .accessibilityIdentifier("confirm.plateGroup")
+            plateMethodPicker
+            if model.state.quantity.directWeight != nil {
+                directWeightField
+                Text(Self.plateTotalHelp).font(.caption)
             }
+            TextField(Self.emptyPlatePlaceholder, text: $emptyPlateText)
+                .accessibilityLabel(Self.emptyPlateAccessibilityLabel)
+                .amountKeyboard($editingAmount, .confirmEmptyPlate)
+                .onChange(of: emptyPlateText) { _, value in
+                    guard let amount = FoodAmountFieldText.parse(value, locale: locale),
+                          let quantity = try? PositiveQuantity(value: amount, unit: .grams) else {
+                        model.send(.setPlateChoice(.missing))
+                        return
+                    }
+                    model.send(.setPlateChoice(.new(
+                        emptyWeight: quantity,
+                        superseding: model.state.reopened?.plateWeightVersion
+                    )))
+                }
+                .accessibilityHint("The food weight is total weight minus this saved immutable plate version")
+                .accessibilityIdentifier("confirm.emptyPlate")
+            if let eaten = model.plateEatenSummary {
+                Text(eaten)
+                    .font(.subheadline.weight(.semibold))
+                    .accessibilityIdentifier("confirm.plateEaten")
+            }
+            ForEach(model.plateRequirements, id: \.self) { Text($0).font(.caption) }
+        } else {
+            DisclosureGroup(Self.plateGroupTitle, isExpanded: $plateGroupExpanded) { plateMethodPicker }
+        }
+    }
+
+    /// At accessibility sizes the two methods show as full-width rows, so "Total minus empty
+    /// plate" is never cut to "Total…plate" (#332).
+    @ViewBuilder
+    private var plateMethodPicker: some View {
+        let picker = Picker("Weighing method", selection: plateModeBinding) {
+            Text(Self.weighingMethodTitle(usesPlate: false)).tag(false)
+            Text(Self.weighingMethodTitle(usesPlate: true)).tag(true)
+        }
+        if dynamicTypeSize.isAccessibilitySize {
+            picker.pickerStyle(.inline)
+        } else {
+            picker
         }
     }
 
@@ -1935,7 +1998,8 @@ public struct FoodConfirmationView: View {
 
         public static let methodTitle = "How you got it"
         public static let amountTitle = "Total weight"
-        public static let amountPrompt = "Without shell, bone or skin you did not eat"
+        /// The intro and the placeholder use the same words (#332).
+        public static let amountPrompt = "Without shell, bone or other parts"
         public static let unitTitle = "Weight unit"
         /// Replaces "No source-backed size guide is available…" (count-portion-estimate-v1).
         public static let intro = "Enter the total weight you ate, without shell, bone or other parts."
@@ -2027,6 +2091,7 @@ public struct FoodConfirmationView: View {
 
     private var plateModeBinding: Binding<Bool> {
         Binding(get: { usesPlate }, set: { enabled in
+            plateGroupExpanded = true
             if enabled {
                 if model.showsCountMethodPicker {
                     // A count's "Total weight" is food only; the plate needs the food and plate total.

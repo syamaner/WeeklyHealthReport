@@ -108,6 +108,28 @@ final class AddFoodSearchPresentationTests: XCTestCase {
         XCTAssertGreaterThan(AccessibleNavigationTitle.inlineLineLimit, 1)
     }
 
+    /// #315: at accessibility sizes the query wraps instead of truncating, route rows put the
+    /// icon above the title and favourite rows give the name the full width.
+    func testAccessibilitySizesWrapTheQueryAndKeepRowTitlesWhole() {
+        XCTAssertFalse(FoodSearchFieldText.wrapsQuery(at: .xxxLarge), "standard sizes keep the one-line field")
+        XCTAssertTrue(FoodSearchFieldText.wrapsQuery(at: .accessibility5))
+        XCTAssertGreaterThan(FoodSearchFieldText.wrappedQueryLineLimit.upperBound, 1)
+        XCTAssertFalse(RouteRowLabel.stacks(at: .xxxLarge))
+        XCTAssertTrue(RouteRowLabel.stacks(at: .accessibility1))
+        XCTAssertFalse(FavouritesView.rowHidesChevron(at: .large))
+        XCTAssertTrue(FavouritesView.rowHidesChevron(at: .accessibility5))
+        XCTAssertTrue(AddFoodRecentRowText.stacks(at: .accessibility5), "quick-add favourites stack like Recent")
+    }
+
+    /// #315: a wrapping field takes Return as a line break; the one-line query submits instead.
+    func testALineBreakInTheQuerySubmitsTheOneLineText() {
+        XCTAssertNil(FoodSearchFieldText.submittedQuery("3 pieces banana"), "no line break, no submission")
+        XCTAssertEqual(FoodSearchFieldText.submittedQuery("3 pieces banana\n"), "3 pieces banana")
+        XCTAssertEqual(FoodSearchFieldText.submittedQuery("3 pieces\nbanana"), "3 pieces banana", "pasted lines join with a space")
+        XCTAssertEqual(FoodSearchFieldText.submittedQuery("  2 eggs \r\n\n toast "), "2 eggs toast")
+        XCTAssertEqual(FoodSearchFieldText.submittedQuery("\n"), "", "an empty query stays empty; Search rejects it")
+    }
+
     func testConfirmAmountTextHasNoTrailingZeroAndRoundTrips() {
         XCTAssertEqual(FoodAmountTextParser.editableText(150), "150")
         XCTAssertEqual(FoodAmountTextParser.editableText(1500), "1500")

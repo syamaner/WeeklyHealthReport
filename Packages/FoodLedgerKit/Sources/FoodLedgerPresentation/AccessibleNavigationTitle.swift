@@ -56,4 +56,93 @@ public enum FoodSearchFieldText {
     }
     /// The search chips stack full width at accessibility sizes, so each chip wraps whole words.
     public static func stacksChips(at size: DynamicTypeSize) -> Bool { size.isAccessibilitySize }
+
+    /// At accessibility sizes the query wraps onto more lines instead of truncating
+    /// ("3 pieces ban…", #315); standard sizes keep the one-line field.
+    public static func wrapsQuery(at size: DynamicTypeSize) -> Bool { size.isAccessibilitySize }
+    /// Lines a wrapping query may grow to before it scrolls.
+    public static let wrappedQueryLineLimit = 1...6
+
+    /// A wrapping field takes Return as a line break; the query is one line, so a typed or pasted
+    /// line break submits the text before it joined with spaces. Nil when there is no line break.
+    public static func submittedQuery(_ text: String) -> String? {
+        guard text.contains(where: \.isNewline) else { return nil }
+        return text.split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+    }
+}
+
+/// The food and amount field on Add food and Search results. At accessibility sizes the query
+/// wraps instead of truncating (#315), and the prompt is drawn as wrapping text because a
+/// multi-line field truncates its placeholder; standard sizes keep the one-line system field.
+public struct FoodQueryField: View {
+    private let prompt: String
+    @Binding private var text: String
+    private let submit: () -> Void
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    public init(prompt: String, text: Binding<String>, submit: @escaping () -> Void) {
+        self.prompt = prompt; _text = text; self.submit = submit
+    }
+
+    public var body: some View {
+        Group {
+            if FoodSearchFieldText.wrapsQuery(at: dynamicTypeSize) {
+                ZStack(alignment: .topLeading) {
+                    if text.isEmpty {
+                        Text(prompt).foregroundStyle(.tertiary).allowsHitTesting(false).accessibilityHidden(true)
+                    }
+                    TextField("", text: $text, axis: .vertical).lineLimit(FoodSearchFieldText.wrappedQueryLineLimit)
+                }
+            } else {
+                TextField(prompt, text: $text)
+            }
+        }
+        .accessibilityLabel(FoodSearchFieldText.shortPrompt)
+        .submitLabel(.search)
+        .onSubmit(submit)
+        .onChange(of: text) { _, value in
+            guard let submitted = FoodSearchFieldText.submittedQuery(value) else { return }
+            text = submitted
+            submit()
+        }
+    }
+}
+
+/// An entry route row's label (#315). At accessibility sizes the icon sits above the title, so the
+/// title has the full row width and never breaks mid-word ("Favour-" / "ites"); standard sizes
+/// keep the system icon-and-title label.
+public struct RouteRowLabel: View {
+    private let title: String
+    private let systemImage: String
+    private let subtitle: String?
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    public init(_ title: String, systemImage: String, subtitle: String? = nil) {
+        self.title = title; self.systemImage = systemImage; self.subtitle = subtitle
+    }
+
+    public static func stacks(at size: DynamicTypeSize) -> Bool { size.isAccessibilitySize }
+
+    public var body: some View {
+        if Self.stacks(at: dynamicTypeSize) {
+            VStack(alignment: .leading, spacing: 4) {
+                Image(systemName: systemImage).accessibilityHidden(true)
+                text
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 4)
+        } else {
+            Label { text } icon: { Image(systemName: systemImage) }
+        }
+    }
+
+    private var text: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+            if let subtitle { Text(subtitle).font(.footnote).foregroundStyle(.secondary) }
+        }
+    }
 }

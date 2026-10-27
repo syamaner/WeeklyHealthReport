@@ -707,6 +707,67 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
         }
     }
 
+    /// #332: weighing a count on a plate keeps the food and plate total, the empty plate weight and
+    /// the grams eaten together under "Weighed on a plate", and When follows them, at the default
+    /// size and at AX5.
+    func testPlateWeighingKeepsBothWeightsAndTheGramsEatenTogether() async throws {
+        for size in [DynamicTypeSize.large, .accessibility5] {
+            let search = try GenericFoodSearchViewModel(searcher: try CoFIDGenericFoodSearch(ids: NativeQuantityIDs()), locale: LedgerText("en_GB"))
+            search.query = "banana"; search.search()
+            let input = try XCTUnwrap(search.confirmation(at: 0))
+            let model = FoodConfirmationViewModel(state: FoodConfirmationState(input: input, queryQuantity: nil)) { _ in
+                throw CocoaError(.fileWriteUnknown)
+            }
+            model.chooseQuantityUnit(.count)
+            model.send(.setQuantity(1, .count))
+            model.send(.beginDirectWeight)
+            model.send(.setWeightBasis(.measured))
+            model.send(.setDirectWeight(500))
+            model.send(.setPlateChoice(.new(emptyWeight: try PositiveQuantity(value: 330, unit: .grams), superseding: nil)))
+            XCTAssertEqual(model.plateEatenSummary, "For 170 g eaten", "\(size): \(model.requirements)")
+
+            let host = NativeHostingController(rootView: NavigationStack {
+                FoodConfirmationView(model: model, leave: {}).environment(\.dynamicTypeSize, size)
+            })
+            let scene = try testScene()
+            let previous = scene.windows.first(where: \.isKeyWindow)
+            let window = UIWindow(windowScene: scene)
+            window.frame = CGRect(x: 0, y: 0, width: 390, height: size.isAccessibilitySize ? 12_000 : 3_000)
+            window.rootViewController = host; window.makeKeyAndVisible()
+            defer { window.isHidden = true; previous?.makeKey() }
+            try await waitForHostAppearance(host, window: window)
+            // SwiftUI text is not UIKit here; the fields, the picker value and the date picker are.
+            func fields() -> [UITextField] { descendants(host.view).compactMap { $0 as? UITextField } }
+            func isPlateTotal(_ field: UITextField) -> Bool {
+                field.placeholder == FoodConfirmationView.plateTotalPlaceholder || field.text == "500"
+            }
+            func isEmptyPlate(_ field: UITextField) -> Bool {
+                field.placeholder == FoodConfirmationView.emptyPlatePlaceholder || field.text == "330"
+            }
+            func describe() -> String {
+                "\(nativeText(host.view)); fields \(fields().map { "\($0.placeholder ?? "")=\($0.text ?? "")" })"
+            }
+            try await waitForNativeState("Confirm should render the plate rows at \(size)", diagnostics: describe) {
+                host.view.layoutIfNeeded()
+                return fields().contains(where: isPlateTotal) && fields().contains(where: isEmptyPlate)
+                    && descendants(host.view).contains { $0 is UIDatePicker }
+            }
+            func top(_ view: UIView) -> CGFloat { view.convert(view.bounds, to: host.view).minY }
+            // The count, kept as the original amount, sits above the plate rows.
+            let original = try XCTUnwrap(fields().first { $0.text == "1" }, describe())
+            let total = try XCTUnwrap(fields().first(where: isPlateTotal), describe())
+            let plate = try XCTUnwrap(fields().first(where: isEmptyPlate), describe())
+            let when = try XCTUnwrap(descendants(host.view).first { $0 is UIDatePicker }, describe())
+            XCTAssertLessThan(top(original), top(total), "\(size): the food and plate total sits with the plate rows, below the amount")
+            XCTAssertLessThan(top(total), top(plate), "\(size): the empty plate weight follows the total")
+            XCTAssertLessThan(top(plate), top(when), "\(size): When follows the plate rows")
+            let between = fields().filter { top($0) > top(total) && top($0) < top(plate) }
+            XCTAssertTrue(between.isEmpty, "\(size): no other field between the two weights: \(describe())")
+            XCTAssertFalse(nativeText(host.view).contains { $0.contains("subtracted to obtain edible grams") },
+                           "\(size): the old note above Amount eaten is gone")
+        }
+    }
+
     /// Visual evidence for #196 with synthetic data only: Add food (recents, empty), Search results
     /// (searching, energy for the amount, basis-only, no result with "Not what you ate?") and Web
     /// lookup (match type unset with a disabled action, match type chosen). PNGs only with WHR_RENDER_DIR.

@@ -166,6 +166,7 @@ public struct FavouritesView: View {
     @State private var labelText = ""
     @State private var amountText = ""
     @Environment(\.locale) private var locale
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     public init(model: FavouritesViewModel, createFromLogged: (() -> Void)? = nil, createFromSearch: @escaping () -> Void,
                 createFromBarcode: @escaping () -> Void, createFromWebLookup: @escaping () -> Void) {
@@ -260,6 +261,10 @@ public struct FavouritesView: View {
     public static let logNowHeader = "Log now and save favourite"
     public static let logNowFooter = "These log the food as well as saving it. Check When on the confirmation before you choose Log."
 
+    /// The favourite rows drop the decorative chevron at accessibility sizes (#315), as the Add
+    /// food Recent rows do; the row stays a button with its hint.
+    public static func rowHidesChevron(at size: DynamicTypeSize) -> Bool { size.isAccessibilitySize }
+
     static func logNowHint(_ route: String) -> String {
         "Opens \(route). Log records the food at the time shown under When and saves it as a favourite."
     }
@@ -275,8 +280,12 @@ public struct FavouritesView: View {
                     Text(row.title).foregroundStyle(.primary)
                     Text(row.detail).font(.caption).foregroundStyle(.secondary)
                 }
-                Spacer(minLength: 8)
-                Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary).accessibilityHidden(true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                // At accessibility sizes the name keeps the full row width, so it wraps between
+                // words and never leaves the comma on its own line ("Bananas" / ", raw", #315).
+                if !Self.rowHidesChevron(at: dynamicTypeSize) {
+                    Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary).accessibilityHidden(true)
+                }
             }.frame(minHeight: 44).contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -309,7 +318,7 @@ public struct FavouritesView: View {
     private func createRow(_ title: String, systemImage: String, action: @escaping () -> Void, hint: String) -> some View {
         Button(action: action) {
             HStack {
-                Label(title, systemImage: systemImage).foregroundStyle(.primary)
+                RouteRowLabel(title, systemImage: systemImage).foregroundStyle(.primary)
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary).accessibilityHidden(true)
             }.frame(minHeight: 44).contentShape(Rectangle())

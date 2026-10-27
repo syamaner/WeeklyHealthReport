@@ -3128,3 +3128,13 @@ One `claude-opus-5-5` subagent, transcript `subagents/agent-a5a5cd6b6e307793c.js
 | Count entry copy and layout (#318, #303), subagent | 15,278,954 (14,539,186) | 739,564 | 50,340 | 15,329,294 | $7.61 |
 
 `phase_usage.py --format claude --since 2026-10-27T05:18:16Z --until 2026-10-27T06:02:13Z` on the subagent transcript alone. Cache writes 739,564 5-minute, 0 1-hour; exact USD 7.6132732. Pricing: the Claude Opus 5.5 rates recorded in WHR-93-2026-10-20q (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-332-2026-10-27: Claude Code plate inputs together and AX5 wrapping (#332, #315)
+
+One `claude-opus-5-5` subagent, transcript `subagents/agent-ac40cd70f208b47fa.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`. The window runs from the subagent's first message (`2026-10-27T07:01:44Z`) to `2026-10-27T07:46:41Z`, just before this ledger edit (UTC). It covers reading the issues and code, the Confirm plate layout, the AX5 wrapping fixes on Add food, Favourites and Search results, the tests, the simulator walk at the default size and AX5, and every gate (the app tests twice, after one native layout assertion was made independent of the picker style). The commit, push and PR fall after the window. The orchestrating session and any later review or journey QA are not included.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Plate inputs together and AX5 wrapping (#332, #315), subagent | 31,608,551 (30,796,083) | 812,178 | 86,171 | 31,694,722 | $11.94 |
+
+`phase_usage.py --format claude --since 2026-10-27T07:01:44Z --until 2026-10-27T07:46:41Z` on the subagent transcript alone. Cache writes 812,178 5-minute, 0 1-hour; exact USD 11.9446866. Pricing: the Claude Opus 5.5 rates recorded in WHR-93-2026-10-20q (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Simulator screenshots are image input inside the same transcript and are included. Token totals are not evidence of productivity, quality or provider efficiency.
