@@ -177,6 +177,12 @@ final class CountPortionEstimatePresentationTests: XCTestCase {
         XCTAssertNotNil(model.state.quantity.directWeight, "the plate needs a gram total")
         XCTAssertEqual(model.state.quantity.value, 3, "the count is kept as the original amount")
         XCTAssertFalse(model.showsCountMethodPicker)
+        XCTAssertFalse(model.offersEnterMeasuredWeight, "journey QA D1 (PR #331): no disabled button on the plate path")
+        model.send(.setPlateChoice(.missing))
+        XCTAssertFalse(model.offersEnterMeasuredWeight, "still hidden once the plate is chosen")
+        XCTAssertEqual(FoodConfirmationView.directWeightAccessibilityLabel(usesPlate: true), "Total food and plate weight in grams")
+        XCTAssertEqual(FoodConfirmationView.directWeightAccessibilityLabel(usesPlate: false), "Total edible weight in grams")
+        XCTAssertEqual(FoodConfirmationView.emptyPlateAccessibilityLabel, "Empty plate weight in grams")
         model.send(.setDirectWeight(500))
         XCTAssertEqual(model.blockedReason, "Choose how you got the weight.", "the same words as the count field")
         XCTAssertEqual(FoodConfirmationView.weightBasisLabel(.measured), "Kitchen scale")
@@ -193,6 +199,8 @@ final class CountPortionEstimatePresentationTests: XCTestCase {
         grams.beginCountPlateWeighing()
         XCTAssertNil(grams.state.quantity.directWeight)
         XCTAssertTrue(grams.offersEnterMeasuredWeight, "a gram amount keeps the measured weight route")
+        grams.send(.beginDirectWeight)
+        XCTAssertFalse(grams.offersEnterMeasuredWeight, "hidden while the direct weight it opens is on screen")
     }
 
     func testNoGuideOnGramsOrForAnotherFood() throws {

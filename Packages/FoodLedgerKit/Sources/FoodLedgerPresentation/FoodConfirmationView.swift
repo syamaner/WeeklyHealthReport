@@ -93,9 +93,10 @@ public final class FoodConfirmationViewModel: ObservableObject {
     /// typical weight, not after Change, and not beside a count's own "Total weight" and "How you got
     /// it" fields, which are the one layout for a count with or without a guide (journey QA D1 of
     /// PR #313, #318). Weighing a count on a plate opens the gram total from "Weighed on a plate"
-    /// instead. The view also hides it for the by-eye count layout.
+    /// instead. It is also hidden while a direct weight is open, which is already that layout (journey
+    /// QA D1 of PR #331: the plate path on a count must not bring back a disabled button).
     public var offersEnterMeasuredWeight: Bool {
-        !showsPortionGuide && !offersTypicalWeight && !showsCountMethodPicker
+        state.quantity.directWeight == nil && !showsPortionGuide && !offersTypicalWeight && !showsCountMethodPicker
     }
 
     /// Weighing on a plate subtracts the empty plate from a gram total of food and plate, which a
@@ -995,6 +996,13 @@ public struct FoodConfirmationView: View {
         }
     }
 
+    /// VoiceOver reads what the weight field holds, as its placeholder says (journey QA D2 of PR #331).
+    public static func directWeightAccessibilityLabel(usesPlate: Bool) -> String {
+        usesPlate ? "Total food and plate weight in grams" : "Total edible weight in grams"
+    }
+
+    public static let emptyPlateAccessibilityLabel = "Empty plate weight in grams"
+
     /// The weighing method's title, shared by the picker and the saved, read-only plate row (#212).
     public static func weighingMethodTitle(usesPlate: Bool) -> String {
         usesPlate ? "Total minus empty plate" : "Food only / tared"
@@ -1483,7 +1491,7 @@ public struct FoodConfirmationView: View {
                 TextField(usesPlate ? "Total food and plate weight (g)" : "Total edible weight (g)", text: $directWeightText)
                     .amountKeyboard($editingAmount, .confirmDirectWeight)
                     .onChange(of: directWeightText) { _, value in model.send(.setDirectWeight(FoodAmountFieldText.parse(value, locale: locale))) }
-                    .accessibilityLabel("Total edible weight in grams")
+                    .accessibilityLabel(Self.directWeightAccessibilityLabel(usesPlate: usesPlate))
                 if usesPlate { Text("Enter the food and plate total here. The empty plate weight below is subtracted to obtain edible grams.").font(.caption) }
                 // The count picker's words for the same two meanings (#318); stored values unchanged.
                 Picker(ConversionFields.methodTitle, selection: Binding<UserWeightBasis?>(
@@ -1614,6 +1622,7 @@ public struct FoodConfirmationView: View {
                     }
                     if usesPlate {
                         TextField("Empty plate weight (g)", text: $emptyPlateText)
+                            .accessibilityLabel(Self.emptyPlateAccessibilityLabel)
                             .amountKeyboard($editingAmount, .confirmEmptyPlate)
                             .onChange(of: emptyPlateText) { _, value in
                                 guard let amount = FoodAmountFieldText.parse(value, locale: locale),
