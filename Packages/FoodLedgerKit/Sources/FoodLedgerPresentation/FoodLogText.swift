@@ -164,6 +164,13 @@ public enum FoodLogText {
         }
     }
 
+    /// The same text with each number kept on one line with its unit, so "168 g" never wraps as
+    /// "168" / "g" at accessibility text sizes (#303). Display only: a no-break space replaces the
+    /// space between a number and g, mL, kcal, piece(s) or serving(s). VoiceOver reads it the same.
+    public static func keepingUnitsAttached(_ text: String) -> String {
+        text.replacing(#/(\d) (?=(?:g|mL|kcal|pieces?|servings?)\b)/#) { match in "\(match.output.1)\u{00A0}" }
+    }
+
     /// An entered count in servings: "1 serving", "2 servings".
     static func servings(_ quantity: PositiveQuantity, locale: Locale) -> String {
         "\(number(quantity.value, fraction: 0...2, locale: locale)) \(FoodAmountNoun.servings(quantity.value))"
@@ -193,7 +200,7 @@ public enum FoodLogText {
     public static func methodLabel(_ method: FoodQuantityMethod) -> String? {
         switch method {
         case .direct: nil
-        case .weighed: "Weighed"
+        case .weighed: "Kitchen scale"
         case .estimatedByEye: "Estimated by eye"
         case .kitchenScale: "Kitchen scale"
         case .packageWeight: "Package weight"
@@ -417,7 +424,9 @@ public enum FoodLogText {
         if amount.methodFrom != amount.methodTo {
             let now: String? = if case let .typicalWeight(size, _) = amount.methodTo,
                                   case .typicalWeight = amount.methodFrom { sizeName(size) } else { methodLabel(amount.methodTo) }
-            if let now { text += " · now \(now)" }
+            // A direct weighed amount and a kitchen-scale conversion read the same (#318), so a
+            // switch between them names no change.
+            if let now, now != methodLabel(amount.methodFrom) { text += " · now \(now)" }
         }
         return text
     }

@@ -90,10 +90,20 @@ public final class FoodConfirmationViewModel: ObservableObject {
     }
 
     /// "Enter measured weight" is offered only when no count weight layout is active: not beside the
-    /// typical weight, and not after Change, where the count's own weight row is the one layout
-    /// (journey QA D1 of PR #313). The view also hides it for the by-eye count layout.
+    /// typical weight, not after Change, and not beside a count's own "Total weight" and "How you got
+    /// it" fields, which are the one layout for a count with or without a guide (journey QA D1 of
+    /// PR #313, #318). Weighing a count on a plate opens the gram total from "Weighed on a plate"
+    /// instead. The view also hides it for the by-eye count layout.
     public var offersEnterMeasuredWeight: Bool {
-        !showsPortionGuide && !offersTypicalWeight
+        !showsPortionGuide && !offersTypicalWeight && !showsCountMethodPicker
+    }
+
+    /// Weighing on a plate subtracts the empty plate from a gram total of food and plate, which a
+    /// count's "Total weight" (food only) does not give. Choosing it on a count opens that gram total
+    /// with the count kept as the original amount, so plate weighing needs no second button (#318).
+    public func beginCountPlateWeighing() {
+        guard showsCountMethodPicker, savedResult == nil else { return }
+        send(.beginDirectWeight)
     }
 
     /// "Use original amount instead": the direct weight ends and the count conversion the fields
@@ -466,6 +476,10 @@ public final class FoodConfirmationViewModel: ObservableObject {
             if state.quantity.directWeight == nil && state.quantity.unit == .millilitres {
                 return "Enter the amount you had in mL, greater than zero."
             }
+            if state.quantity.directWeight == nil && !offersEnterMeasuredWeight {
+                // The control is not on screen, so the copy does not name it.
+                return FoodLogRequirementText.text(.amountMissing)
+            }
             return state.quantity.directWeight == nil
                 ? "Enter an amount greater than zero, or use ‘Enter measured weight’ to give the weight you ate in grams."
                 : "Enter an original amount greater than zero, or clear this optional field. Your weight in grams is kept."
@@ -491,8 +505,18 @@ public final class FoodConfirmationViewModel: ObservableObject {
     }
 
     /// The first blocking requirement, stated beside the disabled Log button.
-    public var blockedReason: String? {
-        let requirement = requirements.first.map(requirementText)
+    public var blockedReason: String? { blockedReason(countFields: nil, locale: .current) }
+
+    /// The Log bar's reason with the count's weight fields as shown. When a count's "Total weight"
+    /// or "How you got it" is the only part missing, the bar names that part with the same sentence
+    /// as the field (#318, #303), rather than the generic count requirement. The rule itself is
+    /// unchanged: `countNeedsMeasuredAmount` still blocks Log.
+    public func blockedReason(countFields: FoodConfirmationView.ConversionFields?, locale: Locale) -> String? {
+        let requirement = requirements.first.map { first in
+            if first == .countNeedsMeasuredAmount, showsCountMethodPicker,
+               let specific = countFields?.missingPartText(locale: locale) { return specific }
+            return requirementText(first)
+        }
         if let sourceBlocker { return [requirement, sourceBlocker].compactMap { $0 }.joined(separator: " ") }
         return requirement ?? (hasChangesToSave ? nil : Self.noChangesReason)
     }
@@ -962,6 +986,15 @@ public struct FoodConfirmationView: View {
         self.leave = leave
     }
 
+    /// A direct weight's basis in the count picker's words (#318): one vocabulary for how a weight
+    /// was obtained on Confirm, the Food Log and the saved entry. The stored basis is unchanged.
+    public static func weightBasisLabel(_ basis: UserWeightBasis) -> String {
+        switch basis {
+        case .measured: ConversionFields.label(.choice(.kitchenScale))
+        case .estimated: ConversionFields.label(.choice(.estimatedByEye))
+        }
+    }
+
     /// The weighing method's title, shared by the picker and the saved, read-only plate row (#212).
     public static func weighingMethodTitle(usesPlate: Bool) -> String {
         usesPlate ? "Total minus empty plate" : "Food only / tared"
@@ -1297,9 +1330,15 @@ public struct FoodConfirmationView: View {
         }
     }
 
+    /// The Log bar's reason, naming the count field that is still missing (#318).
+    private var logBarReason: String? {
+        model.blockedReason(countFields: ConversionFields(text: conversionText, unit: conversionUnit, method: conversionMethod),
+                            locale: locale)
+    }
+
     @ViewBuilder
     private var blockedReasonText: some View {
-        if let reason = model.blockedReason {
+        if let reason = logBarReason {
             Text(reason).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -1331,7 +1370,7 @@ public struct FoodConfirmationView: View {
         Section("Before you log") {
             logWarnings
             estimateButton
-            if let reason = model.blockedReason {
+            if let reason = logBarReason {
                 Label(reason, systemImage: "info.circle")
                     .font(.footnote)
                     .fixedSize(horizontal: false, vertical: true)
@@ -1367,7 +1406,7 @@ public struct FoodConfirmationView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(!model.canLog)
-                .accessibilityHint(model.blockedReason ?? (model.state.reopened == nil ? "Logs this food with the amount and time shown" : "Saves your changes and keeps the original as history"))
+                .accessibilityHint(logBarReason ?? (model.state.reopened == nil ? "Logs this food with the amount and time shown" : "Saves your changes and keeps the original as history"))
                 if !pinsOnlyLog {
                     blockedReasonText
                 } else if model.blockedReason != nil {
@@ -1446,12 +1485,13 @@ public struct FoodConfirmationView: View {
                     .onChange(of: directWeightText) { _, value in model.send(.setDirectWeight(FoodAmountFieldText.parse(value, locale: locale))) }
                     .accessibilityLabel("Total edible weight in grams")
                 if usesPlate { Text("Enter the food and plate total here. The empty plate weight below is subtracted to obtain edible grams.").font(.caption) }
-                Picker("How you got the weight", selection: Binding<UserWeightBasis?>(
+                // The count picker's words for the same two meanings (#318); stored values unchanged.
+                Picker(ConversionFields.methodTitle, selection: Binding<UserWeightBasis?>(
                     get: { model.state.quantity.directWeight?.basis },
                     set: { model.send(.setWeightBasis($0)) })) {
                     Text("Choose one").tag(UserWeightBasis?.none)
-                    Text("I weighed it").tag(UserWeightBasis?.some(.measured))
-                    Text("I estimated it").tag(UserWeightBasis?.some(.estimated))
+                    Text(Self.weightBasisLabel(.measured)).tag(UserWeightBasis?.some(.measured))
+                    Text(Self.weightBasisLabel(.estimated)).tag(UserWeightBasis?.some(.estimated))
                 }
                 ForEach(model.directWeightRequirements, id: \.self) { Text($0).font(.caption) }
                 if model.state.quantity.directWeight?.needsReconfirmation == true {
@@ -1478,45 +1518,8 @@ public struct FoodConfirmationView: View {
             if let requirement = model.originalAmountRequirement { Text(requirement).font(.caption) }
             if model.showsPortionGuide { portionGuideRows }
             if countEstimateLayout { countEstimateRows }
-            whenRow
-            if let warning = model.quantityBasisWarning {
-                Label(warning, systemImage: "exclamationmark.triangle").font(.caption)
-            }
-            if let mismatch = model.sourceUnitAction {
-                Button(mismatch.actionTitle) {
-                    model.useSourceBasisUnit()
-                    totalText = ""
-                    resetConversionFields()
-                }
-                .frame(minHeight: 44)
-            }
-            if let offer = model.applicableVolumeConversion {
-                Button(FoodConfirmationViewModel.volumeEstimateActionTitle) { model.applyAvailableVolumeConversion() }
-                Text("\(model.state.quantity.value?.formatted() ?? "") mL gives about \(offer.convertedQuantity.value.formatted()) g. This estimate applies only to the selected UK CoFID whole pasteurised milk record. Check the food before using it; measured edible grams remain an alternative.")
-                    .font(.caption)
-            }
-            if let conversion = model.state.quantity.conversion {
-                let method = model.conversionMethodLabel ?? conversion.methodVersion.value
-                // A count's method is shown once, by the "How you got it" picker below (#307).
-                if !model.showsCountMethodPicker {
-                    LabeledContent("Weight or volume method", value: method)
-                        .accessibilityLabel("Weight or volume method, \(method)")
-                }
-                if let url = model.volumeConversionSourceURL,
-                   let sourceID = conversion.sourceReleaseID,
-                   let source = model.state.input.sourceReleases.first(where: { $0.sourceReleaseID == sourceID }) {
-                    DisclosureGroup("Volume estimate source") {
-                        LabeledContent("Method identifier", value: conversion.methodVersion.value)
-                            .font(.caption).textSelection(.enabled)
-                        Text(source.attribution.value).font(.caption).textSelection(.enabled)
-                        Text(source.licence.value).font(.caption2).textSelection(.enabled)
-                        Link("Open conversion source", destination: url)
-                    }
-                }
-                if model.volumeConversionSourceURL != nil {
-                    Button("Remove volume estimate") { model.removeOfferedVolumeConversion() }
-                }
-            }
+            // The count's weight fields sit with the amount, so Change never moves the When row
+            // above them (#318).
             if model.state.quantity.unit == .count && model.state.quantity.directWeight == nil && !model.state.usesSourceDeclaredServing
                 && !model.countsPastedLabelServings && !model.showsPortionGuide {
                 Text(ConversionFields.intro).font(.caption)
@@ -1556,6 +1559,45 @@ public struct FoodConfirmationView: View {
                     Button(Self.useTypicalWeightTitle) { useTypicalWeight() }
                         .frame(minHeight: 44)
                         .accessibilityIdentifier("confirm.useTypicalWeight")
+                }
+            }
+            whenRow
+            if let warning = model.quantityBasisWarning {
+                Label(warning, systemImage: "exclamationmark.triangle").font(.caption)
+            }
+            if let mismatch = model.sourceUnitAction {
+                Button(mismatch.actionTitle) {
+                    model.useSourceBasisUnit()
+                    totalText = ""
+                    resetConversionFields()
+                }
+                .frame(minHeight: 44)
+            }
+            if let offer = model.applicableVolumeConversion {
+                Button(FoodConfirmationViewModel.volumeEstimateActionTitle) { model.applyAvailableVolumeConversion() }
+                Text("\(model.state.quantity.value?.formatted() ?? "") mL gives about \(offer.convertedQuantity.value.formatted()) g. This estimate applies only to the selected UK CoFID whole pasteurised milk record. Check the food before using it; measured edible grams remain an alternative.")
+                    .font(.caption)
+            }
+            if let conversion = model.state.quantity.conversion {
+                let method = model.conversionMethodLabel ?? conversion.methodVersion.value
+                // A count's method is shown once, by the "How you got it" picker above (#307).
+                if !model.showsCountMethodPicker {
+                    LabeledContent("Weight or volume method", value: method)
+                        .accessibilityLabel("Weight or volume method, \(method)")
+                }
+                if let url = model.volumeConversionSourceURL,
+                   let sourceID = conversion.sourceReleaseID,
+                   let source = model.state.input.sourceReleases.first(where: { $0.sourceReleaseID == sourceID }) {
+                    DisclosureGroup("Volume estimate source") {
+                        LabeledContent("Method identifier", value: conversion.methodVersion.value)
+                            .font(.caption).textSelection(.enabled)
+                        Text(source.attribution.value).font(.caption).textSelection(.enabled)
+                        Text(source.licence.value).font(.caption2).textSelection(.enabled)
+                        Link("Open conversion source", destination: url)
+                    }
+                }
+                if model.volumeConversionSourceURL != nil {
+                    Button("Remove volume estimate") { model.removeOfferedVolumeConversion() }
                 }
             }
             ForEach(model.plateRequirements, id: \.self) { Text($0).font(.caption) }
@@ -1907,6 +1949,16 @@ public struct FoodConfirmationView: View {
             }
         }
 
+        /// The sentence when one part of the fields is missing ("Choose how you got the weight." or
+        /// "Enter the total weight."), or nil when both or neither are. The Log bar uses it so the
+        /// bar and the field say the same thing (#318).
+        public func missingPartText(locale: Locale) -> String? {
+            guard let text = requirementText(locale: locale), text != Self.bothMissingText else { return nil }
+            return text
+        }
+
+        public static let bothMissingText = "Enter the total weight and choose how you got it."
+
         /// The field-local requirement naming exactly which part is still missing, or nil when the
         /// fields describe a conversion. Presentation only: the Log rule stays
         /// `countNeedsMeasuredAmount`, unchanged.
@@ -1918,7 +1970,7 @@ public struct FoodConfirmationView: View {
             case (nil, _?):
                 return "Enter the total weight."
             default:
-                return "Enter the total weight and choose how you got it."
+                return Self.bothMissingText
             }
         }
 
@@ -1967,6 +2019,12 @@ public struct FoodConfirmationView: View {
     private var plateModeBinding: Binding<Bool> {
         Binding(get: { usesPlate }, set: { enabled in
             if enabled {
+                if model.showsCountMethodPicker {
+                    // A count's "Total weight" is food only; the plate needs the food and plate total.
+                    model.beginCountPlateWeighing()
+                    directWeightText = ""
+                    resetConversionFields()
+                }
                 if let saved = model.state.reopened?.plateWeightVersion {
                     model.send(.setPlateChoice(.saved(saved)))
                     emptyPlateText = editableNumber(saved.emptyWeight.value)

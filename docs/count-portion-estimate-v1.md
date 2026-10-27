@@ -4,6 +4,8 @@ Status: **implemented on `feat/307-count-portion-estimate`, 24 October 2026** (s
 
 Amendment 1 (24 October 2026, owner input: "Small, medium, large, X-Large estimates could help"): eggs get a one-tap size choice (Small, Medium, Large, Extra large) with Large pre-filled; each size is its own closed code; boiled sizes other than Large are a documented derivation from the raw sizes; the USDA archive was re-downloaded with owner approval and the values re-verified (section 3); the Daily JSON summary moves to food-intake-summary-v6 while entry fields stay unchanged (follow-up #312); the architecture gate findings F1 to F11 on 435783ba are folded in.
 
+Amendment 2 (27 October 2026, #318 and #303, presentation and copy only; the owner delegated these backlog enhancements): one set of method words on Confirm, so the direct weight picker reads `Kitchen scale` and `Estimated by eye` (stored basis unchanged) and a saved direct measured weight reads `Kitchen scale` instead of `Weighed`; the Log bar names the one missing count field with the field's own sentence; a count without a guide shows one layout (no `Enter measured weight` beside its `Total weight` and `How you got it`), and choosing `Total minus empty plate` on such a count opens the gram total of food and plate with the count kept as the original amount, which is the existing direct weight path; the count's weight fields sit above `When`; on the Food Log row and the saved entry header a number and its unit are joined by a no-break space so they never wrap apart. No record, export, summary or requirement changes.
+
 This contract amends [count-conversion-method-v1.md](count-conversion-method-v1.md) (a count without a guide asks for a measured amount), [food-confirmation-contract-v5.md](food-confirmation-contract-v5.md) (`countNeedsMeasuredAmount`, the Log press as acceptance) and [direct-edible-weight-contract-v1.md](direct-edible-weight-contract-v1.md) (no guide estimates admitted). It admits the first source-backed count guide that [count-portion-guide-research-v1.md](archive/count-portion-guide-research-v1.md) prepared, and reuses the persistence pattern of [cofid-whole-milk-volume-admission-v1.md](cofid-whole-milk-volume-admission-v1.md).
 
 ## 1. Problem (UX review of main 53450fb7, screenshots 20 to 30, 35 and 42)
@@ -159,7 +161,9 @@ It is not `retainedWeightNeedsConfirmation`. That requirement protects a weight 
 | Field-local, weight missing | `Enter the total weight.` |
 | Field-local, method missing | `Choose how you got the weight.` |
 | Field-local, estimate in mL | `Estimates are in grams. Enter the weight in g.` |
-| Log bar, `countNeedsMeasuredAmount` | `Enter the total weight and how you got it, or change the unit to g or mL.` |
+| Log bar, `countNeedsMeasuredAmount`, nothing entered | `Enter the total weight and choose how you got it, or change the unit to g or mL.` |
+| Log bar, one part entered (amendment 2) | the field-local sentence for the missing part: `Choose how you got the weight.` or `Enter the total weight.` |
+| Direct weight method (amendment 2) | `How you got it`: `Kitchen scale` (basis measured), `Estimated by eye` (basis estimated); start `Choose one`. Requirement: `Choose how you got the weight.` |
 
 The details disclosure shows no tappable link in v1 (gate F11); the source is named in plain text.
 
@@ -173,7 +177,7 @@ The amount line is `<count> · <edible>`, where the edible amount carries `about
 | Estimated by eye | `3 pieces · about 150 g` | `Estimate · Estimated by eye` |
 | Kitchen scale | `3 pieces · 150 g` | `Kitchen scale` |
 | Package weight | `3 pieces · 150 g` | `Package weight` |
-| Weighed (direct weight, measured) | `150 g` (or `3 pieces · 150 g` when a count was kept) | `Weighed` |
+| Weighed (direct weight, measured) | `150 g` (or `3 pieces · 150 g` when a count was kept) | `Kitchen scale` (amendment 2; was `Weighed`) |
 | Whole-milk volume estimate | `200 mL · about 206 g` | `Estimate · Whole milk volume estimate` |
 | Legacy typed method | `3 pieces · 150 g` | `Recorded: <stored text>` |
 | Grams or millilitres entered directly | `150 g` | none |
@@ -335,7 +339,7 @@ Presentation and infrastructure depend on application; application depends on do
 8. Edit, choose Estimated by eye with 140 g: the screen keeps one amount (the count), no `Use original amount instead`, no second unit picker. Save: Food Log flags `Estimate · Estimated by eye`.
 9. Edit, choose `Use typical weight`, save: back to the size choice at the last size.
 10. Search `2 eggs` and choose "Eggs, chicken, whole, raw": the same four sizes, without the boiled sentence in details.
-11. Search `2 eggs fried`, choose a fried record: no size choice; the one-layout measured flow; Log blocked with `Enter the total weight and how you got it, or change the unit to g or mL.`
+11. Search `2 eggs fried`, choose a fried record: no size choice; the one-layout measured flow; Log blocked with `Enter the total weight and choose how you got it, or change the unit to g or mL.`
 12. Search `1 banana`, choose by count: same as step 11 with `1 piece`.
 13. Recent on Add food shows `pieces`; relogging the egg opens with its saved size selected.
 14. Confirm unit picker, Quick add, Favourites, Common foods, inventory and list import show `pieces`; no screen says `units` or `count` for an amount.

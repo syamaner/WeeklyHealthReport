@@ -89,7 +89,7 @@ struct SavedFoodEntryView: View {
             Section {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(detail.name).font(.title3.weight(.semibold))
-                    Text("\(FoodLogText.savedAmount(detail)) · \(FoodLogText.when(detail.occurredAt, now: now(), calendar: calendar))")
+                    Text("\(FoodLogText.keepingUnitsAttached(FoodLogText.savedAmount(detail))) · \(FoodLogText.when(detail.occurredAt, now: now(), calendar: calendar))")
                         .foregroundStyle(.secondary)
                     if let serving = PastedLabelSavedEntryText.servingSizeLine(detail) {
                         Text(serving).font(.subheadline).foregroundStyle(.secondary)
