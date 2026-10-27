@@ -319,7 +319,7 @@ check_imports FoodLabelTextCapture '^(Foundation|FoodLedgerApplication|FoodLedge
 # Label photo reader (#316, docs/label-photo-ai-prefill-v1.md 17.2): pure, no platform framework.
 check_imports FoodLabelPhotoReading '^(Foundation|FoodLedgerApplication|FoodLedgerDomain|NutritionLabelParsing)$'
 # Label photo capture adapters (17.2): platform frameworks, each confined to its adapter file above.
-check_imports FoodLabelPhotoCapture '^(CoreGraphics|Foundation|ImageIO|UniformTypeIdentifiers|Vision|FoodLedgerApplication|FoodLedgerDomain|FoodLabelPhotoReading)$'
+check_imports FoodLabelPhotoCapture '^(CoreGraphics|Foundation|ImageIO|Network|UniformTypeIdentifiers|Vision|FoodLedgerApplication|FoodLedgerDomain|FoodLabelPhotoReading)$'
 # Label photo UI (17.2, 17.19): camera, PhotosPicker, crop and the photo pane.
 check_imports FoodLabelPhotoUI '^(AVFoundation|Foundation|FoodLedgerApplication|FoodLedgerDomain|PhotosUI|SwiftUI|UIKit)$'
 check_imports FoodLedgerDomain '^(Foundation)$'

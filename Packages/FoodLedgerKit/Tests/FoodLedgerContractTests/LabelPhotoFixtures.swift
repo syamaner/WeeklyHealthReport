@@ -70,7 +70,7 @@ enum LabelPhotoFixtures {
               identityMapping: try .init(fortificationAnswer: .no, servingBasis: .per100Grams), candidate: candidate, locations: locations,
               storedHeaderID: "h2", conversions: conversions, flagsShown: flags,
               checksFailed: checksFailed, warningsShown: checksFailed.map(\.warningCode), corrections: corrections, attention: attention,
-              name: "Synthetic oat crackers", brand: "Synthetic Mill")
+              name: "Synthetic oat crackers", brand: "Synthetic Mill").recordingRoute()
         }
         if let attention { return try build(attention) }
         let findings = try LabelPhotoSource.attention(try build([]))

@@ -96,7 +96,7 @@ final class LabelPhotoReadSessionTests: XCTestCase {
     }
     static let taps = Taps()
 
-    static let good = LabelPhotoManifest.CatalogueCheck(at: 1, slug: "google/gemini-4-argon", endpoint: "google-vertex",
+    static let good = LabelPhotoManifest.CatalogueCheck(at: 1, slug: "google/gemini-4-argon", endpoint: "google-vertex/us",
         inputModalities: ["text", "image"], zeroDataRetention: true, promptPrice: "0.000002", completionPrice: "0.00001")
     static let usage = LabelPhotoManifest.Usage(promptTokens: 2_000, completionTokens: 600, reasoningTokens: nil, costUSD: "0.01")
     static let answer = LabelPhotoAttemptResult.answered(wireText: "{}", model: "google/gemini-4-argon", provider: "Google Vertex",
@@ -113,12 +113,15 @@ final class LabelPhotoReadSessionTests: XCTestCase {
     var calendar: Calendar { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "Asia/Taipei")!; return c }
 
     func makeSession(_ script: [LabelPhotoAttemptResult], checker: Checker = Checker(.success(good)), ledger: Ledger = Ledger(),
-                     keys: Keys = Keys(), clock: Clock = Clock())
+                     keys: Keys = Keys(), clock: Clock = Clock(), route: LabelPhotoRoute.Route = LabelPhotoRoute.v1US,
+                     reasoningBilledSeparately: Bool = false)
         -> (LabelPhotoReadSession, Attempter, Checker, Ledger, Sleeper) {
+        // The budget arithmetic below is route v1's (1,200 tokens, W $0.024); route v2 has its own test.
         let attempter = Attempter(script, clock: clock)
         let sleeper = Sleeper(clock: clock)
-        let session = LabelPhotoReadSession(checker: checker, attempter: attempter, ledger: ledger, keys: keys, clock: clock,
-                                            calendar: calendar, sleeper: sleeper, jitter: { 0 }, tapIDs: Self.taps.next)
+        let session = LabelPhotoReadSession(route: route, checker: checker, attempter: attempter, ledger: ledger, keys: keys, clock: clock,
+                                            calendar: calendar, sleeper: sleeper, jitter: { 0 }, tapIDs: Self.taps.next,
+                                            reasoningBilledSeparately: reasoningBilledSeparately)
         return (session, attempter, checker, ledger, sleeper)
     }
 
@@ -137,12 +140,12 @@ final class LabelPhotoReadSessionTests: XCTestCase {
         let mismatches = [
             LabelPhotoManifest.CatalogueCheck(at: 1, slug: "google/gemini-4-argon", endpoint: "google-ai-studio", inputModalities: ["image"],
                                               zeroDataRetention: true, promptPrice: "0.000002", completionPrice: "0.00001"),
-            LabelPhotoManifest.CatalogueCheck(at: 1, slug: "google/gemini-4-argon", endpoint: "google-vertex", inputModalities: ["text"],
+            LabelPhotoManifest.CatalogueCheck(at: 1, slug: "google/gemini-4-argon", endpoint: "google-vertex/us", inputModalities: ["text"],
                                               zeroDataRetention: true, promptPrice: "0.000002", completionPrice: "0.00001"),
-            LabelPhotoManifest.CatalogueCheck(at: 1, slug: "google/gemini-4-argon", endpoint: "google-vertex", inputModalities: ["image"],
+            LabelPhotoManifest.CatalogueCheck(at: 1, slug: "google/gemini-4-argon", endpoint: "google-vertex/us", inputModalities: ["image"],
                                               zeroDataRetention: false, promptPrice: "0.000002", completionPrice: "0.00001"),
             // Prices whose worst case exceeds $0.05.
-            LabelPhotoManifest.CatalogueCheck(at: 1, slug: "google/gemini-4-argon", endpoint: "google-vertex", inputModalities: ["image"],
+            LabelPhotoManifest.CatalogueCheck(at: 1, slug: "google/gemini-4-argon", endpoint: "google-vertex/us", inputModalities: ["image"],
                                               zeroDataRetention: true, promptPrice: "0.00001", completionPrice: "0.00004"),
         ]
         for check in mismatches {
@@ -204,6 +207,24 @@ final class LabelPhotoReadSessionTests: XCTestCase {
         let outcome = await session.read(image)
         XCTAssertEqual(outcome, .failed(.unreadableAnswer))
         XCTAssertEqual(attempter.timeouts.count, 1)
+    }
+
+    func testRouteV2AtLivePricesAllowsNoRetryAfterAnUnreportedFailure() async {
+        // Route v2 (17.21): W = 6,000 x $0.0000022 + (2,400 + 500) x $0.000011 = $0.0451.
+        let live = LabelPhotoManifest.CatalogueCheck(at: 1, slug: "google/gemini-4-argon", endpoint: "google-vertex/us",
+            inputModalities: ["text", "image"], zeroDataRetention: true, promptPrice: "0.0000022", completionPrice: "0.000011")
+        let prices = LabelPhotoReadSession.prices(live, route: LabelPhotoRoute.v2US, reasoningBilledSeparately: true)
+        XCTAssertEqual(prices.map(LabelPhotoSpendPolicy.worstCase), Decimal(string: "0.0451"))
+        let (session, attempter, _, _, _) = makeSession([Self.failed(.transportError), Self.answer], checker: Checker(.success(live)),
+                                                        route: LabelPhotoRoute.v2US, reasoningBilledSeparately: true)
+        let outcome = await session.read(image)
+        XCTAssertEqual(outcome, .failed(.providerUnavailable))
+        XCTAssertEqual(attempter.timeouts.count, 1, "$0.0451 + $0.0451 exceeds $0.05")
+        let (retried, retriedAttempter, _, _, _) = makeSession([Self.failed(.httpStatus(503, retryAfter: nil), cost: 0),
+                                                                Self.answer], checker: Checker(.success(live)),
+                                                               route: LabelPhotoRoute.v2US, reasoningBilledSeparately: true)
+        guard case .answered = await retried.read(image) else { return XCTFail("a failure reported at $0 still leaves room") }
+        XCTAssertEqual(retriedAttempter.timeouts.count, 2)
     }
 
     func testNoAttemptStartsPastTheTapBudget() async {
@@ -474,5 +495,20 @@ final class LabelPhotoReadSessionTests: XCTestCase {
         XCTAssertFalse(nextDay.routeUnavailable)
         guard case .answered = await session.read(image) else { return XCTFail("checked again on a new day") }
         XCTAssertEqual(checker.calls, 2)
+    }
+
+    // MARK: L5: a catalogue transport failure is not the route's fault
+
+    func testACatalogueTransportFailureIsOfflineAndCheckedAgainOnTheNextTap() async {
+        let checker = Checker(.failure(LabelPhotoRouteCheckFailure.transport(.offline)))
+        let (session, attempter, _, _, _) = makeSession([Self.answer], checker: checker)
+        let first = await session.read(image)
+        XCTAssertEqual(first, .failed(.offline))
+        let status = await session.status()
+        XCTAssertFalse(status.routeUnavailable, "not kept for the day")
+        checker.result = .success(Self.good)
+        guard case .answered = await session.read(image) else { return XCTFail("checked again on the next tap") }
+        XCTAssertEqual(checker.calls, 2)
+        XCTAssertEqual(attempter.timeouts.count, 1)
     }
 }

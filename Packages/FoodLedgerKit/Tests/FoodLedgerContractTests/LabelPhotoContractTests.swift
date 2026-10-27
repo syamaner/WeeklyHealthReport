@@ -306,8 +306,43 @@ final class LabelPhotoContractTests: XCTestCase {
         XCTAssertEqual(LabelPhotoSource.admittedPipelines, [
             "label-photo-ai-route-v1:google/gemini-4-argon@google-vertex:label-photo-instruction-v1:label-photo-wire-mapping-v1:"
                 + "label-capture-decline-gate-v2:label-arithmetic-checks-v2:label-photo-serving-consistency-v1:pasted-label-conversions-v1:"
-                + "label-photo-serving-v1:label-photo-vision-locate-v3:label-photo-attention-v1"
+                + "label-photo-serving-v1:label-photo-vision-locate-v3:label-photo-attention-v1",
+            // L5 (17.21): the live catalogue's US endpoint, appended; the entry above stays for verify only.
+            "label-photo-ai-route-v1:google/gemini-4-argon@google-vertex/us:label-photo-instruction-v1:label-photo-wire-mapping-v1:"
+                + "label-capture-decline-gate-v2:label-arithmetic-checks-v2:label-photo-serving-consistency-v1:pasted-label-conversions-v1:"
+                + "label-photo-serving-v1:label-photo-vision-locate-v3:label-photo-attention-v1",
+            // Route v2 (17.21, after E13): the same endpoint with max_tokens 2,400.
+            "label-photo-ai-route-v2:google/gemini-4-argon@google-vertex/us:label-photo-instruction-v1:label-photo-wire-mapping-v1:"
+                + "label-capture-decline-gate-v2:label-arithmetic-checks-v2:label-photo-serving-consistency-v1:pasted-label-conversions-v1:"
+                + "label-photo-serving-v1:label-photo-vision-locate-v3:label-photo-attention-v1",
         ])
+        XCTAssertEqual(LabelPhotoRoute.current, LabelPhotoRoute.v2US, "only route v2 on the US endpoint is sent")
+        XCTAssertEqual(LabelPhotoRoute.admitted.map(\.maxOutputTokens), [1_200, 1_200, 2_400])
+    }
+
+    func testARouteV2ManifestVerifiesAndItsVersionMustMatchItsTokens() throws {
+        func request(endpoint: String, maxOutputTokens: Int) -> M.Request {
+            let base = F.request()
+            return M.Request(model: base.model, endpoint: endpoint, reasoningLimit: 500, maxOutputTokens: maxOutputTokens,
+                             instructionVersion: base.instructionVersion, instructionSHA256: base.instructionSHA256,
+                             wireSchemaVersion: base.wireSchemaVersion, wireSchemaSHA256: base.wireSchemaSHA256,
+                             catalogueCheck: .init(at: base.catalogueCheck.at, slug: base.model, endpoint: endpoint,
+                                                   inputModalities: ["text", "image"], zeroDataRetention: true,
+                                                   promptPrice: "0.0000022", completionPrice: "0.000011"))
+        }
+        let v2 = try F.manifest(request: request(endpoint: "google-vertex/us", maxOutputTokens: 2_400))
+        XCTAssertEqual(v2.routeVersion, "label-photo-ai-route-v2")
+        XCTAssertTrue(F.verify(try F.input(v2)))
+        let v1US = try F.manifest(request: request(endpoint: "google-vertex/us", maxOutputTokens: 1_200))
+        XCTAssertEqual(v1US.routeVersion, "label-photo-ai-route-v1", "E13's route still verifies")
+        XCTAssertTrue(F.verify(try F.input(v1US)))
+        XCTAssertEqual(try F.manifest().routeVersion, "label-photo-ai-route-v1")
+        // A version that does not match the request's route, or tokens no admitted route sends, is refused.
+        let data = try LedgerFixtures.encoder.encode(v1US)
+        let relabelled = String(decoding: data, as: UTF8.self)
+            .replacingOccurrences(of: #""route_version":"label-photo-ai-route-v1""#, with: #""route_version":"label-photo-ai-route-v2""#)
+        XCTAssertThrowsError(try F.input(try XCTUnwrap(M.decode(Data(relabelled.utf8)))))
+        XCTAssertThrowsError(try F.input(try F.manifest(request: request(endpoint: "google-vertex/us", maxOutputTokens: 3_000))))
     }
 
     // MARK: Test 3: serving parity with the pasted policy (P10)

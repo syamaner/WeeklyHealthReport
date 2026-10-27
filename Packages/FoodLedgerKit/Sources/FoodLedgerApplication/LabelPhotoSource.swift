@@ -11,14 +11,43 @@ public enum LabelPhotoRoute {
     public struct Route: Equatable, Sendable {
         public let version: String
         public let model: String
+        /// The OpenRouter endpoint tag the request pins in `only` and `order` (the binding control).
         public let endpoint: String
+        /// The provider name OpenRouter returns for that endpoint, compared exactly after
+        /// normalisation (17.21). A secondary check: it cannot tell two tags of one provider apart.
+        public let providerName: String
+        /// The request's `max_tokens`. On this endpoint it includes the reasoning tokens (E13, 17.21).
+        public let maxOutputTokens: Int
+
+        public init(version: String, model: String, endpoint: String, providerName: String, maxOutputTokens: Int) {
+            self.version = version; self.model = model; self.endpoint = endpoint; self.providerName = providerName
+            self.maxOutputTokens = maxOutputTokens
+        }
     }
 
-    /// Gemini 4 Argon on its zero-data-retention endpoint. The endpoint tag is the one the
-    /// catalogue lists on the day (expected Google Vertex); L3 confirms it, and any other tag is
-    /// a new admitted entry, never an edit.
-    public static let v1 = Route(version: LabelPhotoManifest.routeVersion, model: "google/gemini-4-argon", endpoint: "google-vertex")
-    public static let admitted: [Route] = [v1]
+    /// Gemini 4 Argon on the tag the design expected. The live catalogue has no such tag (17.21),
+    /// so it is never sent; it stays admitted so a manifest naming it still verifies.
+    public static let v1 = Route(version: LabelPhotoManifest.routeVersion, model: "google/gemini-4-argon", endpoint: "google-vertex",
+                                 providerName: "Google Vertex", maxOutputTokens: 1_200)
+    /// Gemini 4 Argon on Google Vertex's US endpoint, zero-data-retention listed with status 0 in the
+    /// live catalogue of 26 October 2026 (17.21). Qualified by E13 at 1,200 tokens; no longer sent.
+    public static let v1US = Route(version: LabelPhotoManifest.routeVersion, model: "google/gemini-4-argon", endpoint: "google-vertex/us",
+                                   providerName: "Google", maxOutputTokens: 1_200)
+    /// Route version 2 (17.21, decided 27 October 2026): the same model and endpoint with
+    /// `max_tokens` 2,400, because E13 truncated two answers at 1,200 with reasoning counted inside.
+    public static let v2US = Route(version: "label-photo-ai-route-v2", model: "google/gemini-4-argon", endpoint: "google-vertex/us",
+                                   providerName: "Google", maxOutputTokens: 2_400)
+    /// The one route that is sent.
+    public static let current = v2US
+    /// Closed and append-only: the routes a stored manifest may name.
+    public static let admitted: [Route] = [v1, v1US, v2US]
+
+    /// The admitted route a manifest request was sent under: the same model, endpoint and
+    /// `max_tokens`. Route v1 and its US entry share a version, so the newest admitted match wins
+    /// only among identical version strings; a request no admitted route describes has none.
+    public static func route(for request: LabelPhotoManifest.Request) -> Route? {
+        admitted.last { $0.model == request.model && $0.endpoint == request.endpoint && $0.maxOutputTokens == request.maxOutputTokens }
+    }
 }
 
 /// The ledger records a label photo manifest stands for, and their verification (8.1 and 8.2).
@@ -262,7 +291,8 @@ public enum LabelPhotoSource {
               manifest.response.attempts >= 1, manifest.response.completedAt >= manifest.response.requestedAt,
               manifest.request.model == manifest.request.catalogueCheck.slug,
               manifest.request.wireSchemaVersion == wireSchemaVersion, manifest.image.mediaType == LabelPhotoManifest.mediaType,
-              manifest.request.endpoint == manifest.request.catalogueCheck.endpoint else {
+              manifest.request.endpoint == manifest.request.catalogueCheck.endpoint,
+              LabelPhotoRoute.route(for: manifest.request)?.version == manifest.routeVersion else {
             throw LabelPhotoSourceError.invalidManifest("release")
         }
         // The image evidence: the prepared bytes, described and hashed; its attachment, when the

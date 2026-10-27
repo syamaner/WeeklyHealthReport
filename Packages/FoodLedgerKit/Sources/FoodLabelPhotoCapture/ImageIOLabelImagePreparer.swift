@@ -8,10 +8,10 @@ import UniformTypeIdentifiers
 /// P3, P5, E3, 17.8 M6 and 17.17). ImageIO and CoreGraphics are confined to this file.
 ///
 /// In order: read the photo's size and orientation; refuse a crop (normalised to the upright photo)
-/// whose short edge is under 240 px or whose sides differ by more than 8 times; decode the primary
+/// whose short edge is under 160 px (P5, 17.21) or whose sides differ by more than 8 times; decode the primary
 /// image subsampled to the size the crop needs at the output bounds, with its orientation applied
 /// to the pixels; crop; turn by the user's quarter turns; scale so the long edge is at most 2,048 px
-/// and the area at most 3.2 megapixels, refusing a result whose short edge falls under 240 px; draw
+/// and the area at most 3.2 megapixels, refusing a result whose short edge falls under 160 px; draw
 /// into an 8-bit sRGB bitmap; encode a baseline JPEG from those pixels alone, at quality 0.85, then
 /// 0.75, then 0.65 while it exceeds 1,500,000 bytes (else refuse); and keep only the allow-listed
 /// JPEG structure (`JPEGSegments.sanitised`), refusing anything else. No property of the source is

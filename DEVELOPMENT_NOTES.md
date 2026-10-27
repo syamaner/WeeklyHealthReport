@@ -3023,3 +3023,83 @@ Servings review fold (WHR-316-2026-10-26-SERVINGS): `phase_usage.py --format cla
 - their tests and every gate.
 
 The window between 21:35:14Z and 21:38:23Z (pushing and opening #328) is outside both rows. Cache writes 2,786,957 5-minute, 0 1-hour; exact USD 18.3611896. Same pricing as above; an API-equivalent comparison, not a charge.
+
+## WHR-316-2026-10-26-L5: Claude Code label photo L5 (live transport, route identity, records)
+
+The same `claude-opus-5-5` subagent and transcript as WHR-316-2026-10-26-SERVINGS, for #316 L5 after the owner's approval. The window runs from `2026-10-26T00:59:13Z` (the first keyless catalogue GET) to `01:44:00Z`, just before this edit. It covers:
+- the live transport, connectivity, the typed catalogue transport failure and their tests;
+- the live launch mode, its consent key and spend ledger;
+- the section 11 records and the camera string;
+- the architecture gate's changes: the US route entry, the provider name, the price guards, the display name and the narrowed offline mapping;
+- spec 17.21, the device check for the iPhone run, and every gate.
+
+The paid E13 run did not happen, and the commit, push and PR are outside the window. The architecture gate ran as its own subagent and has its own row, so nothing is counted twice.
+
+Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A): `claude-opus-5-5` USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache hit, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label photo L5: live transport, route identity and records (#316), subagent | 23,108,856 (22,347,830) | 760,840 | 77,371 | 23,186,227 | $9.82 |
+| Label photo L5 architecture gate (#316), architecture-gate subagent | 370,816 (301,180) | 69,620 | 16,252 | 387,068 | $0.73 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-26T00:59:13Z --until 2026-10-26T01:44:00Z` on the L5 subagent transcript alone. The gate's whole transcript (`agent-a1427b870f48ef214.jsonl`) is measured on its own. Cache writes: L5 760,840 5-minute and 0 1-hour, exact USD 9.82193; the gate 69,620 5-minute and 0 1-hour, exact USD 0.73344. The keyless catalogue GETs, local Swift and Xcode builds and the simulator use no API tokens and are not priced. No OpenRouter spend occurred. These totals are a cost comparison, not productivity or quality evidence.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label photo L5 E13 preparation: live pricing guard, catalogue cap, E13 runner and scorer (#316), subagent | 22,578,085 (21,668,484) | 909,441 | 57,092 | 22,635,177 | $10.02 |
+
+E13 preparation (WHR-316-2026-10-26-L5): `phase_usage.py --format claude --since 2026-10-26T01:44:00Z --until 2026-10-26T03:10:00Z` on the subagent transcript alone. It starts where the L5 row ends, so it also covers the commit, push and opening of #329 that the L5 row left out. It covers:
+- the live pricing object and its guard;
+- the catalogue reply cap;
+- the ten refill downloads;
+- the E13 runner, case list and scorer;
+- the spec 17.21 update and every gate.
+
+The paid run did not happen (the session's permission system refused loading the key), so there was no OpenRouter spend. Cache writes 909,441 5-minute, 0 1-hour; exact USD 10.0233818. Same pricing as above; an API-equivalent comparison, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label photo L5 E13 results and offline investigation (#316), subagent | 7,734,179 (6,676,881) | 1,057,254 | 18,446 | 7,752,625 | $6.99 |
+
+E13 results (WHR-316-2026-10-26-L5): `phase_usage.py --format claude --since 2026-10-26T03:10:00Z --until 2026-10-27T02:50:00Z` on the subagent transcript alone. It covers:
+- the fold commit, push and PR note;
+- recording the owner's E13 run;
+- the offline investigation: the preparation refusals, the token budget, the locator exposure (`e13_locate.py`, Vision on this Mac) and the two declines;
+- spec 17.21, and the checks after 02:50Z, which fall outside the window.
+
+The owner's E13 run cost **$0.7929 in OpenRouter charges** on the owner's key. That is a real charge, outside this agent's token use, and it is not included in the token row. Cache writes 1,057,254 5-minute, 0 1-hour; exact USD 6.9907422. Same pricing as above; an API-equivalent comparison, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label photo L5 route v2 (max_tokens 2,400), 160 px floor, re-run option and attention clarification (#316), subagent | 28,008,549 (26,537,256) | 1,471,159 | 49,712 | 28,058,261 | $13.66 |
+
+Route v2 fold (WHR-316-2026-10-26-L5): `phase_usage.py --format claude --since 2026-10-27T02:50:00Z --until 2026-10-27T03:27:00Z` on the subagent transcript alone. It starts where the E13 results row ends. It covers:
+- route v2 and its tests;
+- the 160 px floor;
+- the runner's `--only` and `--records` options and the scorer's `--overlay`;
+- the attention-blocking check, and the correction to the locate report and the spec;
+- every gate.
+
+The commit, push and PR note fall after 03:27Z and are outside the window. There was no OpenRouter spend. Cache writes 1,471,159 5-minute, 0 1-hour; exact USD 13.6580222. Same pricing as above; an API-equivalent comparison, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label photo L5 E13 re-run record (#316), subagent | 3,763,382 (3,279,911) | 483,453 | 8,047 | 3,771,429 | $3.23 |
+
+E13 re-run record (WHR-316-2026-10-26-L5): `phase_usage.py --format claude --since 2026-10-27T03:27:00Z --until 2026-10-27T04:40:00Z` on the subagent transcript alone. It starts where the route v2 row ends, so it covers:
+- that fold's commit, push and PR note;
+- checking the re-run results file;
+- spec 17.21.
+
+The commit and push for this record fall after 04:40Z and are outside the window. The coordinator ran the 4-photo re-run under the owner's approval, and it cost **$0.0796 in OpenRouter charges**. E13's total charge on the owner's key is $0.8540. Both are real charges, outside this agent's token use. Cache writes 483,453 5-minute, 0 1-hour; exact USD 3.2342592. Same pricing as above; an API-equivalent comparison, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label photo L5 invariant review low fixes (#316), subagent | 9,240,034 (9,216,532) | 23,462 | 15,097 | 9,255,131 | $2.26 |
+
+Invariant review low fixes (WHR-316-2026-10-26-L5): `phase_usage.py --format claude --since 2026-10-27T04:40:00Z --until 2026-10-27T04:50:00Z` on the subagent transcript alone. It starts where the E13 re-run row ends and covers that row's push and CI check, plus the three fixes:
+- no default for the route's tokens in `Prices`;
+- the records-file identity guard;
+- the true total stop.
+
+It also covers the image-pricing wording and the gates. The commit and push fall after 04:50Z and are outside the window. There was no OpenRouter spend. Cache writes 23,462 5-minute, 0 1-hour; exact USD 2.2627164. Same pricing as above; an API-equivalent comparison, not a charge.

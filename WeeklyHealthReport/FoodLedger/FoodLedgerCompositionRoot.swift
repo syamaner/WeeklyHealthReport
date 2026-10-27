@@ -45,6 +45,7 @@ final class FoodLedgerCompositionRoot {
     let healthDirectory: URL
     let attachmentsRoot: URL
     let labelPhotoSpendLedgerURL: URL
+    let labelPhotoLiveSpendLedgerURL: URL
     private var activeInventory: LocalInventoryViewModel?
     private var inventoryService: LocalInventoryService?
     private var activeReresolution: FoodReresolutionViewModel?
@@ -79,6 +80,7 @@ final class FoodLedgerCompositionRoot {
         draftURL = root.appendingPathComponent("food-list-draft.sqlite")
         attachmentsRoot = root.appendingPathComponent("Attachments", isDirectory: true)
         labelPhotoSpendLedgerURL = root.appendingPathComponent("label-photo-spend-v1.json")
+        labelPhotoLiveSpendLedgerURL = root.appendingPathComponent("label-photo-spend-live-v1.json")
         self.healthDirectory = healthDirectory
         store = try FoodLedgerGRDBStore(
             databaseURL: root.appendingPathComponent("food-ledger.sqlite"),
@@ -1372,17 +1374,25 @@ extension View {
 
 // MARK: Label photo (#316, docs/label-photo-ai-prefill-v1.md L4)
 
-/// The label photo route's mode. Off by default: the route is enabled only by the launch argument
-/// `-LabelPhotoRoute <scenario>`, and then only with the scripted fake transport (no network). L5
-/// wires the live transport with the egress records (E16).
+/// The label photo route's mode. Off by default: there is no user-visible setting. The launch
+/// argument `-LabelPhotoRoute <scenario>` enables the scripted fake transport (no network), and
+/// `-LabelPhotoRoute live` the live OpenRouter transport (L5, 17.21), which stays a launch
+/// argument for the owner's device check until E13 passes and the owner turns it on.
 enum LabelPhotoRouteMode: Equatable {
     case off
     case fake(ScriptedLabelPhotoTransport.Scenario)
+    case live
+
+    static let liveArgument = "live"
 
     static func from(_ defaults: UserDefaults) -> LabelPhotoRouteMode {
-        guard let raw = defaults.string(forKey: "LabelPhotoRoute"), let scenario = ScriptedLabelPhotoTransport.Scenario(rawValue: raw) else {
-            return .off
-        }
+        guard let raw = defaults.string(forKey: "LabelPhotoRoute") else { return .off }
+        #if DEBUG
+        // Compiled out of Release: an archived or TestFlight build can never reach the live route
+        // until the owner turns it on (17.21).
+        if raw == liveArgument { return .live }
+        #endif
+        guard let scenario = ScriptedLabelPhotoTransport.Scenario(rawValue: raw) else { return .off }
         return .fake(scenario)
     }
 }
@@ -1417,22 +1427,51 @@ extension FoodLedgerCompositionRoot {
     var labelPhotoMode: LabelPhotoRouteMode { LabelPhotoRouteMode.from(userDefaults) }
     var labelPhotoEnabled: Bool { labelPhotoMode != .off }
 
-    /// The fake route's first-use consent (17.19). L5's live route uses its own, fresh key, so a
-    /// consent given to the scripted transport never stands for real egress.
+    /// The fake route's first-use consent (17.19).
     static let labelPhotoConsentKey = "labelPhoto.egressConsent.scripted.v1"
+    /// The live route's own, fresh consent key (L5): a consent given to the scripted transport
+    /// never stands for real egress.
+    static let labelPhotoLiveConsentKey = "labelPhoto.egressConsent.live.v1"
+
+    var labelPhotoActiveConsentKey: String {
+        labelPhotoMode == .live ? Self.labelPhotoLiveConsentKey : Self.labelPhotoConsentKey
+    }
+
+    /// The spend ledger for the enabled route: the live route keeps its own, so scripted reads
+    /// never count against, or reset, the real allowance.
+    var labelPhotoActiveSpendLedgerURL: URL {
+        labelPhotoMode == .live ? labelPhotoLiveSpendLedgerURL : labelPhotoSpendLedgerURL
+    }
+
+    /// Connectivity for the live route, one monitor per process. It only observes the path.
+    @MainActor static let labelPhotoConnectivity = NWPathConnectivityStatus()
 
     /// The read flow for the enabled route, shared per process, or nil when the route is off.
     @MainActor
     func labelPhotoFlow() -> LabelPhotoReadFlow? {
-        guard case let .fake(scenario) = labelPhotoMode else { return nil }
-        let keys = LabelPhotoFakeKeys(present: userDefaults.string(forKey: "LabelPhotoKey") != "missing")
-        let clock = confirmationClock, calendar = confirmationCalendar, ledgerURL = labelPhotoSpendLedgerURL
+        let mode = labelPhotoMode
+        let transport: any LabelPhotoHTTPTransporting
+        let keys: any FoodWebKeyStoring
+        switch mode {
+        case .off: return nil
+        case let .fake(scenario):
+            transport = ScriptedLabelPhotoTransport(scenario: scenario)
+            keys = LabelPhotoFakeKeys(present: userDefaults.string(forKey: "LabelPhotoKey") != "missing")
+        case .live:
+            transport = OpenRouterTransport()
+            keys = OpenRouterKeychainStore()
+        }
+        // The live endpoint prices internal reasoning at the completion rate (catalogue, 26 October
+        // 2026), so W includes the reasoning limit (17.21).
+        let reasoningBilledSeparately = mode == .live
+        let clock = confirmationClock, calendar = confirmationCalendar, ledgerURL = labelPhotoActiveSpendLedgerURL
         return try? LabelPhotoSessions.flow(ledgerURL: ledgerURL) {
-            let transport = ScriptedLabelPhotoTransport(scenario: scenario)
             let attempt = OpenRouterLabelPhotoAttempt(transport: transport, keys: keys, request: try OpenRouterLabelPhotoRequest())
-            let session = LabelPhotoReadSession(checker: OpenRouterLabelRouteChecker(transport: transport, clock: clock), attempter: attempt,
+            let session = LabelPhotoReadSession(checker: OpenRouterLabelRouteChecker(transport: transport, clock: clock, reasoningBilledSeparately: reasoningBilledSeparately),
+                attempter: attempt,
                 ledger: FileLabelPhotoSpendLedger(url: ledgerURL), keys: keys, clock: clock, calendar: calendar,
-                sleeper: TaskLabelPhotoSleeper(), jitter: { Double.random(in: 0...1) }, tapIDs: { UUID().uuidString })
+                sleeper: TaskLabelPhotoSleeper(), jitter: { Double.random(in: 0...1) }, tapIDs: { UUID().uuidString },
+                reasoningBilledSeparately: reasoningBilledSeparately)
             return LabelPhotoReadFlow(preparer: ImageIOLabelImagePreparer(), session: session,
                 interpreter: LabelPhotoComponents.interpreter(), locator: VisionLabelValueLocator(), builder: labelPhotoBuilder)
         }
@@ -1450,14 +1489,19 @@ extension FoodLedgerCompositionRoot {
         let defaults = userDefaults, builder = labelPhotoBuilder, ids = ids
         let identifier = locale.identifier.isEmpty ? "und" : locale.identifier
         let keyArgument = defaults.string(forKey: "LabelPhotoKey")
+        let live = labelPhotoMode == .live, credentials = webDiscovery, consentKey = labelPhotoActiveConsentKey
+        let connectivity = Self.labelPhotoConnectivity
         return LabelPhotoScreenModel(environment: .init(
             prepare: { flow.prepare($0, crop: $1) },
             read: { image, progress in await flow.read(image, progress: progress) },
             status: { await flow.status() },
-            keyState: { keyArgument == "missing" ? .missing : keyArgument == "unvalidated" ? .notValidated : .valid },
-            isOnline: { !defaults.bool(forKey: "LabelPhotoOffline") },
-            hasConsented: { defaults.bool(forKey: Self.labelPhotoConsentKey) },
-            recordConsent: { defaults.set(true, forKey: Self.labelPhotoConsentKey) },
+            keyState: {
+                if live { return credentials.keyIsUsable ? .valid : credentials.hasSavedKey ? .notValidated : .missing }
+                return keyArgument == "missing" ? .missing : keyArgument == "unvalidated" ? .notValidated : .valid
+            },
+            isOnline: { live ? connectivity.isOnline : !defaults.bool(forKey: "LabelPhotoOffline") },
+            hasConsented: { defaults.bool(forKey: consentKey) },
+            recordConsent: { defaults.set(true, forKey: consentKey) },
             makeConfirm: { review, image, details in
                 try LabelPhotoSourceModel(review: review, imageBytes: image.bytes, details: details, builder: builder,
                     imageEvidenceID: ids.makeID(EvidenceTag.self), manifestEvidenceID: ids.makeID(EvidenceTag.self),
@@ -1492,9 +1536,11 @@ extension FoodLedgerCompositionRoot {
         return FileManager.default.contents(atPath: url.path)
     }
 
-    /// The fake route's photo source yields the rendered synthetic label (17.19).
+    /// The fake route's photo source yields the rendered synthetic label (17.19). The live route
+    /// uses only the real camera and photo library.
     var labelPhotoSample: Data? {
-        labelPhotoEnabled ? LabelPhotoSyntheticRenderer.jpeg(lines: LabelPhotoSyntheticLabel.lines) : nil
+        guard case .fake = labelPhotoMode else { return nil }
+        return LabelPhotoSyntheticRenderer.jpeg(lines: LabelPhotoSyntheticLabel.lines)
     }
 }
 

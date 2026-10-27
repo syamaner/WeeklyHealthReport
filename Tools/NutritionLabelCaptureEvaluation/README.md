@@ -62,6 +62,7 @@ Where Inspect does not enforce a plan rule natively, a small wrapper does:
 | `inspect_task.py` | Inspect tasks, route solvers (A, B and C; C on development photos only), the shared scorer and metrics |
 | `route_c_mapping.py` | Route C wire output to `label-capture-candidate-v1` (no conversion or inference; unread values block ready) |
 | `run_route_c.py`, `qualification/` | Route C on development photos per pinned model, after two fictional qualification labels; per-stratum summary with cost and latency |
+| `e13_cases.py`, `e13_score.py` | The label photo route's E13 qualification ([spec 17.21](../../docs/label-photo-ai-prefill-v1.md)): the case list (development, untouched and refills 78 to 87) for the Swift runner `Tools/LabelPhotoE13`, and the offline score against the E13 bars (counts and case ids only) |
 | `vision_v3.swift` | Route B recogniser: Vision revision 3, accurate, `zh-Hant` and `en-US`, lines and token geometry |
 | `serialise_lines.py` | Route B serialiser: geometry to parser text, binding by column header and order within a column |
 | `run_route_b.py` | Route B on development photos through Inspect, per stratum; writes `results/` summaries |

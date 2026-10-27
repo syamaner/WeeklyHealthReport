@@ -42,7 +42,7 @@ public actor LabelPhotoReadSession {
     /// A spend ledger write failed: every further read this session is refused (fails closed).
     private(set) var ledgerFailed = false
 
-    public init(route: LabelPhotoRoute.Route = LabelPhotoRoute.v1, checker: any LabelPhotoRouteChecking, attempter: any LabelPhotoAttempting,
+    public init(route: LabelPhotoRoute.Route = LabelPhotoRoute.current, checker: any LabelPhotoRouteChecking, attempter: any LabelPhotoAttempting,
                 ledger: any LabelPhotoSpendLedger, keys: any FoodWebKeyStoring, clock: any LedgerClock, calendar: Calendar,
                 sleeper: any LabelPhotoSleeping, jitter: @escaping @Sendable () -> Double, tapIDs: @escaping @Sendable () -> String,
                 reasoningBilledSeparately: Bool = false) {
@@ -58,7 +58,7 @@ public actor LabelPhotoReadSession {
               check.zeroDataRetention, let prompt = Decimal(string: check.promptPrice), let completion = Decimal(string: check.completionPrice),
               prompt >= 0, completion >= 0 else { return nil }
         let prices = LabelPhotoSpendPolicy.Prices(promptPerToken: prompt, completionPerToken: completion,
-                                                  reasoningBilledSeparately: reasoningBilledSeparately)
+                                                  reasoningBilledSeparately: reasoningBilledSeparately, maxOutputTokens: route.maxOutputTokens)
         return LabelPhotoSpendPolicy.worstCase(prices) <= LabelPhotoSpendPolicy.perTapLimit ? prices : nil
     }
 
@@ -124,10 +124,17 @@ public actor LabelPhotoReadSession {
         if let cached = catalogue, cached.day == today {
             check = cached.check
         } else {
-            guard let fresh = try? await checker.check(route), !Task.isCancelled else {
+            let fresh: LabelPhotoManifest.CatalogueCheck
+            do {
+                fresh = try await checker.check(route)
+            } catch let LabelPhotoRouteCheckFailure.transport(failure) {
+                // Not the route's fault: said as offline or a connection failure, and not kept.
+                return .failed(Task.isCancelled ? .cancelled : failure.readingFailure)
+            } catch {
                 if !Task.isCancelled { routeUnavailableOn = today }
                 return .failed(Task.isCancelled ? .cancelled : .routeUnavailable)
             }
+            if Task.isCancelled { return .failed(.cancelled) }
             guard Self.prices(fresh, route: route, reasoningBilledSeparately: reasoningBilledSeparately) != nil else {
                 routeUnavailableOn = today
                 return .failed(.routeUnavailable)

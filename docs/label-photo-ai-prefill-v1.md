@@ -47,7 +47,7 @@ Each row is a design decision. Rows marked **Owner** need an answer before the p
 | P2 | **Sources.** Camera, photo library and screenshots (screenshots arrive through the library) | Camera through `UIImagePickerController` (camera source, still photo only, no video, no Live Photo); library through SwiftUI `PhotosPicker`, which runs out of process and needs no photo library permission. VisionKit's document camera was considered: its edge detection suits flat sheets, not curved packs, so the app's own crop step is used for every source | No |
 | P3 | **Crop before sending.** A mandatory crop screen; the user frames the table. Nothing outside the crop is sent or kept | Free-form rectangle with handles, pinch-zoom and pan under it, initial crop the whole image; rotate in 90° steps. No automatic table detection in v1 (it would be another on-device model to qualify) | No |
 | P4 | **Metadata.** The sent image is re-encoded from decoded pixels: orientation applied to the pixels, colour converted to sRGB, written by ImageIO as baseline JPEG with no metadata dictionary. No EXIF, GPS, TIFF, IPTC, XMP, maker notes (including Apple's), thumbnails, depth, gain maps or auxiliary images survive | As stated, proven by the tests in 12.5 | No (owner decided) |
-| P5 | **Size.** After crop: long edge at most **2,048 px** and at most **3,200,000 px** in total, JPEG quality 0.85; if the encoded file exceeds **1,500,000 bytes**, re-encode at 0.75 then 0.65; if still over, the read is refused with the copy in 7.2. A crop whose short edge is under **240 px**, before or after scaling, is refused as too small (lowered from 480 px after L0, 17.9; to be confirmed by E13), and a crop whose sides differ by more than **8 times** is refused as too narrow (17.17) | As stated; 2,048 px keeps small Chinese print legible. **The evaluation sent full-size images**, so section 10 E13 re-qualifies at this size before release | Approved (E3); minimum decided 25 October 2026 (17.9) |
+| P5 | **Size.** After crop: long edge at most **2,048 px** and at most **3,200,000 px** in total, JPEG quality 0.85; if the encoded file exceeds **1,500,000 bytes**, re-encode at 0.75 then 0.65; if still over, the read is refused with the copy in 7.2. A crop whose short edge is under **160 px**, before or after scaling, is refused as too small (480 px, then 240 px after L0 (17.9), then 160 px after E13 (17.21)), and a crop whose sides differ by more than **8 times** is refused as too narrow (17.17) | As stated; 2,048 px keeps small Chinese print legible. **The evaluation sent full-size images**, so section 10 E13 re-qualifies at this size before release | Approved (E3); minimum decided 25 October 2026 (17.9), lowered 27 October 2026 (17.21) |
 | P6 | **Explicit send.** Nothing leaves the device until the user taps **Read label with AI**, beside a statement that the photo goes to OpenRouter and the model. The first read on a device shows a one-time confirmation sheet | As stated; copy in 7.1 | Approved (E4) |
 | P7 | **What is sent.** The prepared image, a fixed instruction and a fixed strict output schema. Not the name, brand, notes, food log, health data, device or account identifiers | As stated; name and brand stay on device | Approved (E2) |
 | P8 | **Output.** The model returns the evaluation's wire shape (headers with printed text and basis; rows with printed label, nutrient, parent and per-header printed text; serving lines as printed text). The app, not the model, turns printed text into numbers, units and comparators, and builds the same `label-capture-candidate-v1` the pasted route produces | Port the evaluation's `route_c_mapping.py` to Swift as `label-photo-wire-mapping-v1`, behind exported parity vectors, as the gate was ported | No |
@@ -532,7 +532,7 @@ L1 re-runs `rg 'isVersion|captureMethodVersion'` and adds any further site to th
 
 - Every attempt that sent bytes is counted, including one cut by Cancel: its reported `usage.cost` when reconciled, otherwise its worst case.
 - **The approved $0.05 is a total per tap, across all attempts.** Before each attempt the reader computes its worst case W, 6,000 input tokens at the day's prompt price plus `max_tokens` at the completion price (plus the reasoning limit as well, if the endpoint bills reasoning tokens outside `max_tokens`; L3 confirms the endpoint's semantics and test 21 pins W), and does not start the attempt if W exceeds $0.05 less what the tap has already been charged (reported cost, or W for an attempt with no reported cost). A retry happens only when the remaining budget covers a whole worst-case attempt.
-- The request golden pins `max_tokens` **1,200** and an explicit `reasoning` limit of **500** tokens, sized from the evaluation's median Gemini cost. At the catalogue prices recorded for Gemini 4 Argon ($2 and $10 per million tokens), W is about $0.024, so an unreported failure leaves room for one retry; if reasoning is billed separately W rises to about $0.029, so after a failure with no reported cost no retry fits and the rule stops the tap (a failure whose cost is reported, often as zero for a rejected request, still leaves room). E13 measures the 6,000-token input ceiling and the truncation rate at 1,200; any change is a new route version within the same $0.05.
+- The request golden pins `max_tokens` **1,200** and an explicit `reasoning` limit of **500** tokens, sized from the evaluation's median Gemini cost. At the catalogue prices recorded for Gemini 4 Argon ($2 and $10 per million tokens), W is about $0.024, so an unreported failure leaves room for one retry; if reasoning is billed separately W rises to about $0.029, so after a failure with no reported cost no retry fits and the rule stops the tap (a failure whose cost is reported, often as zero for a rejected request, still leaves room). E13 measures the 6,000-token input ceiling and the truncation rate at 1,200; any change is a new route version within the same $0.05. (Route v2 raises it to 2,400 after E13; W $0.0451 on the live US prices, 17.21.)
 - **Input ceiling, fail closed.** A reply whose reported `usage.prompt_tokens` exceeds 6,000 means the worst case was understated, so the route pauses for the rest of the local day (the same state and copy as a per-call cost over $0.05) and the read's answer is still shown for checking. Test 26.
 - The daily caps are unchanged (E10): a tap with any attempt lacking a reported cost counts as $0.05 toward the daily $0.50.
 - **Provider-overloaded answer** (E11): an OpenRouter error object whose numeric `code` is 502, 503 or 529, in an HTTP error reply or an HTTP 200 envelope, with no `choices`. Nothing else is retried on content grounds.
@@ -1245,3 +1245,202 @@ The highlight position was fixed after the walk (decision 6) and is covered by a
 **Journey QA of #328 (all pass), two copy fixes:**
 - The saved photo entry's Source row reads "From a label photo · per 100 g · Traditional Chinese, Taiwan layout", matching the pasted route's line.
 - A photo entry's fortification is shown once, as "Fortification on the label" in its section, worded from the photo manifest as for a pasted label. The Source row no longer repeats it as "Not sure".
+
+### 17.21 L5: the live transport, the live route identity and the records (26 October 2026)
+
+The owner approved L5 on 26 October 2026 ("Yes, start L5"). This PR wires the live transport and puts the section 11 records in force (E16). **The route is not enabled for users.** E13 has not run yet.
+
+**Change of order against section 13.** Section 13 put E13 before the transport wiring. L5 wires the transport first, behind a launch argument that is compiled out of Release builds, so that E13 and the owner's device check exercise the code that would ship. The gate that matters is unchanged: no user can reach the live route until E13 passes, the iPhone run of `FoodLabelPhotoCaptureTests` is recorded (17.17 (c)) and the owner has done the device check.
+
+**Live catalogue facts.** These come from keyless GETs of the model's endpoint listing and the ZDR listing at 2026-10-26T00:59Z. No key and no user data were sent.
+
+| Endpoint tag | Prompt / completion per million tokens | Status | ZDR listed |
+|---|---|---|---|
+| `google-vertex/global` | $2 / $10 | -2 | yes |
+| `google-vertex/us` | $2.20 / $11 | 0 | yes |
+| `google-vertex/global/priority` | $3.60 / $18 | 0 | yes |
+
+- There is no plain `google-vertex` tag, so v1 as designed fails closed at the catalogue check and nothing is sent.
+- `provider_name` is "Google" for all three endpoints.
+- The endpoint name shows the dated slug `google/gemini-4-argon-20261013`.
+- **ZDR field names (the 17.18 open question):** `model_id` and `tag`. The `model` fallback is removed, so an entry carrying only `model` is not listed.
+- **Reasoning billing (the 17.18 open question):** every endpoint lists `internal_reasoning` at the completion rate. The live route is therefore treated as billing reasoning outside `max_tokens`, so W includes the 500-token reasoning limit. On `/us`, W = 6,000 x $0.0000022 + 1,700 x $0.000011 = **$0.0319**. As 17.5 already accepts, after a failure with no reported cost no retry fits in the tap's $0.05. A failure with a reported cost still leaves room.
+
+**Route identity (architecture gate, PASS WITH CHANGES; all changes applied).**
+- **New entry `LabelPhotoRoute.v1US`.** Model `google/gemini-4-argon`, endpoint `google-vertex/us`, provider name "Google". It is appended to `admitted` and is the one route sent (`current`).
+- **v1 is unchanged and verify-only.** It stays admitted, so a manifest that names it (for example one logged over the scripted route before this change) still verifies.
+- **Why `/us`.** It has status 0. Status -2 on `/global` would turn into route-unavailable or retry spend, and `/global/priority` already fails closed because its W exceeds $0.05.
+- **This stays within E6.** E6 admits "the ZDR endpoint OpenRouter lists on the day, expected Google Vertex", and the pipeline string already carries the endpoint, so no route version bump is needed.
+- **The provider check is now separate from the tag.** The returned provider name must equal the route's `providerName` exactly once both are trimmed, lower-cased and hyphenated. "Google AI Studio" and "Google Vertex" do not pass for "Google". This check is weaker than the request pin: "Google" cannot tell `/us` from `/global/priority`. The binding control remains `only` and `order` set to the one tag, with `allow_fallbacks` false.
+- **The display name comes from the stored endpoint tag.** A saved entry reads "on Google Vertex" for `google-vertex` and for `google-vertex/us`.
+- **The dated slug is not pinned yet.** `google/gemini-4-argon-20261013` goes into `pinnedSnapshots` only after E13 sees it in a response's `model` field, recorded with its date and a generation ID. Until then a dated reply fails closed as a wrong model.
+- **W covers only prices it models.** The full live pricing object for `google-vertex/us`, from a keyless GET at 2026-10-26T02:54Z, is below. All three tags list the same fields, and `/global` now also shows status 0.
+
+  ```json
+  {"prompt": "0.0000022", "completion": "0.000011", "image": "0.0000022", "audio": "0.0000022",
+   "input_audio_cache": "0.00000011", "web_search": "0.014", "internal_reasoning": "0.000011",
+   "input_cache_read": "0.00000011", "input_cache_write": "0.0000001875", "discount": 0.5}
+  ```
+
+  The checker classes each field as follows:
+  - **Input at or below the prompt rate:** `image`, `input_cache_read` and `input_cache_write`. A rate above the prompt rate fails closed. The catalogue does not say whether `image` is charged per token or per image. Bounded at or below the prompt rate it is small either way, and the headroom of W's 6,000-token prompt ceiling over the largest prompt E13 observed (2,451 tokens) covers it. A cached input can only cost less.
+  - **Never sent:** `audio`, `input_audio_cache` and `web_search`. The request has no audio and no plugins or tools, so any well-formed price passes.
+  - **`internal_reasoning`:** must be at or below the completion rate, and non-zero only when the session bills reasoning separately.
+  - **`discount`:** a number from 0 up to, but not including, 1. W ignores it and stays the undiscounted, larger bound.
+  - **Anything else:** for example `request`, or a field that does not exist today. It fails the route closed when non-zero.
+
+  The test fixture is this object, field for field.
+- **Catalogue reply cap.** The live ZDR listing was 1,098,446 bytes, over the checker's 1,000,000-byte cap, so every live check failed closed. E13's first, keyless start found this. The cap is now 8,000,000 bytes, and a larger reply still fails closed.
+
+**Transport (17.18 obligations).** `OpenRouterTransport` meets each obligation as follows:
+- **Session.** It uses an ephemeral configuration with no cookie store, no URL cache and no credential storage.
+- **Headers.** It sends a fixed `User-Agent: WeeklyHealthReport-LabelPhoto/1`.
+- **Redirects** are refused, and a 3xx is never an answer.
+- **The reply** is streamed and stops at the byte cap with `exceededLimit`.
+- **The timeout** ends the whole request, not just an idle interval.
+- **Cancellation** maps to `.cancelled` only when the task was cancelled.
+- **Offline** means no network path: not connected, data not allowed or roaming off. A lost connection or a DNS failure is a connection failure.
+- **The catalogue GETs** use the same anonymous configuration, with no Authorization header.
+- **Catalogue transport failures** are a closed set: offline, timed out, cancelled or connection failed. They are reported as such and are not kept, so the next tap checks again. Only a catalogue mismatch or a non-transport failure (HTTP status, oversize, malformed) is kept as route unavailable for the day.
+- **Decision: `Accept-Language: *`.** The obligation said "no `Accept-Language`", but URLSession adds the device's languages when the header is absent. The transport therefore sets the fixed value `*`, which discloses nothing. A test pins the header set.
+- **Connectivity.** `NWPathConnectivityStatus` observes the path only and opens no connection. It reports online until the first path update; this feeds only the screen's offline state, and the transport maps a real offline failure anyway.
+
+**Turning the route on for the owner's device check.** In Xcode, edit the WeeklyHealthReport scheme, add the launch argument `-LabelPhotoRoute live` under Run, then build and run a Debug build on the iPhone. The live route then uses:
+- the OpenRouter key saved under API key and privacy, which must be validated in that session;
+- a fresh consent key, `labelPhoto.egressConsent.live.v1`, so a consent given to the scripted route never counts;
+- its own spend ledger, `label-photo-spend-live-v1.json`, so scripted reads never touch the real allowance;
+- the real camera and photo library, with no synthetic sample.
+
+The `live` value is compiled out of Release, so an archive or TestFlight build cannot reach it. A user-visible switch, or making the route the default, is a separate decision for the owner after E13 and the device check.
+
+**E13 approval and runner.** On 26 October 2026 the owner approved running E13 on `google-vertex/us` directly, answering the coordinator's question "Yes, run on /us". The approved terms are:
+- about 70 public Taiwan label photos, prepared exactly as the app prepares them;
+- the OpenRouter key from the October evaluation, loaded into the process only and never printed, logged or committed;
+- a hard stop of $10.
+
+The run uses three tools:
+- **`Tools/NutritionLabelCaptureEvaluation/e13_cases.py`** writes the case list outside the repository. It takes the 20 usable development photos and the 40 usable untouched photos, matched by the SHA-256 in their truth records, plus refills 78 to 87. The refills were downloaded on 26 October 2026: 10 public Open Food Facts photos, 1,046,016 bytes, licensed CC BY-SA 3.0. Before downloading, the script re-derived the hash order and confirmed that the manifest's orders 1 to 77 are unchanged. The refills have no truth yet, so they count for identity, cost, latency and declines only.
+- **`Tools/LabelPhotoE13`** is the runner. For each photo it runs `ImageIOLabelImagePreparer` on the whole photo, then the app's `LabelPhotoReadSession`, `OpenRouterLabelPhotoAttempt`, `OpenRouterLabelRouteChecker` and the live `OpenRouterTransport`. This covers E3 preparation, the request, the response checks, E11 retries with `Retry-After`, the $0.05 per-tap limit and W. It differs from the app in these ways:
+  - each photo starts on a fresh in-memory spend day, because 70 reads exceed the app's 30 a day;
+  - it has a hard total stop (at most $10) and stops for a report at $5;
+  - each attempt is charged its reported cost, or W when none is reported;
+  - a recording wrapper keeps each reply's model, provider, usage and timing, so that dated slugs show even when a reply is rejected;
+  - it resumes without repeating a finished photo;
+  - it refuses an output folder inside the repository.
+- **`e13_score.py`** scores the private records against the bars. It reports identity, median cost, p90 tap latency, no-edit tables (the correction-effort assisted view, with development and untouched kept separate), silent-error tables case by case, and any dated slugs observed. Only counts and case ids go into `Tools/NutritionLabelCaptureEvaluation/results/`.
+
+**E13 run (26 October 2026).** The agent's attempts sent nothing: the first start stopped at the keyless catalogue check (the reply cap above), and the second was refused by the agent session's permission system, which blocks a command that loads the key file. The owner then ran E13 with these commands, from the repository root:
+
+```bash
+swift run --package-path Tools/LabelPhotoE13 label-photo-e13 --cases ~/WHR-label-eval-private/runs/e13-v1/e13-cases.json --out ~/WHR-label-eval-private/runs/e13-v1 --env-file ~/git/PacePrompt/.env --stop-usd 10 --pause-usd 5
+python3 -I Tools/NutritionLabelCaptureEvaluation/e13_score.py --out Tools/NutritionLabelCaptureEvaluation/results/e13-qualification-v1.json
+```
+
+**Results** ([`results/e13-qualification-v1.json`](../Tools/NutritionLabelCaptureEvaluation/results/e13-qualification-v1.json), counts and public ids only). The run covered 70 photos:
+- 67 were sent, each answered in one attempt with no retry, at a total cost of **$0.7929**;
+- 3 were refused by preparation and not sent.
+
+| Bar | Result | Verdict |
+|---|---|---|
+| Zero identity mismatches | 67 of 67 replies were `google/gemini-4-argon` from "Google"; no dated slug was returned, so `pinnedSnapshots` stays empty | Pass |
+| Median cost at most $0.02 | $0.0115 (maximum $0.0186) | Pass |
+| p90 latency at most 20 s | 15.5 s (p50 11.4 s, maximum 35.0 s) | Pass |
+| No-edit tables at least 80% of usable, development | 15 of 15 | Pass |
+| No-edit tables at least 80% of usable, untouched | **31 of 40 (77.5%)** | **Fail** |
+| Silent-error tables | 3 untouched, 0 development (see below) | Reported |
+
+The largest prompt was 2,451 tokens, well under the 6,000 ceiling. The 10 refills had 9 answers and 1 truncated answer, and they have no truth yet.
+
+**The 9 untouched tables that need an edit (offline investigation, no spend):**
+1. **Three refused by preparation (`cropTooSmall`, never sent).** These are small public images: 175 x 174, 215 x 350 and 230 x 220 px. The whole photo's short edge is under P5's 240 px minimum, which was set after L0 "to be confirmed by E13". In October, Gemini 4 Argon read all three at this same native size with **no edit**. The model can read them, so the 240 px floor is too strict, for whole photos and crops alike: legibility depends on the pixels the print occupies, not on whether the image was cropped. A phone camera photo rarely meets this floor, but a downloaded or screenshot image can.
+2. **One truncated at `max_tokens` 1,200.** Its completion was 1,200 tokens, including 373 reasoning tokens. A refill was also cut, at 1,200 tokens with no reasoning. In October the untouched one was read with no edit. The answered replies peaked at 1,073 completion tokens, and reasoning reached 537, beyond the 500 limit. **Finding:** this endpoint counts reasoning inside `max_tokens`: the truncated completion equals `max_tokens` with its reasoning included.
+3. **Two route declines, both also declined in October.**
+   - `4710425590197`: a heat seal covers the row labels. The values are legible, but binding them to rows means assuming the statutory row order, which the instruction forbids. This is a correct decline under the no-guessing rule, although a person reading at full zoom can infer the rows.
+   - `4713105808025`: a Taiwan panel and a US Nutrition Facts panel on one photo (`more_than_one_panel`). This is correct for an uncropped photo. In the app it is avoidable, because the user crops to the Taiwan panel; E13 sent whole photos.
+4. **Three silent-error tables.** The assisted scorer counts these, but it does not model the app's locator. `e13_locate.py` runs the shipped locator (`label-photo-vision-locate-v3`, the L0 path) on the E3-prepared bytes. Results are in [`results/e13-locate-v1.json`](../Tools/NutritionLabelCaptureEvaluation/results/e13-locate-v1.json).
+   - **All 6 silent wrong values become attention items** (not found or ambiguous on the photo). In the shipped app every attention item blocks Log until the user marks it Matches the photo, corrects it or leaves it unknown. This is owner decision Q1; in the code it is `LabelPhotoReview.canLog`, Confirm's `sourceBlocker`, the save path's `source.canLog` guard, and verification that requires a stored resolution for every recomputed item. L4's QA confirmed it, and no item can be bypassed.
+   - The "not blocked" figure that `l0_locate.py` prints measures the unadopted evidence-blocks policy (17.11). `e13_locate.py` does not report it.
+   - `4712893950282` and `4972767003715` are fully caught.
+   - `4710022030713` stays partly silent: its wrong servings-per-pack line is found on the photo, so the locator cannot raise it. This is the same table, and the same limitation, as the L0 analysis (17.9).
+   - The same table also carries the **one silent omission**: a row the answer left out entirely, which no locator can raise.
+
+**Decisions (27 October 2026, coordinator under the owner's delegation, within the approved E9 terms).**
+- **Route v2: `max_tokens` 2,400.** `LabelPhotoRoute.v2US` (`label-photo-ai-route-v2`) uses the same model and endpoint with `max_tokens` 2,400 and is the one route sent.
+  - The 500-token reasoning term stays in W, so W = 6,000 x $0.0000022 + (2,400 + 500) x $0.000011 = **$0.0451**, which is at most $0.05.
+  - After an attempt with no reported cost, no retry fits; after one reported at $0, a retry still fits.
+  - Each route now carries its own `maxOutputTokens`, which the request, the manifest request and W all use.
+  - A stored manifest's `route_version` is that of the admitted route its request describes (model, endpoint and tokens), and verification refuses a version that does not match. The builder records it through `LabelPhotoManifest.recordingRoute()` in a new file, because the manifest codec is frozen and stays byte-for-byte unchanged.
+  - Route v1 manifests (both endpoints, 1,200 tokens) still verify.
+  - The request golden is now `27d9558f...`, and the pipeline list gains the v2 entry.
+- **P5 minimum short edge: 160 px**, down from 240 px. October evidence: the three photos E13 refused (175 x 174, 215 x 350 and 230 x 220 px) were all read with no edit at that same size by the October run. The preparation algorithm and its version are unchanged; only the refusal threshold moved.
+- **Declines: no change.**
+
+**Re-run of the 4 affected photos (needs the owner).** The photos are the three refused ones and the truncated one, re-run under route v2 and the 160 px floor. The runner's `--only` and `--records` options write to a separate file, so the full run's records stay intact, and `e13_score.py --overlay` scores the full run with those 4 replaced. The expected cost is about $0.05, within the $10 total. From the repository root:
+
+```bash
+swift run --package-path Tools/LabelPhotoE13 label-photo-e13 --cases ~/WHR-label-eval-private/runs/e13-v1/e13-cases.json --out ~/WHR-label-eval-private/runs/e13-v1 --env-file ~/git/PacePrompt/.env --stop-usd 1 --pause-usd 1 --only off-taiwan:3228022000311:nutrition_zh.12,off-taiwan:4710011470605:nutrition_zh.5,off-taiwan:4710018164101:nutrition_zh.11,off-taiwan:2019704161243:nutrition_zh.8 --records e13-rerun-v2-records.jsonl
+python3 -I Tools/NutritionLabelCaptureEvaluation/e13_score.py --overlay ~/WHR-label-eval-private/runs/e13-v1/e13-rerun-v2-records.jsonl --out Tools/NutritionLabelCaptureEvaluation/results/e13-qualification-v2-rerun.json
+```
+
+If the 4 photos are read as they were in October, untouched no-edit becomes **35 of 40 (87.5%)**. That is a projection until the re-run is scored.
+
+**Re-run result (27 October 2026, run by the coordinator under the owner's approval, with the two commands above).** The full run's 66 other records are unchanged, and the overlay replaces only these 4. Results are in [`results/e13-qualification-v2-rerun.json`](../Tools/NutritionLabelCaptureEvaluation/results/e13-qualification-v2-rerun.json) (counts and public ids only).
+
+The re-run itself:
+- **3 of the 4 were answered under route v2:** the two previously refused photos `3228022000311` and `4710011470605`, and the previously truncated `2019704161243`.
+- **The fourth timed out:** `4710018164101` (175 x 174 px, now admitted by the 160 px floor) failed after one attempt at **46.8 s**. The tap's 45 s attempt deadline plus the transport's own wind-down account for it.
+  - Its cost was not reported, so it was charged W ($0.0451), and under route v2 no retry fits after an unreported failure.
+  - In the app the user would see the timeout and could tap again, which is a new tap with its own $0.05.
+  - The October full-size run read this photo with no edit, so this is a one-off latency failure, not a reading failure. It counts against the bar as a whole table by hand.
+- **Re-run cost:** $0.0796.
+
+**E13 outcome: all five bars pass** on route v2 with the 160 px floor, the full run overlaid with the re-run.
+
+| Bar | Result | Verdict |
+|---|---|---|
+| Zero identity mismatches | 69 of 69 replies were `google/gemini-4-argon` from "Google" | Pass |
+| Median cost at most $0.02 | $0.0115 (total $0.8540 over the run and re-run, within the $10 stop) | Pass |
+| p90 latency at most 20 s | 15.2 s (p50 11.4 s, maximum 46.8 s, the timeout above) | Pass |
+| No-edit tables, development | 15 of 15 | Pass |
+| No-edit tables, untouched | **34 of 40 (85%)** | Pass |
+
+The details behind the table:
+- **No dated slug was observed** in any of the 69 replies, so there is nothing to pin, and `pinnedSnapshots` stays empty. A dated reply in future still fails closed as a wrong model.
+- **No photo was refused by preparation.** The only truncation left is one refill (`9415007602255`), which has no truth and is outside the bars.
+- **The 6 untouched tables still needing work:**
+  - 3 whole tables by hand: the timeout above and the 2 correct route declines;
+  - 3 silent-error tables (`4710022030713`, `4712893950282`, `4972767003715`, all unchanged by the re-run). Every one of their 6 wrong values is an attention item on the shipped locator, so Log waits until each is checked, corrected or left unknown. The one exception is the wrong servings-per-pack line in `4710022030713`, which is found on the photo and so is not flagged.
+  - That table also carries the 1 silent omission.
+- **Spend:** the total OpenRouter spend for E13 is $0.8540 of the owner's $10.
+
+What remains before the route is enabled for users:
+- the iPhone run of `FoodLabelPhotoCaptureTests` (below);
+- the owner's device check;
+- the owner's review of the App Store privacy answers;
+- the owner's decision to turn the route on.
+
+**iPhone run (17.17 (c)).** The paired iPhone (SiPhone, iOS 27.0.1) was offline on 26 October 2026, so the run is **an open gate**. Command, from `Packages/FoodLedgerKit`, with the device unlocked and connected:
+
+```bash
+xcodebuild test -scheme FoodLedgerKit-Package -destination 'platform=iOS,id=00008150-000261502282401C' -only-testing:FoodLabelPhotoCaptureTests -allowProvisioningUpdates
+```
+
+**Tests added.**
+- Transport (`OpenRouterTransportTests`):
+  - the exact header set;
+  - a refused redirect;
+  - the byte cap;
+  - the whole-request timeout;
+  - cancellation, offline and connection-failure mapping;
+  - a catalogue transport failure that is not kept, while an HTTP failure is kept.
+- Session: a catalogue transport failure reads as offline and is checked again on the next tap.
+- Route identity:
+  - both pipelines are pinned, and only `/us` is sent;
+  - the request golden pins `only` and `order` to `["google-vertex/us"]`;
+  - the checker on a live-shaped fixture passes only `/us`;
+  - the W bound and the price guards;
+  - the provider names;
+  - the unpinned dated slug;
+  - the display line.
+- Composition: the live launch argument gets its own consent key and ledger and no sample, and with no argument the route stays off.
+- Records: the section 11 text and the camera string, verbatim.

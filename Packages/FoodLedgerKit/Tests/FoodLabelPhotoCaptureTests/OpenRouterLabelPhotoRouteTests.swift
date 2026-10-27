@@ -42,7 +42,7 @@ final class OpenRouterLabelPhotoRouteTests: XCTestCase {
         LabelPhotoHTTPResponse(status: status, headers: headers, body: try! JSONSerialization.data(withJSONObject: object), exceededLimit: exceeded)
     }
 
-    static func answer(model: String = "google/gemini-4-argon", provider: String = "Google Vertex", finish: String = "stop",
+    static func answer(model: String = "google/gemini-4-argon", provider: String = "Google", finish: String = "stop",
                        message: [String: Any]? = nil, choices: Int = 1, cost: Any = 0.0123) -> [String: Any] {
         let choice: [String: Any] = ["index": 0, "finish_reason": finish, "message": message ?? ["role": "assistant", "content": wire]]
         return ["id": "gen-123", "model": model, "provider": provider, "choices": Array(repeating: choice, count: choices),
@@ -69,14 +69,14 @@ final class OpenRouterLabelPhotoRouteTests: XCTestCase {
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
         XCTAssertEqual(Set(object.keys), ["model", "messages", "response_format", "provider", "max_tokens", "reasoning", "stream", "usage"])
         XCTAssertEqual(object["model"] as? String, "google/gemini-4-argon")
-        XCTAssertEqual(object["max_tokens"] as? Int, 1_200)
+        XCTAssertEqual(object["max_tokens"] as? Int, 2_400, "route v2 (17.21): E13 truncated two answers at 1,200")
         XCTAssertEqual(object["reasoning"] as? [String: Int], ["max_tokens": 500])
         XCTAssertEqual(object["stream"] as? Bool, false)
         XCTAssertEqual(object["usage"] as? [String: Bool], ["include": true])
         let provider = try XCTUnwrap(object["provider"] as? [String: Any])
         XCTAssertEqual(Set(provider.keys), ["only", "order", "allow_fallbacks", "require_parameters", "data_collection", "zdr"])
-        XCTAssertEqual(provider["only"] as? [String], ["google-vertex"])
-        XCTAssertEqual(provider["order"] as? [String], ["google-vertex"])
+        XCTAssertEqual(provider["only"] as? [String], ["google-vertex/us"], "the one tag the live catalogue lists with status 0 (17.21)")
+        XCTAssertEqual(provider["order"] as? [String], ["google-vertex/us"])
         XCTAssertEqual(provider["allow_fallbacks"] as? Bool, false)
         XCTAssertEqual(provider["require_parameters"] as? Bool, true)
         XCTAssertEqual(provider["data_collection"] as? String, "deny")
@@ -112,7 +112,7 @@ final class OpenRouterLabelPhotoRouteTests: XCTestCase {
         XCTAssertEqual(try request.body(image), body, "reproducible bytes")
     }
 
-    static let goldenBodySHA256 = "90442927f8552f12c9ed963939f298dae70041031c29cc025187739d53d438a7"
+    static let goldenBodySHA256 = "27d9558f6f1ea84d6f543a488ede5c0bc5391665ba4cbde5c49860c3d208df11"
 
     func testAKeyInsideTheBodyIsRefused() throws {
         // A key that happens to occur in the body (here, inside the instruction) is never sent.
@@ -122,10 +122,10 @@ final class OpenRouterLabelPhotoRouteTests: XCTestCase {
     }
 
     func testTheManifestRequestRecordsWhatWasSent() throws {
-        let check = LabelPhotoManifest.CatalogueCheck(at: 1, slug: "google/gemini-4-argon", endpoint: "google-vertex", inputModalities: ["image"],
+        let check = LabelPhotoManifest.CatalogueCheck(at: 1, slug: "google/gemini-4-argon", endpoint: "google-vertex/us", inputModalities: ["image"],
                                                       zeroDataRetention: true, promptPrice: "0.000002", completionPrice: "0.00001")
         let record = try request().manifestRequest(catalogue: check)
-        XCTAssertEqual(record.maxOutputTokens, 1_200)
+        XCTAssertEqual(record.maxOutputTokens, 2_400)
         XCTAssertEqual(record.reasoningLimit, 500)
         XCTAssertEqual(record.instructionVersion, "label-photo-instruction-v1")
         XCTAssertEqual(record.wireSchemaVersion, "label-photo-wire-schema-v1")
@@ -140,7 +140,7 @@ final class OpenRouterLabelPhotoRouteTests: XCTestCase {
         let attempt = OpenRouterLabelPhotoAttempt(transport: transport, keys: Keys(Self.key), request: try request())
         let result = await attempt.attempt(image, timeout: 45)
         let usage = LabelPhotoManifest.Usage(promptTokens: 2_100, completionTokens: 640, reasoningTokens: 300, costUSD: "0.0123")
-        XCTAssertEqual(result, .answered(wireText: Self.wire, model: "google/gemini-4-argon", provider: "Google Vertex", generationID: "gen-123",
+        XCTAssertEqual(result, .answered(wireText: Self.wire, model: "google/gemini-4-argon", provider: "Google", generationID: "gen-123",
                                          finishReason: "stop", usage: usage))
         XCTAssertEqual(transport.sent.count, 1)
         XCTAssertEqual(transport.sent[0].1, 45)
@@ -165,7 +165,7 @@ final class OpenRouterLabelPhotoRouteTests: XCTestCase {
     // MARK: Test 8: response checks, each a failed read with nothing shown
 
     func testResponseChecks() {
-        let route = LabelPhotoRoute.v1
+        let route = LabelPhotoRoute.current
         func classify(_ response: LabelPhotoHTTPResponse) -> LabelImageReadingFailure? {
             if case let .failed(outcome, failure, _, _) = OpenRouterLabelPhotoAttempt.classify(response, route: route) {
                 XCTAssertEqual(outcome, .contentFailure, "\(failure)")
@@ -176,7 +176,13 @@ final class OpenRouterLabelPhotoRouteTests: XCTestCase {
         XCTAssertEqual(classify(Self.reply(Self.answer(model: "google/gemini-4-argon-mini"))), .wrongModel)
         XCTAssertEqual(classify(Self.reply(Self.answer(model: "google/gemini-4"))), .wrongModel)
         XCTAssertEqual(classify(Self.reply(Self.answer(model: "google/gemini-4-argon-20261332"))), .wrongModel, "not a calendar date")
-        XCTAssertEqual(classify(Self.reply(Self.answer(provider: "Google AI Studio"))), .wrongProvider)
+        XCTAssertEqual(classify(Self.reply(Self.answer(provider: "Google AI Studio"))), .wrongProvider, "no prefix match")
+        XCTAssertEqual(classify(Self.reply(Self.answer(provider: "Google Vertex"))), .wrongProvider, "exactly the route's provider name")
+        XCTAssertNil(classify(Self.reply(Self.answer(provider: " google "))), "trimmed and lower-cased")
+        var noProvider = Self.answer(); noProvider["provider"] = nil
+        XCTAssertEqual(classify(Self.reply(noProvider)), .wrongProvider)
+        // The catalogue's dated slug fails until E13 observes and pins it (17.21).
+        XCTAssertEqual(classify(Self.reply(Self.answer(model: "google/gemini-4-argon-20261013"))), .wrongModel)
         XCTAssertEqual(classify(Self.reply(Self.answer(finish: "length"))), .truncated)
         XCTAssertEqual(classify(Self.reply(Self.answer(finish: "content_filter"))), .refused)
         XCTAssertEqual(classify(Self.reply(Self.answer(finish: "tool_calls"))), .failed)
@@ -199,11 +205,11 @@ final class OpenRouterLabelPhotoRouteTests: XCTestCase {
 
     func testUnknownCostIsNeverZero() {
         for cost in [NSNull(), "free", -1, true] as [Any] {
-            let result = OpenRouterLabelPhotoAttempt.classify(Self.reply(Self.answer(cost: cost)), route: LabelPhotoRoute.v1)
+            let result = OpenRouterLabelPhotoAttempt.classify(Self.reply(Self.answer(cost: cost)), route: LabelPhotoRoute.current)
             guard case let .answered(_, _, _, _, _, usage) = result else { return XCTFail("\(cost)") }
             XCTAssertEqual(usage.costUSD, "unknown", "\(cost)")
         }
-        let zero = OpenRouterLabelPhotoAttempt.classify(Self.reply(Self.answer(cost: 0)), route: LabelPhotoRoute.v1)
+        let zero = OpenRouterLabelPhotoAttempt.classify(Self.reply(Self.answer(cost: 0)), route: LabelPhotoRoute.current)
         guard case let .answered(_, _, _, _, _, usage) = zero else { return XCTFail() }
         XCTAssertEqual(usage.costUSD, "0", "a reported zero is a reported cost")
     }
@@ -212,7 +218,7 @@ final class OpenRouterLabelPhotoRouteTests: XCTestCase {
 
     func testRetryClassification() {
         func outcome(_ response: LabelPhotoHTTPResponse) -> (LabelPhotoRetryPolicy.Outcome, LabelImageReadingFailure, Decimal?)? {
-            if case let .failed(outcome, failure, cost, _) = OpenRouterLabelPhotoAttempt.classify(response, route: LabelPhotoRoute.v1) { return (outcome, failure, cost) }
+            if case let .failed(outcome, failure, cost, _) = OpenRouterLabelPhotoAttempt.classify(response, route: LabelPhotoRoute.current) { return (outcome, failure, cost) }
             return nil
         }
         let busy = outcome(Self.reply(status: 503, headers: ["retry-after": "7"], ["error": ["code": 503, "message": "busy"]]))
@@ -253,21 +259,36 @@ final class OpenRouterLabelPhotoRouteTests: XCTestCase {
 
     // MARK: Test 22: the catalogue check
 
-    nonisolated(unsafe) static let listing: [String: Any] = ["data": [
-        "id": "google/gemini-4-argon", "architecture": ["input_modalities": ["text", "image"]],
-        "endpoints": [
-            ["tag": "google-vertex", "provider_name": "Google Vertex", "pricing": ["prompt": "0.000002", "completion": "0.00001"]],
-            ["tag": "google-ai-studio", "provider_name": "Google AI Studio", "pricing": ["prompt": "0.000001", "completion": "0.000005"]],
-        ],
-    ]]
-    nonisolated(unsafe) static let zdr: [String: Any] = ["data": [["model_id": "google/gemini-4-argon", "tag": "google-vertex", "provider_name": "Google Vertex"]]]
+    /// The live pricing object of 26 October 2026 at 02:54Z (17.21), field for field: three Google
+    /// Vertex tags, all named "Google", reasoning at the completion rate, image at the prompt rate,
+    /// cache prices below it, audio and web search prices, and a numeric discount.
+    static func endpoint(_ tag: String, _ prompt: String, _ completion: String, extra: [String: Any] = [:]) -> [String: Any] {
+        let p = Decimal(string: prompt)!
+        var pricing: [String: Any] = ["prompt": prompt, "completion": completion, "image": prompt, "audio": prompt,
+                                      "input_audio_cache": "\(p / 20)", "web_search": "0.014", "internal_reasoning": completion,
+                                      "input_cache_read": "\(p / 20)", "input_cache_write": "0.0000001875", "discount": 0.5]
+        pricing.merge(extra) { $1 }
+        return ["tag": tag, "provider_name": "Google", "name": "Google | google/gemini-4-argon-20261013", "pricing": pricing]
+    }
+    static func listing(_ endpoints: [[String: Any]]) -> [String: Any] {
+        ["data": ["id": "google/gemini-4-argon", "architecture": ["input_modalities": ["text", "image"]], "endpoints": endpoints]]
+    }
+    nonisolated(unsafe) static let listing: [String: Any] = listing([
+        endpoint("google-vertex/global", "0.000002", "0.00001"),
+        endpoint("google-vertex/us", "0.0000022", "0.000011"),
+        endpoint("google-vertex/global/priority", "0.0000036", "0.000018"),
+    ])
+    nonisolated(unsafe) static let zdr: [String: Any] = ["data": ["google-vertex/global", "google-vertex/us", "google-vertex/global/priority"].map {
+        ["model_id": "google/gemini-4-argon", "tag": $0, "provider_name": "Google"]
+    }]
 
     func testTheCatalogueCheckIsTwoAnonymousGets() async throws {
         let transport = FakeTransport([.success(Self.reply(Self.listing)), .success(Self.reply(Self.zdr))])
-        let check = try await OpenRouterLabelRouteChecker(transport: transport, clock: Clock()).check(LabelPhotoRoute.v1)
-        XCTAssertEqual(check, LabelPhotoManifest.CatalogueCheck(at: 1_792_900_000_000, slug: "google/gemini-4-argon", endpoint: "google-vertex",
+        let check = try await OpenRouterLabelRouteChecker(transport: transport, clock: Clock(), reasoningBilledSeparately: true)
+            .check(LabelPhotoRoute.current)
+        XCTAssertEqual(check, LabelPhotoManifest.CatalogueCheck(at: 1_792_900_000_000, slug: "google/gemini-4-argon", endpoint: "google-vertex/us",
                                                                 inputModalities: ["text", "image"], zeroDataRetention: true,
-                                                                promptPrice: "0.000002", completionPrice: "0.00001"))
+                                                                promptPrice: "0.0000022", completionPrice: "0.000011"))
         XCTAssertEqual(transport.sent.map(\.0.url.absoluteString), ["https://openrouter.ai/api/v1/models/google/gemini-4-argon/endpoints",
                                                                     "https://openrouter.ai/api/v1/endpoints/zdr"])
         for (request, _, _) in transport.sent {
@@ -275,28 +296,111 @@ final class OpenRouterLabelPhotoRouteTests: XCTestCase {
             XCTAssertNil(request.body)
             XCTAssertEqual(request.headers, ["Accept": "application/json"], "no Authorization header and no user data")
         }
-        XCTAssertNotNil(LabelPhotoReadSession.prices(check, route: LabelPhotoRoute.v1, reasoningBilledSeparately: false))
+        let prices = try XCTUnwrap(LabelPhotoReadSession.prices(check, route: LabelPhotoRoute.current, reasoningBilledSeparately: true))
+        XCTAssertEqual(LabelPhotoSpendPolicy.worstCase(prices), Decimal(string: "0.0451"), "6,000 x 2.2e-6 + (2,400 + 500) x 1.1e-5")
+        XCTAssertFalse(LabelPhotoSpendPolicy.mayStartAttempt(after: [.init(reportedCost: nil, promptTokens: nil)], prices: prices),
+                       "no retry after an unreported failure")
+        XCTAssertTrue(LabelPhotoSpendPolicy.mayStartAttempt(after: [.init(reportedCost: 0, promptTokens: nil)], prices: prices))
+    }
+
+    // MARK: L5: the live route identity and the prices W models (17.21)
+
+    func testOnlyTheUSEndpointPassesOnTheLiveCatalogue() async throws {
+        for route in LabelPhotoRoute.admitted where route.endpoint != LabelPhotoRoute.current.endpoint {
+            let transport = FakeTransport([.success(Self.reply(Self.listing)), .success(Self.reply(Self.zdr))])
+            do { _ = try await OpenRouterLabelRouteChecker(transport: transport, clock: Clock(), reasoningBilledSeparately: true).check(route)
+                XCTFail("\(route.endpoint) is not listed") } catch {}
+        }
+        XCTAssertEqual(LabelPhotoRoute.current.endpoint, "google-vertex/us")
+        XCTAssertEqual(LabelPhotoRoute.current.providerName, "Google")
+        // The live ZDR listing was 1,098,446 bytes on 26 October 2026: the old 1 MB cap failed every check.
+        XCTAssertEqual(OpenRouterLabelRouteChecker.maximumResponseBytes, 8_000_000)
+        // A ZDR entry naming the model only under `model` is not listed (17.21: `model_id` and `tag`).
+        let legacy: [String: Any] = ["data": [["model": "google/gemini-4-argon", "tag": "google-vertex/us"]]]
+        let check = try await OpenRouterLabelRouteChecker(transport: FakeTransport([.success(Self.reply(Self.listing)), .success(Self.reply(legacy))]),
+                                                          clock: Clock(), reasoningBilledSeparately: true).check(LabelPhotoRoute.current)
+        XCTAssertFalse(check.zeroDataRetention)
+        // The priority endpoint's prices give a W above the tap's $0.05.
+        let priority = LabelPhotoManifest.CatalogueCheck(at: 1, slug: "google/gemini-4-argon", endpoint: "google-vertex/us", inputModalities: ["image"],
+                                                         zeroDataRetention: true, promptPrice: "0.0000036", completionPrice: "0.000018")
+        XCTAssertNil(LabelPhotoReadSession.prices(priority, route: LabelPhotoRoute.current, reasoningBilledSeparately: true))
+    }
+
+    func testAPriceWDoesNotModelFailsClosed() async throws {
+        let cases: [([String: Any], Bool)] = [
+            (["internal_reasoning": "0.00002"], true),
+            (["image": "0.001"], true),
+            (["input_cache_read": "0.000003"], true),
+            (["input_cache_write": "0.000003"], true),
+            (["request": "0.0001"], true),
+            (["unknown_charge": "0.01"], true),
+            (["image": "free"], true),
+            (["discount": 1], true),
+            (["discount": -0.1], true),
+            (["discount": "0.5"], true),
+            (["discount": true], true),
+            ([:], false),
+        ]
+        for (extra, separately) in cases {
+            let listing = Self.listing([Self.endpoint("google-vertex/us", "0.0000022", "0.000011", extra: extra)])
+            let transport = FakeTransport([.success(Self.reply(listing)), .success(Self.reply(Self.zdr))])
+            do {
+                _ = try await OpenRouterLabelRouteChecker(transport: transport, clock: Clock(), reasoningBilledSeparately: separately)
+                    .check(LabelPhotoRoute.current)
+                XCTFail("\(extra) \(separately)")
+            } catch {
+                XCTAssertEqual(error as? OpenRouterLabelRouteChecker.CheckError, .unavailable, "kept as route unavailable, nothing sent")
+            }
+        }
+    }
+
+    func testTheLivePricingObjectIsAdmitted() async throws {
+        // Unknown-to-W fields that cannot raise the cost pass: cache prices below the prompt rate,
+        // never-sent audio and web search prices, a zero request price and a discount under 1.
+        for extra in [[:], ["request": "0"], ["web_search": "0.02"], ["discount": 0]] as [[String: Any]] {
+            let listing = Self.listing([Self.endpoint("google-vertex/us", "0.0000022", "0.000011", extra: extra)])
+            let transport = FakeTransport([.success(Self.reply(listing)), .success(Self.reply(Self.zdr))])
+            let check = try await OpenRouterLabelRouteChecker(transport: transport, clock: Clock(), reasoningBilledSeparately: true)
+                .check(LabelPhotoRoute.current)
+            XCTAssertEqual(check.promptPrice, "0.0000022", "\(extra)")
+        }
+    }
+
+    func testACatalogueHTTPFailureIsKeptButATimeoutIsNot() async {
+        do {
+            _ = try await OpenRouterLabelRouteChecker(transport: FakeTransport([.success(Self.reply(status: 503, ["error": ["code": 503]]))]),
+                                                      clock: Clock()).check(LabelPhotoRoute.current)
+            XCTFail("503")
+        } catch {
+            XCTAssertNil(error as? LabelPhotoRouteCheckFailure)
+        }
+        do {
+            _ = try await OpenRouterLabelRouteChecker(transport: FakeTransport([.failure(.timedOut)]), clock: Clock()).check(LabelPhotoRoute.current)
+            XCTFail("timed out")
+        } catch {
+            XCTAssertEqual(error as? LabelPhotoRouteCheckFailure, .transport(.timedOut))
+        }
     }
 
     func testACatalogueThatDoesNotMatchFailsOrIsRejected() async throws {
         // Not on the ZDR list: the check reports it, and the session's comparison rejects it.
-        let notZDR: [String: Any] = ["data": [["model_id": "google/gemini-4-argon", "tag": "google-ai-studio"]]]
+        let notZDR: [String: Any] = ["data": [["model_id": "google/gemini-4-argon", "tag": "google-vertex/global"]]]
         let transport = FakeTransport([.success(Self.reply(Self.listing)), .success(Self.reply(notZDR))])
-        let check = try await OpenRouterLabelRouteChecker(transport: transport, clock: Clock()).check(LabelPhotoRoute.v1)
+        let check = try await OpenRouterLabelRouteChecker(transport: transport, clock: Clock(), reasoningBilledSeparately: true).check(LabelPhotoRoute.current)
         XCTAssertFalse(check.zeroDataRetention)
-        XCTAssertNil(LabelPhotoReadSession.prices(check, route: LabelPhotoRoute.v1, reasoningBilledSeparately: false))
+        XCTAssertNil(LabelPhotoReadSession.prices(check, route: LabelPhotoRoute.current, reasoningBilledSeparately: true))
         // An HTTP error, a transport failure, a missing endpoint or an unpriced one throws.
         let failures: [[Result<LabelPhotoHTTPResponse, LabelPhotoTransportError>]] = [
             [.success(Self.reply(status: 500, ["error": ["code": 500]]))],
             [.failure(.offline)],
             [.success(Self.reply(["data": ["id": "google/gemini-4-argon", "endpoints": []]])), .success(Self.reply(Self.zdr))],
-            [.success(Self.reply(["data": ["id": "google/gemini-4-argon", "endpoints": [["tag": "google-vertex", "pricing": ["prompt": "-1", "completion": "1"]]]]])),
+            [.success(Self.reply(["data": ["id": "google/gemini-4-argon", "endpoints": [["tag": "google-vertex/us", "pricing": ["prompt": "-1", "completion": "1"]]]]])),
              .success(Self.reply(Self.zdr))],
             [.success(Self.reply(Self.listing, exceeded: true))],
         ]
         for replies in failures {
             do {
-                _ = try await OpenRouterLabelRouteChecker(transport: FakeTransport(replies), clock: Clock()).check(LabelPhotoRoute.v1)
+                _ = try await OpenRouterLabelRouteChecker(transport: FakeTransport(replies), clock: Clock()).check(LabelPhotoRoute.current)
                 XCTFail("\(replies)")
             } catch {}
         }

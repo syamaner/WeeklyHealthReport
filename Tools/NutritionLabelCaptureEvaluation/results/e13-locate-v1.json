@@ -1,0 +1,138 @@
+{
+ "analysis": "e13-locate-v1",
+ "egress": "none",
+ "locator": "Tools/LabelPhotoLocateL0 LabelValueMatcher (label-photo-vision-locate-v3)",
+ "strata": {
+  "development": {
+   "ambiguous_total": 84,
+   "ambiguous_with_region": 47,
+   "attention_per_table_median": 8,
+   "attention_per_table_p90": 15,
+   "correct_ambiguous": 84,
+   "correct_cells": 238,
+   "correct_found": 132,
+   "correct_found_share": 0.5546,
+   "correct_not_found": 22,
+   "evidence_policy": {
+    "blocking_per_table_median": 0,
+    "blocking_per_table_p90": 4,
+    "silent_error_tables_fully_blocked": [],
+    "silent_wrong_values_blocking": 0,
+    "tables_with_no_blocking": 9
+   },
+   "photos_missing": [],
+   "photos_refused": {},
+   "prefilled_tables": 15,
+   "prepared_bytes_max": 1069626,
+   "prepared_long_edge_max": 1794,
+   "prepared_quality_counts": {
+    "0.65": 0,
+    "0.75": 0,
+    "0.85": 15
+   },
+   "serving_lines": 30,
+   "serving_lines_found": 27,
+   "silent": 0,
+   "silent_blocking": 0,
+   "silent_by_locator": 0,
+   "silent_by_locator_or_checks": 0,
+   "silent_error_tables": [],
+   "silent_error_tables_caught": [],
+   "silent_tables": [],
+   "tables": 15,
+   "tables_with_no_attention": 2,
+   "vision": {
+    "language_correction": "false",
+    "languages": "zh-Hant,en-US",
+    "level": "accurate",
+    "locator": "label-photo-vision-locate-v3",
+    "revision": "3"
+   },
+   "wrong": 0,
+   "wrong_flagged": 0
+  },
+  "untouched": {
+   "ambiguous_total": 241,
+   "ambiguous_with_region": 93,
+   "attention_per_table_median": 9.0,
+   "attention_per_table_p90": 18,
+   "correct_ambiguous": 238,
+   "correct_cells": 555,
+   "correct_found": 250,
+   "correct_found_share": 0.4505,
+   "correct_not_found": 67,
+   "evidence_policy": {
+    "blocking_per_table_median": 0.0,
+    "blocking_per_table_p90": 1,
+    "silent_error_tables_fully_blocked": [],
+    "silent_wrong_values_blocking": 0,
+    "tables_with_no_blocking": 28
+   },
+   "photos_missing": [],
+   "photos_refused": {},
+   "prefilled_tables": 34,
+   "prepared_bytes_max": 1281390,
+   "prepared_long_edge_max": 2048,
+   "prepared_quality_counts": {
+    "0.65": 0,
+    "0.75": 0,
+    "0.85": 36
+   },
+   "serving_lines": 68,
+   "serving_lines_found": 32,
+   "silent": 6,
+   "silent_blocking": 0,
+   "silent_by_locator": 6,
+   "silent_by_locator_or_checks": 6,
+   "silent_error_tables": [
+    "off-taiwan:4710022030713:nutrition_zh.10",
+    "off-taiwan:4712893950282:nutrition_zh.7",
+    "off-taiwan:4972767003715:nutrition_zh.8"
+   ],
+   "silent_error_tables_caught": [
+    "off-taiwan:4712893950282:nutrition_zh.7",
+    "off-taiwan:4972767003715:nutrition_zh.8"
+   ],
+   "silent_tables": [
+    {
+     "caught_every_silent_value_and_line": false,
+     "id": "off-taiwan:4710022030713:nutrition_zh.10",
+     "log_blocked_until_each_flagged_value_is_resolved": true,
+     "silent_serving_lines": [
+      "servings_per_pack"
+     ],
+     "silent_values": 2,
+     "silent_values_flagged_by_locator_or_checks": 2
+    },
+    {
+     "caught_every_silent_value_and_line": true,
+     "id": "off-taiwan:4712893950282:nutrition_zh.7",
+     "log_blocked_until_each_flagged_value_is_resolved": true,
+     "silent_serving_lines": [],
+     "silent_values": 2,
+     "silent_values_flagged_by_locator_or_checks": 2
+    },
+    {
+     "caught_every_silent_value_and_line": true,
+     "id": "off-taiwan:4972767003715:nutrition_zh.8",
+     "log_blocked_until_each_flagged_value_is_resolved": true,
+     "silent_serving_lines": [],
+     "silent_values": 2,
+     "silent_values_flagged_by_locator_or_checks": 2
+    }
+   ],
+   "tables": 36,
+   "tables_with_no_attention": 5,
+   "vision": {
+    "language_correction": "false",
+    "languages": "zh-Hant,en-US",
+    "level": "accurate",
+    "locator": "label-photo-vision-locate-v3",
+    "revision": "3"
+   },
+   "wrong": 6,
+   "wrong_flagged": 0
+  }
+ },
+ "view": "assisted"
+}
