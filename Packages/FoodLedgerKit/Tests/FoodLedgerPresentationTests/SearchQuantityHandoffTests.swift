@@ -72,6 +72,34 @@ final class SearchQuantityHandoffTests: XCTestCase {
             XCTAssertEqual(saves, 0)
         }
     }
+    /// #333 (food-query-interpretation-v2): a household portion searches the food text and leaves
+    /// the amount for Confirm. No count, weight or "Use N" suggestion comes from the portion.
+    func testHouseholdPortionFindsTheFoodAndLeavesTheAmountUnset() throws {
+        for (query, food) in [("3 pieces cheese", "cheese"), ("3 pieces of apple pie", "apple pie")] {
+            let plain = try model(); plain.query = food; plain.search()
+            guard case let .results(plainRoute) = plain.phase else { return XCTFail(food) }
+            let search = try model(); search.query = query; search.search()
+            guard case let .results(route) = search.phase else { return XCTFail(query) }
+            XCTAssertEqual(route.matches.map(\.candidate.candidate.recordID), plainRoute.matches.map(\.candidate.candidate.recordID), query)
+            XCTAssertNil(search.parsedQuery?.quantity, query)
+            XCTAssertNil(search.effectiveAmount, query)
+            XCTAssertEqual(search.parsedQuery?.route, .clarify, query)
+            XCTAssertTrue(search.parsedQuery?.reasons.contains("portion_requires_confirmation") == true, query)
+            let input = try XCTUnwrap(search.confirmation(at: 0), query)
+            XCTAssertEqual(input.evidence.first?.originalPayload, .text(try LedgerText(query)))
+            var saves = 0
+            let confirmation = FoodConfirmationViewModel(
+                // As the app opens Confirm from search: the search amount, no source quantity.
+                state: FoodConfirmationState(input: input, queryQuantity: search.effectiveAmount, prefillSourceQuantity: false)) { _ in
+                saves += 1; throw CocoaError(.fileWriteUnknown)
+            }
+            XCTAssertNil(confirmation.state.quantity.value, query)
+            XCTAssertNil(confirmation.state.quantity.conversion, query)
+            XCTAssertNil(FoodQueryInterpretation(query).quantitySuggestion, query)
+            XCTAssertEqual(confirmation.state.decision, .undecided)
+            XCTAssertEqual(saves, 0)
+        }
+    }
     func testTaiwanSourceLabelAndQuantityHandoffThroughQueryAndFoodList() throws {
         let ids = HandoffIDs()
         let source = try TFDAGenericFoodSearch(ids: ids)

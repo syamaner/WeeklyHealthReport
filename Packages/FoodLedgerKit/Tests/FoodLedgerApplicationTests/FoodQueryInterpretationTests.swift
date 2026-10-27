@@ -33,6 +33,37 @@ final class FoodQueryInterpretationTests: XCTestCase {
             XCTAssertNil(FoodQueryInterpretation(text).quantitySuggestion, text)
         }
     }
+    /// #333 (food-query-interpretation-v2): a household portion clarifies the amount on Confirm;
+    /// retrieval searches the food text without it and never gains a quantity or a suggestion.
+    func testHouseholdPortionIsLeftOutOfRetrievalAndNeverBecomesAnAmount() {
+        for (text, retrieval) in [("3 pieces cheese", "cheese"), ("3 pieces of apple pie", "apple pie"), ("3 Pieces Of Cake", "cake"),
+                                  ("a piece of banana", "banana"), ("A bowl of rice", "rice"), ("2 slices of toast", "toast"),
+                                  ("2 x slices of toast", "toast"), ("1 cup of rice", "rice"), ("1 cup rice", "rice"), ("half cup rice", "rice"),
+                                  ("a glass of milk", "milk"),
+                                  ("a handful of almonds", "almond"), ("2 cans of tuna", "tuna"), ("some cheese", "cheese"),
+                                  ("a pot of yoghurt", "yoghurt"), ("a bowl of rice with chicken", "rice with chicken")] {
+            let q = FoodQueryInterpretation(text)
+            XCTAssertEqual(q.retrievalText, retrieval, text)
+            XCTAssertEqual(q.parsedQuery.food, retrieval, text)
+            XCTAssertTrue(q.allowsDiscovery, text)
+            XCTAssertNil(q.parsedQuery.quantity, text)
+            XCTAssertNil(q.quantitySuggestion, text)
+            XCTAssertEqual(q.parsedQuery.route, .clarify, text)
+            XCTAssertTrue(q.parsedQuery.reasons.contains("portion_requires_confirmation"), text)
+            XCTAssertEqual(q.parsedQuery.reasons, q.baseline.reasons, text)
+            XCTAssertEqual(q.baseline, FoodQueryParser.parse(text), text)
+            XCTAssertEqual(q.originalText, text)
+        }
+        // Names that start with a portion word, zero amounts and texts without a leading
+        // portion keep the parser's food text.
+        for text in ["a pot noodle", "a glass noodle", "a cup cake", "1 cup cake", "1 cup cakes",
+                     "a glass noodle salad with a glass of milk", "0 pieces cheese", "cheese 3 pieces", "3 pieces", "3 pieces banana", "2 eggs"] {
+            let q = FoodQueryInterpretation(text)
+            XCTAssertEqual(q.parsedQuery.food, q.baseline.food, text)
+            if q.baseline.reasons.contains("portion_requires_confirmation") { XCTAssertNil(q.parsedQuery.quantity, text) }
+        }
+        XCTAssertEqual(FoodQueryInterpretation.version, "food-query-interpretation-v2")
+    }
     func testPreparationIsScopedAndOriginalUTF16SlicesAreRetained() throws {
         for text in ["scallion pancake with fried egg", "steak with noodles and fried egg", "🥞 scallion pancake with melted cheese"] {
             let q = FoodQueryInterpretation(text)

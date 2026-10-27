@@ -3119,6 +3119,20 @@ Boundary: `phase_usage.py --format claude --since 2026-10-27T05:18:22Z --until 2
 
 Token totals are not evidence of productivity, quality or provider efficiency.
 
+## WHR-333-2026-10-27: Claude Code portion search text
+
+One `claude-opus-5-5` subagent, transcript `subagents/agent-ab01ebd6f99531ed3.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`, for #333 (`food-query-interpretation-v2`: a household portion leaves the search text). The window is bounded by `date -u` captures, `2026-10-27T06:54:39Z` to `2026-10-27T07:15:41Z`, just before this ledger edit. It covers reading the issue and code, confirming the bug with parser v8, the fix, tests and doc, the parser evaluation, the retrieval replay and every gate. The commit after this edit, the push and the PR are outside the window. The orchestrating session and any reviewers are not included.
+
+Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A), not re-checked on the day of this entry: `claude-opus-5-5` USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache hit, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Portion search text (#333), subagent | 7,025,370 (6,786,507) | 238,755 | 35,697 | 7,061,067 | $3.27 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-27T06:54:39Z --until 2026-10-27T07:15:41Z` on the subagent transcript alone. Cache writes 238,755 5-minute, 0 1-hour; exact USD 3.2654484. Local Swift builds and tests use no API tokens and are not priced.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
+
 ## WHR-318-2026-10-27: Claude Code count entry copy and layout (#318, #303)
 
 One `claude-opus-5-5` subagent, transcript `subagents/agent-a5a5cd6b6e307793c.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`. The window runs from the subagent's first message (`2026-10-27T05:18:16Z`) to `2026-10-27T06:02:13Z`, just before this ledger edit (UTC). It covers reading the issues and the earlier count work, the Confirm, Food Log and saved entry changes, the tests, the contract amendment and the full gate run (twice for the app tests). The commit, push and PR fall after the window. The orchestrating session and any later review or journey QA are not included.
