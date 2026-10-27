@@ -1,0 +1,126 @@
+{
+ "route": "google/gemini-4-argon on google-vertex/us",
+ "photos": {
+  "development": 20,
+  "untouched": 40,
+  "e13_refill": 10
+ },
+ "not_sent": {
+  "prepare_refused": []
+ },
+ "outcomes": {
+  "development": {
+   "answered": 20,
+   "failed": {}
+  },
+  "untouched": {
+   "answered": 39,
+   "failed": {
+    "timedOut": 1
+   }
+  },
+  "e13_refill": {
+   "answered": 9,
+   "failed": {
+    "truncated": 1
+   }
+  }
+ },
+ "attempts": {
+  "total": 70,
+  "retried_photos": []
+ },
+ "prompt_tokens_max": 2451,
+ "truncated": [
+  "off-taiwan:9415007602255:nutrition_zh.7"
+ ],
+ "identity": {
+  "observed": {
+   "google/gemini-4-argon @ Google": 69
+  },
+  "dated_slugs": [],
+  "mismatches": []
+ },
+ "cost_usd": {
+  "total": "0.8540026",
+  "median": "0.0115115",
+  "max": "0.0451"
+ },
+ "latency_s": {
+  "p50": 11.375079989433289,
+  "p90": 15.231702089309692,
+  "max": 46.76204001903534
+ },
+ "tables": {
+  "development": {
+   "usable_tables": 15,
+   "no_edit_tables": 15,
+   "no_edit_share": 1.0,
+   "whole_table_by_hand": {
+    "tables": 0,
+    "reasons": {},
+    "cells_to_type": 0,
+    "serving_lines_to_type": 0,
+    "ids": []
+   },
+   "silent_error_tables": {
+    "tables": 0,
+    "ids": [],
+    "of_which_arithmetic_check_did_not_fail": []
+   },
+   "silent_omission_tables": {
+    "note": "reported separately: a row left out entirely that no flag marks (an omission, not a wrong value)",
+    "tables": 0,
+    "ids": []
+   },
+   "median_edits_per_prefilled_table": 0
+  },
+  "untouched": {
+   "usable_tables": 40,
+   "no_edit_tables": 34,
+   "no_edit_share": 0.85,
+   "whole_table_by_hand": {
+    "tables": 3,
+    "reasons": {
+     "failed_output": 1,
+     "route_declined": 2
+    },
+    "cells_to_type": 46,
+    "serving_lines_to_type": 6,
+    "ids": [
+     "off-taiwan:4710018164101:nutrition_zh.11",
+     "off-taiwan:4710425590197:nutrition_zh.5",
+     "off-taiwan:4713105808025:nutrition_zh.7"
+    ]
+   },
+   "silent_error_tables": {
+    "tables": 3,
+    "ids": [
+     "off-taiwan:4710022030713:nutrition_zh.10",
+     "off-taiwan:4712893950282:nutrition_zh.7",
+     "off-taiwan:4972767003715:nutrition_zh.8"
+    ],
+    "of_which_arithmetic_check_did_not_fail": [
+     "off-taiwan:4710022030713:nutrition_zh.10",
+     "off-taiwan:4712893950282:nutrition_zh.7",
+     "off-taiwan:4972767003715:nutrition_zh.8"
+    ]
+   },
+   "silent_omission_tables": {
+    "note": "reported separately: a row left out entirely that no flag marks (an omission, not a wrong value)",
+    "tables": 1,
+    "ids": [
+     "off-taiwan:4710022030713:nutrition_zh.10"
+    ]
+   },
+   "median_edits_per_prefilled_table": 0
+  }
+ },
+ "bars": {
+  "zero_identity_mismatches": true,
+  "median_cost": true,
+  "p90_latency": true,
+  "no_edit_untouched": true,
+  "no_edit_development": true
+ }
+}

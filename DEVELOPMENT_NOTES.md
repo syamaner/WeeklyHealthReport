@@ -3081,3 +3081,14 @@ Route v2 fold (WHR-316-2026-10-26-L5): `phase_usage.py --format claude --since 2
 - every gate.
 
 The commit, push and PR note fall after 03:27Z and are outside the window. There was no OpenRouter spend. Cache writes 1,471,159 5-minute, 0 1-hour; exact USD 13.6580222. Same pricing as above; an API-equivalent comparison, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label photo L5 E13 re-run record (#316), subagent | 3,763,382 (3,279,911) | 483,453 | 8,047 | 3,771,429 | $3.23 |
+
+E13 re-run record (WHR-316-2026-10-26-L5): `phase_usage.py --format claude --since 2026-10-27T03:27:00Z --until 2026-10-27T04:40:00Z` on the subagent transcript alone. It starts where the route v2 row ends, so it covers:
+- that fold's commit, push and PR note;
+- checking the re-run results file;
+- spec 17.21.
+
+The commit and push for this record fall after 04:40Z and are outside the window. The coordinator ran the 4-photo re-run under the owner's approval, and it cost **$0.0796 in OpenRouter charges**. E13's total charge on the owner's key is $0.8540. Both are real charges, outside this agent's token use. Cache writes 483,453 5-minute, 0 1-hour; exact USD 3.2342592. Same pricing as above; an API-equivalent comparison, not a charge.

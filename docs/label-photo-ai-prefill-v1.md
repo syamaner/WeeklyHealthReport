@@ -1384,6 +1384,41 @@ python3 -I Tools/NutritionLabelCaptureEvaluation/e13_score.py --overlay ~/WHR-la
 
 If the 4 photos are read as they were in October, untouched no-edit becomes **35 of 40 (87.5%)**. That is a projection until the re-run is scored.
 
+**Re-run result (27 October 2026, run by the coordinator under the owner's approval, with the two commands above).** The full run's 66 other records are unchanged, and the overlay replaces only these 4. Results are in [`results/e13-qualification-v2-rerun.json`](../Tools/NutritionLabelCaptureEvaluation/results/e13-qualification-v2-rerun.json) (counts and public ids only).
+
+The re-run itself:
+- **3 of the 4 were answered under route v2:** the two previously refused photos `3228022000311` and `4710011470605`, and the previously truncated `2019704161243`.
+- **The fourth timed out:** `4710018164101` (175 x 174 px, now admitted by the 160 px floor) failed after one attempt at **46.8 s**. The tap's 45 s attempt deadline plus the transport's own wind-down account for it.
+  - Its cost was not reported, so it was charged W ($0.0451), and under route v2 no retry fits after an unreported failure.
+  - In the app the user would see the timeout and could tap again, which is a new tap with its own $0.05.
+  - The October full-size run read this photo with no edit, so this is a one-off latency failure, not a reading failure. It counts against the bar as a whole table by hand.
+- **Re-run cost:** $0.0796.
+
+**E13 outcome: all five bars pass** on route v2 with the 160 px floor, the full run overlaid with the re-run.
+
+| Bar | Result | Verdict |
+|---|---|---|
+| Zero identity mismatches | 69 of 69 replies were `google/gemini-4-argon` from "Google" | Pass |
+| Median cost at most $0.02 | $0.0115 (total $0.8540 over the run and re-run, within the $10 stop) | Pass |
+| p90 latency at most 20 s | 15.2 s (p50 11.4 s, maximum 46.8 s, the timeout above) | Pass |
+| No-edit tables, development | 15 of 15 | Pass |
+| No-edit tables, untouched | **34 of 40 (85%)** | Pass |
+
+The details behind the table:
+- **No dated slug was observed** in any of the 69 replies, so there is nothing to pin, and `pinnedSnapshots` stays empty. A dated reply in future still fails closed as a wrong model.
+- **No photo was refused by preparation.** The only truncation left is one refill (`9415007602255`), which has no truth and is outside the bars.
+- **The 6 untouched tables still needing work:**
+  - 3 whole tables by hand: the timeout above and the 2 correct route declines;
+  - 3 silent-error tables (`4710022030713`, `4712893950282`, `4972767003715`, all unchanged by the re-run). Every one of their 6 wrong values is an attention item on the shipped locator, so Log waits until each is checked, corrected or left unknown. The one exception is the wrong servings-per-pack line in `4710022030713`, which is found on the photo and so is not flagged.
+  - That table also carries the 1 silent omission.
+- **Spend:** the total OpenRouter spend for E13 is $0.8540 of the owner's $10.
+
+What remains before the route is enabled for users:
+- the iPhone run of `FoodLabelPhotoCaptureTests` (below);
+- the owner's device check;
+- the owner's review of the App Store privacy answers;
+- the owner's decision to turn the route on.
+
 **iPhone run (17.17 (c)).** The paired iPhone (SiPhone, iOS 27.0.1) was offline on 26 October 2026, so the run is **an open gate**. Command, from `Packages/FoodLedgerKit`, with the device unlocked and connected:
 
 ```bash
