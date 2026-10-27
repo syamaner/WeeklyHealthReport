@@ -38,7 +38,7 @@ final class FoodQueryInterpretationTests: XCTestCase {
     func testHouseholdPortionIsLeftOutOfRetrievalAndNeverBecomesAnAmount() {
         for (text, retrieval) in [("3 pieces cheese", "cheese"), ("3 pieces of apple pie", "apple pie"), ("3 Pieces Of Cake", "cake"),
                                   ("a piece of banana", "banana"), ("A bowl of rice", "rice"), ("2 slices of toast", "toast"),
-                                  ("2 x slices of toast", "toast"), ("1 cup rice", "rice"), ("half cup rice", "rice"),
+                                  ("2 x slices of toast", "toast"), ("1 cup of rice", "rice"), ("a glass of milk", "milk"),
                                   ("a handful of almonds", "almond"), ("2 cans of tuna", "tuna"), ("some cheese", "cheese"),
                                   ("a pot of yoghurt", "yoghurt"), ("a bowl of rice with chicken", "rice with chicken")] {
             let q = FoodQueryInterpretation(text)
@@ -55,11 +55,12 @@ final class FoodQueryInterpretationTests: XCTestCase {
         }
         // Names that start with a portion word, zero amounts and texts without a leading
         // portion keep the parser's food text.
-        for text in ["a pot noodle", "a glass noodle", "0 pieces cheese", "cheese 3 pieces", "3 pieces", "3 pieces banana", "2 eggs"] {
+        for text in ["a pot noodle", "a glass noodle", "a cup cake", "1 cup cake", "1 cup rice", "half cup rice",
+                     "a glass noodle salad with a glass of milk", "0 pieces cheese", "cheese 3 pieces", "3 pieces", "3 pieces banana", "2 eggs"] {
             let q = FoodQueryInterpretation(text)
             XCTAssertEqual(q.parsedQuery.food, q.baseline.food, text)
+            if q.baseline.reasons.contains("portion_requires_confirmation") { XCTAssertNil(q.parsedQuery.quantity, text) }
         }
-        XCTAssertEqual(FoodQueryInterpretation("a glass of milk").retrievalText, "milk")
         XCTAssertEqual(FoodQueryInterpretation.version, "food-query-interpretation-v2")
     }
     func testPreparationIsScopedAndOriginalUTF16SlicesAreRetained() throws {

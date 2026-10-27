@@ -7,7 +7,7 @@ the parser's retrieval hints into the search request. `FoodQueryParser` stays
 ## Problem
 
 A query whose amount is a household portion ("3 pieces cheese", "3 pieces of apple pie",
-"a handful of almonds", "1 cup rice") is routed to clarification with
+"a handful of almonds", "2 slices of toast") is routed to clarification with
 `portion_requires_confirmation`, and discovery is still allowed. The parser keeps the
 portion words in its food text, so search looked for "3 pieces cheese" and found nothing,
 while "cheese" finds many records. This predates parser v9: the same queries give no match
@@ -22,9 +22,12 @@ text used for retrieval when, and only when, the parser reports
 - The amount is a numeral, `half`, one to six as words, or `a` / `an`, optionally followed by
   `x`; the unit is one of the parser's household units or `slice` / `slices`. A leading
   `some` is removed on its own.
-- `pot`, `glass`, `bottle` and `pack` also start food names (pot noodle, glass noodles,
-  bottle gourd, pack choi), so they are removed only when the original says "of" after them:
-  "a pot of yoghurt" searches "yoghurt", "a pot noodle" is unchanged.
+- `pot`, `glass`, `bottle`, `pack` and `cup` also start food names (pot noodle, glass
+  noodles, bottle gourd, pack choi, cup cake), so they are removed only when "of" follows
+  that leading unit in the original: "a pot of yoghurt" searches "yoghurt", "1 cup of rice"
+  searches "rice", while "a pot noodle", "1 cup cake" and "1 cup rice" are unchanged. An
+  "of" later in the text does not count: "a glass noodle salad with a glass of milk" is
+  unchanged.
 - A zero amount, a portion that is not at the start ("cheese 3 pieces") and a portion with no
   food after it ("3 pieces") are unchanged.
 
