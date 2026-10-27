@@ -7,7 +7,7 @@ import XCTest
 
 /// Contract tests 13, 14 and 23 (docs/label-photo-ai-prefill-v1.md 12.5 and 17.8): the prepared
 /// bytes carry no metadata, are upright, untagged sRGB, inside the E3 bounds, hash to their
-/// recorded SHA-256, and a crop under 240 px is refused. The fixtures are synthetic and the
+/// recorded SHA-256, and a crop under 160 px is refused. The fixtures are synthetic and the
 /// positive controls prove each fixture really holds what must be removed.
 final class ImageIOLabelImagePreparerTests: XCTestCase {
     typealias Images = LabelPhotoFixtureImages
@@ -155,12 +155,23 @@ final class ImageIOLabelImagePreparerTests: XCTestCase {
         XCTAssertEqual(ImageIOLabelImagePreparer.qualities, [0.85, 0.75, 0.65])
     }
 
-    func testACropUnder240PixelsIsRefusedAnd240IsAccepted() throws {
+    func testACropUnder160PixelsIsRefusedAnd160IsAccepted() throws {
         let fixture = Images.jpegWithEverything(Images.asymmetric(width: 1_000, height: 1_000), orientation: 1)
-        XCTAssertThrowsError(try preparer.prepare(fixture, crop: try XCTUnwrap(LabelCropRect(x: 0, y: 0, width: 0.239, height: 0.5)))) {
+        XCTAssertThrowsError(try preparer.prepare(fixture, crop: try XCTUnwrap(LabelCropRect(x: 0, y: 0, width: 0.159, height: 0.5)))) {
             XCTAssertEqual($0 as? LabelImagePreparationError, .cropTooSmall)
         }
-        XCTAssertNoThrow(try preparer.prepare(fixture, crop: try XCTUnwrap(LabelCropRect(x: 0, y: 0, width: 0.24, height: 0.5))))
+        XCTAssertNoThrow(try preparer.prepare(fixture, crop: try XCTUnwrap(LabelCropRect(x: 0, y: 0, width: 0.16, height: 0.5))))
+    }
+
+    func testSmallWholePhotosLikeE13sRefusalsArePrepared() throws {
+        // E13 (17.21): whole photos of 175 x 174, 215 x 350 and 230 x 220 px were refused at 240 px.
+        for (width, height) in [(175, 174), (215, 350), (230, 220), (160, 400)] {
+            let prepared = try preparer.prepare(Images.jpegWithEverything(Images.asymmetric(width: width, height: height)), crop: .whole)
+            XCTAssertEqual([prepared.pixelWidth, prepared.pixelHeight].sorted(), [width, height].sorted(), "never scaled up (the fixture is turned upright)")
+        }
+        XCTAssertThrowsError(try preparer.prepare(Images.jpegWithEverything(Images.asymmetric(width: 159, height: 400)), crop: .whole)) {
+            XCTAssertEqual($0 as? LabelImagePreparationError, .cropTooSmall)
+        }
     }
 
     func testTheRecordedHashIsThatOfTheBytesAndUnreadableInputIsRefused() throws {
@@ -204,7 +215,7 @@ final class ImageIOLabelImagePreparerTests: XCTestCase {
         }
         XCTAssertNoThrow(try ImageIOLabelImagePreparer.plan(uprightWidth: 4_000, uprightHeight: 500, crop: .whole))
         let eightToOne = try ImageIOLabelImagePreparer.plan(uprightWidth: 4_000, uprightHeight: 500, crop: .whole)
-        XCTAssertGreaterThanOrEqual(min(eightToOne.outputWidth, eightToOne.outputHeight), 240)
+        XCTAssertGreaterThanOrEqual(min(eightToOne.outputWidth, eightToOne.outputHeight), 160)
         XCTAssertEqual(ImageIOLabelImagePreparer.maximumAspectRatio, 8)
     }
 

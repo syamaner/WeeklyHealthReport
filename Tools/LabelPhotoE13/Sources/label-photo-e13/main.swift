@@ -19,6 +19,9 @@ import Foundation
 //
 //     swift run --package-path Tools/LabelPhotoE13 label-photo-e13 --cases <cases.json> \
 //         --out ~/WHR-label-eval-private/runs/e13-v1 --env-file ~/git/PacePrompt/.env --stop-usd 10 --pause-usd 5
+//
+// `--only ID,ID,...` re-runs just those case ids, and then `--records NAME.jsonl` is required and
+// must not be the full run's `e13-records.jsonl`, so the full run's records stay intact.
 
 struct Arguments {
     var cases: URL?
@@ -27,6 +30,8 @@ struct Arguments {
     var stopUSD = Decimal(10)
     var pauseUSD = Decimal(5)
     var limit = Int.max
+    var only: Set<String>?
+    var records = "e13-records.jsonl"
 
     static func parse(_ list: [String]) -> Arguments? {
         var arguments = Arguments()
@@ -40,9 +45,18 @@ struct Arguments {
             case "--stop-usd": guard let v = Decimal(string: value), v > 0, v <= 10 else { return nil }; arguments.stopUSD = v
             case "--pause-usd": guard let v = Decimal(string: value), v > 0 else { return nil }; arguments.pauseUSD = v
             case "--limit": guard let v = Int(value), v > 0 else { return nil }; arguments.limit = v
+            case "--only":
+                let ids = Set(value.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })
+                guard !ids.isEmpty else { return nil }
+                arguments.only = ids
+            case "--records":
+                guard value.hasSuffix(".jsonl"), !value.contains("/"), !value.hasPrefix(".") else { return nil }
+                arguments.records = value
             default: return nil
             }
         }
+        // A partial re-run never writes into the full run's records.
+        if arguments.only != nil, arguments.records == "e13-records.jsonl" { return nil }
         return arguments.cases != nil && arguments.out != nil && arguments.envFile != nil ? arguments : nil
     }
 }
@@ -191,19 +205,25 @@ func fail(_ message: String) -> Never {
 func decimal(_ text: String?) -> Decimal? { text.flatMap { Decimal(string: $0, locale: Locale(identifier: "en_US_POSIX")) } }
 
 guard let arguments = Arguments.parse(Array(CommandLine.arguments.dropFirst())) else {
-    fail("usage: label-photo-e13 --cases FILE --out DIR --env-file FILE [--stop-usd N<=10] [--pause-usd N] [--limit N]")
+    fail("usage: label-photo-e13 --cases FILE --out DIR --env-file FILE [--stop-usd N<=10] [--pause-usd N] [--limit N] "
+        + "[--only ID,ID,... --records NAME.jsonl (not e13-records.jsonl)]")
 }
 let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     .deletingLastPathComponent().deletingLastPathComponent().standardizedFileURL.path
 let outDirectory = arguments.out!.standardizedFileURL
 guard !outDirectory.path.hasPrefix(repository + "/") else { fail("--out must be outside the repository") }
 try FileManager.default.createDirectory(at: outDirectory, withIntermediateDirectories: true)
-let recordsURL = outDirectory.appendingPathComponent("e13-records.jsonl")
+let recordsURL = outDirectory.appendingPathComponent(arguments.records)
 
 let keys = EnvironmentKey(file: arguments.envFile!)
 guard let key = keys.key, FoodWebKeySyntax.isValid(key) else { fail("no well-formed OPENROUTER_API_KEY in --env-file") }
 
-let cases = try JSONDecoder().decode([Case].self, from: Data(contentsOf: arguments.cases!))
+let allCases = try JSONDecoder().decode([Case].self, from: Data(contentsOf: arguments.cases!))
+if let only = arguments.only {
+    let unknown = only.subtracting(allCases.map(\.id))
+    guard unknown.isEmpty else { fail("--only names \(unknown.count) id(s) not in --cases: \(unknown.sorted().joined(separator: ", "))") }
+}
+let cases = arguments.only.map { only in allCases.filter { only.contains($0.id) } } ?? allCases
 var done = Set<String>()
 var spent = Decimal(0)
 if let existing = try? String(contentsOf: recordsURL, encoding: .utf8) {

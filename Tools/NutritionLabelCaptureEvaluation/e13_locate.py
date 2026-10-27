@@ -9,7 +9,10 @@ the scored Taiwan photos and does the following:
 - runs Apple Vision and the L0 locator (`Tools/LabelPhotoLocateL0`, `label-photo-vision-locate-v3`)
   on the prepared bytes, exactly as `l0_locate.py` does for the October answers;
 - asks, per pre-filled table, whether the app would draw attention to every silent wrong value
-  (`silent_caught`) and whether it would block Log on it (`silent_blocked`).
+  (`silent_caught`). In the shipped app every attention item blocks Log until the user marks it
+  Matches the photo, corrects it or leaves it unknown (owner decision Q1; `LabelPhotoReview.canLog`,
+  Confirm's `sourceBlocker`), so a caught value is also one Log waits on. `l0_locate`'s
+  `silent_blocked` measures the unadopted evidence-blocks policy instead, and is not reported here.
 
 A row the answer left out entirely has no pre-filled value to locate, so the locator cannot raise
 it. Such a row is reported as an omission, not as caught.
@@ -77,8 +80,8 @@ def main(argv: list[str] | None = None) -> int:
                     "silent_values": t["silent"],
                     "silent_values_flagged_by_locator_or_checks": t["silent_by_locator_or_checks"],
                     "silent_serving_lines": [f for f, s in t["serving"].items() if s["truth"] == "wrong"],
-                    "caught": t["silent_caught"],
-                    "blocked": t["silent_blocked"],
+                    "caught_every_silent_value_and_line": t["silent_caught"],
+                    "log_blocked_until_each_flagged_value_is_resolved": t["silent_by_locator_or_checks"] > 0,
                 }
                 for t in silent
             ],

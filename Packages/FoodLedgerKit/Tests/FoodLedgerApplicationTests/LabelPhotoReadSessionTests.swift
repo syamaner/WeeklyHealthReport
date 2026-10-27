@@ -113,12 +113,15 @@ final class LabelPhotoReadSessionTests: XCTestCase {
     var calendar: Calendar { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "Asia/Taipei")!; return c }
 
     func makeSession(_ script: [LabelPhotoAttemptResult], checker: Checker = Checker(.success(good)), ledger: Ledger = Ledger(),
-                     keys: Keys = Keys(), clock: Clock = Clock())
+                     keys: Keys = Keys(), clock: Clock = Clock(), route: LabelPhotoRoute.Route = LabelPhotoRoute.v1US,
+                     reasoningBilledSeparately: Bool = false)
         -> (LabelPhotoReadSession, Attempter, Checker, Ledger, Sleeper) {
+        // The budget arithmetic below is route v1's (1,200 tokens, W $0.024); route v2 has its own test.
         let attempter = Attempter(script, clock: clock)
         let sleeper = Sleeper(clock: clock)
-        let session = LabelPhotoReadSession(checker: checker, attempter: attempter, ledger: ledger, keys: keys, clock: clock,
-                                            calendar: calendar, sleeper: sleeper, jitter: { 0 }, tapIDs: Self.taps.next)
+        let session = LabelPhotoReadSession(route: route, checker: checker, attempter: attempter, ledger: ledger, keys: keys, clock: clock,
+                                            calendar: calendar, sleeper: sleeper, jitter: { 0 }, tapIDs: Self.taps.next,
+                                            reasoningBilledSeparately: reasoningBilledSeparately)
         return (session, attempter, checker, ledger, sleeper)
     }
 
@@ -204,6 +207,24 @@ final class LabelPhotoReadSessionTests: XCTestCase {
         let outcome = await session.read(image)
         XCTAssertEqual(outcome, .failed(.unreadableAnswer))
         XCTAssertEqual(attempter.timeouts.count, 1)
+    }
+
+    func testRouteV2AtLivePricesAllowsNoRetryAfterAnUnreportedFailure() async {
+        // Route v2 (17.21): W = 6,000 x $0.0000022 + (2,400 + 500) x $0.000011 = $0.0451.
+        let live = LabelPhotoManifest.CatalogueCheck(at: 1, slug: "google/gemini-4-argon", endpoint: "google-vertex/us",
+            inputModalities: ["text", "image"], zeroDataRetention: true, promptPrice: "0.0000022", completionPrice: "0.000011")
+        let prices = LabelPhotoReadSession.prices(live, route: LabelPhotoRoute.v2US, reasoningBilledSeparately: true)
+        XCTAssertEqual(prices.map(LabelPhotoSpendPolicy.worstCase), Decimal(string: "0.0451"))
+        let (session, attempter, _, _, _) = makeSession([Self.failed(.transportError), Self.answer], checker: Checker(.success(live)),
+                                                        route: LabelPhotoRoute.v2US, reasoningBilledSeparately: true)
+        let outcome = await session.read(image)
+        XCTAssertEqual(outcome, .failed(.providerUnavailable))
+        XCTAssertEqual(attempter.timeouts.count, 1, "$0.0451 + $0.0451 exceeds $0.05")
+        let (retried, retriedAttempter, _, _, _) = makeSession([Self.failed(.httpStatus(503, retryAfter: nil), cost: 0),
+                                                                Self.answer], checker: Checker(.success(live)),
+                                                               route: LabelPhotoRoute.v2US, reasoningBilledSeparately: true)
+        guard case .answered = await retried.read(image) else { return XCTFail("a failure reported at $0 still leaves room") }
+        XCTAssertEqual(retriedAttempter.timeouts.count, 2)
     }
 
     func testNoAttemptStartsPastTheTapBudget() async {

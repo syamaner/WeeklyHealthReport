@@ -44,6 +44,9 @@ public struct LabelCropRect: Equatable, Hashable, Sendable, Codable {
         min(width * Double(pixelWidth), height * Double(pixelHeight))
     }
 
-    /// P5, decided 25 October 2026 (17.9): a crop whose short edge is under 240 px is refused.
-    public static let minimumShortEdge: Double = 240
+    /// P5: a crop whose short edge is under 160 px is refused. It was 480 px, then 240 px after L0
+    /// (17.9, "to be confirmed by E13"). E13 refused three whole photos of 174 to 230 px that Gemini 4
+    /// Argon had read with no edit at that same size in October, so it is 160 px from 27 October
+    /// 2026 (17.21).
+    public static let minimumShortEdge: Double = 160
 }

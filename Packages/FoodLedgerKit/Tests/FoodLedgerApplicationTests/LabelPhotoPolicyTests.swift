@@ -282,9 +282,10 @@ final class LabelCropRectTests: XCTestCase {
         XCTAssertThrowsError(try JSONDecoder().decode(LabelCropRect.self, from: bad))
     }
 
-    func testShortEdgeMinimumIsTheDecided240Pixels() throws {
-        XCTAssertEqual(LabelCropRect.minimumShortEdge, 240)
+    func testShortEdgeMinimumIsTheDecided160Pixels() throws {
+        // 480 px, then 240 px after L0 (17.9), then 160 px after E13 (17.21).
+        XCTAssertEqual(LabelCropRect.minimumShortEdge, 160)
         let crop = try XCTUnwrap(LabelCropRect(x: 0, y: 0, width: 0.5, height: 0.25))
-        XCTAssertEqual(crop.shortEdge(pixelWidth: 2_000, pixelHeight: 960), 240)
+        XCTAssertEqual(crop.shortEdge(pixelWidth: 2_000, pixelHeight: 640), 160)
     }
 }

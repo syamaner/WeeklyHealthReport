@@ -252,7 +252,7 @@ public struct LabelPhotoConfirmation: Sendable {
                 identityMapping: identity, candidate: reading.candidate, locations: review.locations, storedHeaderID: review.storedHeaderID,
                 conversions: review.conversionsShown, flagsShown: review.flags, checksFailed: review.checksFailed,
                 warningsShown: review.checksFailed.map(\.warningCode), corrections: review.corrections, attention: attention,
-                name: name, brand: brand)
+                name: name, brand: brand).recordingRoute()
         }
         // The identity's serving basis is the stored column's, through the shared basis rule.
         let provisional = build(try .init(fortificationAnswer: details.fortification, servingBasis: .per100Grams))

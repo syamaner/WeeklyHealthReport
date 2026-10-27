@@ -114,8 +114,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--records", type=Path, default=Path.home() / "WHR-label-eval-private" / "runs" / "e13-v1" / "e13-records.jsonl")
     parser.add_argument("--pinned", action="append", default=[], help="a dated slug already pinned for the model")
     parser.add_argument("--out", type=Path, required=True, help="counts and case ids only (may be in the repository)")
+    parser.add_argument(
+        "--overlay",
+        type=Path,
+        help="a partial re-run's records (runner --only/--records): each replaces the full run's record with the same id",
+    )
     args = parser.parse_args(argv)
     records = [json.loads(line) for line in args.records.read_text(encoding="utf-8").splitlines() if line.strip()]
+    if args.overlay:
+        rerun = {r["id"]: r for r in (json.loads(line) for line in args.overlay.read_text(encoding="utf-8").splitlines() if line.strip())}
+        if set(rerun) - {r["id"] for r in records}:
+            raise SystemExit("the overlay names a case the full run does not have")
+        records = [rerun.get(r["id"], r) for r in records]
     sent = [r for r in records if r.get("attempts")]
     costs = [Decimal(r["chargedUSD"]) for r in sent]
     latencies = [float(r["tapSeconds"]) for r in sent if r.get("tapSeconds") is not None]

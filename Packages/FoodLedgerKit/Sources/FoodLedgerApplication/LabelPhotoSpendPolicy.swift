@@ -24,6 +24,7 @@ public enum LabelPhotoSpendPolicy {
     public static let dailyCostLimit = Decimal(string: "0.50")!
     public static let dailyReadLimit = 30
     public static let promptTokenCeiling = 6_000
+    /// Route v1's `max_tokens`; each route now carries its own (`LabelPhotoRoute.Route.maxOutputTokens`).
     public static let maxTokens = 1_200
     public static let reasoningLimit = 500
 
@@ -33,9 +34,12 @@ public enum LabelPhotoSpendPolicy {
         public let promptPerToken: Decimal
         public let completionPerToken: Decimal
         public let reasoningBilledSeparately: Bool
-        public init(promptPerToken: Decimal, completionPerToken: Decimal, reasoningBilledSeparately: Bool) {
+        /// The route's `max_tokens` (17.21): 1,200 for route v1, 2,400 for route v2.
+        public let maxOutputTokens: Int
+        public init(promptPerToken: Decimal, completionPerToken: Decimal, reasoningBilledSeparately: Bool,
+                    maxOutputTokens: Int = LabelPhotoSpendPolicy.maxTokens) {
             self.promptPerToken = promptPerToken; self.completionPerToken = completionPerToken
-            self.reasoningBilledSeparately = reasoningBilledSeparately
+            self.reasoningBilledSeparately = reasoningBilledSeparately; self.maxOutputTokens = maxOutputTokens
         }
     }
 
@@ -47,7 +51,7 @@ public enum LabelPhotoSpendPolicy {
     }
 
     public static func worstCase(_ prices: Prices) -> Decimal {
-        let completion = maxTokens + (prices.reasoningBilledSeparately ? reasoningLimit : 0)
+        let completion = prices.maxOutputTokens + (prices.reasoningBilledSeparately ? reasoningLimit : 0)
         return Decimal(promptTokenCeiling) * prices.promptPerToken + Decimal(completion) * prices.completionPerToken
     }
 

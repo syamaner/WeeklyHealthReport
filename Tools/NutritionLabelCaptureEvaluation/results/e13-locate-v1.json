@@ -95,9 +95,9 @@
    ],
    "silent_tables": [
     {
-     "blocked": false,
-     "caught": false,
+     "caught_every_silent_value_and_line": false,
      "id": "off-taiwan:4710022030713:nutrition_zh.10",
+     "log_blocked_until_each_flagged_value_is_resolved": true,
      "silent_serving_lines": [
       "servings_per_pack"
      ],
@@ -105,17 +105,17 @@
      "silent_values_flagged_by_locator_or_checks": 2
     },
     {
-     "blocked": false,
-     "caught": true,
+     "caught_every_silent_value_and_line": true,
      "id": "off-taiwan:4712893950282:nutrition_zh.7",
+     "log_blocked_until_each_flagged_value_is_resolved": true,
      "silent_serving_lines": [],
      "silent_values": 2,
      "silent_values_flagged_by_locator_or_checks": 2
     },
     {
-     "blocked": false,
-     "caught": true,
+     "caught_every_silent_value_and_line": true,
      "id": "off-taiwan:4972767003715:nutrition_zh.8",
+     "log_blocked_until_each_flagged_value_is_resolved": true,
      "silent_serving_lines": [],
      "silent_values": 2,
      "silent_values_flagged_by_locator_or_checks": 2

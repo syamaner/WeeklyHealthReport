@@ -69,7 +69,7 @@ final class OpenRouterLabelPhotoRouteTests: XCTestCase {
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
         XCTAssertEqual(Set(object.keys), ["model", "messages", "response_format", "provider", "max_tokens", "reasoning", "stream", "usage"])
         XCTAssertEqual(object["model"] as? String, "google/gemini-4-argon")
-        XCTAssertEqual(object["max_tokens"] as? Int, 1_200)
+        XCTAssertEqual(object["max_tokens"] as? Int, 2_400, "route v2 (17.21): E13 truncated two answers at 1,200")
         XCTAssertEqual(object["reasoning"] as? [String: Int], ["max_tokens": 500])
         XCTAssertEqual(object["stream"] as? Bool, false)
         XCTAssertEqual(object["usage"] as? [String: Bool], ["include": true])
@@ -112,7 +112,7 @@ final class OpenRouterLabelPhotoRouteTests: XCTestCase {
         XCTAssertEqual(try request.body(image), body, "reproducible bytes")
     }
 
-    static let goldenBodySHA256 = "53e868550ce200c91fa6c1f137fbbf1c745ffd7b3e344cc2dce1ec3af2bce953"
+    static let goldenBodySHA256 = "27d9558f6f1ea84d6f543a488ede5c0bc5391665ba4cbde5c49860c3d208df11"
 
     func testAKeyInsideTheBodyIsRefused() throws {
         // A key that happens to occur in the body (here, inside the instruction) is never sent.
@@ -125,7 +125,7 @@ final class OpenRouterLabelPhotoRouteTests: XCTestCase {
         let check = LabelPhotoManifest.CatalogueCheck(at: 1, slug: "google/gemini-4-argon", endpoint: "google-vertex/us", inputModalities: ["image"],
                                                       zeroDataRetention: true, promptPrice: "0.000002", completionPrice: "0.00001")
         let record = try request().manifestRequest(catalogue: check)
-        XCTAssertEqual(record.maxOutputTokens, 1_200)
+        XCTAssertEqual(record.maxOutputTokens, 2_400)
         XCTAssertEqual(record.reasoningLimit, 500)
         XCTAssertEqual(record.instructionVersion, "label-photo-instruction-v1")
         XCTAssertEqual(record.wireSchemaVersion, "label-photo-wire-schema-v1")
@@ -297,7 +297,7 @@ final class OpenRouterLabelPhotoRouteTests: XCTestCase {
             XCTAssertEqual(request.headers, ["Accept": "application/json"], "no Authorization header and no user data")
         }
         let prices = try XCTUnwrap(LabelPhotoReadSession.prices(check, route: LabelPhotoRoute.current, reasoningBilledSeparately: true))
-        XCTAssertEqual(LabelPhotoSpendPolicy.worstCase(prices), Decimal(string: "0.0319"), "6,000 x 2.2e-6 + 1,700 x 1.1e-5")
+        XCTAssertEqual(LabelPhotoSpendPolicy.worstCase(prices), Decimal(string: "0.0451"), "6,000 x 2.2e-6 + (2,400 + 500) x 1.1e-5")
         XCTAssertFalse(LabelPhotoSpendPolicy.mayStartAttempt(after: [.init(reportedCost: nil, promptTokens: nil)], prices: prices),
                        "no retry after an unreported failure")
         XCTAssertTrue(LabelPhotoSpendPolicy.mayStartAttempt(after: [.init(reportedCost: 0, promptTokens: nil)], prices: prices))
@@ -306,7 +306,7 @@ final class OpenRouterLabelPhotoRouteTests: XCTestCase {
     // MARK: L5: the live route identity and the prices W models (17.21)
 
     func testOnlyTheUSEndpointPassesOnTheLiveCatalogue() async throws {
-        for route in LabelPhotoRoute.admitted where route != LabelPhotoRoute.current {
+        for route in LabelPhotoRoute.admitted where route.endpoint != LabelPhotoRoute.current.endpoint {
             let transport = FakeTransport([.success(Self.reply(Self.listing)), .success(Self.reply(Self.zdr))])
             do { _ = try await OpenRouterLabelRouteChecker(transport: transport, clock: Clock(), reasoningBilledSeparately: true).check(route)
                 XCTFail("\(route.endpoint) is not listed") } catch {}

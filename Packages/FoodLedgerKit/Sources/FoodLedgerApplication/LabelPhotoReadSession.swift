@@ -58,7 +58,7 @@ public actor LabelPhotoReadSession {
               check.zeroDataRetention, let prompt = Decimal(string: check.promptPrice), let completion = Decimal(string: check.completionPrice),
               prompt >= 0, completion >= 0 else { return nil }
         let prices = LabelPhotoSpendPolicy.Prices(promptPerToken: prompt, completionPerToken: completion,
-                                                  reasoningBilledSeparately: reasoningBilledSeparately)
+                                                  reasoningBilledSeparately: reasoningBilledSeparately, maxOutputTokens: route.maxOutputTokens)
         return LabelPhotoSpendPolicy.worstCase(prices) <= LabelPhotoSpendPolicy.perTapLimit ? prices : nil
     }
 

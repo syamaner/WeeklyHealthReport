@@ -80,7 +80,7 @@ public struct OpenRouterLabelPhotoRequest: Sendable {
                 "json_schema": ["name": Self.schemaName, "description": Self.schemaDescription, "strict": true, "schema": schema],
             ],
             "provider": providerBlock,
-            "max_tokens": LabelPhotoSpendPolicy.maxTokens,
+            "max_tokens": route.maxOutputTokens,
             "reasoning": ["max_tokens": LabelPhotoSpendPolicy.reasoningLimit],
             "stream": false,
             "usage": ["include": true],
@@ -99,7 +99,7 @@ public struct OpenRouterLabelPhotoRequest: Sendable {
     /// The manifest's request record for this route and the session's catalogue check.
     public func manifestRequest(catalogue: LabelPhotoManifest.CatalogueCheck) -> LabelPhotoManifest.Request {
         LabelPhotoManifest.Request(model: route.model, endpoint: route.endpoint, reasoningLimit: LabelPhotoSpendPolicy.reasoningLimit,
-                                   maxOutputTokens: LabelPhotoSpendPolicy.maxTokens, instructionVersion: LabelPhotoManifest.instructionVersion,
+                                   maxOutputTokens: route.maxOutputTokens, instructionVersion: LabelPhotoManifest.instructionVersion,
                                    instructionSHA256: Self.instructionSHA256, wireSchemaVersion: LabelPhotoSource.wireSchemaVersion,
                                    wireSchemaSHA256: Self.wireSchemaSHA256, catalogueCheck: catalogue)
     }
