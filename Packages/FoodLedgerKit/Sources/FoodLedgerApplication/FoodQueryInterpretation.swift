@@ -4,7 +4,7 @@ import FoodLedgerDomain
 /// One deterministic application interpretation. No source identity, nutrition or
 /// conversion is asserted by language. The legacy parse remains available for diagnostics.
 public struct FoodQueryInterpretation: Equatable, Sendable {
-    public static let version = "food-query-interpretation-v1"
+    public static let version = "food-query-interpretation-v2"
     public struct Component: Equatable, Sendable {
         public let text: String
         /// UTF-16 offsets in originalText, not code-point or Character offsets.
@@ -102,9 +102,33 @@ public struct FoodQueryInterpretation: Equatable, Sendable {
                 attributes = targetParse.attributes
             }
         }
+        // v2 (#333): a household portion is a clarification for Confirm, not a search term.
+        if suggestion == nil, baseline.reasons.contains("portion_requires_confirmation"), let current = food {
+            food = Self.foodWithoutLeadingPortion(current, original: original) ?? current
+        }
         parsedQuery = ParsedFoodQuery(original: original, food: food, attributes: attributes,
             quantity: automatic, route: baseline.route, reasons: baseline.reasons)
         quantitySuggestion = suggestion
+    }
+
+    /// The food text after one leading amount and household portion unit ("3 pieces cheese"
+    /// gives "cheese"), or nil when the text does not start with one. Retrieval only: the
+    /// route, reasons and original evidence are unchanged, and the amount is never a quantity
+    /// or a suggestion. The units are the parser's household units plus slices. Units that
+    /// also start food names (pot noodle, glass noodles, bottle gourd, pack choi) are only
+    /// a portion when the original says "of".
+    static func foodWithoutLeadingPortion(_ food: String, original: String) -> String? {
+        let pattern = #"^(?:(\d+(?:\.\d+)?|\.\d+|half|one|two|three|four|five|six|a|an)\s+(?:x\s+)?(bowl|handfuls?|jars?|tubs?|cans?|bags?|packets?|pieces?|ladles?|pot|pack|glass|cup|mug|tins?|sachets?|bottles?|plates?|pints?|dollops?|cartons?|scoops?|servings?|portions?|tablespoons?|teaspoons?|oz|ounce|slices?)|some)\s+(.*\p{L}.*)$"#
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: food, range: NSRange(food.startIndex..., in: food)),
+              let rest = Range(match.range(at: 3), in: food) else { return nil }
+        if let amount = Range(match.range(at: 1), in: food), let value = Double(food[amount]), value <= 0 { return nil }
+        if let unitRange = Range(match.range(at: 2), in: food) {
+            let unit = String(food[unitRange])
+            if ["pot", "glass", "bottle", "bottles", "pack"].contains(unit),
+               original.range(of: #"\b"# + unit + #"\s+of\b"#, options: [.regularExpression, .caseInsensitive]) == nil { return nil }
+        }
+        return String(food[rest])
     }
 }
 
