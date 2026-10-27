@@ -408,4 +408,21 @@ final class PastedLabelFollowUpPresentationTests: XCTestCase {
             return F.Conversions().storedTextMatches(record)
         }
     }
+
+    // MARK: #332 plate summary follows the save path
+
+    /// A servings-only label weighed on a plate in grams: the plate's own arithmetic gives 170 g,
+    /// but saving rejects grams for a label without a serving size, so "For N g eaten" is hidden.
+    func testThePlateSummaryIsHiddenWhenSavingWouldRejectTheLabelAmount() throws {
+        let (confirm, _) = try F.confirm(try F.source(F.perServingReading(servingSize: false)))
+        XCTAssertTrue(confirm.pastedLabelServingsOnly)
+        confirm.send(.setQuantity(500, .grams))
+        confirm.send(.setPlateChoice(.new(emptyWeight: try PositiveQuantity(value: 330, unit: .grams), superseding: nil)))
+        XCTAssertTrue(confirm.plateRequirements.isEmpty, "the plate's own rules are met")
+        XCTAssertEqual(try confirm.state.quantity.calculatedEdibleQuantity(), try PositiveQuantity(value: 170, unit: .grams),
+                       "the quantity-only arithmetic would claim 170 g")
+        XCTAssertThrowsError(try confirm.state.calculatedEdibleQuantity(), "saving rejects it")
+        XCTAssertNil(confirm.plateEatenSummary, "no grams eaten where saving would fail")
+        XCTAssertFalse(confirm.canLog)
+    }
 }
