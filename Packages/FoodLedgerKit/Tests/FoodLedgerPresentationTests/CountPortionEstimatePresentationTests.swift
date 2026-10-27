@@ -242,6 +242,39 @@ final class CountPortionEstimatePresentationTests: XCTestCase {
         XCTAssertEqual(FoodConfirmationView.emptyPlatePlaceholder, "Empty plate weight (g)")
     }
 
+    /// #332: on the plate path the Log bar names the plate total field when the gram total is
+    /// missing. Presentation only: the requirement and Log's gating are unchanged.
+    func testPlatePathNamesThePlateTotalWhenItIsMissing() throws {
+        let guides = try USDACountPortionGuides()
+        var state = try eggs(name: "Eggs, chicken, whole, fried in sunflower oil", guides: guides)
+        FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(1, .count))
+        let model = FoodConfirmationViewModel(state: state, portionGuides: guides,
+                                              now: { [now] in now }, calendar: calendar) { _ in throw CocoaError(.fileWriteUnknown) }
+        model.beginCountPlateWeighing()
+        model.send(.setPlateChoice(.new(emptyWeight: try PositiveQuantity(value: 330, unit: .grams), superseding: nil)))
+        model.send(.setWeightBasis(.measured))
+        XCTAssertEqual(model.requirements.first, .measuredWeightMissing, "the rule is unchanged")
+        XCTAssertFalse(model.canLog)
+        XCTAssertEqual(model.blockedReason, "Enter the total food and plate weight in grams, greater than zero.")
+        XCTAssertEqual(model.blockedReason, FoodConfirmationViewModel.plateTotalMissingReason)
+        XCTAssertTrue(model.directWeightRequirements.contains(FoodConfirmationViewModel.plateTotalMissingReason),
+                      "the field-side note uses the same words")
+        XCTAssertEqual(model.blockedReason(countFields: nil, locale: locale), model.blockedReason)
+
+        // Food only: the generic wording, unchanged.
+        model.send(.setPlateChoice(.foodOnly))
+        XCTAssertEqual(model.requirements.first, .measuredWeightMissing)
+        XCTAssertEqual(model.blockedReason, FoodLogRequirementText.text(.measuredWeightMissing))
+        XCTAssertFalse(model.canLog)
+
+        // A missing plate weight still names the plate, and an entered total clears the override.
+        model.send(.setPlateChoice(.missing))
+        model.send(.setDirectWeight(500))
+        XCTAssertEqual(model.blockedReason, FoodLogRequirementText.text(.emptyPlateWeightMissing))
+        model.send(.setPlateChoice(.new(emptyWeight: try PositiveQuantity(value: 330, unit: .grams), superseding: nil)))
+        XCTAssertTrue(model.canLog, "\(model.requirements)")
+    }
+
     /// #332: the count intro and the weight placeholder use the same words.
     func testCountWeightIntroAndPlaceholderAgree() {
         typealias Fields = FoodConfirmationView.ConversionFields

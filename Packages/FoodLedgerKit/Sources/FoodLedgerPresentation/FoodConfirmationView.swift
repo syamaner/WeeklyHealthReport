@@ -523,13 +523,21 @@ public final class FoodConfirmationViewModel: ObservableObject {
     }
 
     /// One renderer for requirements: the pasted-label fortification decision has its own label
-    /// wording (pasted label Confirm v1, 4.2); everything else is the generic copy.
+    /// wording (pasted label Confirm v1, 4.2), and on a plate a missing gram total names the plate
+    /// field (#332); everything else is the generic copy.
     public func requirementText(_ requirement: FoodLogRequirement) -> String {
         if requirement == .decideDifference(.fortification), labelFortificationApplies {
             return PastedLabelText.fortificationRequirement
         }
+        if requirement == .measuredWeightMissing, state.quantity.plateChoice != .foodOnly {
+            return Self.plateTotalMissingReason
+        }
         return FoodLogRequirementText.text(requirement)
     }
+
+    /// The missing gram total on the plate path, in the words of its field ("Total food and plate
+    /// weight (g)"). Presentation only: the requirement and Log's gating are unchanged (#332).
+    public static let plateTotalMissingReason = "Enter the total food and plate weight in grams, greater than zero."
 
     public static let noChangesReason = "No changes to save"
 
@@ -539,7 +547,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
 
     public var directWeightRequirements: [String] {
         requirements.filter { [.measuredWeightMissing, .weightBasisMissing, .retainedWeightNeedsConfirmation].contains($0) }
-            .map(FoodLogRequirementText.text)
+            .map(requirementText)
     }
 
     /// "For 170 g eaten" beside the plate inputs (#332): the edible grams that the food and plate
