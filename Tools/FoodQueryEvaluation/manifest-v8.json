@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "fixture": "synthetic-v8.json",
+  "sha256": "7e8e963c8e6b5486300145bf51a03b590e24548db180afcb87e5bd121180d158",
+  "case_count": 558,
+  "new_case_count": 16,
+  "expectation_revisions": [],
+  "independent_holdout": false,
+  "parser_sha256_before_first_run": "45ba48c0ce06b594069e029ee650e7757d2a2de7b65e405ed02e96cf02620745"
+}

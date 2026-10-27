@@ -3,7 +3,7 @@ from pathlib import Path
 root = Path(__file__).parent
 import sys
 version = sys.argv[1] if len(sys.argv) > 1 else "v2"
-assert version in {"v1", "v2", "v3", "v4", "v5", "v6", "v7"}
+assert version in {"v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8"}
 raw = (root / f"synthetic-{version}.json").read_bytes()
 data = json.loads(raw)
 manifest = json.loads((root / f"manifest-{version}.json").read_text())

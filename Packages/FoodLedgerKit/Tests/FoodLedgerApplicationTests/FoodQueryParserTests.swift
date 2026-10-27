@@ -23,7 +23,7 @@ final class FoodQueryParserTests: XCTestCase {
     }
 
     func testCookedEggCountsAreCountsAndKeepTheMethodInTheFoodText() {
-        XCTAssertEqual(FoodQueryParser.version, "food-query-parser-v8")
+        XCTAssertEqual(FoodQueryParser.version, "food-query-parser-v9")
         for (input, food, count) in [("2 scrambled eggs", "scrambled egg", 2.0), ("two fried eggs", "fried egg", 2),
                                      ("3 poached eggs", "poached egg", 3), ("a fried egg", "fried egg", 1),
                                      ("2 x scrambled eggs", "scrambled egg", 2), ("2 boiled eggs", "egg", 2)] {
@@ -40,6 +40,46 @@ final class FoodQueryParserTests: XCTestCase {
             XCTAssertNil(parsed.quantity, input)
         }
         XCTAssertEqual(FoodQueryParser.parse("0 fried eggs").route, .reject)
+    }
+
+    /// v9 (#317): "hard boiled" counts like "boiled"; the food text is what the uncounted form gives.
+    func testHardBoiledEggCountsAreCounts() {
+        for (input, count) in [("2 hard boiled eggs", 2.0), ("two hard boiled eggs", 2), ("a hard boiled egg", 1),
+                               ("2 hard-boiled eggs", 2), ("2 x hard boiled eggs", 2)] {
+            let parsed = FoodQueryParser.parse(input)
+            XCTAssertEqual(parsed.route, .search, input)
+            XCTAssertEqual(parsed.quantity, .init(value: count, unit: "count"), input)
+            XCTAssertEqual(parsed.attributes["preparation"], "boiled", input)
+            XCTAssertEqual(parsed.original, input)
+        }
+        XCTAssertEqual(FoodQueryParser.parse("2 hard boiled eggs").food, FoodQueryParser.parse("hard boiled eggs").food)
+        // Bounded to the counted whole items; a count with a mass still asks which basis to use.
+        for input in ["2 hard bananas", "2 hard boiled eggs 100g", "not hard boiled 2 eggs"] {
+            let parsed = FoodQueryParser.parse(input)
+            XCTAssertNotEqual(parsed.route, .search, input)
+            XCTAssertNil(parsed.quantity, input)
+        }
+        XCTAssertEqual(FoodQueryParser.parse("0 hard boiled eggs").route, .reject)
+    }
+
+    /// v9 (#315): "N pieces <counted item>" is the count the app shows for "N <items>".
+    func testNumberedPiecesOfACountedItemAreCounts() {
+        for (input, food, count) in [("3 pieces banana", "banana", 3.0), ("3 pieces of banana", "banana", 3),
+                                     ("2 pieces apple", "apple", 2), ("1 piece banana", "banana", 1),
+                                     ("two pieces of banana", "banana", 2), ("3 pieces bananas", "banana", 3)] {
+            let parsed = FoodQueryParser.parse(input)
+            XCTAssertEqual(parsed.route, .search, input)
+            XCTAssertEqual(parsed.food, food, input)
+            XCTAssertEqual(parsed.quantity, .init(value: count, unit: "count"), input)
+            XCTAssertEqual(parsed.original, input)
+        }
+        // "a piece of" is a part, not a whole item; pieces of any other food stay a portion question.
+        for input in ["a piece of banana", "a piece of apple", "3 pieces cheese", "3 pieces of cake", "3 pieces banana 120g"] {
+            let parsed = FoodQueryParser.parse(input)
+            XCTAssertEqual(parsed.route, .clarify, input)
+            XCTAssertNil(parsed.quantity, input)
+        }
+        XCTAssertEqual(FoodQueryParser.parse("0 pieces banana").route, .reject)
     }
 
     func testRawOrUncookedWithCookingMethodRequiresClarification() {
