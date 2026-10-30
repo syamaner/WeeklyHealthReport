@@ -74,8 +74,9 @@ final class SearchQuantityHandoffTests: XCTestCase {
     }
     /// #333 (food-query-interpretation-v2): a household portion searches the food text and leaves
     /// the amount for Confirm. No count, weight or "Use N" suggestion comes from the portion.
+    /// #335 (parser v10, interpretation v3): mugs behave like the other household portions.
     func testHouseholdPortionFindsTheFoodAndLeavesTheAmountUnset() throws {
-        for (query, food) in [("3 pieces cheese", "cheese"), ("3 pieces of apple pie", "apple pie")] {
+        for (query, food) in [("3 pieces cheese", "cheese"), ("3 pieces of apple pie", "apple pie"), ("3 mugs of tea", "tea")] {
             let plain = try model(); plain.query = food; plain.search()
             guard case let .results(plainRoute) = plain.phase else { return XCTFail(food) }
             let search = try model(); search.query = query; search.search()

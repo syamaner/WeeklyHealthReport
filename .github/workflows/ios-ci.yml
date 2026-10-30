@@ -437,11 +437,11 @@ jobs:
       - name: Verify food query development regressions
         run: |
           set -euo pipefail
-          python3 Tools/FoodQueryEvaluation/validate.py v8
+          python3 Tools/FoodQueryEvaluation/validate.py v9
           python3 -m unittest discover -s Tools/FoodQueryEvaluation/tests
           swiftc Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryParser.swift Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryDiscoveryPolicy.swift Tools/FoodQueryEvaluation/run.swift -o "$RUNNER_TEMP/food-query-eval"
-          "$RUNNER_TEMP/food-query-eval" Tools/FoodQueryEvaluation/synthetic-v8.json "$RUNNER_TEMP/food-query-results.json"
-          python3 Tools/FoodQueryEvaluation/score.py Tools/FoodQueryEvaluation/synthetic-v8.json "$RUNNER_TEMP/food-query-results.json" "$RUNNER_TEMP/food-query-report.json" --gate
+          "$RUNNER_TEMP/food-query-eval" Tools/FoodQueryEvaluation/synthetic-v9.json "$RUNNER_TEMP/food-query-results.json"
+          python3 Tools/FoodQueryEvaluation/score.py Tools/FoodQueryEvaluation/synthetic-v9.json "$RUNNER_TEMP/food-query-results.json" "$RUNNER_TEMP/food-query-report.json" --gate
 
       - name: Run Xcode static analysis
         run: |

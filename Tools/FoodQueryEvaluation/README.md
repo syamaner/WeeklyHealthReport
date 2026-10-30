@@ -142,3 +142,29 @@ swiftc Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryParser.swif
 /tmp/whr-query-eval Tools/FoodQueryEvaluation/synthetic-v8.json /tmp/query-results.json
 python3 Tools/FoodQueryEvaluation/score.py Tools/FoodQueryEvaluation/synthetic-v8.json /tmp/query-results.json /tmp/query-report.json --gate
 ```
+
+## Current checkpoint: v9 (food-query-parser-v10)
+
+581 cases: v8 unchanged plus 18 household-container cases (`build_v9.py`, family
+`household_containers_v9`) for #335. Sixteen are portions that clarify ("3 mugs of tea",
+"2 mugs coffee", "a mug of coffee", "mugs of tea", "2 cups of tea", "cups of coffee", "glasses
+of milk", "2 glasses of milk", "pots of yoghurt", "packs of crisps", the already plural jars,
+tubs and cartons, "mug cake", "peanut butter cups" and "0 mugs of tea"); two are words that
+only contain a unit and stay search ("cupcakes", "potatoes"). See `docs/food-query-parser-v10.md`. The first run used
+parser v9, whose hash `manifest-v9.json` records.
+
+| Run | Routing | Quantity | Search cases, all fields | Unexpected prefills |
+|---|---:|---:|---:|---:|
+| v9 first run (parser v9) | 575/581 | 581/581 | 383/383 | 0 |
+| v9 final (parser v10) | 581/581 | 581/581 | 383/383 | 0 |
+
+The v8 gate still passes. Parser v10's v8 predictions differ from
+`predictions/v8-final.json.gz` in one case, which gains `portion_requires_confirmation` with
+the same route and no quantity. CI now gates v9.
+
+```sh
+python3 Tools/FoodQueryEvaluation/validate.py v9
+swiftc Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryParser.swift Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryDiscoveryPolicy.swift Tools/FoodQueryEvaluation/run.swift -o /tmp/whr-query-eval
+/tmp/whr-query-eval Tools/FoodQueryEvaluation/synthetic-v9.json /tmp/query-results.json
+python3 Tools/FoodQueryEvaluation/score.py Tools/FoodQueryEvaluation/synthetic-v9.json /tmp/query-results.json /tmp/query-report.json --gate
+```

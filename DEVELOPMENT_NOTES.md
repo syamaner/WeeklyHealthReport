@@ -3154,3 +3154,17 @@ One `claude-opus-5-5` subagent, transcript `subagents/agent-ac40cd70f208b47fa.js
 | Invariant review and walk-through fold (#332, #315), subagent | 16,771,732 (15,899,817) | 871,829 | 22,818 | 16,794,550 | $8.00 |
 
 `phase_usage.py --format claude --since 2026-10-27T07:01:44Z --until 2026-10-27T07:46:41Z` on the subagent transcript alone. Cache writes 812,178 5-minute, 0 1-hour; exact USD 11.9446866. Pricing: the Claude Opus 5.5 rates recorded in WHR-93-2026-10-20q (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Simulator screenshots are image input inside the same transcript and are included. Fold: `--since 2026-10-27T07:46:41Z --until 2026-10-27T08:09:26Z`, just before this edit: the first commit, push and PR #336, then the plate-path Log bar wording requested by the coordinator, its test and the FoodLedgerKit, app test and diff-check gates. Cache writes 781,230 5-minute, 0 1-hour; exact USD 5.3309806. Second fold: `--since 2026-10-27T08:09:26Z --until 2026-10-27T08:33:10Z`, just before this edit: the fold commit and push, then the invariant review (NEEDS-WORK) fixes (contract amendment 3, the plate summary on the save path's calculation, the newline submit limited to wrapping sizes) and the walk-through fixes (wrapping titles, AX placeholder labels), a simulator check and the FoodLedgerKit, app test and diff-check gates. Cache writes 871,829 5-minute, 0 1-hour; exact USD 7.9958124. Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-335-2026-10-30: Claude Code plural household containers (#335)
+
+One `claude-opus-5-5` subagent, transcript `subagents/agent-a13ad724c5e0c36d8.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`, for #335 (`food-query-parser-v10` and `food-query-interpretation-v3`: "3 mugs of tea" and the other plural containers clarify as household portions and search the food text). The window is bounded by `date -u` captures, `2026-10-30T14:01:18Z` to `2026-10-30T14:19:24Z`, just before this ledger edit. It covers reading the issue and code, the parser and interpretation change, tests and docs, the synthetic-v9 evaluation (first run on parser v9, final on v10), the retrieval replay (including a replay on `main` for comparison) and the FoodLedgerKit and boundary gates. The commit after this edit, the push and the PR are outside the window. The orchestrating session and any reviewers are not included.
+
+Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A), not re-checked on the day of this entry: `claude-opus-5-5` USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache hit, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Plural household containers (#335), subagent | 5,187,100 (4,987,050) | 199,966 | 33,070 | 5,220,170 | $2.66 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-30T14:01:18Z --until 2026-10-30T14:19:24Z` on the subagent transcript alone. Cache writes 199,966 5-minute, 0 1-hour; exact USD 2.658976. Local Swift builds and tests use no API tokens and are not priced.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
