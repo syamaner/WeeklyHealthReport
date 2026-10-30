@@ -23,7 +23,7 @@ final class FoodQueryParserTests: XCTestCase {
     }
 
     func testCookedEggCountsAreCountsAndKeepTheMethodInTheFoodText() {
-        XCTAssertEqual(FoodQueryParser.version, "food-query-parser-v9")
+        XCTAssertEqual(FoodQueryParser.version, "food-query-parser-v10")
         for (input, food, count) in [("2 scrambled eggs", "scrambled egg", 2.0), ("two fried eggs", "fried egg", 2),
                                      ("3 poached eggs", "poached egg", 3), ("a fried egg", "fried egg", 1),
                                      ("2 x scrambled eggs", "scrambled egg", 2), ("2 boiled eggs", "egg", 2)] {
@@ -40,6 +40,26 @@ final class FoodQueryParserTests: XCTestCase {
             XCTAssertNil(parsed.quantity, input)
         }
         XCTAssertEqual(FoodQueryParser.parse("0 fried eggs").route, .reject)
+    }
+
+    /// v10 (#335): plural cups, mugs, glasses, pots and packs are household portions like the
+    /// singular forms and like jars, tubs and cartons. No amount is read from them.
+    func testPluralHouseholdContainersArePortions() {
+        for input in ["3 mugs of tea", "2 mugs coffee", "a mug of coffee", "mugs of tea", "2 cups of tea", "cups of coffee",
+                      "2 glasses of milk", "2 pots of yoghurt", "2 packs of crisps", "2 jars of honey", "3 tubs of yoghurt",
+                      "2 cartons of milk", "2 x mugs of tea", "cups", "glasses", "packs", "yoghurt pots",
+                      "200g fruit cups", "300ml glasses of milk"] {
+            let parsed = FoodQueryParser.parse(input)
+            XCTAssertEqual(parsed.route, .clarify, input)
+            XCTAssertTrue(parsed.reasons.contains("portion_requires_confirmation"), input)
+            XCTAssertNil(parsed.quantity, input)
+            XCTAssertEqual(parsed.original, input)
+        }
+        // A mug cake keeps its v9 portion question; single words that only contain the units do not gain one.
+        XCTAssertTrue(FoodQueryParser.parse("mug cake").reasons.contains("portion_requires_confirmation"))
+        for input in ["cupcakes", "smugglers cove", "potatoes", "packed lunch"] {
+            XCTAssertFalse(FoodQueryParser.parse(input).reasons.contains("portion_requires_confirmation"), input)
+        }
     }
 
     /// v9 (#317): "hard boiled" counts like "boiled"; the food text is what the uncounted form gives.

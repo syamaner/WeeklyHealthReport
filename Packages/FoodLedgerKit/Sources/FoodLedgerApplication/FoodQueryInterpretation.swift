@@ -4,7 +4,7 @@ import FoodLedgerDomain
 /// One deterministic application interpretation. No source identity, nutrition or
 /// conversion is asserted by language. The legacy parse remains available for diagnostics.
 public struct FoodQueryInterpretation: Equatable, Sendable {
-    public static let version = "food-query-interpretation-v2"
+    public static let version = "food-query-interpretation-v3"
     public struct Component: Equatable, Sendable {
         public let text: String
         /// UTF-16 offsets in originalText, not code-point or Character offsets.
@@ -96,7 +96,7 @@ public struct FoodQueryInterpretation: Equatable, Sendable {
             let target = String(original[targetRange])
             let targetParse = FoodQueryParser.parse(target)
             if targetParse.quantity == nil, targetParse.allowsCandidateDiscovery,
-               target.range(of: #"\b(?:sugar|ice|fat|percent|price|g|kg|ml|l|mg|mcg|ug|oz|ounces?|lb|lbs|pounds?|cups?|bowls?|servings?|pieces?|kcal|kj|cm)\b"#, options: [.regularExpression, .caseInsensitive]) == nil {
+               target.range(of: #"\b(?:sugar|ice|fat|percent|price|g|kg|ml|l|mg|mcg|ug|oz|ounces?|lb|lbs|pounds?|cups?|mugs?|glass(?:es)?|bowls?|servings?|pieces?|kcal|kj|cm)\b"#, options: [.regularExpression, .caseInsensitive]) == nil {
                 suggestion = .init(value: value, unit: "count")
                 food = targetParse.food
                 attributes = targetParse.attributes
@@ -116,18 +116,19 @@ public struct FoodQueryInterpretation: Equatable, Sendable {
     /// route, reasons and original evidence are unchanged, and the amount is never a quantity
     /// or a suggestion. The units are the parser's household units plus slices. Units that
     /// also start food names (pot noodle, glass noodles, bottle gourd, pack choi) are only a
-    /// portion when "of" follows that leading unit in the original. "cup" is a portion without
-    /// "of" ("1 cup rice"), except before "cake" or "cakes".
+    /// portion when "of" follows that leading unit in the original. "cup" and "mug" (singular or
+    /// plural) are a portion without "of" ("1 cup rice", "2 mugs tea"), except before "cake" or
+    /// "cakes" ("a mug cake"). v3 (#335) adds the plural forms of cup, mug, glass, pot and pack.
     static func foodWithoutLeadingPortion(_ food: String, original: String) -> String? {
-        let pattern = #"^(?:(\d+(?:\.\d+)?|\.\d+|half|one|two|three|four|five|six|a|an)\s+(?:x\s+)?(bowl|handfuls?|jars?|tubs?|cans?|bags?|packets?|pieces?|ladles?|pot|pack|glass|cup|mug|tins?|sachets?|bottles?|plates?|pints?|dollops?|cartons?|scoops?|servings?|portions?|tablespoons?|teaspoons?|oz|ounce|slices?)|some)\s+(.*\p{L}.*)$"#
+        let pattern = #"^(?:(\d+(?:\.\d+)?|\.\d+|half|one|two|three|four|five|six|a|an)\s+(?:x\s+)?(bowl|handfuls?|jars?|tubs?|cans?|bags?|packets?|pieces?|ladles?|pots?|packs?|glass(?:es)?|cups?|mugs?|tins?|sachets?|bottles?|plates?|pints?|dollops?|cartons?|scoops?|servings?|portions?|tablespoons?|teaspoons?|oz|ounce|slices?)|some)\s+(.*\p{L}.*)$"#
         guard let regex = try? NSRegularExpression(pattern: pattern),
               let match = regex.firstMatch(in: food, range: NSRange(food.startIndex..., in: food)),
               let rest = Range(match.range(at: 3), in: food) else { return nil }
         if let amount = Range(match.range(at: 1), in: food), let value = Double(food[amount]), value <= 0 { return nil }
         if let unitRange = Range(match.range(at: 2), in: food) {
             let unit = String(food[unitRange])
-            if unit == "cup", food[rest].range(of: #"^cakes?\b"#, options: .regularExpression) != nil { return nil }
-            if ["pot", "glass", "bottle", "bottles", "pack"].contains(unit),
+            if ["cup", "cups", "mug", "mugs"].contains(unit), food[rest].range(of: #"^cakes?\b"#, options: .regularExpression) != nil { return nil }
+            if ["pot", "pots", "glass", "glasses", "bottle", "bottles", "pack", "packs"].contains(unit),
                original.range(of: #"^\s*\S+\s+(?:x\s+)?"# + unit + #"\s+of\b"#, options: [.regularExpression, .caseInsensitive]) == nil { return nil }
         }
         return String(food[rest])

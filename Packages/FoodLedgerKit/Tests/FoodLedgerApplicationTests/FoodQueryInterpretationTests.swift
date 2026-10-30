@@ -62,7 +62,52 @@ final class FoodQueryInterpretationTests: XCTestCase {
             XCTAssertEqual(q.parsedQuery.food, q.baseline.food, text)
             if q.baseline.reasons.contains("portion_requires_confirmation") { XCTAssertNil(q.parsedQuery.quantity, text) }
         }
-        XCTAssertEqual(FoodQueryInterpretation.version, "food-query-interpretation-v2")
+        XCTAssertEqual(FoodQueryInterpretation.version, "food-query-interpretation-v3")
+    }
+    /// #335 (food-query-interpretation-v3, parser v10): mugs and the plural containers clarify like
+    /// cups. Search uses the food text, and no "Use N" suggestion or quantity is offered.
+    func testMugsAndPluralContainersClarifyAndSearchTheFoodText() {
+        for (text, retrieval) in [("3 mugs of tea", "tea"), ("2 mugs tea", "tea"), ("a mug of coffee", "coffee"),
+                                  ("1 mug coffee", "coffee"), ("2 x mugs of tea", "tea"), ("2 cups of tea", "tea"),
+                                  ("2 cups rice", "rice"), ("2 glasses of milk", "milk"), ("2 pots of yoghurt", "yoghurt"),
+                                  ("2 packs of crisps", "crisps"), ("2 jars of honey", "honey"), ("3 tubs of yoghurt", "yoghurt"),
+                                  ("2 cartons of milk", "milk"), ("two mugs of hot chocolate", "hot chocolate")] {
+            let q = FoodQueryInterpretation(text)
+            XCTAssertEqual(q.retrievalText, retrieval, text)
+            XCTAssertTrue(q.allowsDiscovery, text)
+            XCTAssertNil(q.quantitySuggestion, text)
+            XCTAssertNil(q.parsedQuery.quantity, text)
+            XCTAssertEqual(q.parsedQuery.route, .clarify, text)
+            XCTAssertTrue(q.parsedQuery.reasons.contains("portion_requires_confirmation"), text)
+            XCTAssertEqual(q.originalText, text)
+        }
+        // A mug cake is a food, like a cup cake; plural pots, glasses and packs still need "of"
+        // after the leading unit. These keep the parser's food text and gain no amount.
+        for text in ["a mug cake", "1 mug cake", "2 mug cakes", "2 mugs cakes", "mug cake", "2 cups cakes",
+                     "2 pots noodles", "2 glasses noodles", "2 packs choi"] {
+            let q = FoodQueryInterpretation(text)
+            XCTAssertEqual(q.parsedQuery.food, q.baseline.food, text)
+            XCTAssertNil(q.parsedQuery.quantity, text)
+            XCTAssertNil(q.quantitySuggestion, text)
+        }
+        // A trailing plural container is a portion too: "2 yoghurt pots" offered "Use 2" under v2
+        // and now clarifies without it, as the singular "2 yoghurt pot" already did. The unit is
+        // not leading, so the food text is the parser's.
+        for text in ["2 yoghurt pots", "2 yoghurt pot", "2 fruit cups", "3 lettuce cups"] {
+            let q = FoodQueryInterpretation(text)
+            XCTAssertNil(q.quantitySuggestion, text)
+            XCTAssertNil(q.parsedQuery.quantity, text)
+            XCTAssertEqual(q.parsedQuery.food, q.baseline.food, text)
+            XCTAssertTrue(q.parsedQuery.reasons.contains("portion_requires_confirmation"), text)
+        }
+        // A mass or volume with a plural container name clarifies with no quantity, as
+        // "200g fruit cup" already did.
+        for text in ["200g fruit cups", "200g fruit cup", "300ml glasses of milk"] {
+            let q = FoodQueryInterpretation(text)
+            XCTAssertEqual(q.parsedQuery.route, .clarify, text)
+            XCTAssertNil(q.parsedQuery.quantity, text)
+            XCTAssertNil(q.quantitySuggestion, text)
+        }
     }
     func testPreparationIsScopedAndOriginalUTF16SlicesAreRetained() throws {
         for text in ["scallion pancake with fried egg", "steak with noodles and fried egg", "🥞 scallion pancake with melted cheese"] {
