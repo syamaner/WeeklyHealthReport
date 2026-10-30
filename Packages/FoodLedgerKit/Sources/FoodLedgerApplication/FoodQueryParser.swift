@@ -29,7 +29,7 @@ public struct ParsedFoodQuery: Codable, Equatable, Sendable {
 }
 
 public enum FoodQueryParser {
-    public static let version = "food-query-parser-v9"
+    public static let version = "food-query-parser-v10"
     public static func parse(_ original: String, recognisedBrands: [String] = ["olympus", "olympos", "quaker", "quakers", "kirkland", "costco", "ortiz", "coop", "the estate dairy"]) -> ParsedFoodQuery {
         var text = original.folding(options: .widthInsensitive, locale: Locale(identifier: "en_GB")).lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
         var attributes: [String: String] = [:]
@@ -170,7 +170,9 @@ public enum FoodQueryParser {
         // pieces are usually chopped. "a piece of apple" stays a portion question.
         text = text.replacingOccurrences(of: #"^(zero|one|two|three|-?\d+(?:\.\d+)?)\s+pieces?\s+(?:of\s+)?(?="# + countedFood + #"\s*$)"#,
                                          with: "$1 ", options: .regularExpression)
-        let householdAmount = !matches(#"\b(bowl|handfuls?|jars?|tubs?|cans?|bags?|packets?|pieces?|ladles?|pot|pack|glass|cup|mug|tins?|sachets?|bottles?|plates?|pints?|dollops?|cartons?|scoops?|servings?|portions?|tablespoons?|teaspoons?|oz|ounce|some)\b"#, text).isEmpty
+        // v10 (#335): the plural forms of cup, mug, glass, pot and pack are household portions
+        // too ("3 mugs of tea", "2 cups of rice"), as jars, tubs and cartons already were.
+        let householdAmount = !matches(#"\b(bowl|handfuls?|jars?|tubs?|cans?|bags?|packets?|pieces?|ladles?|pots?|packs?|glass(?:es)?|cups?|mugs?|tins?|sachets?|bottles?|plates?|pints?|dollops?|cartons?|scoops?|servings?|portions?|tablespoons?|teaspoons?|oz|ounce|some)\b"#, text).isEmpty
         let hasSliceDescriptor = !matches(#"\bslices?\b"#, text).isEmpty
         let hasSingleMass = quantities.count == 1 && quantities[0].unit == "g"
         if householdAmount || (hasSliceDescriptor && !hasSingleMass) { reasons.append("portion_requires_confirmation") }

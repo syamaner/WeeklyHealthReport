@@ -58,3 +58,11 @@ exports, so there is nothing to migrate. The parser evaluation (`Tools/FoodQuery
 unchanged and no new evaluation set is needed. The retrieval scenarios
 (`Tools/FoodSearchQuality/retrieval-scenarios-v3.json` to `v6`) contain no household-portion
 queries, so their replay is unchanged. Both CI steps run as before.
+
+## Amendment: v3 (#335)
+
+`food-query-interpretation-v3`, with `food-query-parser-v10`, extends this rule to the plural
+forms of the singular-only units: `cups` and `mugs` behave like `cup` (removed with or without
+"of", except before `cake` or `cakes`), `mug` joins them, and `pots`, `glasses` and `packs`
+keep the "of" guard. "3 mugs of tea" searches "tea" and offers no "Use 3" suggestion; "a mug
+cake" keeps its food text. See [query parser v10](food-query-parser-v10.md).
