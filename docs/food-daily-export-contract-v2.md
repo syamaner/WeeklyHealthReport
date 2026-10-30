@@ -1,6 +1,6 @@
 # Food daily export contract v2 (#312)
 
-Status: **draft for owner review, 31 October 2026.** Not approved and not implemented. The architecture gate below is the proposal; it has not yet been reviewed by the `architecture-gate` role. Open questions for the owner are listed in section 11 and are not decided here.
+Status: **decided under owner delegation, 31 October 2026; not implemented.** Open questions Q1 to Q8 (section 11) take the recommended answers under the owner's delegation. Architecture gate on 68f3f59a: PASS WITH CHANGES; findings F1 to F8 and the Q4 and Q7 clarifications are folded in below.
 
 This contract amends [food daily export contract v1](food-daily-export-contract-v1.md) (#287). Everything v1 says stays in force unless a section below changes it. It closes the follow-up recorded in [count portion estimate v1](count-portion-estimate-v1.md) (C13 and section 9) and the export gap noted for the whole-milk volume rule in [CoFID whole-milk volume admission v1](cofid-whole-milk-volume-admission-v1.md).
 
@@ -22,11 +22,11 @@ In scope:
 - One new constant sentence in `notes`.
 - `food_daily_schema_version: 2`, with v1 files remaining valid for every reader and validator.
 
-Not in scope (unchanged from v1 unless an open question says otherwise):
+Not in scope (unchanged from v1):
 
 - Day totals and their semantics. `summary_version` stays `food-intake-summary-v6`; the summary shape is unchanged.
 - Nutrient value objects, the closed origin rule, provenance, bounds, conflicts and `plain_water`.
-- Photo-specific per-value origins for label photo entries (deferred to #312 by [label photo AI pre-fill v1](label-photo-ai-prefill-v1.md) 17.4; see open question Q3).
+- Photo-specific per-value origins for label photo entries (deferred to #312 by [label photo AI pre-fill v1](label-photo-ai-prefill-v1.md) 17.4; Q3, decided: a later version).
 - The health Daily JSON envelope, its schemas and its rule rejecting food at every admitted version.
 - Drive transport, identity, ordering tokens, registries and installation markers.
 - Any new stored record, field, migration or archive contract. `amount_method` is derived at export time from records the ledger already stores.
@@ -39,39 +39,42 @@ Present on every entry in a v2 file, absent from every entry in a v1 file. Every
 
 | Field | Type | Meaning |
 |---|---|---|
-| `code` | string, closed set (3.2) | How the exported `quantity.amount` was obtained. Derived by `FoodQuantityMethod.of(_:conversion:)`, the projection the Food Log row and saved entry already use. |
+| `code` | string, closed set (3.2) | How the exported `quantity.amount` was obtained. The export spelling of the projection row's `quantityMethod` (`FoodIntakeLogRow.quantityMethod`, itself `FoodQuantityMethod.of(_:conversion:)`), the value the Food Log row and saved entry already show; the builder does not derive it a second time (F6). |
 | `is_estimate` | bool | `FoodQuantityEstimate.isEstimate(_:conversion:)`, the one rule that also feeds `FoodIntakeContribution.quantityIsEstimate` and therefore the summary's `includes_estimates`. True for `typical_weight`, `whole_milk_volume` and `estimated_by_eye`; false otherwise. |
-| `entered` | object or null | The amount the person entered when it differs from `quantity.amount` (a count, or millilitres converted to grams): `{"amount", "unit"}` with `unit` one of `g`, `mL`, `count`. For a conversion it is the stored `QuantityConversionVersion.sourceQuantity`; for a weight declaration it is `EdibleWeightDeclaration.originalInput`. `null` when the exported amount is what the person entered, or when no original input was stored (unknown is not zero, and an absent original input is not the same as the exported amount). |
+| `entered` | object or null | The amount the person entered when it differs from `quantity.amount` (a count, servings, or millilitres converted to grams): `{"amount", "unit"}` with `unit` from the closed set `g`, `mL`, `count`, `serving`. For a conversion it is the stored `QuantityConversionVersion.sourceQuantity`. For pasted-label and photo-label servings it is that `sourceQuantity` with unit `serving`, decided by `FoodAmountServings.isServings` over `FoodConfirmationService.lastEnteredAmount`, so the file says "2 servings" exactly where the Food Log row does (F1). For a weight declaration it is `EdibleWeightDeclaration.originalInput` **only when it differs from (`amount`, `unit`)**, otherwise `null` (F5). `null` when the exported amount is what the person entered, or when no original input was stored (unknown is not zero, and an absent original input is not the same as the exported amount). |
 | `source` | object or null | Only for a source-backed estimate (`typical_weight`, `whole_milk_volume`): `{"method_version", "source_release_id", "size"}`. `method_version` and `source_release_id` are the stored conversion values, which the closed estimate table already validates as a pair (count portion estimate v1, C6). `size` is `small`, `medium`, `large` or `extra_large` for a typical weight (from the frozen `CountPortionGuideCode` table) and `null` for whole milk. `null` for every other code. |
 
 ### 3.2 Closed `code` set
 
 | `code` | Stored records | `is_estimate` | `entered` | `source` |
 |---|---|---|---|---|
-| `direct` | No weight declaration and no conversion, or a pasted-label servings conversion (`LabelServingPolicy`) | false | `null` | `null` |
-| `weighed` | Weight declaration, basis measured (shown as Kitchen scale on a direct weight, #318) | false | `originalInput` or `null` | `null` |
-| `estimated_by_eye` | Weight declaration, basis estimated | true | `originalInput` or `null` | `null` |
+| `direct` | No weight declaration and no conversion | false | `null` | `null` |
+| `direct` | A pasted-label or photo-label servings conversion (`LabelServingPolicy`) | false | `sourceQuantity` with unit `serving` (F1) | `null` |
+| `weighed` | Weight declaration, basis measured (shown as Kitchen scale on a direct weight, #318) | false | `originalInput` when it differs from (`amount`, `unit`), else `null` | `null` |
+| `estimated_by_eye` | Weight declaration, basis estimated | true | `originalInput` when it differs from (`amount`, `unit`), else `null` | `null` |
 | `kitchen_scale` | Conversion `user_count_conversion_v1:kitchen_scale` | false | `sourceQuantity` | `null` |
 | `package_weight` | Conversion `user_count_conversion_v1:package_weight` | false | `sourceQuantity` | `null` |
 | `typical_weight` | Conversion with a `count_portion_guide_v1:*` code and a `usda-sr-legacy-portions:` release | true | `sourceQuantity` (count) | method version, release, size |
 | `whole_milk_volume` | Conversion `cofid-whole-pasteurised-milk-volume-v1` with a `phe-npm-2018:` release | true | `sourceQuantity` (mL) | method version, release, `size: null` |
 | `recorded` | Any other conversion (typed legacy method text written before the closed method set) | false | `sourceQuantity` | `null` |
 
-`recorded` exports the code only, never the typed method text (open question Q2). Typed text is never an estimate without the matching release, as count portion estimate v1 invariant 4 already requires; a reader must treat `recorded` as "method not described", not as measured.
+The table is closed and enforced row by row by the shape rule (section 5, F2): `code` is in the set; `is_estimate` equals the table value for that code; `source` is non-null if and only if `code` is `typical_weight` or `whole_milk_volume`; `source.size` is `null` if and only if `code` is `whole_milk_volume`; `entered.unit` is in {`g`, `mL`, `count`, `serving`}; `source.size` for a typical weight is in {`small`, `medium`, `large`, `extra_large`}.
+
+`recorded` exports the code only, never the typed method text (Q2, decided). Typed text is never an estimate without the matching release, as count portion estimate v1 invariant 4 already requires; a reader must treat `recorded` as "method not described", not as measured.
 
 The plate path (Total minus empty plate) stores a measured weight declaration and exports as `weighed`, as the Food Log shows it today. Distinguishing it is an extension (section 9).
 
 ### 3.3 `weight_basis` keeps its v1 meaning
 
-`quantity.weight_basis` stays exactly as D9 defines it (`declared`, `estimated`, `unknown` from the weight declaration alone), so a reader that already branches on it reads every v2 file the same way. It is superseded for new readers by `amount_method`, and a typical-weight entry still reports `weight_basis: "unknown"` in v2. Redefining it would silently change the meaning of a v1 key (open question Q1).
+`quantity.weight_basis` stays exactly as D9 defines it (`declared`, `estimated`, `unknown` from the weight declaration alone), so a reader that already branches on it reads every v2 file the same way. It is superseded for new readers by `amount_method`, and a typical-weight entry still reports `weight_basis: "unknown"` in v2. Redefining it would silently change the meaning of a v1 key (Q1, decided: keep it).
 
 ### 3.4 `notes.quantity_estimates`
 
 `notes` gains a fourth constant sentence under the key `quantity_estimates`:
 
-> quantity.amount_method.is_estimate marks an amount that was estimated (a typical weight, the whole-milk volume rule or an estimate by eye). Every nutrient value in that entry is scaled from the estimated amount, including values whose state is measured.
+> quantity.amount_method.is_estimate marks an amount that was estimated (a typical weight, the whole-milk volume rule or an estimate by eye). Every nutrient value in that entry is scaled from the estimated amount, including values whose state is measured. is_estimate false means no estimate rule was recorded for the amount, not that the amount was measured. The code recorded means the method is not described.
 
-Constant text only, as D7 requires.
+Constant text only, as D7 requires. The last two sentences (F7) stop a reader from treating `false` or `recorded` as proof of a measurement.
 
 ## 4. Labelling vocabulary (v2, complete)
 
@@ -104,7 +107,7 @@ An entry "includes estimates" for a reader exactly when `is_estimate` is true, o
   | 1 | v4, v5, v6 | absent from every entry | absent |
   | 2 | v6 | present on every entry | present |
 
-  A mixed file (a v1 file carrying `amount_method`, or a v2 file missing it on any entry) is rejected, as is any other schema number. Byte-for-byte decode and re-encode stays a requirement for both versions.
+  A mixed file (a v1 file carrying `amount_method`, or a v2 file missing it on any entry) is rejected, as is any other schema number. For schema 2 the shape rule also enforces the closed table in 3.2 row by row (F2). Byte-for-byte decode and re-encode stays a requirement for both versions. PR 2 replaces the policy's flat `acceptedSummaryVersions` set with this per-schema map, so schema 2 accepts v6 only (F8).
 - **Drive identity.** Unchanged. The file name stays `food-daily-YYYY-MM-DD.json`; the ordering token stays `food-v1|<data_as_of>|<exported_at>` (it names the ordering format, not the schema); the owner property value stays the package-fixed `v1`; registries and markers are unchanged. A schema-2 file for a date replaces that date's verified schema-1 file under the same persisted Drive file ID, as health schema evolution does. Stale-cutoff rejection and exact-byte readback are not relaxed.
 - **Downgrade.** A build that predates v2 rejects a schema-2 file in `validate` (its check is `foodDailySchemaVersion == 1`), so it fails closed during reconcile or recovery rather than overwriting it. Do not downgrade for replacement or recovery of a day already exported as v2.
 - **Readers (Cowork and others).** Branch on `food_daily_schema_version`. In a v1 file the absence of `amount_method` means "not stated", never "not an estimate"; the day's `includes_estimates` remains the only estimate signal there.
@@ -177,9 +180,10 @@ All identifiers, times and values below are synthetic. Excerpts show one nutrien
 {"amount": 120, "amount_method": {"code": "kitchen_scale", "entered": {"amount": 2, "unit": "count"}, "is_estimate": false, "source": null}, "unit": "g", "weight_basis": "unknown"}
 {"amount": 170, "amount_method": {"code": "weighed", "entered": null, "is_estimate": false, "source": null}, "unit": "g", "weight_basis": "declared"}
 {"amount": 250, "amount_method": {"code": "direct", "entered": null, "is_estimate": false, "source": null}, "unit": "mL", "weight_basis": "unknown"}
+{"amount": 60, "amount_method": {"code": "direct", "entered": {"amount": 2, "unit": "serving"}, "is_estimate": false, "source": null}, "unit": "g", "weight_basis": "unknown"}
 ```
 
-The last line is a plain water entry: direct millilitres, not an estimate, and unchanged in `plain_water`.
+The mL line is a plain water entry: direct millilitres, not an estimate, and unchanged in `plain_water`. The last line is 2 servings of a pasted or photographed label whose serving is 30 g (F1).
 
 ### 6.4 Top level
 
@@ -193,7 +197,7 @@ The last line is a plain water entry: direct millilitres, not an estimate, and u
   "notes": {
     "occurred_at": "…unchanged…",
     "plain_water": "…unchanged…",
-    "quantity_estimates": "quantity.amount_method.is_estimate marks an amount that was estimated (a typical weight, the whole-milk volume rule or an estimate by eye). Every nutrient value in that entry is scaled from the estimated amount, including values whose state is measured.",
+    "quantity_estimates": "quantity.amount_method.is_estimate marks an amount that was estimated (a typical weight, the whole-milk volume rule or an estimate by eye). Every nutrient value in that entry is scaled from the estimated amount, including values whose state is measured. is_estimate false means no estimate rule was recorded for the amount, not that the amount was measured. The code recorded means the method is not described.",
     "unknown_values": "…unchanged…"
   },
   "nutrient_catalogue_version": 1,
@@ -213,10 +217,10 @@ The `"..."` and `…unchanged…` placeholders mark elisions in this document on
 - **Estimated quantity with unknown nutrients.** An estimated quantity does not make any nutrient known. Unknown values stay `unknown` with their v1 `reason`, and `missing_conversion` still covers an unscalable entry.
 - **Water.** Plain water entries are `direct` in mL and never estimates; `plain_water` and its `included_in_summary_water: true` are unchanged. The milk volume estimate converts millilitres to grams for the milk's own nutrients (including its `water` nutrient); it is not plain water and never enters `plain_water`.
 - **Partial totals.** Unchanged: a total with any bounded, unknown or unscalable contribution is `known_minimum`. `is_estimate` does not change `state`; it is visible next to the amount it qualifies.
-- **`includes_estimates` on a total with nothing known.** Under v6 an estimated-quantity contribution sets `includes_estimates` for every nutrient key it can be scaled for, including keys whose value is unknown. The current typical-weight golden shows `water` with `state: "none_known"` and `includes_estimates: true`. v2 does not change this (open question Q4); the entry-level `is_estimate` now lets a reader see which entry set it.
+- **`includes_estimates` on a total with nothing known.** Under v6 an estimated-quantity contribution sets `includes_estimates` for every nutrient key it can be scaled for, including keys whose value is unknown. The current typical-weight golden shows `water` with `state: "none_known"` and `includes_estimates: true`. v2 does not change this (Q4, decided: left as v6; the fix is tracked separately in #344), and contract test 4 pins the current behaviour explicitly so a later change is deliberate; the entry-level `is_estimate` now lets a reader see which entry set it.
 - **Overflow.** Unchanged. `entered` and the exported amount are stored `PositiveQuantity` values and are finite by construction; a nutrient that overflows when scaled is still `unknown` with `missing_conversion`, and an overflowed total is still `unavailable`.
-- **Corrected values.** `amount_method` describes the head version only, the one that contributes. If a typical-weight entry was corrected to Kitchen scale, the head exports `kitchen_scale` with `is_estimate: false`, and `versions` still lists the history for audit without per-version methods (open question Q6). A changed egg size is a new conversion version and exports the new size.
-- **Conversion mismatch.** The conversion is used only when its ID equals the head's `quantityConversionVersionID`, as `FoodQuantityEstimate.isEstimate` already checks. If the head references a conversion that is not in the snapshot, the builder throws `missingReference` and no food file is produced (fail closed, like D6). Today the summary projection treats a missing conversion as "not an estimate"; failing closed in the export avoids exporting a guessed `is_estimate: false` (open question Q7).
+- **Corrected values.** `amount_method` describes the head version only, the one that contributes. If a typical-weight entry was corrected to Kitchen scale, the head exports `kitchen_scale` with `is_estimate: false`, and `versions` still lists the history for audit without per-version methods (Q6, decided). A changed egg size is a new conversion version and exports the new size.
+- **Conversion mismatch.** The conversion is used only when its ID equals the head's `quantityConversionVersionID`, as `FoodQuantityEstimate.isEstimate` already checks. If a contributing head version (one on the day and not removed; superseded and removed versions are not checked) references a conversion that is not in the snapshot, the builder throws `missingReference` and no food file is produced (fail closed, like D6; Q7, decided). Home and Health would still show the day, treating the missing conversion as "not an estimate"; that divergence is accepted because the state is unreachable from stored data (the conversion reference is a foreign key and the store runs `foreign_key_check`). If it ever occurs, correcting or removing the entry recovers the day's file.
 - **Half counts.** A typical weight on 0.5 pieces (half-item count v1) exports `entered: {"amount": 0.5, "unit": "count"}` and the guide grams for half an egg.
 - **Removed entries.** Still omitted (D1).
 - **Empty day.** `entries: []`; `notes` carries the new sentence; nothing else changes.
@@ -225,7 +229,7 @@ The `"..."` and `…unchanged…` placeholders mark elisions in this document on
 
 **No new destination, no new trigger and no new transport.** The food file still goes only to the user's existing Google Drive destination under `drive.file`, only when the user chooses Export with Food log on, as exact reviewed bytes verified by readback. DriveExportKit, OAuth, registries and the health file are unchanged.
 
-The file's content gains, per entry, a closed method code, an estimate flag, the amount the person entered and, for the two source-backed estimates, the frozen rule code and its public source release identifier. All of this is derived from the same local records that already produce the exported amount; no attachment, typed method text, photo, label text or search text is added. The approved privacy-policy sentence already says the file contains "the foods you logged, their amounts and times", so this contract proposes no privacy-policy wording change; the owner confirms that reading (open question Q5). The Google Drive row in [privacy-and-egress.md](privacy-and-egress.md) gains a link to this contract in the writer PR, with no change to what it permits.
+The file's content gains, per entry, a closed method code, an estimate flag, the amount the person entered and, for the two source-backed estimates, the frozen rule code and its public source release identifier. All of this is derived from the same local records that already produce the exported amount; no attachment, typed method text, photo, label text or search text is added. The approved privacy-policy sentence already says the file contains "the foods you logged, their amounts and times", so this contract proposes no privacy-policy wording change; the owner confirms that reading (Q5, decided). The Google Drive row in [privacy-and-egress.md](privacy-and-egress.md) gains a link to this contract in the writer PR, with no change to what it permits.
 
 ## 9. Architecture gate (proposed)
 
@@ -234,8 +238,8 @@ The file's content gains, per entry, a closed method code, an estimate flag, the
 | Layer | Change |
 |---|---|
 | Domain (`FoodLedgerDomain`) | None. No record, field, version or summary change. `FoodIntakeSummary` stays `food-intake-summary-v6`. |
-| Application (`FoodLedgerApplication`) | `FoodDailyExportDocument.schemaVersion` becomes 2. New DTO `FoodDailyExportAmountMethod` (`code`, `is_estimate`, `entered`, `source`) with explicit-null encoding, as an optional `amountMethod` on `FoodDailyExportQuantity` encoded only when present. `FoodDailyExportNotes` gains an optional `quantityEstimates`. `FoodDailyExportBuilder` derives the object from `FoodQuantityMethod.of(_:conversion:)`, `FoodQuantityEstimate.isEstimate(_:conversion:)` and `CountPortionGuideCode.entry`, using the same conversion lookup as `FoodIntakeProjection`, and throws `missingReference` for a referenced conversion that is missing. A pure `FoodDailyExportShape.validate(_:)` holds the per-version presence and summary-version table in section 5, so the Drive policy and the tests share one rule. |
-| Infrastructure / app target | `DailyFoodExportIdentityPolicy.validate` calls the shared shape rule instead of `schemaVersion == 1` plus its own summary set. `DailyFoodExportService` is unchanged apart from mapping the existing `missingReference` block. Ordering, registries and markers are unchanged. |
+| Application (`FoodLedgerApplication`) | `FoodDailyExportDocument.schemaVersion` becomes 2. New DTO `FoodDailyExportAmountMethod` (`code`, `is_estimate`, `entered`, `source`) with explicit-null encoding, as an optional `amountMethod` on `FoodDailyExportQuantity` encoded only when present. `FoodDailyExportNotes` gains an optional `quantityEstimates`. `FoodDailyExportBuilder` derives the object from `FoodQuantityMethod.of(_:conversion:)`, `FoodQuantityEstimate.isEstimate(_:conversion:)` and `CountPortionGuideCode.entry`, using the same conversion lookup as `FoodIntakeProjection`, and throws `missingReference` for a referenced conversion that is missing. `code` comes from the projection row's `quantityMethod` and `entered` from `FoodConfirmationService.lastEnteredAmount` with `FoodAmountServings.isServings` (F1, F6); the conversion lookup is used only for `source` and the Q7 existence check. A pure `FoodDailyExportShape.validate(_:)` holds the per-version presence and summary-version map in section 5 and the row-by-row closed table in 3.2 (F2), so the Drive policy and the tests share one rule. |
+| Infrastructure / app target | `DailyFoodExportIdentityPolicy.validate` calls the shared shape rule instead of `schemaVersion == 1` plus its flat `acceptedSummaryVersions` set, which is removed (F8). `DailyFoodExportService` is unchanged apart from mapping the existing `missingReference` block. Ordering, registries and markers are unchanged. |
 | Presentation | None required. Developer tools already shows the schema version and exact bytes of the prepared preview. |
 
 ### Dependency direction
@@ -260,38 +264,41 @@ Unchanged. The builder reads domain records and application projections (`FoodQu
 
 ### Contract tests to add
 
-1. Code mapping: every `FoodQuantityMethod` case maps to exactly one `code`; `is_estimate` matches `FoodQuantityMethod.isEstimate` and `FoodQuantityEstimate.isEstimate`.
-2. Builder, one synthetic entry per code: typical weight (each size, raw and boiled, and 0.5 pieces), whole milk, estimated by eye with and without original input, weighed, kitchen scale, package weight, direct grams, direct mL, plain water, pasted-label servings, and a legacy typed method exporting `recorded` without its text.
-3. Guide code without the matching release prefix exports `recorded` and `is_estimate: false` (gate F6 parity).
-4. Parity: for a mixed snapshot, each entry's `is_estimate` equals its contribution's `quantityIsEstimate`, and a total's `includes_estimates` is true only when some contributing entry has `is_estimate`, an estimated or calculated value, or the v6 quirk in section 7 applies.
-5. A head referencing a missing conversion produces no document (`missingReference`), and the service maps it to the existing blocked state.
+The gate's amended list (12 tests).
+
+1. Code mapping: every `FoodQuantityMethod` case maps to exactly one `code`; `is_estimate` matches `FoodQuantityMethod.isEstimate` and `FoodQuantityEstimate.isEstimate`; the builder's `code` equals the projection row's `quantityMethod` (F6).
+2. Builder, one synthetic entry per row of the 3.2 table: typical weight (each size, raw and boiled, and 0.5 pieces), whole milk, estimated by eye with an original input that differs and with one equal to (`amount`, `unit`) (exports `null`, F5) and without one, weighed, kitchen scale, package weight, direct grams, direct mL, plain water, pasted-label servings and photo-label servings (both `entered.unit` `serving`, matching the Food Log row, F1), and a legacy typed method exporting `recorded` without its text.
+3. Guide code without the matching release prefix exports `recorded` and `is_estimate: false` (gate F6 of count portion estimate v1).
+4. Parity: for a mixed snapshot, each entry's `is_estimate` equals its contribution's `quantityIsEstimate`. The v6 quirk is pinned explicitly: an estimated-quantity entry with an unknown `water` value gives `water` `state: "none_known"` with `includes_estimates: true` (Q4, #344).
+5. Q7: a synthetic `LedgerMutation` whose contributing head references a missing conversion produces no document (`missingReference`) and the service maps it to the existing blocked state; a superseded or removed version with a missing conversion does not block.
 6. Corrected entry: typical weight then kitchen scale exports the head's method only.
-7. Shape rule: schema 1 with any `amount_method` or `quantity_estimates` is rejected; schema 2 missing either is rejected; schema 2 with summary v4 or v5 is rejected; schema 3 is rejected.
-8. Frozen v1 goldens (all of `docs/fixtures/food-daily-v1/`) still decode, re-encode byte for byte and pass the policy.
-9. v2 goldens under `docs/fixtures/food-daily-v2/` (mixed day with every code, typical-weight day, milk day, empty day, plain-water-only day) are byte-stable and pass the policy.
-10. Drive policy: a schema-2 file replaces a schema-1 file for the same date under the same file ID; token ordering is unchanged.
-11. Explicit nulls: `entered` and `source` are written as `null`, never omitted, in a v2 file.
+7. Shape rule, one rejection per rule: schema 1 with any `amount_method` or `quantity_estimates`; schema 2 missing either; schema 2 with summary v4 or v5; an unknown schema number; and for schema 2 (F2) a code outside the set, `is_estimate` differing from the table, `source` present for another code, `source` missing for `typical_weight` or `whole_milk_volume`, `size` null for a typical weight, `size` non-null for whole milk, an `entered.unit` outside the set, and a `size` outside the set.
+8. Frozen v1 goldens: every file under `docs/fixtures/food-daily-v1/` is decode, re-encode and validate only (never rewritten by the recorder) and still passes byte for byte; the typical-weight v2 golden asserts `amount_method` while `weight_basis` stays `unknown` (F4).
+9. v2 goldens under `docs/fixtures/food-daily-v2/` (mixed day with every code, typical-weight day, milk day, empty day, plain-water-only day) are byte-stable and pass the policy; `RECORD_FOOD_DAILY_GOLDENS` writes only this folder (F4).
+10. PR 2's hand-built v2 fixtures equal the PR 3 builder output byte for byte (F3).
+11. Drive policy: a schema-2 file replaces a schema-1 file for the same date under the same file ID; token ordering is unchanged; the per-schema summary map replaces the flat set (F8).
+12. Explicit nulls: `entered`, `source` and `source.size` are written as `null`, never omitted, in a v2 file.
 
 ## 10. Implementation plan
 
 Small PRs, each green on its own gates, in this order. None needs a HealthKit device check; the owner's device check is a comparison of the exported file with the Food Log.
 
 1. **PR 1, this contract (docs only).** Draft, owner decisions on section 11, then the `architecture-gate` review, folded in before any code.
-2. **PR 2, readers accept v2 (no writer change).** `FoodDailyExportAmountMethod` and the optional fields, the pure shape rule, the Drive policy switched to it, hand-built synthetic v2 fixtures, contract tests 7, 8, 10 and 11. The app still writes v1, so a build from this PR can already verify, reconcile and recover v2 files. Gates: FoodLedgerKit tests, boundary check, app tests, analyze, `git diff --check`.
-3. **PR 3, writer emits v2.** Builder derivation, the notes sentence, `missingReference` for a missing conversion, the generated v2 goldens, contract tests 1 to 6 and 9, the privacy-and-egress link, a forward pointer in the v1 contract, this contract's status set to implemented, and the docs index. Full gates. Ledger row.
+2. **PR 2, readers accept v2 (no writer change).** `FoodDailyExportAmountMethod` and the optional fields, the pure shape rule, the Drive policy switched to it, hand-built synthetic v2 fixtures, the per-schema summary map replacing `acceptedSummaryVersions` (F8), contract tests 7, 8, 11 and 12. The app still writes v1, so a build from this PR can already verify, reconcile and recover v2 files. Gates: FoodLedgerKit tests, boundary check, app tests, analyze, `git diff --check`.
+3. **PR 3, writer emits v2.** Builder derivation, the notes sentence, `missingReference` for a missing conversion, the recorder limited to `docs/fixtures/food-daily-v2/` (F4), the generated v2 goldens asserted equal byte for byte to PR 2's hand-built fixtures (F3), contract tests 1 to 6, 9 and 10, the privacy-and-egress link, a forward pointer in the v1 contract, this contract's status set to implemented, and the docs index. Full gates. Ledger row.
 4. **Device check (owner).** Export a day with a typical-weight egg, a whole-milk volume entry and a weighed food; compare the file in Developer tools and in Drive with the Food Log rows. Simulator runs prove software behaviour only.
 
-Photo-specific per-value origins, if the owner wants them (Q3), become their own contract and schema version after PR 3.
+Photo-specific per-value origins (Q3) become their own contract and schema version after PR 3.
 
-## 11. Open questions for the owner
+## 11. Owner decisions
 
-Each has a recommendation; none is decided by this draft.
+Decided under the owner's delegation, 31 October 2026: each question takes its recommendation, as recorded below.
 
-- **Q1. `weight_basis`.** Keep its v1 meaning (declaration only) and add `amount_method` beside it, or redefine it so a typical weight reads `estimated`? *Recommendation: keep it; redefining a v1 key changes what existing readers see.*
-- **Q2. Legacy typed method text.** Export `recorded` with the code only, or include the person's typed text? *Recommendation: code only; typed text is user input that v1 never exported, and it carries no estimate meaning.*
-- **Q3. Label photo per-value origins** (found, checked, corrected), deferred to #312 by label photo v1 17.4. Fold into v2, or a later version? *Recommendation: a later version with its own contract; no photo-origin projection exists in the application layer yet, and it would need its own gate.*
-- **Q4. `includes_estimates` on totals where nothing is known** (section 7). Leave the v6 rule as it is, or fix it as `food-intake-summary-v7` (only known contributions set the flag)? *Recommendation: leave it in #312 and open a separate issue; changing summary semantics touches Home, Health and Copy all, not just the export.*
-- **Q5. Privacy policy wording.** Is "their amounts" enough for the entered amount and method, or should the sentence add "and how each amount was obtained"? *Recommendation: no wording change; the content is a description of amounts already covered, with no new destination or trigger.*
-- **Q6. Version history.** Head version only, or a method per listed version? *Recommendation: head only; earlier versions do not contribute and the history already records that a correction happened.*
-- **Q7. Missing referenced conversion.** Block the day's food file (`missingReference`), or export `is_estimate: false` as the summary projection effectively does? *Recommendation: block; no save route is known to create it, and fail closed matches D6.*
-- **Q8. Past days already on Drive as v1.** Leave them until the person re-exports a day (only possible within the seven-day window), with no automatic rewrite? *Recommendation: yes, no backfill; the export stays manual and user-initiated.*
+- **Q1. `weight_basis`.** Keep its v1 meaning (declaration only) and add `amount_method` beside it, or redefine it so a typical weight reads `estimated`? *Decided: keep it; redefining a v1 key changes what existing readers see.*
+- **Q2. Legacy typed method text.** Export `recorded` with the code only, or include the person's typed text? *Decided: code only; typed text is user input that v1 never exported, and it carries no estimate meaning.*
+- **Q3. Label photo per-value origins** (found, checked, corrected), deferred to #312 by label photo v1 17.4. Fold into v2, or a later version? *Decided: a later version with its own contract; no photo-origin projection exists in the application layer yet, and it would need its own gate.*
+- **Q4. `includes_estimates` on totals where nothing is known** (section 7). Leave the v6 rule as it is, or fix it as `food-intake-summary-v7` (only known contributions set the flag)? *Decided: leave it in #312; the separate issue is #344; changing summary semantics touches Home, Health and Copy all, not just the export.*
+- **Q5. Privacy policy wording.** Is "their amounts" enough for the entered amount and method, or should the sentence add "and how each amount was obtained"? *Decided: no wording change; the content is a description of amounts already covered, with no new destination or trigger.*
+- **Q6. Version history.** Head version only, or a method per listed version? *Decided: head only; earlier versions do not contribute and the history already records that a correction happened.*
+- **Q7. Missing referenced conversion.** Block the day's food file (`missingReference`), or export `is_estimate: false` as the summary projection effectively does? *Decided: block; no save route is known to create it, and fail closed matches D6.*
+- **Q8. Past days already on Drive as v1.** Leave them until the person re-exports a day (only possible within the seven-day window), with no automatic rewrite? *Decided: yes, no backfill; the export stays manual and user-initiated.*

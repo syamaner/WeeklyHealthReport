@@ -3179,5 +3179,6 @@ Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A), not re-checked on the 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Food daily export v2 contract draft (#312), subagent | 3,643,087 (3,497,777) | 145,254 | 28,735 | 3,671,822 | $2.00 |
+| Architecture gate fold and owner-delegated decisions (#312), subagent | 1,854,994 (1,838,854) | 16,118 | 13,294 | 1,868,288 | $0.71 |
 
-Boundary: `phase_usage.py --format claude --since 2026-10-30T16:18:16Z --until 2026-10-30T16:23:29Z` on the subagent transcript alone. Cache writes 145,254 5-minute, 0 1-hour; exact USD 2.0007494. Token totals are not evidence of productivity, quality or provider efficiency.
+Boundary: `phase_usage.py --format claude --since 2026-10-30T16:18:16Z --until 2026-10-30T16:23:29Z` on the subagent transcript alone. Cache writes 145,254 5-minute, 0 1-hour; exact USD 2.0007494. Fold: `--since 2026-10-30T16:23:29Z --until 2026-10-30T16:29:25Z`, just before this edit: the first commit, push and PR #343, then folding the architecture gate (PASS WITH CHANGES, F1 to F8) and the owner-delegated Q1 to Q8 decisions into the contract, and filing #344 for Q4. Cache writes 16,118 5-minute, 0 1-hour; exact USD 0.7143288. The gate reviewer is not included. Token totals are not evidence of productivity, quality or provider efficiency.
