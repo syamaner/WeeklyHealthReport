@@ -21,15 +21,14 @@ final class LabelPhotoReadSessionTests: XCTestCase {
         var script: [LabelPhotoAttemptResult]
         var timeouts: [TimeInterval] = []
         var cancelDuring: Int?
-        /// When set, an attempt waits here until the test resumes it (an attempt that never returns).
-        var hold: CheckedContinuation<Void, Never>?
-        var holds = false
+        /// When armed, the next attempt waits here until the test releases it (an attempt that never returns).
+        let gate = Gate()
         var during: (() -> Void)?
         let clock: Clock
         init(_ script: [LabelPhotoAttemptResult], clock: Clock) { self.script = script; self.clock = clock }
         func attempt(_ image: PreparedLabelImage, timeout: TimeInterval) async -> LabelPhotoAttemptResult {
             timeouts.append(timeout)
-            if holds { holds = false; await withCheckedContinuation { hold = $0 } }
+            await gate.pass()
             during?()
             clock.value += 5
             if cancelDuring == timeouts.count { withUnsafeCurrentTask { $0?.cancel() } }
@@ -40,6 +39,58 @@ final class LabelPhotoReadSessionTests: XCTestCase {
                                        instructionVersion: "label-photo-instruction-v1", instructionSHA256: String(repeating: "a", count: 64),
                                        wireSchemaVersion: "label-photo-wire-schema-v1", wireSchemaSHA256: String(repeating: "b", count: 64),
                                        catalogueCheck: catalogue)
+        }
+    }
+
+    /// Holds one attempt open across tasks (#342). The attempt runs on the tap's task and the test
+    /// waits and releases from its own, so every handoff goes through the lock: the test never
+    /// reads or resumes the attempt's continuation directly, which raced and crashed (signal 11).
+    /// Arrival and release may happen in either order.
+    final class Gate: @unchecked Sendable {
+        private let lock = NSLock()
+        private var armed = false
+        private var arrived = false
+        private var released = false
+        private var held: CheckedContinuation<Void, Never>?
+        private var arrivalWaiters: [CheckedContinuation<Void, Never>] = []
+
+        /// The next `pass()` waits until `release()`.
+        func arm() { lock.withLock { armed = true } }
+
+        /// Called by the attempt: returns at once unless armed, otherwise once released.
+        func pass() async {
+            guard lock.withLock({ () -> Bool in defer { armed = false }; return armed }) else { return }
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                let (waiters, resumeNow) = lock.withLock { () -> ([CheckedContinuation<Void, Never>], Bool) in
+                    arrived = true
+                    defer { arrivalWaiters = [] }
+                    if !released { held = continuation }
+                    return (arrivalWaiters, released)
+                }
+                waiters.forEach { $0.resume() }
+                if resumeNow { continuation.resume() }
+            }
+        }
+
+        /// Returns once an armed attempt is waiting at the gate (or has been through it).
+        func waitUntilHeld() async {
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                let now = lock.withLock { () -> Bool in
+                    if !arrived { arrivalWaiters.append(continuation) }
+                    return arrived
+                }
+                if now { continuation.resume() }
+            }
+        }
+
+        /// Lets the held attempt continue, now or as soon as it arrives.
+        func release() {
+            let continuation = lock.withLock { () -> CheckedContinuation<Void, Never>? in
+                released = true
+                defer { held = nil }
+                return held
+            }
+            continuation?.resume()
         }
     }
 
@@ -58,7 +109,12 @@ final class LabelPhotoReadSessionTests: XCTestCase {
 
     final class Ledger: LabelPhotoSpendLedger, @unchecked Sendable {
         struct WriteFailed: Error {}
-        var stored: LabelPhotoSpendPolicy.Stored = .absent
+        /// Read and written under the lock: a test reads it while a tap's task may be writing (#342).
+        var stored: LabelPhotoSpendPolicy.Stored {
+            get { lock.withLock { current } }
+            set { lock.withLock { current = newValue } }
+        }
+        private var current: LabelPhotoSpendPolicy.Stored = .absent
         var failsWrites = false
         /// Fails only this many further writes, then succeeds.
         var failNextWrites = 0
@@ -66,14 +122,14 @@ final class LabelPhotoReadSessionTests: XCTestCase {
         var storeThenThrowNext = false
         var writes = 0
         private let lock = NSLock()
-        func load() -> LabelPhotoSpendPolicy.Stored { lock.withLock { stored } }
+        func load() -> LabelPhotoSpendPolicy.Stored { stored }
         @discardableResult
         func update(_ transform: (LabelPhotoSpendPolicy.Stored) throws -> LabelPhotoSpendPolicy.Day) throws -> LabelPhotoSpendPolicy.Day {
             try lock.withLock {
-                let day = try transform(stored)
+                let day = try transform(current)
                 if failsWrites { throw WriteFailed() }
                 if failNextWrites > 0 { failNextWrites -= 1; throw WriteFailed() }
-                writes += 1; stored = .day(day)
+                writes += 1; current = .day(day)
                 if storeThenThrowNext { storeThenThrowNext = false; throw WriteFailed() }
                 return day
             }
@@ -261,13 +317,13 @@ final class LabelPhotoReadSessionTests: XCTestCase {
     func testTheTapIsReservedBeforeTheFirstSendAndSurvivesAnAttemptThatNeverReturns() async throws {
         let ledger = Ledger(); ledger.stored = .day(.init(day: "2026-10-25", reads: 3, cost: Decimal(string: "0.10")!, paused: false))
         let (session, attempter, _, _, _) = makeSession([Self.answer], ledger: ledger)
-        attempter.holds = true
+        attempter.gate.arm()
         let prepared = image
         let task = Task { [session, prepared] in await session.read(prepared) }
-        while attempter.hold == nil { await Task.yield() }
+        await attempter.gate.waitUntilHeld()
         // The attempt is in flight and has not returned: the reservation is already stored.
         assertDay(ledger.day, reads: 4, cost: Decimal(string: "0.15")!, open: 1)
-        attempter.hold?.resume()
+        attempter.gate.release()
         _ = await task.value
         // Reconciled down to the reported $0.01.
         assertDay(ledger.day, reads: 4, cost: Decimal(string: "0.11")!, open: 0)
@@ -306,13 +362,13 @@ final class LabelPhotoReadSessionTests: XCTestCase {
     func testAConcurrentTapIsRefusedSoTheDayCannotBeExceeded() async {
         let ledger = Ledger(); ledger.stored = .day(.init(day: "2026-10-25", reads: 29, cost: Decimal(string: "0.45")!, paused: false))
         let (session, attempter, _, _, _) = makeSession([Self.answer, Self.answer], ledger: ledger)
-        attempter.holds = true
+        attempter.gate.arm()
         let prepared = image
         let first = Task { [session, prepared] in await session.read(prepared) }
-        while attempter.hold == nil { await Task.yield() }
+        await attempter.gate.waitUntilHeld()
         let second = await session.read(prepared)
         XCTAssertEqual(second, .failed(.failed))
-        attempter.hold?.resume()
+        attempter.gate.release()
         _ = await first.value
         XCTAssertEqual(attempter.timeouts.count, 1)
         XCTAssertEqual(ledger.day?.reads, 30)
@@ -368,16 +424,16 @@ final class LabelPhotoReadSessionTests: XCTestCase {
         let ledger = Ledger(); ledger.stored = .day(.init(day: "2026-10-25", reads: 10, cost: Decimal(string: "0.10")!, paused: false))
         let (a, attemptsA, _, _, _) = makeSession([Self.failed(.transportError), Self.failed(.transportError)], ledger: ledger)
         let (b, attemptsB, _, _, _) = makeSession([Self.answer], ledger: ledger)
-        attemptsA.holds = true; attemptsB.holds = true
+        attemptsA.gate.arm(); attemptsB.gate.arm()
         let prepared = image
         let tapA = Task { [a, prepared] in await a.read(prepared) }
-        while attemptsA.hold == nil { await Task.yield() }
+        await attemptsA.gate.waitUntilHeld()
         let tapB = Task { [b, prepared] in await b.read(prepared) }
-        while attemptsB.hold == nil { await Task.yield() }
+        await attemptsB.gate.waitUntilHeld()
         assertDay(ledger.day, reads: 12, cost: Decimal(string: "0.20")!, open: 2, "both reserved")
-        attemptsB.hold?.resume()
+        attemptsB.gate.release()
         _ = await tapB.value
-        attemptsA.hold?.resume()
+        attemptsA.gate.release()
         _ = await tapA.value
         assertDay(ledger.day, reads: 12, cost: Decimal(string: "0.16")!, open: 0)
     }
@@ -386,13 +442,13 @@ final class LabelPhotoReadSessionTests: XCTestCase {
         let ledger = Ledger(); ledger.stored = .day(.init(day: "2026-10-25", reads: 10, cost: Decimal(string: "0.10")!, paused: false))
         let (a, attemptsA, _, _, _) = makeSession([Self.answer], ledger: ledger)
         let (b, _, _, _, _) = makeSession([.notSent(.cancelled)], ledger: ledger)
-        attemptsA.holds = true
+        attemptsA.gate.arm()
         let prepared = image
         let tapA = Task { [a, prepared] in await a.read(prepared) }
-        while attemptsA.hold == nil { await Task.yield() }
+        await attemptsA.gate.waitUntilHeld()
         _ = await b.read(prepared)   // reserves, sends nothing, releases
         assertDay(ledger.day, reads: 11, cost: Decimal(string: "0.15")!, open: 1, "A's reservation kept")
-        attemptsA.hold?.resume()
+        attemptsA.gate.release()
         _ = await tapA.value
         assertDay(ledger.day, reads: 11, cost: Decimal(string: "0.11")!, open: 0)
     }
@@ -405,6 +461,19 @@ final class LabelPhotoReadSessionTests: XCTestCase {
         XCTAssertEqual(ledger.day?.cost, Decimal(string: "0.01"), "reconciled on the retry")
         attempter.during = nil
         guard case .answered = await session.read(image) else { return XCTFail("the route stays open") }
+    }
+
+    /// #342: the held-attempt gate hands over in either order, and an unarmed gate never waits.
+    func testTheHeldAttemptGateHandsOverInEitherOrder() async {
+        let early = Gate(); early.arm(); early.release()
+        await early.pass()   // released before it arrived: passes straight through
+        await early.waitUntilHeld()
+        let late = Gate(); late.arm()
+        let attempt = Task { await late.pass() }
+        await late.waitUntilHeld()
+        late.release()
+        await attempt.value
+        await Gate().pass()
     }
 
     /// The day's counts and how many reservations are still open (tap IDs are per process).
