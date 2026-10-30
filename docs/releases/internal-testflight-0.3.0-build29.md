@@ -1,33 +1,44 @@
-# TestFlight 0.2.0 (28)
+# TestFlight 0.2.0 (28) and 0.3.0 (29)
 
-Status: **uploaded on 28 October 2026, processed as VALID and In Beta Testing for the Internal Testing group.** Not submitted to external testers or Beta App Review; its external state is Ready for Beta Submission.
+Status: **0.3.0 (29) is the build testers should install.** It was uploaded on 30 October 2026, processed as VALID and added to the Internal Testing group (In Beta Testing). 0.2.0 (28) was uploaded on 28 October 2026 from the same source and is also VALID and In Beta Testing for Internal Testing, but TestFlight files it under the older 0.2.0 version (see [Why build 29](#why-build-29)). Neither build has been submitted to external testers or Beta App Review.
 
-Build 28 follows [0.2.0 (26)](internal-testflight-0.2.0-build25.md#build-26-for-external-testers). This repository has no record of a build 27 (no release record, notes entry or commit mentions one), so the changes below are listed since build 26.
+Builds 28 and 29 follow [0.2.0 (26)](internal-testflight-0.2.0-build25.md#build-26-for-external-testers). The changes below are listed since build 26.
 
-## Upload receipt
+## Build 27
 
-| Item | Value |
-| --- | --- |
-| Source | `main` at `50a356c574f8f91694664e372e2a7f723968c6c9` ([PR334](https://github.com/syamaner/WeeklyHealthReport/pull/334)); the archived tree is `98a88a5793502336a09f5a6de15d98e4ae6f8e8f` |
-| Bundle and version | `com.otherweather.ReportWeeklyHealth`, 0.2.0 (28) |
-| Executable and dSYM UUID | `F203572B-8F19-3842-9481-0EEBF7E773D0` (arm64) |
-| Uploaded IPA SHA-256 | `5e087e4b30c603faf0f604490a95510e81414698c2568847e3c4a89ba225cb89` |
-| Delivery UUID | `f3136a8b-e184-4690-ba0b-6f124b91449c` |
+App Store Connect shows a build 0.3.0 (27), uploaded on 23 October 2026 at 21:49 PDT (24 October UTC), processed as VALID and in internal beta testing. It was uploaded outside this repository's records: there is no release record, notes entry or commit for it, and its source commit is unknown. Because the changes in this record are listed relative to build 26, they are a superset of anything build 27 contained; this record makes no claim about which of them build 27 included.
+
+## Why build 29
+
+Build 28 was archived with the project's `MARKETING_VERSION` at the time, 0.2.0. Build 27 already carried 0.3.0, so TestFlight filed build 28 under the older 0.2.0 version and the owner could not see it alongside the newest build. On 30 October 2026, with the owner's explicit approval, the same source was archived again as 0.3.0 (29) and uploaded the same way. The executable is identical to build 28 (same UUID below); only the version and build number differ. The project's `MARKETING_VERSION` is now 0.3.0, so later builds stay under 0.3.0.
+
+## Upload receipts
+
+Both builds come from the same source: `main` at `50a356c574f8f91694664e372e2a7f723968c6c9` ([PR334](https://github.com/syamaner/WeeklyHealthReport/pull/334)); the archived tree is `98a88a5793502336a09f5a6de15d98e4ae6f8e8f`.
+
+| Item | 0.2.0 (28) | 0.3.0 (29) |
+| --- | --- | --- |
+| Uploaded | 28 October 2026 | 30 October 2026 |
+| Bundle and version | `com.otherweather.ReportWeeklyHealth`, 0.2.0 (28) | `com.otherweather.ReportWeeklyHealth`, 0.3.0 (29) |
+| Version overrides | none (project values) | `MARKETING_VERSION=0.3.0`, `CURRENT_PROJECT_VERSION=29` |
+| Executable and dSYM UUID | `F203572B-8F19-3842-9481-0EEBF7E773D0` (arm64) | `F203572B-8F19-3842-9481-0EEBF7E773D0` (arm64), identical binary |
+| Uploaded IPA SHA-256 | `5e087e4b30c603faf0f604490a95510e81414698c2568847e3c4a89ba225cb89` | `73dd0e5855e0e9600cea0d595f624e383f3b0a601e48d2730524ffa5d09394d8` |
+| Delivery UUID | `f3136a8b-e184-4690-ba0b-6f124b91449c` | `19f8aa2c-5c87-4744-af9d-539b76ad278b` |
 
 HealthKit stays read-only.
 
 ## Upload method
 
-Headless, the same way as builds 25 and 26, with an App Store Connect API team key kept only in `~/.appstoreconnect/private_keys/`; its contents never enter the repository, logs or this record. Each external step had the owner's explicit approval at the time.
+Headless, the same way as builds 25 and 26, with an App Store Connect API team key kept only in `~/.appstoreconnect/private_keys/`; its contents never enter the repository, logs or this record. Each external step had the owner's explicit approval at the time. Build 29 repeated these steps with the version overrides in the table above.
 
-1. `xcodebuild archive`, Release, build number 28, automatic signing with `-allowProvisioningUpdates` and the API key, team `MDNYU95CGT`.
+1. `xcodebuild archive`, Release, build number 28 (29 for the second upload), automatic signing with `-allowProvisioningUpdates` and the API key, team `MDNYU95CGT`.
 2. `xcodebuild -exportArchive` with `method` `app-store-connect`, `destination` `export`, `manageAppVersionAndBuildNumber` false and `uploadSymbols` true. Unlike build 25, `testFlightInternalTestingOnly` was not set, so the build can reach external groups later without a new upload.
-3. `xcrun altool --upload-app` with the same key. App Store Connect processed the build as VALID.
-4. The build was added to the Internal Testing group only (In Beta Testing) and What to Test was set. No external group, Beta App Review submission or questionnaire change.
+3. `xcrun altool --upload-app` with the same key. App Store Connect processed each build as VALID.
+4. Each build was added to the Internal Testing group only (In Beta Testing) and What to Test was set. No external group, Beta App Review submission or questionnaire change.
 
 ## Label photo reading is in the code but off for users
 
-The label photo AI pre-fill work (#316, [contract](../label-photo-ai-prefill-v1.md), [PR319](https://github.com/syamaner/WeeklyHealthReport/pull/319) and the L1 to L5 PRs ending with [PR329](https://github.com/syamaner/WeeklyHealthReport/pull/329)) is in this build, but the route is off: there is no user-visible setting, and the live OpenRouter route is reachable only through a launch argument that is compiled into Debug builds only. A TestFlight install of build 28 therefore offers no label photo screen and sends no label photo.
+The label photo AI pre-fill work (#316, [contract](../label-photo-ai-prefill-v1.md), [PR319](https://github.com/syamaner/WeeklyHealthReport/pull/319) and the L1 to L5 PRs ending with [PR329](https://github.com/syamaner/WeeklyHealthReport/pull/329)) is in builds 28 and 29, but the route is off: there is no user-visible setting, and the live OpenRouter route is reachable only through a launch argument that is compiled into Debug builds only. A TestFlight install of either build therefore offers no label photo screen and sends no label photo.
 
 ## Older builds cannot open the food data after updating
 
@@ -83,11 +94,11 @@ HealthKit access stays read-only. Egress changes since build 26, recorded in [pr
 
 - The food daily export goes to the same Google Drive folder as the health export, only when the user chooses Export with Food log on.
 - Report a misread for a pasted label goes only where the user picks in the share sheet; pasting and reading a label sends nothing.
-- Label photo reading through OpenRouter has owner-approved egress terms (25 October 2026), but its route is off for users in this build, so build 28 sends no label photo.
+- Label photo reading through OpenRouter has owner-approved egress terms (25 October 2026), but its route is off for users in these builds, so builds 28 and 29 send no label photo.
 
 ## What to Test (owner approved, 28 October 2026)
 
-Set in English (U.K.) for the Internal Testing build and read back identical. A shorter interim text was set first and replaced the same day because it omitted the storage warning.
+Set in English (U.K.) for the Internal Testing build and read back identical. A shorter interim text was set first and replaced the same day because it omitted the storage warning. Build 29 was given the same text on 30 October 2026.
 
 ```text
 0.2.0 (28). Please back up or export before installing: once this build opens your food log, builds 26 and earlier cannot open it.
