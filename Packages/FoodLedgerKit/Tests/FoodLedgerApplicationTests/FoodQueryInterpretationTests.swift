@@ -90,6 +90,24 @@ final class FoodQueryInterpretationTests: XCTestCase {
             XCTAssertNil(q.parsedQuery.quantity, text)
             XCTAssertNil(q.quantitySuggestion, text)
         }
+        // A trailing plural container is a portion too: "2 yoghurt pots" offered "Use 2" under v2
+        // and now clarifies without it, as the singular "2 yoghurt pot" already did. The unit is
+        // not leading, so the food text is the parser's.
+        for text in ["2 yoghurt pots", "2 yoghurt pot", "2 fruit cups", "3 lettuce cups"] {
+            let q = FoodQueryInterpretation(text)
+            XCTAssertNil(q.quantitySuggestion, text)
+            XCTAssertNil(q.parsedQuery.quantity, text)
+            XCTAssertEqual(q.parsedQuery.food, q.baseline.food, text)
+            XCTAssertTrue(q.parsedQuery.reasons.contains("portion_requires_confirmation"), text)
+        }
+        // A mass or volume with a plural container name clarifies with no quantity, as
+        // "200g fruit cup" already did.
+        for text in ["200g fruit cups", "200g fruit cup", "300ml glasses of milk"] {
+            let q = FoodQueryInterpretation(text)
+            XCTAssertEqual(q.parsedQuery.route, .clarify, text)
+            XCTAssertNil(q.parsedQuery.quantity, text)
+            XCTAssertNil(q.quantitySuggestion, text)
+        }
     }
     func testPreparationIsScopedAndOriginalUTF16SlicesAreRetained() throws {
         for text in ["scallion pancake with fried egg", "steak with noodles and fried egg", "🥞 scallion pancake with melted cheese"] {

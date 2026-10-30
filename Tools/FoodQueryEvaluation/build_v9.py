@@ -4,7 +4,8 @@ Covers #335 ("3 mugs of tea" was not a household portion). Expectations were wri
 alongside the parser change and first run against food-query-parser-v9 (origin/main
 6615d157), whose hash the manifest records. Reasons are not scored, so the cases that
 already clarified under v9 because of an unresolved number are boundary evidence only;
-the cases without a number are the ones the route distinguishes.
+the cases without a number are the ones the route distinguishes. The last 11 cases were
+added after the invariant review of #340; both runs were regenerated with all 29 cases.
 """
 import hashlib
 import json
@@ -40,6 +41,21 @@ NEW = [
     ("potatoes", "potatoes", {}, None, "search", None),
     # A zero household amount clarifies like "0 pieces cheese"; no amount is read from it.
     ("0 mugs of tea", None, {}, None, "clarify", PORTION),
+    # Invariant review of #340. A mass or volume with a plural container name now clarifies
+    # with no quantity, as "200g fruit cup" already did under v9.
+    ("200g fruit cups", None, {}, None, "clarify", PORTION),
+    ("100g quaker oat so simple pots", None, {}, None, "clarify", PORTION),
+    ("300ml glasses of milk", None, {}, None, "clarify", PORTION),
+    # Names that end in a plural container word now clarify, as their singular forms did.
+    ("yoghurt pots", None, {}, None, "clarify", PORTION),
+    ("2 yoghurt pots", None, {}, None, "clarify", PORTION),
+    ("fruit cups", None, {}, None, "clarify", PORTION),
+    ("lettuce cups", None, {}, None, "clarify", PORTION),
+    ("cups", None, {}, None, "clarify", PORTION),
+    # Food names that start with a unit keep their v9 routes.
+    ("packed lunch", "packed lunch", {}, None, "search", None),
+    ("pot noodle", None, {}, None, "clarify", PORTION),
+    ("glass noodles", None, {}, None, "clarify", PORTION),
 ]
 for query, food, attributes, count, route, reason in NEW:
     number = len(cases) + 1
@@ -50,7 +66,7 @@ for query, food, attributes, count, route, reason in NEW:
                      "route": route, "reason": reason},
         "invariants": INVARIANTS,
     })
-data.update(origin="v8 plus 18 invented household-container cases for food-query-parser-v10", cases=cases)
+data.update(origin="v8 plus 29 invented household-container cases for food-query-parser-v10", cases=cases)
 fixture = root / "synthetic-v9.json"
 fixture.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
 manifest = {

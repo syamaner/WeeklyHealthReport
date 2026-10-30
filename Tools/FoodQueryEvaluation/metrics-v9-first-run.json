@@ -1,27 +1,27 @@
 {
   "metric_schema_version": 2,
-  "cases": 581,
+  "cases": 592,
   "correct_fields": {
-    "food": 418,
-    "attributes": 558,
-    "quantity": 581,
-    "route": 575,
-    "exact": 414
+    "food": 419,
+    "attributes": 569,
+    "quantity": 589,
+    "route": 579,
+    "exact": 415
   },
   "field_accuracy": {
-    "food": 0.7194492254733219,
-    "attributes": 0.9604130808950087,
-    "quantity": 1.0,
-    "route": 0.9896729776247849,
-    "exact": 0.7125645438898451
+    "food": 0.7077702702702703,
+    "attributes": 0.9611486486486487,
+    "quantity": 0.9949324324324325,
+    "route": 0.9780405405405406,
+    "exact": 0.7010135135135135
   },
-  "search_cases": 383,
+  "search_cases": 384,
   "search_correct_fields": {
-    "food": 383,
-    "attributes": 383,
-    "quantity": 383,
-    "route": 383,
-    "exact": 383
+    "food": 384,
+    "attributes": 384,
+    "quantity": 384,
+    "route": 384,
+    "exact": 384
   },
   "route_metrics": {
     "labels": [
@@ -32,13 +32,13 @@
     "orientation": "rows=expected; columns=predicted",
     "confusion_matrix": {
       "search": {
-        "search": 383,
+        "search": 384,
         "clarify": 0,
         "reject": 0
       },
       "clarify": {
-        "search": 6,
-        "clarify": 149,
+        "search": 13,
+        "clarify": 152,
         "reject": 0
       },
       "reject": {
@@ -49,18 +49,18 @@
     },
     "per_class": {
       "search": {
-        "support": 383,
-        "predicted": 389,
-        "precision": 0.9845758354755784,
+        "support": 384,
+        "predicted": 397,
+        "precision": 0.9672544080604534,
         "recall": 1.0,
-        "f1": 0.9922279792746114
+        "f1": 0.9833546734955185
       },
       "clarify": {
-        "support": 155,
-        "predicted": 149,
+        "support": 165,
+        "predicted": 152,
         "precision": 1.0,
-        "recall": 0.9612903225806452,
-        "f1": 0.9802631578947368
+        "recall": 0.9212121212121213,
+        "f1": 0.9589905362776026
       },
       "reject": {
         "support": 43,
@@ -70,10 +70,10 @@
         "f1": 1.0
       }
     },
-    "accuracy": 0.9896729776247849,
-    "macro_f1_supported_classes": 0.9908303790564493,
-    "balanced_accuracy": 0.9870967741935485,
-    "weighted_f1": 0.9896111971357322
+    "accuracy": 0.9780405405405406,
+    "macro_f1_supported_classes": 0.9807817365910404,
+    "balanced_accuracy": 0.9737373737373738,
+    "weighted_f1": 0.9777730288987898
   },
   "attribute_metrics": {
     "true_positive_pairs": 178,
@@ -85,12 +85,12 @@
   },
   "quantity_metrics": {
     "expected_present": 342,
-    "presence_precision": 1.0,
+    "presence_precision": 0.991304347826087,
     "presence_recall": 1.0,
-    "presence_f1": 1.0,
+    "presence_f1": 0.9956331877729258,
     "present_exact_accuracy": 1.0,
     "missing": 0,
-    "unexpected": 0,
+    "unexpected": 3,
     "unit_confusion_matrix": {
       "g": {
         "g": 282
@@ -109,12 +109,16 @@
     "max_absolute_relative_error_comparable_pairs": 0.0
   },
   "safety_metrics": {
-    "nonsearch_cases": 198,
-    "false_search_eligible": 6,
-    "false_search_eligible_rate": 0.030303030303030304,
-    "unexpected_prefill_ids": [],
-    "unexpected_prefill_count": 0,
-    "unexpected_prefill_rate": 0.0,
+    "nonsearch_cases": 208,
+    "false_search_eligible": 13,
+    "false_search_eligible_rate": 0.0625,
+    "unexpected_prefill_ids": [
+      "nlp-582",
+      "nlp-583",
+      "nlp-584"
+    ],
+    "unexpected_prefill_count": 3,
+    "unexpected_prefill_rate": 0.014423076923076924,
     "original_query_preservation": 1.0
   },
   "families": {
@@ -299,16 +303,16 @@
       "quantity_correct": 21
     },
     "household_containers_v9": {
-      "cases": 18,
-      "exact": 2,
-      "route_correct": 12,
-      "quantity_correct": 18
+      "cases": 29,
+      "exact": 3,
+      "route_correct": 16,
+      "quantity_correct": 26
     }
   },
   "scenario_group_metrics": {
-    "groups": 533,
-    "macro_exact": 0.6866791744840526,
-    "macro_route_accuracy": 0.9887429643527205
+    "groups": 544,
+    "macro_exact": 0.6746323529411765,
+    "macro_route_accuracy": 0.9761029411764706
   },
   "failures": [
     {
@@ -1504,6 +1508,86 @@
       "fields": [
         "food"
       ]
+    },
+    {
+      "id": "nlp-582",
+      "family": "household_containers_v9",
+      "fields": [
+        "food",
+        "quantity",
+        "route"
+      ]
+    },
+    {
+      "id": "nlp-583",
+      "family": "household_containers_v9",
+      "fields": [
+        "food",
+        "quantity",
+        "route"
+      ]
+    },
+    {
+      "id": "nlp-584",
+      "family": "household_containers_v9",
+      "fields": [
+        "food",
+        "quantity",
+        "route"
+      ]
+    },
+    {
+      "id": "nlp-585",
+      "family": "household_containers_v9",
+      "fields": [
+        "food",
+        "route"
+      ]
+    },
+    {
+      "id": "nlp-586",
+      "family": "household_containers_v9",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-587",
+      "family": "household_containers_v9",
+      "fields": [
+        "food",
+        "route"
+      ]
+    },
+    {
+      "id": "nlp-588",
+      "family": "household_containers_v9",
+      "fields": [
+        "food",
+        "route"
+      ]
+    },
+    {
+      "id": "nlp-589",
+      "family": "household_containers_v9",
+      "fields": [
+        "food",
+        "route"
+      ]
+    },
+    {
+      "id": "nlp-591",
+      "family": "household_containers_v9",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-592",
+      "family": "household_containers_v9",
+      "fields": [
+        "food"
+      ]
     }
   ],
   "independent_acceptance": false,
@@ -1514,6 +1598,6 @@
     "Magnitude errors compare identical units only; no mean mixing grams, ml and counts.",
     "Scenario groups fall back to case IDs where historical grouping is unavailable."
   ],
-  "fixture_sha256": "dee7ed823380f2dd274cfdb4c75df6a48cbf7412d23d1b79f716b5a23db1736d",
-  "predictions_sha256": "61fb246f9815b0f3ac4360fcfca8705389b77d1372bf7b680cabc248bc7ea215"
+  "fixture_sha256": "b3c40ea7503b948fdc385b7c3dfbb640133718b803aa55d22c04a5664fab0ee2",
+  "predictions_sha256": "34bc304d57e6c229acfd96cbc40aa4356caa3fb7fd9dc9769e921af0f9735516"
 }

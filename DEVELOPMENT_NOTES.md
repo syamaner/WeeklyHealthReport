@@ -3164,7 +3164,8 @@ Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A), not re-checked on the 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Plural household containers (#335), subagent | 5,187,100 (4,987,050) | 199,966 | 33,070 | 5,220,170 | $2.66 |
+| Invariant review fold: route-change docs and cases (#335), subagent | 3,970,301 (3,793,088) | 177,163 | 23,187 | 3,993,488 | $2.11 |
 
-Boundary: `phase_usage.py --format claude --since 2026-10-30T14:01:18Z --until 2026-10-30T14:19:24Z` on the subagent transcript alone. Cache writes 199,966 5-minute, 0 1-hour; exact USD 2.658976. Local Swift builds and tests use no API tokens and are not priced.
+Boundary: `phase_usage.py --format claude --since 2026-10-30T14:01:18Z --until 2026-10-30T14:19:24Z` on the subagent transcript alone. Cache writes 199,966 5-minute, 0 1-hour; exact USD 2.658976. Review fold: `--since 2026-10-30T14:19:24Z --until 2026-10-30T14:35:10Z`, just before this edit: the first commit, push and PR #340, then the fixes for the #340 invariant review (PASS with three low findings): the documented route changes, 11 more synthetic-v9 cases with both runs regenerated, the trailing-plural tests, the retrieval replay and the FoodLedgerKit, boundary and evaluation gates. Cache writes 177,163 5-minute, 0 1-hour; exact USD 2.1083726. Local Swift builds and tests use no API tokens and are not priced.
 
 Token totals are not evidence of productivity, quality or provider efficiency.

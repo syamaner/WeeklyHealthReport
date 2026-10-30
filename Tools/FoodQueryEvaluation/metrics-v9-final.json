@@ -1,27 +1,27 @@
 {
   "metric_schema_version": 2,
-  "cases": 581,
+  "cases": 592,
   "correct_fields": {
-    "food": 418,
-    "attributes": 558,
-    "quantity": 581,
-    "route": 581,
-    "exact": 414
+    "food": 419,
+    "attributes": 569,
+    "quantity": 592,
+    "route": 592,
+    "exact": 415
   },
   "field_accuracy": {
-    "food": 0.7194492254733219,
-    "attributes": 0.9604130808950087,
+    "food": 0.7077702702702703,
+    "attributes": 0.9611486486486487,
     "quantity": 1.0,
     "route": 1.0,
-    "exact": 0.7125645438898451
+    "exact": 0.7010135135135135
   },
-  "search_cases": 383,
+  "search_cases": 384,
   "search_correct_fields": {
-    "food": 383,
-    "attributes": 383,
-    "quantity": 383,
-    "route": 383,
-    "exact": 383
+    "food": 384,
+    "attributes": 384,
+    "quantity": 384,
+    "route": 384,
+    "exact": 384
   },
   "route_metrics": {
     "labels": [
@@ -32,13 +32,13 @@
     "orientation": "rows=expected; columns=predicted",
     "confusion_matrix": {
       "search": {
-        "search": 383,
+        "search": 384,
         "clarify": 0,
         "reject": 0
       },
       "clarify": {
         "search": 0,
-        "clarify": 155,
+        "clarify": 165,
         "reject": 0
       },
       "reject": {
@@ -49,15 +49,15 @@
     },
     "per_class": {
       "search": {
-        "support": 383,
-        "predicted": 383,
+        "support": 384,
+        "predicted": 384,
         "precision": 1.0,
         "recall": 1.0,
         "f1": 1.0
       },
       "clarify": {
-        "support": 155,
-        "predicted": 155,
+        "support": 165,
+        "predicted": 165,
         "precision": 1.0,
         "recall": 1.0,
         "f1": 1.0
@@ -109,7 +109,7 @@
     "max_absolute_relative_error_comparable_pairs": 0.0
   },
   "safety_metrics": {
-    "nonsearch_cases": 198,
+    "nonsearch_cases": 208,
     "false_search_eligible": 0,
     "false_search_eligible_rate": 0.0,
     "unexpected_prefill_ids": [],
@@ -299,15 +299,15 @@
       "quantity_correct": 21
     },
     "household_containers_v9": {
-      "cases": 18,
-      "exact": 2,
-      "route_correct": 18,
-      "quantity_correct": 18
+      "cases": 29,
+      "exact": 3,
+      "route_correct": 29,
+      "quantity_correct": 29
     }
   },
   "scenario_group_metrics": {
-    "groups": 533,
-    "macro_exact": 0.6866791744840526,
+    "groups": 544,
+    "macro_exact": 0.6746323529411765,
     "macro_route_accuracy": 1.0
   },
   "failures": [
@@ -1498,6 +1498,76 @@
       "fields": [
         "food"
       ]
+    },
+    {
+      "id": "nlp-582",
+      "family": "household_containers_v9",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-583",
+      "family": "household_containers_v9",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-584",
+      "family": "household_containers_v9",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-585",
+      "family": "household_containers_v9",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-586",
+      "family": "household_containers_v9",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-587",
+      "family": "household_containers_v9",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-588",
+      "family": "household_containers_v9",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-589",
+      "family": "household_containers_v9",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-591",
+      "family": "household_containers_v9",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-592",
+      "family": "household_containers_v9",
+      "fields": [
+        "food"
+      ]
     }
   ],
   "independent_acceptance": false,
@@ -1508,6 +1578,6 @@
     "Magnitude errors compare identical units only; no mean mixing grams, ml and counts.",
     "Scenario groups fall back to case IDs where historical grouping is unavailable."
   ],
-  "fixture_sha256": "dee7ed823380f2dd274cfdb4c75df6a48cbf7412d23d1b79f716b5a23db1736d",
-  "predictions_sha256": "63fd13ba994e04bac748bec79a6935f89d29d8ebc33620d84b86beba083f62b4"
+  "fixture_sha256": "b3c40ea7503b948fdc385b7c3dfbb640133718b803aa55d22c04a5664fab0ee2",
+  "predictions_sha256": "34592a732d948ee39c364bd73e79350ad5a8ebccd49dd1492b314aeea10cc296"
 }

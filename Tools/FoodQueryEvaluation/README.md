@@ -145,18 +145,21 @@ python3 Tools/FoodQueryEvaluation/score.py Tools/FoodQueryEvaluation/synthetic-v
 
 ## Current checkpoint: v9 (food-query-parser-v10)
 
-581 cases: v8 unchanged plus 18 household-container cases (`build_v9.py`, family
-`household_containers_v9`) for #335. Sixteen are portions that clarify ("3 mugs of tea",
-"2 mugs coffee", "a mug of coffee", "mugs of tea", "2 cups of tea", "cups of coffee", "glasses
-of milk", "2 glasses of milk", "pots of yoghurt", "packs of crisps", the already plural jars,
-tubs and cartons, "mug cake", "peanut butter cups" and "0 mugs of tea"); two are words that
-only contain a unit and stay search ("cupcakes", "potatoes"). See `docs/food-query-parser-v10.md`. The first run used
+592 cases: v8 unchanged plus 29 household-container cases (`build_v9.py`, family
+`household_containers_v9`) for #335. Twenty-six clarify: the plural container forms ("3 mugs
+of tea", "mugs of tea", "2 cups of tea", "glasses of milk", "pots of yoghurt", "packs of
+crisps" and similar), the already plural jars, tubs and cartons, "mug cake", "0 mugs of tea",
+trailing plural names ("peanut butter cups", "yoghurt pots", "2 yoghurt pots", "fruit cups",
+"lettuce cups"), the bare "cups", a mass or volume with a plural container ("200g fruit
+cups", "100g quaker oat so simple pots", "300ml glasses of milk"), "pot noodle" and "glass
+noodles". Three stay search ("cupcakes", "potatoes", "packed lunch"). Eleven cases were added
+after the invariant review of PR #340 and both runs regenerated. See `docs/food-query-parser-v10.md`. The first run used
 parser v9, whose hash `manifest-v9.json` records.
 
 | Run | Routing | Quantity | Search cases, all fields | Unexpected prefills |
 |---|---:|---:|---:|---:|
-| v9 first run (parser v9) | 575/581 | 581/581 | 383/383 | 0 |
-| v9 final (parser v10) | 581/581 | 581/581 | 383/383 | 0 |
+| v9 first run (parser v9) | 579/592 | 589/592 | 384/384 | 3 |
+| v9 final (parser v10) | 592/592 | 592/592 | 384/384 | 0 |
 
 The v8 gate still passes. Parser v10's v8 predictions differ from
 `predictions/v8-final.json.gz` in one case, which gains `portion_requires_confirmation` with

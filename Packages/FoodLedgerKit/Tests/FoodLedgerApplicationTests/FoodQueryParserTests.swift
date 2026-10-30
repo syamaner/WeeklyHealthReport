@@ -47,7 +47,8 @@ final class FoodQueryParserTests: XCTestCase {
     func testPluralHouseholdContainersArePortions() {
         for input in ["3 mugs of tea", "2 mugs coffee", "a mug of coffee", "mugs of tea", "2 cups of tea", "cups of coffee",
                       "2 glasses of milk", "2 pots of yoghurt", "2 packs of crisps", "2 jars of honey", "3 tubs of yoghurt",
-                      "2 cartons of milk", "2 x mugs of tea"] {
+                      "2 cartons of milk", "2 x mugs of tea", "cups", "glasses", "packs", "yoghurt pots",
+                      "200g fruit cups", "300ml glasses of milk"] {
             let parsed = FoodQueryParser.parse(input)
             XCTAssertEqual(parsed.route, .clarify, input)
             XCTAssertTrue(parsed.reasons.contains("portion_requires_confirmation"), input)

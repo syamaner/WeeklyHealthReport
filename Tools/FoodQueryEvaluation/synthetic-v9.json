@@ -2,7 +2,7 @@
   "schema_version": 1,
   "status": "synthetic_development_challenge",
   "locale": "en-GB",
-  "origin": "v8 plus 18 invented household-container cases for food-query-parser-v10",
+  "origin": "v8 plus 29 invented household-container cases for food-query-parser-v10",
   "independent_holdout": false,
   "cases": [
     {
@@ -12118,6 +12118,215 @@
       "family": "household_containers_v9",
       "scenario_group": "v9-581",
       "query": "0 mugs of tea",
+      "expected": {
+        "food": null,
+        "attributes": {},
+        "quantity": null,
+        "route": "clarify",
+        "reason": "portion_weight_unknown"
+      },
+      "invariants": [
+        "preserve_original_query",
+        "explicit_selection_and_confirmation",
+        "no_invented_nutrition",
+        "no_inferred_density_or_serving_weight"
+      ]
+    },
+    {
+      "id": "nlp-582",
+      "family": "household_containers_v9",
+      "scenario_group": "v9-582",
+      "query": "200g fruit cups",
+      "expected": {
+        "food": null,
+        "attributes": {},
+        "quantity": null,
+        "route": "clarify",
+        "reason": "portion_weight_unknown"
+      },
+      "invariants": [
+        "preserve_original_query",
+        "explicit_selection_and_confirmation",
+        "no_invented_nutrition",
+        "no_inferred_density_or_serving_weight"
+      ]
+    },
+    {
+      "id": "nlp-583",
+      "family": "household_containers_v9",
+      "scenario_group": "v9-583",
+      "query": "100g quaker oat so simple pots",
+      "expected": {
+        "food": null,
+        "attributes": {},
+        "quantity": null,
+        "route": "clarify",
+        "reason": "portion_weight_unknown"
+      },
+      "invariants": [
+        "preserve_original_query",
+        "explicit_selection_and_confirmation",
+        "no_invented_nutrition",
+        "no_inferred_density_or_serving_weight"
+      ]
+    },
+    {
+      "id": "nlp-584",
+      "family": "household_containers_v9",
+      "scenario_group": "v9-584",
+      "query": "300ml glasses of milk",
+      "expected": {
+        "food": null,
+        "attributes": {},
+        "quantity": null,
+        "route": "clarify",
+        "reason": "portion_weight_unknown"
+      },
+      "invariants": [
+        "preserve_original_query",
+        "explicit_selection_and_confirmation",
+        "no_invented_nutrition",
+        "no_inferred_density_or_serving_weight"
+      ]
+    },
+    {
+      "id": "nlp-585",
+      "family": "household_containers_v9",
+      "scenario_group": "v9-585",
+      "query": "yoghurt pots",
+      "expected": {
+        "food": null,
+        "attributes": {},
+        "quantity": null,
+        "route": "clarify",
+        "reason": "portion_weight_unknown"
+      },
+      "invariants": [
+        "preserve_original_query",
+        "explicit_selection_and_confirmation",
+        "no_invented_nutrition",
+        "no_inferred_density_or_serving_weight"
+      ]
+    },
+    {
+      "id": "nlp-586",
+      "family": "household_containers_v9",
+      "scenario_group": "v9-586",
+      "query": "2 yoghurt pots",
+      "expected": {
+        "food": null,
+        "attributes": {},
+        "quantity": null,
+        "route": "clarify",
+        "reason": "portion_weight_unknown"
+      },
+      "invariants": [
+        "preserve_original_query",
+        "explicit_selection_and_confirmation",
+        "no_invented_nutrition",
+        "no_inferred_density_or_serving_weight"
+      ]
+    },
+    {
+      "id": "nlp-587",
+      "family": "household_containers_v9",
+      "scenario_group": "v9-587",
+      "query": "fruit cups",
+      "expected": {
+        "food": null,
+        "attributes": {},
+        "quantity": null,
+        "route": "clarify",
+        "reason": "portion_weight_unknown"
+      },
+      "invariants": [
+        "preserve_original_query",
+        "explicit_selection_and_confirmation",
+        "no_invented_nutrition",
+        "no_inferred_density_or_serving_weight"
+      ]
+    },
+    {
+      "id": "nlp-588",
+      "family": "household_containers_v9",
+      "scenario_group": "v9-588",
+      "query": "lettuce cups",
+      "expected": {
+        "food": null,
+        "attributes": {},
+        "quantity": null,
+        "route": "clarify",
+        "reason": "portion_weight_unknown"
+      },
+      "invariants": [
+        "preserve_original_query",
+        "explicit_selection_and_confirmation",
+        "no_invented_nutrition",
+        "no_inferred_density_or_serving_weight"
+      ]
+    },
+    {
+      "id": "nlp-589",
+      "family": "household_containers_v9",
+      "scenario_group": "v9-589",
+      "query": "cups",
+      "expected": {
+        "food": null,
+        "attributes": {},
+        "quantity": null,
+        "route": "clarify",
+        "reason": "portion_weight_unknown"
+      },
+      "invariants": [
+        "preserve_original_query",
+        "explicit_selection_and_confirmation",
+        "no_invented_nutrition",
+        "no_inferred_density_or_serving_weight"
+      ]
+    },
+    {
+      "id": "nlp-590",
+      "family": "household_containers_v9",
+      "scenario_group": "v9-590",
+      "query": "packed lunch",
+      "expected": {
+        "food": "packed lunch",
+        "attributes": {},
+        "quantity": null,
+        "route": "search",
+        "reason": null
+      },
+      "invariants": [
+        "preserve_original_query",
+        "explicit_selection_and_confirmation",
+        "no_invented_nutrition",
+        "no_inferred_density_or_serving_weight"
+      ]
+    },
+    {
+      "id": "nlp-591",
+      "family": "household_containers_v9",
+      "scenario_group": "v9-591",
+      "query": "pot noodle",
+      "expected": {
+        "food": null,
+        "attributes": {},
+        "quantity": null,
+        "route": "clarify",
+        "reason": "portion_weight_unknown"
+      },
+      "invariants": [
+        "preserve_original_query",
+        "explicit_selection_and_confirmation",
+        "no_invented_nutrition",
+        "no_inferred_density_or_serving_weight"
+      ]
+    },
+    {
+      "id": "nlp-592",
+      "family": "household_containers_v9",
+      "scenario_group": "v9-592",
+      "query": "glass noodles",
       "expected": {
         "food": null,
         "attributes": {},
