@@ -3169,3 +3169,17 @@ Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A), not re-checked on the 
 Boundary: `phase_usage.py --format claude --since 2026-10-30T14:01:18Z --until 2026-10-30T14:19:24Z` on the subagent transcript alone. Cache writes 199,966 5-minute, 0 1-hour; exact USD 2.658976. Review fold: `--since 2026-10-30T14:19:24Z --until 2026-10-30T14:35:10Z`, just before this edit: the first commit, push and PR #340, then the fixes for the #340 invariant review (PASS with three low findings): the documented route changes, 11 more synthetic-v9 cases with both runs regenerated, the trailing-plural tests, the retrieval replay and the FoodLedgerKit, boundary and evaluation gates. Cache writes 177,163 5-minute, 0 1-hour; exact USD 2.1083726. Local Swift builds and tests use no API tokens and are not priced.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-342-2026-10-30: Claude Code label photo session test crash (#342)
+
+One `claude-opus-5-5` subagent, transcript `subagents/agent-a58e4081a45d342c1.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`, for #342 (the intermittent signal 11 in `LabelPhotoReadSessionTests`, a racy held-attempt test double). The window runs from the subagent's first message (`2026-10-30T16:03:06Z`) to `2026-10-30T16:28:57Z` (a `date -u` capture just before this ledger edit). It covers reading the CI log, the repeated-run and Thread Sanitizer reproduction, filing the issue, the test double fix, the after-fix loops and the gate run. The commit, push and PR after this edit are outside the window. The orchestrating session is not included.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-316-2026-10-25-L1A (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache hit, 20/M output), not re-checked on the day of this entry. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label photo session test crash (#342), subagent | 5,198,867 (4,871,627) | 327,146 | 32,640 | 5,231,507 | $3.26 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-30T16:03:06Z --until 2026-10-30T16:28:57Z` on the subagent transcript alone. Cache writes 327,146 5-minute, 0 1-hour; exact USD 3.2632314. Local Swift builds, test loops and sanitiser runs use no API tokens and are not priced.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
