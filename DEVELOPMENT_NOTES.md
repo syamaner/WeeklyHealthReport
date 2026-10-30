@@ -3169,3 +3169,15 @@ Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A), not re-checked on the 
 Boundary: `phase_usage.py --format claude --since 2026-10-30T14:01:18Z --until 2026-10-30T14:19:24Z` on the subagent transcript alone. Cache writes 199,966 5-minute, 0 1-hour; exact USD 2.658976. Review fold: `--since 2026-10-30T14:19:24Z --until 2026-10-30T14:35:10Z`, just before this edit: the first commit, push and PR #340, then the fixes for the #340 invariant review (PASS with three low findings): the documented route changes, 11 more synthetic-v9 cases with both runs regenerated, the trailing-plural tests, the retrieval replay and the FoodLedgerKit, boundary and evaluation gates. Cache writes 177,163 5-minute, 0 1-hour; exact USD 2.1083726. Local Swift builds and tests use no API tokens and are not priced.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-312-2026-10-31: Claude Code food daily export v2 contract draft (#312)
+
+One `claude-opus-5-5` subagent, transcript `subagents/agent-ada8a2a2f258f14af.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`, for the docs-only draft of `docs/food-daily-export-contract-v2.md`. The window runs from the subagent's first message (`2026-10-30T16:18:16Z`) to `2026-10-30T16:23:29Z`, just before this ledger edit (UTC). It covers reading the issue, the export contracts, the egress list, the export builder, Drive identity policy, estimate rules and goldens, and writing the contract and its index entry. The commit, push and PR fall after the window. The orchestrating session, the owner's decisions and the later architecture gate are not included.
+
+Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A), not re-checked on the day of this entry: `claude-opus-5-5` USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache hit, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Food daily export v2 contract draft (#312), subagent | 3,643,087 (3,497,777) | 145,254 | 28,735 | 3,671,822 | $2.00 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-30T16:18:16Z --until 2026-10-30T16:23:29Z` on the subagent transcript alone. Cache writes 145,254 5-minute, 0 1-hour; exact USD 2.0007494. Token totals are not evidence of productivity, quality or provider efficiency.
