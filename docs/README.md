@@ -59,4 +59,5 @@ Start with [`../AGENTS.md`](../AGENTS.md) for working rules and [privacy and egr
 ## Engineering
 
 - [CI analysis and coverage](ci-analysis-and-coverage.md)
+- [Internal TestFlight release from GitHub Actions v1](testflight-ci-release-v1.md) (draft; manual dispatch, protected environment, no-leak rules)
 - Test fixtures: [`fixtures/`](fixtures/); screenshots: [`images/`](images/); earlier design bundles: [`designs/`](designs/)
