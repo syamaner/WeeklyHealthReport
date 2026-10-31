@@ -185,6 +185,14 @@ public final class FoodLoggedBannerModel: ObservableObject {
         awaitsScreen = false
     }
 
+    /// The screen's context changed (the Food Log moved to another day, #361): a banner still
+    /// offering Undo is dismissed, writing nothing. Undo in progress and its outcome stay, so the
+    /// user still learns whether the entry was removed; neither names a day.
+    public func dismissUndoOffer() {
+        guard content?.offersUndo == true else { return }
+        dismiss()
+    }
+
     /// The navigation path changed: a banner left behind is dismissed and Undo is gone.
     public func navigated(to location: AnyHashable) {
         guard content != nil, location != anchor else { return }
