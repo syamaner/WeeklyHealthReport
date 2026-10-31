@@ -531,7 +531,11 @@ final class FoodLedgerCompositionRoot {
 
     func foodLogModel() -> FoodLogViewModel {
         let clock = confirmationClock
-        return FoodLogViewModel(store: foodLogStore, now: { clock.now() }, calendar: confirmationCalendar)
+        let model = FoodLogViewModel(store: foodLogStore, now: { clock.now() }, calendar: confirmationCalendar)
+        // Changing day dismisses the banner after Log without undoing (#361), so Undo is never
+        // offered while another day's log is shown; dismissing writes nothing.
+        model.userChangedDay = { [banner = loggedBanner] in banner.dismiss() }
+        return model
     }
 
     func savedEntryModel(_ logItemID: LogItemID) -> SavedFoodEntryViewModel {

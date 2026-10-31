@@ -1327,6 +1327,23 @@ extension QuickAddAppTests {
         XCTAssertEqual(try root.foodLogService.day(reportingDate: day).entries.count, 2, "nothing removed")
     }
 
+    /// #361: changing day on the Food Log dismisses the banner after Log without undoing; the
+    /// logged entry stays and a later Undo writes nothing.
+    func testChangingDayDismissesTheBannerWithoutUndoing() async throws {
+        let root = try makeRoot()
+        let log = root.foodLogModel()
+        await log.load()
+        let model = try newEntry(root)
+        XCTAssertTrue(FoodConfirmationView.logTapped(model, leave: {}, logged: root.loggedBanner.show))
+        XCTAssertTrue(root.loggedBanner.content?.offersUndo == true)
+        await log.previousDay()
+        XCTAssertNil(root.loggedBanner.content, "no Undo beside another day's log")
+        await root.loggedBanner.undo()
+        let day = try XCTUnwrap(model.savedResult).logItemVersion.reportingDate.value
+        XCTAssertEqual(try root.foodLogService.day(reportingDate: day).entries.count, 1, "nothing removed")
+        XCTAssertEqual(root.loggedBanner.removals, 0)
+    }
+
     func testSaveFailureAndFavouriteFailureStayOnConfirm() throws {
         let root = try makeRoot()
         let state = try newEntry(root).state
