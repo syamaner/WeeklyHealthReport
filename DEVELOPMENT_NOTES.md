@@ -3324,3 +3324,16 @@ One `claude-opus-5-5` subagent, transcript `subagents/agent-a7422094433823452.js
 | **Subtotal** | 27,418,784 (26,673,207) | 745,193 | 81,236 | 27,500,020 | $10.69 |
 
 `phase_usage.py --format claude --since 2026-10-31T12:50:00Z --until 2026-10-31T13:42:00Z` on each transcript separately; all cache writes are 5-minute, 0 1-hour; exact USD 3.8557716, 0.6415126 and 6.1895782 (10.6868624 in total). Pricing: the Claude Opus 5.5 rates recorded in WHR-93-2026-10-20q (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Local builds, simulator runs and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-354-2026-10-31: Claude Code Food Log loading state hardened (#354, not reproduced)
+
+One `claude-opus-5-5` subagent, transcript `subagents/agent-a7422094433823452.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737` (the same subagent as WHR-361 and WHR-363, in a later window), with the two reviewers it launched in parallel: `invariant-reviewer` (`subagents/agent-ac5fb043f8644fd29.jsonl`) and `journey-qa` (`subagents/agent-a7d82439fe58b0627.jsonl`, 11 reproduction attempts and the Food Log states). The start was recorded at `2026-10-31T15:06:28Z`; the window runs from `2026-10-31T15:06:00Z` to `2026-10-31T15:39:30Z`, just before this ledger edit (UTC). It covers reading the navigation and barcode code, a failed manual reproduction attempt, the view model hardening and its tests, every gate, both reviews and the journey QA. The ledger commit, push and PR fall after the window. The orchestrating session is not included.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Food Log loading state (#354), implementing subagent | 6,925,064 (6,587,315) | 337,697 | 22,913 | 6,947,977 | $3.46 |
+| Invariant review | 263,456 (215,968) | 47,472 | 12,310 | 275,766 | $0.53 |
+| Journey QA: reproduction attempts and Food Log states (simulator, screenshots as image input) | 17,193,831 (16,776,843) | 416,802 | 53,275 | 17,247,106 | $6.51 |
+| **Subtotal** | 24,382,351 (23,580,126) | 801,971 | 88,498 | 24,470,849 | $10.50 |
+
+`phase_usage.py --format claude --since 2026-10-31T15:06:00Z --until 2026-10-31T15:39:30Z` on each transcript separately; all cache writes are 5-minute, 0 1-hour; exact USD 3.464416, 0.5268176 and 6.5056226 (10.4968562 in total). Pricing: the Claude Opus 5.5 rates recorded in WHR-93-2026-10-20q (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Local builds, simulator runs and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
