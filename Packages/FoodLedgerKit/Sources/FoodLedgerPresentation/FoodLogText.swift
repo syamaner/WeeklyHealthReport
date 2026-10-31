@@ -31,6 +31,8 @@ public enum FoodLogText {
     }
     public static let emptyTitle = "No food logged"
     public static let emptyMessage = "An empty log does not mean no food was eaten."
+    /// Shown under the loading indicator once a load has taken `FoodLogViewModel.slowLoadingDelay` (#354).
+    public static let slowLoading = "The food log is taking longer than usual to load."
     public static let swipeFootnote = "Swipe an entry to remove it. Removed entries can be restored."
     /// Add food from a past day (owner decision D): When starts on that day at the current time.
     public static let pastDayFootnote = "New foods start on this day at the current time. You can change When before logging."

@@ -28,7 +28,15 @@ struct FoodLogView: View {
             daySection
             switch model.phase {
             case .loading:
-                Section { ProgressView("Loading food log") }
+                Section {
+                    ProgressView("Loading food log")
+                        // The loading state starts a load itself if none is running (#354).
+                        .task { await model.ensureLoading() }
+                    if model.loadingIsSlow {
+                        Text(FoodLogText.slowLoading).fixedSize(horizontal: false, vertical: true)
+                        Button("Try again") { Task { await model.load() } }.frame(minHeight: 44)
+                    }
+                }
                 addFoodSection
             case let .failed(failure):
                 Section("Food log unavailable") {

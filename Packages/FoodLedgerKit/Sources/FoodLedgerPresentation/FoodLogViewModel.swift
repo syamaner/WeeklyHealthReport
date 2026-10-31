@@ -26,6 +26,12 @@ public final class FoodLogViewModel: ObservableObject {
     @Published public private(set) var selectedKey: String
     @Published public var pendingRemoval: FoodLogDayContent.Entry?
     @Published public var changeAlert: FoodLogChangeOutcome?
+    /// True while the first load of a day has run past `slowLoadingDelay` (#354): the loading
+    /// state then says so and offers Try again, so the screen never just waits.
+    @Published public private(set) var loadingIsSlow = false
+
+    /// How long the loading state waits before it says the load is slow and offers Try again.
+    public static let slowLoadingDelay: Duration = .seconds(3)
 
     private let store: any FoodLogStore
     private let now: @Sendable () -> Date
@@ -37,15 +43,21 @@ public final class FoodLogViewModel: ObservableObject {
     /// can tell that the user was looking at "today" (the clock has already moved by then).
     private var loadedTodayKey: String?
     private var isChanging = false
+    /// Loads started and not yet finished (superseded ones included).
+    private var loadsInFlight = 0
+    private let sleep: @Sendable (Duration) async -> Void
 
-    public convenience init(store: any FoodLogStore, now: @escaping @Sendable () -> Date, calendar: Calendar) {
-        self.init(store: store, now: now, calendarProvider: { calendar })
+    public convenience init(store: any FoodLogStore, now: @escaping @Sendable () -> Date, calendar: Calendar,
+                            sleep: @escaping @Sendable (Duration) async -> Void = { try? await Task.sleep(for: $0) }) {
+        self.init(store: store, now: now, calendarProvider: { calendar }, sleep: sleep)
     }
 
-    public init(store: any FoodLogStore, now: @escaping @Sendable () -> Date, calendarProvider: @escaping () -> Calendar) {
+    public init(store: any FoodLogStore, now: @escaping @Sendable () -> Date, calendarProvider: @escaping () -> Calendar,
+                sleep: @escaping @Sendable (Duration) async -> Void = { try? await Task.sleep(for: $0) }) {
         self.store = store
         self.now = now
         self.calendarProvider = calendarProvider
+        self.sleep = sleep
         selectedKey = FoodLogDayNavigation(now: now(), calendar: calendarProvider()).todayKey
     }
 
@@ -68,12 +80,19 @@ public final class FoodLogViewModel: ObservableObject {
     /// shows `FoodLogText.addFoodBeyondWindow` instead (owner decision, 14 October 2026).
     public var canAddFoodForSelectedDay: Bool { addFoodWhen != .beyondBackdatingWindow }
 
+    /// Every load ends in `.loaded` or `.failed` for the latest request; an older one that
+    /// finishes later changes nothing. While the screen shows `.loading`, a slow load is reported
+    /// through `loadingIsSlow` (#354).
     public func load() async {
         loadToken += 1
         let token = loadToken
         let key = selectedKey
         loadedTodayKey = navigation.todayKey
+        loadsInFlight += 1
+        defer { loadsInFlight -= 1 }
         if case .loaded = phase {} else { phase = .loading }
+        loadingIsSlow = false
+        watchForSlowLoad(token)
         do {
             let content = try await store.day(key)
             guard token == loadToken else { return }
@@ -81,6 +100,24 @@ public final class FoodLogViewModel: ObservableObject {
         } catch {
             guard token == loadToken else { return }
             phase = .failed(Self.failure(error))
+        }
+        loadingIsSlow = false
+    }
+
+    /// Called whenever the loading state is on screen: starts a load if none is running, so the
+    /// screen cannot stay in `.loading` when the appearance that should have loaded it was missed
+    /// (#354, for example a push that lands during another transition).
+    public func ensureLoading() async {
+        guard phase == .loading, loadsInFlight == 0 else { return }
+        await load()
+    }
+
+    private func watchForSlowLoad(_ token: Int) {
+        let sleep = sleep
+        Task { [weak self] in
+            await sleep(Self.slowLoadingDelay)
+            guard let self, self.loadToken == token, self.phase == .loading else { return }
+            self.loadingIsSlow = true
         }
     }
 
