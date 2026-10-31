@@ -225,7 +225,7 @@ No contract changes, so the gate is pure, store-parity contract, view-model, ren
 | ID | Question | Recommended or default |
 |---|---|---|
 | F1 | Water in the totals strip | **Open; default applied: water stays out of the strip** until #198 settles what "Water" means (plain water logged versus the dietary water total; draft PR #209, Q8). No format change either way |
-| F2 | "Save changes" when nothing changed | Disabled with "No changes to save", as presentation gating only; the service still accepts an unchanged save and no requirement kind is added |
+| F2 | "Save changes" when nothing changed | Disabled with "No changes to save", as presentation gating only; the service still accepts an unchanged save and no requirement kind is added. The line reads the same at every text size, including the pinned line at accessibility sizes, where "Not ready to log" is kept for a requirement that blocks Log (#347) |
 | F3 | Which nutrients get per-entry "unknown" flags | Energy, protein, carbohydrates and fat; others appear only in the saved entry. Unknown energy shows "Energy unknown" in the energy slot, never a blank |
 | F4 | Where Done goes after Log from Add food | As specified under Focus day: back to the Food Log on the entry's day when Add food was opened there; Home otherwise. **13 October 2026:** the owner approved decision D, so Add food opened on a past day also prefills When with that day (see the Add food row) |
 | F5 | The "Past 7 days" list | Remove it; the date picker covers it. `FoodIntakeDayPreview` stays until Home (#199) decides |

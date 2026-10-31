@@ -163,6 +163,38 @@ final class FoodLogPresentationTests: XCTestCase {
         XCTAssertEqual(model.phase, .loaded, "read-only content stays")
     }
 
+    /// #347: the pinned line beside a disabled Log says the same thing at every size for the same
+    /// state. An unchanged reopened entry reads "No changes to save" at the default size and AX5;
+    /// "Not ready to log" is only for a requirement that blocks Log. `canLog` is unchanged.
+    func testPinnedLineMatchesTheBarAtEverySize() throws {
+        let world = try World(now: now, calendar: calendar)
+        let saved = try world.save(grams: 120)
+        let edit = try XCTUnwrap(world.editModel(saved.logItem.logItemID))
+        XCTAssertFalse(edit.canLog)
+        XCTAssertEqual(edit.blockedReason, FoodConfirmationViewModel.noChangesReason)
+        XCTAssertTrue(edit.isBlockedOnlyByNoChanges)
+        for isAccessibilitySize in [false, true] {
+            XCTAssertEqual(FoodConfirmationView.pinnedReason(isAccessibilitySize: isAccessibilitySize,
+                                                             blockedOnlyByNoChanges: edit.isBlockedOnlyByNoChanges),
+                           "No changes to save", "accessibility size \(isAccessibilitySize)")
+        }
+        edit.send(.setQuantity(150, .grams))
+        XCTAssertTrue(edit.canLog)
+        XCTAssertFalse(edit.isBlockedOnlyByNoChanges, "a changed entry is not blocked")
+
+        let state = try world.newState(grams: 0)
+        let blocked = FoodConfirmationViewModel(state: state, now: { [now] in now }, calendar: calendar) { _ in
+            throw CocoaError(.fileWriteUnknown)
+        }
+        XCTAssertFalse(blocked.canLog)
+        XCTAssertEqual(blocked.requirements, [.amountMissing])
+        XCTAssertFalse(blocked.isBlockedOnlyByNoChanges)
+        XCTAssertEqual(FoodConfirmationView.pinnedReason(isAccessibilitySize: false, blockedOnlyByNoChanges: blocked.isBlockedOnlyByNoChanges),
+                       FoodConfirmationView.pinnedBlockedReason)
+        XCTAssertEqual(FoodConfirmationView.pinnedReason(isAccessibilitySize: true, blockedOnlyByNoChanges: blocked.isBlockedOnlyByNoChanges),
+                       "Not ready to log")
+    }
+
     func testRemoveFromSavedEntryAndEditReloadsHistory() async throws {
         let world = try World(now: now, calendar: calendar)
         let saved = try world.save(grams: 120)
