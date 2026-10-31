@@ -47,11 +47,11 @@ dependencies. No automatic match acceptance or alternate save schema is added.
 
 ## Parsing envelope
 
-`food-list-lexical-v2` (and v3, v4, v5) handles compact/spaced gram and millilitre forms, their plural
+`food-list-lexical-v2` (and v3, v4, v5, v6) handles compact/spaced gram and millilitre forms, their plural
 and regional spellings, explicit kg/L scaling, decimal points, unambiguous decimal
 commas, simple fractions, `1x` counts, half/quarter and one/two/three counts, and
 bulleted lines. Articles `a` and `an` remain counts, except before a vague portion
-word under v5 (see below). A single trailing metric
+word or a household container under v5 and v6 (see below). A single trailing metric
 amount is supported when no leading amount is present; competing amounts stay
 unresolved. A small unit dictionary recognises common spellings. One-edit
 matches to long unit words are flagged for correction; short units such as mg are
@@ -64,8 +64,15 @@ Times do not backdate a log: confirmed entries use the existing save-time date.
 The input limit is 200 lines and 30,000 characters, with rejection rather than
 silent truncation.
 
-New lists are parsed under `food-list-lexical-v5` ([contract](food-list-lexical-v5.md),
-#140 decision B3), which is v4 plus vague portion words. "A handful of", "a pinch of",
+New lists are parsed under `food-list-lexical-v6` ([contract](food-list-lexical-v6.md),
+#353), which is v5 plus household containers. Cups, mugs, glasses, pots and packs, under
+the container rule search uses (`HouseholdContainerRule`), give no amount and the
+household-measure notice and leave the food name: "2 mugs of tea" searches "tea", and a
+mass or volume next to a container ("250 ml mug of milk") is withheld as in search. A mug
+cake keeps its name, and glasses, pots and packs need "of" ("a pot noodle" is as v5).
+
+`food-list-lexical-v5` ([contract](food-list-lexical-v5.md), #140 decision B3) is v4 plus
+vague portion words. "A handful of", "a pinch of",
 "a dash of", "a splash of", "a drizzle of", "a bit of" and "a few" (with a number or
 article in front, or none) are never read as a definite count: the line keeps its food
 name, has no amount and carries the household-measure notice, so the needs-amount rule

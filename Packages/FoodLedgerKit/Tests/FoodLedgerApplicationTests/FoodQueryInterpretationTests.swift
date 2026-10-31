@@ -109,6 +109,27 @@ final class FoodQueryInterpretationTests: XCTestCase {
             XCTAssertNil(q.quantitySuggestion, text)
         }
     }
+    /// #353: the list grammar (food-list-lexical-v6) and search share `HouseholdContainerRule`, so a
+    /// pasted line and the same search text look for the same food, and neither gains an amount.
+    func testListGrammarAndSearchShareTheContainerRule() throws {
+        for text in ["2 mugs of tea", "2 mugs tea", "a mug of coffee", "1 mug coffee", "2 x mugs of tea",
+                     "two mugs of hot chocolate", "2 cups of tea", "2 cups rice", "1 cup rice", "a glass of milk",
+                     "2 glasses of milk", "a pot of yoghurt", "2 pots of yoghurt", "2 packs of crisps"] {
+            let search = FoodQueryInterpretation(text)
+            let line = try XCTUnwrap(FoodListParser.parse(text, convention: .fullStopDecimal).first)
+            XCTAssertEqual(line.query.lowercased(), search.retrievalText, text)
+            XCTAssertNil(search.parsedQuery.quantity, text)
+            XCTAssertNil(line.quantity, text)
+            XCTAssertNil(line.unit, text)
+            XCTAssertTrue(line.notices.contains(.householdMeasure), text)
+        }
+        // Where search keeps the container word in its food text, so does the list.
+        for (text, word) in [("2 pots noodles", "pots"), ("2 glasses noodles", "glasses"), ("2 packs crisps", "packs"),
+                             ("a mug cake", "mug"), ("2 mug cakes", "mug"), ("2 cups cakes", "cups")] {
+            XCTAssertTrue(FoodQueryInterpretation(text).retrievalText.contains(word), text)
+            XCTAssertTrue(try XCTUnwrap(FoodListParser.parse(text, convention: .fullStopDecimal).first).query.contains(word), text)
+        }
+    }
     func testPreparationIsScopedAndOriginalUTF16SlicesAreRetained() throws {
         for text in ["scallion pancake with fried egg", "steak with noodles and fried egg", "🥞 scallion pancake with melted cheese"] {
             let q = FoodQueryInterpretation(text)

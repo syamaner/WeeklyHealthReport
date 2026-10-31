@@ -119,6 +119,7 @@ public struct FoodQueryInterpretation: Equatable, Sendable {
     /// portion when "of" follows that leading unit in the original. "cup" and "mug" (singular or
     /// plural) are a portion without "of" ("1 cup rice", "2 mugs tea"), except before "cake" or
     /// "cakes" ("a mug cake"). v3 (#335) adds the plural forms of cup, mug, glass, pot and pack.
+    /// The container guards are `HouseholdContainerRule`, which the list grammar shares (#353).
     static func foodWithoutLeadingPortion(_ food: String, original: String) -> String? {
         let pattern = #"^(?:(\d+(?:\.\d+)?|\.\d+|half|one|two|three|four|five|six|a|an)\s+(?:x\s+)?(bowl|handfuls?|jars?|tubs?|cans?|bags?|packets?|pieces?|ladles?|pots?|packs?|glass(?:es)?|cups?|mugs?|tins?|sachets?|bottles?|plates?|pints?|dollops?|cartons?|scoops?|servings?|portions?|tablespoons?|teaspoons?|oz|ounce|slices?)|some)\s+(.*\p{L}.*)$"#
         guard let regex = try? NSRegularExpression(pattern: pattern),
@@ -127,9 +128,10 @@ public struct FoodQueryInterpretation: Equatable, Sendable {
         if let amount = Range(match.range(at: 1), in: food), let value = Double(food[amount]), value <= 0 { return nil }
         if let unitRange = Range(match.range(at: 2), in: food) {
             let unit = String(food[unitRange])
-            if ["cup", "cups", "mug", "mugs"].contains(unit), food[rest].range(of: #"^cakes?\b"#, options: .regularExpression) != nil { return nil }
-            if ["pot", "pots", "glass", "glasses", "bottle", "bottles", "pack", "packs"].contains(unit),
-               original.range(of: #"^\s*\S+\s+(?:x\s+)?"# + unit + #"\s+of\b"#, options: [.regularExpression, .caseInsensitive]) == nil { return nil }
+            // The parser's food text drops "of", so the original says whether it followed the unit.
+            let followedByOf = original.range(of: #"^\s*\S+\s+(?:x\s+)?"# + unit + #"\s+of\b"#,
+                                              options: [.regularExpression, .caseInsensitive]) != nil
+            guard HouseholdContainerRule.leavesFoodText(unit: unit, followedByOf: followedByOf, rest: String(food[rest])) else { return nil }
         }
         return String(food[rest])
     }

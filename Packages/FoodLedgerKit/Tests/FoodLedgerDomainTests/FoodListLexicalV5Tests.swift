@@ -3,7 +3,8 @@ import XCTest
 
 /// The golden tables of docs/food-list-lexical-v5.md (#140, decision B3): vague portion words get
 /// the `householdMeasure` notice and no amount under every numeral convention; every other line
-/// parses exactly as `food-list-lexical-v4`, which stays frozen.
+/// parses exactly as `food-list-lexical-v4`, which stays frozen. v5 is itself frozen as
+/// `FoodListParser.parseV5` since `food-list-lexical-v6` (#353).
 final class FoodListLexicalV5Tests: XCTestCase {
     /// (line, query after the vague portion phrase is removed)
     static let vagueTable: [(String, String)] = [
@@ -34,7 +35,7 @@ final class FoodListLexicalV5Tests: XCTestCase {
     ]
 
     func testVersionsAreFrozen() {
-        XCTAssertEqual(FoodListParser.version, "food-list-lexical-v5")
+        XCTAssertEqual(FoodListParser.version, "food-list-lexical-v6", "v5 is frozen as parseV5 (#353)")
         XCTAssertEqual(FoodListParser.v5Version, "food-list-lexical-v5")
         XCTAssertEqual(FoodListParser.v4Version, "food-list-lexical-v4")
         XCTAssertEqual(FoodListParser.legacyVersion, "food-list-lexical-v3")
@@ -45,7 +46,7 @@ final class FoodListLexicalV5Tests: XCTestCase {
     func testVaguePortionsHaveNoAmountInEveryConvention() throws {
         for (text, query) in Self.vagueTable {
             for convention in NumeralConvention.allCases {
-                let line = try XCTUnwrap(FoodListParser.parse(text, convention: convention).first)
+                let line = try XCTUnwrap(FoodListParser.parseV5(text, convention: convention).first)
                 let label = "\(text) \(convention)"
                 XCTAssertNil(line.quantity, label)
                 XCTAssertNil(line.unit, label)
@@ -67,7 +68,7 @@ final class FoodListLexicalV5Tests: XCTestCase {
             for word in ["handfuls of", "pinches", "bits of"] {
                 let text = "\(numeral) \(word) nuts"
                 for convention in NumeralConvention.allCases {
-                    let line = try XCTUnwrap(FoodListParser.parse(text, convention: convention).first)
+                    let line = try XCTUnwrap(FoodListParser.parseV5(text, convention: convention).first)
                     let label = "\(text) \(convention)"
                     let ambiguous = FoodListParser.number(numeral, convention: convention) == nil
                     XCTAssertNil(line.quantity, label)
@@ -110,7 +111,7 @@ final class FoodListLexicalV5Tests: XCTestCase {
         for text in lines {
             for convention in NumeralConvention.allCases {
                 let v4 = try XCTUnwrap(FoodListParser.parseV4(text, convention: convention).first)
-                let v5 = try XCTUnwrap(FoodListParser.parse(text, convention: convention).first)
+                let v5 = try XCTUnwrap(FoodListParser.parseV5(text, convention: convention).first)
                 let label = "\(text) \(convention)"
                 XCTAssertEqual(v5.grammarVersion, "food-list-lexical-v5", label)
                 XCTAssertEqual(v5.lineNumber, v4.lineNumber, label)
@@ -131,7 +132,7 @@ final class FoodListLexicalV5Tests: XCTestCase {
     func testEncodingAndStoredLinesKeepTheirVersion() throws {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
-        let v5 = try XCTUnwrap(FoodListParser.parse("a handful of almonds", convention: .fullStopDecimal).first)
+        let v5 = try XCTUnwrap(FoodListParser.parseV5("a handful of almonds", convention: .fullStopDecimal).first)
         let v5JSON = #"{"grammarVersion":"food-list-lexical-v5","lineNumber":1,"notices":["householdMeasure"],"numeralConvention":"full_stop_decimal","original":"a handful of almonds","query":"almonds"}"#
         XCTAssertEqual(String(decoding: try encoder.encode(v5), as: UTF8.self), v5JSON)
         XCTAssertTrue(v5.isV5)
@@ -157,8 +158,8 @@ final class FoodListLexicalV5Tests: XCTestCase {
         XCTAssertEqual(storedV3.effectiveGrammarVersion, "food-list-lexical-v3")
 
         let unknown = try JSONDecoder().decode(ParsedFoodListLine.self, from: Data(
-            v4JSON.replacingOccurrences(of: "food-list-lexical-v4", with: "food-list-lexical-v6").utf8))
-        XCTAssertFalse(unknown.readsNumeralConvention, "only the frozen v4 and v5 identifiers read a convention")
+            v4JSON.replacingOccurrences(of: "food-list-lexical-v4", with: "food-list-lexical-v7").utf8))
+        XCTAssertFalse(unknown.readsNumeralConvention, "only the frozen v4, v5 and v6 identifiers read a convention")
     }
 
     /// Receipts (`receipt-lexical-v1`) share only the frozen v3 numeral rule and are unaffected.

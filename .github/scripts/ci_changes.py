@@ -39,9 +39,12 @@ CODE_READ_DOCS = {
     "docs/generic-food-review-manifest-v2.md",
     # Cited by the today-so-far projection, its tests and Developer tools.
     "docs/today-so-far-projection-v1.md",
-    # Cited by the list grammars (food-list-lexical-v4, v5) and their golden-table tests.
+    # Cited by the list grammars (food-list-lexical-v4, v5, v6) and their golden-table tests.
     "docs/food-list-lexical-v4.md",
     "docs/food-list-lexical-v5.md",
+    "docs/food-list-lexical-v6.md",
+    # Cited by the shared household container rule (food-list-lexical-v6, interpretation v3).
+    "docs/food-query-parser-v10.md",
     # Cited by the shared lexical policy (food-lexical-terms-v9), its tests and CI.
     "docs/food-lexical-terms-v9.md",
     # Cited by the Health follow-ups (#214 to #217), their tests and Developer tools.
