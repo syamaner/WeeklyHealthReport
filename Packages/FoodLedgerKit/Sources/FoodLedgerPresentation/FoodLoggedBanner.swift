@@ -59,7 +59,9 @@ public enum FoodLoggedText {
 /// The one banner shown on the destination after Log closes Confirm. Undo is offered for the
 /// visible duration only (5 s, or 10 s at accessibility text sizes), and never after the user has
 /// left the screen it was shown on; with VoiceOver running the banner stays until it is dismissed
-/// or used. Undo writes one remove through `FoodLogStore`.
+/// or used. Undo writes one remove through `FoodLogStore`. An Undo press that began before the
+/// duration ended still applies (#357): the timeout waits for the finger to lift, and the tap
+/// moves the banner to `.removing` synchronously, before the timeout task can run.
 @MainActor
 public final class FoodLoggedBannerModel: ObservableObject {
     public enum Content: Equatable {
@@ -93,6 +95,9 @@ public final class FoodLoggedBannerModel: ObservableObject {
     public static let announcementDelay: Duration = .milliseconds(700)
 
     @Published public private(set) var content: Content?
+    /// The layout the tap shield keeps for the banner's whole life: the logged banner, which is
+    /// the tallest, so the area where Undo was stays covered after the shorter outcome (#357).
+    public private(set) var shieldLayout: Content?
     /// Increases after each applied Undo, so a showing Food Log or Home reloads.
     @Published public private(set) var removals = 0
     /// Set from the environment while VoiceOver runs: the banner is kept until dismissed.
@@ -107,6 +112,10 @@ public final class FoodLoggedBannerModel: ObservableObject {
     /// True while Log's own navigation is still bringing the destination on screen.
     private var awaitsScreen = false
     private var visibleScreen: UUID?
+    /// True while a finger is down on Undo; the timeout waits for it to lift.
+    private var undoPressed = false
+    /// The visible duration ended while Undo was held.
+    private var expiredDuringPress = false
     private var generation = 0
     private let store: any FoodLogStore
     private let sleep: @Sendable (Duration) async -> Void
@@ -129,24 +138,48 @@ public final class FoodLoggedBannerModel: ObservableObject {
         anchor = location()
         anchorScreen = visibleScreen
         awaitsScreen = visibleScreen == nil
+        shieldLayout = .logged(notice)
         present(.logged(notice))
     }
 
     /// One Undo: exactly one remove of the logged version. A second tap, a timed-out or
     /// dismissed banner, or a banner left behind by navigation writes nothing.
     public func undo() async {
-        guard case let .logged(notice) = content else { return }
+        await startUndo()?.value
+    }
+
+    /// Undo from a tap: the banner moves to `.removing` before this returns, so a timeout that
+    /// runs after the tap (#357) no longer hides it; the remove follows in the returned task.
+    /// Nil when Undo is not offered.
+    @discardableResult
+    public func startUndo() -> Task<Void, Never>? {
+        guard case let .logged(notice) = content else { return nil }
         content = .removing(notice)
         let generationAtUndo = generation
-        let outcome = await store.remove(notice.logItemID, expected: notice.logItemVersionID)
-        if outcome == .applied { removals += 1 }
-        guard generation == generationAtUndo else { return }
-        present(.result(FoodLoggedText.outcome(outcome)))
+        return Task { [store] in
+            let outcome = await store.remove(notice.logItemID, expected: notice.logItemVersionID)
+            if outcome == .applied { self.removals += 1 }
+            guard self.generation == generationAtUndo else { return }
+            self.present(.result(FoodLoggedText.outcome(outcome)))
+        }
+    }
+
+    /// A finger went down on Undo (true) or lifted or was cancelled (false). A timeout that ended
+    /// while it was down applies after the lift, once the tap's own action has run.
+    public func undoPressChanged(_ pressed: Bool) {
+        undoPressed = pressed
+        guard !pressed, expiredDuringPress else { return }
+        expiredDuringPress = false
+        let held = generation
+        Task { [weak self] in self?.expire(generation: held) }
     }
 
     public func dismiss() {
         generation += 1
         content = nil
+        shieldLayout = nil
+        undoPressed = false
+        expiredDuringPress = false
         anchor = nil
         anchorScreen = nil
         awaitsScreen = false
@@ -178,6 +211,10 @@ public final class FoodLoggedBannerModel: ObservableObject {
     public func expire(generation expired: Int) {
         guard expired == generation, !keepsUntilDismissed else { return }
         if case .removing = content { return }
+        if undoPressed, content?.offersUndo == true {
+            expiredDuringPress = true
+            return
+        }
         dismiss()
     }
 
@@ -200,6 +237,10 @@ public final class FoodLoggedBannerModel: ObservableObject {
 
     private func present(_ next: Content) {
         generation += 1
+        // A press is per banner: one left over from a banner that went away mid-press must not
+        // hold this one past its duration.
+        undoPressed = false
+        expiredDuringPress = false
         content = next
         let shown = generation
         let sleep = sleep
@@ -220,7 +261,7 @@ public final class FoodLoggedBannerModel: ObservableObject {
 }
 
 /// The banner: message, an optional line about the favourite, Undo (44 pt) and VoiceOver actions.
-/// Shown at the bottom of the destination; it never blocks the screen behind it.
+/// Shown at the bottom of the destination; outside its own area it never blocks the screen behind it.
 public struct FoodLoggedBanner: View {
     @ObservedObject private var model: FoodLoggedBannerModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -232,7 +273,12 @@ public struct FoodLoggedBanner: View {
     public var body: some View {
         ZStack {
             if let content = model.content {
-                FoodLoggedBannerContent(content: content, undo: { Task { await model.undo() } }, dismiss: model.dismiss)
+                // In place at once, under the sliding banner: a tap in the banner's area before it
+                // has slid in is absorbed rather than landing on the control underneath (#357).
+                FoodLoggedBannerTapShield(content: model.shieldLayout ?? content)
+                    .transition(.identity)
+                FoodLoggedBannerContent(content: content, undo: { model.startUndo() }, dismiss: model.dismiss,
+                                        undoPressed: model.undoPressChanged)
                     .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
             }
         }
@@ -246,6 +292,26 @@ public struct FoodLoggedBanner: View {
     }
 }
 
+/// Takes taps in the banner's area while the banner is still sliding in, and where Undo was once
+/// the shorter outcome shows: the logged banner's layout, invisible, hit only inside its rounded
+/// card (not the outer margins), and hidden from VoiceOver (the banner itself is the element).
+struct FoodLoggedBannerTapShield: View {
+    let content: FoodLoggedBannerModel.Content
+
+    var body: some View {
+        FoodLoggedBannerContent(content: content, undo: {}, dismiss: {})
+            .hidden()
+            .overlay {
+                Color.clear
+                    .contentShape(RoundedRectangle(cornerRadius: FoodLoggedBannerContent.cornerRadius, style: .continuous))
+                    .onTapGesture {}
+                    .padding(.horizontal, FoodLoggedBannerContent.outerHorizontalPadding)
+                    .padding(.bottom, FoodLoggedBannerContent.outerBottomPadding)
+            }
+            .accessibilityHidden(true)
+    }
+}
+
 /// The banner's visible content, separate from the model so it renders in tests. For VoiceOver
 /// it is one element with an explicit label and explicit Undo and Dismiss actions, so Undo is
 /// never listed twice.
@@ -253,11 +319,19 @@ public struct FoodLoggedBannerContent: View {
     private let content: FoodLoggedBannerModel.Content
     private let undo: () -> Void
     private let dismiss: () -> Void
+    private let undoPressed: (Bool) -> Void
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    /// A finger is down on Undo; resets on lift and on cancellation.
+    @GestureState private var undoPressing = false
 
-    public init(content: FoodLoggedBannerModel.Content, undo: @escaping () -> Void, dismiss: @escaping () -> Void) {
-        self.content = content; self.undo = undo; self.dismiss = dismiss
+    public init(content: FoodLoggedBannerModel.Content, undo: @escaping () -> Void, dismiss: @escaping () -> Void,
+                undoPressed: @escaping (Bool) -> Void = { _ in }) {
+        self.content = content; self.undo = undo; self.dismiss = dismiss; self.undoPressed = undoPressed
     }
+
+    static let cornerRadius: CGFloat = 14
+    static let outerHorizontalPadding: CGFloat = 16
+    static let outerBottomPadding: CGFloat = 8
 
     /// The VoiceOver label: the message and, when present, the favourite line.
     public static func accessibilityLabel(_ content: FoodLoggedBannerModel.Content) -> String {
@@ -291,15 +365,18 @@ public struct FoodLoggedBannerContent: View {
                 }
                 .buttonStyle(.bordered)
                 .disabled(!content.offersUndo)
+                .simultaneousGesture(DragGesture(minimumDistance: 0).updating($undoPressing) { _, pressing, _ in pressing = true })
+                .onChange(of: undoPressing) { _, pressing in undoPressed(pressing) }
+                .onDisappear { undoPressed(false) }
             }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(.separator))
-        .padding(.horizontal, 16)
-        .padding(.bottom, 8)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous).strokeBorder(.separator))
+        .padding(.horizontal, Self.outerHorizontalPadding)
+        .padding(.bottom, Self.outerBottomPadding)
         // One element: the visible Undo button is not exposed separately, so VoiceOver lists
         // Undo once, as an action.
         .accessibilityElement(children: .ignore)
