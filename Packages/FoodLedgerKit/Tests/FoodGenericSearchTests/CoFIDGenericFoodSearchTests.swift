@@ -582,7 +582,7 @@ final class CoFIDGenericFoodSearchTests: XCTestCase {
         var current = try draft(try XCTUnwrap(FoodListParser.parse("1,500 gr Ackee canned drained", convention: .fullStopDecimal).first))
         XCTAssertEqual(try amount(current), 1500)
         let currentEvidence = try evidence(current)
-        XCTAssertEqual(currentEvidence.version, "food-list-lexical-v6")
+        XCTAssertEqual(currentEvidence.version, "food-list-lexical-v7")
         XCTAssertEqual(currentEvidence.descriptor, englishEvidence.descriptor, "the v6 descriptor has the v4 form")
         current.quantityText = "1,250"
         XCTAssertEqual(try amount(current), 1250)
@@ -593,9 +593,10 @@ final class CoFIDGenericFoodSearchTests: XCTestCase {
     func testVaguePortionListLineReachesConfirmWithoutAnAmount() throws {
         let ids = SequenceIDs()
         let service = FoodListImportService(searcher: try CoFIDGenericFoodSearch(ids: ids), ids: ids)
-        // food-list-lexical-v6 (#353): household containers behave the same way.
+        // food-list-lexical-v6 (#353) and v7 (#359): household containers and measures behave the same way.
         for text in ["a handful of Ackee canned drained", "2 pinches Ackee canned drained", "a few Ackee canned drained",
-                     "2 mugs of Ackee canned drained", "a pot of Ackee canned drained", "250 ml mug of Ackee canned drained"] {
+                     "2 mugs of Ackee canned drained", "a pot of Ackee canned drained", "250 ml mug of Ackee canned drained",
+                     "a tin of Ackee canned drained", "2 slices of Ackee canned drained", "400 g tin of Ackee canned drained"] {
             let parsed = try XCTUnwrap(FoodListParser.parse(text, convention: .fullStopDecimal).first)
             let draft = FoodListLineDraft(parsed: parsed, operationID: try ids.makeID(OperationTag.self), evidenceID: try ids.makeID(EvidenceTag.self))
             XCTAssertEqual(draft.quantityText, "", text)
@@ -607,7 +608,7 @@ final class CoFIDGenericFoodSearchTests: XCTestCase {
             XCTAssertNil(state.quantity.value, text)
             XCTAssertEqual(state.quantity.unit, .grams, text)
             let evidence = try XCTUnwrap(state.input.evidence.first { $0.evidenceID == draft.evidenceID })
-            XCTAssertEqual(evidence.captureMethodVersion.value, "food-list-lexical-v6", text)
+            XCTAssertEqual(evidence.captureMethodVersion.value, "food-list-lexical-v7", text)
             guard case let .descriptor(payload) = evidence.originalPayload else { return XCTFail("Missing descriptor") }
             XCTAssertTrue(payload.value.contains(#""notices":["householdMeasure"]"#), text)
             XCTAssertTrue(payload.value.contains(#""quantity":"""#), text)

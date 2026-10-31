@@ -64,8 +64,16 @@ Times do not backdate a log: confirmed entries use the existing save-time date.
 The input limit is 200 lines and 30,000 characters, with rejection rather than
 silent truncation.
 
-New lists are parsed under `food-list-lexical-v6` ([contract](food-list-lexical-v6.md),
-#353), which is v5 plus household containers. Cups, mugs, glasses, pots and packs, under
+New lists are parsed under `food-list-lexical-v7` ([contract](food-list-lexical-v7.md),
+#359), which is v6 with the household-measure rule widened to the other containers (bottles,
+jars, tubs, cans, tins, cartons, bowls, bags, sachets, plates) and household measures (slices,
+scoops, portions, servings, packets, dollops, spoons): each gives no amount and the
+household-measure notice and leaves the food name ("2 slices of bread" searches "bread", "a
+bottle of water" is no longer a count). With no amount, "of" must follow ("slices of bread",
+but "cup noodles" keeps its name).
+
+`food-list-lexical-v6` ([contract](food-list-lexical-v6.md), #353) is v5 plus household
+containers. Cups, mugs, glasses, pots and packs, under
 the container rule search uses (`HouseholdContainerRule`), give no amount and the
 household-measure notice and leave the food name: "2 mugs of tea" searches "tea", and a
 mass or volume next to a container ("250 ml mug of milk") is withheld as in search. A mug

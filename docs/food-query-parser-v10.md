@@ -82,6 +82,9 @@ stored in food records, evidence or exports, so there is nothing to migrate. The
 measures and is unchanged by this change. Later, #353 moved the container guards above into
 `FoodLedgerDomain.HouseholdContainerRule`, which search and `food-list-lexical-v6` now share
 ([list lexical v6](food-list-lexical-v6.md)); search behaviour is unchanged by that move.
+#359 then made the search side `food-query-interpretation-v4` ([interpretation
+v4](food-query-interpretation-v4.md)) and the list side `food-list-lexical-v7` ([list lexical
+v7](food-list-lexical-v7.md)); this parser is unchanged.
 
 ## Evaluation
 

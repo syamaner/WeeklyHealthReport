@@ -35,7 +35,7 @@ final class FoodListLexicalV5Tests: XCTestCase {
     ]
 
     func testVersionsAreFrozen() {
-        XCTAssertEqual(FoodListParser.version, "food-list-lexical-v6", "v5 is frozen as parseV5 (#353)")
+        XCTAssertEqual(FoodListParser.version, "food-list-lexical-v7", "v5 is frozen as parseV5 (#353), v6 as parseV6 (#359)")
         XCTAssertEqual(FoodListParser.v5Version, "food-list-lexical-v5")
         XCTAssertEqual(FoodListParser.v4Version, "food-list-lexical-v4")
         XCTAssertEqual(FoodListParser.legacyVersion, "food-list-lexical-v3")
@@ -158,8 +158,8 @@ final class FoodListLexicalV5Tests: XCTestCase {
         XCTAssertEqual(storedV3.effectiveGrammarVersion, "food-list-lexical-v3")
 
         let unknown = try JSONDecoder().decode(ParsedFoodListLine.self, from: Data(
-            v4JSON.replacingOccurrences(of: "food-list-lexical-v4", with: "food-list-lexical-v7").utf8))
-        XCTAssertFalse(unknown.readsNumeralConvention, "only the frozen v4, v5 and v6 identifiers read a convention")
+            v4JSON.replacingOccurrences(of: "food-list-lexical-v4", with: "food-list-lexical-v8").utf8))
+        XCTAssertFalse(unknown.readsNumeralConvention, "only the frozen v4 to v7 identifiers read a convention")
     }
 
     /// Receipts (`receipt-lexical-v1`) share only the frozen v3 numeral rule and are unaffected.

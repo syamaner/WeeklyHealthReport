@@ -191,20 +191,22 @@ public final class FoodListImportViewModel: ObservableObject {
         guard let last = parsed.last else { throw FoodListParser.ParseError.empty }
         var draft = FoodListLineDraft(parsed: last, operationID: try ids.makeID(OperationTag.self), evidenceID: try ids.makeID(EvidenceTag.self))
         // A saved name is a food name, not a pasted portion: when it starts with a vague portion
-        // word ("Pinch of Nom Lasagne", "Splash orange") or a container ("Cup of tea") v5 and v6
-        // still give no amount, but the search query keeps the whole saved name rather than
-        // losing brand words (food-list-lexical-v5, v6).
-        if portion == nil, last.isV5 || last.isV6, last.notices.contains(.householdMeasure) {
+        // word ("Pinch of Nom Lasagne", "Splash orange"), a container ("Cup of tea") or another
+        // household measure ("Slice of Heaven") v5 to v7 still give no amount, but the search
+        // query keeps the whole saved name rather than losing brand words (food-list-lexical-v5,
+        // v6, v7).
+        if portion == nil, last.isV5 || last.isV6 || last.isV7, last.notices.contains(.householdMeasure) {
             draft.query = name.trimmingCharacters(in: .whitespaces)
         }
         // food-list-lexical-v6 withholds a mass or volume before a container ("250 ml mug of milk"),
-        // so a saved name that starts with one ("68 g Mug Shot pasta") parses with no amount. The
+        // and v7 before any household measure, so a saved name that starts with one ("68 g Mug
+        // Shot pasta", "30 g Slice of Heaven") parses with no amount. The
         // parse stays as written; the editable amount is the user's saved usual portion, entered as
         // if typed, and the query is the whole name. Lines withheld for any other reason stay empty.
         let withheld: Set<FoodListNotice> = [.multipleAmounts, .preparationInput, .ambiguousNumber, .unknownUnit, .possibleUnitTypo]
-        if let portion, portion.unit != .count, last.isV6, last.quantity == nil,
+        if let portion, portion.unit != .count, last.isV7, last.quantity == nil,
            last.notices.contains(.householdMeasure), withheld.isDisjoint(with: last.notices),
-           HouseholdContainerRule.leadingListContainer(in: name.trimmingCharacters(in: .whitespaces)) != nil {
+           HouseholdContainerRule.leadingListMeasure(in: name.trimmingCharacters(in: .whitespaces), afterAmount: true) != nil {
             draft.query = name.trimmingCharacters(in: .whitespaces)
             draft.quantityText = FoodAmountTextParser.editableText(portion.value)
             draft.unit = portion.unit

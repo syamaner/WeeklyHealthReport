@@ -1,7 +1,7 @@
 # Food list lexical grammar v6: household containers leave the food name
 
 Status: **Approved under the owner approval of 24 October 2026**, which delegated the UX review backlog (bugs first, then enhancements) together with the contract amendments those items need. Implemented in the same PR.
-Fixes [#353](https://github.com/syamaner/WeeklyHealthReport/issues/353). Amends the parsing envelope in [food-list-import.md](food-list-import.md). Introduces the grammar identifier **`food-list-lexical-v6`**; `food-list-lexical-v5` ([contract](food-list-lexical-v5.md)), `food-list-lexical-v4` ([contract](food-list-lexical-v4.md)) and `food-list-lexical-v3` stay defined and frozen.
+Fixes [#353](https://github.com/syamaner/WeeklyHealthReport/issues/353). Amends the parsing envelope in [food-list-import.md](food-list-import.md). New lists have used [`food-list-lexical-v7`](food-list-lexical-v7.md) (household measures, #359) since 31 October 2026; v6 is frozen as `FoodListParser.parseV6`. Introduces the grammar identifier **`food-list-lexical-v6`**; `food-list-lexical-v5` ([contract](food-list-lexical-v5.md)), `food-list-lexical-v4` ([contract](food-list-lexical-v4.md)) and `food-list-lexical-v3` stay defined and frozen.
 
 ## Problem
 
