@@ -3232,6 +3232,34 @@ One `claude-opus-5-5` subagent, transcript `subagents/agent-aa89c64bd352d0a4a.js
 
 `phase_usage.py --format claude --since 2026-10-31T04:58:00Z --until 2026-10-31T06:09:55Z` on each transcript separately; all cache writes are 5-minute, 0 1-hour; exact USD 12.428544 and 0.3178008 (12.7463448 in total). Pricing: the Claude Opus 5.5 rates recorded in WHR-93-2026-10-20q (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Local builds, simulator runs and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
 
+## WHR-CI-2026-10-31: Claude Code FoodLedgerKit CI job timeout
+
+One `claude-opus-5-5` subagent, transcript `subagents/agent-ae33ccb35c45b38cf.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`, with the `invariant-reviewer` it launched (`subagents/agent-a2384e75333219c87.jsonl`). The start was recorded at `2026-10-31T07:39:44Z`; the window opens at `2026-10-31T07:39:00Z` so the subagent's first turn before that recording is included, and runs to `2026-10-31T07:45:39Z`, just before this ledger edit (UTC). It covers reading the failing and cancelled runs and job logs, the workflow and CI analysis doc change, the review and its fold, the CI helper tests and `git diff --check`. The commit, push and PR fall after the window. The orchestrating session is not included.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| FoodLedgerKit CI job timeout, implementing subagent | 2,423,789 (2,316,663) | 107,070 | 12,721 | 2,436,510 | $1.25 |
+| Invariant review | 263,458 (233,023) | 30,411 | 7,700 | 271,158 | $0.35 |
+| **Subtotal** | 2,687,247 (2,549,686) | 137,481 | 20,421 | 2,707,668 | $1.61 |
+
+`phase_usage.py --format claude --since 2026-10-31T07:39:00Z --until 2026-10-31T07:45:39Z` on each transcript separately; all cache writes are 5-minute, 0 1-hour; exact USD 1.2533266 and 0.3527556 (1.6060822 in total). Pricing: the Claude Opus 5.5 rates recorded in WHR-93-2026-10-20q (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. GitHub Actions minutes use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-357-2026-10-31: Claude Code Logged banner timing edges (#357)
+
+One `claude-opus-5-5` subagent, transcript `subagents/agent-affef6839a2343ee4.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`, with the two reviewers it launched in parallel: `invariant-reviewer` (`subagents/agent-ac04288f5e023e32f.jsonl`) and `journey-qa` (`subagents/agent-a75ca033fde07ce0b.jsonl`, including its retest of the folds). The window runs from the subagent's start (`2026-10-31T06:20:36Z`) to `2026-10-31T07:08:08Z`, just before this ledger edit (UTC). It covers waiting for PR #356, reading the issue and the banner, the synchronous Undo start, the press-held expiry and the tap shield, the timing tests, the phase 4 doc amendment, both reviews and their folds (press reset per banner, the shield's hit shape and logged layout), and the gates up to analyze. The full app test gate, commit, push and PR fall after the window. The orchestrating session is not included.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Logged banner timing edges (#357), implementing subagent | 3,672,056 (3,257,877) | 414,111 | 32,083 | 3,704,139 | $3.36 |
+| Invariant review | 292,794 (248,733) | 44,043 | 12,935 | 305,729 | $0.53 |
+| Journey QA at default and AX5, with the fold retest (simulator, screenshots as image input) | 29,020,400 (28,512,519) | 507,555 | 90,598 | 29,110,998 | $10.05 |
+| **Subtotal** | 32,985,250 (32,019,129) | 965,709 | 135,616 | 33,120,866 | $13.95 |
+| Re-review fold (#360): bottom-pinned outcome card, lift-order test, deterministic hosted Undo test, implementing subagent | 3,341,699 (3,013,816) | 327,841 | 11,740 | 3,353,439 | $2.48 |
+| Journey QA recheck of the outcome card position at default and AX5 | 10,631,284 (10,436,574) | 194,546 | 29,292 | 10,660,576 | $3.65 |
+| **Total** | 46,958,233 (45,469,519) | 1,488,096 | 176,648 | 47,134,881 | $20.07 |
+
+`phase_usage.py --format claude --since 2026-10-31T06:20:36Z --until 2026-10-31T07:08:08Z` on each transcript separately; all cache writes are 5-minute, 0 1-hour; exact USD 3.3640624, 0.5287336 and 10.0535428 (13.9463388 in total). Pricing: the Claude Opus 5.5 rates recorded in WHR-93-2026-10-20q (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Local builds, simulator runs and test loops use no API tokens and are not priced. Re-review fold: `--since 2026-10-31T07:25:00Z --until 2026-10-31T07:57:38Z`, just before this edit, on the subagent transcript and the new `journey-qa` transcript (`subagents/agent-aa2bd4ba0539bffc0.jsonl`): the coordinator's re-review finding (centred outcome card) and the main CI failure of the #356 hosted test, the fixes, a negative alignment run, 20 iterations of the hosted test and the gates up to the diff check; exact USD 2.4769362 and 3.6465408 (6.123477; 20.0698158 with the first window). The gap from 07:08:08Z to 07:25:00Z (commit, push, PR #360 and the first report) and the coordinator's re-review are not measured. Token totals are not evidence of productivity, quality or provider efficiency.
+
 ## WHR-353-2026-10-31: Claude Code list household containers (#353)
 
 One `claude-opus-5-5` subagent, transcript `subagents/agent-afd3a95536649ab40.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`, with the two reviewers it launched in parallel: `invariant-reviewer` (`subagents/agent-a97ae734c90b5687d.jsonl`) and `journey-qa` (`subagents/agent-a9dc10122719b7d0f.jsonl`, resumed once for a retry). The window runs from the subagent's start boundary (`2026-10-31T04:58:00Z`, recorded at the start) to `2026-10-31T06:29:04Z`, just before this ledger edit (UTC). It covers reading the issue, contracts and code, a probe of search behaviour, the shared `HouseholdContainerRule`, `food-list-lexical-v6` and its contract, the tests, the base-commit replay comparison, the invariant review and its fold, and every gate (run twice, before and after the fold). Journey QA did not run: simulator access was declined or unanswered, and the retry waited behind another agent's simulator run until it was stood down; its stand-down reply falls after the window. The push and PR fall after the window. The orchestrating session is not included.

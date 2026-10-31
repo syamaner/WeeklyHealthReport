@@ -1395,7 +1395,8 @@ extension QuickAddAppTests {
     /// standard and an accessibility text size, while the visible duration (5 s, or 10 s at
     /// accessibility sizes) is still running, and signals the Food Log and Home to reload. The
     /// banner is hosted in a window so its environment sets the duration; the expiry is held open,
-    /// so the result does not depend on tap timing. Hit testing on device is checked in the
+    /// so the result does not depend on tap timing, and the outcome is awaited with a 30 s bound
+    /// so it does not depend on runner speed either. Hit testing on device is checked in the
     /// simulator, not here. A wrong expected version is rejected by the store (pinned by the
     /// management service's stale-version contract tests), so it would show "Entry unchanged".
     func testBannerUndoControlRemovesTheLoggedEntryAtStandardAndAccessibilitySizes() throws {
@@ -1425,7 +1426,13 @@ extension QuickAddAppTests {
             XCTAssertEqual(FoodLoggedBannerContent.accessibilityActionNames(rendered.content), ["Undo", "Dismiss"])
 
             rendered.undo()
-            Self.runUntil { banner.content == .result(FoodLoggedText.removed) }
+            // #357: the tap itself starts Undo, before any await, so a timeout cannot overtake it.
+            guard case .removing = banner.content else {
+                return XCTFail("\(size): the tap moves the banner to removing at once, got \(String(describing: banner.content))")
+            }
+            // The remove runs off the main actor and resumes on it; a slow CI runner took longer
+            // than 5 s for that round trip (run 41176342159), so wait on the outcome generously.
+            Self.runUntil(seconds: 30) { banner.content == .result(FoodLoggedText.removed) }
             XCTAssertEqual(banner.content, .result(FoodLoggedText.removed), "\(size)")
             XCTAssertEqual(banner.removals, 1, "\(size): the Food Log and Home reload")
             let after = try root.foodLogService.day(reportingDate: day)
