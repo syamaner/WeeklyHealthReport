@@ -271,7 +271,9 @@ public struct FoodLoggedBanner: View {
     public init(model: FoodLoggedBannerModel) { self.model = model }
 
     public var body: some View {
-        ZStack {
+        // Bottom-pinned: a shorter outcome card sits at the bottom of the taller logged-layout
+        // shield, where the logged banner was, not centred in it.
+        ZStack(alignment: .bottom) {
             if let content = model.content {
                 // In place at once, under the sliding banner: a tap in the banner's area before it
                 // has slid in is absorbed rather than landing on the control underneath (#357).

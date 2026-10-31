@@ -97,6 +97,39 @@ final class FoodLoggedBannerTimingTests: XCTestCase {
         XCTAssertEqual(model.content?.message, "Logged")
     }
 
+    /// The lift's report may arrive before the tap's action in the same turn: the deferred
+    /// timeout waits for the next turn, so the action still applies.
+    func testATapDeliveredJustAfterTheLiftReportStillApplies() async throws {
+        let removal = TimingGate()
+        removal.release()
+        let store = GatedRemover(gate: removal)
+        let model = FoodLoggedBannerModel(store: store, sleep: { _ in await TimingGate.never() }, announce: { _ in })
+        let notice = try Self.notice()
+        model.show(notice)
+        model.undoPressChanged(true)
+        model.expire(generation: model.currentGeneration)
+        model.undoPressChanged(false)
+        XCTAssertEqual(model.content, .logged(notice), "the deferred timeout has not run yet")
+        let undo = try XCTUnwrap(model.startUndo())
+        await undo.value
+        for _ in 0..<20 { await Task.yield() }
+        XCTAssertEqual(model.content, .result(FoodLoggedText.removed))
+        XCTAssertEqual(store.removes.count, 1)
+    }
+
+    /// The banner and the shield share a bottom-aligned stack, so a shorter outcome card stays
+    /// pinned to the bottom of the logged layout rather than centred in it.
+    func testTheOutcomeCardIsBottomPinnedInsideTheShield() async throws {
+        let removal = TimingGate()
+        removal.release()
+        let model = FoodLoggedBannerModel(store: GatedRemover(gate: removal), sleep: { _ in await TimingGate.never() },
+                                          announce: { _ in })
+        model.show(try Self.notice())
+        await model.undo()
+        let alignment = try XCTUnwrap(Self.first(Alignment.self, in: FoodLoggedBanner(model: model).body))
+        XCTAssertEqual(alignment, .bottom)
+    }
+
     /// A press left behind by a banner that went away mid-press (navigation, a dismissal) does
     /// not hold the next banner past its duration.
     func testAPressLeftByAnEarlierBannerDoesNotHoldTheNextOne() throws {
