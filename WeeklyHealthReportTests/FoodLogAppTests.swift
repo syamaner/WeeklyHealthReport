@@ -371,12 +371,15 @@ final class FoodLogAppTests: XCTestCase {
             window.overrideUserInterfaceStyle = .dark
             window.rootViewController = controller
             window.isHidden = false
-            RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+            RunLoop.main.run(until: Date().addingTimeInterval(0.6))
             let format = UIGraphicsImageRendererFormat()
             format.scale = 1
             let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format)
                 .image { window.layer.render(in: $0.cgContext) }
             window.isHidden = true
+            let attachment = XCTAttachment(image: image)
+            attachment.name = "Food Log - Add food button - \(size)"
+            add(attachment)
             let (left, right) = try XCTUnwrap(Self.whiteInkColumns(try XCTUnwrap(image.cgImage)), "\(size) draws no label")
             let leading = CGFloat(left), trailing = width - 1 - CGFloat(right)
             // Glyph side bearings and pixel rounding move the ink by a point or two; the defect
