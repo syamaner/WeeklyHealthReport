@@ -3183,3 +3183,16 @@ Pricing: the Claude Opus 5.5 rates recorded in WHR-316-2026-10-25-L1A (USD 4/M b
 Boundary: `phase_usage.py --format claude --since 2026-10-30T16:03:06Z --until 2026-10-30T16:28:57Z` on the subagent transcript alone. Cache writes 327,146 5-minute, 0 1-hour; exact USD 3.2632314. Local Swift builds, test loops and sanitiser runs use no API tokens and are not priced.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-312-2026-10-31: Claude Code food daily export v2 contract draft (#312)
+
+One `claude-opus-5-5` subagent, transcript `subagents/agent-ada8a2a2f258f14af.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`, for the docs-only draft of `docs/food-daily-export-contract-v2.md`. The window runs from the subagent's first message (`2026-10-30T16:18:16Z`) to `2026-10-30T16:23:29Z`, just before this ledger edit (UTC). It covers reading the issue, the export contracts, the egress list, the export builder, Drive identity policy, estimate rules and goldens, and writing the contract and its index entry. The commit, push and PR fall after the window. The orchestrating session, the owner's decisions and the later architecture gate are not included.
+
+Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A), not re-checked on the day of this entry: `claude-opus-5-5` USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache hit, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Food daily export v2 contract draft (#312), subagent | 3,643,087 (3,497,777) | 145,254 | 28,735 | 3,671,822 | $2.00 |
+| Architecture gate fold and owner-delegated decisions (#312), subagent | 1,854,994 (1,838,854) | 16,118 | 13,294 | 1,868,288 | $0.71 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-30T16:18:16Z --until 2026-10-30T16:23:29Z` on the subagent transcript alone. Cache writes 145,254 5-minute, 0 1-hour; exact USD 2.0007494. Fold: `--since 2026-10-30T16:23:29Z --until 2026-10-30T16:29:25Z`, just before this edit: the first commit, push and PR #343, then folding the architecture gate (PASS WITH CHANGES, F1 to F8) and the owner-delegated Q1 to Q8 decisions into the contract, and filing #344 for Q4. Cache writes 16,118 5-minute, 0 1-hour; exact USD 0.7143288. The gate reviewer is not included. Token totals are not evidence of productivity, quality or provider efficiency.
