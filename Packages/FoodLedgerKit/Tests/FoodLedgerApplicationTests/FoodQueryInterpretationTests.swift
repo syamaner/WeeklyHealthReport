@@ -62,7 +62,7 @@ final class FoodQueryInterpretationTests: XCTestCase {
             XCTAssertEqual(q.parsedQuery.food, q.baseline.food, text)
             if q.baseline.reasons.contains("portion_requires_confirmation") { XCTAssertNil(q.parsedQuery.quantity, text) }
         }
-        XCTAssertEqual(FoodQueryInterpretation.version, "food-query-interpretation-v3")
+        XCTAssertEqual(FoodQueryInterpretation.version, "food-query-interpretation-v4")
     }
     /// #335 (food-query-interpretation-v3, parser v10): mugs and the plural containers clarify like
     /// cups. Search uses the food text, and no "Use N" suggestion or quantity is offered.
@@ -109,12 +109,19 @@ final class FoodQueryInterpretationTests: XCTestCase {
             XCTAssertNil(q.quantitySuggestion, text)
         }
     }
-    /// #353: the list grammar (food-list-lexical-v6) and search share `HouseholdContainerRule`, so a
+    /// #353, #359: the list grammar (food-list-lexical-v6, v7) and search (v3, v4) share
+    /// `HouseholdContainerRule`, so a
     /// pasted line and the same search text look for the same food, and neither gains an amount.
     func testListGrammarAndSearchShareTheContainerRule() throws {
         for text in ["2 mugs of tea", "2 mugs tea", "a mug of coffee", "1 mug coffee", "2 x mugs of tea",
                      "two mugs of hot chocolate", "2 cups of tea", "2 cups rice", "1 cup rice", "a glass of milk",
-                     "2 glasses of milk", "a pot of yoghurt", "2 pots of yoghurt", "2 packs of crisps"] {
+                     "2 glasses of milk", "a pot of yoghurt", "2 pots of yoghurt", "2 packs of crisps",
+                     // #359: interpretation v4 and list grammar v7.
+                     "mugs of tea", "cup of tea", "250 ml mug of milk", "250 ml of mug of milk", "mug of milk 250 ml",
+                     "500 ml bottle of water", "2 slices of bread", "slices of bread", "a bottle of water",
+                     "2 jars of honey", "a tub of ice cream", "a can of coke", "a tin of tomatoes", "2 packets of crisps",
+                     "a portion of chips", "2 scoops protein powder", "a scoop of ice cream", "1 teaspoon of salt",
+                     "a bowl of porridge", "a plate of pasta", "1 serving of rice"] {
             let search = FoodQueryInterpretation(text)
             let line = try XCTUnwrap(FoodListParser.parse(text, convention: .fullStopDecimal).first)
             XCTAssertEqual(line.query.lowercased(), search.retrievalText, text)
@@ -125,9 +132,55 @@ final class FoodQueryInterpretationTests: XCTestCase {
         }
         // Where search keeps the container word in its food text, so does the list.
         for (text, word) in [("2 pots noodles", "pots"), ("2 glasses noodles", "glasses"), ("2 packs crisps", "packs"),
-                             ("a mug cake", "mug"), ("2 mug cakes", "mug"), ("2 cups cakes", "cups")] {
+                             ("a mug cake", "mug"), ("2 mug cakes", "mug"), ("2 cups cakes", "cups"),
+                             ("cup noodles", "cup"), ("a bottle gourd", "bottle"), ("mugs tea", "mugs")] {
             XCTAssertTrue(FoodQueryInterpretation(text).retrievalText.contains(word), text)
             XCTAssertTrue(try XCTUnwrap(FoodListParser.parse(text, convention: .fullStopDecimal).first).query.contains(word), text)
+        }
+        // Known divergences (docs/food-query-interpretation-v4.md): search parser v10 gives spoon
+        // abbreviations and split spoon words no portion reason, so search keeps the unit while
+        // the list (v7) removes it. Neither gains an amount. Closing this needs a parser version.
+        for (text, searchText, listQuery) in [("2 tbsp olive oil", "tbsp olive oil", "olive oil"), ("1 tsp sugar", "tsp sugar", "sugar"),
+                                              ("1 table spoon of honey", "table spoon honey", "honey"),
+                                              ("2 tea spoons sugar", "tea spoons sugar", "sugar")] {
+            let search = FoodQueryInterpretation(text)
+            let line = try XCTUnwrap(FoodListParser.parse(text, convention: .fullStopDecimal).first)
+            XCTAssertTrue(search.retrievalText.hasSuffix(searchText), "\(text): \(search.retrievalText)")
+            XCTAssertEqual(line.query, listQuery, text)
+            XCTAssertNil(search.parsedQuery.quantity, text)
+            XCTAssertNil(line.quantity, text)
+        }
+    }
+    /// #359 (food-query-interpretation-v4): a household unit that starts the parser's food text
+    /// with no amount before it leaves the retrieval text, when the line starts with the unit and
+    /// "of" follows it, or with a mass or volume (withheld by the parser) and then the unit. Route,
+    /// reasons, quantity and suggestion are those of v3.
+    func testBareLeadingHouseholdUnitLeavesTheRetrievalText() {
+        for (text, retrieval) in [("mugs of tea", "tea"), ("mug of tea", "tea"), ("cups of coffee", "coffee"),
+                                  ("cup of tea", "tea"), ("glasses of milk", "milk"), ("pots of yoghurt", "yoghurt"),
+                                  ("packs of crisps", "crisps"), ("jars of honey", "honey"), ("bottles of water", "water"),
+                                  ("slices of bread", "bread"), ("Mugs Of Tea", "tea"),
+                                  ("250 ml mug of milk", "milk"), ("250 ml of mug of milk", "milk"), ("250ml mug of milk", "milk"),
+                                  ("250 ml mug milk", "milk"), ("mug of milk 250 ml", "milk"), ("300ml glasses of milk", "milk"),
+                                  ("200g pot of yoghurt", "yoghurt"), ("500 ml bottle of water", "water"),
+                                  ("1 kg bag of rice", "rice"), ("400 g tin of tomatoes", "tomatoes")] {
+            let q = FoodQueryInterpretation(text)
+            XCTAssertEqual(q.retrievalText, retrieval, text)
+            XCTAssertEqual(q.parsedQuery.route, q.baseline.route, text)
+            XCTAssertEqual(q.parsedQuery.route, .clarify, text)
+            XCTAssertEqual(q.parsedQuery.reasons, q.baseline.reasons, text)
+            XCTAssertNil(q.parsedQuery.quantity, text)
+            XCTAssertNil(q.quantitySuggestion, text)
+            XCTAssertTrue(q.allowsDiscovery, text)
+            XCTAssertEqual(q.originalText, text)
+        }
+        // With no amount, "of" must follow; food names and guarded units keep the parser's text.
+        for text in ["cup noodles", "mug cake", "mugs tea", "pot noodle", "glass noodles", "mugs", "mug of",
+                     "200 g glass noodles", "200 g mug cake", "200 g bottle gourd", "200g fruit cups", "yoghurt pots"] {
+            let q = FoodQueryInterpretation(text)
+            XCTAssertEqual(q.parsedQuery.food, q.baseline.food, text)
+            XCTAssertNil(q.parsedQuery.quantity, text)
+            XCTAssertNil(q.quantitySuggestion, text)
         }
     }
     func testPreparationIsScopedAndOriginalUTF16SlicesAreRetained() throws {

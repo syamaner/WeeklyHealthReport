@@ -58,17 +58,21 @@ public struct ParsedFoodListLine: Codable, Equatable, Sendable {
     public var isV5: Bool { grammarVersion == FoodListParser.v5Version }
     /// True when the line was parsed by `food-list-lexical-v6`, by its frozen identifier.
     public var isV6: Bool { grammarVersion == FoodListParser.v6Version }
-    /// True when the line's numerals were read under its recorded convention: a v4, v5 or v6 line.
-    /// All share the v4 numeral rule, amount reading and evidence form (food-list-lexical-v5,
-    /// v6); a v3 line, or a version this build does not know, keeps the frozen v3 reading.
-    public var readsNumeralConvention: Bool { isV4 || isV5 || isV6 }
+    /// True when the line was parsed by `food-list-lexical-v7`, by its frozen identifier.
+    public var isV7: Bool { grammarVersion == FoodListParser.v7Version }
+    /// True when the line's numerals were read under its recorded convention: a v4, v5, v6 or v7
+    /// line. All share the v4 numeral rule, amount reading and evidence form (food-list-lexical-v5,
+    /// v6, v7); a v3 line, or a version this build does not know, keeps the frozen v3 reading.
+    public var readsNumeralConvention: Bool { isV4 || isV5 || isV6 || isV7 }
 }
 
 /// A deliberately bounded grammar. Unrecognised units and multiple amounts stay unresolved.
 /// No food spelling, brand, household volume or nutrient value is inferred.
 public enum FoodListParser {
-    /// The current grammar, `parse(_:convention:)`. See docs/food-list-lexical-v6.md.
-    public static let version = v6Version
+    /// The current grammar, `parse(_:convention:)`. See docs/food-list-lexical-v7.md.
+    public static let version = v7Version
+    /// The frozen identifier of the v7 grammar, recorded on its lines and evidence.
+    public static let v7Version = "food-list-lexical-v7"
     /// The frozen identifier of the v6 grammar, recorded on its lines and evidence.
     public static let v6Version = "food-list-lexical-v6"
     /// The frozen identifier of the v5 grammar, recorded on its lines and evidence.
@@ -82,11 +86,22 @@ public enum FoodListParser {
 
     public enum ParseError: Error { case empty, tooLarge }
 
-    /// Parses under `food-list-lexical-v6`: the v5 grammar, plus household containers (cups,
-    /// mugs, glasses, pots and packs, under the shared `HouseholdContainerRule`) that get the
-    /// `householdMeasure` notice and no amount, and leave the search query ("2 mugs of tea"
-    /// searches "tea"). A container never produces an amount.
+    /// Parses under `food-list-lexical-v7`: the v6 grammar, with the closed set of household
+    /// measures widened from the v6 containers to the other containers (bottles, jars, tubs,
+    /// cans, tins, cartons, bowls, bags, sachets, plates) and the other household measures
+    /// (slices, scoops, portions, servings, packets, dollops, spoons), under the shared
+    /// `HouseholdContainerRule`. Each gets the `householdMeasure` notice and no amount and leaves
+    /// the search query ("2 slices of bread" searches "bread"); with no amount, "of" must follow
+    /// ("mugs of tea", but not "cup noodles"). A household measure never produces an amount.
     public static func parse(_ text: String, convention: NumeralConvention) throws -> [ParsedFoodListLine] {
+        try parse(text, grammar: .v7(convention))
+    }
+
+    /// The frozen `food-list-lexical-v6` grammar, unchanged: the v5 grammar, plus household
+    /// containers (cups, mugs, glasses, pots and packs, under `HouseholdContainerRule`) that get
+    /// the `householdMeasure` notice and no amount, and leave the search query ("2 mugs of tea"
+    /// searches "tea"). Kept to reproduce stored v6 lines; new lists use v7.
+    public static func parseV6(_ text: String, convention: NumeralConvention) throws -> [ParsedFoodListLine] {
         try parse(text, grammar: .v6(convention))
     }
 
@@ -193,8 +208,8 @@ public enum FoodListParser {
     /// (#222). A pure re-derivation from `original`: the versioned parse output is unchanged.
     public static func amountNumeral(of line: ParsedFoodListLine) -> String? {
         guard line.quantity != nil else { return nil }
-        // v5 and v6 share the v4 numeral token; a vague portion or container line has no amount
-        // and returns above.
+        // v5, v6 and v7 share the v4 numeral token; a vague portion, container or household
+        // measure line has no amount and returns above.
         let grammar: Grammar = line.readsNumeralConvention ? .v4(line.numeralConvention ?? .unspecified) : .v3
         let content = amountContent(line.original.trimmingCharacters(in: .whitespaces))
         if let prefix = capture(grammar.leadingPattern, in: content) { return prefix[1] }
@@ -223,7 +238,8 @@ public enum FoodListParser {
     ]
 
     /// The grammars differ only in how a numeral is captured and read, whether vague portion
-    /// words (v5 and v6) and household containers (v6 only) are recognised, and in what they record.
+    /// words (v5 onwards), household containers (v6) or household measures (v7) are recognised,
+    /// and in what they record.
     private struct Grammar: Sendable {
         let leadingPattern: String
         let trailingPattern: String
@@ -232,6 +248,7 @@ public enum FoodListParser {
         let convention: NumeralConvention?
         var vaguePortions = false
         var containers = false
+        var measures = false
 
         static let v3 = Grammar(leadingPattern: leadingAmountPattern, trailingPattern: trailingAmountPattern,
                                 read: { FoodListParser.number($0) }, version: nil, convention: nil)
@@ -249,6 +266,11 @@ public enum FoodListParser {
             Grammar(leadingPattern: v4LeadingAmountPattern, trailingPattern: v4TrailingAmountPattern,
                     read: { FoodListParser.number($0, convention: convention) },
                     version: FoodListParser.v6Version, convention: convention, vaguePortions: true, containers: true)
+        }
+        static func v7(_ convention: NumeralConvention) -> Grammar {
+            Grammar(leadingPattern: v4LeadingAmountPattern, trailingPattern: v4TrailingAmountPattern,
+                    read: { FoodListParser.number($0, convention: convention) },
+                    version: FoodListParser.v7Version, convention: convention, vaguePortions: true, measures: true)
         }
     }
 
@@ -291,6 +313,11 @@ public enum FoodListParser {
                 notices.append(.householdMeasure)
                 amount = nil
                 query = container.rest
+            } else if grammar.measures, let measure = HouseholdContainerRule.leadingListMeasure(in: remainder, afterAmount: true) {
+                // v7: "2 slices of bread" and "a bottle of water" give no amount; the measure leaves the query.
+                notices.append(.householdMeasure)
+                amount = nil
+                query = measure.rest
             } else if let token = capture(#"^([\p{L}]+)\b\.?\s*"#, in: remainder) {
                 let spelling = token[1].lowercased()
                 if let definition = units[spelling] {
@@ -300,15 +327,22 @@ public enum FoodListParser {
                     if ["grm", "grms", "gramme", "mililitre", "mililitres", "milliliteres"].contains(spelling) {
                         notices.append(.unitSpelling)
                     }
+                    let afterOf = query.replacingOccurrences(of: #"(?i)^of\s+"#, with: "", options: .regularExpression)
                     if grammar.containers, definition.0 != .count,
-                       let container = HouseholdContainerRule.leadingListContainer(in: query.replacingOccurrences(
-                           of: #"(?i)^of\s+"#, with: "", options: .regularExpression)) {
+                       let container = HouseholdContainerRule.leadingListContainer(in: afterOf) {
                         // v6: "250 ml mug of milk" (or "250 ml of mug of milk") could measure the
                         // container or its contents, so, as in search, the amount is withheld.
                         notices.append(.householdMeasure)
                         amount = nil
                         unit = nil
                         query = container.rest
+                    } else if grammar.measures, definition.0 != .count,
+                              let measure = HouseholdContainerRule.leadingListMeasure(in: afterOf, afterAmount: true) {
+                        // v7: "500 ml bottle of water" is withheld like "250 ml mug of milk".
+                        notices.append(.householdMeasure)
+                        amount = nil
+                        unit = nil
+                        query = measure.rest
                     }
                 } else if household.contains(spelling) || unsupported.contains(spelling) {
                     notices.append(household.contains(spelling) ? .householdMeasure : .unknownUnit)
@@ -344,6 +378,12 @@ public enum FoodListParser {
                 amount = nil
                 unit = nil
                 query = container.rest
+            } else if grammar.measures, let measure = HouseholdContainerRule.leadingListMeasure(in: query, afterAmount: true) {
+                // v7: "bottle of water 500 ml" is withheld like "500 ml bottle of water".
+                notices.append(.householdMeasure)
+                amount = nil
+                unit = nil
+                query = measure.rest
             }
         } else if grammar.vaguePortions, let vague = capture(vaguePortionPattern, in: content) {
             // v5: "handful of almonds" names a vague portion rather than omitting one.
@@ -353,6 +393,10 @@ public enum FoodListParser {
             // v6: "mugs of tea" names a container rather than omitting an amount.
             notices.append(.householdMeasure)
             query = container.rest
+        } else if grammar.measures, let measure = HouseholdContainerRule.leadingListMeasure(in: content, afterAmount: false) {
+            // v7: "slices of bread" names a household measure; with no amount "of" must follow.
+            notices.append(.householdMeasure)
+            query = measure.rest
         } else {
             notices.append(.missingQuantity)
             query = content

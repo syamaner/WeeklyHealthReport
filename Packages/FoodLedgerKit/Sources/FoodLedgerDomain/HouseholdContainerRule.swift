@@ -1,8 +1,10 @@
 import Foundation
 
 /// The household-container rule shared by the search interpretation
-/// (`food-query-interpretation-v3`, docs/food-query-parser-v10.md) and the list grammar
-/// (`food-list-lexical-v6`, docs/food-list-lexical-v6.md), so the two cannot drift (#335, #353).
+/// (`food-query-interpretation-v3` and `v4`, docs/food-query-parser-v10.md and
+/// docs/food-query-interpretation-v4.md) and the list grammar (`food-list-lexical-v6` and `v7`,
+/// docs/food-list-lexical-v6.md and docs/food-list-lexical-v7.md), so the two cannot drift
+/// (#335, #353, #359).
 ///
 /// It decides only whether a leading container word names a portion that leaves the food text.
 /// It never produces an amount: a container gives no count, volume or portion size, and each
@@ -43,6 +45,42 @@ public enum HouseholdContainerRule {
         let unit = String(text[unitRange])
         guard rest.range(of: #"\p{L}"#, options: .regularExpression) != nil,
               leavesFoodText(unit: unit, followedByOf: match.range(at: 2).location != NSNotFound, rest: rest) else { return nil }
+        return (unit, String(text[phraseRange]), rest)
+    }
+
+    // MARK: food-list-lexical-v7 and food-query-interpretation-v4 (#359)
+
+    /// Whether a leading household `unit` leaves the food text, given whether a written amount
+    /// comes before it. With an amount ("2 mugs tea", "250 ml mug of milk") this is
+    /// `leavesFoodText`. With no amount the unit is a portion only when "of" follows it ("mugs
+    /// of tea"), so a food name that starts with a unit ("cup noodles", "mug cake") keeps it.
+    public static func measureLeavesFoodText(unit: String, followedByOf: Bool, rest: String, afterAmount: Bool) -> Bool {
+        (afterAmount || followedByOf) && leavesFoodText(unit: unit, followedByOf: followedByOf, rest: rest)
+    }
+
+    /// The household measures the list grammar recognises from `food-list-lexical-v7`: the v6
+    /// containers, the other containers (bottles, jars, tubs, cans, tins, cartons, bowls, bags,
+    /// sachets, plates) and the other household measures (slices, scoops, portions, servings,
+    /// packets, dollops and spoons in their written forms). Singular and plural, whole words,
+    /// case-insensitive. A closed list; widening it needs a further version. Pieces stay a count.
+    public static let listMeasurePatternV7 = #"cups?|mugs?|glass(?:es)?|pots?|packs?|packets?|bottles?|jars?|tubs?|cans?|tins?|cartons?|bowls?|bags?|sachets?|plates?|slices?|scoops?|portions?|servings?|dollops?|(?:tea|table)\s+spoons?|(?:tea|table)?spoonfuls?|(?:tea|table)?spoons?|tsps?|tbsps?"#
+
+    /// A leading `food-list-lexical-v7` household measure phrase in `text` ("slices of bread"
+    /// gives "slices of " and "bread"), or nil when the text does not start with one that leaves
+    /// the food text under `measureLeavesFoodText`, or when no food follows it ("2 slices", "a jar
+    /// of"). `afterAmount` says whether a written amount came before the text.
+    public static func leadingListMeasure(in text: String, afterAmount: Bool) -> (unit: String, phrase: String, rest: String)? {
+        // An abbreviation may carry a full stop ("2 tsp. sugar"), as the unit token allows.
+        let pattern = #"(?i)^("# + listMeasurePatternV7 + #")\b\.?\s*(of\b\s*)?"#
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              let phraseRange = Range(match.range, in: text),
+              let unitRange = Range(match.range(at: 1), in: text) else { return nil }
+        let rest = text[phraseRange.upperBound...].trimmingCharacters(in: .whitespaces)
+        let unit = String(text[unitRange])
+        guard rest.range(of: #"\p{L}"#, options: .regularExpression) != nil,
+              measureLeavesFoodText(unit: unit, followedByOf: match.range(at: 2).location != NSNotFound,
+                                    rest: rest, afterAmount: afterAmount) else { return nil }
         return (unit, String(text[phraseRange]), rest)
     }
 }
