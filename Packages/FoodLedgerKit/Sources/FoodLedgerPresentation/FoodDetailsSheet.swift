@@ -141,7 +141,6 @@ public struct FoodDetailsForm: View {
     /// and the draft, so the field and the stored reason stay identical (#285).
     @State private var reasonText: String
     @FocusState private var reasonFocused: Bool
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     public init(model: FoodConfirmationViewModel, draft: Binding<FoodDetailsDraft>, applied: @escaping () -> Void) {
         self.model = model
@@ -153,7 +152,7 @@ public struct FoodDetailsForm: View {
     public static let reasonTitle = "Reason for correction"
     public static let applyTitle = "Apply correction as a new version"
     /// Accessibility text sizes put each picker's title above its full-width, wrapping value.
-    public static func stacksTitles(at size: DynamicTypeSize) -> Bool { size.isAccessibilitySize }
+    public static func stacksTitles(at size: DynamicTypeSize) -> Bool { StackingMenuPickerLayout.stacks(at: size) }
 
     public static let basisOptions: [(FoodDetailsDraft.Basis, String)] = [
         (.keepPopulated, "Keep populated basis"), (.per100Grams, "Per 100 g"), (.per100Millilitres, "Per 100 mL")
@@ -244,34 +243,10 @@ public struct FoodDetailsForm: View {
         }
     }
 
-    /// A menu picker. At accessibility text sizes the title sits above a full-width value that
-    /// wraps, since the standard row truncates long values such as "Keep populated basis" (#285).
-    @ViewBuilder
+    /// A menu picker whose title stacks above a full-width, wrapping value at accessibility
+    /// text sizes (#285), shared with Confirm's "How you got it" (#337).
     private func picker<Value: Hashable>(_ title: String, _ selection: Binding<Value>, _ options: [(Value, String)]) -> some View {
-        let choices = Picker(title, selection: selection) {
-            ForEach(options, id: \.0) { Text($0.1).tag($0.0) }
-        }
-        if Self.stacksTitles(at: dynamicTypeSize) {
-            let current = options.first { $0.0 == selection.wrappedValue }?.1 ?? ""
-            VStack(alignment: .leading, spacing: 6) {
-                Text(title).accessibilityHidden(true)
-                Menu {
-                    choices.pickerStyle(.inline).labelsHidden()
-                } label: {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text(current).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
-                        Spacer(minLength: 0)
-                        Image(systemName: "chevron.up.chevron.down").accessibilityHidden(true)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                    .contentShape(Rectangle())
-                }
-                .accessibilityLabel(title)
-                .accessibilityValue(current)
-            }
-        } else {
-            choices
-        }
+        StackingMenuPicker(title, selection: selection, options: options)
     }
 
     /// Sentence case for a stored value, matching the app's copy: "as_sold" reads "As sold".

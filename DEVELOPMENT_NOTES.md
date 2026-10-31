@@ -3170,6 +3170,16 @@ Boundary: `phase_usage.py --format claude --since 2026-10-30T14:01:18Z --until 2
 
 Token totals are not evidence of productivity, quality or provider efficiency.
 
+## WHR-337-2026-10-30: Claude Code "How you got it" whole at AX5 (#337)
+
+One `claude-opus-5-5` subagent, transcript `subagents/agent-a7df989ffa5015d6e.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`. The window runs from the subagent's first message (`2026-10-30T14:00:43Z`) to `2026-10-30T15:58:53Z`, just before this ledger edit (UTC). It covers reading the issue, PR #336 and the code, the shared stacking menu picker, the contract amendment, the tests (including a first hosted test that read the accessibility tree, replaced by a paged OCR render), the before and after renders in the iPhone 17 Pro simulator, and every gate (FoodLedgerKit run three times, one verbatim run exiting 1 with no failing test visible in the truncated output, then clean). The commit, push and PR fall after the window. The orchestrating session and any later review or journey QA are not included.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| "How you got it" whole at AX5 (#337), subagent | 9,735,248 (7,929,615) | 1,805,485 | 37,613 | 9,772,861 | $11.37 |
+
+`phase_usage.py --format claude --since 2026-10-30T14:00:43Z --until 2026-10-30T15:58:53Z` on the subagent transcript alone. Cache writes 1,805,485 5-minute, 0 1-hour; exact USD 11.3662. Pricing: the Claude Opus 5.5 rates recorded in WHR-93-2026-10-20q (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Rendered screenshots are image input inside the same transcript and are included. Token totals are not evidence of productivity, quality or provider efficiency.
+
 ## WHR-342-2026-10-30: Claude Code label photo session test crash (#342)
 
 One `claude-opus-5-5` subagent, transcript `subagents/agent-a58e4081a45d342c1.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`, for #342 (the intermittent signal 11 in `LabelPhotoReadSessionTests`, a racy held-attempt test double). The window runs from the subagent's first message (`2026-10-30T16:03:06Z`) to `2026-10-30T16:28:57Z` (a `date -u` capture just before this ledger edit). It covers reading the CI log, the repeated-run and Thread Sanitizer reproduction, filing the issue, the test double fix, the after-fix loops and the gate run. The commit, push and PR after this edit are outside the window. The orchestrating session is not included.

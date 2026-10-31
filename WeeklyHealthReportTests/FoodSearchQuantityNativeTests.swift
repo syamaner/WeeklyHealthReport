@@ -771,6 +771,75 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
         }
     }
 
+    /// #337: at AX5 the measured-weight "How you got it" value is drawn whole ("Kitchen scale", not
+    /// "Kitch…scale"), on its own full-width row under the title; at the default size it stays the
+    /// system picker row. Read back from the rendered pixels, since hosted SwiftUI text is not UIKit.
+    func testHowYouGotItKeepsItsWholeValueAtAccessibilitySizes() async throws {
+        for size in [DynamicTypeSize.large, .accessibility5] {
+            let search = try GenericFoodSearchViewModel(searcher: try CoFIDGenericFoodSearch(ids: NativeQuantityIDs()), locale: LedgerText("en_GB"))
+            search.query = "banana"; search.search()
+            let input = try XCTUnwrap(search.confirmation(at: 0))
+            let model = FoodConfirmationViewModel(state: FoodConfirmationState(input: input, queryQuantity: nil)) { _ in
+                throw CocoaError(.fileWriteUnknown)
+            }
+            model.chooseQuantityUnit(.count)
+            model.send(.setQuantity(1, .count))
+            model.send(.beginDirectWeight)
+            model.send(.setWeightBasis(.measured))
+            model.send(.setDirectWeight(150))
+
+            let host = NativeHostingController(rootView: NavigationStack {
+                FoodConfirmationView(model: model, leave: {}).environment(\.dynamicTypeSize, size)
+            })
+            let scene = try testScene()
+            let previous = scene.windows.first(where: \.isKeyWindow)
+            let window = UIWindow(windowScene: scene)
+            window.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+            window.rootViewController = host; window.makeKeyAndVisible()
+            defer { window.isHidden = true; previous?.makeKey() }
+            try await waitForHostAppearance(host, window: window)
+            try await Task.sleep(for: .milliseconds(250))
+            host.view.layoutIfNeeded()
+            // Page through the form a screen at a time and read each page's pixels.
+            let scroll = try XCTUnwrap(descendants(host.view).compactMap { $0 as? UIScrollView }
+                .max { $0.contentSize.height < $1.contentSize.height }, "\(size): the form scrolls")
+            var lines: [String] = []
+            var pages: [UIImage] = []
+            var offset = -scroll.adjustedContentInset.top
+            while true {
+                scroll.setContentOffset(CGPoint(x: 0, y: offset), animated: false)
+                try await Task.sleep(for: .milliseconds(150))
+                host.view.layoutIfNeeded()
+                let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
+                    window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+                }
+                pages.append(image)
+                let request = VNRecognizeTextRequest(); request.recognitionLevel = .accurate; request.usesLanguageCorrection = false
+                try VNImageRequestHandler(cgImage: XCTUnwrap(image.cgImage)).perform([request])
+                lines += (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
+                let end = scroll.contentSize.height + scroll.adjustedContentInset.bottom - scroll.bounds.height
+                if offset >= end || pages.count >= 40 { break }
+                offset = min(offset + scroll.bounds.height * 0.6, end)
+            }
+            let visible = lines.joined(separator: "\n")
+            let normalized = visible.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+            let title = FoodConfirmationView.ConversionFields.methodTitle
+            let value = FoodConfirmationView.weightBasisLabel(.measured)
+            XCTAssertTrue(normalized.contains(title), "\(size): \(visible)")
+            XCTAssertTrue(normalized.contains(value), "\(size): the whole method is drawn: \(visible)")
+            XCTAssertFalse(lines.contains { $0.contains("Kitch") && ($0.contains("…") || $0.contains("...")) },
+                           "\(size): the method is never cut mid-word: \(visible)")
+            if StackingMenuPickerLayout.stacks(at: size) {
+                // The value sits on its own row under the title, not beside it.
+                XCTAssertFalse(lines.contains { $0.contains(title) && $0.contains("Kitch") }, "\(size): \(visible)")
+            }
+            for (index, page) in pages.enumerated() {
+                let attachment = XCTAttachment(image: page); attachment.name = "How you got it \(size) page \(index + 1)"
+                attachment.lifetime = .keepAlways; add(attachment)
+            }
+        }
+    }
+
     /// Visual evidence for #196 with synthetic data only: Add food (recents, empty), Search results
     /// (searching, energy for the amount, basis-only, no result with "Not what you ate?") and Web
     /// lookup (match type unset with a disabled action, match type chosen). PNGs only with WHR_RENDER_DIR.

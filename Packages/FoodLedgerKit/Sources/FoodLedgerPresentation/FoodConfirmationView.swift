@@ -1027,6 +1027,11 @@ public struct FoodConfirmationView: View {
         }
     }
 
+    /// The measured-weight "How you got it" options: none chosen, then the count picker's words.
+    public static var weightBasisOptions: [(UserWeightBasis?, String)] {
+        [(nil, ConversionFields.chooseOne), (.measured, weightBasisLabel(.measured)), (.estimated, weightBasisLabel(.estimated))]
+    }
+
     /// VoiceOver reads what the weight field holds, as its placeholder says (journey QA D2 of PR #331).
     public static func directWeightAccessibilityLabel(usesPlate: Bool) -> String {
         usesPlate ? "Total food and plate weight in grams" : "Total edible weight in grams"
@@ -1523,13 +1528,10 @@ public struct FoodConfirmationView: View {
                 // plate", so the two inputs of one subtraction stay together (#332).
                 if !usesPlate { directWeightField }
                 // The count picker's words for the same two meanings (#318); stored values unchanged.
-                Picker(ConversionFields.methodTitle, selection: Binding<UserWeightBasis?>(
+                // The value wraps under its title at accessibility sizes (#337).
+                StackingMenuPicker(ConversionFields.methodTitle, selection: Binding<UserWeightBasis?>(
                     get: { model.state.quantity.directWeight?.basis },
-                    set: { model.send(.setWeightBasis($0)) })) {
-                    Text("Choose one").tag(UserWeightBasis?.none)
-                    Text(Self.weightBasisLabel(.measured)).tag(UserWeightBasis?.some(.measured))
-                    Text(Self.weightBasisLabel(.estimated)).tag(UserWeightBasis?.some(.estimated))
-                }
+                    set: { model.send(.setWeightBasis($0)) }), options: Self.weightBasisOptions)
                 ForEach(model.directWeightRequirements, id: \.self) { Text($0).font(.caption) }
                 if model.state.quantity.directWeight?.needsReconfirmation == true {
                     Button("Keep this weight") { model.send(.confirmRetainedWeight) }.frame(minHeight: 44)
@@ -1572,15 +1574,8 @@ public struct FoodConfirmationView: View {
                 .onChange(of: conversionUnit) { _, _ in updateConversion() }
                 // A closed choice (count-conversion-method-v1, #299); "Estimated by eye" is an
                 // estimated direct weight, never a measured conversion.
-                Picker(ConversionFields.methodTitle, selection: $conversionMethod) {
-                    Text("Choose one").tag(ConversionFields.MethodSelection?.none)
-                    if case let .recorded(text)? = conversionMethod {
-                        Text(ConversionFields.label(.recorded(text))).tag(ConversionFields.MethodSelection?.some(.recorded(text)))
-                    }
-                    ForEach(CountConversionMethod.allCases, id: \.self) { method in
-                        Text(ConversionFields.label(.choice(method))).tag(ConversionFields.MethodSelection?.some(.choice(method)))
-                    }
-                }
+                StackingMenuPicker(ConversionFields.methodTitle, selection: $conversionMethod,
+                                   options: ConversionFields.methodOptions(current: conversionMethod))
                 .onChange(of: conversionMethod) { _, selection in
                     if case .choice(.estimatedByEye)? = selection { useEstimateByEye() } else { updateConversion() }
                 }
@@ -1827,13 +1822,10 @@ public struct FoodConfirmationView: View {
                 .onChange(of: directWeightText) { _, value in model.send(.setDirectWeight(FoodAmountFieldText.parse(value, locale: locale))) }
                 .accessibilityLabel("\(ConversionFields.amountTitle) in grams")
             LabeledContent(ConversionFields.unitTitle, value: "g")
-            Picker(ConversionFields.methodTitle, selection: Binding<CountConversionMethod>(
+            StackingMenuPicker(ConversionFields.methodTitle, selection: Binding<CountConversionMethod>(
                 get: { .estimatedByEye },
-                set: { method in leaveEstimateByEye(for: method) })) {
-                ForEach(CountConversionMethod.allCases, id: \.self) { method in
-                    Text(ConversionFields.label(.choice(method))).tag(method)
-                }
-            }
+                set: { method in leaveEstimateByEye(for: method) }),
+                options: CountConversionMethod.allCases.map { ($0, ConversionFields.label(.choice($0))) })
             .accessibilityIdentifier("confirm.conversionMethod")
             if estimateFromMillilitres && model.state.quantity.directWeight?.totalGrams == nil {
                 Label(Self.estimateInMillilitres, systemImage: "exclamationmark.triangle").font(.caption)
@@ -2045,6 +2037,17 @@ public struct FoodConfirmationView: View {
             case .choice(.estimatedByEye): "Estimated by eye"
             case let .recorded(text): "Recorded: \(FoodLogText.conversionMethodLabel(text.value) ?? text.value)"
             }
+        }
+
+        public static let chooseOne = "Choose one"
+
+        /// The count "How you got it" options: none chosen, a recorded method only while it is the
+        /// current selection, then the v1 choices.
+        public static func methodOptions(current: MethodSelection?) -> [(MethodSelection?, String)] {
+            var options: [(MethodSelection?, String)] = [(nil, chooseOne)]
+            if case let .recorded(text)? = current { options.append((.recorded(text), label(.recorded(text)))) }
+            options += CountConversionMethod.allCases.map { (.choice($0), label(.choice($0))) }
+            return options
         }
 
         /// The label of a stored conversion method: the v1 label for a v1 code, else the stored text.
