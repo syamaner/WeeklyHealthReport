@@ -533,8 +533,8 @@ final class FoodLedgerCompositionRoot {
         let clock = confirmationClock
         let model = FoodLogViewModel(store: foodLogStore, now: { clock.now() }, calendar: confirmationCalendar)
         // Changing day dismisses the banner after Log without undoing (#361), so Undo is never
-        // offered while another day's log is shown; dismissing writes nothing.
-        model.userChangedDay = { [banner = loggedBanner] in banner.dismiss() }
+        // offered while another day's log is shown; an Undo already under way keeps its outcome.
+        model.userChangedDay = { [banner = loggedBanner] in banner.dismissUndoOffer() }
         return model
     }
 
