@@ -179,8 +179,13 @@ public final class FoodListImportViewModel: ObservableObject {
         // The app writes the portion itself, as canonical text (full stop decimal, no grouping),
         // and reads that line back under the convention it was written in, so every portion,
         // 0.125 included, is exact whatever the device locale; the line records that convention.
+        // food-list-lexical-v6 withholds a mass or volume written before a container ("250 ml mug
+        // of milk"). A saved name that starts with one ("Mug Shot pasta", "Glass of milk") is a food
+        // name, so the app joins its own usual portion to it with "of" and the portion is kept.
+        let joinsName = portion.map { $0.unit != .count } == true
+            && HouseholdContainerRule.leadingListContainer(in: name.trimmingCharacters(in: .whitespaces)) != nil
         let prefix = portion.map {
-            "\(FoodAmountTextParser.editableText($0.value)) \($0.unit == .grams ? "g" : $0.unit == .millilitres ? "ml" : FoodAmountNoun.count($0.value)) "
+            "\(FoodAmountTextParser.editableText($0.value)) \($0.unit == .grams ? "g" : $0.unit == .millilitres ? "ml" : FoodAmountNoun.count($0.value)) \(joinsName ? "of " : "")"
         } ?? ""
         let text = prefix + name
         let combined = input.isEmpty ? text : input + "\n" + text
@@ -191,9 +196,10 @@ public final class FoodListImportViewModel: ObservableObject {
         guard let last = parsed.last else { throw FoodListParser.ParseError.empty }
         var draft = FoodListLineDraft(parsed: last, operationID: try ids.makeID(OperationTag.self), evidenceID: try ids.makeID(EvidenceTag.self))
         // A saved name is a food name, not a pasted portion: when it starts with a vague portion
-        // word ("Pinch of Nom Lasagne", "Splash orange") v5 still gives no amount, but the search
-        // query keeps the whole saved name rather than losing brand words (food-list-lexical-v5).
-        if portion == nil, last.isV5, last.notices.contains(.householdMeasure) {
+        // word ("Pinch of Nom Lasagne", "Splash orange") or a container ("Cup of tea") v5 and v6
+        // still give no amount, but the search query keeps the whole saved name rather than
+        // losing brand words (food-list-lexical-v5, v6).
+        if portion == nil, last.isV5 || last.isV6, last.notices.contains(.householdMeasure) {
             draft.query = name.trimmingCharacters(in: .whitespaces)
         }
         restoring = true

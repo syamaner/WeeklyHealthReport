@@ -2,7 +2,7 @@
 
 Status: **Approved by the owner on 13 October 2026** through the UX review decisions (decision B3, [owner decisions comment on #140](https://github.com/syamaner/WeeklyHealthReport/issues/140#issuecomment-6137491843)). Implemented in the same PR.
 Programme: [#140](https://github.com/syamaner/WeeklyHealthReport/issues/140).
-Amends the parsing envelope in [food-list-import.md](food-list-import.md). Introduces the grammar identifier **`food-list-lexical-v5`**; `food-list-lexical-v4` ([contract](food-list-lexical-v4.md)) and `food-list-lexical-v3` stay defined and frozen.
+Amends the parsing envelope in [food-list-import.md](food-list-import.md). New lists have used [`food-list-lexical-v6`](food-list-lexical-v6.md) (household containers, #353) since 31 October 2026; v5 is frozen as `FoodListParser.parseV5`. Introduces the grammar identifier **`food-list-lexical-v5`**; `food-list-lexical-v4` ([contract](food-list-lexical-v4.md)) and `food-list-lexical-v3` stay defined and frozen.
 
 ## Problem
 

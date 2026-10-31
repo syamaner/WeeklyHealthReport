@@ -79,7 +79,9 @@ whole word matches), and "pot noodle" and "glass noodles" clarify as they did un
 `food-query-parser-v10` and `food-query-interpretation-v3` are code constants and are not
 stored in food records, evidence or exports, so there is nothing to migrate. The list grammar
 (`FoodListParser`, `food-list-lexical-v5`) already treats "mug" and "mugs" as household
-measures and is unchanged.
+measures and is unchanged by this change. Later, #353 moved the container guards above into
+`FoodLedgerDomain.HouseholdContainerRule`, which search and `food-list-lexical-v6` now share
+([list lexical v6](food-list-lexical-v6.md)); search behaviour is unchanged by that move.
 
 ## Evaluation
 
