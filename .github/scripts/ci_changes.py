@@ -43,6 +43,8 @@ CODE_READ_DOCS = {
     "docs/food-list-lexical-v4.md",
     "docs/food-list-lexical-v5.md",
     "docs/food-list-lexical-v6.md",
+    # Cited by the shared household container rule (food-list-lexical-v6, interpretation v3).
+    "docs/food-query-parser-v10.md",
     # Cited by the shared lexical policy (food-lexical-terms-v9), its tests and CI.
     "docs/food-lexical-terms-v9.md",
     # Cited by the Health follow-ups (#214 to #217), their tests and Developer tools.
