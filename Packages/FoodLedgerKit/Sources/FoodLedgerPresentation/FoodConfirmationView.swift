@@ -634,9 +634,14 @@ public final class FoodConfirmationViewModel: ObservableObject {
 
     /// The Source footer. A pasted label never suggests another match: an editable reading points
     /// to Edit label text and corrections; a re-log or favourite to pasting the label again (D3).
+    /// Edit food has no other match and is already logged, so it points to its own Food details
+    /// button above (#350).
     public var sourceFooter: String {
+        if state.reopened != nil {
+            return "Need to correct the food itself? Use \(foodDetailsActionTitle ?? Self.correctFoodDetailsTitle) above."
+        }
         let pasted = PastedLabelFortificationPolicy.isPastedLabel(state.input, candidate: state.selectedCandidate)
-        guard pasted, state.reopened == nil else {
+        guard pasted else {
             return "Need to correct the food itself? Choose a different match, or edit the details from the entry after logging."
         }
         return state.answersLabelFortification ? PastedLabelText.sourceFooter : PastedLabelText.sourceFooterStored
