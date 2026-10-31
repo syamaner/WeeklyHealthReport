@@ -397,8 +397,8 @@ final class PastedLabelBasisChoicePresentationTests: XCTestCase {
         XCTAssertTrue(FoodConfirmationView.showsBeforeLog(pinsOnlyLog: true, warningCount: 1, hasBlockedReason: false, hasEstimate: false))
         XCTAssertFalse(FoodConfirmationView.showsBeforeLog(pinsOnlyLog: false, warningCount: 2, hasBlockedReason: true, hasEstimate: true))
         XCTAssertEqual(FoodConfirmationView.pinnedBlockedReason, "Not ready to log yet. See “Before you log” below.")
-        XCTAssertEqual(FoodConfirmationView.pinnedReason(isAccessibilitySize: false), FoodConfirmationView.pinnedBlockedReason)
-        XCTAssertEqual(FoodConfirmationView.pinnedReason(isAccessibilitySize: true), "Not ready to log")
+        XCTAssertEqual(FoodConfirmationView.pinnedReason(isAccessibilitySize: false, blockedOnlyByNoChanges: false), FoodConfirmationView.pinnedBlockedReason)
+        XCTAssertEqual(FoodConfirmationView.pinnedReason(isAccessibilitySize: true, blockedOnlyByNoChanges: false), "Not ready to log")
     }
 
     func testAnEmptyTextHeaderIsNamedByItsBasisLabel() {

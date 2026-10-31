@@ -90,6 +90,7 @@ public struct FoodDetailsDraft: Equatable, Sendable {
     /// break keeps the previous text and reports `finishes`. Pasted line breaks become spaces.
     ///
     /// The returned text is what both the field shows and the draft stores, so they never drift.
+    /// The other text fields follow the same rule while they wrap at accessibility sizes (#346).
     /// Any inserted line break finishes the field:
     /// - Return, at the caret or over a selection, keeps the previous text unchanged;
     /// - a paste containing line breaks keeps the pasted text with each line break (and the spaces
@@ -209,15 +210,17 @@ public struct FoodDetailsForm: View {
         if edit.finishes { reasonFocused = false }
     }
 
+    /// At accessibility text sizes the single-line fields (Product name, Brand, Variant, Packing
+    /// medium) wrap a long value instead of truncating it ("USDA · US c…", #346); standard sizes
+    /// keep the one-line field.
+    public static func wrapsFields(at size: DynamicTypeSize) -> Bool { size.isAccessibilitySize }
+    /// Lines a wrapping field may grow to before it scrolls, as the search query field (#315).
+    public static let wrappedFieldLineLimit = 1...6
+
     /// A text field with its name shown above it, so a filled field keeps its label (and neither
     /// truncates at the largest text sizes); the field itself only holds a short prompt.
     private func labelledField(_ title: String, _ text: Binding<String>, prompt: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title).accessibilityHidden(true)
-            TextField(title, text: text, prompt: Text(prompt))
-                .frame(minHeight: 44)
-                .accessibilityLabel(title)
-        }
+        FoodDetailsTextField(title: title, text: text, prompt: prompt)
     }
 
     /// The reason keeps a visible label above the field, so neither truncates at the largest text
@@ -253,5 +256,45 @@ public struct FoodDetailsForm: View {
     public static func label(_ value: String) -> String {
         let words = value.replacingOccurrences(of: "_", with: " ").lowercased()
         return words.prefix(1).uppercased() + words.dropFirst()
+    }
+}
+
+/// One Food details text field with its title shown above it (#285). At accessibility sizes the
+/// field wraps a long value (#346); a wrapping field takes Return as a line break, so a typed
+/// Return (labelled Done) finishes editing instead, and a pasted line break becomes a space, by
+/// the reason field's rule. VoiceOver reads the title as the label; the field keeps a 44 pt target.
+struct FoodDetailsTextField: View {
+    let title: String
+    @Binding var text: String
+    let prompt: String
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).accessibilityHidden(true)
+            field
+                .focused($focused)
+                .frame(minHeight: 44)
+                .accessibilityLabel(title)
+        }
+    }
+
+    @ViewBuilder
+    private var field: some View {
+        if FoodDetailsForm.wrapsFields(at: dynamicTypeSize) {
+            TextField(title, text: $text, prompt: Text(prompt), axis: .vertical)
+                .lineLimit(FoodDetailsForm.wrappedFieldLineLimit)
+                .submitLabel(.done)
+                .onChange(of: text) { old, new in
+                    // Only the user's own edits are rewritten; a value set from code is kept.
+                    guard focused else { return }
+                    let edit = FoodDetailsDraft.reasonEdit(from: old, to: new)
+                    if edit.text != new { text = edit.text }
+                    if edit.finishes { focused = false }
+                }
+        } else {
+            TextField(title, text: $text, prompt: Text(prompt))
+        }
     }
 }

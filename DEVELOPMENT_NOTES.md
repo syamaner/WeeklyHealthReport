@@ -3193,3 +3193,16 @@ Pricing: the Claude Opus 5.5 rates recorded in WHR-316-2026-10-25-L1A (USD 4/M b
 Boundary: `phase_usage.py --format claude --since 2026-10-30T16:03:06Z --until 2026-10-30T16:28:57Z` on the subagent transcript alone. Cache writes 327,146 5-minute, 0 1-hour; exact USD 3.2632314. Local Swift builds, test loops and sanitiser runs use no API tokens and are not priced.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-346-2026-10-31: Claude Code AX5 Food details fields and Save bar line (#346, #347)
+
+One `claude-opus-5-5` subagent, transcript `subagents/agent-a8372b57560224778.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`, with the two reviewers it launched in parallel: `invariant-reviewer` (`subagents/agent-a5d4933834a17a5d5.jsonl`) and `journey-qa` (`subagents/agent-a8fad306f52da7a59.jsonl`). The window runs from the subagent's first message (`2026-10-31T01:42:42Z`) to `2026-10-31T02:21:30Z`, just before this ledger edit (UTC). It covers waiting for PR #341, reading both issues and the code, the wrapping Food details field and the pinned line change, the presentation and hosted OCR tests (with one deliberate negative run against the one-line field), both reviews, the fold of the reviewer's question and every gate. The commit, push and PR fall after the window. The orchestrating session is not included.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| AX5 Food details fields and Save bar line (#346, #347), implementing subagent | 8,193,202 (7,608,501) | 584,561 | 36,800 | 8,230,002 | $5.18 |
+| Invariant review | 90,397 (61,530) | 28,859 | 3,846 | 94,243 | $0.23 |
+| Journey QA (simulator, screenshots as image input) | 8,781,927 (8,552,826) | 228,975 | 29,558 | 8,811,485 | $3.45 |
+| **Subtotal** | 17,065,526 (16,222,857) | 842,395 | 70,204 | 17,135,730 | $8.86 |
+
+`phase_usage.py --format claude --since 2026-10-31T01:42:42Z --until 2026-10-31T02:21:30Z` on each transcript separately; all cache writes are 5-minute, 0 1-hour; exact USD 5.1810652, 0.233553 and 3.4471042 (8.8617224 in total). Pricing: the Claude Opus 5.5 rates recorded in WHR-93-2026-10-20q (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Local builds, simulator runs and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.

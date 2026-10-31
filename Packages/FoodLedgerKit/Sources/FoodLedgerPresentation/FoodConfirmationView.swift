@@ -541,6 +541,12 @@ public final class FoodConfirmationViewModel: ObservableObject {
 
     public static let noChangesReason = "No changes to save"
 
+    /// Whether the only thing keeping Save changes disabled is that nothing has changed yet: no
+    /// requirement and no source blocker. Presentation only; `canLog` is unchanged (#347).
+    public var isBlockedOnlyByNoChanges: Bool {
+        !hasChangesToSave && requirements.isEmpty && sourceBlocker == nil
+    }
+
     /// Edit mode only: Save changes waits for a difference from the stored version. Presentation
     /// gating; the service still accepts an unchanged save (#197, F2).
     public var hasChangesToSave: Bool { state.reopened == nil || FoodLogPolicy.editChanges(state) }
@@ -1394,8 +1400,12 @@ public struct FoodConfirmationView: View {
     /// QA); the full reason is in "Before you log".
     public static let pinnedBlockedReasonCompact = "Not ready to log"
 
-    public static func pinnedReason(isAccessibilitySize: Bool) -> String {
-        isAccessibilitySize ? pinnedBlockedReasonCompact : pinnedBlockedReason
+    /// The pinned line beside a disabled Log. An unchanged reopened entry says "No changes to save"
+    /// at every size, as the default-size bar does; the "Not ready to log" lines are only for a
+    /// requirement or source that blocks Log (#347).
+    public static func pinnedReason(isAccessibilitySize: Bool, blockedOnlyByNoChanges: Bool) -> String {
+        if blockedOnlyByNoChanges { return FoodConfirmationViewModel.noChangesReason }
+        return isAccessibilitySize ? pinnedBlockedReasonCompact : pinnedBlockedReason
     }
 
     /// Whether "Before you log" has anything to show; an empty section is never rendered.
@@ -1403,9 +1413,12 @@ public struct FoodConfirmationView: View {
         pinsOnlyLog && (warningCount > 0 || hasBlockedReason || hasEstimate)
     }
 
+    /// "No changes to save" is already the whole pinned line, so "Before you log" does not repeat it.
+    private var beforeLogReason: String? { model.isBlockedOnlyByNoChanges ? nil : logBarReason }
+
     private var showsBeforeLog: Bool {
         Self.showsBeforeLog(pinsOnlyLog: pinsOnlyLog, warningCount: pastedLabel?.warnings.count ?? 0,
-                            hasBlockedReason: model.blockedReason != nil, hasEstimate: model.volumeEstimateLogBarAction != nil)
+                            hasBlockedReason: beforeLogReason != nil, hasEstimate: model.volumeEstimateLogBarAction != nil)
     }
 
     /// The bar's warnings, hint and estimate as the last content section when only Log is pinned.
@@ -1414,7 +1427,7 @@ public struct FoodConfirmationView: View {
         Section("Before you log") {
             logWarnings
             estimateButton
-            if let reason = logBarReason {
+            if let reason = beforeLogReason {
                 Label(reason, systemImage: "info.circle")
                     .font(.footnote)
                     .fixedSize(horizontal: false, vertical: true)
@@ -1455,7 +1468,8 @@ public struct FoodConfirmationView: View {
                     blockedReasonText
                 } else if model.blockedReason != nil {
                     // Beside the disabled Log, one short line (it may wrap); the full hint scrolls.
-                    Text(Self.pinnedReason(isAccessibilitySize: dynamicTypeSize.isAccessibilitySize)).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                    Text(Self.pinnedReason(isAccessibilitySize: dynamicTypeSize.isAccessibilitySize,
+                                           blockedOnlyByNoChanges: model.isBlockedOnlyByNoChanges)).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }

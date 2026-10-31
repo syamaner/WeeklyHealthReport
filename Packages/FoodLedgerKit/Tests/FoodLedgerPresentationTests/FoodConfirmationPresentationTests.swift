@@ -696,6 +696,18 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         XCTAssertEqual(model.foodDetailsActionTitle, before)
     }
 
+    /// #346: the single-line Food details fields wrap at accessibility sizes only, with the search
+    /// field's line limit, and Return finishes a wrapping field without adding a line break.
+    func testFoodDetailsFieldsWrapAtAccessibilitySizesOnly() {
+        XCTAssertFalse(FoodDetailsForm.wrapsFields(at: .large))
+        XCTAssertFalse(FoodDetailsForm.wrapsFields(at: .xxxLarge))
+        XCTAssertTrue(FoodDetailsForm.wrapsFields(at: .accessibility1))
+        XCTAssertTrue(FoodDetailsForm.wrapsFields(at: .accessibility5))
+        XCTAssertEqual(FoodDetailsForm.wrappedFieldLineLimit, FoodSearchFieldText.wrappedQueryLineLimit)
+        let variant = "USDA · US commercial, frozen"
+        XCTAssertTrue(FoodDetailsDraft.reasonEdit(from: variant, to: variant + "\n") == (variant, true))
+    }
+
     /// D4: picker values read in sentence case, like the rest of the copy.
     func testFoodDetailsValuesUseSentenceCase() {
         XCTAssertEqual(FoodDetailsForm.label(PreparationKind.asSold.rawValue), "As sold")
