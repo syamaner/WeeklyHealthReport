@@ -1390,6 +1390,68 @@ extension QuickAddAppTests {
                      "the removed water leaves the day")
     }
 
+    /// #355: the banner's Undo action (the closure both the visible Undo button and the VoiceOver
+    /// Undo action call, built from the live model) removes exactly the entry just logged, at the
+    /// standard and an accessibility text size, while the visible duration (5 s, or 10 s at
+    /// accessibility sizes) is still running, and signals the Food Log and Home to reload. The
+    /// banner is hosted in a window so its environment sets the duration; the expiry is held open,
+    /// so the result does not depend on tap timing. Hit testing on device is checked in the
+    /// simulator, not here. A wrong expected version is rejected by the store (pinned by the
+    /// management service's stale-version contract tests), so it would show "Entry unchanged".
+    func testBannerUndoControlRemovesTheLoggedEntryAtStandardAndAccessibilitySizes() throws {
+        for size in [DynamicTypeSize.large, .accessibility5] {
+            let root = try makeRoot()
+            let sleeps = BannerSleeps()
+            let banner = FoodLoggedBannerModel(store: root.foodLogStore, sleep: { await sleeps.hold($0) }, announce: { _ in })
+            let host = UIHostingController(rootView: FoodLoggedBanner(model: banner).environment(\.dynamicTypeSize, size))
+            let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+            let window = UIWindow(windowScene: scene)
+            window.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
+            window.rootViewController = host
+            window.makeKeyAndVisible()
+            addTeardownBlock { window.isHidden = true }
+            Self.runUntil { banner.usesAccessibilityTextSize == size.isAccessibilitySize }
+            XCTAssertEqual(banner.visibleDuration, size.isAccessibilitySize ? .seconds(10) : .seconds(5), "\(size)")
+
+            let model = try newEntry(root, "Synthetic rice \(size)")
+            XCTAssertTrue(FoodConfirmationView.logTapped(model, leave: {}, logged: banner.show))
+            let saved = try XCTUnwrap(model.savedResult)
+            let day = saved.logItemVersion.reportingDate.value
+            XCTAssertEqual(try root.foodLogService.day(reportingDate: day).entries.map(\.logItemID), [saved.logItem.logItemID])
+            Self.runUntil { sleeps.values.contains(banner.visibleDuration) }
+            XCTAssertEqual(sleeps.values.filter { $0 == banner.visibleDuration }.count, 1, "\(size): one visible duration, still running")
+            let rendered = try XCTUnwrap(Self.renderedBanner(banner), "\(size): the banner renders")
+            XCTAssertTrue(rendered.content.offersUndo, "\(size): Undo is offered while the duration runs")
+            XCTAssertEqual(FoodLoggedBannerContent.accessibilityActionNames(rendered.content), ["Undo", "Dismiss"])
+
+            rendered.undo()
+            Self.runUntil { banner.content == .result(FoodLoggedText.removed) }
+            XCTAssertEqual(banner.content, .result(FoodLoggedText.removed), "\(size)")
+            XCTAssertEqual(banner.removals, 1, "\(size): the Food Log and Home reload")
+            let after = try root.foodLogService.day(reportingDate: day)
+            XCTAssertTrue(after.entries.isEmpty, "\(size)")
+            XCTAssertEqual(after.removed.map(\.logItemID), [saved.logItem.logItemID], "\(size): only that entry")
+            XCTAssertEqual(try root.foodLogService.historyEvents(saved.logItem.logItemID).map(\.kind), [.removed, .logged],
+                           "\(size): one removed version over the logged one")
+            let afterUndo = try XCTUnwrap(Self.renderedBanner(banner), "\(size)")
+            XCTAssertFalse(afterUndo.content.offersUndo, "\(size): no second Undo")
+            afterUndo.undo()
+            Self.runUntil(seconds: 0.3) { false }
+            XCTAssertEqual(banner.removals, 1, "\(size): a second tap writes nothing")
+            XCTAssertEqual(try root.foodLogService.historyEvents(saved.logItem.logItemID).count, 2, "\(size)")
+            window.isHidden = true
+        }
+    }
+
+    /// The banner's rendered content and the Undo action it was built with: the one closure both
+    /// the visible Undo button and the VoiceOver Undo action call. Nil while no banner shows.
+    private static func renderedBanner(_ banner: FoodLoggedBannerModel) -> (content: FoodLoggedBannerModel.Content, undo: () -> Void)? {
+        guard let view = firstDescendant(of: FoodLoggedBanner(model: banner).body, ofType: FoodLoggedBannerContent.self),
+              let content = Mirror(reflecting: view).descendant("content") as? FoodLoggedBannerModel.Content,
+              let undo = Mirror(reflecting: view).descendant("undo") as? () -> Void else { return nil }
+        return (content, undo)
+    }
+
     func testBannerRendersAtStandardAndAccessibilitySizesInLightAndDark() throws {
         let notice = FoodLoggedNotice(logItemID: try LogItemID("00000000-0000-0000-0000-000000000001"),
             logItemVersionID: try LogItemVersionID("00000000-0000-0000-0000-000000000002"),
@@ -1468,6 +1530,24 @@ extension QuickAddAppTests {
             if let match = firstDescendant(of: child.value, ofType: T.self, depth: depth + 1) { return match }
         }
         return nil
+    }
+}
+
+/// Records each banner sleep and holds the visible durations open, so none ends during the test;
+/// shorter sleeps (the announcement delay) return at once.
+@MainActor
+private final class BannerSleeps {
+    private(set) var values: [Duration] = []
+
+    nonisolated func hold(_ duration: Duration) async {
+        guard await record(duration) else { return }
+        try? await Task.sleep(for: .seconds(3600))
+    }
+
+    /// True for a visible duration, which is held.
+    private func record(_ duration: Duration) -> Bool {
+        values.append(duration)
+        return duration >= FoodLoggedBannerModel.visibleDuration
     }
 }
 

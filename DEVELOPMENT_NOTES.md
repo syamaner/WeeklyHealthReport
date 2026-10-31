@@ -3219,3 +3219,15 @@ One `claude-opus-5-5` subagent, transcript `subagents/agent-a9b71be8de1e6199f.js
 | **Subtotal** | 46,121,588 (42,896,662) | 3,224,430 | 151,635 | 46,273,223 | $27.74 |
 
 `phase_usage.py --format claude --since 2026-10-31T02:25:52Z --until 2026-10-31T04:00:36Z` on each transcript separately; all cache writes are 5-minute, 0 1-hour; exact USD 10.7257932, 0.684979 and 16.3253942 (27.7361664 in total). Pricing: the Claude Opus 5.5 rates recorded in WHR-93-2026-10-20q (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Local builds, simulator runs and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-355-2026-10-31: Claude Code Logged banner Undo recheck and regression test (#355)
+
+One `claude-opus-5-5` subagent, transcript `subagents/agent-aa89c64bd352d0a4a.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`, with the `invariant-reviewer` it launched (`subagents/agent-a358b519b6341f71d.jsonl`). `journey-qa` was not launched because no UI behaviour changed. The window runs from the subagent's start (`2026-10-31T04:58:00Z`) to `2026-10-31T06:09:55Z`, just before this ledger edit (UTC). It covers reading the issue, the banner, its callers and the remove path, the simulator recheck at Large and AX5 (with a screen recording, and removing the synthetic entries afterwards), the hosted regression test (one attempt through the accessibility tree that SwiftUI does not expose in hosted tests, then the rendered banner's Undo closure), the review and its fold, and every gate. The commit, push and PR fall after the window. The orchestrating session is not included.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Logged banner Undo recheck and regression test (#355), implementing subagent (simulator, screenshots as image input) | 26,881,704 (25,718,280) | 1,163,092 | 73,405 | 26,955,109 | $12.43 |
+| Invariant review | 145,344 (111,714) | 33,618 | 6,366 | 151,710 | $0.32 |
+| **Subtotal** | 27,027,048 (25,829,994) | 1,196,710 | 79,771 | 27,106,819 | $12.75 |
+
+`phase_usage.py --format claude --since 2026-10-31T04:58:00Z --until 2026-10-31T06:09:55Z` on each transcript separately; all cache writes are 5-minute, 0 1-hour; exact USD 12.428544 and 0.3178008 (12.7463448 in total). Pricing: the Claude Opus 5.5 rates recorded in WHR-93-2026-10-20q (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Local builds, simulator runs and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
