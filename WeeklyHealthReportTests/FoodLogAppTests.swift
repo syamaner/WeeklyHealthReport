@@ -359,6 +359,50 @@ final class FoodLogAppTests: XCTestCase {
         }
     }
 
+    /// #363: the Add food label is centred in its button at every Dynamic Type size, as the Food
+    /// Log lays it out (a full-width row in a Form). Rendered dark, so the label is the only white
+    /// ink; its ink must sit evenly about the window's centre, as the row's margins are equal.
+    func testFoodLogAddFoodLabelIsCentredAtEverySize() throws {
+        let width: CGFloat = 390
+        for size in DynamicTypeSize.allCases {
+            let controller = UIHostingController(rootView: Form { Section { FoodLogAddFoodButton {} } }
+                .environment(\.dynamicTypeSize, size))
+            let window = UIWindow(frame: CGRect(x: 0, y: 0, width: width, height: 600))
+            window.overrideUserInterfaceStyle = .dark
+            window.rootViewController = controller
+            window.isHidden = false
+            RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format)
+                .image { window.layer.render(in: $0.cgContext) }
+            window.isHidden = true
+            let (left, right) = try XCTUnwrap(Self.whiteInkColumns(try XCTUnwrap(image.cgImage)), "\(size) draws no label")
+            let leading = CGFloat(left), trailing = width - 1 - CGFloat(right)
+            // Glyph side bearings and pixel rounding move the ink by a point or two; the defect
+            // moved it 18 pt (default) to 40 pt (AX5).
+            XCTAssertEqual((leading - trailing) / 2, 0, accuracy: 3,
+                           "Add food is off-centre at \(size): \(leading) pt left, \(trailing) pt right")
+        }
+    }
+
+    /// The first and last pixel columns with near-white ink.
+    private static func whiteInkColumns(_ image: CGImage) -> (Int, Int)? {
+        let width = image.width, height = image.height
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+        guard let context = CGContext(data: &pixels, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+                                      space: CGColorSpaceCreateDeviceRGB(),
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        func isWhite(_ x: Int, _ y: Int) -> Bool {
+            let i = (y * width + x) * 4
+            return pixels[i] > 200 && pixels[i + 1] > 200 && pixels[i + 2] > 200
+        }
+        let columns = (0..<width).filter { x in (0..<height).contains { isWhite(x, $0) } }
+        guard let first = columns.first, let last = columns.last else { return nil }
+        return (first, last)
+    }
+
     // MARK: Single post-save exit
 
     /// After a save, Confirm offers exactly one exit, labelled by its host, and no back button,
