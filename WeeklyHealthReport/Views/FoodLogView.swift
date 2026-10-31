@@ -215,14 +215,7 @@ struct FoodLogView: View {
 
     private var addFoodButtonSection: some View {
         Section {
-            // A Button, not a NavigationLink: inside a Form a link ignores the button style.
-            Button { navigation.openAddFood(fromFoodLogDay: model.addFoodDayKey) } label: {
-                Label("Add food", systemImage: "plus").font(.headline)
-                    .frame(maxWidth: .infinity, minHeight: 50)
-            }
-            .buttonStyle(.borderedProminent)
-            .listRowInsets(EdgeInsets())
-            .listRowBackground(Color.clear)
+            FoodLogAddFoodButton { navigation.openAddFood(fromFoodLogDay: model.addFoodDayKey) }
         } footer: {
             if let footnote = model.addFoodFootnote { Text(footnote) }
         }
@@ -303,4 +296,32 @@ struct FoodLogView: View {
     }
 
     private func time(_ date: Date) -> String { FoodLogText.time(date, calendar: model.calendar) }
+}
+
+/// The Food Log's Add food button, a full-width row in its own section. Kept as its own view so
+/// its centring is tested at every text size (#363).
+struct FoodLogAddFoodButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        // A Button, not a NavigationLink: inside a Form a link ignores the button style.
+        Button(action: action) {
+            FoodLogAddFoodLabel().frame(maxWidth: .infinity, minHeight: 50)
+        }
+        .buttonStyle(.borderedProminent)
+        .listRowInsets(EdgeInsets())
+        .listRowBackground(Color.clear)
+    }
+}
+
+/// Icon and title drawn as one centred group (#363). A `Label` here takes the Form's row label
+/// style, which reserves the icon's column but drew no icon, so the title sat right of centre.
+struct FoodLogAddFoodLabel: View {
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "plus").accessibilityHidden(true)
+            Text("Add food").multilineTextAlignment(.center)
+        }
+        .font(.headline)
+    }
 }

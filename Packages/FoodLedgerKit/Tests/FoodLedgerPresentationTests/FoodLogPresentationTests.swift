@@ -159,6 +159,32 @@ final class FoodLogPresentationTests: XCTestCase {
         XCTAssertEqual(model.selectedKey, model.navigation.todayKey)
     }
 
+    /// #361: only a day change the user asks for is reported (so the banner after Log can be
+    /// dismissed); the focus day Done selects, reloads, midnight re-anchors and no-op moves are not.
+    func testOnlyUserDayChangesAreReported() async throws {
+        let world = try World(now: now, calendar: calendar)
+        let model = FoodLogViewModel(store: world.store, now: { [now] in now }, calendar: calendar)
+        var reports = 0
+        model.userChangedDay = { reports += 1 }
+        await model.load()
+        await model.refreshAfterTimeChange()
+        await model.nextDay()
+        await model.returnToToday()
+        await model.choose(now.addingTimeInterval(5 * 86_400))
+        XCTAssertEqual(reports, 0, "a reload, a re-anchor, or a move that stays on today is not a day change")
+        await model.showDay("2023-11-10")
+        XCTAssertEqual(reports, 0, "the focus day after Done is not a user day change")
+        await model.previousDay()
+        XCTAssertEqual(reports, 1)
+        await model.nextDay()
+        XCTAssertEqual(reports, 2)
+        await model.choose(now.addingTimeInterval(-3 * 86_400))
+        XCTAssertEqual(reports, 3)
+        await model.returnToToday()
+        XCTAssertEqual(reports, 4)
+        XCTAssertTrue(model.isToday)
+    }
+
     /// D9: the alert's dismissal clears the pending entry before the Remove task runs; the
     /// removal must still be written for the captured entry.
     func testRemovalIsWrittenWhenDismissalClearsThePendingEntryFirst() async throws {

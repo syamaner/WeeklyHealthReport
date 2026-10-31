@@ -904,6 +904,49 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
         }
     }
 
+    /// #352: every Food details text field (Product name, Brand, Variant, Packing medium and the
+    /// reason) offers Done rather than Return, at the default text size and at AX5, read from the
+    /// hosted UIKit fields' return key.
+    func testFoodDetailsFieldsOfferDoneAtEverySize() async throws {
+        for size in [DynamicTypeSize.large, .accessibility5] {
+            let search = try GenericFoodSearchViewModel(searcher: try CoFIDGenericFoodSearch(ids: NativeQuantityIDs()), locale: LedgerText("en_GB"))
+            search.query = "banana"; search.search()
+            let input = try XCTUnwrap(search.confirmation(at: 0))
+            let model = FoodConfirmationViewModel(state: FoodConfirmationState(input: input, queryQuantity: nil)) { _ in
+                throw CocoaError(.fileWriteUnknown)
+            }
+            let host = NativeHostingController(rootView: NavigationStack {
+                FoodDetailsForm(model: model, draft: .constant(FoodDetailsDraft(model: model)), applied: {})
+                    .environment(\.dynamicTypeSize, size)
+            })
+            let scene = try testScene()
+            let previous = scene.windows.first(where: \.isKeyWindow)
+            let window = UIWindow(windowScene: scene)
+            window.frame = CGRect(x: 0, y: 0, width: 390, height: 6000)
+            window.rootViewController = host; window.makeKeyAndVisible()
+            defer { window.isHidden = true; previous?.makeKey() }
+            try await waitForHostAppearance(host, window: window)
+            try await Task.sleep(for: .milliseconds(250))
+            host.view.layoutIfNeeded()
+            let views = descendants(host.view)
+            let lines = views.compactMap { $0 as? UITextField }
+            let wrapping = views.compactMap { $0 as? UITextView }.filter(\.isEditable)
+            if FoodDetailsForm.wrapsFields(at: size) {
+                XCTAssertEqual(wrapping.count, 5, "\(size): the four wrapping fields and the reason")
+                XCTAssertTrue(lines.isEmpty, "\(size): no one-line field remains")
+            } else {
+                XCTAssertEqual(lines.count, 4, "\(size): Product name, Brand, Variant and Packing medium")
+                XCTAssertEqual(wrapping.count, 1, "\(size): the reason")
+            }
+            for field in lines {
+                XCTAssertEqual(field.returnKeyType, .done, "\(size): \(field.accessibilityLabel ?? "field")")
+            }
+            for field in wrapping {
+                XCTAssertEqual(field.returnKeyType, .done, "\(size): \(field.accessibilityLabel ?? "field")")
+            }
+        }
+    }
+
     /// Visual evidence for #196 with synthetic data only: Add food (recents, empty), Search results
     /// (searching, energy for the amount, basis-only, no result with "Not what you ate?") and Web
     /// lookup (match type unset with a disabled action, match type chosen). PNGs only with WHR_RENDER_DIR.

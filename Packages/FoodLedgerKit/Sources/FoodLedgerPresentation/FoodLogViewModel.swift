@@ -46,6 +46,10 @@ public final class FoodLogViewModel: ObservableObject {
     /// Loads started and not yet finished (superseded ones included).
     private var loadsInFlight = 0
     private let sleep: @Sendable (Duration) async -> Void
+    /// Called when the user moves to another day (chevrons, Return to today, the date picker), so
+    /// the screen can dismiss the banner after Log (#361). Not called for the focus day that Done
+    /// selects, a reload or a midnight re-anchor. It must never write anything.
+    public var userChangedDay: (@MainActor () -> Void)?
 
     public convenience init(store: any FoodLogStore, now: @escaping @Sendable () -> Date, calendar: Calendar,
                             sleep: @escaping @Sendable (Duration) async -> Void = { try? await Task.sleep(for: $0) }) {
@@ -129,16 +133,23 @@ public final class FoodLogViewModel: ObservableObject {
     }
 
     public func previousDay() async {
-        if let key = navigation.previous(selectedKey) { await showDay(key) }
+        if let key = navigation.previous(selectedKey) { await userShowsDay(key) }
     }
 
     public func nextDay() async {
-        if let key = navigation.next(selectedKey) { await showDay(key) }
+        if let key = navigation.next(selectedKey) { await userShowsDay(key) }
     }
 
-    public func returnToToday() async { await showDay(navigation.todayKey) }
+    public func returnToToday() async { await userShowsDay(navigation.todayKey) }
 
-    public func choose(_ date: Date) async { await showDay(navigation.clampedKey(for: date)) }
+    public func choose(_ date: Date) async { await userShowsDay(navigation.clampedKey(for: date)) }
+
+    /// A day change the user asked for: tells `userChangedDay` before loading, only when the
+    /// selected day actually changes.
+    private func userShowsDay(_ key: String) async {
+        if min(key, navigation.todayKey) != selectedKey { userChangedDay?() }
+        await showDay(key)
+    }
 
     /// Re-anchors on today after midnight or a time-zone change when the day shown was today at
     /// the last load; a past day stays selected, and no day after today is kept.
