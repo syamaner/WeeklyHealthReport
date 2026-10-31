@@ -38,7 +38,7 @@ A container is recognised only at the start of the food text, in the four amount
 | Position | Example | v6 result |
 |---|---|---|
 | After a leading count, word number or article (optionally `x`) | `2 mugs of tea`, `a pot of yoghurt`, `two mugs of hot chocolate`, `2 x mugs of tea` | no amount, `householdMeasure`, query `tea`, `yoghurt`, `hot chocolate`, `tea` |
-| After a leading mass or volume | `250 ml mug of milk`, `200 g pot of yoghurt` | no amount and no unit, `householdMeasure`, query `milk`, `yoghurt` |
+| After a leading mass or volume, with or without "of" | `250 ml mug of milk`, `250 ml of mug of milk`, `200 g pot of yoghurt` | no amount and no unit, `householdMeasure`, query `milk`, `milk`, `yoghurt` |
 | Before a single trailing mass or volume | `mug of milk 250 ml` | as the row above |
 | With no amount | `mugs of tea`, `glass of milk` | `householdMeasure` instead of `missingQuantity`, query `tea`, `milk` |
 
@@ -51,6 +51,7 @@ A vague portion (v5) is checked first, so "a handful of" lines are exactly as v5
 - "a mug cake", "2 mug cakes", "mug cake" and "200 g mug cake" parse as v5 (the household-measure notice where v5 gives it, and the food text kept).
 - Glasses, pots and packs without "of" parse as v5: "a pot noodle" is still one count of "pot noodle", "2 packs crisps" still has the household-measure notice with "packs crisps", and "200 g glass noodles" keeps its 200 g. Search clarifies "a pot noodle" because its parser treats a portion word anywhere as a portion; the list grammar keeps v5's reading at the amount position only, so these lines keep their v5 route. This is the existing difference between the two grammars and is not widened.
 - A container later in the line ("rice with a cup of peas", "tea 2 mugs", "milk 250 ml mug") parses as v5.
+- A count unit before a container keeps the written count, as in v5: "2 pieces mug of tea" is 2 counts of "mug of tea". The count is the user's own word, not inferred from the container; the line is rare and is left to the user to correct.
 
 ### Golden examples (every numeral convention)
 
@@ -74,7 +75,7 @@ A vague portion (v5) is checked first, so "a handful of" lines are exactly as v5
 
 ## Common foods added by the app
 
-A saved common-food name is a food name, not a pasted portion, so the v5 rule extends to containers: when a name starts with a container ("Mug Shot pasta", "Glass of milk", "Cup of tea") and has no usual portion, the line has no amount and the household-measure notice, but its search query is the whole saved name (`FoodListImportViewModel.addCommonFood`). With a usual mass or volume portion the app writes "of" between its own portion and the name ("68 g of Mug Shot pasta"), so the grammar reads the portion as the amount of the whole name instead of withholding it; a count portion is written as before ("1 piece Pot of yoghurt"). Names that do not start with a container ("90 g Pot Noodle") are written as before.
+A saved common-food name is a food name, not a pasted portion, so the v5 rule extends to containers: when a name starts with a container ("Mug Shot pasta", "Glass of milk", "Cup of tea") and has no usual portion, the line has no amount and the household-measure notice, but its search query is the whole saved name (`FoodListImportViewModel.addCommonFood`). With a usual mass or volume portion the app writes the line as before ("68 g Mug Shot pasta"), and the grammar withholds the amount exactly as it would for a pasted line; the parse, its notice and the evidence descriptor record that. The app then fills the editable amount with the saved usual portion (68 g), as if the user had typed it, and sets the query to the whole name, so Confirm opens with the portion the user saved and the evidence records it as an entered amount. This applies only when the name starts with a container and nothing else withheld the amount (several amounts, coffee grounds, an ambiguous or unknown numeral or unit keep the amount empty). A count portion ("1 piece Pot of yoghurt") and a name that does not start with a container ("90 g Pot Noodle") parse with their amount as before. The household-measure notice still shows on such a row, as it does for "Pinch of Nom Lasagne" under v5; this is accepted.
 
 ## Versions, stored lines and evidence
 

@@ -27,7 +27,7 @@ Start with [`../AGENTS.md`](../AGENTS.md) for working rules and [privacy and egr
 - [Pasted nutrition label reader v3 release check](pasted-nutrition-label-reader-v3-release-check.md) (#93): counts from the fresh-set release check of 24 October 2026 (bar passed; owner decision to ship)
 - [HealthKit day bucketing v1](healthkit-day-bucketing-v1.md) (#49): daily collection queries honour the injected calendar, with an alignment check and a per-day fallback (owner-approved 18 October 2026)
 - [Food drafts and common foods](food-drafts-and-common-foods.md), [food list import](food-list-import.md)
-- [Food list lexical v4](food-list-lexical-v4.md) (locale-aware list amount grammar) [v5](food-list-lexical-v5.md) (vague portions such as "a handful" need an amount) and [v6](food-list-lexical-v6.md) (household containers such as "2 mugs of tea" leave the food name, as in search)
+- [Food list lexical v4](food-list-lexical-v4.md) (locale-aware list amount grammar), [v5](food-list-lexical-v5.md) (vague portions such as "a handful" need an amount) and [v6](food-list-lexical-v6.md) (household containers such as "2 mugs of tea" leave the food name, as in search)
 - [Local inventory contract](local-inventory-contract.md)
 - [Storage and backup decision](food-library-storage-and-backup-decision.md)
 - [HealthKit food write plan](food-healthkit-write-plan.md) (planning; HealthKit stays read-only)

@@ -179,13 +179,8 @@ public final class FoodListImportViewModel: ObservableObject {
         // The app writes the portion itself, as canonical text (full stop decimal, no grouping),
         // and reads that line back under the convention it was written in, so every portion,
         // 0.125 included, is exact whatever the device locale; the line records that convention.
-        // food-list-lexical-v6 withholds a mass or volume written before a container ("250 ml mug
-        // of milk"). A saved name that starts with one ("Mug Shot pasta", "Glass of milk") is a food
-        // name, so the app joins its own usual portion to it with "of" and the portion is kept.
-        let joinsName = portion.map { $0.unit != .count } == true
-            && HouseholdContainerRule.leadingListContainer(in: name.trimmingCharacters(in: .whitespaces)) != nil
         let prefix = portion.map {
-            "\(FoodAmountTextParser.editableText($0.value)) \($0.unit == .grams ? "g" : $0.unit == .millilitres ? "ml" : FoodAmountNoun.count($0.value)) \(joinsName ? "of " : "")"
+            "\(FoodAmountTextParser.editableText($0.value)) \($0.unit == .grams ? "g" : $0.unit == .millilitres ? "ml" : FoodAmountNoun.count($0.value)) "
         } ?? ""
         let text = prefix + name
         let combined = input.isEmpty ? text : input + "\n" + text
@@ -201,6 +196,18 @@ public final class FoodListImportViewModel: ObservableObject {
         // losing brand words (food-list-lexical-v5, v6).
         if portion == nil, last.isV5 || last.isV6, last.notices.contains(.householdMeasure) {
             draft.query = name.trimmingCharacters(in: .whitespaces)
+        }
+        // food-list-lexical-v6 withholds a mass or volume before a container ("250 ml mug of milk"),
+        // so a saved name that starts with one ("68 g Mug Shot pasta") parses with no amount. The
+        // parse stays as written; the editable amount is the user's saved usual portion, entered as
+        // if typed, and the query is the whole name. Lines withheld for any other reason stay empty.
+        let withheld: Set<FoodListNotice> = [.multipleAmounts, .preparationInput, .ambiguousNumber, .unknownUnit, .possibleUnitTypo]
+        if let portion, portion.unit != .count, last.isV6, last.quantity == nil,
+           last.notices.contains(.householdMeasure), withheld.isDisjoint(with: last.notices),
+           HouseholdContainerRule.leadingListContainer(in: name.trimmingCharacters(in: .whitespaces)) != nil {
+            draft.query = name.trimmingCharacters(in: .whitespaces)
+            draft.quantityText = FoodAmountTextParser.editableText(portion.value)
+            draft.unit = portion.unit
         }
         restoring = true
         input = combined

@@ -38,6 +38,8 @@ final class FoodListLexicalV6Tests: XCTestCase {
         // A mass or volume before a container could measure either, so it is withheld, as in search.
         ("250 ml mug of milk", "milk"),
         ("250 ml mug milk", "milk"),
+        ("250 ml of mug of milk", "milk"),
+        ("68 g Mug Shot pasta", "Shot pasta"),
         ("300ml glass of milk", "milk"),
         ("330 ml glasses of water", "water"),
         ("200 g pot of yoghurt", "yoghurt"),
@@ -58,6 +60,8 @@ final class FoodListLexicalV6Tests: XCTestCase {
         // Containers elsewhere in the line, and the other household measures.
         "tea 2 mugs", "milk 250 ml mug", "rice with a cup of peas", "2 tbsp olive oil", "1 slice toast",
         "a packet of crisps", "2 scoops protein powder",
+        // A count unit before a container keeps the written count, as v5 did.
+        "2 pieces mug of tea", "1 piece Pot of yoghurt",
         "150 g boiled rice", "250 ml milk", "a banana"
     ]
 

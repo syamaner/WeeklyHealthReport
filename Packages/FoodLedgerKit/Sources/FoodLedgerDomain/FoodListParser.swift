@@ -301,9 +301,10 @@ public enum FoodListParser {
                         notices.append(.unitSpelling)
                     }
                     if grammar.containers, definition.0 != .count,
-                       let container = HouseholdContainerRule.leadingListContainer(in: query) {
-                        // v6: "250 ml mug of milk" could measure the container or its contents,
-                        // so, as in search, the amount is withheld for the user to enter.
+                       let container = HouseholdContainerRule.leadingListContainer(in: query.replacingOccurrences(
+                           of: #"(?i)^of\s+"#, with: "", options: .regularExpression)) {
+                        // v6: "250 ml mug of milk" (or "250 ml of mug of milk") could measure the
+                        // container or its contents, so, as in search, the amount is withheld.
                         notices.append(.householdMeasure)
                         amount = nil
                         unit = nil

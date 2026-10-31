@@ -148,12 +148,30 @@ final class FoodListImportPresentationTests: XCTestCase {
     }
 
     /// food-list-lexical-v6 (#353): a saved name that starts with a container is a food name. It
-    /// keeps its whole name as the query, and a usual mass or volume portion is kept rather than
-    /// withheld as "250 ml mug of milk" would be; without a portion it has no amount.
+    /// keeps its whole name as the query. A usual mass or volume portion is withheld by the parse,
+    /// as "250 ml mug of milk" is, and becomes the editable amount as if typed; a count portion and
+    /// a name without a container parse as before; without a portion it has no amount.
     func testCommonFoodNamesStartingWithContainersKeepTheirNameAndPortion() throws {
         for (name, portion, written) in try [
-            ("Mug Shot pasta", InventoryAmount(value: 68, unit: .grams), "68 g of Mug Shot pasta"),
-            ("Glass of milk", InventoryAmount(value: 200, unit: .millilitres), "200 ml of Glass of milk"),
+            ("Mug Shot pasta", InventoryAmount(value: 68, unit: .grams), "68 g Mug Shot pasta"),
+            ("Glass of milk", InventoryAmount(value: 200, unit: .millilitres), "200 ml Glass of milk")
+        ] {
+            let (model, search) = try listModel(locale: Locale(identifier: "en_GB"))
+            try model.addCommonFood(name: name, portion: portion)
+            let draft = try XCTUnwrap(model.selectedRow?.draft, name)
+            XCTAssertEqual(draft.parsed.original, written, name)
+            XCTAssertNil(draft.parsed.quantity, name)
+            XCTAssertEqual(draft.parsed.notices, [.householdMeasure], name)
+            XCTAssertEqual(draft.query, name, name)
+            XCTAssertEqual(draft.amountValue, portion.value, name)
+            XCTAssertEqual(draft.unit, portion.unit, name)
+            XCTAssertEqual(draft.evidenceQuantityText, FoodAmountTextParser.editableText(portion.value), name)
+            model.search()
+            XCTAssertEqual(search.lastEvidence?.captureMethodVersion.value, "food-list-lexical-v6", name)
+            model.review(candidate: 0)
+            XCTAssertEqual(model.confirmation?.state.quantity.value, portion.value, name)
+        }
+        for (name, portion, written) in try [
             ("Pot of yoghurt", InventoryAmount(value: 1, unit: .count), "1 piece Pot of yoghurt"),
             ("Pot Noodle", InventoryAmount(value: 90, unit: .grams), "90 g Pot Noodle")
         ] {
