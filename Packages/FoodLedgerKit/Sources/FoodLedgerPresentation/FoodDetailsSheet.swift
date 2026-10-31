@@ -202,12 +202,17 @@ public struct FoodDetailsForm: View {
     }
 
     /// One edit of the reason field: normalised once, then written to the field and the draft
-    /// alike; an inserted line break ends editing.
+    /// alike; an inserted line break ends editing. The draft takes the text at once; a finished
+    /// field takes it on the next update, once editing has ended, so it is measured again (#349).
     private func reasonChanged(_ new: String) {
         let edit = FoodDetailsDraft.reasonEdit(from: draft.reason, to: new)
-        if edit.text != new { reasonText = edit.text }
         if draft.reason != edit.text { draft.reason = edit.text }
-        if edit.finishes { reasonFocused = false }
+        if edit.finishes {
+            reasonFocused = false
+            afterEditingEnds { reasonText = edit.text }
+        } else if edit.text != new {
+            reasonText = edit.text
+        }
     }
 
     /// At accessibility text sizes the single-line fields (Product name, Brand, Variant, Packing
@@ -269,6 +274,16 @@ struct FoodDetailsTextField: View {
     let prompt: String
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @FocusState private var focused: Bool
+    /// What a wrapping field shows. As with the reason field, each edit is normalised once and
+    /// written to the draft at once; a finished field takes the text on the next update (#349).
+    @State private var shown: String
+
+    init(title: String, text: Binding<String>, prompt: String) {
+        self.title = title
+        _text = text
+        self.prompt = prompt
+        _shown = State(initialValue: text.wrappedValue)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -278,23 +293,42 @@ struct FoodDetailsTextField: View {
                 .frame(minHeight: 44)
                 .accessibilityLabel(title)
         }
+        // A value set from code is shown as given.
+        .onChange(of: text) { _, new in if shown != new { shown = new } }
     }
 
     @ViewBuilder
     private var field: some View {
         if FoodDetailsForm.wrapsFields(at: dynamicTypeSize) {
-            TextField(title, text: $text, prompt: Text(prompt), axis: .vertical)
+            TextField(title, text: $shown, prompt: Text(prompt), axis: .vertical)
                 .lineLimit(FoodDetailsForm.wrappedFieldLineLimit)
                 .submitLabel(.done)
-                .onChange(of: text) { old, new in
-                    // Only the user's own edits are rewritten; a value set from code is kept.
-                    guard focused else { return }
-                    let edit = FoodDetailsDraft.reasonEdit(from: old, to: new)
-                    if edit.text != new { text = edit.text }
-                    if edit.finishes { focused = false }
-                }
+                .onChange(of: shown) { _, new in shownChanged(new) }
         } else {
             TextField(title, text: $text, prompt: Text(prompt))
         }
     }
+
+    /// One edit of a wrapping field. The shown text only differs from the draft after the
+    /// user's own edit; the draft never holds an inserted line break.
+    private func shownChanged(_ new: String) {
+        guard new != text else { return }
+        let edit = FoodDetailsDraft.reasonEdit(from: text, to: new)
+        if text != edit.text { text = edit.text }
+        if edit.finishes {
+            focused = false
+            afterEditingEnds { shown = edit.text }
+        } else if edit.text != new {
+            shown = edit.text
+        }
+    }
+}
+
+/// A wrapping field that is given its finished text while it is still handling Return keeps the
+/// height of the line break it was given, until the sheet is reopened (#349). Writing the shown text
+/// on the next update, after focus has been released, lets the field measure it again. The text
+/// written is the one `FoodDetailsDraft.reasonEdit` returned, so stored values are unchanged.
+@MainActor
+private func afterEditingEnds(_ write: @escaping @MainActor () -> Void) {
+    Task { @MainActor in write() }
 }

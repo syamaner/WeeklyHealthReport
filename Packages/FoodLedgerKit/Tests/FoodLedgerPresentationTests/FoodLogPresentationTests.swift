@@ -195,6 +195,24 @@ final class FoodLogPresentationTests: XCTestCase {
                        "Not ready to log")
     }
 
+    /// #350: a new entry keeps its Source footer; Edit food, already logged and without other
+    /// matches, points to its own Food details button instead of "after logging".
+    func testEditFoodSourceFooterPointsToFoodDetails() throws {
+        let world = try World(now: now, calendar: calendar)
+        let new = FoodConfirmationViewModel(state: try world.newState(grams: 120), now: { [now] in now }, calendar: calendar) { _ in
+            throw CocoaError(.fileWriteUnknown)
+        }
+        XCTAssertEqual(new.sourceFooter,
+                       "Need to correct the food itself? Choose a different match, or edit the details from the entry after logging.")
+
+        let saved = try world.save(grams: 120)
+        let edit = try XCTUnwrap(world.editModel(saved.logItem.logItemID))
+        let title = try XCTUnwrap(edit.foodDetailsActionTitle, "Edit food always offers Food details")
+        XCTAssertEqual(edit.sourceFooter, "Need to correct the food itself? Use \(title) above.")
+        XCTAssertFalse(edit.sourceFooter.contains("after logging"))
+        XCTAssertFalse(edit.sourceFooter.contains("different match"))
+    }
+
     func testRemoveFromSavedEntryAndEditReloadsHistory() async throws {
         let world = try World(now: now, calendar: calendar)
         let saved = try world.save(grams: 120)
