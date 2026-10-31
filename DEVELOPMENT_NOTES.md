@@ -3219,3 +3219,16 @@ One `claude-opus-5-5` subagent, transcript `subagents/agent-a9b71be8de1e6199f.js
 | **Subtotal** | 46,121,588 (42,896,662) | 3,224,430 | 151,635 | 46,273,223 | $27.74 |
 
 `phase_usage.py --format claude --since 2026-10-31T02:25:52Z --until 2026-10-31T04:00:36Z` on each transcript separately; all cache writes are 5-minute, 0 1-hour; exact USD 10.7257932, 0.684979 and 16.3253942 (27.7361664 in total). Pricing: the Claude Opus 5.5 rates recorded in WHR-93-2026-10-20q (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Local builds, simulator runs and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-353-2026-10-31: Claude Code list household containers (#353)
+
+One `claude-opus-5-5` subagent, transcript `subagents/agent-afd3a95536649ab40.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`, with the two reviewers it launched in parallel: `invariant-reviewer` (`subagents/agent-a97ae734c90b5687d.jsonl`) and `journey-qa` (`subagents/agent-a9dc10122719b7d0f.jsonl`, resumed once for a retry). The window runs from the subagent's start boundary (`2026-10-31T04:58:00Z`, recorded at the start) to `2026-10-31T06:29:04Z`, just before this ledger edit (UTC). It covers reading the issue, contracts and code, a probe of search behaviour, the shared `HouseholdContainerRule`, `food-list-lexical-v6` and its contract, the tests, the base-commit replay comparison, the invariant review and its fold, and every gate (run twice, before and after the fold). Journey QA did not run: simulator access was declined or unanswered, and the retry waited behind another agent's simulator run until it was stood down; its stand-down reply falls after the window. The push and PR fall after the window. The orchestrating session is not included.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| List household containers (#353), implementing subagent | 22,235,882 (21,201,720) | 1,033,928 | 96,465 | 22,332,347 | $11.34 |
+| Invariant review | 604,937 (542,066) | 62,843 | 12,281 | 617,218 | $0.67 |
+| Journey QA (build only; not run) | 1,355,058 (1,186,782) | 168,240 | 5,336 | 1,360,394 | $1.19 |
+| **Subtotal** | 24,195,877 (22,930,568) | 1,265,011 | 114,082 | 24,309,959 | $13.19 |
+
+`phase_usage.py --format claude --since 2026-10-31T04:58:00Z --until 2026-10-31T06:29:04Z` on each transcript separately; all cache writes are 5-minute, 0 1-hour; exact USD 11.34022, 0.6683602 and 1.1854204 (13.1940006 in total). Pricing: the Claude Opus 5.5 rates recorded in WHR-93-2026-10-20q (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Local builds, simulator runs and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
