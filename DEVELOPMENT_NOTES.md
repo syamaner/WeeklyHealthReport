@@ -3298,3 +3298,16 @@ One `claude-opus-5-5` subagent, transcript `subagents/agent-a41c2e50ffd3db3a5.js
 | **Subtotal** | 20,966,828 (19,626,924) | 1,339,612 | 63,980 | 21,030,808 | $11.90 |
 
 `phase_usage.py --format claude --since 2026-10-31T12:50:00Z --until 2026-10-31T14:20:43Z` on each transcript separately; all cache writes are 5-minute, 0 1-hour; exact USD 5.4192366, 0.242975 and 6.2420012 (11.9042128 in total). Pricing: the Claude Opus 5.5 rates recorded in WHR-93-2026-10-20q (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Local builds, simulator runs and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-363-2026-10-31: Claude Code Food Log Add food label centred (#363)
+
+One `claude-opus-5-5` subagent, transcript `subagents/agent-a7422094433823452.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737` (the same subagent as WHR-361, in a later window), with the two reviewers it launched in parallel: `invariant-reviewer` (`subagents/agent-a500df55ae1dcb313.jsonl`) and `journey-qa` (`subagents/agent-a1e8277290f79cf1b.jsonl`). The start was recorded at `2026-10-31T13:55:12Z`; the window runs from `2026-10-31T13:55:00Z` to `2026-10-31T15:05:00Z`, just before this ledger edit (UTC). It covers waiting for the shared simulator, the centring test, the simulator check that found the invisible icon, the fix, the gates, both reviews and the test fold. The ledger commit, push and PR fall after the window. The orchestrating session is not included.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Add food label centred (#363), implementing subagent | 9,193,353 (8,147,071) | 1,046,192 | 26,580 | 9,219,933 | $7.39 |
+| Invariant review | 90,310 (67,357) | 22,943 | 4,610 | 94,920 | $0.22 |
+| Journey QA at default, AX2 and AX5, light and dark (simulator, screenshots as image input) | 6,143,221 (5,843,052) | 300,049 | 20,729 | 6,163,950 | $3.08 |
+| **Subtotal** | 15,426,884 (14,057,480) | 1,369,184 | 51,919 | 15,478,803 | $10.70 |
+
+`phase_usage.py --format claude --since 2026-10-31T13:55:00Z --until 2026-10-31T15:05:00Z` on each transcript separately; all cache writes are 5-minute, 0 1-hour; exact USD 7.3923342, 0.2204264 and 3.0839154 (10.696676 in total). Pricing: the Claude Opus 5.5 rates recorded in WHR-93-2026-10-20q (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Local builds, simulator runs and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
