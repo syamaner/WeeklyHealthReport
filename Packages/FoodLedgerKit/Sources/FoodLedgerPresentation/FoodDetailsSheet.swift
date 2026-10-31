@@ -131,6 +131,28 @@ public struct FoodDetailsDraft: Equatable, Sendable {
     }
 }
 
+/// The Food details answers across openings of the sheet (#352). As in the app's other editing
+/// sheets, closing without applying (Close, or swiping the sheet away) discards the unapplied
+/// answers, so the sheet reopens on the answers last applied, or on Confirm's details when none
+/// were; Apply keeps them. Presentation state only: nothing here is stored.
+public struct FoodDetailsDraftSession: Equatable, Sendable {
+    /// What the sheet shows and edits.
+    public var draft: FoodDetailsDraft
+    /// The answers the sheet reopens on.
+    public private(set) var kept: FoodDetailsDraft
+
+    public init(_ draft: FoodDetailsDraft) {
+        self.draft = draft
+        kept = draft
+    }
+
+    /// Apply recorded a correction on Confirm: keep the answers it applied.
+    public mutating func applied() { kept = draft }
+
+    /// The sheet closed: drop any answers that were not applied.
+    public mutating func closed() { draft = kept }
+}
+
 /// The Food details sheet's form. The host owns the draft and presentation; `applied` runs after
 /// a correction was recorded on Confirm, so the host can close the sheet and announce it.
 public struct FoodDetailsForm: View {
@@ -305,7 +327,9 @@ struct FoodDetailsTextField: View {
                 .submitLabel(.done)
                 .onChange(of: shown) { _, new in shownChanged(new) }
         } else {
+            // Done, like the wrapping fields and the reason, at every text size (#352).
             TextField(title, text: $text, prompt: Text(prompt))
+                .submitLabel(.done)
         }
     }
 
