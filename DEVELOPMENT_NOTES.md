@@ -3273,6 +3273,45 @@ One `claude-opus-5-5` subagent, transcript `subagents/agent-afd3a95536649ab40.js
 
 `phase_usage.py --format claude --since 2026-10-31T04:58:00Z --until 2026-10-31T06:29:04Z` on each transcript separately; all cache writes are 5-minute, 0 1-hour; exact USD 11.34022, 0.6683602 and 1.1854204 (13.1940006 in total). Pricing: the Claude Opus 5.5 rates recorded in WHR-93-2026-10-20q (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Local builds, simulator runs and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
 
+## WHR-359-2026-10-31: Claude Code household measures in search and list queries (#359)
+
+One `claude-opus-5-5` subagent, transcript `subagents/agent-a6da4fad6debc37a7.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`, with the two reviewers it launched: `architecture-gate` (`subagents/agent-a9570fc1ad69083d6.jsonl`) and `invariant-reviewer` (`subagents/agent-a7398ad2a873995d9.jsonl`). The window runs from the subagent's start boundary (`2026-10-31T12:50:48Z`, recorded at the start) to `2026-10-31T13:54:35Z`, just before this ledger edit (UTC). It covers reading the issue, contracts and code, a probe of search and list behaviour, the architecture gate and its fold, `food-query-interpretation-v4`, `food-list-lexical-v7` and their contracts, the tests, both evaluation steps, the invariant review and its fold, and the gates up to the app test run, which was still running at the window end. The app test result, the post-fold analysis, the commit, push, PR and handover fall after the window. Journey QA was not run. The orchestrating session is not included.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Household measures in search and lists (#359), implementing subagent | 12,697,339 (11,700,974) | 996,219 | 80,594 | 12,777,933 | $8.93 |
+| Architecture gate | 128,663 (96,283) | 32,370 | 6,168 | 134,831 | $0.30 |
+| Invariant review | 316,715 (251,333) | 65,366 | 9,443 | 326,158 | $0.57 |
+| **Subtotal** | 13,142,717 (12,048,590) | 1,093,955 | 96,205 | 13,238,922 | $9.80 |
+
+`phase_usage.py --format claude --since 2026-10-31T12:50:48Z --until 2026-10-31T13:54:35Z` on each transcript separately; all cache writes are 5-minute, 0 1-hour; exact USD 8.9337538, 0.3045066 and 0.5660206 (9.8042810 in total). Pricing: the Claude Opus 5.5 rates recorded in WHR-93-2026-10-20q (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Local builds, simulator runs, evaluations and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-352-2026-10-31: Claude Code Food details Done key and Close discards unapplied edits (#352)
+
+One `claude-opus-5-5` subagent, transcript `subagents/agent-a41c2e50ffd3db3a5.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`, with the two reviewers it launched in parallel: `invariant-reviewer` (`subagents/agent-a46af98254f490b69.jsonl`) and `journey-qa` (`subagents/agent-a34fe130c5c43cb6a.jsonl`). The start was recorded at `2026-10-31T12:50:47Z`; the window opens at `2026-10-31T12:50:00Z` so the subagent's first turn before that recording is included, and runs to `2026-10-31T14:20:43Z`, just before this ledger edit (UTC). It covers reading the issue and code, checking how the app's other editing sheets treat unapplied edits, the Done key and the `FoodDetailsDraftSession` change, the pure and hosted tests, both reviews (no fold needed), waiting for the shared simulator lock, and every gate. The commit amend, push and PR fall after the window. The orchestrating session is not included.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Food details Done key and Close discards unapplied edits (#352), implementing subagent | 5,284,491 (4,471,183) | 813,208 | 22,928 | 5,307,419 | $5.42 |
+| Invariant review | 169,339 (143,530) | 25,793 | 4,262 | 173,601 | $0.24 |
+| Journey QA at default and AX5 (simulator, screenshots as image input) | 15,512,998 (15,012,211) | 500,611 | 36,790 | 15,549,788 | $6.24 |
+| **Subtotal** | 20,966,828 (19,626,924) | 1,339,612 | 63,980 | 21,030,808 | $11.90 |
+
+`phase_usage.py --format claude --since 2026-10-31T12:50:00Z --until 2026-10-31T14:20:43Z` on each transcript separately; all cache writes are 5-minute, 0 1-hour; exact USD 5.4192366, 0.242975 and 6.2420012 (11.9042128 in total). Pricing: the Claude Opus 5.5 rates recorded in WHR-93-2026-10-20q (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Local builds, simulator runs and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-363-2026-10-31: Claude Code Food Log Add food label centred (#363)
+
+One `claude-opus-5-5` subagent, transcript `subagents/agent-a7422094433823452.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737` (the same subagent as WHR-361, in a later window), with the two reviewers it launched in parallel: `invariant-reviewer` (`subagents/agent-a500df55ae1dcb313.jsonl`) and `journey-qa` (`subagents/agent-a1e8277290f79cf1b.jsonl`). The start was recorded at `2026-10-31T13:55:12Z`; the window runs from `2026-10-31T13:55:00Z` to `2026-10-31T15:05:00Z`, just before this ledger edit (UTC). It covers waiting for the shared simulator, the centring test, the simulator check that found the invisible icon, the fix, the gates, both reviews and the test fold. The ledger commit, push and PR fall after the window. The orchestrating session is not included.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Add food label centred (#363), implementing subagent | 9,193,353 (8,147,071) | 1,046,192 | 26,580 | 9,219,933 | $7.39 |
+| Invariant review | 90,310 (67,357) | 22,943 | 4,610 | 94,920 | $0.22 |
+| Journey QA at default, AX2 and AX5, light and dark (simulator, screenshots as image input) | 6,143,221 (5,843,052) | 300,049 | 20,729 | 6,163,950 | $3.08 |
+| **Subtotal** | 15,426,884 (14,057,480) | 1,369,184 | 51,919 | 15,478,803 | $10.70 |
+
+`phase_usage.py --format claude --since 2026-10-31T13:55:00Z --until 2026-10-31T15:05:00Z` on each transcript separately; all cache writes are 5-minute, 0 1-hour; exact USD 7.3923342, 0.2204264 and 3.0839154 (10.696676 in total). Pricing: the Claude Opus 5.5 rates recorded in WHR-93-2026-10-20q (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Local builds, simulator runs and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
+
 ## WHR-361-2026-10-31: Claude Code Logged banner dismissed on a Food Log day change (#361)
 
 One `claude-opus-5-5` subagent, transcript `subagents/agent-a7422094433823452.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`, with the two reviewers it launched in parallel: `invariant-reviewer` (`subagents/agent-a8090886b215a5d15.jsonl`, resumed once for the fold re-review) and `journey-qa` (`subagents/agent-a71e131cd40ca6470.jsonl`). The start was recorded at `2026-10-31T12:50:59Z`; the window opens at `2026-10-31T12:50:00Z` so the subagent's first turns before that recording are included, and runs to `2026-10-31T13:42:00Z`, just before this ledger edit (UTC). It covers reading the issues, the banner and Food Log code, the day-change hook and its wiring, the tests, the review fold (dismiss only while Undo is offered), the re-review, journey QA at default and AX5, and the gates up to the second analyze. The second app test run, commit of this row, push and PR fall after the window. The orchestrating session is not included.

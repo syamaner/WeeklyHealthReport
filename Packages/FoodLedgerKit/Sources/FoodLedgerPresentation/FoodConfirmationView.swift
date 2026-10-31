@@ -988,8 +988,9 @@ public struct FoodConfirmationView: View {
     @FocusState private var editingAmount: AmountFieldFocus?
     @State private var showsCorrection = false
     @State private var showsMatches = false
-    /// The Food details sheet's answers; nil until Confirm appears and loads them.
-    @State private var correctionDraft: FoodDetailsDraft?
+    /// The Food details sheet's answers; nil until Confirm appears and loads them. Closing the
+    /// sheet without Apply discards unapplied answers (#352).
+    @State private var correctionDraft: FoodDetailsDraftSession?
     /// Set by Apply so the confirmation is announced once the sheet has closed (#276).
     @State private var announcesCorrection = false
     @State private var totalText = ""
@@ -1139,9 +1140,10 @@ public struct FoodConfirmationView: View {
             }
         }
         .safeAreaInset(edge: .bottom) { logBar }
-        .sheet(isPresented: $showsCorrection, onDismiss: announceCorrection) {
+        .sheet(isPresented: $showsCorrection, onDismiss: correctionSheetClosed) {
             NavigationStack {
                 FoodDetailsForm(model: model, draft: correctionDraftBinding) {
+                    correctionDraft?.applied()
                     announcesCorrection = true
                     showsCorrection = false
                 }
@@ -1176,7 +1178,7 @@ public struct FoodConfirmationView: View {
         }
         .animation(reduceMotion ? nil : .default, value: model.state.selectedCandidateIndex)
         .onAppear {
-            if correctionDraft == nil { correctionDraft = FoodDetailsDraft(model: model) }
+            if correctionDraft == nil { correctionDraft = FoodDetailsDraftSession(FoodDetailsDraft(model: model)) }
             if let value = model.state.quantity.value { totalText = editableNumber(value) }
             directWeightText = model.state.quantity.directWeight?.totalGrams.map(editableNumber) ?? ""
             if let conversion = model.state.quantity.conversion {
@@ -1933,7 +1935,16 @@ public struct FoodConfirmationView: View {
     }
 
     private var correctionDraftBinding: Binding<FoodDetailsDraft> {
-        Binding(get: { correctionDraft ?? FoodDetailsDraft(model: model) }, set: { correctionDraft = $0 })
+        Binding(get: { correctionDraft?.draft ?? FoodDetailsDraft(model: model) }, set: { draft in
+            if correctionDraft == nil { correctionDraft = FoodDetailsDraftSession(FoodDetailsDraft(model: model)) }
+            correctionDraft?.draft = draft
+        })
+    }
+
+    /// However the sheet closed, unapplied answers are discarded (Apply already kept its own).
+    private func correctionSheetClosed() {
+        correctionDraft?.closed()
+        announceCorrection()
     }
 
     /// After Apply closed the sheet: VoiceOver hears the confirmation that Confirm now shows.
@@ -1974,7 +1985,7 @@ public struct FoodConfirmationView: View {
             totalText = model.state.quantity.value.map(editableNumber) ?? ""
             directWeightText = model.state.quantity.directWeight?.totalGrams.map(editableNumber) ?? ""
             conversionText = model.state.quantity.conversion.map { editableNumber($0.convertedQuantity.value) } ?? ""
-            correctionDraft = FoodDetailsDraft(model: model, reason: correctionDraft?.reason ?? "")
+            correctionDraft = FoodDetailsDraftSession(FoodDetailsDraft(model: model, reason: correctionDraft?.kept.reason ?? ""))
         })
     }
 

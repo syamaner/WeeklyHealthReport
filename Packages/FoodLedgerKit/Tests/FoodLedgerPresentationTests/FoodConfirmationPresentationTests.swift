@@ -640,6 +640,51 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         XCTAssertEqual(reopened.reason, "Package says unfortified")
     }
 
+    /// #352: closing Food details without Apply discards the unapplied answers, so the sheet
+    /// reopens on Confirm's details; Apply keeps the applied answers for the next opening, and a
+    /// later close discards only what was typed after it. Nothing is saved either way.
+    func testClosingFoodDetailsDiscardsUnappliedAnswersAndApplyKeepsThem() throws {
+        let model = FoodConfirmationViewModel(state: try fixtureState(knownProtein: true)) { _ in
+            XCTFail("Food details never save"); throw CocoaError(.fileWriteUnknown)
+        }
+        let original = FoodDetailsDraft(model: model)
+        var session = FoodDetailsDraftSession(original)
+
+        // Typed, then closed: everything typed is gone, and Confirm is unchanged.
+        session.draft.brand = "Synthetic brand"
+        session.draft.reason = "Typed but not applied"
+        session.draft.basis = .per100Grams
+        session.closed()
+        XCTAssertEqual(session.draft, original)
+        XCTAssertNil(model.state.correction)
+
+        // A refused Apply is not applied: closing still discards it.
+        session.draft.reason = "Named method missing"
+        session.draft.preparation = PreparationKind.named.rawValue
+        XCTAssertFalse(model.applyFoodDetails(session.draft))
+        session.closed()
+        XCTAssertEqual(session.draft, original)
+
+        // Applied: the next opening shows the applied answers, including the reason and basis.
+        session.draft.reason = "Package says unfortified"
+        session.draft.fortification = FortificationState.unfortified.rawValue
+        session.draft.basis = .per100Millilitres
+        XCTAssertTrue(model.applyFoodDetails(session.draft))
+        session.applied()
+        let applied = session.draft
+        session.closed()
+        XCTAssertEqual(session.draft, applied, "the sheet closing after Apply keeps the applied answers")
+
+        // Typed after Apply, then closed: back to the applied answers; the correction is unchanged.
+        let correction = try XCTUnwrap(model.state.correction)
+        session.draft.variant = "Typed after Apply"
+        session.closed()
+        XCTAssertEqual(session.draft, applied)
+        XCTAssertEqual(session.kept, applied)
+        XCTAssertEqual(model.state.correction, correction)
+        XCTAssertNil(model.savedResult)
+    }
+
     /// #276: an invalid answer is refused visibly instead of silently, and changes nothing.
     func testInvalidFoodDetailsAreRefusedWithoutChangingConfirm() throws {
         let model = FoodConfirmationViewModel(state: try fixtureState(knownProtein: true)) { _ in throw CocoaError(.fileWriteUnknown) }

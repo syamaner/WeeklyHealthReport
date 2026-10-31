@@ -4,7 +4,7 @@ import FoodLedgerDomain
 /// One deterministic application interpretation. No source identity, nutrition or
 /// conversion is asserted by language. The legacy parse remains available for diagnostics.
 public struct FoodQueryInterpretation: Equatable, Sendable {
-    public static let version = "food-query-interpretation-v3"
+    public static let version = "food-query-interpretation-v4"
     public struct Component: Equatable, Sendable {
         public let text: String
         /// UTF-16 offsets in originalText, not code-point or Character offsets.
@@ -120,8 +120,13 @@ public struct FoodQueryInterpretation: Equatable, Sendable {
     /// plural) are a portion without "of" ("1 cup rice", "2 mugs tea"), except before "cake" or
     /// "cakes" ("a mug cake"). v3 (#335) adds the plural forms of cup, mug, glass, pot and pack.
     /// The container guards are `HouseholdContainerRule`, which the list grammar shares (#353).
+    /// v4 (#359, docs/food-query-interpretation-v4.md) also removes a household unit that starts
+    /// the food text with no amount before it, because the amount was a mass or volume ("250 ml
+    /// mug of milk" searches "milk") or there was none ("mugs of tea" searches "tea"; with no
+    /// amount "of" must follow the unit, so "cup noodles" and "mug cake" keep their text).
     static func foodWithoutLeadingPortion(_ food: String, original: String) -> String? {
-        let pattern = #"^(?:(\d+(?:\.\d+)?|\.\d+|half|one|two|three|four|five|six|a|an)\s+(?:x\s+)?(bowl|handfuls?|jars?|tubs?|cans?|bags?|packets?|pieces?|ladles?|pots?|packs?|glass(?:es)?|cups?|mugs?|tins?|sachets?|bottles?|plates?|pints?|dollops?|cartons?|scoops?|servings?|portions?|tablespoons?|teaspoons?|oz|ounce|slices?)|some)\s+(.*\p{L}.*)$"#
+        if let bare = foodWithoutBareLeadingUnit(food, original: original) { return bare }
+        let pattern = #"^(?:(\d+(?:\.\d+)?|\.\d+|half|one|two|three|four|five|six|a|an)\s+(?:x\s+)?(bowls?|handfuls?|jars?|tubs?|cans?|bags?|packets?|pieces?|ladles?|pots?|packs?|glass(?:es)?|cups?|mugs?|tins?|sachets?|bottles?|plates?|pints?|dollops?|cartons?|scoops?|servings?|portions?|tablespoons?|teaspoons?|oz|ounce|slices?)|some)\s+(.*\p{L}.*)$"#
         guard let regex = try? NSRegularExpression(pattern: pattern),
               let match = regex.firstMatch(in: food, range: NSRange(food.startIndex..., in: food)),
               let rest = Range(match.range(at: 3), in: food) else { return nil }
@@ -134,6 +139,34 @@ public struct FoodQueryInterpretation: Equatable, Sendable {
             guard HouseholdContainerRule.leavesFoodText(unit: unit, followedByOf: followedByOf, rest: String(food[rest])) else { return nil }
         }
         return String(food[rest])
+    }
+
+    /// The household units v4 removes when they start the food text with no amount in it.
+    private static let bareUnitPattern = #"bowls?|handfuls?|jars?|tubs?|cans?|bags?|packets?|pieces?|ladles?|pots?|packs?|glass(?:es)?|cups?|mugs?|tins?|sachets?|bottles?|plates?|dollops?|cartons?|scoops?|servings?|portions?|tablespoons?|teaspoons?|slices?"#
+    /// A written mass or volume at the start of the original ("250 ml", "300ml", "200 g").
+    private static let massOrVolume = #"(?:\d+(?:[.,]\d+)?|\.\d+)\s*(?:g|gr|gm|grams?|grammes?|kg|kilograms?|ml|millilit(?:re|er)s?|l|lit(?:re|er)s?)\s+"#
+
+    /// v4: the food text after a household unit that starts it, when the original starts with
+    /// that unit (then "of" must follow it) or with a mass or volume, an optional "of" and that
+    /// unit (then the shared container guards apply). Nil otherwise.
+    private static func foodWithoutBareLeadingUnit(_ food: String, original: String) -> String? {
+        guard let regex = try? NSRegularExpression(pattern: #"(?i)^("# + bareUnitPattern + #")\s+(.*\p{L}.*)$"#),
+              let match = regex.firstMatch(in: food, range: NSRange(food.startIndex..., in: food)),
+              let unitRange = Range(match.range(at: 1), in: food),
+              let restRange = Range(match.range(at: 2), in: food) else { return nil }
+        let unit = String(food[unitRange])
+        let escaped = NSRegularExpression.escapedPattern(for: unit)
+        let afterAmount: Bool
+        if original.range(of: #"^\s*"# + massOrVolume + #"(?:of\s+)?"# + escaped + #"\b"#, options: [.regularExpression, .caseInsensitive]) != nil {
+            afterAmount = true
+        } else if original.range(of: #"^\s*"# + escaped + #"\b"#, options: [.regularExpression, .caseInsensitive]) != nil {
+            afterAmount = false
+        } else { return nil }
+        let followedByOf = original.range(of: #"^\s*(?:"# + massOrVolume + #"(?:of\s+)?)?"# + escaped + #"\s+of\b"#,
+                                          options: [.regularExpression, .caseInsensitive]) != nil
+        let rest = String(food[restRange])
+        guard HouseholdContainerRule.measureLeavesFoodText(unit: unit, followedByOf: followedByOf, rest: rest, afterAmount: afterAmount) else { return nil }
+        return rest
     }
 }
 
