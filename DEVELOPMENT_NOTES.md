@@ -3179,3 +3179,17 @@ One `claude-opus-5-5` subagent, transcript `subagents/agent-a7df989ffa5015d6e.js
 | "How you got it" whole at AX5 (#337), subagent | 9,735,248 (7,929,615) | 1,805,485 | 37,613 | 9,772,861 | $11.37 |
 
 `phase_usage.py --format claude --since 2026-10-30T14:00:43Z --until 2026-10-30T15:58:53Z` on the subagent transcript alone. Cache writes 1,805,485 5-minute, 0 1-hour; exact USD 11.3662. Pricing: the Claude Opus 5.5 rates recorded in WHR-93-2026-10-20q (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Rendered screenshots are image input inside the same transcript and are included. Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-342-2026-10-30: Claude Code label photo session test crash (#342)
+
+One `claude-opus-5-5` subagent, transcript `subagents/agent-a58e4081a45d342c1.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`, for #342 (the intermittent signal 11 in `LabelPhotoReadSessionTests`, a racy held-attempt test double). The window runs from the subagent's first message (`2026-10-30T16:03:06Z`) to `2026-10-30T16:28:57Z` (a `date -u` capture just before this ledger edit). It covers reading the CI log, the repeated-run and Thread Sanitizer reproduction, filing the issue, the test double fix, the after-fix loops and the gate run. The commit, push and PR after this edit are outside the window. The orchestrating session is not included.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-316-2026-10-25-L1A (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache hit, 20/M output), not re-checked on the day of this entry. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label photo session test crash (#342), subagent | 5,198,867 (4,871,627) | 327,146 | 32,640 | 5,231,507 | $3.26 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-30T16:03:06Z --until 2026-10-30T16:28:57Z` on the subagent transcript alone. Cache writes 327,146 5-minute, 0 1-hour; exact USD 3.2632314. Local Swift builds, test loops and sanitiser runs use no API tokens and are not priced.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
