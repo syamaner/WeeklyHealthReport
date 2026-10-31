@@ -133,6 +133,16 @@ check. Locally the replay test took 70.1 s against 53.0 s, and the whole package
 suite 189 s of test time (250 s with the build), so the 15-minute timeout still
 leaves several minutes of margin on the hosted runner.
 
+That margin has gone. On 31 October 2026 passing runs on the hosted runner took
+11m39s to 13m48s (build 170 s to 185 s, XCTest about 700 s), and three pull
+request runs (41175539897, 41180161020 and 41180338859) were cancelled at 15m22s,
+15m07s and 15m18s. In 41180161020 the 1565 XCTest cases ran with 0 failures
+(8 skipped) and the 145 Swift Testing cases passed, and the job was cancelled
+seconds later, before the four retrieval scorers completed; 41175539897 was
+cancelled part-way through XCTest with no failure logged. These were timeouts,
+not hangs or failing tests. The timeout is now 25 minutes, about 1.8 times the
+slowest passing run, and stays below the 30 minutes of `Build and test`.
+
 ## Codecov disclosure boundary
 
 The pinned Codecov action runs only after the local coverage gate passes. Its

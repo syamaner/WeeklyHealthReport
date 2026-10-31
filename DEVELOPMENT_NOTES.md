@@ -3231,3 +3231,15 @@ One `claude-opus-5-5` subagent, transcript `subagents/agent-aa89c64bd352d0a4a.js
 | **Subtotal** | 27,027,048 (25,829,994) | 1,196,710 | 79,771 | 27,106,819 | $12.75 |
 
 `phase_usage.py --format claude --since 2026-10-31T04:58:00Z --until 2026-10-31T06:09:55Z` on each transcript separately; all cache writes are 5-minute, 0 1-hour; exact USD 12.428544 and 0.3178008 (12.7463448 in total). Pricing: the Claude Opus 5.5 rates recorded in WHR-93-2026-10-20q (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Local builds, simulator runs and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-CI-2026-10-31: Claude Code FoodLedgerKit CI job timeout
+
+One `claude-opus-5-5` subagent, transcript `subagents/agent-ae33ccb35c45b38cf.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`, with the `invariant-reviewer` it launched (`subagents/agent-a2384e75333219c87.jsonl`). The start was recorded at `2026-10-31T07:39:44Z`; the window opens at `2026-10-31T07:39:00Z` so the subagent's first turn before that recording is included, and runs to `2026-10-31T07:45:39Z`, just before this ledger edit (UTC). It covers reading the failing and cancelled runs and job logs, the workflow and CI analysis doc change, the review and its fold, the CI helper tests and `git diff --check`. The commit, push and PR fall after the window. The orchestrating session is not included.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| FoodLedgerKit CI job timeout, implementing subagent | 2,423,789 (2,316,663) | 107,070 | 12,721 | 2,436,510 | $1.25 |
+| Invariant review | 263,458 (233,023) | 30,411 | 7,700 | 271,158 | $0.35 |
+| **Subtotal** | 2,687,247 (2,549,686) | 137,481 | 20,421 | 2,707,668 | $1.61 |
+
+`phase_usage.py --format claude --since 2026-10-31T07:39:00Z --until 2026-10-31T07:45:39Z` on each transcript separately; all cache writes are 5-minute, 0 1-hour; exact USD 1.2533266 and 0.3527556 (1.6060822 in total). Pricing: the Claude Opus 5.5 rates recorded in WHR-93-2026-10-20q (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. GitHub Actions minutes use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
