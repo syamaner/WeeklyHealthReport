@@ -3206,3 +3206,16 @@ One `claude-opus-5-5` subagent, transcript `subagents/agent-a8372b57560224778.js
 | **Subtotal** | 17,065,526 (16,222,857) | 842,395 | 70,204 | 17,135,730 | $8.86 |
 
 `phase_usage.py --format claude --since 2026-10-31T01:42:42Z --until 2026-10-31T02:21:30Z` on each transcript separately; all cache writes are 5-minute, 0 1-hour; exact USD 5.1810652, 0.233553 and 3.4471042 (8.8617224 in total). Pricing: the Claude Opus 5.5 rates recorded in WHR-93-2026-10-20q (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Local builds, simulator runs and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-349-2026-10-31: Claude Code Food details height after Done and Edit food footer (#349, #350)
+
+One `claude-opus-5-5` subagent, transcript `subagents/agent-a9b71be8de1e6199f.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`, with the two reviewers it launched in parallel and later resumed for a re-check: `invariant-reviewer` (`subagents/agent-acc1f27abcb4b1c35.jsonl`) and `journey-qa` (`subagents/agent-af882040b97bbe504.jsonl`). The window runs from the subagent's first message (`2026-10-31T02:25:52Z`) to `2026-10-31T04:00:36Z`, just before this ledger edit (UTC). It covers waiting for PR #348, reading both issues and the code, a hosted reproduction attempt for #349 that could not tell the extra-height state apart (dropped), the first fix (renewing the field's identity), which the existing hosted reason-field test showed broke a second edit, the replacement fix (writing the shown text after focus is released, with the draft normalised at once), the Edit food footer and its test, both reviews and their re-checks, and every gate. The commit amend, push and PR fall after the window. The orchestrating session is not included.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Food details height after Done and Edit food footer (#349, #350), implementing subagent | 12,729,006 (11,287,091) | 1,441,735 | 62,949 | 12,791,955 | $10.73 |
+| Invariant review and re-check | 410,517 (334,070) | 76,417 | 11,798 | 422,315 | $0.68 |
+| Journey QA and re-run (simulator, screenshots as image input) | 32,982,065 (31,275,501) | 1,706,278 | 76,888 | 33,058,953 | $16.33 |
+| **Subtotal** | 46,121,588 (42,896,662) | 3,224,430 | 151,635 | 46,273,223 | $27.74 |
+
+`phase_usage.py --format claude --since 2026-10-31T02:25:52Z --until 2026-10-31T04:00:36Z` on each transcript separately; all cache writes are 5-minute, 0 1-hour; exact USD 10.7257932, 0.684979 and 16.3253942 (27.7361664 in total). Pricing: the Claude Opus 5.5 rates recorded in WHR-93-2026-10-20q (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Local builds, simulator runs and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
