@@ -36,7 +36,9 @@ public struct ParsedFoodQuery: Codable, Equatable, Sendable {
 }
 
 public enum FoodQueryParser {
-    public static let version = "food-query-parser-v10"
+    /// Words that may stand before "chocolate" in a bare cocoa percentage (v11).
+    static let chocolateModifiers: Set<String> = ["dark", "plain", "bitter", "bittersweet", "extra"]
+    public static let version = "food-query-parser-v11"
     public static func parse(_ original: String, recognisedBrands: [String] = ["olympus", "olympos", "quaker", "quakers", "kirkland", "costco", "ortiz", "coop", "the estate dairy"]) -> ParsedFoodQuery {
         var text = original.folding(options: .widthInsensitive, locale: Locale(identifier: "en_GB")).lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
         var attributes: [String: String] = [:]
@@ -86,6 +88,8 @@ public enum FoodQueryParser {
         }
         // Standardise number notation without changing the retained evidence.
         for dash in ["−", "–", "—"] { text = text.replacingOccurrences(of: dash, with: "-") }
+        // v11 (#382): "per cent" and "per-cent" are "percent" for every percentage rule below.
+        text = text.replacingOccurrences(of: #"\bper[ -]?cent\b"#, with: "percent", options: .regularExpression)
         // v9: a Unicode hyphen (U+2010, U+2011) joining two letters is the ASCII hyphen ("hard‑boiled").
         text = text.replacingOccurrences(of: #"(?<=\p{L})[\x{2010}\x{2011}](?=\p{L})"#, with: "-", options: .regularExpression)
         for m in matches(#"(?<![\w.])(-?\d+)\s+(\d+)/(\d+)(?![\d/])"#, text).reversed() {
@@ -137,6 +141,20 @@ public enum FoodQueryParser {
             }
         }
         let percentPattern = #"(-?\d+(?:\.\d+)?)\s*(?:%|percent)\s*(fat)?"#
+        // v11 (#382, docs/cocoa-aware-search-v1.md): "85% cocoa", "100% cacao" and "cocoa solids
+        // 85%" name the cocoa percentage of chocolate. Other cocoa products keep the v10 question,
+        // and the wording counts only when what is left is chocolate or a chocolate modifier.
+        let cocoaAfter = #"(-?\d+(?:\.\d+)?)\s*(?:%|percent)\s*(?:cocoa|cacao)(?:\s+solids)?\b"#
+        let cocoaBefore = #"\b(?:cocoa|cacao)\s+solids\s*(-?\d+(?:\.\d+)?)\s*(?:%|percent)"#
+        let cocoaProduct = #"\b(?:powder|butter|nibs?|paste|mass|liquor|beans?|tea|drink|hot|mix|beverage|spread)\b"#
+        var cocoaWording = false
+        if matches(cocoaProduct, text).isEmpty, !(matches(cocoaAfter, text) + matches(cocoaBefore, text)).isEmpty {
+            let rest = text.replacingOccurrences(of: cocoaAfter, with: " ", options: .regularExpression)
+                .replacingOccurrences(of: cocoaBefore, with: " ", options: .regularExpression)
+            let words = Set(matches(#"\b[a-z]+\b"#, rest).map { capture($0, 0, rest) })
+                .subtracting(["g", "gram", "grams", "kg", "of", "a", "an"])
+            cocoaWording = words.contains("chocolate") || words.isSubset(of: Self.chocolateModifiers)
+        }
         for m in matches(percentPattern, text) {
             let number = capture(m, 1, text)
             guard let value = Double(number) else { reasons.append("invalid_percentage"); continue }
@@ -144,11 +162,12 @@ public enum FoodQueryParser {
                let before = Range(NSRange(location: m.range.location - 1, length: 1), in: text),
                text[before].allSatisfy(\.isNumber) { continue } // range separator, already routed to clarification
             guard value >= 0, value <= 100 else { reasons.append("invalid_percentage"); continue }
-            let key = !capture(m, 2, text).isEmpty ? "fat_percent" : text.contains("chocolate") ? "cocoa_percent" : text.contains("peanut butter") ? "ingredient_percent" : "unspecified_percent"
+            let key = !capture(m, 2, text).isEmpty ? "fat_percent" : text.contains("chocolate") || cocoaWording ? "cocoa_percent" : text.contains("peanut butter") ? "ingredient_percent" : "unspecified_percent"
             if let existing = attributes[key], Double(existing) != value { reasons.append("conflicting_variants") }
             attributes[key] = value.rounded() == value ? String(Int(value)) : String(value)
             if key == "unspecified_percent" { reasons.append("percentage_meaning_unknown") }
         }
+        if cocoaWording { remove(cocoaAfter); remove(cocoaBefore) }
         remove(percentPattern)
         if !matches(#"\d\s*-\s*\d|\beach\b|\d[^,]*\bor\b[^,]*\d"#, text).isEmpty { reasons.append("quantity_scope_ambiguous") }
         let quantityPattern = #"(?<![\w.])(-?(?:\d+(?:\.\d+)?|\.\d+))\s*(kilograms?|kg|grams?|g|millilitres?|milliliters?|ml|litres?|liters?|l)\b"#
@@ -242,6 +261,11 @@ public enum FoodQueryParser {
         let singular = ["eggs":"egg", "bananas":"banana", "apples":"apple", "clementines":"clementine", "mandarins":"mandarin", "strawberries":"strawberry", "blueberries":"blueberry", "chia seeds":"chia seed", "almonds":"almond", "sesame seeds":"sesame seed"]
         for (plural, single) in singular { text = text.replacingOccurrences(of: #"\b"# + plural + #"\b"#, with: single, options: .regularExpression) }
         if text == "protein powder whey" { text = "whey protein powder" }
+        // v11: a bare cocoa percentage ("100% cacao", "dark 90% cocoa") searches chocolate. The
+        // original text stays the evidence; CocoaPercentPolicy shows that chocolate was implied.
+        if cocoaWording, Set(text.split(separator: " ").map(String.init)).isSubset(of: Self.chocolateModifiers) {
+            text = (text + " chocolate").trimmingCharacters(in: .whitespaces)
+        }
         if !matches(#"\d"#, text).isEmpty { reasons.append("unresolved_number") }
         if text.contains(" and ") || text.contains(" with ") || text.contains(" & ") || text.contains(" on ") {
             // One bounded bread name may contain both grain terms. This is

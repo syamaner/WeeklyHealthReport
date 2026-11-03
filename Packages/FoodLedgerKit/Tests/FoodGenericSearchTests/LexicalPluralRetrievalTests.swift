@@ -20,8 +20,8 @@ final class LexicalPluralRetrievalTests: XCTestCase {
     }
 
     func testMatcherVersionsAdvanceWithTheLexicalPolicy() {
-        XCTAssertEqual(CoFIDGenericFoodSearch.matcherVersion, "cofid-generic-ranking-v14")
-        XCTAssertEqual(USDAGenericFoodSearch.matcherVersion, "usda-generic-ranking-v15")
+        XCTAssertEqual(CoFIDGenericFoodSearch.matcherVersion, "cofid-generic-ranking-v15")
+        XCTAssertEqual(USDAGenericFoodSearch.matcherVersion, "usda-generic-ranking-v16")
         XCTAssertEqual(TFDAGenericFoodSearch.matcherVersion, "tfda-reviewed-ranking-v2")
         XCTAssertEqual(FoodLexicalPlurals.version, "food-lexical-terms-v9")
     }

@@ -171,3 +171,26 @@ swiftc Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryParser.swif
 /tmp/whr-query-eval Tools/FoodQueryEvaluation/synthetic-v9.json /tmp/query-results.json
 python3 Tools/FoodQueryEvaluation/score.py Tools/FoodQueryEvaluation/synthetic-v9.json /tmp/query-results.json /tmp/query-report.json --gate
 ```
+
+## Current checkpoint: v10 (food-query-parser-v11)
+
+625 cases: v9 unchanged plus 33 cocoa and "per cent" cases (`build_v10.py`, family
+`cocoa_percent_v10`) for #382. Cocoa or cacao wording names the cocoa percentage ("100% cacao",
+"85% cocoa chocolate", "cocoa solids 85% chocolate"), a bare cocoa percentage searches chocolate,
+"per cent" parses as "percent" for every key, and other cocoa products ("100% cocoa powder",
+"cacao nibs 100%", "85% hot cocoa") keep the v10 question. See `docs/cocoa-aware-search-v1.md`.
+The first run used parser v10, whose hash `manifest-v10.json` records.
+
+| Run | Routing | Quantity | Search cases, all fields | Unexpected prefills |
+|---|---:|---:|---:|---:|
+| v10 first run (parser v10) | 614/625 | 624/625 | 388/404 | 0 |
+| v10 final (parser v11) | 625/625 | 625/625 | 404/404 | 0 |
+
+The v9 cases all pass unchanged. CI now gates v10.
+
+```sh
+python3 Tools/FoodQueryEvaluation/validate.py v10
+swiftc Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryParser.swift Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryDiscoveryPolicy.swift Tools/FoodQueryEvaluation/run.swift -o /tmp/whr-query-eval
+/tmp/whr-query-eval Tools/FoodQueryEvaluation/synthetic-v10.json /tmp/query-results.json
+python3 Tools/FoodQueryEvaluation/score.py Tools/FoodQueryEvaluation/synthetic-v10.json /tmp/query-results.json /tmp/query-report.json --gate
+```

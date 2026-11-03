@@ -74,7 +74,7 @@ final class FoodLexicalPluralsTests: XCTestCase {
     }
 
     func testSameNumberMatchPrecedesFoldedMatchAfterThePrimaryName() {
-        XCTAssertEqual(GenericFoodRankingPolicy.version, "generic-representation-ranking-v8")
+        XCTAssertEqual(GenericFoodRankingPolicy.version, "generic-representation-ranking-v9")
         func preference(_ name: String, _ text: String) -> GenericFoodRankingPolicy.Preference {
             GenericFoodRankingPolicy.preference(name: name, food: text, requestedText: text)
         }

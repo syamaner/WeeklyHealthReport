@@ -3433,3 +3433,15 @@ Pricing uses the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M b
 | **Subtotal** | 23,748,739 (23,548,489) | 200,070 | 75,677 | 23,824,416 | $7.47 |
 
 `phase_usage.py --format claude --since 2026-11-03T07:06:59Z --until 2026-11-03T07:49:04Z` on the session transcript, without and with `--include-subagents` (the subagent row is the difference); exact USD 6.1190442 and 7.4732118. Excluded: the P2b validator and invariant review, which start after the window, this ledger edit and anything after the window. Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-382-2026-11-03: Claude Code cocoa-aware generic search (#382, phase A of #381)
+
+The coordinator session (`claude-opus-5-5`, session `8abede54-9564-4edc-9de1-c099dbc90ead`) wrote `docs/cocoa-aware-search-v1.md`, froze FoodQueryEvaluation v10 and FoodSearchQuality v7, and implemented parser v11 and `cocoa-percent-policy-v1` with their tests. Five subagents ran inside the window: one Explore map of the evaluation harnesses, one `architecture-gate` (PASS WITH CHANGES, 14 findings), one `invariant-reviewer` (PASS WITH CHANGES, 7 findings), one `validator` run stopped early when the review fixes began, and one complete `validator` run (PASS). The window runs from the owner's go-ahead at `2026-11-03T08:38:41Z` (the logged message time) to `2026-11-03T09:43:36Z`. Cache writes: coordinator 219,138 1-hour, subagents 392,935 5-minute.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Cocoa-aware search spec, evals and code (#382), coordinator session | 34,172,825 (33,953,499) | 219,138 | 124,290 | 34,297,115 | $11.03 |
+| Harness map, architecture gate, invariant review and validation (#382), subagents | 5,650,446 (5,257,317) | 392,935 | 78,651 | 5,729,097 | $4.59 |
+| **Subtotal** | 39,823,271 (39,210,816) | 612,073 | 202,941 | 40,026,212 | $15.62 |
+
+`phase_usage.py --format claude --since 2026-11-03T08:38:41Z --until 2026-11-03T09:43:36Z` on the session transcript, without and with `--include-subagents` (the subagent row is the difference); exact USD 11.0303558 and 15.6202902. Excluded: this ledger edit, the merge of `main`, the final re-check, the commit, the push and the PR after that time. Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Local builds, simulator runs and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.

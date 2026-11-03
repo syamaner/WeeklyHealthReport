@@ -124,7 +124,8 @@ final class RankedRetrievalDevelopmentTests: XCTestCase {
     /// labels and expected reports stay comparable; v3 rows are the v4 rows for
     /// the unchanged v3 case identifiers. v5 rows use the production composite
     /// with Taiwan TFDA as a regional source and the scenario's market; v6
-    /// rows are the v5 rows plus the plural/singular cases (food-lexical-terms-v9).
+    /// rows are the v5 rows plus the plural/singular cases (food-lexical-terms-v9);
+    /// v7 rows are the v6 rows plus the dark chocolate cocoa cases (cocoa-percent-policy-v1).
     func testReplay() throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent()
@@ -134,9 +135,9 @@ final class RankedRetrievalDevelopmentTests: XCTestCase {
             try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: directory.appendingPathComponent(name)))
         }
         let v3 = try load("retrieval-scenarios-v3.json"), v4 = try load("retrieval-scenarios-v4.json")
-        let v5 = try load("retrieval-scenarios-v5.json")
-        let fixture = try load("retrieval-scenarios-v6.json")
-        for earlier in [v3, v4, v5] {
+        let v5 = try load("retrieval-scenarios-v5.json"), v6 = try load("retrieval-scenarios-v6.json")
+        let fixture = try load("retrieval-scenarios-v7.json")
+        for earlier in [v3, v4, v5, v6] {
             XCTAssertEqual(earlier.cases.map(\.id), Array(fixture.cases.prefix(earlier.cases.count)).map(\.id))
             XCTAssertEqual(earlier.cases.map(\.query), Array(fixture.cases.prefix(earlier.cases.count)).map(\.query))
         }
@@ -145,6 +146,7 @@ final class RankedRetrievalDevelopmentTests: XCTestCase {
         let tfda = try TFDAGenericFoodSearch(ids: ids)
         let baseline = ProcessInfo.processInfo.environment["WHR_RETRIEVAL_REPORT_V5_BASELINE"] != nil
         let v3IDs = Set(v3.cases.map(\.id)), v4IDs = Set(v4.cases.map(\.id)), v5IDs = Set(v5.cases.map(\.id))
+        let v6IDs = Set(v6.cases.map(\.id))
         var rows: [Row] = [], regionalRows: [Row] = [], baselineRows: [Row] = []
         for scenario in fixture.cases {
             let request = try replayRequest(scenario)
@@ -173,7 +175,8 @@ final class RankedRetrievalDevelopmentTests: XCTestCase {
         try write(rows.filter { v3IDs.contains($0.id) }, environment: "WHR_RETRIEVAL_REPORT")
         try write(rows, environment: "WHR_RETRIEVAL_REPORT_V4")
         try write(regionalRows.filter { v5IDs.contains($0.id) }, environment: "WHR_RETRIEVAL_REPORT_V5")
-        try write(regionalRows, environment: "WHR_RETRIEVAL_REPORT_V6")
+        try write(regionalRows.filter { v6IDs.contains($0.id) }, environment: "WHR_RETRIEVAL_REPORT_V6")
+        try write(regionalRows, environment: "WHR_RETRIEVAL_REPORT_V7")
         if baseline { try write(baselineRows.filter { v5IDs.contains($0.id) }, environment: "WHR_RETRIEVAL_REPORT_V5_BASELINE") }
     }
 
@@ -182,7 +185,8 @@ final class RankedRetrievalDevelopmentTests: XCTestCase {
         let cofid = try CoFIDGenericFoodSearch(ids: ids), usda = try USDAGenericFoodSearch(ids: ids)
         let regional = CompositeGenericFoodSearch(sources: [cofid, usda], regionalSources: [try TFDAGenericFoodSearch(ids: ids)], ids: ids)
         let twoSource = CompositeGenericFoodSearch(sources: [cofid, usda], ids: ids)
-        for query in ["120 g banana", "rice", "guava", "100g apple", "250g cooked weight sirloin", "milk"] {
+        for query in ["120 g banana", "rice", "guava", "100g apple", "250g cooked weight sirloin", "milk",
+                      "dark chocolate 85%", "100% cacao", "dark chocolate"] {
             let scenario = Scenario(id: query, query: query, preparation: nil, market: nil)
             let request = try replayRequest(scenario)
             XCTAssertEqual(try replayRow(scenario, source: "composite", request: request, search: regional).removingTaiwanRecords().records,

@@ -10,7 +10,7 @@ public enum CoFIDSearchError: Error, Equatable, Sendable {
 }
 
 public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Sendable {
-    public static let matcherVersion = "cofid-generic-ranking-v14"
+    public static let matcherVersion = "cofid-generic-ranking-v15"
     public static let corpusCanonicalSHA256 = "2b0fbbade4d405eabcad440cabb1560e9861d9388c5fb4032ef24c81fb45f445"
     public static let candidateLimit = 10
     public static let minimumScore = 0.25
@@ -204,7 +204,11 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
         for record in corpus.records {
             let candidate = Self.normalized(record.name)
             let candidateTokens = GenericFoodSearchTerms.tokens(record.name)
-            guard meaningfulTokens.isSubset(of: candidateTokens),
+            // cocoa-percent-policy-v1: closed exceptions to full query-word coverage, which also
+            // replace the lexical score floor below (the exception, not word overlap, admits them).
+            let admitted = !meaningfulTokens.isSubset(of: candidateTokens) && CocoaPercentPolicy.admits(
+                name: record.name, description: record.description, recordID: nil, query: parsed, foodTerms: meaningfulTokens)
+            guard meaningfulTokens.isSubset(of: candidateTokens) || admitted,
                   GenericFoodSearchTerms.acceptsFoodForm(name: record.name, query: meaningfulTokens, literal: false),
                   GenericFoodRankingPolicy.allowsDerivativeFoodName(record.name, query: food),
                   Self.contradictions(query: request.identity, record: record, parsed: parsed).isEmpty else { continue }
@@ -228,23 +232,29 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
             let hasDirectComponent = !component.contains("(") && !component.contains(")")
                 && !component.lowercased().split(separator: " ").contains(where: { ["with", "in", "on", "made"].contains(String($0)) })
                 && meaningfulTokens.isSubset(of: componentTokens)
-            guard rankingScore >= Self.minimumScore || hasDirectComponent else { continue }
+            guard rankingScore >= Self.minimumScore || hasDirectComponent || admitted else { continue }
             let score = min(1, rankingScore / 1.15) // Clamp floating-point rounding at the schema boundary.
             let differences = ["Search terms: \(meaningfulTokens.sorted().joined(separator: " ")); parsed food terms; requested attributes need review; original query retained."] + candidateTokens.subtracting(meaningfulTokens).sorted().map { "candidate_only_token:\($0)" }
                 + meaningfulTokens.subtracting(candidateTokens).sorted().map { "query_only_token:\($0)" }
             ranked.append(RankedRecord(record: record, score: score, exact: exact, differences: differences,
                 preference: GenericFoodRankingPolicy.preference(name: record.name, food: food, requestedText: request.text.value)))
         }
-        return Array(ranked.sorted {
+        // The cocoa tier applies before the cut, so a single-source caller sees the same rows.
+        let cocoa = CocoaPercentPolicy.requested(parsed).map { value in
+            CocoaPercentPolicy.tierKeys(ranked.map { CocoaPercentPolicy.band(name: $0.record.name, description: $0.record.description, recordID: nil) }, requested: value)
+        }
+        return ranked.indices.sorted { left, right in
+            let lhs = ranked[left], rhs = ranked[right]
             let a = FoodPreparationDiscoveryPolicy.isUnverified(requested: request.identity.preparation,
-                actual: PreparationKind(rawValue: $0.record.identity.preparation) ?? .unknown)
+                actual: PreparationKind(rawValue: lhs.record.identity.preparation) ?? .unknown)
             let b = FoodPreparationDiscoveryPolicy.isUnverified(requested: request.identity.preparation,
-                actual: PreparationKind(rawValue: $1.record.identity.preparation) ?? .unknown)
+                actual: PreparationKind(rawValue: rhs.record.identity.preparation) ?? .unknown)
             if a != b { return !a }
-            if $0.exact != $1.exact { return $0.exact }
-            if $0.preference != $1.preference { return GenericFoodRankingPolicy.prefers($0.preference, over: $1.preference) }
-            return $0.score == $1.score ? $0.record.recordID < $1.record.recordID : $0.score > $1.score
-        }.prefix(Self.candidateLimit))
+            if let cocoa, cocoa[left] != cocoa[right] { return cocoa[left] < cocoa[right] }
+            if lhs.exact != rhs.exact { return lhs.exact }
+            if lhs.preference != rhs.preference { return GenericFoodRankingPolicy.prefers(lhs.preference, over: rhs.preference) }
+            return lhs.score == rhs.score ? lhs.record.recordID < rhs.record.recordID : lhs.score > rhs.score
+        }.prefix(Self.candidateLimit).map { ranked[$0] }
     }
 
     private func populatedCandidate(

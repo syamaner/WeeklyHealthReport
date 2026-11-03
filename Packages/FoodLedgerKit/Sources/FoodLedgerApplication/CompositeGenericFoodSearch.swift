@@ -4,7 +4,7 @@ import FoodLedgerDomain
 /// Interleaves source-local ranks with exact names first; never compares unlike scores.
 /// v9: regional sources follow the default sources, by source, unless promoted.
 public final class CompositeGenericFoodSearch: GenericFoodSearching, @unchecked Sendable {
-    public static let version = "composite-generic-ranking-v9"
+    public static let version = "composite-generic-ranking-v10"
     private let sources: [any GenericFoodSearching]
     private let regionalSources: [any GenericFoodSearching]
     private let promotesRegional: (GenericFoodSearchRequest) -> Bool
@@ -58,6 +58,10 @@ public final class CompositeGenericFoodSearch: GenericFoodSearching, @unchecked 
         // The same representation policy runs before source truncation and across sources.
         // Source-local interleaving is only the stable tiebreak for equal preferences.
         let food = request.retrievalText
+        // cocoa-percent-policy-v1 tiers rank after regional deferral, before name preference.
+        let cocoa = CocoaPercentPolicy.requested(request.parsedQuery).map { value in
+            CocoaPercentPolicy.tierKeys(interleaved.map { CocoaPercentPolicy.band($0.candidate) }, requested: value)
+        }
         let lexical = interleaved.enumerated().sorted { lhs, rhs in
             let leftUnverified = FoodPreparationDiscoveryPolicy.isUnverified(requested: request.identity.preparation,
                 actual: lhs.element.candidate.candidate.identity.preparation.kind)
@@ -66,6 +70,7 @@ public final class CompositeGenericFoodSearch: GenericFoodSearching, @unchecked 
             if leftUnverified != rightUnverified { return !leftUnverified }
             // Deferred regional rows follow by source; no score is compared across sources.
             if regional[lhs.offset] != regional[rhs.offset] { return !regional[lhs.offset] }
+            if let cocoa, cocoa[lhs.offset] != cocoa[rhs.offset] { return cocoa[lhs.offset] < cocoa[rhs.offset] }
             if lhs.element.isExactName != rhs.element.isExactName { return lhs.element.isExactName }
             let a = GenericFoodRankingPolicy.preference(name: lhs.element.candidate.name.value,
                 food: food, requestedText: request.text.value)

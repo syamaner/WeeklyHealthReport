@@ -23,7 +23,7 @@ final class FoodQueryParserTests: XCTestCase {
     }
 
     func testCookedEggCountsAreCountsAndKeepTheMethodInTheFoodText() {
-        XCTAssertEqual(FoodQueryParser.version, "food-query-parser-v10")
+        XCTAssertEqual(FoodQueryParser.version, "food-query-parser-v11")
         for (input, food, count) in [("2 scrambled eggs", "scrambled egg", 2.0), ("two fried eggs", "fried egg", 2),
                                      ("3 poached eggs", "poached egg", 3), ("a fried egg", "fried egg", 1),
                                      ("2 x scrambled eggs", "scrambled egg", 2), ("2 boiled eggs", "egg", 2)] {
