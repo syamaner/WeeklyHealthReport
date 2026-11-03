@@ -3393,3 +3393,13 @@ Pricing uses the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M b
 ## WHR-375-2026-11-03: Claude Code per 100 header guard (#375)
 
 Built by the coordinator session of WHR-371-2026-11-03 (UK reader P2a), interleaved with that work in one window, so it has no separate figure: its usage is inside that row, recorded with the P2a PR. The validator subagent that ran this fix's gates finished after that window and is not counted anywhere. Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-381-2026-11-03: Claude Code dark chocolate nutrient sources investigation and plan (#381)
+
+One Claude Code session (`claude-opus-5-5`, session `8abede54-9564-4edc-9de1-c099dbc90ead`) reproduced the dark chocolate search results with a throwaway probe test (removed), surveyed composition sources, wrote `docs/dark-chocolate-nutrient-sources-investigation.md`, recorded the owner's three decisions and opened #381 to #384. Documentation only; no product code. No subagents. The session began with this task, so its whole transcript up to `2026-11-03T08:28:16Z` is the boundary; all 207,273 cache writes are 1-hour.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Dark chocolate investigation and A, B, C plan (#381), coordinator session | 11,986,511 (11,779,092) | 207,273 | 59,641 | 12,046,152 | $5.21 |
+
+`phase_usage.py --format claude --until 2026-11-03T08:28:16Z` on the session transcript; exact USD 5.2074064. Excluded: issue creation, this ledger edit, the commit and the PR after that time. Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Local builds and test runs use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
