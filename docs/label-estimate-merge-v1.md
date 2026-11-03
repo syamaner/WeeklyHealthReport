@@ -26,7 +26,7 @@ The "Estimate unprinted nutrients" row appears only when all hold:
 
 ### 2. Cocoa percentage field
 
-- Pre-fill: one cocoa percentage read by `CocoaPercentPolicy.band(name:description:recordID:)` from the candidate name, or for pasted labels from the pasted text with the same reader. A range or more than one distinct value gives no pre-fill.
+- Pre-fill: one cocoa percentage from the candidate name, else (pasted labels) from the pasted text. The reader is `CocoaPercentPolicy.band(name:description:recordID:)` plus the label form "cocoa solids[: ]N% minimum" (B1). A range, more than one distinct value, an ingredient percentage ("30% cocoa butter") or a value outside rule 2's range gives no pre-fill.
 - The field accepts 1 to 100, whole or one decimal place. The pre-fill is shown as a suggestion; the estimate list appears only after the user confirms or types a value.
 - Saved as a user-asserted decisive attribute `cocoa_percent` on the confirmation, with the pre-fill origin (`name`, `pasted_text` or `typed`). The confirmed value, not the pre-fill, drives compatibility.
 
