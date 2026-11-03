@@ -3378,11 +3378,16 @@ One Claude Code session (`claude-opus-5-5`) coordinated; one general-purpose sub
 
 ## WHR-370-2026-11-03: Claude Code named-dish amount pre-fill (#370)
 
-One Claude Code session (`claude-opus-5-5`) coordinated; one general-purpose subagent wrote the v73 contract amendment, the discovery v4 and interpretation v5 change, the review message display and the tests. The owner approved pre-filling Confirm from a named dish's exact amount on 3 November 2026.
+One Claude Code session (`claude-opus-5-5`) coordinated; subagents investigated the cause, walked the journey twice in the simulator and reviewed the diff (`invariant-reviewer`, PASS); one general-purpose subagent wrote the v73 contract amendment, the discovery v4 and interpretation v5 change, the review message display and the tests. The owner approved pre-filling Confirm from a named dish's exact amount on 3 November 2026.
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Named-dish amount pre-fill (#370), coordinator session | Unmeasured | Unmeasured | Unmeasured | Unmeasured | Unmeasured |
-| Contract, fix and tests (#370), implementation subagent | Unmeasured | Unmeasured | Unmeasured | Unmeasured | Unmeasured |
+| Root-cause investigation (#370), subagent | 2,717,151 (2,586,235) | 130,862 | 12,600 | 2,729,751 | $1.42 |
+| Journey QA: current behaviour (#370), subagent | 11,439,354 (11,248,521) | 190,667 | 17,710 | 11,457,064 | $3.56 |
+| Contract, fix, tests and follow-ups (#370), implementation subagent | 13,410,263 (12,609,328) | 800,771 | 57,980 | 13,468,243 | $7.69 |
+| Invariant review (#370), subagent | 430,584 (377,622) | 52,936 | 13,043 | 443,627 | $0.60 |
+| Journey QA: named-dish pre-fill (#370), subagent | 5,406,277 (5,260,669) | 145,476 | 21,465 | 5,427,742 | $2.21 |
+| **Subtotal (subagents)** | 33,403,629 (32,082,375) | 1,320,712 | 122,798 | 33,526,427 | $15.48 |
 
-The coordinator session and the implementation subagent are Unmeasured: no start boundary was captured when the phase began, so no figure is estimated. Further measured subagent rows may be added to this table. Local builds and simulator test runs use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
+`phase_usage.py --format claude` on each subagent transcript (whole transcript as the boundary); all cache writes are 5-minute; exact USD 1.4238, 3.5579, 7.6860, 0.6012 and 2.2093 (15.4782 in total). Pricing: the Claude Opus 5.5 rates recorded in WHR-93-2026-10-20q (USD 4/M base input, 5/M 5-minute cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. The coordinator session is Unmeasured: no start boundary was captured when the phase began, so no figure is estimated. Local builds and simulator test runs use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
