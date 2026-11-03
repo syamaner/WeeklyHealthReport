@@ -66,7 +66,7 @@ Each phase is its own PR with the full gates and its ledger row, except where no
 
 Format inference, the gate, the checks and the conversions stay at their current versions. Any change to one is a separately versioned component with its own identity check over the pasted **and** photo fixtures. Synthetic fixtures (invented values and names) and mutation cases under both oracles (reader v3 section 7.2) cover every new rule. The development set is re-run at every PR and must keep zero wrong values. If a new target is added, `check-boundaries.sh` is extended.
 
-**P3. Freeze and UK fresh-set protocol.** In one commit, before any fresh label is collected:
+**P3. Freeze and UK fresh-set protocol.** In one commit, before any fresh label is collected ([P3 spec](pasted-nutrition-label-uk-english-v1-p3.md); its section 6 records an open owner decision for P5 on which policy `.product` becomes):
 
 - the UK freeze: a new `UKReaderFreezeTests` pinning the UK parser, `uk-row-aliases-v1`, the adapter, the UK harness and scorer, and every file they read through;
 - a **new** UK harness and scorer file with its own run and transcription schemas; `FreshSetProtocol.swift` and its Taiwan comparator and unit tables are not edited;

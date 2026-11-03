@@ -78,6 +78,8 @@ CODE_READ_DOCS = {
     "docs/pasted-nutrition-label-uk-english-v1-p2b.md",
     # Cited by the cocoa percent policy, the generic search rankers and their tests (#382).
     "docs/cocoa-aware-search-v1.md",
+    # Cited by the UK freeze, the UK fresh-set harness and scorer and their tests (#371 P3).
+    "docs/pasted-nutrition-label-uk-english-v1-p3.md",
 }
 CODE_READ_DOC_PREFIXES = ("docs/fixtures/",)
 # Never documentation, whatever the lists above say: CI, its scripts and this
