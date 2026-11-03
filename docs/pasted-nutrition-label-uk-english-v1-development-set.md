@@ -105,4 +105,22 @@ The same 24 labels read through `PastedLabelReader` with the `.ukDevelopment` po
 - The two discrepancies are kcal calculated from kJ against the printed kcal, each differing by under 5 kcal (rounding on the label); they are reported, as reader v3 12.2.8 requires.
 - Declines are unchanged by reason.
 
+## P3 re-run (UK scorer, 3 November 2026)
+
+The same reading as P2b (no reader change in P3), scored by the new UK scorer `UKFreshSet.score` ([P3 spec](pasted-nutrition-label-uk-english-v1-p3.md) section 3) through its development decoder, with the confirmation built under the same `.ukDevelopment` policy.
+
+| Measure | P2b | P3 |
+| --- | ---: | ---: |
+| Reached Confirm | 16 | 16 |
+| Declined | 8 (33%) | 8 (33%) |
+| Values checked | 182 | 182 |
+| Wrong values from a real misbinding | 0 | **0** |
+| Scored wrong but justified as scorer artefacts | 6, in 3 tables | **0** |
+| Correction burden, mean / median | 0.375 / 0.0 | 0.375 / 0.0 |
+| Share of tables needing any correction | 0.250 | 0.250 |
+| Calculated vs printed discrepancies (reported, never gating) | 2 | 2 |
+
+- The six artefacts are now matched to their printed rows by the UK label rules (an `of which` wrapped onto a long dash, a bracketed sub-row cut at its bracket, a `(kcal)` continuation row), and each compares equal; no comparison rule changed.
+- Panels: the P1 transcriptions predate the `panel` field, so all 24 count as `unknown`.
+
 Only counts and rules were added from the real-text sets; no text, value, product name or hash.

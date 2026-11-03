@@ -21,7 +21,7 @@ final class UKDevelopmentStepTests: XCTestCase {
             print("run wrote \(try UKDevelopmentSet.runAll(root, commit: try Self.git(["-C", checkout, "rev-parse", "HEAD"]).trimmingCharacters(in: .whitespacesAndNewlines))) outputs")
         case "score":
             let summary = try UKDevelopmentSet.scoreAll(root)
-            print("scored \(summary.labels) labels; written to results/summary.json; wrong values: \(summary.wrongValues)")
+            print("scored \(summary.overall.labels) labels; written to results/summary.json; wrong values: \(summary.overall.wrongValues)")
         default: XCTFail("unknown step \(step)")
         }
     }
