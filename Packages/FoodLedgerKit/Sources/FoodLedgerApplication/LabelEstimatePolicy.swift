@@ -12,11 +12,8 @@ public enum LabelEstimateCompatibility {
     public static let nearestBandRecordID =
         "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170273"
 
-    public enum PrefillOrigin: String, Codable, Sendable {
-        case name
-        case pastedText = "pasted_text"
-        case typed
-    }
+    /// The origin saved with the confirmed percentage (a domain type, `CocoaPercentOrigin`).
+    public typealias PrefillOrigin = CocoaPercentOrigin
 
     /// Rule 1 (route aside, which the caller checks): a chocolate that is not milk, white or
     /// ruby, on a basis with a known mass.
@@ -36,18 +33,26 @@ public enum LabelEstimateCompatibility {
 
     /// Rule 2: the confirmed or typed value is 1 to 100, whole or one decimal place.
     public static func isValidPercent(_ value: Double) -> Bool {
-        value.isFinite && value >= 1 && value <= 100 && (value * 10).rounded() == value * 10
+        LabelEstimateAssertion.isValidCocoaPercent(value)
     }
 
     /// Rule 3 for one row and a confirmed percentage.
     public static func isCompatible(_ row: PopulatedFoodCandidate, cocoaPercent p: Double) -> Bool {
-        guard isValidPercent(p), isBundledGeneric(row.candidate.nutrients) else { return false }
-        let terms = Set(GenericFoodRankingPolicy.terms(row.name.value))
+        isCompatible(name: row.name.value, variant: row.variant?.value, recordID: row.candidate.recordID.value,
+                     nutrients: row.candidate.nutrients, cocoaPercent: p)
+    }
+
+    /// Rule 3 from a row's stored facts, so save and reopen share one rule (reopen has the
+    /// decision's record and nutrients and the name and variant on the cocoa assertion).
+    public static func isCompatible(name: String, variant: String?, recordID: String, nutrients: NutrientSet,
+                                    cocoaPercent p: Double) -> Bool {
+        guard isValidPercent(p), isBundledGeneric(nutrients) else { return false }
+        let terms = Set(GenericFoodRankingPolicy.terms(name))
         guard terms.contains("chocolate"), terms.isDisjoint(with: CocoaPercentPolicy.chocolateTypes) else { return false }
-        let recordID = row.candidate.recordID.value
         if p == 100, recordID == CocoaPercentPolicy.estimate100RecordID { return true }
         if p > 85, p < 100, recordID == nearestBandRecordID { return true }
-        if case let .declared(lower, upper)? = CocoaPercentPolicy.band(row), lower <= upper {
+        if case let .declared(lower, upper)? = CocoaPercentPolicy.band(name: name, description: variant, recordID: recordID),
+           lower <= upper {
             return (lower...upper).contains(p)
         }
         return false
@@ -145,5 +150,84 @@ public enum LabelEstimateMerge {
                                responseHash: $0.responseHash, manifestReference: $0.manifestReference,
                                decisionID: $0.decisionID, assertionID: $0.assertionID, transforms: $0.transforms + [transform])
         }
+    }
+}
+
+/// The estimate a user chose on Confirm before Log (docs/label-estimate-merge-v1.md section 5):
+/// one compatible generic row with its evidence and release, and the confirmed cocoa percentage.
+public struct LabelEstimateChoice: Equatable, Sendable {
+    public let generic: PopulatedFoodCandidate
+    public let evidence: [CaptureEvidence]
+    public let sourceRelease: SourceRelease
+    public let cocoaPercent: Double
+    public let origin: CocoaPercentOrigin
+
+    public init(generic: PopulatedFoodCandidate, evidence: [CaptureEvidence], sourceRelease: SourceRelease,
+                cocoaPercent: Double, origin: CocoaPercentOrigin) {
+        self.generic = generic
+        self.evidence = evidence
+        self.sourceRelease = sourceRelease
+        self.cocoaPercent = cocoaPercent
+        self.origin = origin
+    }
+}
+
+/// The checks shared by save and reopen of an estimate layer (sections 5 and 6). The bundle is
+/// never re-read: the stored generic row and its stored release are the whole input.
+enum LabelEstimateLayer {
+    /// The merged nutrients for a label candidate and a generic row, or nil when the label offers no
+    /// estimate, the row is not a bundled generic row of `release`, or a copied value would name
+    /// another release or record. Rule 3 itself is the caller's (`isCompatible`).
+    static func merged(label: PopulatedFoodCandidate, generic: ProviderNeutralCandidate, release: SourceRelease,
+                       cocoaPercent: Double) throws -> NutrientSet? {
+        guard LabelEstimateCompatibility.offersEstimate(name: label.name.value, basis: label.candidate.identity.servingBasis),
+              LabelEstimateCompatibility.isValidPercent(cocoaPercent),
+              LabelEstimateCompatibility.isBundledGeneric(generic.nutrients),
+              release.sourceReleaseID == generic.sourceReleaseID, generic.sourceReleaseID != label.candidate.sourceReleaseID,
+              generic.nutrients.entries.flatMap(\.value.provenance).allSatisfy({
+                  $0.sourceReleaseID == generic.sourceReleaseID && $0.recordID == generic.recordID
+              }) else { return nil }
+        return try LabelEstimateMerge.merge(label: label.candidate.nutrients, labelBasis: label.candidate.identity.servingBasis,
+                                            generic: generic.nutrients, genericBasis: generic.identity.servingBasis)?.nutrients
+    }
+
+    /// Section 6 steps 2 to 4: the nutrients a saved label entry must carry. The label candidate's
+    /// own without a layer; with one, its merge with the stored generic decision under the single
+    /// stored cocoa assertion. Nil when the layer, or a cocoa assertion without a layer, does not verify.
+    static func expectedNutrients(_ saved: StoredFoodConfirmation, label: PopulatedFoodCandidate) throws -> NutrientSet? {
+        let asserted = saved.assertions.compactMap(\.labelEstimate)
+        guard let layer = saved.estimate else { return asserted.isEmpty ? label.candidate.nutrients : nil }
+        let generic = layer.candidateDecision.candidate
+        guard asserted.count == 1, let assertion = asserted.first,
+              assertion.compatibilityVersion.value == LabelEstimateCompatibility.version,
+              assertion.mergeVersion.value == LabelEstimateMerge.version,
+              layer.candidateDecision.outcome == .selectedForEstimate,
+              layer.evidence.map(\.evidenceID) == generic.evidenceIDs,
+              saved.resolutionVersion.decisionIDs == [saved.candidateDecision.candidateDecisionID, layer.candidateDecision.candidateDecisionID],
+              LabelEstimateCompatibility.isCompatible(name: assertion.genericName.value, variant: assertion.genericVariant?.value,
+                  recordID: generic.recordID.value, nutrients: generic.nutrients, cocoaPercent: assertion.cocoaPercent)
+        else { return nil }
+        return try merged(label: label, generic: generic, release: layer.sourceRelease, cocoaPercent: assertion.cocoaPercent)
+    }
+}
+
+extension StoredLabelEstimate {
+    /// Reader assembly (section 5): no layer for a single decision; for two, the second decision with
+    /// its evidence and its release, which is taken out of the label's releases. More than two
+    /// decisions, or a layer without its evidence or release, is an integrity failure.
+    public static func assembled(decisions: [CandidateDecision], evidence: [[CaptureEvidence]],
+                                 releases: inout [SourceRelease]) throws -> StoredLabelEstimate? {
+        // selected_for_estimate is only ever a layer's second decision.
+        guard decisions.first?.outcome != .selectedForEstimate else {
+            throw FoodLedgerStoreError.integrityFailure("incomplete label estimate layer")
+        }
+        guard decisions.count > 1 else { return nil }
+        let decision = decisions[1]
+        guard decisions.count == 2, evidence.count == 2, decision.outcome == .selectedForEstimate, evidence[1].map(\.evidenceID) == decision.candidate.evidenceIDs,
+              decisions[0].candidate.sourceReleaseID != decision.candidate.sourceReleaseID,
+              let index = releases.firstIndex(where: { $0.sourceReleaseID == decision.candidate.sourceReleaseID }) else {
+            throw FoodLedgerStoreError.integrityFailure("incomplete label estimate layer")
+        }
+        return StoredLabelEstimate(candidateDecision: decision, evidence: evidence[1], sourceRelease: releases.remove(at: index))
     }
 }
