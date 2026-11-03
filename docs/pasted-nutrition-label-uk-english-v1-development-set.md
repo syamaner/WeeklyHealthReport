@@ -102,7 +102,7 @@ The same 24 labels read through `PastedLabelReader` with the `.ukDevelopment` po
 
 - N5 recognised the energy rows printed `Energy kJ` or `Energy kcal` with the unit repeated in their cells, which also ended the title merge across lines: the four title artefacts are gone.
 - The six remaining artefacts are the shapes P2b left on purpose (a `(kcal)` continuation row, a bracketed sub-row with a bracketed value, and an `of which` wrapped onto a line starting with a long dash); each was checked in P2a and their values are unchanged.
-- The two discrepancies are kcal calculated from kJ against the printed kcal, differing by 2.5 and 3 kcal (rounding on the label); they are reported, as reader v3 12.2.8 requires.
+- The two discrepancies are kcal calculated from kJ against the printed kcal, each differing by under 5 kcal (rounding on the label); they are reported, as reader v3 12.2.8 requires.
 - Declines are unchanged by reason.
 
 Only counts and rules were added from the real-text sets; no text, value, product name or hash.

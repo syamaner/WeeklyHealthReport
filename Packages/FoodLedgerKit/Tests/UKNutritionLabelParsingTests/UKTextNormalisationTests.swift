@@ -141,10 +141,17 @@ final class UKTextNormalisationTests: XCTestCase {
     /// and N2's copy of the label unit onto each number (one more token per number, all the label's).
     func testNormalisationKeepsUnitTokensApartFromN1AndN2() {
         let cases = ["Energy kJ\t1520\t456", "Protein (μg) <5 | 7", "Fat\t12g\n(of Which Saturates)\t5g", "of which are sugars 3g",
-                     "Average nutritional information Energy\t1520kJ", "Fat (g) 3.4 5%", Self.rows]
+                     "Average nutritional information Energy\t1520kJ", "Fat (g) 3.4 5%", Self.rows,
+                     "Energy kJ\t1520 kJ\t456 kJ", "Energy kcal: 362 kcal", "Typical values Energy kJ 1520 kJ", "Energy kJ 1520 kJ 362"]
         for text in cases {
             let before = units(text), after = units(UKTextNormalisation.normalise(text))
-            if let n2 = UKTextNormalisation.moveLabelUnit(text), !text.contains("\n") {
+            if text.hasSuffix(" kJ") || text.hasSuffix("kcal"), UKTextNormalisation.normalise(text) != text {
+                // N5: the output's units are the input's, less exactly the one label unit.
+                var remaining = before
+                for unit in after { if let index = remaining.firstIndex(of: unit) { remaining.remove(at: index) } else { XCTFail("\(unit) added: \(text)") } }
+                XCTAssertEqual(remaining.count, 1, text)
+                XCTAssertTrue(["kJ", "kcal"].contains(remaining.first ?? ""), text)
+            } else if let n2 = UKTextNormalisation.moveLabelUnit(text), !text.contains("\n") {
                 XCTAssertEqual(after, units(n2), text)
                 XCTAssertEqual(Set(after), Set(before), text)
             } else {
@@ -167,7 +174,9 @@ final class UKTextNormalisationTests: XCTestCase {
     }
 
     func testNormalisationKeepsEveryNumberSeparatorAndComparatorAndTheLanguage() {
-        let texts = UKGuardCases.all + [Self.rows, "Typical values\tper 100gm\nEnergy kJ\t1520\t456", "營養標示\n每100公克\n熱量 200大卡"]
+        let texts = UKGuardCases.all + [Self.rows, "Typical values\tper 100gm\nEnergy kJ\t1520\t456", "營養標示\n每100公克\n熱量 200大卡",
+                                        "Energy kJ\t1520 kJ\t456 kJ", "Energy kcal: <362 kcal", "Typical values Energy kJ 1,520 kJ",
+                                        "Energy kJ 1520 kJ 362 kcal"]
         for text in texts {
             let normalised = UKTextNormalisation.normalise(text)
             XCTAssertEqual(tokens(normalised), tokens(text), text)

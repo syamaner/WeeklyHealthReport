@@ -33,6 +33,7 @@ public struct PastedLabelReadingPolicy: Equatable, Sendable {
     /// The UK development harness and, from P4, the debug-only device step: Taiwan and UK, identity v2.
     public static let ukDevelopment = PastedLabelReadingPolicy(
         launchScope: ["taiwan_nutrition_labelling", "uk_nutrition_declaration"], identity: .v2)
+    /// Every member, for the closure test (a UK scope reads with identity v2); add any new member here.
     public static let all: [PastedLabelReadingPolicy] = [.product, .ukDevelopment]
 
     public func admits(_ format: String) -> Bool { launchScope.contains(format) }

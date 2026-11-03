@@ -17,7 +17,7 @@ Today `PastedLabelReader.classify` and `PastedLabelConfirmation` read the consta
 - `.product`: the scope `["taiwan_nutrition_labelling"]` and identity v1. This is today's behaviour.
 - `.ukDevelopment`: the scope `["taiwan_nutrition_labelling", "uk_nutrition_declaration"]` and identity v2. It is used by the development harness, and later by P4's debug switch.
 
-Identity is a closed enum `{ v1, v2 }` that maps to `PastedLabelBasisState` or `PastedLabelBasisStateV2`, not a closure. So a scope admitting UK cannot pair with identity v1, which would accept UK as-prepared tables as the food as sold. Nothing at the composition root changes before P4; P4's `#if DEBUG` switch is its own PR. `PastedLabelText.supportedLayouts` (decline copy) and `LabelPhotoReading.launchScope` stay on the constants, on purpose: copy follows the shipped scope (P4 notes the debug case), and the photo route keeps its own scope (decision 6).
+Identity is a closed enum `{ v1, v2 }` that maps to `PastedLabelBasisState` or `PastedLabelBasisStateV2`, not a closure. So a scope admitting UK cannot pair with identity v1, which would accept UK as-prepared tables as the food as sold. Nothing at the composition root changes before P4; P4's `#if DEBUG` switch is its own PR, and it must switch the reader's and the confirmation's policies together (a `.ukDevelopment` reading with a `.product` confirmation would build a UK-format manifest that verification rejects). `PastedLabelText.supportedLayouts` (decline copy) and `LabelPhotoReading.launchScope` stay on the constants, on purpose: copy follows the shipped scope (P4 notes the debug case), and the photo route keeps its own scope (decision 6).
 
 **Why identity joins the decision 8 seam.** Decision 8 approved a launch-scope seam. Admitting UK under identity v1 would accept UK as-prepared headers (`with milk`, `cooked`, `+`) as the food as sold, so the scope and the identity rule must change together. The closed policy is the smallest seam that keeps them together, and its default is today's behaviour byte for byte. This is recorded in the re-pin entry, and reported to the owner in the PR.
 
@@ -58,7 +58,7 @@ As P2a section 5, and:
 
 ## 4. Contract tests
 
-1. **S1, default equality against an independent reference.** The pre-seam copy, run once in the first commit (section 1), covers every synthetic fixture, unheaded fixture, Taiwan probe text and frozen parity case, in ordinary and basis-choice reads. The existing contract and presentation suites also run unchanged.
+1. **S1, default equality against an independent reference.** In the first P2b commit ("Add the pasted label reading policy seam"), the pre-seam copy's product configuration matched `PastedLabelReader(policy: .product)` on every synthetic fixture, unheaded fixture and frozen parity case (ordinary and basis-choice reads, through `read`), and its UK configuration matched `.ukDevelopment` on the same set plus the Taiwan probe texts. The probe texts under `.product` are covered by `TaiwanHeaderProbeTests` and `PastedHeaderBasisGuardTests`. The existing contract and presentation suites also run unchanged.
 2. **S2, the UK policy's exact effect,** per fixture, including basis-choice reads:
    - UK-policy codes = product codes − `layout_not_supported` (UK format only) + `basis_state_not_supported` exactly when identity v2 marks a header that v1 does not;
    - a usable product reading never changes;
