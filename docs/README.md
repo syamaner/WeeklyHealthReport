@@ -29,14 +29,14 @@ Start with [`../AGENTS.md`](../AGENTS.md) for working rules and [privacy and egr
 - [HealthKit day bucketing v1](healthkit-day-bucketing-v1.md) (#49): daily collection queries honour the injected calendar, with an alignment check and a per-day fallback (owner-approved 18 October 2026)
 - [Food drafts and common foods](food-drafts-and-common-foods.md), [food list import](food-list-import.md)
 - [Food list lexical v4](food-list-lexical-v4.md) (locale-aware list amount grammar), [v5](food-list-lexical-v5.md) (vague portions such as "a handful" need an amount) [v6](food-list-lexical-v6.md) (household containers such as "2 mugs of tea" leave the food name, as in search) and [v7](food-list-lexical-v7.md) (the other containers and household measures, such as "2 slices of bread" and "a bottle of water", leave the food name and give no amount)
-- [Food query interpretation v4](food-query-interpretation-v4.md) (a household unit with no amount before it, as in "mugs of tea" or "250 ml mug of milk", leaves the search text)
+- [Food query interpretation v4](food-query-interpretation-v4.md) (a household unit with no amount before it, as in "mugs of tea" or "250 ml mug of milk", leaves the search text); current version v5 is recorded in [unified food search contract v73](unified-food-search-contract-v1.md) (#370, a named dish's exact amount)
 - [Local inventory contract](local-inventory-contract.md)
 - [Storage and backup decision](food-library-storage-and-backup-decision.md)
 - [HealthKit food write plan](food-healthkit-write-plan.md) (planning; HealthKit stays read-only)
 
 ## Food search and sources
 
-- [Unified food search contract v1](unified-food-search-contract-v1.md)
+- [Unified food search contract v1](unified-food-search-contract-v1.md); current amendment v73 (#370): `food-query-discovery-v4` and `food-query-interpretation-v5` pre-fill one exact leading or trailing whole-dish amount for a named dish (owner-approved 3 November 2026)
 - [Search quality v3](food-search-quality-v3.md) and [generic retrieval policy v5](generic-food-retrieval-policy-v5.md), extended by [generic food ranking v7](generic-food-ranking-v7.md) (unrequested part words) and [food lexical terms v9](food-lexical-terms-v9.md) (rule-based plurals)
 - [Query parser v1](food-query-parser-plan-v1.md) and [query parser v8](food-query-parser-v8.md) (cooked egg counts), [query parser v9](food-query-parser-v9.md) (hard boiled eggs, numbered pieces), [query parser v10](food-query-parser-v10.md) (plural cups, mugs and other containers are portions), [input interpretation and nutrition review v1](food-input-interpretation-and-nutrition-review-v1.md), [query interpretation v2](food-query-interpretation-v2.md) (household portions leave the search text), [English street-food input v1](english-street-food-input-v1.md)
 - [Online search recovery v1](online-food-search-recovery-v1.md)
