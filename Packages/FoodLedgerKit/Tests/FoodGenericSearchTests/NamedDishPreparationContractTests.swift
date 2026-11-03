@@ -33,8 +33,12 @@ final class NamedDishPreparationContractTests: XCTestCase {
             XCTAssertEqual(match.candidate.candidate.identity.preparation.kind, .unknown)
             XCTAssertTrue(FoodQueryCandidateAssessment.note(query: FoodQueryParser.parse("200g cooked porridge made with water"), candidate: match.candidate)?.contains("not established") == true)
         }
+        // Contract v73 (#370): the exact leading amount is the whole-dish amount; without one the
+        // amount still needs user input. Match and preparation basis stay unresolved either way.
         let coverage = try ConservativeFoodSearchCoverageAssessment().assess(.confirmation(after), for: request("200g cooked porridge made with water"))
-        XCTAssertTrue(coverage.allSatisfy { $0.match == .uncertain && $0.basis == .unknown && $0.quantity == .needsUserInput })
+        XCTAssertTrue(coverage.allSatisfy { $0.match == .uncertain && $0.basis == .unknown && $0.quantity == .ready })
+        let withoutAmount = try ConservativeFoodSearchCoverageAssessment().assess(.confirmation(after), for: request("cooked porridge made with water"))
+        XCTAssertTrue(withoutAmount.allSatisfy { $0.match == .uncertain && $0.basis == .unknown && $0.quantity == .needsUserInput })
         XCTAssertNil(after.reuse)
         XCTAssertEqual(FoodConfirmationState(input: after.confirmation).decision, .undecided)
     }

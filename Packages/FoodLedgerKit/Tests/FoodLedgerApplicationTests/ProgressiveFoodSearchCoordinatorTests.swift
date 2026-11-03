@@ -33,7 +33,7 @@ final class ProgressiveFoodSearchCoordinatorTests: XCTestCase {
         }
     }
 
-    func testNamedDishSearchKeepsOriginalOutboundContextAndRequiresQuantityInput() async throws {
+    func testNamedDishSearchKeepsOriginalOutboundContextAndReadsOnlyAnExactAmount() async throws {
         let started = expectation(description: "remote"); let finished = expectation(description: "finished")
         let provider = SuspendedSearch(started: started)
         let empty = try GenericFoodSearchOutcome.noResult(GenericFoodNoResultRoute(evidence: SearchFixture.evidence()))
@@ -46,8 +46,10 @@ final class ProgressiveFoodSearchCoordinatorTests: XCTestCase {
         let terms = await provider.queries.map(\.foodTerms)
         XCTAssertEqual(terms, [text])
         let candidate = try SearchFixture.outcome(name: "Porridge, made with water")
+        // Contract v73 (#370): an exact leading amount is ready; the description alone needs input.
         let coverage = ConservativeFoodSearchCoverageAssessment().assess(candidate, for: request)
-        XCTAssertEqual(coverage.first?.quantity, .needsUserInput)
+        XCTAssertEqual(coverage.first?.quantity, .ready)
+        XCTAssertEqual(ConservativeFoodSearchCoverageAssessment().assess(candidate, for: try SearchFixture.request("cooked porridge made with water")).first?.quantity, .needsUserInput)
         await provider.release(.success(candidate))
         await fulfillment(of: [finished], timeout: 2)
         XCTAssertTrue(coordinator.snapshot.failures.isEmpty)

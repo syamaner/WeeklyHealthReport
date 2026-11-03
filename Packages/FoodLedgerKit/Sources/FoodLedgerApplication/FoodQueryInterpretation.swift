@@ -4,7 +4,7 @@ import FoodLedgerDomain
 /// One deterministic application interpretation. No source identity, nutrition or
 /// conversion is asserted by language. The legacy parse remains available for diagnostics.
 public struct FoodQueryInterpretation: Equatable, Sendable {
-    public static let version = "food-query-interpretation-v4"
+    public static let version = "food-query-interpretation-v5"
     public struct Component: Equatable, Sendable {
         public let text: String
         /// UTF-16 offsets in originalText, not code-point or Character offsets.
@@ -80,7 +80,11 @@ public struct FoodQueryInterpretation: Equatable, Sendable {
         components = parts
         let bound = original.range(of: #"\b(?:less than|more than|under|over|below|above|up to|at most|at least|about|roughly|approximately|around|between)\b|[≤≥<>≈£$€¥]"#,
             options: [.regularExpression, .caseInsensitive]) != nil
-        let automatic = allowsDiscovery && !bound && parts.isEmpty ? baseline.quantity : nil
+        // v5 (#370, unified food search contract v73): a bounded named dish is one food whose
+        // ingredient words are not components, so its one exact leading or trailing amount is the
+        // whole-dish amount. Other component lists keep their amounts out of the intake quantity.
+        let automatic = !allowsDiscovery || bound ? nil
+            : (parts.isEmpty ? baseline.quantity : nil) ?? FoodQueryDiscoveryPolicy.namedDishAmount(baseline)
         var attributes = baseline.attributes
         if !parts.isEmpty {
             if let first = parts.first { attributes = FoodQueryParser.parse(first.text).attributes }
