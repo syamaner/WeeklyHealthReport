@@ -118,3 +118,32 @@ v9 replay to `build_retrieval_v6.py`. See `docs/food-lexical-terms-v9.md`,
 WHR_RETRIEVAL_REPORT=/private/tmp/retrieval-current.json WHR_RETRIEVAL_REPORT_V4=/private/tmp/retrieval-v4-current.json WHR_RETRIEVAL_REPORT_V5=/private/tmp/retrieval-v5-current.json WHR_RETRIEVAL_REPORT_V6=/private/tmp/retrieval-v6-current.json swift test --package-path Packages/FoodLedgerKit --filter RankedRetrievalDevelopmentTests/testReplay
 python3.12 Tools/FoodSearchQuality/score_retrieval.py Tools/FoodSearchQuality/retrieval-scenarios-v6.json /private/tmp/retrieval-v6-current.json /private/tmp/retrieval-v6-metrics.json --verify-report Tools/FoodSearchQuality/retrieval-metrics-v6-final-lexical-v9.json
 ```
+
+## Current CI replay: cocoa percent policy v1 (3 November 2026)
+
+The replay now reads `retrieval-scenarios-v7.json` (the 105 v6 cases plus 16 dark chocolate
+cases, `build_retrieval_v7.py`) and writes five reports from one run. The v3 to v6 rows are
+unchanged by `cocoa-percent-policy-v1`: the builder stops if any earlier case's records differ
+between the composite-generic-ranking-v9 and v10 replays, and the four earlier reports still
+verify against their lexical-v9 metrics files. v7 rows are verified against
+`retrieval-metrics-v7-final-cocoa-v1.json`; `retrieval-metrics-v7-baseline-composite-v9.json`
+scores the same labels on the v9 replay (origin/main f163e4a1). To rebuild the v7 labels, pass
+the ungraded v9 replay and then the v10 replay to `build_retrieval_v7.py`. See
+`docs/cocoa-aware-search-v1.md`.
+
+Composite rows for the 16 new cases (same-author development labels, not an independent
+holdout):
+
+| Replay | hit@1 | nDCG@5 (sum) | Wrong band at 1 | Wrong band in top 5 |
+|---|---:|---:|---:|---:|
+| composite v9 (before) | 13 | 10.50 | 3 | 19 |
+| composite v10 (after) | 16 | 16.00 | 0 | 43 |
+
+"Wrong band in top 5" rises because the policy admits every dark chocolate row that states a
+band, so other bands now follow the matching one as labelled alternatives; each carries a
+"you asked for N%" note and none is selected automatically.
+
+```sh
+WHR_RETRIEVAL_REPORT=/private/tmp/retrieval-current.json WHR_RETRIEVAL_REPORT_V4=/private/tmp/retrieval-v4-current.json WHR_RETRIEVAL_REPORT_V5=/private/tmp/retrieval-v5-current.json WHR_RETRIEVAL_REPORT_V6=/private/tmp/retrieval-v6-current.json WHR_RETRIEVAL_REPORT_V7=/private/tmp/retrieval-v7-current.json swift test --package-path Packages/FoodLedgerKit --filter RankedRetrievalDevelopmentTests/testReplay
+python3.12 Tools/FoodSearchQuality/score_retrieval.py Tools/FoodSearchQuality/retrieval-scenarios-v7.json /private/tmp/retrieval-v7-current.json /private/tmp/retrieval-v7-metrics.json --verify-report Tools/FoodSearchQuality/retrieval-metrics-v7-final-cocoa-v1.json
+```

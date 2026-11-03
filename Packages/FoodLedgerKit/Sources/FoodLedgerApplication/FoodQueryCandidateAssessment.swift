@@ -25,7 +25,8 @@ public enum FoodQueryCandidateAssessment {
         if let kind, kind != .unknown, candidate.candidate.identity.preparation.kind == .unknown {
             preparationNote = "Source preparation is unknown; your requested \(kind.rawValue) state is not established. Review before choosing."
         } else { preparationNote = nil }
-        let notes = [preparationNote, variantNote(query: query, candidate: candidate)].compactMap { $0 }
+        let notes = [preparationNote, variantNote(query: query, candidate: candidate),
+                     CocoaPercentPolicy.note(query: query, candidate: candidate)].compactMap { $0 }
         return notes.isEmpty ? nil : notes.joined(separator: " ")
     }
 

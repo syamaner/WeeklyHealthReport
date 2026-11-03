@@ -201,6 +201,7 @@ public enum FoodSearchResultText {
                     : "\(fat.formatted()) g fat / 100 g · requested \(percent)% fat")
             } else { notes.append("Requested \(percent)% fat not verified") }
         }
+        if let cocoa = CocoaPercentPolicy.caution(query: query, candidate: candidate) { notes.append(cocoa) }
         if let preparation = requestedPreparation ?? FoodQueryPreparationPolicy.kind(for: query), preparation != .unknown,
            candidate.candidate.identity.preparation.kind == .unknown {
             notes.append("\(preparation.rawValue.capitalized) preparation not verified")

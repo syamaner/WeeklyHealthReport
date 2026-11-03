@@ -7,7 +7,7 @@ public enum USDASearchError: Error, Equatable { case missingCorpus, hashMismatch
 
 /// Offline, whole-record US-composition alternatives. Never backfills another source.
 public final class USDAGenericFoodSearch: GenericFoodSearching, @unchecked Sendable {
-    public static let matcherVersion = "usda-generic-ranking-v15"
+    public static let matcherVersion = "usda-generic-ranking-v16"
     public static let corpusSHA256 = "6759b10f419ecdfd5395d469b0ff51d58e59e29d40f31e2087ae9455da6a4bd4"
     private let corpus: USDACorpus
     private let releases: [String: SourceRelease]
@@ -61,22 +61,31 @@ public final class USDAGenericFoodSearch: GenericFoodSearching, @unchecked Senda
         let parsed = request.parsedQuery
         let tokens = Self.tokens(food)
         guard !tokens.isEmpty else { return .noResult(GenericFoodNoResultRoute(evidence: evidence, additionalEvidence: request.additionalEvidence)) }
-        let ranked = try corpus.records.compactMap { record -> (USDARecord, Double, GenericFoodRankingPolicy.Preference)? in
+        let eligible = try corpus.records.compactMap { record -> (USDARecord, Double, GenericFoodRankingPolicy.Preference)? in
             let candidateTokens = Self.tokens(record.name)
-            guard tokens.isSubset(of: candidateTokens),
+            // cocoa-percent-policy-v1: closed exceptions to full query-word coverage.
+            guard tokens.isSubset(of: candidateTokens)
+                    || CocoaPercentPolicy.admits(name: record.name, description: nil, recordID: record.id, query: parsed, foodTerms: tokens),
                   GenericFoodSearchTerms.acceptsFoodForm(name: record.name, query: tokens, literal: false), GenericFoodRankingPolicy.allowsDerivativeFoodName(record.name, query: food), try Self.accepts(request.identity, identity: Self.identity(record), name: record.name, parsed: parsed) else { return nil }
             let primaryBonus = GenericFoodSearchTerms.primaryNameMatches(record.name, query: tokens) ? 0.3 : 0
             return (record, (Double(tokens.count) / Double(candidateTokens.count) + primaryBonus) / 1.3,
                 GenericFoodRankingPolicy.preference(name: record.name, food: food, requestedText: request.text.value))
-        }.sorted { lhs, rhs in
+        }
+        // The cocoa tier applies before the cut, so a single-source caller sees the same rows.
+        let cocoa = CocoaPercentPolicy.requested(parsed).map { value in
+            CocoaPercentPolicy.tierKeys(eligible.map { CocoaPercentPolicy.band(name: $0.0.name, description: nil, recordID: $0.0.id) }, requested: value)
+        }
+        let ranked = eligible.indices.sorted { left, right in
+            let lhs = eligible[left], rhs = eligible[right]
             let a = FoodPreparationDiscoveryPolicy.isUnverified(requested: request.identity.preparation,
                 actual: PreparationKind(rawValue: lhs.0.preparation) ?? .unknown)
             let b = FoodPreparationDiscoveryPolicy.isUnverified(requested: request.identity.preparation,
                 actual: PreparationKind(rawValue: rhs.0.preparation) ?? .unknown)
             if a != b { return !a }
+            if let cocoa, cocoa[left] != cocoa[right] { return cocoa[left] < cocoa[right] }
             if lhs.2 != rhs.2 { return GenericFoodRankingPolicy.prefers(lhs.2, over: rhs.2) }
             return lhs.1 == rhs.1 ? lhs.0.id < rhs.0.id : lhs.1 > rhs.1
-        }.prefix(10)
+        }.prefix(10).map { eligible[$0] }
         guard !ranked.isEmpty else { return .noResult(GenericFoodNoResultRoute(evidence: evidence, additionalEvidence: request.additionalEvidence, suggestedQueries: GenericFoodSearchTerms.suggestions(for: request.text.value, names: corpus.records.map(\.name)))) }
         let matches = try ranked.map { record, score, _ in
             GenericFoodMatch(candidate: try candidate(record, score: score, evidence: evidenceList, query: request.text),

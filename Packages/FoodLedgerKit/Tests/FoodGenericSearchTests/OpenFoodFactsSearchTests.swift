@@ -274,7 +274,11 @@ final class OpenFoodFactsSearchTests: XCTestCase {
             ("3 boiled eggs", "egg boiled"),
             ("180ml Alpro unsweetened soya drink", "alpro soya drink unsweetened"),
             ("100g lactose-free yoghurt", "yoghurt lactose-free"),
-            ("250g cooked weight sirloin", "sirloin cooked")
+            ("250g cooked weight sirloin", "sirloin cooked"),
+            // food-query-parser-v11 (#382): cocoa wording and "per cent".
+            ("100% cacao", "chocolate 100% cocoa"),
+            ("85% cocoa chocolate", "chocolate 85% cocoa"),
+            ("10 per cent fat yoghurt", "yoghurt 10% fat")
         ]
         for (original, expected) in examples {
             let transport = SearchFixture(response: OFFProductResponse(status: 200, body: Data("{\"products\":[]}".utf8)))

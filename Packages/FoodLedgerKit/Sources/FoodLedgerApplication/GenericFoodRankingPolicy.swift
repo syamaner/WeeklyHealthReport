@@ -4,7 +4,7 @@ import Foundation
 /// These never establish food identity.
 /// Explicit selection, preparation and nutrition contracts remain separate.
 public enum GenericFoodRankingPolicy {
-    public static let version = "generic-representation-ranking-v8"
+    public static let version = "generic-representation-ranking-v9"
     public struct Preference: Equatable, Sendable {
         let primaryFood: Bool
         let foldedOnlyTerms: Int
@@ -20,7 +20,9 @@ public enum GenericFoodRankingPolicy {
         "style", "human", "colostrum", "transitional", "sheep", "sheeps", "goat", "bison", "game",
         "evaporated", "condensed", "powder", "powdered", "dry", "dried", "dehydrated",
         "fruit", "flavoured", "flavored", "sweetened", "chocolate", "vanilla", "strawberry",
-        "blueberry", "raspberry", "apricot", "pineapple", "coconut", "mango", "lemon", "red"
+        "blueberry", "raspberry", "apricot", "pineapple", "coconut", "mango", "lemon", "red",
+        // v9 (#382): filled-centre descriptors; "filled" is excluded (see docs/cocoa-aware-search-v1.md).
+        "fondant", "centres", "centred"
     ]
     // v7: a bounded list of separable animal parts that change the food
     // materially. A part counts only in the closed animal-part positions below

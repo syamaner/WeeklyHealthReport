@@ -17,11 +17,11 @@ A typed cocoa percentage is parsed but then ignored by offline search, so the co
 
 All changes are inside `FoodQueryParser`, so the standalone FoodQueryEvaluation build (which compiles only the parser and the discovery policy) still compiles. The cocoa word lists live in the parser.
 
-1. **"per cent" is "percent".** `per cent` and `per-cent` are accepted wherever the parser recognises `percent`: the main percentage pattern, the relative-percentage check ("10 per cent less fat" gives `relative_percentage`), the percentage-range check ("70-85 per cent dark chocolate" gives `percentage_scope_ambiguous`) and the "N% or M" check. This applies to every percentage key, so "10 per cent fat yoghurt" becomes `fat_percent=10` (v10 left an unresolved number).
+1. **"per cent" is "percent".** `per cent` and `per-cent` are accepted wherever the parser recognises `percent`: the main percentage pattern, the relative-percentage check ("10 per cent less fat" gives `relative_percentage`), the percentage-range check (so "70-85 per cent dark chocolate" clarifies exactly as "70-85% dark chocolate" does) and the "N% or M" check. This applies to every percentage key, so "10 per cent fat yoghurt" becomes `fat_percent=10` (v10 left an unresolved number).
 2. **Cocoa wording names the cocoa key, in chocolate context only.** A percentage becomes `cocoa_percent` when the text contains "chocolate" (as in v10). It also becomes `cocoa_percent` when it is directly followed by `cocoa` or `cacao` (optionally followed by `solids`), or directly preceded by `cocoa solids` or `cacao solids`, provided that after removing the percentage and that cocoa wording the remaining food words are either empty or include `chocolate`, or are all within {dark, plain, bitter, bittersweet, extra}.
 3. **Other cocoa products keep v10 behaviour.** Rule 2's cocoa-wording route does not apply if the text names any of: powder, butter, nib, nibs, paste, mass, liquor, bean, beans, tea, drink, hot, mix, beverage, spread. "100% cocoa powder", "100% cacao paste", "100% cocoa mass", "70% cocoa beans", "cacao nibs 100%" and "100% cocoa butter" still give `unspecified_percent` with `percentage_meaning_unknown`, as in v10. "85% cacao bar" also keeps v10 behaviour because "bar" is outside rule 2's word set.
 4. **Cocoa words leave the food text** only when rule 2's cocoa-wording route applied. "85% cocoa chocolate" and "chocolate 85% cocoa solids" search "chocolate"; "dark chocolate 70% cacao" searches "dark chocolate".
-5. **A bare cocoa percentage searches chocolate.** If rule 2 applied and no food word remains ("100% cacao", "85% cocoa"), the food text becomes `chocolate`, the reason `cocoa_percent_implies_chocolate` is recorded and the route is `search`. This is an interpretation for retrieval only: it is never stored as identity, the original text remains the stored evidence, and the "Searched as chocolate with N% cocoa." note is shown on every result row and in the no-result state.
+5. **A bare cocoa percentage searches chocolate.** If rule 2's cocoa-wording route applied and either no food word remains ("100% cacao", "85% cocoa") or only words from {dark, plain, bitter, bittersweet, extra} remain ("dark 90% cocoa"), `chocolate` is appended to the food text and the route is `search`. No reason code is added, because any reason routes the query to clarification; instead `CocoaPercentPolicy` recognises the rewrite when the parsed food contains "chocolate" and the original text does not. This is an interpretation for retrieval only: it is never stored as identity, the original text remains the stored evidence, and the "Searched as chocolate with N% cocoa." note is shown on every result row and in the no-result state.
 6. **Conflicts.** Two different cocoa percentages ("dark chocolate 70% cocoa 85% cocoa") give `conflicting_variants`, as the existing rule does for any repeated key.
 7. **Case and spacing.** Matching is case-insensitive and accepts "85%cocoa" and "85 % cacao", as the existing percentage pattern does.
 
@@ -64,7 +64,7 @@ The estimate band is a closed list of one, keyed by identity rather than name: t
    | Blend | No single cocoa band from this source; you asked for N%. | No single cocoa band |
    | No band | Cocoa percentage not stated by this source; you asked for N%. | Cocoa % not stated |
 
-   With `cocoa_percent_implies_chocolate`, every detail note starts "Searched as chocolate with N% cocoa." and the same sentence is shown in the no-result state. Notes never change nutrients, identity or selection.
+   When chocolate was implied (rule 5), every detail note starts "Searched as chocolate with N% cocoa." and the same sentence is shown in the no-result state. Notes never change nutrients, identity or selection.
 
 ## Who is affected
 
@@ -114,17 +114,17 @@ Parser cases (food, key attributes, route):
 
 | Query | Food | Attributes | Route |
 | --- | --- | --- | --- |
-| 100% cacao | chocolate | cocoa_percent=100 | search (`cocoa_percent_implies_chocolate`) |
-| 85% cocoa | chocolate | cocoa_percent=85 | search (`cocoa_percent_implies_chocolate`) |
+| 100% cacao | chocolate | cocoa_percent=100 | search (chocolate implied) |
+| 85% cocoa | chocolate | cocoa_percent=85 | search (chocolate implied) |
 | 85% cocoa chocolate | chocolate | cocoa_percent=85 | search |
 | chocolate 85% cocoa solids | chocolate | cocoa_percent=85 | search |
 | dark chocolate 70% cacao | dark chocolate | cocoa_percent=70 | search |
-| dark 90% cocoa | dark | cocoa_percent=90 | search |
+| dark 90% cocoa | dark chocolate | cocoa_percent=90 | search (chocolate implied) |
 | dark chocolate 85 per cent | dark chocolate | cocoa_percent=85 | search |
 | 85%cocoa / 85 % cacao / 100% CACAO | chocolate | cocoa_percent as written | search |
 | 25g 99% dark chocolate | dark chocolate | cocoa_percent=99, 25 g | search |
 | 10 per cent fat yoghurt | yoghurt | fat_percent=10 | search |
-| 70-85 per cent dark chocolate | n/a | none | clarify (`percentage_scope_ambiguous`) |
+| 70-85 per cent dark chocolate | n/a | none | clarify, as "70-85% dark chocolate" does in v10 |
 | 10 per cent less fat | n/a | n/a | relative_percentage reason recorded |
 | dark chocolate 70% cocoa 85% cocoa | n/a | n/a | conflicting_variants reason recorded |
 | 100% cocoa powder / 100% cacao paste / 100% cocoa mass / 70% cocoa beans / cacao nibs 100% / 100% cocoa butter / 85% cacao bar | as v10 | unspecified_percent | clarify, as v10 |
@@ -151,6 +151,12 @@ Retrieval expectations (composite, first result):
 | mint dark chocolate | CoFID 17-650 | none |
 | plain chocolate | CoFID 17-491 | none |
 | salmon chocolate | no result (unchanged) | none |
+
+## Results (3 November 2026)
+
+- FoodQueryEvaluation v10: first run on parser v10 routed 614 of 625 cases correctly and got 388 of 404 search cases exact; parser v11 passes all 625 (all 592 v9 cases unchanged).
+- FoodSearchQuality v3 to v6: byte-identical metrics; no earlier case's records change between the v9 and v10 replays.
+- FoodSearchQuality v7, composite rows for the 16 new cases: hit@1 13 to 16, nDCG@5 sum 10.50 to 16.00, wrong band first 3 to 0. Wrong band within the top 5 rises from 19 to 43, because the other stated bands now follow the matching one as labelled alternatives. Labels are same-author development labels, not an independent holdout.
 
 ## Queries whose route or results change
 

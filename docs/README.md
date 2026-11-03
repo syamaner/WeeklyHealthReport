@@ -45,6 +45,7 @@ Start with [`../AGENTS.md`](../AGENTS.md) for working rules and [privacy and egr
 - [Taiwan food catalogue v1](taiwan-food-catalogue-v1.md) and [composite regional source order v9](composite-regional-order-v9.md) (Taiwan rows after UK and US unless the market or query indicates Taiwan)
 - [Source coverage and licence evaluation](food-source-coverage-and-licence-evaluation.md)
 - [Dark chocolate nutrient sources investigation](dark-chocolate-nutrient-sources-investigation.md) (#381): why 70% to 100% cocoa searches give poor nutrition, the source survey (CoFID, USDA, Ciqual 2025 and others) and the owner-approved phase plan A (#382), B (#383) and C (#384)
+- [Cocoa-aware generic food search v1](cocoa-aware-search-v1.md) (#382, phase A of #381): parser v11 cocoa and per cent rules, `cocoa-percent-policy-v1` bands, the owner-approved 100% estimate, tier ordering and notes; architecture gate PASS WITH CHANGES applied
 
 ## Nutrition evaluation
 
