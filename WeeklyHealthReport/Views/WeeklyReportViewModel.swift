@@ -319,9 +319,10 @@ final class WeeklyReportViewModel: ObservableObject {
             setHealthUnavailable()
             return
         } catch {
-            guard generation == refreshGeneration else { return }
-            setAuthorizationFailure(error.localizedDescription)
-            return
+            // Any other error from the request says nothing about read access,
+            // exactly as on Home (docs/today-so-far-projection-v1.md D5): access
+            // granted earlier still applies, and HealthKit never discloses denial.
+            // Read every metric so each reports its own outcome (#369).
         }
         guard generation == refreshGeneration else { return }
 
@@ -690,9 +691,5 @@ final class WeeklyReportViewModel: ObservableObject {
 
     private func setHealthUnavailable() {
         reportStates = ReportStates(commonState: .healthUnavailable)
-    }
-
-    private func setAuthorizationFailure(_ message: String) {
-        reportStates = ReportStates(commonState: .failed(message))
     }
 }
