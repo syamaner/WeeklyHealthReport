@@ -3445,3 +3445,17 @@ The coordinator session (`claude-opus-5-5`, session `8abede54-9564-4edc-9de1-c09
 | **Subtotal** | 39,823,271 (39,210,816) | 612,073 | 202,941 | 40,026,212 | $15.62 |
 
 `phase_usage.py --format claude --since 2026-11-03T08:38:41Z --until 2026-11-03T09:43:36Z` on the session transcript, without and with `--include-subagents` (the subagent row is the difference); exact USD 11.0303558 and 15.6202902. Excluded: this ledger edit, the merge of `main`, the final re-check, the commit, the push and the PR after that time. Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Local builds, simulator runs and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-371-2026-11-03c: Claude Code UK reader P3, freeze and fresh-set protocol (#371)
+
+The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) wrote the P3 spec, applied its `architecture-gate` pass (eight changes), reviewed and corrected the implementation (unit agreement in the scorer), re-scored the private development set and wrote the docs. Subagents in the window: the P3 architecture gate, the implementation subagent (UK harness, scorer, freeze tests), the validator and the invariant review. The window runs from `2026-11-03T13:20:04Z` (the owner's message starting P3) to `2026-11-03T13:52:53Z`. Cache writes: coordinator 168,773 1-hour; subagents 453,773 5-minute.
+
+Pricing uses the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output); they were not re-checked on the day of this entry. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| UK reader P3 (#371), coordinator session | 7,392,798 (7,223,933) | 168,773 | 39,131 | 7,431,929 | $3.58 |
+| P3 gate, implementation, validator and review (#371), subagents in the window | 10,937,856 (10,483,897) | 453,773 | 106,800 | 11,044,656 | $6.50 |
+| **Subtotal** | 18,330,654 (17,707,830) | 622,546 | 145,931 | 18,476,585 | $10.08 |
+
+`phase_usage.py --format claude --since 2026-11-03T13:20:04Z --until 2026-11-03T13:52:53Z` on the session transcript, without and with `--include-subagents` (the subagent row is the difference); exact USD 3.5779586 and 10.0803470. Excluded: the merge of P2b between `2026-11-03T07:49:04Z` and the start of this window (unmeasured), this ledger edit, the PR and anything after the window. Token totals are not evidence of productivity, quality or provider efficiency.
