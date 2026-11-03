@@ -3337,3 +3337,14 @@ One `claude-opus-5-5` subagent, transcript `subagents/agent-a7422094433823452.js
 | **Subtotal** | 24,382,351 (23,580,126) | 801,971 | 88,498 | 24,470,849 | $10.50 |
 
 `phase_usage.py --format claude --since 2026-10-31T15:06:00Z --until 2026-10-31T15:39:30Z` on each transcript separately; all cache writes are 5-minute, 0 1-hour; exact USD 3.464416, 0.5268176 and 6.5056226 (10.4968562 in total). Pricing: the Claude Opus 5.5 rates recorded in WHR-93-2026-10-20q (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Local builds, simulator runs and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-371-2026-11-02: Claude Code UK English pasted label plan (#371, P0)
+
+One Claude Code session (`claude-opus-5-5`) wrote `docs/pasted-nutrition-label-uk-english-v1.md`, recorded the owner's eleven decisions and applied one `architecture-gate` subagent pass (PASS WITH CHANGES, 14 findings). Documentation only; no product code and no real label text.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| UK English pasted label plan and gate (#371), coordinator session | Unmeasured | Unmeasured | Unmeasured | Unmeasured | Unmeasured |
+| UK English pasted label architecture gate (#371), subagent | Unmeasured | Unmeasured | Unmeasured | Unmeasured | Unmeasured |
+
+Unmeasured: no start boundary was captured when the phase began, so no figure is estimated. Token totals are not evidence of productivity, quality or provider efficiency.
