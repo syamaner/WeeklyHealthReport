@@ -141,7 +141,7 @@ final class ReaderV3FreezeTests: XCTestCase {
         "Sources/FoodLedgerApplication/LabelReading.swift":"b082f9c0a26b31c4a463ba3123cc748bc2b224110b6d7b1c406793b83db2ebb7",
         "Sources/FoodLedgerApplication/PastedLabelSource.swift": "fdb22210774a02783817b2fc76d8b4238929d4863da113a248e1a3e65a36afd4",
         "Sources/FoodLedgerApplication/PastedLabelConfirmation.swift": "4f62b0b53b8a3f2e3856375e9eab2828239838b0a178317dd25f00c820d8a677",
-        "Sources/FoodLabelTextCapture/NutritionLabelTextReader.swift": "d442eef620f913c51434777f5a7db54f4caaf9e7c3a52f9c705a1c22aea471b6",
+        "Sources/FoodLabelTextCapture/NutritionLabelTextReader.swift": "88208cb37f96a22e3e53c03129bb01f281ab62be7279ccf822b558a157948642",
         // Re-pinned: amendment 3, owner decision before seal 2 (23 October 2026; reader v3 12.1, 12.2.8).
         "Tests/FoodLabelTextCaptureTests/FreshSet/FreshSetProtocol.swift": "c2ad61b6ee3cc1d331d5c8d9c6fce64f520f6b52381a42c23549b5d1fe76b40a",
         "Tests/FoodLabelTextCaptureTests/FreshSet/FreshSetStepTests.swift": "42a5bf8d4c1bd2f96a3629f8a04c976ef7626027098b2f6ffef079dd2eaf4864",

@@ -32,10 +32,12 @@ public struct NutritionLabelTextReader: LabelTextReading {
     public func read(_ text: String, textSHA256: String, assertedBases: AssertedBases?) -> LabelReading {
         let candidate: LabelCaptureCandidate
         var unheaded: UnheadedTable?
+        // `PastedHeaderBasisGuard` (#375): a per serving header naming 100 declines, never binds.
         if let assertedBases {
-            candidate = parser.parse(text, route: "A", inputSHA256: textSHA256, assertedBases: assertedBases.columns.map(Self.basis))
+            candidate = PastedHeaderBasisGuard.apply(parser.parse(text, route: "A", inputSHA256: textSHA256,
+                                                                  assertedBases: assertedBases.columns.map(Self.basis)))
         } else {
-            candidate = parser.parse(text, route: "A", inputSHA256: textSHA256)
+            candidate = PastedHeaderBasisGuard.apply(parser.parse(text, route: "A", inputSHA256: textSHA256))
             if candidate.declineReasons == ["no_basis_header"] {
                 unheaded = parser.unheadedShape(text, route: "A", inputSHA256: textSHA256).map(Self.unheadedTable)
             }
