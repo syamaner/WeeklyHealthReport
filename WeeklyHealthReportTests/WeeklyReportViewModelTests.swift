@@ -248,7 +248,10 @@ final class WeeklyReportViewModelTests: XCTestCase {
         assertSnapshotMatchesPublishedStates(viewModel)
     }
 
-    func testAuthorizationFailurePublishesFailureForEveryMetric() async {
+    /// #369: an error from the authorisation request says nothing about read
+    /// access (Home already treats it so), so the report still reads every
+    /// metric instead of showing "Could not read Apple Health." for all of them.
+    func testAuthorizationRequestErrorStillReadsEveryMetric() async {
         let calendar = testCalendar()
         let refreshDate = date(2026, 9, 1, hour: 12, calendar: calendar)
         let provider = FakeHealthDataProvider(authorizationError: .authorizationFailure)
@@ -257,27 +260,38 @@ final class WeeklyReportViewModelTests: XCTestCase {
             calendar: calendar,
             dates: [refreshDate]
         )
-        let message = FixtureError.authorizationFailure.localizedDescription
 
         await viewModel.refresh()
 
-        XCTAssertEqual(viewModel.state, .failed(message))
-        XCTAssertEqual(viewModel.weightState, .failed(message))
-        XCTAssertEqual(viewModel.bodyFatState, .failed(message))
-        XCTAssertEqual(viewModel.waistState, .failed(message))
-        XCTAssertEqual(viewModel.glucoseState, .failed(message))
-        XCTAssertEqual(viewModel.vo2MaxState, .failed(message))
-        XCTAssertEqual(viewModel.bloodOxygenState, .failed(message))
-        XCTAssertEqual(viewModel.bloodPressureState, .failed(message))
-        XCTAssertEqual(viewModel.restingHeartRateState, .failed(message))
-        XCTAssertEqual(viewModel.hrvState, .failed(message))
-        XCTAssertEqual(viewModel.watchCoverageState, .failed(message))
-        XCTAssertEqual(viewModel.exerciseState, .failed(message))
-        XCTAssertEqual(viewModel.activeEnergyState, .failed(message))
-        XCTAssertEqual(viewModel.workoutState, .failed(message))
-        XCTAssertEqual(viewModel.sleepState, .failed(message))
-        XCTAssertEqual(viewModel.medicationState, .failed(message))
-        XCTAssertNil(viewModel.lastRefreshed)
+        let authorizationRequestCount = await provider.authorizationRequestCount()
+        XCTAssertEqual(authorizationRequestCount, 1)
+        assertAllReportMetricsAvailable(viewModel)
+        XCTAssertEqual(viewModel.lastRefreshed, refreshDate)
+        assertSnapshotMatchesPublishedStates(viewModel)
+    }
+
+    /// After an authorisation request error, a read that fails is reported for
+    /// that metric only; the others keep their own read outcomes.
+    func testAuthorizationRequestErrorKeepsReadFailuresPerMetric() async {
+        let calendar = testCalendar()
+        let refreshDate = date(2026, 9, 1, hour: 12, calendar: calendar)
+        let provider = FakeHealthDataProvider(
+            authorizationError: .authorizationFailure,
+            glucoseError: .glucoseFailure
+        )
+        let viewModel = makeViewModel(
+            provider: provider,
+            calendar: calendar,
+            dates: [refreshDate]
+        )
+
+        await viewModel.refresh()
+
+        XCTAssertEqual(
+            viewModel.glucoseState,
+            .failed(FixtureError.glucoseFailure.localizedDescription)
+        )
+        assertAllReportMetricsAvailable(viewModel, excludingGlucose: true)
         assertSnapshotMatchesPublishedStates(viewModel)
     }
 
