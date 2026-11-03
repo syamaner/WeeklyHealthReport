@@ -70,6 +70,8 @@ CODE_READ_DOCS = {
     "docs/count-portion-estimate-v1.md",
     # Cited by the label photo L0 locate tooling and, from L1, the photo route code (#316).
     "docs/label-photo-ai-prefill-v1.md",
+    # Cited by the UK English development harness and, from P2, the UK reader code (#371).
+    "docs/pasted-nutrition-label-uk-english-v1.md",
 }
 CODE_READ_DOC_PREFIXES = ("docs/fixtures/",)
 # Never documentation, whatever the lists above say: CI, its scripts and this
