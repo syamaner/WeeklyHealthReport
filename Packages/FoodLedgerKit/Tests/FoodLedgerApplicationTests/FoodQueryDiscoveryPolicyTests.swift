@@ -136,4 +136,67 @@ final class FoodQueryDiscoveryPolicyTests: XCTestCase {
             XCTAssertFalse(FoodQueryParser.parse(text).requiresRecipeReview, text)
         }
     }
+
+    /// #370 (discovery v4, interpretation v5, contract v73): one exact leading or trailing mass or
+    /// volume is the whole-dish amount Confirm opens with. The parser output is unchanged.
+    func testNamedDishExactAmountBecomesTheEditableWholeDishAmount() throws {
+        for (text, value, unit) in [
+            ("200g porridge made with milk", 200.0, "g"), ("porridge made with whole milk 200 g", 200, "g"),
+            ("200G Porridge Made With Milk", 200, "g"), ("200 grams porridge made with water", 200, "g"),
+            ("lentil and tomato soup 300g", 300, "g"), ("0.3kg lentil and tomato soup", 300, "g"),
+            ("275g homemade lentil and tomato soup", 275, "g"), ("180g Baxters lentil and tomato soup", 180, "g"),
+            ("lentil & tomato soup 250 grams", 250, "g"), ("200g cooked porridge made with water", 200, "g"),
+            ("200g scallion pancake with egg and cheese", 200, "g"),
+            ("500ml bubble tea with pearls", 500, "ml"), ("lentil and tomato soup 300 ml", 300, "ml"),
+            ("0.3 l lentil and tomato soup", 300, "ml")
+        ] {
+            let parsed = FoodQueryParser.parse(text)
+            XCTAssertNil(parsed.quantity, text)
+            XCTAssertEqual(FoodQueryDiscoveryPolicy.namedDishAmount(parsed), .init(value: value, unit: unit), text)
+            let q = FoodQueryInterpretation(text)
+            XCTAssertTrue(q.allowsDiscovery, text)
+            XCTAssertEqual(q.parsedQuery.quantity, .init(value: value, unit: unit), text)
+            XCTAssertEqual(q.parsedQuery.route, .clarify, text)
+            XCTAssertTrue(q.parsedQuery.requiresRecipeReview, text)
+            XCTAssertNil(q.parsedQuery.discoveryReviewMessage, text)
+            XCTAssertNil(q.quantitySuggestion, text)
+            XCTAssertEqual(q.parsedQuery.original, text)
+            XCTAssertFalse(q.retrievalText.contains(String(Int(value))), text)
+        }
+    }
+
+    func testNamedDishAmountIsWithheldUnlessOneExactAmountStartsOrEndsTheDish() {
+        // Still a named dish, so discovery and the review message stay; no amount is filled in.
+        for text in ["porridge made with milk", "lentil and tomato soup", "porridge made with milk, 200 g",
+                     "200 g, porridge made with milk", "lentil and 200g tomato soup", "porridge made with milk 200 ml",
+                     "bubble tea with pearls 500ml", "quaker 200g porridge made with milk"] {
+            let q = FoodQueryInterpretation(text)
+            XCTAssertTrue(q.parsedQuery.requiresRecipeReview, text)
+            XCTAssertNil(q.parsedQuery.quantity, text)
+            XCTAssertNil(FoodQueryDiscoveryPolicy.namedDishAmount(q.baseline), text)
+            XCTAssertTrue(q.parsedQuery.discoveryReviewMessage?.contains("has not been filled in") == true, text)
+        }
+        // Two amounts, bounds, household measures, counts and mixed lists never fill an amount.
+        for text in ["200g porridge made with milk 200g", "100g lentil soup and 50g bread", "about 200g porridge made with milk",
+                     "less than 200g lentil and tomato soup", "a bowl of porridge made with milk", "2 bowls lentil and tomato soup",
+                     "2 pancakes with egg", "pancake with egg and 200ml milk", "200g porridge and banana", "200g soup and bread",
+                     "250g scallion pancake with 10g cheese", "scallion pancake with eggs 250g cheese"] {
+            XCTAssertNil(FoodQueryInterpretation(text).parsedQuery.quantity, text)
+            XCTAssertNil(FoodQueryDiscoveryPolicy.namedDishAmount(FoodQueryParser.parse(text)), text)
+        }
+    }
+
+    func testComponentAmountsAndHouseholdMeasuresKeepTheirBehaviour() {
+        for text in ["porridge, 200 g", "rice, 25g cheese", "100g rice plus 1 egg", "rice containing 20g cheese"] {
+            XCTAssertNil(FoodQueryInterpretation(text).parsedQuery.quantity, text)
+        }
+        for text in ["a bowl of porridge", "1 cup of porridge"] {
+            let q = FoodQueryInterpretation(text)
+            XCTAssertNil(q.parsedQuery.quantity, text)
+            XCTAssertNil(q.quantitySuggestion, text)
+        }
+        // Plain searches pre-fill exactly as before.
+        XCTAssertEqual(FoodQueryInterpretation("200 g porridge").parsedQuery.quantity, .init(value: 200, unit: "g"))
+        XCTAssertEqual(FoodQueryInterpretation("porridge 200g").parsedQuery.quantity, .init(value: 200, unit: "g"))
+    }
 }

@@ -62,7 +62,7 @@ final class FoodQueryInterpretationTests: XCTestCase {
             XCTAssertEqual(q.parsedQuery.food, q.baseline.food, text)
             if q.baseline.reasons.contains("portion_requires_confirmation") { XCTAssertNil(q.parsedQuery.quantity, text) }
         }
-        XCTAssertEqual(FoodQueryInterpretation.version, "food-query-interpretation-v4")
+        XCTAssertEqual(FoodQueryInterpretation.version, "food-query-interpretation-v5")
     }
     /// #335 (food-query-interpretation-v3, parser v10): mugs and the plural containers clarify like
     /// cups. Search uses the food text, and no "Use N" suggestion or quantity is offered.

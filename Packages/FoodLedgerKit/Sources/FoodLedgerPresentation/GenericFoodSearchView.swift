@@ -20,6 +20,14 @@ public final class GenericFoodSearchViewModel: ObservableObject {
     @Published public var amountOverride: ParsedFoodQuery.Quantity?
     /// The amount handed to Confirm and used for energy in result rows.
     public var effectiveAmount: ParsedFoodQuery.Quantity? { amountOverride ?? parsedQuery?.quantity }
+    /// The named-dish review message for search results (#370): shown only while the dish has
+    /// results and no amount, so an exact amount in the description or one set with the amount
+    /// chip removes it. Its copy describes results, so it is never shown without any.
+    public var namedDishReviewMessage: String? {
+        guard parsedQuery?.requiresRecipeReview == true, effectiveAmount == nil,
+              case .results = phase else { return nil }
+        return FoodQueryDiscoveryPolicy.recipeReviewMessage
+    }
     /// The preparation actually constraining results (chip or parsed text), if any.
     public var effectivePreparation: PreparationKind? { preparationFilter ?? interpretation?.preparation }
     @Published public private(set) var phase: GenericFoodSearchPhase = .idle
@@ -413,6 +421,16 @@ public struct GenericFoodSearchView: View {
                             }
                         }.navigationTitle("Web sources")
                     }
+                }
+            }
+            if let message = model.namedDishReviewMessage {
+                Section {
+                    Label(message, systemImage: "info.circle")
+                        .font(.footnote)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(message)
+                        .accessibilityIdentifier("namedDishReviewMessage")
                 }
             }
             resultSection

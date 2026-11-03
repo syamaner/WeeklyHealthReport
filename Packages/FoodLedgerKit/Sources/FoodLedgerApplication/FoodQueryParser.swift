@@ -10,15 +10,22 @@ public struct ParsedFoodQuery: Codable, Equatable, Sendable {
     }
     public static let discoveryPolicyVersion = FoodQueryDiscoveryPolicy.version
     /// Discovery may retain a literal percentage or a bounded named dish without resolving it.
-    /// `route` and `quantity` stay unchanged, so this cannot authorise intake prefill.
+    /// The parser's `route` and `quantity` stay unchanged, so this cannot authorise intake prefill
+    /// by itself. Only `FoodQueryInterpretation` (v5) may add a named dish's exact whole-dish amount,
+    /// through `FoodQueryDiscoveryPolicy.namedDishAmount`.
     public var allowsCandidateDiscovery: Bool {
         route == .search || (route == .clarify && reasons == ["percentage_meaning_unknown"]
             && attributes["unspecified_percent"] != nil && food?.isEmpty == false)
             || requiresRecipeReview
     }
     public var requiresRecipeReview: Bool { FoodQueryDiscoveryPolicy.allowsNamedDishDiscovery(self) }
+    /// The named-dish review message whenever review is required and no amount is known. The
+    /// parser never sets a quantity on a named dish, so on its own output this is non-nil for every
+    /// named dish; on `FoodQueryInterpretation.parsedQuery` (v5) it is nil once the dish's exact
+    /// amount has been filled. Search results show `GenericFoodSearchViewModel.namedDishReviewMessage`,
+    /// which also accounts for the amount chip.
     public var discoveryReviewMessage: String? {
-        requiresRecipeReview ? FoodQueryDiscoveryPolicy.recipeReviewMessage : nil
+        requiresRecipeReview && quantity == nil ? FoodQueryDiscoveryPolicy.recipeReviewMessage : nil
     }
     public let original: String
     public let food: String?
