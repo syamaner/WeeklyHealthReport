@@ -13,7 +13,7 @@ final class ProgressiveFoodSearchPresentationTests: XCTestCase {
         let model = try GenericFoodSearchViewModel(searcher: local, locale: LedgerText("en_GB"))
         model.query = "200g cooked porridge made with water"; model.search()
         guard case let .results(route) = model.phase else { return XCTFail() }
-        XCTAssertNil(model.parsedQuery?.quantity)
+        XCTAssertEqual(model.parsedQuery?.quantity, .init(value: 200, unit: "g"))
         XCTAssertTrue(route.matches.allSatisfy { $0.candidate.candidate.identity.preparation.kind == .unknown })
         let selected = try XCTUnwrap(model.confirmation(at: 0))
         XCTAssertEqual(selected.candidates[0].candidate.identity.preparation.kind, .unknown)
@@ -22,14 +22,31 @@ final class ProgressiveFoodSearchPresentationTests: XCTestCase {
         XCTAssertTrue(note?.contains("requested cooked") == true)
     }
 
-    func testNamedDishDiscoveryReachesRealLocalSourcesButKeepsAmountAndRecipeUnconfirmed() throws {
+    /// Contract v73 (#370): an exact whole-dish amount fills the amount and hides the review
+    /// message; without one the message is shown on results. The recipe stays unconfirmed.
+    func testNamedDishDiscoveryReachesRealLocalSourcesButKeepsRecipeUnconfirmed() throws {
         let local = try CompositeGenericFoodSearch(sources: [CoFIDGenericFoodSearch(ids: RandomLedgerIDGenerator()), USDAGenericFoodSearch(ids: RandomLedgerIDGenerator())], ids: RandomLedgerIDGenerator())
         let model = try GenericFoodSearchViewModel(searcher: local, locale: LedgerText("en_GB"))
-        for query in ["200g cooked porridge made with water", "200g porridge made with milk", "275g homemade lentil and tomato soup", "180g Baxters lentil and tomato soup", "Taiwanese breakfast scallion n pancake with eggs and sliced cheese", "steak with noodles and fried egg", "500ml bubble tea with pearls"] {
+        let cases: [(String, ParsedFoodQuery.Quantity?)] = [
+            ("200g cooked porridge made with water", .init(value: 200, unit: "g")), ("200g porridge made with milk", .init(value: 200, unit: "g")),
+            ("porridge made with whole milk 200 g", .init(value: 200, unit: "g")), ("lentil and tomato soup 300g", .init(value: 300, unit: "g")),
+            ("275g homemade lentil and tomato soup", .init(value: 275, unit: "g")), ("180g Baxters lentil and tomato soup", .init(value: 180, unit: "g")),
+            ("Taiwanese breakfast scallion n pancake with eggs and sliced cheese", nil), ("steak with noodles and fried egg", nil),
+            ("500ml bubble tea with pearls", .init(value: 500, unit: "ml")), ("porridge made with milk", nil), ("porridge made with milk, 200 g", nil)]
+        for (query, amount) in cases {
             model.query = query; model.search()
-            XCTAssertEqual(model.parsedQuery?.route, .clarify)
-            XCTAssertNil(model.parsedQuery?.quantity)
-            XCTAssertNotNil(model.parsedQuery?.discoveryReviewMessage)
+            XCTAssertEqual(model.parsedQuery?.route, .clarify, query)
+            XCTAssertEqual(model.parsedQuery?.quantity, amount, query)
+            XCTAssertEqual(model.effectiveAmount, amount, query)
+            XCTAssertEqual(model.parsedQuery?.discoveryReviewMessage == nil, amount != nil, query)
+            XCTAssertEqual(model.namedDishReviewMessage == nil, amount != nil, query)
+            if amount == nil {
+                XCTAssertTrue(model.namedDishReviewMessage?.contains("the amount has not been filled in") == true, query)
+                // An amount set with the chip removes the message; the description is unchanged.
+                model.amountOverride = .init(value: 150, unit: "g")
+                XCTAssertNil(model.namedDishReviewMessage, query)
+                model.amountOverride = nil
+            }
             switch model.phase {
             case let .results(route):
                 XCTAssertEqual(FoodConfirmationState(input: route.confirmation).decision, .undecided)
@@ -589,5 +606,18 @@ private actor RecoveryFailureSource: FoodSearchEnriching {
     func enrich(_ query: FoodSearchRemoteQuery) async throws -> GenericFoodSearchOutcome {
         calls += 1
         throw FoodSearchEnrichmentError.timedOut
+    }
+
+    /// The review message belongs to named dishes only; a plain search never shows it.
+    @MainActor func testPlainSearchNeverShowsTheNamedDishReviewMessage() throws {
+        let local = try CompositeGenericFoodSearch(sources: [CoFIDGenericFoodSearch(ids: RandomLedgerIDGenerator()), USDAGenericFoodSearch(ids: RandomLedgerIDGenerator())], ids: RandomLedgerIDGenerator())
+        let model = try GenericFoodSearchViewModel(searcher: local, locale: LedgerText("en_GB"))
+        XCTAssertNil(model.namedDishReviewMessage)
+        for query in ["porridge", "200 g porridge", "lentil soup"] {
+            model.query = query
+            XCTAssertNil(model.namedDishReviewMessage, query)
+            model.search()
+            XCTAssertNil(model.namedDishReviewMessage, query)
+        }
     }
 }
