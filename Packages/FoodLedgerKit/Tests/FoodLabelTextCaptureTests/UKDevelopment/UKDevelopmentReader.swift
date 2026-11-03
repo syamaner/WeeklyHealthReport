@@ -13,10 +13,22 @@ struct UKDevelopmentReader {
     static let ukScope = PastedLabelLaunchScope.enabledFormats + [LabelFormatInference.Outcome.uk.rawValue]
 
     let scope: [String]
-    private let reader: any LabelTextReading = NutritionLabelTextReader()
+    private let reader: any LabelTextReading
+    private let isAsSold: @Sendable (PastedLabelManifest.Candidate) -> Bool
     private let digester: any Digesting = SHA256Digester()
 
-    init(scope: [String] = Self.ukScope) { self.scope = scope }
+    /// The P2a default: the UK scope, the UK adapter and identity v2. With the product's scope,
+    /// `NutritionLabelTextReader` and `PastedLabelBasisState.isAsSold` it is the product's reader.
+    init(scope: [String] = Self.ukScope, reader: any LabelTextReading = UKEnglishLabelTextReader(),
+         isAsSold: @escaping @Sendable (PastedLabelManifest.Candidate) -> Bool = PastedLabelBasisStateV2.isAsSold) {
+        self.scope = scope
+        self.reader = reader
+        self.isAsSold = isAsSold
+    }
+
+    /// The product's reader, through this copy (the parity configuration).
+    static let product = UKDevelopmentReader(scope: PastedLabelLaunchScope.enabledFormats, reader: NutritionLabelTextReader(),
+                                             isAsSold: PastedLabelBasisState.isAsSold)
 
     /// `PastedLabelReader.read`, unchanged apart from calling this type's `classify`.
     func read(_ text: String) -> PastedLabelReadOutcome {
@@ -49,7 +61,8 @@ struct UKDevelopmentReader {
                                                                options: options))
     }
 
-    /// `PastedLabelReader.classify` with `scope` in place of `PastedLabelLaunchScope.admits`.
+    /// `PastedLabelReader.classify` with `scope` in place of `PastedLabelLaunchScope.admits` and
+    /// `isAsSold` in place of `PastedLabelBasisState.isAsSold`.
     func classify(_ reading: LabelReading, pastedText: String) -> PastedLabelReadOutcome {
         let candidate = reading.candidate
         if candidate.declined {
@@ -68,7 +81,7 @@ struct UKDevelopmentReader {
         } else if reading.gate == nil {
             codes.append(PastedLabelCodes.unreadableTable)
         }
-        if !PastedLabelBasisState.isAsSold(candidate) {
+        if !isAsSold(candidate) {
             codes.append(PastedLabelIdentity.basisStateNotSupported)
         }
         guard let stored = reading.storedHeaderID, candidate.headers.contains(where: { $0.headerID == stored }) else {
