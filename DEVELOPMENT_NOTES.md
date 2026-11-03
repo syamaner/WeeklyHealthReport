@@ -3445,3 +3445,15 @@ The coordinator session (`claude-opus-5-5`, session `8abede54-9564-4edc-9de1-c09
 | **Subtotal** | 39,823,271 (39,210,816) | 612,073 | 202,941 | 40,026,212 | $15.62 |
 
 `phase_usage.py --format claude --since 2026-11-03T08:38:41Z --until 2026-11-03T09:43:36Z` on the session transcript, without and with `--include-subagents` (the subagent row is the difference); exact USD 11.0303558 and 15.6202902. Excluded: this ledger edit, the merge of `main`, the final re-check, the commit, the push and the PR after that time. Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Local builds, simulator runs and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-391-2026-11-03: Claude Code cocoa rows in Best matches (#391, follow-up to #382)
+
+The coordinator session (`claude-opus-5-5`, session `8abede54-9564-4edc-9de1-c099dbc90ead`) walked the merged phase A Search screen in the iPhone 17 Pro simulator, found that the #308 Best matches split moved the approved 100% estimate to Other matches, opened #391, and fixed the grouping with a presentation test, a spec amendment and a second simulator walk. One `validator` subagent ran inside the window (PASS). The window runs from the owner's "Proceed" at `2026-11-03T19:05:44Z` (the logged message time) to `2026-11-03T19:27:43Z`. Cache writes: coordinator 167,323 1-hour, subagent 63,045 5-minute.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Simulator walk, grouping fix and spec amendment (#391), coordinator session | 9,043,834 (8,876,393) | 167,323 | 21,617 | 9,065,451 | $3.55 |
+| Validation gates (#391), subagent | 588,558 (525,467) | 63,045 | 6,409 | 594,967 | $0.55 |
+| **Subtotal** | 9,632,392 (9,401,860) | 230,368 | 28,026 | 9,660,418 | $4.10 |
+
+`phase_usage.py --format claude --since 2026-11-03T19:05:44Z --until 2026-11-03T19:27:43Z` on the session transcript, without and with `--include-subagents` (the subagent row is the difference); exact USD 3.5466746 and 4.095357. Excluded: the #387 CI classifier fix and auto-merge between `2026-11-03T13:19:33Z` and this window (unmeasured), and this ledger edit, the commit, the push and the PR after it. Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Local builds, simulator runs and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.

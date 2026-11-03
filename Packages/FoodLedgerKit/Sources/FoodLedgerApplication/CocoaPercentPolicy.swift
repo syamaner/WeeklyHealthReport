@@ -95,6 +95,15 @@ public enum CocoaPercentPolicy {
         }
     }
 
+    /// True when the request names a cocoa percentage and this row is admitted by its band, so
+    /// the Search screen keeps it with the close matches in ranked order (#391).
+    public static func isCocoaMatch(query: ParsedFoodQuery, candidate: PopulatedFoodCandidate) -> Bool {
+        guard requested(query) != nil else { return false }
+        return admits(name: candidate.name.value, description: candidate.variant?.value,
+                      recordID: candidate.candidate.recordID.value, query: query,
+                      foodTerms: Set(GenericFoodRankingPolicy.terms(query.food ?? "")))
+    }
+
     /// Stable tier keys: band contains the request (1); else the greatest band below it (2); other
     /// bands by distance (3); rows with no single band (4). Callers sort by these after
     /// preparation verification (and regional deferral in the composite), before their cut.

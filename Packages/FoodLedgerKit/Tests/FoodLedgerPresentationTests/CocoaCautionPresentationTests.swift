@@ -36,6 +36,34 @@ final class CocoaCautionPresentationTests: XCTestCase {
         XCTAssertNil(FoodSearchResultText.interpretationNote(FoodQueryParser.parse("dark chocolate 85%")))
         XCTAssertNil(FoodSearchResultText.interpretationNote(nil))
     }
+
+    /// #391: the Best matches split keeps cocoa-admitted rows, so the screen shows the ranked order.
+    @MainActor
+    func testBestMatchesKeepTheCocoaRankedOrder() throws {
+        let ids = CautionIDs()
+        let model = try GenericFoodSearchViewModel(searcher: CompositeGenericFoodSearch(
+            sources: [try CoFIDGenericFoodSearch(ids: ids), try USDAGenericFoodSearch(ids: ids)], ids: ids), locale: LedgerText("en_GB"))
+        func close(_ query: String) -> [String] {
+            model.query = query; model.search()
+            return model.closeMatches.map(\.candidate.name.value)
+        }
+        let estimate = "Baking chocolate, unsweetened, squares", band = "Chocolate, dark, 70-85% cacao solids"
+        XCTAssertEqual(close("dark chocolate 100%").prefix(2), [estimate, band])
+        XCTAssertEqual(close("90% dark chocolate").prefix(2), [band, estimate])
+        XCTAssertEqual(close("99% dark chocolate").prefix(2), [band, estimate])
+        XCTAssertEqual(close("dark chocolate 85%").first, band)
+        XCTAssertEqual(close("100% cacao").first, estimate)
+        for query in ["dark chocolate 100%", "90% dark chocolate"] {
+            _ = close(query)
+            let order = model.bestMatches.map(\.searchID), closeIDs = Set(model.closeMatches.map(\.searchID))
+            XCTAssertEqual(model.closeMatches.map(\.searchID), order.filter(closeIDs.contains), "grouping keeps the ranked order: \(query)")
+            XCTAssertEqual(Set((model.closeMatches + model.otherMatches).map(\.searchID)), Set(order), query)
+            XCTAssertFalse(model.closeMatches.contains { $0.candidate.name.value.lowercased().contains("milk") }, query)
+        }
+        // Without a cocoa percentage the #308 name rule alone decides.
+        XCTAssertFalse(close("dark chocolate").contains(estimate))
+        XCTAssertFalse(close("baking chocolate").isEmpty)
+    }
 }
 
 private final class CautionIDs: LedgerIDGenerating, @unchecked Sendable {
