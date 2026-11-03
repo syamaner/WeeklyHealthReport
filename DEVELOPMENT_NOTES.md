@@ -3362,3 +3362,16 @@ Pricing uses the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M b
 | **Subtotal** | 41,753,034 (41,402,520) | 350,048 | 119,108 | 41,872,142 | $12.67 |
 
 `phase_usage.py --format claude --since 2026-11-02T20:45:34Z --until 2026-11-02T21:36:46Z` on the session transcript and `phase_usage.py --format claude` on the subagent transcript; exact USD 3.3083452 and 9.3573998. Excluded: this ledger edit and anything after the window. Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-369-2026-11-03: Claude Code Health report read errors (#369)
+
+One Claude Code session (`claude-opus-5-5`) coordinated; one general-purpose subagent found the cause and wrote the fix and tests, and one `invariant-reviewer` subagent reviewed the diff (PASS). The owner approved the report following Home's D5 rule.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Health report read errors (#369), coordinator session | Unmeasured | Unmeasured | Unmeasured | Unmeasured | Unmeasured |
+| Root cause, fix and tests (#369), subagent | 2,698,173 (2,588,735) | 109,378 | 17,752 | 2,715,925 | $1.42 |
+| Invariant review (#369), subagent | 202,728 (171,420) | 31,292 | 4,999 | 207,727 | $0.29 |
+| **Subtotal (subagents)** | 2,900,901 (2,760,155) | 140,670 | 22,751 | 2,923,652 | $1.71 |
+
+`phase_usage.py --format claude` on each subagent transcript (whole transcript as the boundary); all cache writes are 5-minute; exact USD 1.4199 and 0.2908 (1.7087 in total). The coordinator session is Unmeasured: no start boundary was captured when the phase began, so no figure is estimated. Pricing: the Claude Opus 5.5 rates recorded in WHR-93-2026-10-20q (USD 4/M base input, 5/M 5-minute cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Local builds and simulator test runs use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
