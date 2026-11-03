@@ -22,7 +22,7 @@ final class FakeHealthDataProvider: HealthDataProviding, Sendable {
     let isHealthDataAvailable: Bool
     let supportsMedicationData: Bool
 
-    private let authorizationError: FixtureError?
+    private let authorizationError: (any Error & Sendable)?
     private let glucoseError: FixtureError?
     private let weightResponses: [[WeightMeasurement]]
     private let medicationResponses: [[MedicationDoseRecord]]
@@ -34,7 +34,7 @@ final class FakeHealthDataProvider: HealthDataProviding, Sendable {
     init(
         isHealthDataAvailable: Bool = true,
         supportsMedicationData: Bool = true,
-        authorizationError: FixtureError? = nil,
+        authorizationError: (any Error & Sendable)? = nil,
         glucoseError: FixtureError? = nil,
         weightResponses: [[WeightMeasurement]] = [],
         pauseFirstWeightFetch: Bool = false,

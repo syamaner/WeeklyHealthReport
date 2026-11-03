@@ -248,13 +248,49 @@ final class WeeklyReportViewModelTests: XCTestCase {
         assertSnapshotMatchesPublishedStates(viewModel)
     }
 
+    /// The request reporting Health as unavailable still shows every metric as
+    /// unavailable rather than reading or failing (#369 review).
+    func testAuthorizationRequestUnavailablePublishesHealthUnavailableForEveryMetric() async {
+        let calendar = testCalendar()
+        let refreshDate = date(2026, 9, 1, hour: 12, calendar: calendar)
+        let provider = FakeHealthDataProvider(authorizationError: HealthDataError.unavailable)
+        let viewModel = makeViewModel(
+            provider: provider,
+            calendar: calendar,
+            dates: [refreshDate]
+        )
+
+        await viewModel.refresh()
+
+        let authorizationRequestCount = await provider.authorizationRequestCount()
+        XCTAssertEqual(authorizationRequestCount, 1)
+        XCTAssertEqual(viewModel.state, .healthUnavailable)
+        XCTAssertEqual(viewModel.weightState, .healthUnavailable)
+        XCTAssertEqual(viewModel.bodyFatState, .healthUnavailable)
+        XCTAssertEqual(viewModel.waistState, .healthUnavailable)
+        XCTAssertEqual(viewModel.glucoseState, .healthUnavailable)
+        XCTAssertEqual(viewModel.vo2MaxState, .healthUnavailable)
+        XCTAssertEqual(viewModel.bloodOxygenState, .healthUnavailable)
+        XCTAssertEqual(viewModel.bloodPressureState, .healthUnavailable)
+        XCTAssertEqual(viewModel.restingHeartRateState, .healthUnavailable)
+        XCTAssertEqual(viewModel.hrvState, .healthUnavailable)
+        XCTAssertEqual(viewModel.watchCoverageState, .healthUnavailable)
+        XCTAssertEqual(viewModel.exerciseState, .healthUnavailable)
+        XCTAssertEqual(viewModel.activeEnergyState, .healthUnavailable)
+        XCTAssertEqual(viewModel.workoutState, .healthUnavailable)
+        XCTAssertEqual(viewModel.sleepState, .healthUnavailable)
+        XCTAssertEqual(viewModel.medicationState, .healthUnavailable)
+        XCTAssertNil(viewModel.lastRefreshed)
+        assertSnapshotMatchesPublishedStates(viewModel)
+    }
+
     /// #369: an error from the authorisation request says nothing about read
     /// access (Home already treats it so), so the report still reads every
     /// metric instead of showing "Could not read Apple Health." for all of them.
     func testAuthorizationRequestErrorStillReadsEveryMetric() async {
         let calendar = testCalendar()
         let refreshDate = date(2026, 9, 1, hour: 12, calendar: calendar)
-        let provider = FakeHealthDataProvider(authorizationError: .authorizationFailure)
+        let provider = FakeHealthDataProvider(authorizationError: FixtureError.authorizationFailure)
         let viewModel = makeViewModel(
             provider: provider,
             calendar: calendar,
@@ -276,7 +312,7 @@ final class WeeklyReportViewModelTests: XCTestCase {
         let calendar = testCalendar()
         let refreshDate = date(2026, 9, 1, hour: 12, calendar: calendar)
         let provider = FakeHealthDataProvider(
-            authorizationError: .authorizationFailure,
+            authorizationError: FixtureError.authorizationFailure,
             glucoseError: .glucoseFailure
         )
         let viewModel = makeViewModel(
