@@ -79,10 +79,19 @@ check_label_reader_edges() {
 
   while IFS= read -r file; do
     if [[ -z "$file" ]]; then continue; fi
-    if [[ ! "$file" =~ /(Sources/(NutritionLabelParsing|FoodLabelTextCapture|FoodLabelPhotoReading)|Tools/NutritionLabelTextParse|Tests/(NutritionLabelParsingTests|FoodLabelTextCaptureTests|FoodLabelPhotoReadingTests))/ ]]; then
+    if [[ ! "$file" =~ /(Sources/(NutritionLabelParsing|FoodLabelTextCapture|FoodLabelPhotoReading|UKNutritionLabelParsing)|Tools/NutritionLabelTextParse|Tests/(NutritionLabelParsingTests|FoodLabelTextCaptureTests|FoodLabelPhotoReadingTests|UKNutritionLabelParsingTests))/ ]]; then
       violations+="NutritionLabelParsing imported by $file"$'\n'
     fi
   done < <(files_importing NutritionLabelParsing "${scanned[@]}")
+
+  # UK English reader (#371 P2a, docs/pasted-nutrition-label-uk-english-v1-p2.md section 1): only
+  # the text capture adapter, its tests and the target's own tests reach UKNutritionLabelParsing.
+  while IFS= read -r file; do
+    if [[ -z "$file" ]]; then continue; fi
+    if [[ ! "$file" =~ /(Sources/FoodLabelTextCapture|Tests/(FoodLabelTextCaptureTests|UKNutritionLabelParsingTests))/ ]]; then
+      violations+="UKNutritionLabelParsing imported by $file"$'\n'
+    fi
+  done < <(files_importing UKNutritionLabelParsing "${scanned[@]}")
 
   # Label photo reader (docs/label-photo-ai-prefill-v1.md 17.2): only its own tests and the
   # photo capture adapter (and that adapter's tests) reach FoodLabelPhotoReading. The app is never
@@ -185,10 +194,11 @@ check_label_reader_edges() {
     if [[ -z "$line" ]]; then continue; fi
     name="$(sed -nE 's/^[^"]*name:[[:space:]]*"([A-Za-z0-9_]+)".*/\1/p' <<< "$line")"
     rest="$(sed -E 's/name:[[:space:]]*"[A-Za-z0-9_]+"//' <<< "$line")"
-    for dep in NutritionLabelParsing FoodLabelTextCapture FoodLabelPhotoReading FoodLabelPhotoCapture FoodLabelPhotoUI; do
+    for dep in NutritionLabelParsing UKNutritionLabelParsing FoodLabelTextCapture FoodLabelPhotoReading FoodLabelPhotoCapture FoodLabelPhotoUI; do
       if [[ "$rest" != *"\"$dep\""* ]]; then continue; fi
       case "$dep" in
-        NutritionLabelParsing) allowed='^(FoodLabelTextCapture|FoodLabelPhotoReading|NutritionLabelTextParse|NutritionLabelParsingTests|FoodLabelTextCaptureTests|FoodLabelPhotoReadingTests)$' ;;
+        NutritionLabelParsing) allowed='^(FoodLabelTextCapture|FoodLabelPhotoReading|UKNutritionLabelParsing|NutritionLabelTextParse|NutritionLabelParsingTests|FoodLabelTextCaptureTests|FoodLabelPhotoReadingTests|UKNutritionLabelParsingTests)$' ;;
+        UKNutritionLabelParsing) allowed='^(FoodLabelTextCapture|FoodLabelTextCaptureTests|UKNutritionLabelParsingTests)$' ;;
         FoodLabelPhotoReading) allowed='^(FoodLabelPhotoReadingTests|FoodLabelPhotoCapture|FoodLabelPhotoCaptureTests)$' ;;
         FoodLabelPhotoCapture) allowed='^(FoodLabelPhotoCaptureTests)$' ;;
         FoodLabelPhotoUI) allowed='^(FoodLabelPhotoUITests)$' ;;
@@ -201,6 +211,9 @@ check_label_reader_edges() {
   for file in "$app"/*.xcodeproj/project.pbxproj; do
     if [[ -f "$file" ]] && grep -q 'productName = NutritionLabelParsing;' "$file"; then
       violations+="$file links NutritionLabelParsing; the app reaches it only through FoodLabelTextCapture"$'\n'
+    fi
+    if [[ -f "$file" ]] && grep -q 'productName = UKNutritionLabelParsing;' "$file"; then
+      violations+="$file links UKNutritionLabelParsing; the app reaches it only through FoodLabelTextCapture"$'\n'
     fi
     if [[ -f "$file" ]] && grep -q 'productName = FoodLabelPhotoReading;' "$file"; then
       violations+="$file links FoodLabelPhotoReading; the app reaches it only through the composition root's adapter"$'\n'
@@ -268,7 +281,8 @@ SWIFT
   local fixture target fpkg
   for fixture in testable struct_form implementation_only package_edge package_target_edge package_byname_edge \
       package_product_edge package_adapter_edge package_unreadable app_import app_import_semicolon presentation_adapter app_link \
-      photo_presentation photo_application photo_app_import photo_package_edge photo_app_link; do
+      photo_presentation photo_application photo_app_import photo_package_edge photo_app_link \
+      uk_application uk_testable uk_app_import uk_package_edge uk_library uk_app_link; do
     target="$scratch/$fixture"
     cp -R "$base" "$target"
     fpkg="$target/Packages/FoodLedgerKit"
@@ -303,6 +317,16 @@ SWIFT
         sed 's/dependencies: \["FoodLedgerDomain"\]/dependencies: ["FoodLedgerDomain", "FoodLabelPhotoReading"]/' \
           "$pkg/Package.swift" > "$fpkg/Package.swift" ;;
       photo_app_link) echo 'productName = FoodLabelPhotoReading;' >> "$target/WeeklyHealthReport.xcodeproj/project.pbxproj" ;;
+      uk_application) echo 'import UKNutritionLabelParsing' > "$fpkg/Sources/FoodLedgerApplication/Leak.swift" ;;
+      uk_testable) echo '@testable import UKNutritionLabelParsing' > "$fpkg/Tests/FoodLedgerContractTests/Leak.swift" ;;
+      uk_app_import) echo 'import UKNutritionLabelParsing' >> "$target/WeeklyHealthReport/FoodLedger/FoodLedgerCompositionRoot.swift" ;;
+      uk_package_edge)
+        sed 's/dependencies: \["FoodLedgerDomain"\]/dependencies: ["FoodLedgerDomain", "UKNutritionLabelParsing"]/' \
+          "$pkg/Package.swift" > "$fpkg/Package.swift" ;;
+      uk_library)
+        sed 's/dependencies: \["FoodLedgerDomain"\]/dependencies: ["FoodLedgerDomain", .product(name: "UKNutritionLabelParsing", package: "FoodLedgerKit")]/' \
+          "$pkg/Package.swift" > "$fpkg/Package.swift" ;;
+      uk_app_link) echo 'productName = UKNutritionLabelParsing;' >> "$target/WeeklyHealthReport.xcodeproj/project.pbxproj" ;;
     esac
     if check_label_reader_edges "$fpkg" "$target" 2>/dev/null; then
       echo "check-boundaries self-test: the $fixture fixture must fail" >&2; status=1
@@ -315,7 +339,12 @@ SWIFT
 self_test_label_reader_edges
 check_label_reader_edges "$package_root" "$app_root"
 
-check_imports FoodLabelTextCapture '^(Foundation|FoodLedgerApplication|FoodLedgerDomain|NutritionLabelParsing)$'
+check_imports FoodLabelTextCapture '^(Foundation|FoodLedgerApplication|FoodLedgerDomain|NutritionLabelParsing|UKNutritionLabelParsing)$'
+# UK English reader (#371 P2a): pure, over the frozen parser's public API only.
+check_imports UKNutritionLabelParsing '^(Foundation|NutritionLabelParsing)$'
+if grep -qE '\.library\(name:[[:space:]]*"UKNutritionLabelParsing"' "$package_root/Package.swift"; then
+  echo "UKNutritionLabelParsing must not be a library product; it is reached only through FoodLabelTextCapture" >&2; exit 1
+fi
 # Label photo reader (#316, docs/label-photo-ai-prefill-v1.md 17.2): pure, no platform framework.
 check_imports FoodLabelPhotoReading '^(Foundation|FoodLedgerApplication|FoodLedgerDomain|NutritionLabelParsing)$'
 # Label photo capture adapters (17.2): platform frameworks, each confined to its adapter file above.

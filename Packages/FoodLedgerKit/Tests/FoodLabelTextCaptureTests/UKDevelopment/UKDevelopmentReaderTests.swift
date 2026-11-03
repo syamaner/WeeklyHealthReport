@@ -26,7 +26,7 @@ final class UKDevelopmentReaderTests: XCTestCase {
     }
 
     func testProductScopeMatchesThePastedLabelReaderOnEveryFixture() throws {
-        let development = UKDevelopmentReader(scope: PastedLabelLaunchScope.enabledFormats)
+        let development = UKDevelopmentReader.product
         let texts = try fixtureTexts()
         XCTAssertGreaterThan(texts.count, 100)
         for text in texts {
@@ -35,7 +35,7 @@ final class UKDevelopmentReaderTests: XCTestCase {
     }
 
     func testUKScopeRemovesOnlyTheScopeDeclineFromUKTables() throws {
-        let development = UKDevelopmentReader()
+        let development = UKDevelopmentReader(reader: NutritionLabelTextReader(), isAsSold: PastedLabelBasisState.isAsSold)
         var admitted = 0
         for text in try fixtureTexts() {
             let expected = product.read(text)
@@ -67,6 +67,7 @@ final class UKDevelopmentReaderTests: XCTestCase {
     func testUSPanelStillDeclinesUnderTheUKScope() {
         let outcome = UKDevelopmentReader().read(SyntheticLabelTexts.usNutritionFacts)
         XCTAssertFalse(outcome.declineCodes.isEmpty)
-        XCTAssertEqual(outcome, product.read(SyntheticLabelTexts.usNutritionFacts))
+        // The same reason as the product, apart from the launch scope code the UK scope removes.
+        XCTAssertEqual(outcome.declineCodes, product.read(SyntheticLabelTexts.usNutritionFacts).declineCodes.filter { $0 != PastedLabelCodes.layoutNotSupported })
     }
 }
