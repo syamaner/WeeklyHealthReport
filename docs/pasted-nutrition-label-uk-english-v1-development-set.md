@@ -85,4 +85,24 @@ The same 24 labels read through the P2a reader (`nutrition-label-text-parser-uk-
 - Inferred format: `uk_nutrition_declaration` 16, `us_nutrition_facts` 8 (all parser declines with no header, as in P1).
 - Left for P2b: energy rows labelled `Energy kJ` or `Energy kcal` whose cells also carry the unit read as unrecognised rows (row aliases), and the title merged across lines.
 
+## P2b re-run (seam and UK parser v2, 3 November 2026)
+
+The same 24 labels read through `PastedLabelReader` with the `.ukDevelopment` policy and the UK adapter, now `nutrition-label-text-parser-uk-v2` (P2a's rules plus N5, [P2b spec](pasted-nutrition-label-uk-english-v1-p2b.md)). The P2a figures above were under the retired v1.
+
+| Measure | P2a | P2b |
+| --- | ---: | ---: |
+| Reached Confirm | 16 | 16 |
+| Declined | 8 (33%) | 8 (33%) |
+| Values checked | 181 | 182 |
+| Wrong values from a real misbinding | 0 | **0** |
+| Scored wrong but justified as scorer artefacts | 10, in 7 tables | 6, in 3 tables |
+| Correction burden, mean / median | 0.688 / 1.0 | 0.375 / 0.0 |
+| Share of tables needing any correction | 0.562 | 0.250 |
+| Calculated vs printed discrepancies (reported, never gating) | 1 | 2 |
+
+- N5 recognised the energy rows printed `Energy kJ` or `Energy kcal` with the unit repeated in their cells, which also ended the title merge across lines: the four title artefacts are gone.
+- The six remaining artefacts are the shapes P2b left on purpose (a `(kcal)` continuation row, a bracketed sub-row with a bracketed value, and an `of which` wrapped onto a line starting with a long dash); each was checked in P2a and their values are unchanged.
+- The two discrepancies are kcal calculated from kJ against the printed kcal, each differing by under 5 kcal (rounding on the label); they are reported, as reader v3 12.2.8 requires.
+- Declines are unchanged by reason.
+
 Only counts and rules were added from the real-text sets; no text, value, product name or hash.

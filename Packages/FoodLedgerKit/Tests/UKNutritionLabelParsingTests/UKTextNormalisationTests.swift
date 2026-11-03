@@ -49,9 +49,43 @@ final class UKTextNormalisationTests: XCTestCase {
     func testN2LeavesEveryOtherShapeUnchanged() {
         for line in ["Energy kJ 1520 / kcal 362", "Energy kJ\t1520/362", "Salt (g) 0.1 Tr", "Fat (g) 3.4 5%", "Fat g 3.4g 1.0",
                      "(kcal) 362", "Energy (cal)\t182", "Energy kJ kcal\t1520", "8400kJ / 2000kcal", "Protein (g)\t9.8\t35.8",
-                     "Energy kJ: 328 kJ", "熱量 200大卡", "營養標示 Energy kcal 387"] {
+                     "熱量 200大卡", "營養標示 Energy kcal 387"] {
             XCTAssertEqual(UKTextNormalisation.lines(line), [line], line)
         }
+    }
+
+    // MARK: N5 (P2b)
+
+    func testN5DropsAnEnergyLabelUnitThatEveryValueRepeats() {
+        XCTAssertEqual(UKTextNormalisation.lines("Energy kJ\t1520 kJ\t456 kJ"), ["Energy\t1520 kJ\t456 kJ"])
+        XCTAssertEqual(UKTextNormalisation.lines("Energy kcal: 362 kcal"), ["Energy: 362 kcal"])
+        XCTAssertEqual(UKTextNormalisation.lines("Energy kJ: 328 kJ"), ["Energy: 328 kJ"])
+        XCTAssertEqual(UKTextNormalisation.lines("Typical values Energy kJ 1520 kJ"), ["Typical values", "Energy 1520 kJ"])
+        let text = "per 100 g\nEnergy kJ\t1520 kJ\nEnergy kcal\t362 kcal\n" + Self.rows
+        XCTAssertFalse(nutrients(v3.parse(text, inputSHA256: "x")).contains("energy_kj"))
+        let read = uk.parse(text, inputSHA256: "x")
+        XCTAssertEqual(read.cells.first { $0.nutrient == "energy_kj" }?.decimalText, "1520")
+        XCTAssertEqual(read.cells.first { $0.nutrient == "energy_kcal" }?.decimalText, "362")
+    }
+
+    func testN5LeavesEveryOtherEnergyLineUnchanged() {
+        XCTAssertNil(UKTextNormalisation.dropRedundantEnergyUnit("Energy kJ 1520"), "N2's case is not N5's")
+        for line in ["Energy kJ 1520 kcal", "Energy kJ 1520kJ 18%", "Energy kJ / kcal 1069kJ / 254kcal",
+                     "Energy kJ 1520 kJ 362 kcal", "Energy kcal 1520 kJ", "Energy kJ 1520 kJ 362", "Energy per 100g kJ 1520 kJ",
+                     "Energy kJ 1520 kJ Energy kJ 456 kJ", "Energy kJ kcal 1520 kJ", "Protein g 8g", "Energy cal 182 cal",
+                     "熱量 kJ 200 kJ"] {
+            XCTAssertEqual(UKTextNormalisation.lines(line), [line], line)
+        }
+    }
+
+    func testN5BindsStackedEnergyAndNeverReadsAThousandsCommaAsADecimal() {
+        let stacked = uk.parse("per 100 g\nEnergy kJ 1520 kJ\n362 kcal\n" + Self.rows, inputSHA256: "x")
+        XCTAssertEqual(stacked.cells.first { $0.nutrient == "energy_kj" }?.decimalText, "1520")
+        XCTAssertFalse(stacked.cells.contains { $0.unit == "kJ" && $0.decimalText == "362" })
+        let comma = uk.parse("per 100 g\nEnergy kJ 1,520 kJ\nEnergy kcal 362 kcal\n" + Self.rows, inputSHA256: "x")
+        XCTAssertFalse(comma.cells.contains { $0.decimalText == "1.52" })
+        let reference = uk.parse("Typical values\tper 100 g\t%RI\nEnergy kJ\t1520 kJ\t18%\nEnergy kcal\t362 kcal\t18%\n" + Self.rows, inputSHA256: "x")
+        XCTAssertFalse(reference.cells.contains { $0.unit == "%" && $0.basis != .referenceIntake })
     }
 
     // MARK: N3
@@ -107,10 +141,17 @@ final class UKTextNormalisationTests: XCTestCase {
     /// and N2's copy of the label unit onto each number (one more token per number, all the label's).
     func testNormalisationKeepsUnitTokensApartFromN1AndN2() {
         let cases = ["Energy kJ\t1520\t456", "Protein (μg) <5 | 7", "Fat\t12g\n(of Which Saturates)\t5g", "of which are sugars 3g",
-                     "Average nutritional information Energy\t1520kJ", "Fat (g) 3.4 5%", Self.rows]
+                     "Average nutritional information Energy\t1520kJ", "Fat (g) 3.4 5%", Self.rows,
+                     "Energy kJ\t1520 kJ\t456 kJ", "Energy kcal: 362 kcal", "Typical values Energy kJ 1520 kJ", "Energy kJ 1520 kJ 362"]
         for text in cases {
             let before = units(text), after = units(UKTextNormalisation.normalise(text))
-            if let n2 = UKTextNormalisation.moveLabelUnit(text), !text.contains("\n") {
+            if text.hasSuffix(" kJ") || text.hasSuffix("kcal"), UKTextNormalisation.normalise(text) != text {
+                // N5: the output's units are the input's, less exactly the one label unit.
+                var remaining = before
+                for unit in after { if let index = remaining.firstIndex(of: unit) { remaining.remove(at: index) } else { XCTFail("\(unit) added: \(text)") } }
+                XCTAssertEqual(remaining.count, 1, text)
+                XCTAssertTrue(["kJ", "kcal"].contains(remaining.first ?? ""), text)
+            } else if let n2 = UKTextNormalisation.moveLabelUnit(text), !text.contains("\n") {
                 XCTAssertEqual(after, units(n2), text)
                 XCTAssertEqual(Set(after), Set(before), text)
             } else {
@@ -133,7 +174,9 @@ final class UKTextNormalisationTests: XCTestCase {
     }
 
     func testNormalisationKeepsEveryNumberSeparatorAndComparatorAndTheLanguage() {
-        let texts = UKGuardCases.all + [Self.rows, "Typical values\tper 100gm\nEnergy kJ\t1520\t456", "營養標示\n每100公克\n熱量 200大卡"]
+        let texts = UKGuardCases.all + [Self.rows, "Typical values\tper 100gm\nEnergy kJ\t1520\t456", "營養標示\n每100公克\n熱量 200大卡",
+                                        "Energy kJ\t1520 kJ\t456 kJ", "Energy kcal: <362 kcal", "Typical values Energy kJ 1,520 kJ",
+                                        "Energy kJ 1520 kJ 362 kcal"]
         for text in texts {
             let normalised = UKTextNormalisation.normalise(text)
             XCTAssertEqual(tokens(normalised), tokens(text), text)

@@ -3420,6 +3420,20 @@ One Claude Code session (`claude-opus-5-5`) coordinated; subagents investigated 
 
 `phase_usage.py --format claude` on each subagent transcript (whole transcript as the boundary); all cache writes are 5-minute; exact USD 1.4238, 3.5579, 7.6860, 0.6012 and 2.2093 (15.4782 in total). Pricing: the Claude Opus 5.5 rates recorded in WHR-93-2026-10-20q (USD 4/M base input, 5/M 5-minute cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. The coordinator session is Unmeasured: no start boundary was captured when the phase began, so no figure is estimated. Local builds and simulator test runs use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
 
+## WHR-371-2026-11-03b: Claude Code UK reader P2b, seam and energy labels (#371)
+
+The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) recorded decision 11, wrote the P2b spec, applied its `architecture-gate` pass, built the reading policy seam, rule N5 (UK parser v2) and the tests, and re-ran the private development set; it also rebased #377 and P2a onto a moving `main`. Subagents in the window: the P2b architecture gate and the tail of the #375 validator (excluded from WHR-371-2026-11-03, so counted here). The window runs from `2026-11-03T07:06:59Z` (the end of WHR-371-2026-11-03) to `2026-11-03T07:49:04Z`. Cache writes: coordinator 82,680 1-hour; subagents 117,102 5-minute and 288 1-hour.
+
+Pricing uses the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output); they were not re-checked on the day of this entry. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| UK reader P2b (#371), coordinator session | 22,184,845 (22,102,041) | 82,680 | 51,835 | 22,236,680 | $6.12 |
+| P2b gate and #375 validator tail (#371), subagents in the window | 1,563,894 (1,446,448) | 117,390 | 23,842 | 1,587,736 | $1.35 |
+| **Subtotal** | 23,748,739 (23,548,489) | 200,070 | 75,677 | 23,824,416 | $7.47 |
+
+`phase_usage.py --format claude --since 2026-11-03T07:06:59Z --until 2026-11-03T07:49:04Z` on the session transcript, without and with `--include-subagents` (the subagent row is the difference); exact USD 6.1190442 and 7.4732118. Excluded: the P2b validator and invariant review, which start after the window, this ledger edit and anything after the window. Token totals are not evidence of productivity, quality or provider efficiency.
+
 ## WHR-382-2026-11-03: Claude Code cocoa-aware generic search (#382, phase A of #381)
 
 The coordinator session (`claude-opus-5-5`, session `8abede54-9564-4edc-9de1-c099dbc90ead`) wrote `docs/cocoa-aware-search-v1.md`, froze FoodQueryEvaluation v10 and FoodSearchQuality v7, and implemented parser v11 and `cocoa-percent-policy-v1` with their tests. Five subagents ran inside the window: one Explore map of the evaluation harnesses, one `architecture-gate` (PASS WITH CHANGES, 14 findings), one `invariant-reviewer` (PASS WITH CHANGES, 7 findings), one `validator` run stopped early when the review fixes began, and one complete `validator` run (PASS). The window runs from the owner's go-ahead at `2026-11-03T08:38:41Z` (the logged message time) to `2026-11-03T09:43:36Z`. Cache writes: coordinator 219,138 1-hour, subagents 392,935 5-minute.

@@ -3,7 +3,7 @@ import NutritionLabelParsing
 
 /// The UK reader's closed guard rules G1 to G3 (`docs/pasted-nutrition-label-uk-english-v1-p2.md`
 /// section 3). The guard only ever returns its candidate unchanged or a decline: it never moves a
-/// value, basis or row. Part of `nutrition-label-text-parser-uk-v1`.
+/// value, basis or row. Part of `nutrition-label-text-parser-uk-v2`.
 public enum UKReadingGuard {
     public static let headerBasisUnrecognised = "uk_header_basis_unrecognised"
     public static let conflictingUnits = "uk_orphan_unit"

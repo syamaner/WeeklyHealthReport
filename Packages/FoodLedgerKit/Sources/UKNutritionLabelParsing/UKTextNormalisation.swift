@@ -2,9 +2,9 @@ import Foundation
 import NutritionLabelParsing
 
 /// The UK reader's closed normalisation rules N1 to N4 (`docs/pasted-nutrition-label-uk-english-v1-p2.md`
-/// section 2), applied to English text only, before parser v3. Each rule moves or respells printed
+/// section 2) and N5 (`docs/pasted-nutrition-label-uk-english-v1-p2b.md` section 2), applied to English text only, before parser v3. Each rule moves or respells printed
 /// tokens; none adds, drops or changes a digit run, decimal separator or comparator. A line no
-/// rule matches is returned byte for byte. Part of `nutrition-label-text-parser-uk-v1`: any change
+/// rule matches is returned byte for byte. Part of `nutrition-label-text-parser-uk-v2`: any change
 /// here is a new parser version.
 public enum UKTextNormalisation {
     /// The normalised text, its lines joined with `\n` exactly as the input's lines were split.
@@ -12,7 +12,7 @@ public enum UKTextNormalisation {
         lines(text).joined(separator: "\n")
     }
 
-    /// The normalised lines: N4 splits first, then each line gets at most one of N1, N2, N3.
+    /// The normalised lines: N4 splits first, then each line gets at most one of N1, N2, N3, N5.
     public static func lines(_ text: String) -> [String] {
         // English text only (parser v3's language, through its public API); anything else is untouched.
         guard NutritionLabelTextParserV3().parse(text, inputSHA256: "").language == .english else { return text.components(separatedBy: "\n") }
@@ -29,6 +29,7 @@ public enum UKTextNormalisation {
         if let n1 = respellHeaderUnit(line) { return n1 }
         if let n2 = moveLabelUnit(line) { return n2 }
         if let n3 = plainSubRowMarker(line, above: above) { return n3 }
+        if let n5 = dropRedundantEnergyUnit(line) { return n5 }
         return line
     }
 
@@ -96,6 +97,42 @@ public enum UKTextNormalisation {
         // Keep the label's own separator before the values.
         let trailing = String(label.reversed().prefix { $0 == " " || $0 == "\t" || $0 == ":" }.reversed())
         return (name + (trailing.isEmpty ? " " : trailing), unit)
+    }
+
+    // MARK: N5 redundant energy label unit
+
+    static let energyLabelUnits = ["kJ", "kj", "KJ", "Kj", "kcal", "Kcal", "KCAL", "kCal"]
+
+    /// Parser v3's canonical energy unit: `kJ`, `kcal` and `cal` stay distinct.
+    static func canonicalEnergyUnit(_ unit: String) -> String? {
+        switch unit.lowercased() {
+        case "kj": "kJ"
+        case "kcal": "kcal"
+        case "cal": "cal"
+        default: nil
+        }
+    }
+
+    /// `Energy kJ  1520 kJ  456 kJ` becomes `Energy  1520 kJ  456 kJ`: the label is exactly an
+    /// energy label plus one unit token that every value on the line repeats, separated only by
+    /// spaces, tabs or `|`. Any other line is untouched.
+    static func dropRedundantEnergyUnit(_ line: String) -> String? {
+        let values = value.matches(line)
+        guard let first = values.first, !line.contains("/") else { return nil }
+        var cursor = first.range.upperBound
+        for match in values.dropFirst() {
+            guard line[cursor..<match.range.lowerBound].unicodeScalars.allSatisfy(separators.contains) else { return nil }
+            cursor = match.range.upperBound
+        }
+        guard line[cursor...].unicodeScalars.allSatisfy(separators.contains) else { return nil }
+        let label = String(line[..<first.range.lowerBound])
+        let trimmed = label.trimmingCharacters(in: CharacterSet(charactersIn: " \t:"))
+        let words = trimmed.split(whereSeparator: { $0 == " " || $0 == "\t" })
+        guard words.count == 2, let unit = words.last.map(String.init), energyLabelUnits.contains(unit),
+              UKVocabulary.energyLabels.contains(words[0].lowercased()), let canonical = canonicalEnergyUnit(unit) else { return nil }
+        guard values.allSatisfy({ match in match.groups[3].flatMap(canonicalEnergyUnit) == canonical }) else { return nil }
+        let trailing = String(label.reversed().prefix { $0 == " " || $0 == "\t" || $0 == ":" }.reversed())
+        return String(words[0]) + (trailing.isEmpty ? " " : trailing) + line[first.range.lowerBound...]
     }
 
     // MARK: N3 sub-row markers

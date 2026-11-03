@@ -74,6 +74,8 @@ CODE_READ_DOCS = {
     "docs/pasted-nutrition-label-uk-english-v1.md",
     # Cited by the UK reader target, its adapter and tests (#371 P2a).
     "docs/pasted-nutrition-label-uk-english-v1-p2.md",
+    # Cited by the reading policy seam and its tests (#371 P2b).
+    "docs/pasted-nutrition-label-uk-english-v1-p2b.md",
 }
 CODE_READ_DOC_PREFIXES = ("docs/fixtures/",)
 # Never documentation, whatever the lists above say: CI, its scripts and this

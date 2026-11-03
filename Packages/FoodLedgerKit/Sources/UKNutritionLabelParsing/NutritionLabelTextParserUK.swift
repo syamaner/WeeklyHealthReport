@@ -2,13 +2,14 @@ import Foundation
 import NutritionLabelParsing
 
 /// The UK English reader (`docs/pasted-nutrition-label-uk-english-v1-p2.md`):
-/// `nutrition-label-text-parser-uk-v1` is normalisation rules N1 to N4, then the frozen parser v3
+/// `nutrition-label-text-parser-uk-v2` is normalisation rules N1 to N5 (v1, never admitted or
+/// stored, had N1 to N4 and is retired; `docs/pasted-nutrition-label-uk-english-v1-p2b.md`), then the frozen parser v3
 /// through its public API, then guard rules G1 to G3. It mirrors parser v3's three entry points,
 /// each normalising the pasted text first and guarding after; `inputSHA256` is always the hash
 /// of the pasted text, never of the normalised one. Meant for English text: the reader adapter
 /// sends every other language to the pinned reader.
 public struct NutritionLabelTextParserUK: Sendable {
-    public static let version = "nutrition-label-text-parser-uk-v1"
+    public static let version = "nutrition-label-text-parser-uk-v2"
 
     private let parser = NutritionLabelTextParserV3()
 
