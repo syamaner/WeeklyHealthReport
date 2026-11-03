@@ -3348,3 +3348,17 @@ One Claude Code session (`claude-opus-5-5`) wrote `docs/pasted-nutrition-label-u
 | UK English pasted label architecture gate (#371), subagent | Unmeasured | Unmeasured | Unmeasured | Unmeasured | Unmeasured |
 
 Unmeasured: no start boundary was captured when the phase began, so no figure is estimated. Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-371-2026-11-02b: Claude Code UK English development set (#371, P1)
+
+The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) built the development-only harness and its tests, ran and scored the set and wrote the counts-only results; one collector subagent (`subagents/agent-a557fd761d22bafd9.jsonl`) collected and transcribed the 24 private labels. The coordinator window runs from `2026-11-02T20:45:34Z` (captured with `date -u` when P1 began) to `2026-11-02T21:36:46Z`; the subagent is measured over its whole transcript, which lies inside that window. Cache writes: coordinator 83,659 1-hour, subagent 266,389 5-minute.
+
+Pricing uses the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output); they were not re-checked on the day of this entry. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| UK development harness, run and results (#371), coordinator session | 10,043,829 (9,960,086) | 83,659 | 32,336 | 10,076,165 | $3.31 |
+| UK development set collection and transcription (#371), collector subagent | 31,709,205 (31,442,434) | 266,389 | 86,772 | 31,795,977 | $9.36 |
+| **Subtotal** | 41,753,034 (41,402,520) | 350,048 | 119,108 | 41,872,142 | $12.67 |
+
+`phase_usage.py --format claude --since 2026-11-02T20:45:34Z --until 2026-11-02T21:36:46Z` on the session transcript and `phase_usage.py --format claude` on the subagent transcript; exact USD 3.3083452 and 9.3573998. Excluded: this ledger edit and anything after the window. Token totals are not evidence of productivity, quality or provider efficiency.
