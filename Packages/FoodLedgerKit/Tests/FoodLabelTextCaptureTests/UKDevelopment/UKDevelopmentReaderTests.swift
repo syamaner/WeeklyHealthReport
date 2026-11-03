@@ -34,6 +34,16 @@ final class UKDevelopmentReaderTests: XCTestCase {
         }
     }
 
+    /// P2b S1 reference (`docs/pasted-nutrition-label-uk-english-v1-p2b.md`): the pre-seam copy, in
+    /// its UK configuration, decides every fixture exactly as the seam's `.ukDevelopment` policy.
+    func testTheSeamUKPolicyMatchesThePreSeamCopyOnEveryFixture() throws {
+        let seam = PastedLabelReader(reader: UKEnglishLabelTextReader(), digester: SHA256Digester(), policy: .ukDevelopment)
+        let copy = UKDevelopmentReader()
+        for text in try fixtureTexts() + TaiwanHeaderProbeTests.texts() {
+            XCTAssertEqual(seam.read(text), copy.read(text), text)
+        }
+    }
+
     func testUKScopeRemovesOnlyTheScopeDeclineFromUKTables() throws {
         let development = UKDevelopmentReader(reader: NutritionLabelTextReader(), isAsSold: PastedLabelBasisState.isAsSold)
         var admitted = 0

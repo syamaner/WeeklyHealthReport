@@ -180,16 +180,6 @@ public struct LabelUnreadRow: Equatable, Hashable, Sendable {
     }
 }
 
-/// The launch scope (section 5, decisions 3 and 4): the gate formats the product reads. It is
-/// applied after the faithful gate; a UK table that passes the gate is still declined
-/// `layout_not_supported` here. Adding UK after its release gate changes only this constant
-/// and the copy it feeds. The scope in force is recorded in the manifest (`launch_scope`).
-public enum PastedLabelLaunchScope {
-    public static let enabledFormats: [String] = ["taiwan_nutrition_labelling"]
-
-    public static func admits(_ format: String) -> Bool { enabledFormats.contains(format) }
-}
-
 /// Identity mapping `pasted-label-identity-v1` reads values for the food as sold only (section
 /// 6.5). A header (or its serving wording) for the food as prepared or drained is an identity
 /// difference and declines `basis_state_not_supported`.
@@ -377,9 +367,11 @@ public struct PastedLabelReview: Equatable, Sendable {
 public struct PastedLabelReader: Sendable {
     private let reader: any LabelTextReading
     private let digester: any Digesting
+    private let policy: PastedLabelReadingPolicy
 
-    public init(reader: any LabelTextReading, digester: any Digesting) {
-        self.reader = reader; self.digester = digester
+    /// `policy` defaults to `.product`, today's scope and identity (#371 P2b seam).
+    public init(reader: any LabelTextReading, digester: any Digesting, policy: PastedLabelReadingPolicy = .product) {
+        self.reader = reader; self.digester = digester; self.policy = policy
     }
 
     public func read(_ text: String) -> PastedLabelReadOutcome {
@@ -391,7 +383,7 @@ public struct PastedLabelReader: Sendable {
             return .declined(codes: [PastedLabelCodes.unreadableTable], reading: nil)
         }
         let reading = reader.read(text, textSHA256: hash.value, assertedBases: nil)
-        let outcome = Self.classify(reading, pastedText: text)
+        let outcome = Self.classify(reading, pastedText: text, policy: policy)
         // Reader v3 8.4.1: the sheet is offered only for exactly `no_basis_header` with an
         // unheaded table and at least one option; otherwise today's decline stands.
         guard outcome.declineCodes == [PastedLabelCodes.noBasisHeader], let unheaded = reading.unheadedTable else { return outcome }
@@ -405,7 +397,7 @@ public struct PastedLabelReader: Sendable {
         var options: [PastedLabelBasisChoiceRequest.Option] = []
         for arrangement in arrangements {
             let asserted = reader.read(text, textSHA256: hash.value, assertedBases: arrangement.assertedBases)
-            switch Self.classify(asserted, pastedText: text) {
+            switch Self.classify(asserted, pastedText: text, policy: policy) {
             case let .usable(review):
                 options.append(.init(arrangement: arrangement, review: review))
             case let .declined(codes, declinedReading):
@@ -418,8 +410,13 @@ public struct PastedLabelReader: Sendable {
                                                                options: options))
     }
 
-    /// The product's decision on a reading, in the section 2.4 order.
+    /// The product's decision on a reading under `.product` (a compatibility wrapper).
     public static func classify(_ reading: LabelReading, pastedText: String) -> PastedLabelReadOutcome {
+        classify(reading, pastedText: pastedText, policy: .product)
+    }
+
+    /// The decision on a reading under `policy`, in the section 2.4 order.
+    public static func classify(_ reading: LabelReading, pastedText: String, policy: PastedLabelReadingPolicy) -> PastedLabelReadOutcome {
         let candidate = reading.candidate
         if candidate.declined {
             let codes = candidate.declineReasons.isEmpty ? [PastedLabelCodes.unreadableTable] : candidate.declineReasons
@@ -435,12 +432,12 @@ public struct PastedLabelReader: Sendable {
         // Then the launch scope: an ambiguous format, or any format not enabled (UK, US).
         if reading.format == PastedLabelCodes.formatAmbiguous {
             codes.append(PastedLabelCodes.formatAmbiguous)
-        } else if !PastedLabelLaunchScope.admits(reading.format) {
+        } else if !policy.admits(reading.format) {
             codes.append(PastedLabelCodes.layoutNotSupported)
         } else if reading.gate == nil {
             codes.append(PastedLabelCodes.unreadableTable)
         }
-        if !PastedLabelBasisState.isAsSold(candidate) {
+        if !policy.isAsSold(candidate) {
             codes.append(PastedLabelIdentity.basisStateNotSupported)
         }
         guard let stored = reading.storedHeaderID, candidate.headers.contains(where: { $0.headerID == stored }) else {
