@@ -2,7 +2,7 @@
 
 Counts from phase P1 of [the UK English plan](pasted-nutrition-label-uk-english-v1.md): 24 real public UK label texts read with the current reader (parser v3, gate v2, checks v2, conversions v1) through the development-only harness (`Tests/FoodLabelTextCaptureTests/UKDevelopment/`), which admits `uk_nutrition_declaration` without changing the product's scope. Under plan section 6 this file holds counts and layout descriptions only: no label text, value, product name, page address or hash. Everything else stays in the private folder outside the repository.
 
-**These are development figures, not an accuracy rate.** The expected values are the collecting agent's own transcription from each label's screenshot; the owner's check of them is outstanding. Every rule P2 adds will be shaped by these labels, so only the P4 fresh set measures the reader.
+**These are development figures, not an accuracy rate.** The expected values are the collecting agent's own transcription from each label's screenshot, checked by the owner against every screenshot on 3 November 2026 with no corrections. Every rule P2 adds will be shaped by these labels, so only the P4 fresh set measures the reader.
 
 ## Collection
 
@@ -60,9 +60,9 @@ Examples marked *synthetic* are invented to show the shape; none is copied from 
 - Cause 7 confirms the need for `pasted-label-identity-v2` (plan section 2).
 - The scorer matches an unrecognised row by its normalised label. Lead lines glued to a row, and markers it does not strip (a long dash, U+2014; a leading underscore; brackets around a sub-row), turned correct-looking bindings into "wrong" scores. The UK scorer of P3 needs its normalisation and marker rules written for UK labels before collection, without forgiving a real misbinding.
 
-## Outstanding
+## Checks
 
-- The owner's check of the 24 transcriptions against their screenshots.
+- Owner check, 3 November 2026: all 24 transcriptions compared with their screenshots; none needed a correction, so the figures above stand.
 - The synced-storage checklist item: the private folder `~/WHR-label-eval-private/uk-english-v1/` is outside every git checkout and outside synced storage (checked manually; the harness checks only the first).
 
 Only counts and rules were added from the real-text sets; no text, value, product name or hash.
