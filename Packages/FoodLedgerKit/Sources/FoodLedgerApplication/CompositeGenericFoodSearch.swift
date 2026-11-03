@@ -46,7 +46,7 @@ public final class CompositeGenericFoodSearch: GenericFoodSearching, @unchecked 
             }
         }
         guard let first = routes.first else {
-            return .noResult(GenericFoodNoResultRoute(evidence: evidence, additionalEvidence: request.additionalEvidence, guidance: CocoaPercentPolicy.noResultNote(query: request.parsedQuery).map { "\($0) \(fallback?.guidance ?? GenericFoodNoResultRoute.defaultGuidance)" } ?? fallback?.guidance, suggestedQueries: Array(suggestions.prefix(3))))
+            return .noResult(GenericFoodNoResultRoute(evidence: evidence, additionalEvidence: request.additionalEvidence, guidance: fallback?.guidance, suggestedQueries: Array(suggestions.prefix(3))))
         }
         var interleaved: [GenericFoodMatch] = []
         var regional: [Bool] = []

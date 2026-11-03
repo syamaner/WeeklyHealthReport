@@ -21,9 +21,20 @@ final class CocoaCautionPresentationTests: XCTestCase {
         XCTAssertEqual(try caution("dark chocolate 100%", "Baking chocolate, unsweetened, squares"), "100% cocoa estimate · baking chocolate")
         XCTAssertEqual(try caution("dark chocolate 85%", "Baking chocolate, unsweetened, squares"), "100% cocoa estimate · requested 85%")
         XCTAssertEqual(try caution("dark chocolate 85%", "Chocolate, dark, with crème or mint fondant centres"), "Cocoa % not stated")
-        XCTAssertEqual(try caution("dark chocolate nfs 50%",
-            "Candies, chocolate, dark, NFS (45-59% cacao solids 90%; 60-69% cacao solids 5%; 70-85% cacao solids 5%)"), "No single cocoa band")
+        let nfs = "Candies, chocolate, dark, NFS (45-59% cacao solids 90%; 60-69% cacao solids 5%; 70-85% cacao solids 5%)"
+        let rangeRequest = GenericFoodSearchRequest(text: try LedgerText("70-85% dark chocolate"), capturedAt: Date(timeIntervalSince1970: 1_700_000_000), locale: try LedgerText("en_GB"))
+        guard case let .confirmation(range) = try search.search(rangeRequest) else { return XCTFail("range query") }
+        let blend = try XCTUnwrap(range.matches.first { $0.candidate.name.value == nfs })
+        XCTAssertEqual(FoodSearchResultText.caution(query: FoodQueryParser.parse("dark chocolate 50%"), candidate: blend.candidate,
+                                                    requestedPreparation: nil, isRecipe: false), "No single cocoa band")
         XCTAssertNil(try caution("dark chocolate", "Chocolate, plain"))
+    }
+
+    func testTheChocolateInterpretationIsShownOnce() {
+        XCTAssertEqual(FoodSearchResultText.interpretationNote(FoodQueryParser.parse("100% cacao")), "Searched as chocolate with 100% cocoa.")
+        XCTAssertEqual(FoodSearchResultText.interpretationNote(FoodQueryParser.parse("dark 90% cocoa")), "Searched as chocolate with 90% cocoa.")
+        XCTAssertNil(FoodSearchResultText.interpretationNote(FoodQueryParser.parse("dark chocolate 85%")))
+        XCTAssertNil(FoodSearchResultText.interpretationNote(nil))
     }
 }
 

@@ -544,6 +544,7 @@ public struct GenericFoodSearchView: View {
             }
         case let .noResult(route):
             Section(model.activeEnrichmentStage != nil ? "No matches yet" : model.stageReports.contains(where: { $0.failure != nil }) ? "Search incomplete" : "No match found") {
+                if let note = FoodSearchResultText.interpretationNote(model.parsedQuery) { Text(note) }
                 if model.activeEnrichmentStage == nil {
                     if model.searchRecoveryMessage == nil {
                         Text(route.suggestedQueries.isEmpty ? "No food matched this description." : route.guidance)
@@ -558,6 +559,9 @@ public struct GenericFoodSearchView: View {
         case .declined:
             Section("No food selected") { Text("Change the description to try again.") }
         case let .results(route):
+            if let note = FoodSearchResultText.interpretationNote(model.parsedQuery) {
+                Section { Label(note, systemImage: "info.circle") }
+            }
             if !model.closeMatches.isEmpty {
                 Section("Best matches") { ForEach(model.closeMatches, id: \.searchID) { row($0, route: route) } }
             }

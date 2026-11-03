@@ -17,7 +17,7 @@ public enum CocoaPercentPolicy {
 
         var range: ClosedRange<Double>? {
             switch self {
-            case let .declared(lower, upper): lower...upper
+            case let .declared(lower, upper): lower <= upper ? lower...upper : nil
             case .estimate100: 100...100
             case .blend: nil
             }
@@ -31,14 +31,17 @@ public enum CocoaPercentPolicy {
     static let allowedFoodWords: Set<String> = ["dark", "plain", "bitter", "bittersweet", "extra", "chocolate"]
     static let chocolateTypes: Set<String> = ["milk", "white", "ruby"]
 
+    /// The requested cocoa percentage when the food is a plain chocolate description
+    /// ("dark chocolate", "chocolate"); nil for other chocolate foods ("chocolate milk 2%").
     public static func requested(_ query: ParsedFoodQuery) -> Double? {
-        query.attributes["cocoa_percent"].flatMap(Double.init)
+        guard Set(GenericFoodRankingPolicy.terms(query.food ?? "")).isSubset(of: allowedFoodWords) else { return nil }
+        return query.attributes["cocoa_percent"].flatMap(Double.init)
     }
 
     /// True when the parser appended "chocolate" to a bare cocoa percentage ("100% cacao").
     public static func impliesChocolate(_ query: ParsedFoodQuery) -> Bool {
         requested(query) != nil && (query.food ?? "").split(separator: " ").contains("chocolate")
-            && !query.original.lowercased().contains("chocolate")
+            && !query.original.folding(options: .widthInsensitive, locale: Locale(identifier: "en_GB")).lowercased().contains("chocolate")
     }
 
     public static func band(name: String, description: String?, recordID: String?) -> Band? {
@@ -56,7 +59,8 @@ public enum CocoaPercentPolicy {
             }
             let withoutRanges = outside.replacingOccurrences(
                 of: #"\d+(?:\.\d+)?\s*[-\x{2013}]\s*\d+(?:\.\d+)?\s*%"#, with: " ", options: .regularExpression)
-            for match in captures(#"(\d+(?:\.\d+)?)\s*%\s*(?:cacao|cocoa)\b"#, withoutRanges) {
+            // "30% cocoa butter" or "100% cocoa powder" states an ingredient, not the chocolate's band.
+            for match in captures(#"(\d+(?:\.\d+)?)\s*%\s*(?:cacao|cocoa)\b(?!\s*(?:butter|powder|mass|liquor|paste|nibs?|beans?))"#, withoutRanges) {
                 guard let value = Double(match[0]) else { return nil }
                 found.append(.declared(lower: value, upper: value))
             }
@@ -114,7 +118,7 @@ public enum CocoaPercentPolicy {
     }
 
     public static func note(query: ParsedFoodQuery, candidate: PopulatedFoodCandidate) -> String? {
-        guard let literal = query.attributes["cocoa_percent"], let value = requested(query) else { return nil }
+        guard let value = requested(query), let literal = query.attributes["cocoa_percent"] else { return nil }
         let text: String
         switch band(candidate) {
         case let .declared(lower, upper)?:
@@ -132,7 +136,7 @@ public enum CocoaPercentPolicy {
     }
 
     public static func caution(query: ParsedFoodQuery, candidate: PopulatedFoodCandidate) -> String? {
-        guard let literal = query.attributes["cocoa_percent"], let value = requested(query) else { return nil }
+        guard let value = requested(query), let literal = query.attributes["cocoa_percent"] else { return nil }
         switch band(candidate) {
         case let .declared(lower, upper)?:
             return (lower...upper).contains(value) ? "\(span(lower, upper)) cocoa" : "\(span(lower, upper)) cocoa · requested \(literal)%"
@@ -143,8 +147,8 @@ public enum CocoaPercentPolicy {
         }
     }
 
-    /// Shown in the no-result state when the parser implied chocolate.
-    public static func noResultNote(query: ParsedFoodQuery) -> String? {
+    /// Shown once on the Search screen, with results or without, when the parser implied chocolate.
+    public static func searchedAsNote(query: ParsedFoodQuery) -> String? {
         guard impliesChocolate(query), let literal = query.attributes["cocoa_percent"] else { return nil }
         return searchedAs(literal)
     }

@@ -34,13 +34,15 @@ A new pure application type, `CocoaPercentPolicy`, gives each candidate either a
 Declared bands come from the candidate name and, for CoFID, the description the candidate carries as its variant. No band is inferred from nutrients.
 
 - A range `L-U%` or `L- U%`, or the same with an en dash (U+2013) in place of the hyphen, directly followed by `cacao solids` or `cocoa solids`, outside parentheses, is the closed band [L, U]. This reads USDA "Chocolate, dark, 45- 59% cacao solids", "60-69%" and "70-85%", and CoFID's description "36-50% cocoa solids" for 17-491 "Chocolate, plain".
-- A single `N%` directly followed by `cocoa` or `cacao` (with or without `solids`), outside parentheses, is the point band [N, N].
+- A single `N%` directly followed by `cocoa` or `cacao` (with or without `solids`), outside parentheses, is the point band [N, N], unless an ingredient word follows (`butter`, `powder`, `mass`, `liquor`, `paste`, `nib(s)`, `bean(s)`): "30% cocoa butter" states an ingredient, not the chocolate's band.
 - Text inside parentheses is never a band. USDA 170274 "Candies, chocolate, dark, NFS (45-59% cacao solids 90%; ...)" describes a blend and is classed as **blend, no single band**.
 - Invalid readings give no band: L > U, a bound outside 0 to 100, or more than one distinct band in the same text.
 
 The estimate band is a closed list of one, keyed by identity rather than name: the USDA SR Legacy record FDC 167568 in the bundled release gets [100, 100] marked as an estimate. Basis: US standards of identity name unsweetened baking chocolate as chocolate liquor, which is finely ground cacao nibs with 50 to 60% cacao fat ([21 CFR 163.111](https://www.law.cornell.edu/cfr/text/21/163.111), checked 3 November 2026). Optional ingredients (butter, salt, spices and others) are permitted, so it stays an estimate for a 100% bar, never the user's product. Excluded on purpose: 167567 "Baking chocolate, unsweetened, liquid" (a different, pourable product) and 167999 "Baking chocolate, mexican, squares" (sweetened and spiced). A guard test fails if 167568's name in the bundled corpus ever changes.
 
 ### 3. Eligibility exception, ordering and notes
+
+**Scope.** Every rule in this section applies only when the parsed food words are all within {dark, plain, bitter, bittersweet, extra, chocolate}. The parser keeps v10's cocoa key for any text containing "chocolate", so "chocolate milk 2%" or "chocolate cake 70%" still carry `cocoa_percent`, but they get no cocoa eligibility, ordering or notes (invariant review finding 3).
 
 1. **Eligibility exception (versioned, owned by `cocoa-percent-policy-v1`).** Generic search normally requires every meaningful query word in the source name (`generic-food-ranking-v7`, CoFID and USDA predicates). Two closed exceptions are added:
    - **Cocoa percentage admission.** When the parsed query has `cocoa_percent` and its food words are all within {dark, plain, bitter, bittersweet, extra, chocolate}, a row with a declared band or the estimate band is admitted even if it lacks a query word, provided its name contains `chocolate` and does not name an unrequested chocolate type from {milk, white, ruby}.
@@ -64,7 +66,7 @@ The estimate band is a closed list of one, keyed by identity rather than name: t
    | Blend | No single cocoa band from this source; you asked for N%. | No single cocoa band |
    | No band | Cocoa percentage not stated by this source; you asked for N%. | Cocoa % not stated |
 
-   When chocolate was implied (rule 5), every detail note starts "Searched as chocolate with N% cocoa." and the same sentence is shown in the no-result state. Notes never change nutrients, identity or selection.
+   When chocolate was implied (rule 5), every detail note starts "Searched as chocolate with N% cocoa.", and the Search screen shows that sentence once, as its own line above the results and inside the no-result state whatever else that state shows (`FoodSearchResultText.interpretationNote`, rendered by `GenericFoodSearchView`). Notes never change nutrients, identity or selection.
 
 ## Who is affected
 
@@ -82,6 +84,8 @@ No destination is added and `docs/privacy-and-egress.md` needs no change, but th
 ## Architecture gate
 
 Gate run 3 November 2026 by `architecture-gate`: PASS WITH CHANGES, 14 findings, all applied in this version (truncation, regional order, eligibility exception, parser scope, visible rewrite note, dropping `filled`, identity-keyed estimate, notes ownership, online terms, every percentage pattern, version stamping, swiftc file list, band edge cases, affected callers).
+
+Invariant review of the implementation, 3 November 2026: PASS WITH CHANGES, 7 findings, all applied: the implied-chocolate sentence is now rendered on the Search screen (it had existed only in an uncalled detail note, so Open Food Facts could have received "chocolate" without the user seeing it); the band reader ignores ingredient percentages; cocoa rules apply only to plain chocolate descriptions; an inverted band built outside the reader is no band rather than a trap; the implied-chocolate check folds width as the parser does; a stored v14 capture evidence round-trip test was added; and the Open Food Facts pattern was simplified.
 
 - **Responsibilities.** Parsing stays in `FoodQueryParser`. Band reading, the estimate mapping, eligibility exceptions, tier ordering and note text live in one pure application type, `CocoaPercentPolicy`. CoFID and USDA call its eligibility and ordering; the composite calls its ordering; `FoodQueryCandidateAssessment` and `FoodSearchResultText` call its notes.
 - **Dependency direction.** `CocoaPercentPolicy` depends only on `FoodLedgerDomain` value types and `ParsedFoodQuery`. Infrastructure adapters depend on it, never the reverse. No SwiftUI, HealthKit, GRDB, filesystem, network, clock or randomness. No new package target.

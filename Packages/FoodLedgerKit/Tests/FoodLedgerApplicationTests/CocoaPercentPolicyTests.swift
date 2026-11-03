@@ -25,6 +25,9 @@ final class CocoaPercentPolicyTests: XCTestCase {
         XCTAssertNil(band("Chocolate, dark, 70% cocoa", "85% cocoa solids"))
         XCTAssertNil(band("Chocolate, dark, with crème or mint fondant centres", "10 samples, 8 products"))
         XCTAssertNil(band("Milk, 2% fat"))
+        // An ingredient percentage is not the chocolate's band.
+        XCTAssertNil(band("Milk chocolate, 30% cocoa butter"))
+        XCTAssertNil(band("Chocolate drink powder", "contains 100% cocoa powder"))
         // Agreeing name and description are one band.
         XCTAssertEqual(band("Chocolate, dark, 70% cocoa", "70% cocoa solids"), .declared(lower: 70, upper: 70))
     }
@@ -78,6 +81,9 @@ final class CocoaPercentPolicyTests: XCTestCase {
         XCTAssertEqual(order(100), [4, 3, 2, 1, 6, 0, 5])
         XCTAssertEqual(order(50), [1, 6, 2, 3, 4, 0, 5], "both bands containing 50 keep their order")
         XCTAssertEqual(order(30).first, 6, "below every band: the nearest band first")
+        // An inverted band built outside the reader is treated as no band, never a trap.
+        XCTAssertEqual(CocoaPercentPolicy.tierKeys([.declared(lower: 90, upper: 10), .declared(lower: 70, upper: 85)], requested: 80)
+            .map { $0 < CocoaPercentPolicy.tierKeys([.declared(lower: 70, upper: 85)], requested: 80)[0] }, [false, false])
     }
 
     func testImpliedChocolateIsDetectedFromTheOriginalText() {
@@ -85,8 +91,19 @@ final class CocoaPercentPolicyTests: XCTestCase {
         XCTAssertTrue(CocoaPercentPolicy.impliesChocolate(FoodQueryParser.parse("dark 90% cocoa")))
         XCTAssertFalse(CocoaPercentPolicy.impliesChocolate(FoodQueryParser.parse("85% cocoa chocolate")))
         XCTAssertFalse(CocoaPercentPolicy.impliesChocolate(FoodQueryParser.parse("dark chocolate 85%")))
-        XCTAssertEqual(CocoaPercentPolicy.noResultNote(query: FoodQueryParser.parse("100% cacao")), "Searched as chocolate with 100% cocoa.")
-        XCTAssertNil(CocoaPercentPolicy.noResultNote(query: FoodQueryParser.parse("dark chocolate 85%")))
+        XCTAssertFalse(CocoaPercentPolicy.impliesChocolate(FoodQueryParser.parse("\u{FF43}\u{FF48}\u{FF4F}\u{FF43}\u{FF4F}\u{FF4C}\u{FF41}\u{FF54}\u{FF45} 85%")))
+        XCTAssertEqual(CocoaPercentPolicy.searchedAsNote(query: FoodQueryParser.parse("100% cacao")), "Searched as chocolate with 100% cocoa.")
+        XCTAssertNil(CocoaPercentPolicy.searchedAsNote(query: FoodQueryParser.parse("dark chocolate 85%")))
+    }
+
+    func testCocoaRulesApplyOnlyToPlainChocolateDescriptions() {
+        XCTAssertEqual(CocoaPercentPolicy.requested(FoodQueryParser.parse("dark chocolate 85%")), 85)
+        XCTAssertEqual(CocoaPercentPolicy.requested(FoodQueryParser.parse("plain chocolate 70% cocoa solids")), 70)
+        // The parser keeps v10's cocoa key for any chocolate text, but other chocolate foods
+        // get no cocoa ordering, eligibility or notes.
+        for query in ["chocolate milk 2%", "mint dark chocolate 70%", "chocolate cake 70%"] {
+            XCTAssertNil(CocoaPercentPolicy.requested(FoodQueryParser.parse(query)), query)
+        }
     }
 
     func testParserV11CocoaAndPerCentRules() {

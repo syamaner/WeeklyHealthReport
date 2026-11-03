@@ -138,7 +138,6 @@ public struct GenericFoodNoResultRoute: Equatable, Sendable {
     public let suggestedQueries: [String]
     public let sourceDiscovery: FoodWebDiscoveryResult?
     public let sourceReviewFailure: FoodSourceReviewFailure?
-    public static let defaultGuidance = "Try another food name or leave this item unresolved. Nothing has been selected or saved."
 
     public init(
         evidence: CaptureEvidence, additionalEvidence: [CaptureEvidence] = [],
@@ -150,7 +149,7 @@ public struct GenericFoodNoResultRoute: Equatable, Sendable {
         self.sourceReviewFailure = sourceReviewFailure
         retainedEvidence = [evidence] + additionalEvidence
         title = "No compatible generic food found"
-        self.guidance = guidance ?? Self.defaultGuidance
+        self.guidance = guidance ?? "Try another food name or leave this item unresolved. Nothing has been selected or saved."
     }
 }
 

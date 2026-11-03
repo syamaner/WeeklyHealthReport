@@ -123,7 +123,13 @@ final class CocoaAwareSearchTests: XCTestCase {
                        "Cocoa percentage not stated by this source; you asked for 85%.")
         XCTAssertEqual(try note("dark chocolate 40%", "Chocolate, plain"), "Source covers 36 to 50% cocoa.")
         let nfs = "Candies, chocolate, dark, NFS (45-59% cacao solids 90%; 60-69% cacao solids 5%; 70-85% cacao solids 5%)"
-        XCTAssertEqual(try note("dark chocolate nfs 50%", nfs), "No single cocoa band from this source; you asked for 50%.")
+        // The blend row is retrieved by a range query; the note depends only on the query and the row.
+        let blend = try XCTUnwrap(try matches(search, "70-85% dark chocolate").first { $0.candidate.name.value == nfs })
+        XCTAssertEqual(FoodQueryCandidateAssessment.note(query: FoodQueryParser.parse("dark chocolate 50%"), candidate: blend.candidate),
+                       "No single cocoa band from this source; you asked for 50%.")
+        for match in try matches(search, "chocolate milk 2%") {
+            XCTAssertNil(CocoaPercentPolicy.note(query: FoodQueryParser.parse("chocolate milk 2%"), candidate: match.candidate))
+        }
         for match in try matches(search, "100% cacao") {
             XCTAssertTrue(FoodQueryCandidateAssessment.note(query: FoodQueryParser.parse("100% cacao"), candidate: match.candidate)?
                 .hasPrefix("Searched as chocolate with 100% cocoa.") == true, match.candidate.name.value)
@@ -131,6 +137,17 @@ final class CocoaAwareSearchTests: XCTestCase {
         for match in try matches(search, "dark chocolate") {
             XCTAssertNil(CocoaPercentPolicy.note(query: FoodQueryParser.parse("dark chocolate"), candidate: match.candidate))
         }
+    }
+
+    func testStoredEarlierCaptureEvidenceStillRoundTrips() throws {
+        let evidence = try CaptureEvidence(evidenceID: CocoaIDs().makeID(EvidenceTag.self), kind: .genericSearch,
+            capturedAt: Date(timeIntervalSince1970: 1_700_000_000), locale: LedgerText("en_GB"),
+            captureMethod: LedgerText("typed_generic_food_search"), captureMethodVersion: LedgerText("cofid-generic-ranking-v14"),
+            originalPayload: .text(LedgerText("dark chocolate 85%")))
+        let encoded = try JSONEncoder().encode(evidence)
+        let decoded = try JSONDecoder().decode(CaptureEvidence.self, from: encoded)
+        XCTAssertEqual(decoded, evidence)
+        XCTAssertEqual(try JSONEncoder().encode(decoded), encoded)
     }
 
     func testStoredEarlierMatcherVersionsStillRoundTrip() throws {

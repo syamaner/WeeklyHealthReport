@@ -183,6 +183,12 @@ public enum FoodSearchResultText {
         case .unknown: "basis not specified"
         }
     }
+    /// One visible line when the search text was interpreted beyond what was typed
+    /// ("100% cacao" searched as chocolate, cocoa-percent-policy-v1).
+    public static func interpretationNote(_ query: ParsedFoodQuery?) -> String? {
+        query.flatMap(CocoaPercentPolicy.searchedAsNote(query:))
+    }
+
     public static func caution(query: ParsedFoodQuery?, candidate: PopulatedFoodCandidate,
                                requestedPreparation: PreparationKind?, isRecipe: Bool) -> String? {
         if isRecipe { return "Representative recipe · cooked serving weight unknown" }

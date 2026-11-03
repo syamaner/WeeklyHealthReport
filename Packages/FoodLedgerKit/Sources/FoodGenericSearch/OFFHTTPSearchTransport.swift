@@ -130,7 +130,7 @@ public actor OFFHTTPSearchTransport: OFFSearchTransport {
               let percentage = query.attributes["unspecified_percent"] ?? query.attributes["fat_percent"] else { return hits }
         // Retain every other literal descriptor, including brand, flavour and preparation.
         let withoutPercentage = terms.replacingOccurrences(
-            of: #"(-?\d+(?:\.\d+)?)\s*(?:%|per[ -]?cent|percent)"#, with: " ", options: [.regularExpression, .caseInsensitive])
+            of: #"(-?\d+(?:\.\d+)?)\s*(?:%|per[ -]?cent)"#, with: " ", options: [.regularExpression, .caseInsensitive])
         let required = GenericFoodSearchTerms.literalTokens(withoutPercentage)
         guard !required.isEmpty else { return hits }
         func isExplicitMatch(_ hit: [String: Any]) -> Bool {
