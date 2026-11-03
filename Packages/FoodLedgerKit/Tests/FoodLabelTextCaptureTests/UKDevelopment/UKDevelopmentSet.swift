@@ -4,7 +4,8 @@ import FoodLedgerDomain
 import Foundation
 
 /// **Development only** (`docs/pasted-nutrition-label-uk-english-v1.md` P1). Runs the UK
-/// development set through `UKDevelopmentReader` and scores it with the reader v3 fresh-set
+/// development set through `PastedLabelReader` with the UK adapter and the `.ukDevelopment`
+/// policy (#371 P2b seam) and scores it with the reader v3 fresh-set
 /// scorer (`FreshSet.score`), unchanged. Unlike the release check there are no seals and a rerun
 /// replaces the outputs: development figures are not an accuracy rate. Every real file lives in
 /// the private folder, which `FreshSet.privateFolder` keeps outside every git checkout.
@@ -26,7 +27,7 @@ enum UKDevelopmentSet {
 
     /// `FreshSet.run` with the development reader: the basis is taken from the transcription when
     /// the sheet would be shown (reader v3 12.2.7 item 2).
-    static func run(labelID: String, text: String, transcription: FreshSet.Transcription, reader: UKDevelopmentReader,
+    static func run(labelID: String, text: String, transcription: FreshSet.Transcription, reader: PastedLabelReader,
                     choose: (PastedLabelBasisOptions.Arrangement, PastedLabelBasisChoiceRequest) throws -> PastedLabelReview)
         -> (FreshSet.RunResult, Extra) {
         typealias Result = FreshSet.RunResult
@@ -76,7 +77,7 @@ enum UKDevelopmentSet {
     static func runAll(_ root: URL, commit: String, now: Date = Date()) throws -> Int {
         let builder = PastedLabelConfirmation(ids: RandomLedgerIDGenerator(), clock: SystemClock(), encoder: FoundationCanonicalJSONEncoder(),
                                               digester: SHA256Digester(), conversions: NutritionLabelConversionChecker())
-        let reader = UKDevelopmentReader()
+        let reader = PastedLabelReader(reader: UKEnglishLabelTextReader(), digester: SHA256Digester(), policy: .ukDevelopment)
         let ids = try labelIDs(root)
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         for folder in ["run", "run-extra"] {
