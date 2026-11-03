@@ -3445,3 +3445,11 @@ The coordinator session (`claude-opus-5-5`, session `8abede54-9564-4edc-9de1-c09
 | **Subtotal** | 39,823,271 (39,210,816) | 612,073 | 202,941 | 40,026,212 | $15.62 |
 
 `phase_usage.py --format claude --since 2026-11-03T08:38:41Z --until 2026-11-03T09:43:36Z` on the session transcript, without and with `--include-subagents` (the subagent row is the difference); exact USD 11.0303558 and 15.6202902. Excluded: this ledger edit, the merge of `main`, the final re-check, the commit, the push and the PR after that time. Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. An API-equivalent comparison under a Claude subscription, not a charge. Local builds, simulator runs and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-389-2026-11-03: Copy daily JSON and bound the exact-file preview
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Codex implementation, signed device build and PR preparation | Unmeasured | Unmeasured | Unmeasured | Unmeasured | Unmeasured |
+
+No implementation baseline was captured for this phase. Hosted CI and subsequent review are outside this record.
