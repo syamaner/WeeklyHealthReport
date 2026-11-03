@@ -19,7 +19,11 @@ public struct ParsedFoodQuery: Codable, Equatable, Sendable {
             || requiresRecipeReview
     }
     public var requiresRecipeReview: Bool { FoodQueryDiscoveryPolicy.allowsNamedDishDiscovery(self) }
-    /// The named-dish review message, only while no amount is known (discovery v4).
+    /// The named-dish review message whenever review is required and no amount is known. The
+    /// parser never sets a quantity on a named dish, so on its own output this is non-nil for every
+    /// named dish; on `FoodQueryInterpretation.parsedQuery` (v5) it is nil once the dish's exact
+    /// amount has been filled. Search results show `GenericFoodSearchViewModel.namedDishReviewMessage`,
+    /// which also accounts for the amount chip.
     public var discoveryReviewMessage: String? {
         requiresRecipeReview && quantity == nil ? FoodQueryDiscoveryPolicy.recipeReviewMessage : nil
     }

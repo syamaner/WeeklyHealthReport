@@ -39,8 +39,11 @@ final class ProgressiveFoodSearchPresentationTests: XCTestCase {
             XCTAssertEqual(model.parsedQuery?.quantity, amount, query)
             XCTAssertEqual(model.effectiveAmount, amount, query)
             XCTAssertEqual(model.parsedQuery?.discoveryReviewMessage == nil, amount != nil, query)
-            XCTAssertEqual(model.namedDishReviewMessage == nil, amount != nil, query)
-            if amount == nil {
+            // The message describes results, so a no-result search never shows it.
+            let hasResults: Bool
+            if case .results = model.phase { hasResults = true } else { hasResults = false }
+            XCTAssertEqual(model.namedDishReviewMessage != nil, amount == nil && hasResults, query)
+            if amount == nil, hasResults {
                 XCTAssertTrue(model.namedDishReviewMessage?.contains("the amount has not been filled in") == true, query)
                 // An amount set with the chip removes the message; the description is unchanged.
                 model.amountOverride = .init(value: 150, unit: "g")
@@ -619,5 +622,17 @@ private actor RecoveryFailureSource: FoodSearchEnriching {
             model.search()
             XCTAssertNil(model.namedDishReviewMessage, query)
         }
+    }
+
+    /// #370 follow-up: "Results are possible matches" is never shown when there are no results.
+    @MainActor func testNamedDishReviewMessageIsHiddenWithoutResults() throws {
+        // The bundled CoFID and USDA sources hold no lentil and tomato soup record.
+        let local = try CompositeGenericFoodSearch(sources: [CoFIDGenericFoodSearch(ids: RandomLedgerIDGenerator()), USDAGenericFoodSearch(ids: RandomLedgerIDGenerator())], ids: RandomLedgerIDGenerator())
+        let model = try GenericFoodSearchViewModel(searcher: local, locale: LedgerText("en_GB"))
+        model.query = "lentil and tomato soup"; model.search()
+        guard case .noResult = model.phase else { return XCTFail("expected no result") }
+        XCTAssertTrue(model.parsedQuery?.requiresRecipeReview == true)
+        XCTAssertNil(model.effectiveAmount)
+        XCTAssertNil(model.namedDishReviewMessage)
     }
 }
