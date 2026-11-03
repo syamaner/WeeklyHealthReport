@@ -65,4 +65,24 @@ Examples marked *synthetic* are invented to show the shape; none is copied from 
 - Owner check, 3 November 2026: all 24 transcriptions compared with their screenshots; none needed a correction, so the figures above stand.
 - The synced-storage checklist item: the private folder `~/WHR-label-eval-private/uk-english-v1/` is outside every git checkout and outside synced storage (checked manually; the harness checks only the first).
 
+## P2a re-run (UK reader, 3 November 2026)
+
+The same 24 labels read through the P2a reader (`nutrition-label-text-parser-uk-v1`: normalisation N1 to N4, parser v3, guard G1 to G3) with identity mapping v2, via the development harness ([P2a spec](pasted-nutrition-label-uk-english-v1-p2.md)). Still development figures, not an accuracy rate.
+
+| Measure | P1 | P2a |
+| --- | ---: | ---: |
+| Reached Confirm | 12 | 16 |
+| Declined | 12 (50%) | 8 (33%) |
+| Values checked | 141 | 181 |
+| Wrong values from a real misbinding | 9 (one wrong basis) | **0** |
+| Scored wrong but justified as scorer artefacts | 8 | 10, in 7 tables |
+| Correction burden, mean / median | 0.750 / 1.0 | 0.688 / 1.0 |
+| Share of tables needing any correction | 0.667 | 0.562 |
+
+- The wrong basis of P1 cause 1 is gone: that header now binds per 100 g (N1), and G1 declines any other per serving header that names 100.
+- Each of the 10 artefacts was checked individually in the private results: the value equals the transcription for its printed row, column, basis and unit, and is bound only to an unrecognised row. Their shapes: a title on its own line merged by parser v3 into the first energy label (4), an `of which` wrapped onto a line starting with a long dash (2), a bracketed sub-row whose value is also bracketed (2), and a `(kcal)` continuation row (2).
+- Declines by reason: `basis_state_not_supported` 2, `count_mismatch` 2, `uk_orphan_unit` 2 (guard G2: a label naming kJ and kcal over one combined cell, and the one-row-per-nutrient PDF), `energy_without_unit` 1 (an energy row labelled `(cal)`, which N2 deliberately excludes), `value_without_unit` 1.
+- Inferred format: `uk_nutrition_declaration` 16, `us_nutrition_facts` 8 (all parser declines with no header, as in P1).
+- Left for P2b: energy rows labelled `Energy kJ` or `Energy kcal` whose cells also carry the unit read as unrecognised rows (row aliases), and the title merged across lines.
+
 Only counts and rules were added from the real-text sets; no text, value, product name or hash.

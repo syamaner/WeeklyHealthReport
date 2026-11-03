@@ -55,9 +55,13 @@ let package = Package(
         ),
         // Pasted nutrition label reader (#93, decision 10): the only product target that may
         // depend on NutritionLabelParsing; wired at the app's composition root.
+        // UK English pasted label reader (#371 P2a, docs/pasted-nutrition-label-uk-english-v1-p2.md):
+        // normalisation and guard rules around the frozen parser v3, which it reaches only through
+        // its public API; no library product, used only by FoodLabelTextCapture.
+        .target(name: "UKNutritionLabelParsing", dependencies: ["NutritionLabelParsing"]),
         .target(
             name: "FoodLabelTextCapture",
-            dependencies: ["FoodLedgerDomain", "FoodLedgerApplication", "NutritionLabelParsing"]
+            dependencies: ["FoodLedgerDomain", "FoodLedgerApplication", "NutritionLabelParsing", "UKNutritionLabelParsing"]
         ),
         // Label photo AI pre-fill reader (#316, docs/label-photo-ai-prefill-v1.md 12.1 and 17.2):
         // pure (Foundation, the application and domain, and the frozen parser rules): the value
@@ -110,8 +114,13 @@ let package = Package(
                 "FoodLedgerApplication",
                 "FoodLedgerDomain",
                 "FoodLedgerTestSupport",
-                "NutritionLabelParsing"
+                "NutritionLabelParsing",
+                "UKNutritionLabelParsing"
             ]
+        ),
+        .testTarget(
+            name: "UKNutritionLabelParsingTests",
+            dependencies: ["NutritionLabelParsing", "UKNutritionLabelParsing"]
         ),
         .testTarget(
             name: "FoodLedgerDomainTests",
