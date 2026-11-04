@@ -13,14 +13,18 @@ struct SavedFoodEntryView: View {
     private let now: () -> Date
     /// The logged label photo's bytes, read from the protected attachments directory.
     private let photoBytes: (AttachmentDescriptor) -> Data?
+    /// Settings › Developer tools is on: a label estimate also lists both releases and decisions.
+    private let developerTools: Bool
     @State private var showsEdit = false
     @State private var misreadReport: PastedLabelMisreadPreviewModel?
     @Environment(\.dismiss) private var dismiss
 
     init(model: @autoclosure @escaping () -> SavedFoodEntryViewModel,
          favourites: @autoclosure @escaping () -> FavouriteSaveModel? = nil,
-         calendar: Calendar, now: @escaping () -> Date, photoBytes: @escaping (AttachmentDescriptor) -> Data? = { _ in nil }) {
+         calendar: Calendar, now: @escaping () -> Date, photoBytes: @escaping (AttachmentDescriptor) -> Data? = { _ in nil },
+         developerTools: Bool = false) {
         self.photoBytes = photoBytes
+        self.developerTools = developerTools
         _model = StateObject(wrappedValue: model())
         _favourites = StateObject(wrappedValue: FavouriteSaveModelBox(favourites()))
         self.calendar = calendar
@@ -111,6 +115,7 @@ struct SavedFoodEntryView: View {
             nutrition(detail)
             if detail.pastedLabel != nil { pastedLabel(detail) }
             if detail.labelPhoto != nil { labelPhoto(detail) }
+            if let estimate = detail.labelEstimate { labelEstimate(estimate) }
             if let saving = favourites.model, !detail.isPlainWater {
                 FavouriteSaveSection(model: saving, logItemVersionID: detail.logItemVersionID)
             }
@@ -151,6 +156,22 @@ struct SavedFoodEntryView: View {
                 LabeledContent(PastedLabelFortificationText.title, value: fortification)
             }
             ForEach(LabelPhotoSavedEntryText.stateLines(detail), id: \.self) { Text($0).font(.caption) }
+        }
+    }
+
+    /// A label estimate layer (docs/label-estimate-merge-v1.md section 8): the row, the confirmed
+    /// cocoa percentage and the keys it estimated; Developer tools adds releases and decisions.
+    @ViewBuilder
+    private func labelEstimate(_ estimate: SavedFoodEntryDetail.LabelEstimateDetail) -> some View {
+        Section(LabelEstimateSavedEntryText.sectionTitle) {
+            Text(LabelEstimateSavedEntryText.sourceLine(estimate)).font(.subheadline)
+            Text(LabelEstimateSavedEntryText.cocoaLine(estimate)).font(.caption)
+            if let keys = LabelEstimateSavedEntryText.keysLine(estimate) { Text(keys).font(.caption) }
+            if developerTools {
+                ForEach(LabelEstimateSavedEntryText.developerLines(estimate), id: \.self) {
+                    Text($0).font(.caption.monospaced()).textSelection(.enabled)
+                }
+            }
         }
     }
 

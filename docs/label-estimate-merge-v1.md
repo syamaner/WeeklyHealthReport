@@ -26,7 +26,7 @@ The "Estimate unprinted nutrients" row appears only when all hold:
 
 ### 2. Cocoa percentage field
 
-- Pre-fill: one cocoa percentage from the candidate name, else (pasted labels) from the pasted text. The reader is `CocoaPercentPolicy.band(name:description:recordID:)` plus the label form "cocoa solids[: ]N% minimum" (B1). A range, more than one distinct value, an ingredient percentage ("30% cocoa butter") or a value outside rule 2's range gives no pre-fill.
+- Pre-fill: one cocoa percentage from the candidate name, else (pasted labels) from the pasted text. The reader is `CocoaPercentPolicy.band(name:description:recordID:)` plus the label form "cocoa solids[: ]N% minimum" (B1). A range, more than one distinct value, an ingredient percentage ("30% cocoa butter") or a value outside rule 2's range gives no pre-fill. Until the UK reader is wired and the reader admits a cocoa solids line (#371), the pasted-text pre-fill is reached only through tests, and the name pre-fill is the shipped path.
 - The field accepts 1 to 100, whole or one decimal place. The pre-fill is shown as a suggestion; the estimate list appears only after the user confirms or types a value.
 - Saved as a user-asserted decisive attribute `cocoa_percent` on the confirmation, with the pre-fill origin (`name`, `pasted_text` or `typed`). The confirmed value, not the pre-fill, drives compatibility.
 
@@ -92,9 +92,13 @@ Any mismatch blocks reopening with the existing integrity failure state.
 
 Under the label values, a section "Estimate unprinted nutrients":
 
-- Cocoa % on the pack (field, pre-filled suggestion, explicit confirm).
+- Cocoa % on the pack (field, pre-filled suggestion, explicit confirm with "Use this percentage"). A suggestion confirmed unchanged keeps its origin (`name` or `pasted_text`); any edit makes it `typed`. Editing a confirmed value withdraws the confirmation, the list and any choice. Empty or invalid text gives no list.
 - After confirmation: the compatible rows, each with name, source family, release and phase A note; nothing selected.
-- After choosing a row: a preview list of only the keys that change, each "Iron 11.9 mg · estimate · USDA SR Legacy 2018-04-01", and a "Remove estimate" action. Label values are listed as unchanged.
+- Candidate pool (`label-estimate-pool-v1`): one search of the query "dark chocolate <p>%" through the generic search port the search route uses, wired at the composition root (bundled CoFID, USDA and, as a regional source, TFDA, with the personal library's exact-alias reuse; no Open Food Facts and no network). Rows are kept when rule 3 admits them, distinct by record ID, in search order. The search evidence is a `generic_search` capture with method `label_estimate_pool_search`, so a saved estimate never claims a search the user typed; the chosen row is saved with that evidence and its release, as the search route saves a match. Tests pin 40, 50, 70, 85, 85.5, 86, 90, 99, 99.5 and 100%, including FDC 170273 for 86 to 99% and FDC 167568 for 100%. A personal-library alias that matches the query exactly returns only that saved row, which rule 3 refuses, so no estimate is offered then.
+- The search runs only after confirmation; a failed search says "Estimates could not be loaded. Missing nutrients stay unknown." and Log is unchanged.
+- After a food details correction the section stays with "Estimates are not available after food details are corrected. Missing nutrients stay unknown." and Log passes no estimate, because the save refuses an estimate on a corrected entry (rule 4: the merge never changes identity).
+- After choosing a row: a preview list of only the keys that change, on the label's basis, each "Iron 11.9 mg · estimate · USDA SR Legacy 2018-04-01", and a "Remove estimate" action that restores the label-only state. Label values are listed as unchanged ("Unchanged from the label: Energy, Protein, …").
+- Log with a chosen row passes the estimate to the save; with no row chosen it passes none, so the save is the label-only save byte for byte.
 - No compatible row: "No estimate matches this cocoa percentage." Missing nutrients stay unknown.
 - One Log action; Log is never blocked by the estimate section.
 
@@ -102,7 +106,20 @@ VoiceOver labels name each estimate as an estimate and its source; 44 pt targets
 
 ### 8. Health, Copy all, Developer tools and export
 
-Today `FoodEntryEstimateStatus.isEstimate` returns false for label sources, so an entry with a layer would not be marked. v1 adds a versioned entry status, "partly estimated", for entries with a layer, shown on Food Log, Health, Copy all and Developer tools (which also lists both releases and both decisions). Per-nutrient lines keep each entry's own state. The daily JSON export already carries per-entry provenance; its contract gains only the entry status value, versioned in the same change.
+Today `FoodEntryEstimateStatus.isEstimate` returns false for label sources, so an entry with a layer would not be marked. v1 adds the entry status "Partly estimated" beside it, `FoodEntryEstimateStatus.isPartlyEstimated`: the current saved version carries a label estimate layer. `isEstimate` keeps its meaning for every entry, and label-only entries are unchanged everywhere.
+
+- One rule for the marking, `FoodEntryEstimateStatus.showsPartlyEstimated`, on every surface below: the entry carries a layer and is not an estimate as a whole. The whole-entry reasons are a generic or decided estimate (`isEstimate`) and an estimated amount; those keep "Estimate". Per-value states (augmented or calculated values, a calculated energy bound) never override the marking, as each value keeps its own.
+- Food Log row: "Partly estimated" in place of "Estimate".
+- Saved entry: the header reads "Partly estimated · Label values, with unprinted nutrients estimated from US reference", and an "Estimated nutrients" section names the row, its source family and release, the cocoa percentage with its origin ("Cocoa % on the pack: 90%, typed by you") and the estimated keys. Estimated values are marked "Estimated" beside each value and never carry a label origin such as "Printed".
+- Developer tools (Settings › Developer tools on): the saved entry's section also lists the policy versions, both releases and both decisions, label first.
+- Health and Copy all: they show day totals only, never food entries, and each total's "includes estimates" marker already reflects the estimated values it contains. No entry status is added there, so the Copy all text and its golden tests are unchanged and `health-copy-all-v2.md` needs no new version.
+- Recent foods ("Partly estimated · Last: …") and Favourites ("25 g · Partly estimated") use the same rule.
+- Logging a layered entry again (Recent foods, or a favourite through quick add) saves the label values only, because re-estimation is out of scope. Quick add never logs such a favourite in one step: it opens Confirm (`labelEstimateNotCarried`), and Confirm for a re-log or that favourite says "Logs the label values only. The estimated nutrients saved with the earlier entry are not logged again; missing nutrients stay unknown." An edit keeps the layer (section 5) and shows no such notice.
+- On a label photo entry, a value the user left unknown that the estimate filled reads "Not on the label · Estimated", never both "Left unknown" and "Estimated".
+- An estimated bound stays a bound on the saved entry ("Less than 0.5 g per 100 g · Estimated"), never "Unknown". The v1 bundled sources state no bounded values, so this is a guard for later releases.
+- Per-nutrient lines keep each entry's own state.
+
+The daily JSON export is unchanged: each estimated nutrient already carries its "estimated" state and the day totals' `includes_estimates` already marks the estimate, while entry-level estimate fields belong to #312.
 
 ## Not in scope
 
@@ -135,14 +152,14 @@ Today `FoodEntryEstimateStatus.isEstimate` returns false for label sources, so a
 - Registry: V4 with decisions and declarations admitted by `builtInV8`; V3 rules unchanged; `builtInV4` and `builtInV6` reject V4.
 - Archive: contract 8 round-trip; contract 7 readers reject V4; pinned v1 to v7 fixtures byte-identical; a store without layers still exports contract 6 or 7.
 - GRDB: all decisions load in position order with their evidence; v8 is metadata only; older schema readers decline v8; historical migration hashes unchanged.
-- Status: an entry with a layer is "partly estimated" on Food Log, Health, Copy all and Developer tools; label-only entries are unchanged.
+- Status: an entry with a layer is "Partly estimated" on the Food Log, the saved entry, Recent foods, Favourites and Developer tools under one rule; Health and Copy all show day totals only, with "includes estimates"; label-only entries are unchanged.
 - Re-resolution: refused for a layered entry.
 - Presentation: pre-fill sources; no list until the percentage is confirmed; nothing preselected; preview lists only changed keys; Remove restores the label set; no-match copy; Log never blocked.
 - Journey QA: pasted label and label photo routes in the simulator.
 
 ## Gate record
 
-`architecture-gate`, read-only, 3 November 2026: PASS WITH CHANGES, 12 findings, all applied. High: estimate-layer storage (section 5), reopen nutrient equality (rule 6), operation-type rules (section 5), archive 8 (section 5), non-selected values and decision outcome (rule 4). Medium: no bundle re-read on reopen (rule 6), compatibility pinned to record IDs and gap-free (rule 3), basis direction (rule 1), bundled rows only (rule 3), entry-level estimate status (section 8), re-resolution excluded (section 5). Low: one assertion per save (section 5).
+`architecture-gate`, read-only, 3 November 2026: PASS WITH CHANGES, 12 findings, all applied. High: estimate-layer storage (section 5), reopen nutrient equality (rule 6), operation-type rules (section 5), archive 8 (section 5), non-selected values and decision outcome (rule 4). Medium: no bundle re-read on reopen (rule 6), compatibility pinned to record IDs and gap-free (rule 3), basis direction (rule 1), bundled rows only (rule 3), entry-level estimate status (section 8), re-resolution excluded (section 5). Low: one assertion per save (section 5). B3 narrowed the entry-level status to the surfaces that show entries; Health and Copy all carry day totals only (programme lead decision under the owner's delegation, 4 November 2026).
 
 ## Delivery slices
 

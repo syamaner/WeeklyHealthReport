@@ -72,6 +72,53 @@ final class LabelEstimateCompatibilityTests: XCTestCase {
         XCTAssertFalse(LabelEstimateCompatibility.isCompatible(personal, cocoaPercent: 80))
     }
 
+    /// Rule 7's pool (label-estimate-pool-v1): the one query "dark chocolate <p>%" through the
+    /// composite generic search port, as the composition root wires it (CoFID, USDA, then TFDA as
+    /// a regional source), reaches the rows the compatibility tests above expect.
+    func testThePoolQueryReachesTheCompatibleRowsInSearchOrder() throws {
+        let ids = CompatibilityIDs()
+        let search = CompositeGenericFoodSearch(sources: [try CoFIDGenericFoodSearch(ids: ids), try USDAGenericFoodSearch(ids: ids)],
+                                                regionalSources: [try TFDAGenericFoodSearch(ids: ids)], ids: ids)
+        let pool = LabelEstimateCandidatePool(searcher: search, ids: ids)
+        func options(_ p: Double) throws -> [LabelEstimateOption] {
+            try pool.options(cocoaPercent: p, capturedAt: Date(timeIntervalSince1970: 1_700_000_000), locale: try LedgerText("en_GB"))
+        }
+        let band = "Chocolate, dark, 70-85% cacao solids", baking = "Baking chocolate, unsweetened, squares"
+        let expected: [Double: [String]] = [
+            30: [], 40: ["Chocolate, plain"], 50: ["Chocolate, plain", "Chocolate, dark, 45- 59% cacao solids"],
+            70: [band], 85: [band], 85.5: [band], 86: [band], 90: [band], 99: [band], 99.5: [band], 100: [baking]
+        ]
+        for (p, names) in expected {
+            let found = try options(p)
+            XCTAssertEqual(found.map(\.generic.name.value), names, "\(p)%")
+            XCTAssertEqual(Set(found.map(\.id)).count, found.count, "distinct by record ID at \(p)%")
+            for option in found {
+                XCTAssertTrue(LabelEstimateCompatibility.isCompatible(option.generic, cocoaPercent: p))
+                XCTAssertEqual(option.evidence.map(\.evidenceID), option.generic.candidate.evidenceIDs, "the save's evidence rule")
+                XCTAssertEqual(option.evidence.map(\.captureMethod.value), [LabelEstimateCandidatePool.captureMethod])
+                XCTAssertEqual(option.sourceRelease.sourceReleaseID, option.generic.candidate.sourceReleaseID)
+            }
+        }
+        XCTAssertEqual(try options(90).map(\.id), [LabelEstimateCompatibility.nearestBandRecordID], "FDC 170273 for 86 to 99%")
+        XCTAssertEqual(try options(100).map(\.id), [CocoaPercentPolicy.estimate100RecordID], "FDC 167568 for 100%")
+        XCTAssertEqual(try options(0), [])
+        XCTAssertEqual(try options(85.55), [], "invalid percentages search nothing")
+        XCTAssertEqual(LabelEstimateCandidatePool.query(cocoaPercent: 85.5), "dark chocolate 85.5%")
+        XCTAssertEqual(LabelEstimateCandidatePool.query(cocoaPercent: 90), "dark chocolate 90%")
+    }
+
+    /// Qodo finding on #397: a personal-library alias that carries a bundled row's values under
+    /// its own record ID is never offered, because the save would refuse it.
+    func testThePoolNeverOffersARowTheSaveWouldRefuse() throws {
+        let ids = CompatibilityIDs()
+        let bundled = CompositeGenericFoodSearch(sources: [try CoFIDGenericFoodSearch(ids: ids), try USDAGenericFoodSearch(ids: ids)], ids: ids)
+        let pool = LabelEstimateCandidatePool(searcher: AliasLikeSearch(inner: bundled), ids: ids)
+        let found = try pool.options(cocoaPercent: 80, capturedAt: Date(timeIntervalSince1970: 1_700_000_000), locale: try LedgerText("en_GB"))
+        XCTAssertEqual(found, [], "the 70-85% row looks compatible at 80% but its values name another record")
+        XCTAssertFalse(try LabelEstimateCandidatePool(searcher: bundled, ids: ids).options(cocoaPercent: 80, capturedAt: Date(timeIntervalSince1970: 1_700_000_000),
+                                                                          locale: try LedgerText("en_GB")).isEmpty, "the bundled row itself is offered")
+    }
+
     func testAMilkChocolateRowIsNeverCompatible() throws {
         for candidate in try rows("milk chocolate") where candidate.name.value.lowercased().contains("milk") {
             for p in [30.0, 40, 50] {
@@ -86,5 +133,24 @@ private final class CompatibilityIDs: LedgerIDGenerating, @unchecked Sendable {
     func makeID<Tag>(_ tag: Tag.Type) throws -> LedgerID<Tag> {
         defer { value += 1 }
         return try LedgerID(String(format: "00000000-0000-0000-0000-%012x", value))
+    }
+}
+
+/// Returns the bundled rows under a different candidate record ID, as a library alias would.
+private struct AliasLikeSearch: GenericFoodSearching {
+    let inner: any GenericFoodSearching
+    func search(_ request: GenericFoodSearchRequest) throws -> GenericFoodSearchOutcome {
+        guard case let .confirmation(route) = try inner.search(request) else { return try inner.search(request) }
+        let matches = try route.matches.map { match -> GenericFoodMatch in
+            let row = match.candidate
+            let renamed = try ProviderNeutralCandidate(sourceReleaseID: row.candidate.sourceReleaseID,
+                                                       recordID: ExternalIdentifier("alias:" + row.candidate.recordID.value),
+                                                       identity: row.candidate.identity, edibleQuantity: row.candidate.edibleQuantity,
+                                                       nutrients: row.candidate.nutrients, evidenceIDs: row.candidate.evidenceIDs)
+            return GenericFoodMatch(candidate: try PopulatedFoodCandidate(candidate: renamed, name: row.name, brand: row.brand,
+                                                                         variant: row.variant, barcode: row.barcode, itemClass: row.itemClass),
+                                    isExactName: match.isExactName)
+        }
+        return .confirmation(GenericFoodConfirmationRoute(confirmation: route.confirmation, matches: matches))
     }
 }

@@ -5,10 +5,24 @@ import SwiftUI
 @MainActor
 public final class FoodConfirmationViewModel: ObservableObject {
     @Published public private(set) var state: FoodConfirmationState {
-        didSet { if state.correction == nil && correctionAppliedOnConfirm { correctionAppliedOnConfirm = false } }
+        didSet {
+            if state.correction == nil && correctionAppliedOnConfirm { correctionAppliedOnConfirm = false }
+            labelEstimate?.prepare(state)
+        }
     }
     @Published public private(set) var savedResult: StoredFoodConfirmation?
     private let saveAction: @MainActor (FoodConfirmationState) throws -> StoredFoodConfirmation
+    /// The pasted label and label photo routes' "Estimate unprinted nutrients" section
+    /// (docs/label-estimate-merge-v1.md rule 7). Nil on every other route.
+    public let labelEstimate: LabelEstimateModel?
+    /// Log with a chosen label estimate. Without a chosen row Log always goes through
+    /// `saveAction`, so the save is exactly the label-only save.
+    private let estimateSaveAction: (@MainActor (FoodConfirmationState, LabelEstimateChoice) throws -> StoredFoodConfirmation)?
+    /// Logging again a saved entry that carries a label estimate layer (Recent foods, a
+    /// favourite): Log saves the label values only, and Confirm says so before Log.
+    public let labelEstimateNotCarried: Bool
+    public static let labelEstimateNotCarriedNotice =
+        "Logs the label values only. The estimated nutrients saved with the earlier entry are not logged again; missing nutrients stay unknown."
     /// Writes `save_favourite_v1` for the logged entry version (#198). Nil hides "Save as favourite".
     private let favouriteAction: (@MainActor (LogItemVersionID) throws -> Void)?
     /// "Save as favourite" (the v5 D4 slot). The log save is unchanged; the favourite is a
@@ -48,9 +62,15 @@ public final class FoodConfirmationViewModel: ObservableObject {
         savesFavourite: Bool = false,
         favouriteAction: (@MainActor (LogItemVersionID) throws -> Void)? = nil,
         whenNotice: String? = nil,
+        labelEstimate: LabelEstimateModel? = nil,
+        estimateSaveAction: (@MainActor (FoodConfirmationState, LabelEstimateChoice) throws -> StoredFoodConfirmation)? = nil,
+        labelEstimateNotCarried: Bool = false,
         saveAction: @escaping @MainActor (FoodConfirmationState) throws -> StoredFoodConfirmation
     ) {
         self.state = state
+        self.labelEstimate = estimateSaveAction == nil ? nil : labelEstimate
+        self.estimateSaveAction = estimateSaveAction
+        self.labelEstimateNotCarried = labelEstimateNotCarried && state.reopened == nil
         self.whenNotice = whenNotice
         self.savesFavourite = savesFavourite && favouriteAction != nil && !Self.isPlainWaterSource(state)
         self.favouriteAction = favouriteAction
@@ -68,6 +88,18 @@ public final class FoodConfirmationViewModel: ObservableObject {
             portionGuideDismissed = true
         }
         normalisePortionGuide()
+        self.labelEstimate?.prepare(state)
+    }
+
+    /// Whether Confirm shows "Estimate unprinted nutrients": a new pasted label or label photo
+    /// entry whose label admits an estimate (rule 1). It never blocks Log.
+    public var offersLabelEstimate: Bool {
+        labelEstimate != nil && LabelEstimateOffer.applies(state)
+    }
+
+    /// The estimate Log would save with the entry, or nil for the label-only save.
+    public var pendingLabelEstimate: LabelEstimateChoice? {
+        offersLabelEstimate ? labelEstimate?.choice(for: state) : nil
     }
 
     // MARK: Count portion guide (count-portion-estimate-v1, #307)
@@ -918,7 +950,12 @@ public final class FoodConfirmationViewModel: ObservableObject {
         if case .saved = state.phase { return }
         send(.beginSaving)
         do {
-            let saved = try saveAction(state)
+            let saved: StoredFoodConfirmation
+            if let choice = pendingLabelEstimate, let estimateSaveAction {
+                saved = try estimateSaveAction(state, choice)
+            } else {
+                saved = try saveAction(state)
+            }
             savedResult = saved
             send(.saved(saved.logItem.logItemID))
         } catch {
@@ -956,6 +993,8 @@ public final class FoodConfirmationViewModel: ObservableObject {
             "The food changed after you answered. Answer the questions again, then log."
         case FoodConfirmationSaveError.invalidQuantity:
             "Enter an amount greater than zero."
+        case FoodConfirmationSaveError.invalidLabelEstimate:
+            "The chosen estimate no longer matches this label. Remove the estimate or choose another, then log again."
         case FoodConfirmationSaveError.invalidReviewedSource:
             "The reviewed source values or their serving basis changed. Return to the source review; identity corrections cannot change its nutrition."
         case FoodQuantityValidationError.missingConversion:
@@ -1098,6 +1137,16 @@ public struct FoodConfirmationView: View {
                 // Label photo (4.2 items 4 and 5): the photo pane, then Nutrition from the photo.
                 if let labelPhoto, let labelPhotoViews {
                     LabelPhotoSourceSections(model: labelPhoto, views: labelPhotoViews, retake: model.savedResult == nil ? retakePhoto : nil)
+                }
+                // Label plus generic estimate v1 (#383) rule 7: under the label values.
+                if model.offersLabelEstimate, let estimate = model.labelEstimate {
+                    LabelEstimateSection(estimate: estimate, model: model, focus: $editingAmount)
+                }
+                if model.labelEstimateNotCarried {
+                    Section {
+                        Label(FoodConfirmationViewModel.labelEstimateNotCarriedNotice, systemImage: "info.circle")
+                            .accessibilityLabel(FoodConfirmationViewModel.labelEstimateNotCarriedNotice)
+                    }
                 }
                 compactNutritionSection
             }

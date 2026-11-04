@@ -242,10 +242,11 @@ public enum FoodLogText {
         return "Energy unknown"
     }
 
-    /// One flags line: "Estimate" at most once, then "<Nutrient> unknown" for unknown strip
-    /// nutrients other than energy (energy has its own slot). Empty when there is nothing to flag.
+    /// One flags line: "Estimate" or "Partly estimated" at most once, then "<Nutrient> unknown"
+    /// for unknown strip nutrients other than energy (energy has its own slot). Empty when there
+    /// is nothing to flag.
     public static func flags(_ entry: FoodLogDayContent.Entry) -> String {
-        var parts = entry.isEstimate ? ["Estimate"] : []
+        var parts = entry.isPartlyEstimated ? [partlyEstimated] : entry.isEstimate ? ["Estimate"] : []
         if let method = methodLabel(entry.quantityMethod) { parts.append(method) }
         parts += entry.unknownKeys.filter { $0 != .energyConsumed }.map { "\(label($0)) unknown" }
         return parts.joined(separator: " · ")
@@ -361,9 +362,22 @@ public enum FoodLogText {
             if detail.isEstimate { parts.append(estimateNotice) }
             // A measured method is still named when only the source is an estimate.
             if !detail.weightIsEstimated, let method { parts.append(method) }
+            if let estimate = detail.labelEstimate { parts.append(partlyEstimatedNotice(estimate)) }
             return parts.joined(separator: " · ")
         }
+        // Label plus generic estimate v1 (section 8): the label stands, some nutrients are estimates.
+        if detail.showsPartlyEstimated, let estimate = detail.labelEstimate {
+            return ([partlyEstimated, partlyEstimatedNotice(estimate)] + (method.map { [$0] } ?? [])).joined(separator: " · ")
+        }
         return method
+    }
+
+    /// The entry status of a saved entry with a label estimate layer (docs/label-estimate-merge-v1.md section 8).
+    public static let partlyEstimated = "Partly estimated"
+
+    /// "Label values, with unprinted nutrients estimated from US reference".
+    public static func partlyEstimatedNotice(_ estimate: SavedFoodEntryDetail.LabelEstimateDetail) -> String {
+        "Label values, with unprinted nutrients estimated from \(FoodSearchResultText.family(estimate.sourceFamily))"
     }
 
     public static let plainWaterSourceName = "Plain water"

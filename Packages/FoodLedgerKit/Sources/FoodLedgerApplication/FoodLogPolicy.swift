@@ -166,4 +166,21 @@ public enum FoodEntryEstimateStatus {
         return isEstimate(sourceIsGeneric: generic, identity: stored.productVersion.identity,
                           decisions: stored.assertions.flatMap { $0.confirmation?.decisions.map(\.choice) ?? [] })
     }
+
+    /// "Partly estimated" (docs/label-estimate-merge-v1.md section 8): the current saved version
+    /// carries a label estimate layer, so its label values stand and some unprinted nutrients are
+    /// estimates from a generic row. Beside `isEstimate`, which it never changes; label-only
+    /// entries are never partly estimated.
+    public static func isPartlyEstimated(_ stored: StoredFoodConfirmation) -> Bool {
+        stored.estimate != nil
+    }
+
+    /// The one rule for the "Partly estimated" marking, shared by the Food Log row, the saved
+    /// entry, Recent foods and Favourites: the entry carries a layer and is not an estimate as a
+    /// whole. The whole-entry reasons are a generic or decided estimate (`isEstimate`) and an
+    /// estimated amount; per-value states (augmented or calculated values, a calculated energy
+    /// bound) never override it, as each value keeps its own marking.
+    public static func showsPartlyEstimated(isPartlyEstimated: Bool, isEstimate: Bool, quantityIsEstimate: Bool) -> Bool {
+        isPartlyEstimated && !isEstimate && !quantityIsEstimate
+    }
 }

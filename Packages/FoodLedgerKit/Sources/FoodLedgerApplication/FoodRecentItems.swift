@@ -83,6 +83,9 @@ public struct FoodRecentRelogItem: Equatable, Sendable {
     /// Display name of the restored source candidate.
     public let name: String
     public let isEstimate: Bool
+    /// "Partly estimated" under the shared rule: the entry carries a label estimate layer and is
+    /// not an estimate as a whole. Logging it again saves the label values only.
+    public var isPartlyEstimated = false
     /// The verified current version of the entry: what "Save as favourite" pins (Q2). Nil only
     /// for callers that never offer saving.
     public let logItemVersionID: LogItemVersionID?
@@ -123,12 +126,16 @@ public struct FoodRecentItemsService: Sendable {
             let totals = FoodIntakeSummary(contributions: [.init(quantity: log.edibleQuantity, basis: saved.resolution.basis,
                 nutrients: saved.resolutionVersion.nutrients,
                 quantityIsEstimate: FoodQuantityEstimate.isEstimate(log, conversion: saved.quantityConversion))]).totals
-            return FoodRecentRelogItem(item: item, name: input.candidates[0].name.value,
-                                       isEstimate: isEstimate || totals.contains { $0.includesEstimates }
-                                           || FoodQuantityEstimate.isEstimate(log, conversion: saved.quantityConversion)
-                                           || item.energyUpperBound?.isCalculated == true,
-                                       logItemVersionID: saved.logItemVersion.logItemVersionID,
-                                       isPlainWater: PlainWaterReference.isPlainWater(saved.resolutionVersion))
+            let quantityIsEstimate = FoodQuantityEstimate.isEstimate(log, conversion: saved.quantityConversion)
+            var relog = FoodRecentRelogItem(item: item, name: input.candidates[0].name.value,
+                                            isEstimate: isEstimate || totals.contains { $0.includesEstimates }
+                                                || quantityIsEstimate || item.energyUpperBound?.isCalculated == true,
+                                            logItemVersionID: saved.logItemVersion.logItemVersionID,
+                                            isPlainWater: PlainWaterReference.isPlainWater(saved.resolutionVersion))
+            relog.isPartlyEstimated = FoodEntryEstimateStatus.showsPartlyEstimated(
+                isPartlyEstimated: FoodEntryEstimateStatus.isPartlyEstimated(saved), isEstimate: isEstimate,
+                quantityIsEstimate: quantityIsEstimate)
+            return relog
         }.prefix(limit).map { $0 }
     }
 }

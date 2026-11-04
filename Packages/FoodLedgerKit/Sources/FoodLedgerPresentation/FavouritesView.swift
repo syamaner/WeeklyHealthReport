@@ -3,10 +3,17 @@ import FoodLedgerDomain
 import SwiftUI
 
 /// The Favourites screen's port (consumer-owned). `FavouritesService` conforms below.
+extension FavouritesManaging {
+    /// Stores without label estimate layers mark nothing.
+    public func isPartlyEstimated(_ version: FavouriteVersion) -> Bool { false }
+}
+
 public protocol FavouritesManaging: AnyObject {
     func projection() throws -> FavouritesProjection
     /// Nil when the favourite's source can no longer be verified.
     func isEstimate(_ version: FavouriteVersion) -> Bool?
+    /// "Partly estimated": the pinned entry carries a label estimate layer (section 8).
+    func isPartlyEstimated(_ version: FavouriteVersion) -> Bool
     /// Whether the favourite's count amount means servings of a pasted label (#306).
     func amountIsServings(_ version: FavouriteVersion) -> Bool
     func rename(_ favouriteID: FavouriteID, to label: LedgerText) throws
@@ -77,7 +84,8 @@ public final class FavouritesViewModel: ObservableObject {
         case let .favourite(version):
             let estimate = store.isEstimate(version)
             return FavouriteRow(id: version.favouriteID.rawValue, item: item, title: QuickAddText.title(item),
-                                detail: QuickAddText.detail(item, isEstimate: estimate, servings: store.amountIsServings(version)),
+                                detail: QuickAddText.detail(item, isEstimate: estimate, servings: store.amountIsServings(version),
+                                                            partlyEstimated: store.isPartlyEstimated(version)),
                                 isUnverifiable: estimate == nil)
         }
     }
