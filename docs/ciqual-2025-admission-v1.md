@@ -1,6 +1,6 @@
 # Ciqual 2025 admission, v1 (#384, phase C of #381)
 
-Status: architecture gate PASS WITH CHANGES (4 November 2026); all findings applied below. No production code before this spec merges.
+Status: architecture gate PASS WITH CHANGES (4 November 2026); all findings applied below. C1 amendments (4 November 2026): A3 and A7 decided, the pinned "< 0" rows outside the scope (3.2), the corpus SHA-256, "Reproduce" and the 31074 iron trace.
 
 Plan: [`dark-chocolate-nutrient-sources-investigation.md`](dark-chocolate-nutrient-sources-investigation.md), section 4C. Phase A: [`cocoa-aware-search-v1.md`](cocoa-aware-search-v1.md). Phase B: [`label-estimate-merge-v1.md`](label-estimate-merge-v1.md). Previous bundled-source admission: [`taiwan-food-catalogue-v1.md`](taiwan-food-catalogue-v1.md) and [`composite-regional-order-v9.md`](composite-regional-order-v9.md).
 
@@ -37,7 +37,7 @@ All five MD5 values match the values published in the dataset metadata. The PDF 
 - **Source manifest.** The projector writes a canonical JSON source manifest (DOI, dataset version, release time, and for each of the five files its ID, name, size, MD5 and SHA-256, sorted by file ID). Any changed byte in any file fails the build.
 - **Hash terms, used throughout this spec.** The *source manifest SHA-256* is the SHA-256 of that manifest. The *corpus SHA-256* is the SHA-256 of the bundled corpus file. The `SourceRelease` fields are `artifactHash` = source manifest SHA-256, `manifestHash` = corpus SHA-256 (as CoFID and USDA set it) and `releasedAt` = 2025-11-19T00:00:00Z.
 - **Identifiers.** `sourceID` is `ciqual`. The source release ID is `ciqual:2025-11-19:sha256:<source manifest SHA-256>`. The app's `sourceReleaseID` is `<source release ID>:projection:<corpus SHA-256>`, as USDA does, so a corrected projection coexists with older saves. The record ID is `<source release ID>:alim:<alim_code>`, for example `…:alim:31074`; `alim_code` is unique in the foods file (3,484 codes).
-- **Corpus.** `Packages/FoodLedgerKit/Sources/FoodGenericSearch/Resources/ciqual-2025-generic-v1.json`, schema `ciqual-generic-v1`, projection `ciqual-projection-v1`, group scope `ciqual-group-scope-v1`. The searcher checks the corpus SHA-256 at load (`CiqualGenericFoodSearch.corpusSHA256`) and refuses a mismatch, as CoFID, USDA and TFDA do. The expected corpus SHA-256 is recorded in the C1 PR.
+- **Corpus.** `Packages/FoodLedgerKit/Sources/FoodGenericSearch/Resources/ciqual-2025-generic-v1.json`, schema `ciqual-generic-v1`, projection `ciqual-projection-v1`, group scope `ciqual-group-scope-v1`. The searcher checks the corpus SHA-256 at load (`CiqualGenericFoodSearch.corpusSHA256`) and refuses a mismatch, as CoFID, USDA and TFDA do. The expected corpus SHA-256 is `2a298bd5e9c43d2e32ed3164c2a53de0dc21f80c9812285faf137dde196f333f` and the source manifest SHA-256 is `3134f8dc9feb3e17e4d297fdc42f7711eff41af3210facb5d24c35194fa0d847` (C1, "Reproduce").
 
 ### 1.2 Licence and attribution
 
@@ -111,7 +111,7 @@ Ciqual 2025 has 74 constituents. Values are per 100 g of food as sold (Ciqual's 
 | fiber | 34100 Fibres (fibres alimentaires) | g | |
 | sugar | 32000 Sugars | g | |
 | cholesterol | 75100 Cholesterol | mg | |
-| vitamin_a | 51104 Vitamin A activity, retinol equivalent | mcg | A3, decided in C1; English unit label misprinted "µg/100mg", French says µg/100 g |
+| vitamin_a | 51104 Vitamin A activity, retinol equivalent (read for details only) | mcg | unknown, `no_compatible_source` (A3, decided in C1: the IOM 2001 convention, not CoFID's); English unit label misprinted "µg/100mg", French says µg/100 g |
 | thiamin_b1 | 56100 | mg | |
 | riboflavin_b2 | 56200 | mg | |
 | niacin_b3 | 56310 | mg | |
@@ -158,9 +158,10 @@ Within the 29 scoped foods the composition file has 2,146 rows (29 foods x 74 co
 For the whole table (3,484 foods, 257,816 rows): 91,990 comma numbers, 59,991 plain numbers, 20,075 `< n`, 2,514 `traces`, 83,246 `-`.
 
 - **Projector rejections.** The projector fails the build, over the whole table and not only the scoped rows, so a later group cannot introduce an unhandled form silently, on: any form outside the five above; `< n` with n ≤ 0; a non-`-` value with no confidence code; a `-` that carries a confidence code; a duplicate `alim_code` or duplicate food and constituent pair; a changed byte in any pinned file. On 4 November 2026 every non-`-` row in the table had a code and every `-` had none (83,246 of each).
+- **Pinned "< 0" rows (C1 amendment).** The whole table holds 40 rows written `< 0`, all outside subgroup 0702 (foods 13211, 13996, 17001, 18029, 18044 to 18046, 18048, 18902, 20354, 20700, 20929, 23399 and 25616; for example 13211 with constituent 32410). None is in scope. A whole-table rejection would refuse the release, so the projector pins these 40 food and constituent pairs (`PINNED_NONPOSITIVE_BOUNDS` in `project_ciqual.py`) and fails the build on any other `< n` with n ≤ 0, on any pinned pair inside the admitted scope, and when the observed set differs from the pinned set. A later group that admits one of these foods therefore fails until its own change decides how `< 0` reads. Programme lead decision under the owner's delegation, 4 November 2026: the conservative reading stands (refuse in scope, pin out of scope).
 - **Decimal commas.** `,` is the decimal separator; there are no thousands separators. The projector parses with a fixed rule (one optional comma, digits only), never a locale, and stores the decimal string and the original literal.
 - **Confidence codes.** `code_confiance` is A, B, C or D on every value except `-`. Scoped mapped values: A 574, D 225, C 26, B 9. Energy is D on all 29 foods (calculated). Codes are kept in the corpus per value, carried in `manifestReference`, and shown only in details and Developer tools ("Ciqual confidence A"); they never change ranking, compatibility, provenance kind or the estimate label.
-- **`min` and `max`.** 521 scoped rows also carry a `min` and/or `max`. They are not projected into nutrients in any case; whether the corpus keeps them for Developer tools is decided in the C1 PR from the Ciqual documentation (A7).
+- **`min` and `max`.** 521 scoped rows also carry a `min` and/or `max`. They are not projected into nutrients in any case. Decided in C1 (A7): the corpus keeps them as their original literals on each mapped value, for Developer tools only (288 mapped values carry one or both).
 - **`source_code`.** Kept per value as a reference to `sources_2025_11_03.xml`, details only.
 
 ### 3.3 Bounds, traces and unknown
@@ -294,7 +295,7 @@ The pinned USDA estimates for 86% to 99% and 100% are unchanged, as rule 3 promi
 - **Rule 2 pre-fill phrases:** "at least 70% cocoa", "minimum 70% cocoa", "more than 70% cocoa", "over 70% cocoa", "70% cocoa or more", "70% cocoa and more" and "70% cocoa minimum" pre-fill 70 under v2 as under v1; two different values still give no pre-fill.
 - **Phase B reopen:** the existing phase B and archive contract 8 fixtures reopen unchanged; a layered save with 31074 at 70% saves and reopens; 31085 is refused at save for any percentage, including 40.
 - **Projector rejections:** synthetic XML with an unknown form, `< 0`, `< -1`, a missing confidence code on a number, a `-` with a code, a duplicate code or pair, a changed byte in each pinned file, and a food outside 0702 (excluded); BOM, padded elements, `missing` attribute, decimal comma, `< 0,01` and `< 20` to upper bounds, `traces` and `-` to unknown, declared `0` kept; one constituent per key with 333 ignored; salt not projected.
-- **Corpus and searcher:** pinned corpus SHA-256 at load; source manifest SHA-256; 29 records; every projected value equals its source literal (audit, as TFDA's); 31074 per 100 g iron 11 mg, magnesium 200 mg, selenium bounded `< 20` mcg, vitamin E (alpha-tocopherol) 0.67 mg, vitamin B12 a declared zero; biotin, chromium, molybdenum, caffeine and water unknown; `manifestReference` built from `corpusSHA256`; `isBundledGeneric` true; variant has no percentage; no French name on a saved record.
+- **Corpus and searcher:** pinned corpus SHA-256 at load; source manifest SHA-256; 29 records; every projected value equals its source literal (audit, as TFDA's); 31074 per 100 g iron 11 mg, magnesium 200 mg, selenium bounded `< 20` mcg, vitamin E (alpha-tocopherol) 0.67 mg, vitamin B12 a declared zero; biotin, chromium, molybdenum, caffeine, water and vitamin A (A3) unknown; `manifestReference` built from `corpusSHA256`; `isBundledGeneric` true; variant has no percentage; no French name on a saved record.
 - **Re-resolution refusal:** a saved Ciqual entry offers no re-resolution target.
 - **Family mapping:** `ciqual` maps to `frenchReference`, "French reference", search row "Ciqual · on device", Confirm "French reference · estimate"; CoFID, USDA and TFDA mappings unchanged.
 - **Version assertions:** `CocoaAwareSearchTests` and `RegionalSourceOrderTests` updated to `cocoa-percent-policy-v2` and `composite-generic-ranking-v11`.
@@ -347,14 +348,42 @@ All on 4 November 2026. D1 is the owner's; D2 to D10 are programme lead decision
 
 - A1. Energy: 328 and 333 agree on the rows checked; the projector reads 328 and the audit reports any food where they differ.
 - A2. Protein: 25000 (N x Jones' factor) and 25003 (N x 6.25) both exist; for chocolate the Jones factor is 6.25, so they are equal in scope. 25000 is used.
-- A3. Vitamin A: 51104's INFOODS tag is RAE (retinol activity equivalents) while its names say retinol equivalent; CoFID's RETEQU is retinol equivalents, and USDA vitamin A is not mapped. Decided in the C1 PR from the Ciqual documentation; vitamin A stays unknown if still unclear.
+- A3. Vitamin A: 51104's INFOODS tag is RAE (retinol activity equivalents) while its names say retinol equivalent; CoFID's RETEQU is retinol equivalents, and USDA vitamin A is not mapped. **Decided in C1: unknown (`no_compatible_source`).** The Ciqual 2025 documentation (`Table Ciqual 2025 doc FR_2025_11_19.pdf`, file 666748, section 3.3.7, pages 12 and 13) says the table follows the Institute of Medicine (IOM 2001) and counts 1 µg retinol as 1 µg and 1 µg beta-carotene as 1/12 µg. That is the retinol activity equivalent convention, matching the INFOODS tag, so the naming is no longer unclear; but it is not the retinol-equivalent convention (beta-carotene / 6) that CoFID RETEQU fills `vitamin_a` with, and `project_usda.py` already refuses to substitute RAE for it. A Ciqual value would therefore read low beside a CoFID value for the same carotene content. The literal stays in the corpus (constituent 51104, confidence, source) for Developer tools; mapping RAE into `vitamin_a` would need its own versioned change. The documentation also notes the table publishes retinol and beta-carotene separately, so a later change could derive either convention from them; v1 does not.
+- A7. `min`/`max`: never nutrient bounds. **Decided in C1: kept as literals for Developer tools only.** The documentation (section 5.5, page 21, Tableau 6) defines `min` as the "teneur minimum observée parmi les données-sources" (and `max` likewise), and section 3.1.1 (page 6) adds that other source data than those behind the mean may be used to produce them; section 3.1.3 (page 7) gives the selection window. They describe the spread of Ciqual's source data, not an interval for the mean, so they never become bounds, change ranking or compatibility. Their forms are wider than `teneur` (for example `1E-6` outside the scope), so they are stored as stripped literals and never parsed.
+- Supporting evidence for 3.3 from the same documentation: a dash marks an unknown value that must not be read as zero (section 3.2.2, page 9), and `traces` can be used without analysis when the content is judged very low but not zero (section 3.2.3, page 10).
 - A4. Folate: 56700 (total folates) matches USDA 1177 and CoFID FOLT; 56702 (DFE) is present on one scoped food and is not used.
 - A5. Vitamin E: 53100 "Vitamin E" is `-` on 24 of 29 scoped foods, while 71010 alpha-tocopherol has 18 numbers; USDA maps alpha-tocopherol (1109). 71010 is used; 53100 is not.
 - A6. Vitamin K: K1 (54101) only, as CoFID VITK1 and USDA 1185; K2 (54104, one scoped number) is not added.
-- A7. `min`/`max`: never nutrient bounds; whether they are kept for Developer tools is decided in the C1 PR from the Ciqual documentation.
 
 ## Reproduce
 
-1. Download the five files by ID from `https://entrepot.recherche.data.gouv.fr/api/access/datafile/<id>` into a folder outside Git, and the metadata from `https://entrepot.recherche.data.gouv.fr/api/datasets/:persistentId/?persistentId=doi:10.57745/RDMHWY`.
-2. Check MD5 against the metadata and SHA-256 against 1.1.
-3. C1 adds the projector, audit and test commands here, with the expected corpus SHA-256, as in the Taiwan catalogue.
+1. Download the five files by ID from `https://entrepot.recherche.data.gouv.fr/api/access/datafile/<id>` into a new folder outside Git, and the metadata from `https://entrepot.recherche.data.gouv.fr/api/datasets/:persistentId/?persistentId=doi:10.57745/RDMHWY`.
+2. Check MD5 against the metadata and SHA-256 against 1.1 (the projector checks size, MD5 and SHA-256 again and refuses any change).
+3. From the repository root, with that folder (the files are untrusted data, so run Python isolated and keep the folder free of scripts):
+
+```sh
+python3 -I Tools/FoodSourceEvaluation/project_ciqual.py /path/to/ciqual-downloads Packages/FoodLedgerKit/Sources/FoodGenericSearch/Resources/ciqual-2025-generic-v1.json
+python3 -I Tools/FoodSourceEvaluation/audit_ciqual.py /path/to/ciqual-downloads Packages/FoodLedgerKit/Sources/FoodGenericSearch/Resources/ciqual-2025-generic-v1.json Tools/FoodSourceEvaluation/ciqual-public-source-audit-v1.json
+python3 -I -m unittest discover -s Tools/FoodSourceEvaluation/tests -p 'test_ciqual_projection.py'
+swift test --package-path Packages/FoodLedgerKit --filter CiqualCorpusPinTests
+```
+
+Expected: the projector prints 29 records from 3,484 source foods, 153,709 bytes, source manifest SHA-256 `3134f8dc9feb3e17e4d297fdc42f7711eff41af3210facb5d24c35194fa0d847` and corpus SHA-256 `2a298bd5e9c43d2e32ed3164c2a53de0dc21f80c9812285faf137dde196f333f`, byte for byte on every run; `git diff` on the corpus and the audit is empty. The source release ID is `ciqual:2025-11-19:sha256:3134f8dc9feb3e17e4d297fdc42f7711eff41af3210facb5d24c35194fa0d847`.
+
+The pinned audit, `Tools/FoodSourceEvaluation/ciqual-public-source-audit-v1.json`, lists every one of the 1,131 corpus values (29 foods x 39 keys) with its constituent, its `compo_2025_11_03.xml` line, literal, confidence and projected state; all 1,131 correspond. By state: 737 exact (9 of them declared zeros), 48 open upper bounds, 297 unknown `not_declared` (181 dashes, 116 for the four keys with no constituent), 24 unknown `no_compatible_source` (6 `traces` and 18 vitamin A numbers, A3) and 25 unknown `missing_conversion` (water). Confidence on the 834 values with a literal other than `-`: A 574, B 9, C 26, D 225. Energy 328 equals 333 on all 29 foods (A1). Preparation is `unknown` on all 29. The audit also lists the unprojected constituents of the scoped foods by value form. It shows literal fidelity only, not food-match quality or a coverage rate.
+
+### Corpus format
+
+Top level: `schema`, `projectionVersion`, `groupScope`, `sourceID`, `doi`, `datasetVersion`, `releaseTime`, `releasedAt`, `sourceManifest` (the canonical manifest object; its SHA-256 is taken over its compact, key-sorted UTF-8 JSON), `sourceManifestSHA256`, `sourceReleaseID`, `compoSHA256` (the `responseHash`), `licence`, `attribution`, `variant`, `basis` (`per100Grams`), `preparationPolicy` (`usda-preparation-words-v2`), `sourceFoods`, `sourceCompositionRows`, `subgroups` and `records`. Each record has `alimCode`, `recordID`, `name` (English, searched and shown), `frenchName` (corpus only, D5), the three group codes, `preparation` and `nutrients` with all 39 keys. Each value has `state`:
+
+- `exact`: `value` is the decimal string (comma replaced by a point), with `unit`, `constCode`, `literal`, `confidence`, `sourceCode` and, when published, `min` and `max`;
+- `bounded`: `upper` (decimal string) and `upperClosed: false`, with the same reference fields and no lower bound;
+- `unknown`: `reason` (`not_declared`, `no_compatible_source` or `missing_conversion`), with the reference fields when a source row exists and none for the four keys without a constituent.
+
+### Worked trace: 31074 iron
+
+1. **Corpus.** `ciqual-2025-generic-v1.json`, record `alimCode` 31074 ("Dark chocolate, 70% cocoa, bar"), `recordID` `ciqual:2025-11-19:sha256:3134f8dc…d847:alim:31074`, `nutrients.iron` = `state: exact`, `value: "11"`, `unit: mg`, `constCode: "10260"`, `literal: "11"`, `confidence: "A"`, `sourceCode: "389"`, no `min` or `max`.
+2. **Mapping.** `project_ciqual.py` maps `iron` to constituent 10260 only; `const_2025_11_03.xml` names it "Fer (mg/100 g)", and the projector refuses the build if that French unit changes.
+3. **Audit.** The audit entry for 31074 `iron` gives `compoLine` 2034096, literal `11`, confidence A, state exact, passed.
+4. **Source.** `compo_2025_11_03.xml` (SHA-256 `8c46a903…d4af`), the `COMPO` element starting on line 2034093: `alim_code` 31074, `const_code` 10260, `teneur` `11` on line 2034096, `min` and `max` missing, `code_confiance` A, `source_code` 389. A plain number, so the value is exact, per 100 g as sold.
+5. **App (C2 and C3).** The searcher will build the per-value `manifestReference` `compo_2025_11_03.xml;alim=31074;const=10260;literal=11;confidence=A;projection=2a298bd5…333f` from the corpus and `CiqualGenericFoodSearch.corpusSHA256`, and Developer tools will show that line, so a reader can follow the same four steps back from the app.

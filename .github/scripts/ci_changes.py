@@ -82,6 +82,8 @@ CODE_READ_DOCS = {
     "docs/pasted-nutrition-label-uk-english-v1-p3.md",
     # Cited by the label estimate compatibility and merge policies and their tests (#383).
     "docs/label-estimate-merge-v1.md",
+    # Cited by the Ciqual projector, audit and tests and, from C2, the Ciqual searcher (#384).
+    "docs/ciqual-2025-admission-v1.md",
 }
 CODE_READ_DOC_PREFIXES = ("docs/fixtures/",)
 # Never documentation, whatever the lists above say: CI, its scripts and this
