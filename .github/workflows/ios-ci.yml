@@ -93,10 +93,11 @@ jobs:
     needs: changes
     # Fail closed: only an explicit documentation-only decision skips this job.
     if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
-    # 25, not 15: on 31 Oct 2026 passing runs took 11m39s-13m48s and three runs
-    # (41175539897, 41180161020, 41180338859) hit the limit at 15m07s-15m22s
-    # with no failing test (see "FoodLedgerKit job timeout" in the CI analysis doc).
-    timeout-minutes: 25
+    # 40, not 25: on 4 Nov 2026 passing main runs took 20m22s-22m41s and the
+    # Ciqual C2 PR run took 24m39s, 21 s under the old limit (see "FoodLedgerKit
+    # job timeout" in the CI analysis doc). Earlier: 25, not 15, after the 31 Oct
+    # 2026 timeouts (41175539897, 41180161020, 41180338859).
+    timeout-minutes: 40
 
     steps:
       - name: Check out repository
