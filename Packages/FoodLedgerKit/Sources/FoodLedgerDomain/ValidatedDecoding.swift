@@ -433,6 +433,24 @@ extension PlateWeightVersion {
     }
 }
 
+extension LabelEstimateAssertion {
+    enum CodingKeys: String, CodingKey {
+        case cocoaPercent, cocoaPercentOrigin, compatibilityVersion, mergeVersion, genericName, genericVariant
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        try self.init(
+            cocoaPercent: values.decode(Double.self, forKey: .cocoaPercent),
+            cocoaPercentOrigin: values.decode(CocoaPercentOrigin.self, forKey: .cocoaPercentOrigin),
+            compatibilityVersion: values.decode(LedgerText.self, forKey: .compatibilityVersion),
+            mergeVersion: values.decode(LedgerText.self, forKey: .mergeVersion),
+            genericName: values.decode(LedgerText.self, forKey: .genericName),
+            genericVariant: values.decodeIfPresent(LedgerText.self, forKey: .genericVariant)
+        )
+    }
+}
+
 extension CandidateDecision {
     enum CodingKeys: String, CodingKey {
         case candidateDecisionID, candidate, expectedIdentity, expectedEdibleQuantity, outcome

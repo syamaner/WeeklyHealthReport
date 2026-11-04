@@ -50,6 +50,13 @@ extension FoodLedgerGRDBStore {
             try db.execute(sql: "UPDATE ledger_metadata SET value = 'food-ledger-v7' WHERE key = 'schema_identity'")
             try db.execute(sql: "PRAGMA user_version = 7")
         }
+        migrator.registerMigration("v8_label_estimate") { db in
+            // Label estimate layers (label-estimate-merge-v1, food contract 8): ordered decisions
+            // per resolution version and evidence per decision already exist. Metadata only: no
+            // table is created and no immutable row is rewritten. Older binaries decline schema 8.
+            try db.execute(sql: "UPDATE ledger_metadata SET value = 'food-ledger-v8' WHERE key = 'schema_identity'")
+            try db.execute(sql: "PRAGMA user_version = 8")
+        }
         return migrator
     }
 

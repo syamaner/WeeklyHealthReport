@@ -309,14 +309,13 @@ public final class GenericFoodSearchViewModel: ObservableObject {
         return route.matches.filter { !online.contains($0.searchID) }
     }
     /// "Best matches" keeps close name matches only; the rest of the ranked list keeps its
-    /// order under "Other matches" (#308). Presentation grouping, never ranking or identity.
-    public var closeMatches: [GenericFoodMatch] {
-        let food = parsedQuery?.food ?? query
-        return bestMatches.filter { Self.isCloseNameMatch($0, food: food) }
-    }
-    public var otherMatches: [GenericFoodMatch] {
-        let food = parsedQuery?.food ?? query
-        return bestMatches.filter { !Self.isCloseNameMatch($0, food: food) }
+    /// order under "Other matches" (#308). A row the cocoa policy admits by its band is close
+    /// too (#391). Presentation grouping, never ranking or identity.
+    public var closeMatches: [GenericFoodMatch] { bestMatches.filter(isCloseMatch) }
+    public var otherMatches: [GenericFoodMatch] { bestMatches.filter { !isCloseMatch($0) } }
+    private func isCloseMatch(_ match: GenericFoodMatch) -> Bool {
+        if Self.isCloseNameMatch(match, food: parsedQuery?.food ?? query) { return true }
+        return parsedQuery.map { CocoaPercentPolicy.isCocoaMatch(query: $0, candidate: match.candidate) } ?? false
     }
     /// A close name match is an exact name, or a primary name (before the first comma) whose
     /// lexical terms are all in the searched food, or that contains every searched term
