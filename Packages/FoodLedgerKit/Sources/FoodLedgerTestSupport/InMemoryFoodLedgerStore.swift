@@ -47,7 +47,7 @@ public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReadi
     public init(
         encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder(),
         digester: any Digesting = SHA256Digester(),
-        operationRegistry: LedgerOperationRegistry = .builtInV6
+        operationRegistry: LedgerOperationRegistry = .builtInV8
     ) {
         verifier = OperationVerifier(
             encoder: encoder,
@@ -239,12 +239,15 @@ public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReadi
                   let resolutionVersion = state.resolutionVersions[
                     logVersion.effectiveResolutionVersionID.rawValue
                   ],
-                  let resolution = state.resolutions[resolutionVersion.resolutionID.rawValue],
-                  let decisionID = resolutionVersion.decisionIDs.first,
-                  let decision = state.candidateDecisions[decisionID.rawValue] else {
+                  let resolution = state.resolutions[resolutionVersion.resolutionID.rawValue] else {
                 throw FoodLedgerStoreError.integrityFailure("incomplete food confirmation aggregate")
             }
-            let evidence = decision.candidate.evidenceIDs.compactMap { state.evidence[$0.rawValue] }
+            let decisions = resolutionVersion.decisionIDs.compactMap { state.candidateDecisions[$0.rawValue] }
+            let decisionEvidence = decisions.map { $0.candidate.evidenceIDs.compactMap { state.evidence[$0.rawValue] } }
+            guard let decision = decisions.first, decisions.count == resolutionVersion.decisionIDs.count, decisions.count <= 2 else {
+                throw FoodLedgerStoreError.integrityFailure("incomplete food confirmation aggregate")
+            }
+            let evidence = decisionEvidence[0]
             var releases = resolutionVersion.sourceReleaseIDs.compactMap { state.sourceReleases[$0.value] }
             let assertionIDs = Set(productVersion.assertionIDs + resolutionVersion.assertionIDs)
             let assertions = assertionIDs.compactMap { state.assertions[$0.rawValue] }
@@ -253,6 +256,7 @@ public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReadi
                   assertions.count == assertionIDs.count else {
                 throw FoodLedgerStoreError.integrityFailure("incomplete food confirmation provenance")
             }
+            let estimate = try StoredLabelEstimate.assembled(decisions: decisions, evidence: decisionEvidence, releases: &releases)
             let conversion = logVersion.quantityConversionVersionID.flatMap {
                 state.quantityConversions[$0.rawValue]
             }
@@ -280,7 +284,8 @@ public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReadi
                 plate: plate,
                 plateWeightVersion: plateVersion,
                 candidateDecision: decision,
-                assertions: assertions.sorted { $0.createdAt < $1.createdAt }
+                assertions: assertions.sorted { $0.createdAt < $1.createdAt },
+                estimate: estimate
             )
     }
 

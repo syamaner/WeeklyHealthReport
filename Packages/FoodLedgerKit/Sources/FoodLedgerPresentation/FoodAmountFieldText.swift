@@ -78,6 +78,8 @@ extension NumeralConvention {
 /// focused, and the keyboard toolbar appears only while an amount field is focused (#212).
 public enum AmountFieldFocus: Hashable, Sendable {
     case confirmQuantity, confirmDirectWeight, confirmConversion, confirmEmptyPlate
+    /// "Cocoa % on the pack" (label-estimate-merge-v1 rule 7).
+    case confirmCocoaPercent
     case quickAddOther, favouriteDefault
     /// One list review line, by its line identifier.
     case listLine(String)

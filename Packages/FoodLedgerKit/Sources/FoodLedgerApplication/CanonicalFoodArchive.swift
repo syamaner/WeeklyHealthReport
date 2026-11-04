@@ -37,15 +37,15 @@ public struct CanonicalFoodNutritionSummary: Codable, Equatable, Sendable {
 }
 
 public struct CanonicalFoodProjection: Codable, Equatable, Sendable {
-    /// The highest contract this binary reads and writes (7: pasted-label evidence).
-    public static let foodContractVersion = 7
+    /// The highest contract this binary reads and writes (8: label estimate layers).
+    public static let foodContractVersion = 8
     /// The contract an export carries when its records need no more: unchanged from contract 6,
     /// so a store without pasted-label evidence exports exactly the bytes it did before contract 7.
     public static let exportFloorContractVersion = 6
     public static let dailySchemaVersion = 4
 
-    /// The contract an export of these records carries: contract 7 only when pasted-label
-    /// evidence exists, otherwise the contract-6 floor as before.
+    /// The contract an export of these records carries: contract 8 only with an estimate layer,
+    /// contract 7 only when pasted-label evidence exists, otherwise the contract-6 floor as before.
     public static func exportContractVersion(for records: LedgerMutation, favourites: FavouriteMutation = FavouriteMutation()) -> Int {
         max(exportFloorContractVersion, minimumContractVersion(for: records, favourites: favourites))
     }
@@ -108,6 +108,10 @@ public struct CanonicalFoodProjection: Codable, Equatable, Sendable {
     /// and a pasted label is never reported as contract 6. Then contract 6: any favourite
     /// record, app reference provenance or reference definition evidence.
     public static func minimumContractVersion(for records: LedgerMutation, favourites: FavouriteMutation = FavouriteMutation()) -> Int {
+        // Contract 8 (label estimate layer, label-estimate-merge-v1): a typed cocoa assertion or a
+        // resolution version citing more than one decision. Checked before every other rule.
+        if records.assertions.contains(where: { $0.labelEstimate != nil })
+            || records.resolutionVersions.contains(where: { $0.decisionIDs.count > 1 }) { return 8 }
         if records.evidence.contains(where: { PastedLabelEvidenceManifest.isVersion($0.captureMethodVersion.value) }) { return 7 }
         if !favourites.isEmpty { return 6 }
         if records.evidence.contains(where: { $0.kind == .referenceDefinition }) { return 6 }
@@ -408,7 +412,7 @@ public struct FoodArchiveVerifier: Sendable {
     public init(
         encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder(),
         digester: any Digesting = SHA256Digester(),
-        operationRegistry: LedgerOperationRegistry = .builtInV6
+        operationRegistry: LedgerOperationRegistry = .builtInV8
     ) {
         self.encoder = encoder
         self.digester = digester
@@ -495,6 +499,7 @@ public struct FoodArchiveVerifier: Sendable {
         if transactions.contains(where: { transaction in
             let type = transaction.operation.operationType
             let required = LedgerOperationType.favouriteTypes.contains(type) ? 6
+                : type == .confirmFoodV4 ? 8
                 : type == .confirmFoodV3 ? 4
                 : LedgerOperationType.declaredQuantityTypes.contains(type) ? 3
                 : [.removeLogItem, .restoreLogItem].contains(type) ? 2 : 1

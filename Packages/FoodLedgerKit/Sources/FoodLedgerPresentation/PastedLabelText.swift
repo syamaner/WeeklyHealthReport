@@ -494,6 +494,9 @@ public enum PastedLabelSavedEntryText {
     public static func value(_ total: FoodIntakeTotal, detail: SavedFoodEntryDetail) -> String {
         let plain = FoodLogText.nutrient(total, augmented: detail.augmentedKeys.contains(total.key))
         guard total.knownAmount != nil else {
+            // An estimated bound stays a bound, marked as the estimate (#383), never "Unknown".
+            if let value = detail.labelEstimate?.estimatedValues[total.key],
+               let bound = LabelEstimateSavedEntryText.boundedValue(value, basis: detail.basis) { return bound }
             // Bounds stay bounds: a bound has no consumed amount, so it is shown as stored for
             // the label's basis ("Less than 0.5 g per 100 g · Printed"), never as unknown or zero.
             guard let value = detail.pastedLabelValues[total.key], case .bounded = value,

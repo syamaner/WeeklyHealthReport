@@ -15,7 +15,7 @@ public final class FoodLedgerService: SourceReleaseInstalling, @unchecked Sendab
         clock: any LedgerClock,
         encoder: any CanonicalEncoding,
         digester: any Digesting,
-        operationRegistry: LedgerOperationRegistry = .builtInV6
+        operationRegistry: LedgerOperationRegistry = .builtInV8
     ) {
         self.actorID = actorID
         self.committer = committer
@@ -60,7 +60,7 @@ public final class FoodLedgerService: SourceReleaseInstalling, @unchecked Sendab
         operationID: OperationID, idempotencyKey: LedgerText
     ) throws -> LogItemID? {
         guard let operation = try committer.operation(id: operationID) else { return nil }
-        guard operation.actorID == actorID, [.confirmFood, .confirmFoodV2, .confirmFoodV3].contains(operation.operationType),
+        guard operation.actorID == actorID, [.confirmFood, .confirmFoodV2, .confirmFoodV3, .confirmFoodV4].contains(operation.operationType),
               operation.idempotencyKey == idempotencyKey else {
             throw FoodLedgerStoreError.divergentDuplicateOperation
         }

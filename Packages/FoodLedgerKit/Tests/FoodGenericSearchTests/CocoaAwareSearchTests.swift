@@ -144,20 +144,24 @@ final class CocoaAwareSearchTests: XCTestCase {
             capturedAt: Date(timeIntervalSince1970: 1_700_000_000), locale: LedgerText("en_GB"),
             captureMethod: LedgerText("typed_generic_food_search"), captureMethodVersion: LedgerText("cofid-generic-ranking-v14"),
             originalPayload: .text(LedgerText("dark chocolate 85%")))
-        let encoded = try JSONEncoder().encode(evidence)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        let encoded = try encoder.encode(evidence)
         let decoded = try JSONDecoder().decode(CaptureEvidence.self, from: encoded)
         XCTAssertEqual(decoded, evidence)
-        XCTAssertEqual(try JSONEncoder().encode(decoded), encoded)
+        XCTAssertEqual(try encoder.encode(decoded), encoded)
     }
 
     func testStoredEarlierMatcherVersionsStillRoundTrip() throws {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
         for version in ["cofid-generic-ranking-v14", "usda-generic-ranking-v15", "composite-generic-ranking-v9"] {
             let metadata = try CandidateMatchMetadata(methodVersion: LedgerText(version), score: 0.5,
                 materialDifferences: [LedgerText("Search terms: chocolate dark")], libraryAliases: [LedgerText("food:name:dark chocolate")])
-            let encoded = try JSONEncoder().encode(metadata)
+            let encoded = try encoder.encode(metadata)
             let decoded = try JSONDecoder().decode(CandidateMatchMetadata.self, from: encoded)
             XCTAssertEqual(decoded, metadata, version)
-            XCTAssertEqual(try JSONEncoder().encode(decoded), encoded, version)
+            XCTAssertEqual(try encoder.encode(decoded), encoded, version)
         }
     }
 }

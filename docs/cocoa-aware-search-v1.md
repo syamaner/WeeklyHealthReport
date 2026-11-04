@@ -68,6 +68,8 @@ The estimate band is a closed list of one, keyed by identity rather than name: t
 
    When chocolate was implied (rule 5), every detail note starts "Searched as chocolate with N% cocoa.", and the Search screen shows that sentence once, as its own line above the results and inside the no-result state whatever else that state shows (`FoodSearchResultText.interpretationNote`, rendered by `GenericFoodSearchView`). Notes never change nutrients, identity or selection.
 
+   Screen grouping (#391): the Search screen splits ranked rows into "Best matches" and "Other matches" by name words (#308). A row that this policy admits for a requested cocoa percentage (rule 3 eligibility: chocolate in the name, no unrequested milk, white or ruby, and a stated band or the approved estimate) also counts as a close match, so the screen keeps the order above; without this, "Baking chocolate, unsweetened, squares" fell to Other matches for "dark chocolate 100%". Grouping is presentation only (`CocoaPercentPolicy.isCocoaMatch`, used by `GenericFoodSearchViewModel.closeMatches`).
+
 ## Who is affected
 
 - Typed search and list import use the composite, so both get the ordering and notes.

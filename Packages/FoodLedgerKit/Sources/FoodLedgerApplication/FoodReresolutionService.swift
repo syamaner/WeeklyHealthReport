@@ -106,6 +106,8 @@ public final class FoodReresolutionService: Sendable {
     public func proposals(logItemID: LogItemID, target: FoodReresolutionTarget) throws -> [FoodReresolutionProposal] {
         guard try provider.targets().contains(target) else { throw FoodReresolutionError.unavailableTarget }
         guard let before = try reader.foodConfirmation(logItemID: logItemID) else { throw FoodReresolutionError.missingLog }
+        // v1 refuses entries with a label estimate layer: one generic candidate would discard the label.
+        guard before.estimate == nil else { throw FoodReresolutionError.labelEstimateLayer }
         guard case let .confirmation(route) = try provider.candidates(for: before, target: target, at: clock.now()) else { return [] }
         return try route.confirmation.candidates.compactMap { candidate in
             guard FoodReresolutionProposal.hasNoKnownContradictions(before: before, candidate: candidate) else { return nil }
@@ -196,6 +198,7 @@ public final class FoodReresolutionService: Sendable {
     }
 
     private func validateCurrent(_ before: StoredFoodConfirmation, target: FoodReresolutionTarget) throws {
+        guard before.estimate == nil else { throw FoodReresolutionError.labelEstimateLayer }
         guard try provider.targets().contains(target) else { throw FoodReresolutionError.unavailableTarget }
         guard let current = try reader.foodConfirmation(logItemID: before.logItem.logItemID),
               current.logItemVersion == before.logItemVersion,

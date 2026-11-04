@@ -127,6 +127,10 @@ public struct StoredFoodConfirmation: Codable, Equatable, Sendable {
     public let plateWeightVersion: PlateWeightVersion?
     public let candidateDecision: CandidateDecision
     public let assertions: [UserAssertion]
+    /// The estimate layer of a label entry (label-estimate-merge-v1): assembled by the reader from
+    /// the resolution's second decision, never stored on its own. `evidence` and `sourceReleases`
+    /// stay the label's.
+    public let estimate: StoredLabelEstimate?
 
     public init(
         evidence: [CaptureEvidence],
@@ -141,7 +145,8 @@ public struct StoredFoodConfirmation: Codable, Equatable, Sendable {
         plate: Plate?,
         plateWeightVersion: PlateWeightVersion?,
         candidateDecision: CandidateDecision,
-        assertions: [UserAssertion]
+        assertions: [UserAssertion],
+        estimate: StoredLabelEstimate? = nil
     ) {
         self.evidence = evidence
         self.sourceReleases = sourceReleases
@@ -156,6 +161,7 @@ public struct StoredFoodConfirmation: Codable, Equatable, Sendable {
         self.plateWeightVersion = plateWeightVersion
         self.candidateDecision = candidateDecision
         self.assertions = assertions
+        self.estimate = estimate
     }
 }
 
@@ -458,6 +464,9 @@ public enum FoodConfirmationSaveError: Error, Equatable, Sendable {
     /// A `user_verified_panel` value (or a manual declaration claiming an admitted panel
     /// release) that no admitted source verifier accepts against its stored evidence.
     case invalidPastedLabelSource
+    /// A chosen label estimate that rule 1, rule 3 or the merge does not admit
+    /// (docs/label-estimate-merge-v1.md).
+    case invalidLabelEstimate
 }
 
 public final class FoodConfirmationService: @unchecked Sendable {
@@ -497,12 +506,16 @@ public final class FoodConfirmationService: @unchecked Sendable {
         self.calendar = calendar
     }
 
+    /// `estimate` is an optional label estimate chosen on Confirm (pasted label and label photo
+    /// routes only, docs/label-estimate-merge-v1.md); without one every save writes what it wrote
+    /// before contract 8.
     public func save(
         _ state: FoodConfirmationState,
         operationID: OperationID,
-        idempotencyKey: LedgerText? = nil
+        idempotencyKey: LedgerText? = nil,
+        estimate: LabelEstimateChoice? = nil
     ) throws -> StoredFoodConfirmation {
-        try save(state, operationID: operationID, idempotencyKey: idempotencyKey, persistedAttachments: [])
+        try save(state, operationID: operationID, idempotencyKey: idempotencyKey, persistedAttachments: [], estimate: estimate)
     }
 
     /// Log for a label photo entry (docs/label-photo-ai-prefill-v1.md 17.3, test 15): the prepared
@@ -517,7 +530,8 @@ public final class FoodConfirmationService: @unchecked Sendable {
         imageBytes: Data,
         attachmentStore: any EvidenceAttachmentStoring,
         operationID: OperationID,
-        idempotencyKey: LedgerText? = nil
+        idempotencyKey: LedgerText? = nil,
+        estimate: LabelEstimateChoice? = nil
     ) throws -> StoredFoodConfirmation {
         if let idempotencyKey, try ledger.confirmedLogItemID(operationID: operationID, idempotencyKey: idempotencyKey) != nil {
             return try save(state, operationID: operationID, idempotencyKey: idempotencyKey)
@@ -544,7 +558,8 @@ public final class FoodConfirmationService: @unchecked Sendable {
             attached.input = try PopulatedFoodConfirmation(evidence: evidence, sourceReleases: state.input.sourceReleases,
                 candidates: state.input.candidates, expectedIdentity: state.input.expectedIdentity,
                 expectedEdibleQuantity: state.input.expectedEdibleQuantity)
-            return try save(attached, operationID: operationID, idempotencyKey: idempotencyKey, persistedAttachments: [descriptor])
+            return try save(attached, operationID: operationID, idempotencyKey: idempotencyKey, persistedAttachments: [descriptor],
+                            estimate: estimate)
         } catch {
             try? attachmentStore.removeIfUnreferenced(descriptor)
             throw error
@@ -555,7 +570,8 @@ public final class FoodConfirmationService: @unchecked Sendable {
         _ state: FoodConfirmationState,
         operationID: OperationID,
         idempotencyKey: LedgerText?,
-        persistedAttachments: Set<AttachmentDescriptor>
+        persistedAttachments: Set<AttachmentDescriptor>,
+        estimate: LabelEstimateChoice? = nil
     ) throws -> StoredFoodConfirmation {
         if let idempotencyKey,
            let logItemID = try ledger.confirmedLogItemID(operationID: operationID, idempotencyKey: idempotencyKey) {
@@ -584,12 +600,36 @@ public final class FoodConfirmationService: @unchecked Sendable {
         // Label admission (pasted label or label photo, P19): routed by the composite to exactly one
         // verifier against the stored manifest, before policy. A mixed candidate is refused.
         if LabelSourceAdmission.applies(state.input, candidate: selected) {
+            // A reopened entry keeps its estimate layer unless corrected (section 6 step 4 at save).
+            let expected: NutrientSet?
+            if state.correction == nil, let reopened = state.reopened {
+                expected = try LabelEstimateLayer.expectedNutrients(reopened, label: selected)
+            } else {
+                expected = selected.candidate.nutrients
+            }
             guard LabelSourceAdmission.verify(state.input, candidate: selected, encoder: encoder, digester: digester,
                                               conversions: pastedLabelConversions),
                   identity.servingBasis == selected.candidate.identity.servingBasis,
-                  (state.correction?.nutrients ?? state.reopened?.resolutionVersion.nutrients ?? selected.candidate.nutrients) == selected.candidate.nutrients else {
+                  (state.correction?.nutrients ?? state.reopened?.resolutionVersion.nutrients ?? selected.candidate.nutrients) == expected else {
                 throw FoodConfirmationSaveError.invalidPastedLabelSource
             }
+        }
+        // Label estimate layer (label-estimate-merge-v1): a new, uncorrected label entry only, a row
+        // that rule 3 admits for the confirmed percentage, and a merge on the label's basis.
+        let layer: (choice: LabelEstimateChoice, nutrients: NutrientSet, assertion: LabelEstimateAssertion)?
+        if let estimate {
+            guard state.reopened == nil, state.correction == nil, LabelSourceAdmission.applies(state.input, candidate: selected),
+                  LabelEstimateCompatibility.isCompatible(estimate.generic, cocoaPercent: estimate.cocoaPercent),
+                  estimate.evidence.map(\.evidenceID) == estimate.generic.candidate.evidenceIDs,
+                  let nutrients = try LabelEstimateLayer.merged(label: selected, generic: estimate.generic.candidate,
+                                                                release: estimate.sourceRelease, cocoaPercent: estimate.cocoaPercent) else {
+                throw FoodConfirmationSaveError.invalidLabelEstimate
+            }
+            layer = (estimate, nutrients, try LabelEstimateAssertion(cocoaPercent: estimate.cocoaPercent, cocoaPercentOrigin: estimate.origin,
+                compatibilityVersion: LedgerText(LabelEstimateCompatibility.version), mergeVersion: LedgerText(LabelEstimateMerge.version),
+                genericName: estimate.generic.name, genericVariant: estimate.generic.variant))
+        } else {
+            layer = nil
         }
         // A new label photo entry is logged only through `saveLabelPhoto`, which binds the image
         // evidence to the persisted photo in the same commit (17.3).
@@ -630,7 +670,8 @@ public final class FoodConfirmationService: @unchecked Sendable {
 
         let changesProduct = previous == nil || state.correction != nil
         let assertion = changesProduct
-            ? try makeAssertion(state: state, selected: selected, previous: previous, record: decisionRecord, at: now)
+            ? try makeAssertion(state: state, selected: selected, previous: previous, record: decisionRecord,
+                                labelEstimate: layer?.assertion, at: now)
             : nil
         let product: Product
         if let existing = previous?.product {
@@ -640,6 +681,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
         }
         let productVersion: ProductVersion
         let decision: CandidateDecision
+        var estimateDecision: CandidateDecision?
         let resolution: NutritionResolution
         let resolutionVersion: NutritionResolutionVersion
         if changesProduct {
@@ -675,6 +717,12 @@ public final class FoodConfirmationService: @unchecked Sendable {
                 assertionID: assertion?.assertionID,
                 createdAt: now
             )
+            // The generic row's decision records estimate use, never identity acceptance (rule 4).
+            estimateDecision = try layer.map { layer in
+                try CandidateDecision(candidateDecisionID: ids.makeID(CandidateDecisionTag.self), candidate: layer.choice.generic.candidate,
+                    expectedIdentity: identity, expectedEdibleQuantity: state.input.expectedEdibleQuantity,
+                    requestedOutcome: .selectedForEstimate, assertionID: assertion?.assertionID, createdAt: now)
+            }
             resolution = NutritionResolution(
                 resolutionID: try ids.makeID(ResolutionTag.self),
                 productVersionID: productVersion.productVersionID,
@@ -686,9 +734,9 @@ public final class FoodConfirmationService: @unchecked Sendable {
                 resolutionID: resolution.resolutionID,
                 ordinal: VersionOrdinal(1),
                 methodVersion: LedgerText(FoodConfirmationPolicy.version),
-                sourceReleaseIDs: [selected.candidate.sourceReleaseID],
-                nutrients: state.correction?.nutrients ?? selected.candidate.nutrients,
-                decisionIDs: [decision.candidateDecisionID],
+                sourceReleaseIDs: [selected.candidate.sourceReleaseID] + (layer.map { [$0.choice.sourceRelease.sourceReleaseID] } ?? []),
+                nutrients: layer?.nutrients ?? state.correction?.nutrients ?? selected.candidate.nutrients,
+                decisionIDs: [decision.candidateDecisionID] + (estimateDecision.map { [$0.candidateDecisionID] } ?? []),
                 assertionIDs: assertion.map { [$0.assertionID] } ?? [],
                 createdAt: now
             )
@@ -750,13 +798,15 @@ public final class FoodConfirmationService: @unchecked Sendable {
             libraryRecords = (nil, nil)
         }
 
-        let missingReleases = try state.input.sourceReleases.filter {
+        let missingReleases = try (state.input.sourceReleases + (layer.map { [$0.choice.sourceRelease] } ?? [])).filter {
             try reader.sourceRelease(id: $0.sourceReleaseID) == nil
         }
         // Q11: evidence already retained with canonically identical bytes is skipped (re-log,
         // favourites, plain water), as stored source releases are. Anything else is written, so an
         // existing ID with different bytes, or a racing insert, still fails as immutableRecord.
-        let newEvidence = previous == nil ? try state.input.evidence.filter { try !isRetained($0) } : []
+        let inputEvidenceIDs = Set(state.input.evidence.map(\.evidenceID))
+        let layerEvidence = layer?.choice.evidence.filter { !inputEvidenceIDs.contains($0.evidenceID) } ?? []
+        let newEvidence = previous == nil ? try (state.input.evidence + layerEvidence).filter { try !isRetained($0) } : []
         let mutation = LedgerMutation(
             evidence: newEvidence,
             assertions: assertion.map { [$0] } ?? [],
@@ -771,16 +821,20 @@ public final class FoodConfirmationService: @unchecked Sendable {
             quantityConversions: conversion.isNew ? conversion.version.map { [$0] } ?? [] : [],
             plates: plate.newPlate.map { [$0] } ?? [],
             plateWeightVersions: plate.isNew ? plate.version.map { [$0] } ?? [] : [],
-            candidateDecisions: changesProduct ? [decision] : [],
+            candidateDecisions: changesProduct ? [decision] + (estimateDecision.map { [$0] } ?? []) : [],
             sourceReleases: missingReleases
         )
         _ = try ledger.commit(
             mutation,
-            type: assertion?.confirmation != nil ? .confirmFoodV3 : (declaration == nil ? .confirmFood : .confirmFoodV2),
+            // confirm_food_v4 carries a new estimate layer, or an edit that keeps one; anything
+            // else writes exactly the type it wrote before contract 8.
+            type: layer != nil || (!changesProduct && previous?.estimate != nil) ? .confirmFoodV4
+                : assertion?.confirmation != nil ? .confirmFoodV3 : (declaration == nil ? .confirmFood : .confirmFoodV2),
             operationID: operationID,
             idempotencyKey: idempotencyKey,
             persistedAttachments: persistedAttachments
         )
+        let keptEstimate = changesProduct ? nil : previous?.estimate
         let returnedReleases = (previous?.sourceReleases ?? []) + state.input.sourceReleases.filter { source in
             !(previous?.sourceReleases.contains { $0.sourceReleaseID == source.sourceReleaseID } ?? false)
         }
@@ -797,7 +851,11 @@ public final class FoodConfirmationService: @unchecked Sendable {
             plate: plate.newPlate ?? previous?.plate,
             plateWeightVersion: plate.version,
             candidateDecision: decision,
-            assertions: assertion.map { [$0] } ?? []
+            // An edit that keeps a layer returns its stored cocoa assertion with it, as the reader does.
+            assertions: assertion.map { [$0] } ?? (keptEstimate != nil ? previous?.assertions ?? [] : []),
+            estimate: keptEstimate ?? estimateDecision.flatMap { decision in
+                layer.map { StoredLabelEstimate(candidateDecision: decision, evidence: $0.choice.evidence, sourceRelease: $0.choice.sourceRelease) }
+            }
         )
     }
 
@@ -929,6 +987,11 @@ public final class FoodConfirmationService: @unchecked Sendable {
                 conversionVersionID: saved.logItemVersion.quantityConversionVersionID
             )
         )
+        // An estimate layer or a cocoa assertion exists only on a label entry (rule 1).
+        if !LabelSourceAdmission.applies(input, candidate: populated),
+           saved.estimate != nil || saved.assertions.contains(where: { $0.labelEstimate != nil }) {
+            throw FoodLedgerStoreError.integrityFailure("label estimate layer on an entry that is not a label")
+        }
         if FoodReviewedWebProposalPolicy.applies(input, candidate: populated) {
             guard FoodReviewedWebProposalPolicy.manifestDigestIsValid(evidence: input.evidence,
                     releases: input.sourceReleases, candidate: populated.candidate, digester: digester),
@@ -945,7 +1008,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
             guard let restored = try? LabelPhotoSource.restoredSourceCandidate(input, candidate: input.candidates[0]),
                   LabelSourceAdmission.verify(input, candidate: restored, encoder: encoder, digester: digester,
                                               conversions: pastedLabelConversions),
-                  saved.resolutionVersion.nutrients == restored.candidate.nutrients,
+                  saved.resolutionVersion.nutrients == (try LabelEstimateLayer.expectedNutrients(saved, label: restored)),
                   saved.productVersion.identity.servingBasis == restored.candidate.identity.servingBasis else {
                 throw FoodLedgerStoreError.integrityFailure("label photo manifest does not match the retained candidate")
             }
@@ -957,7 +1020,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
             guard let restored = try? PastedLabelSource.restoredSourceCandidate(input, candidate: input.candidates[0]),
                   LabelSourceAdmission.verify(input, candidate: restored, encoder: encoder, digester: digester,
                                               conversions: pastedLabelConversions),
-                  saved.resolutionVersion.nutrients == restored.candidate.nutrients,
+                  saved.resolutionVersion.nutrients == (try LabelEstimateLayer.expectedNutrients(saved, label: restored)),
                   saved.productVersion.identity.servingBasis == restored.candidate.identity.servingBasis else {
                 throw FoodLedgerStoreError.integrityFailure("pasted label manifest does not match the retained candidate")
             }
@@ -1081,6 +1144,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
         selected: PopulatedFoodCandidate,
         previous: StoredFoodConfirmation?,
         record: FoodLogDecisionRecord?,
+        labelEstimate: LabelEstimateAssertion? = nil,
         at date: Date
     ) throws -> UserAssertion? {
         let version = FoodConfirmationPolicy.version
@@ -1098,6 +1162,10 @@ public final class FoodConfirmationService: @unchecked Sendable {
         } else if let record {
             reason = try LedgerText("Logged with inline decisions under \(version)")
             claim = try LedgerText("Logged under \(version); decisions: " + record.claimList)
+        } else if let labelEstimate {
+            // The save's single assertion carries the cocoa percentage (label-estimate-merge-v1).
+            reason = try LedgerText("Chose an estimate for unprinted nutrients under \(labelEstimate.mergeVersion.value)")
+            claim = try LedgerText("Cocoa percentage on the pack: \(labelEstimate.cocoaPercent.rounded() == labelEstimate.cocoaPercent ? String(Int(labelEstimate.cocoaPercent)) : String(labelEstimate.cocoaPercent))% (\(labelEstimate.cocoaPercentOrigin.rawValue))")
         } else {
             return nil
         }
@@ -1109,7 +1177,8 @@ public final class FoodConfirmationService: @unchecked Sendable {
             createdAt: date,
             reason: reason,
             claim: claim,
-            confirmation: state.correction == nil ? record : nil
+            confirmation: state.correction == nil ? record : nil,
+            labelEstimate: state.correction == nil ? labelEstimate : nil
         )
     }
 

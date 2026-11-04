@@ -138,7 +138,11 @@ final class FoodLedgerCompositionRoot {
         milkVolumeConversion = try CoFIDWholeMilkVolumeConversion()
     }
 
+    /// `saveEstimate` (pasted label and label photo routes only) offers Confirm's "Estimate
+    /// unprinted nutrients" section and saves a chosen estimate with the entry
+    /// (docs/label-estimate-merge-v1.md); without a chosen row Log uses `save` as before.
     func model(for input: PopulatedFoodConfirmation, queryQuantity: ParsedFoodQuery.Quantity? = nil, searchInterpretation: FoodQueryInterpretation? = nil, prefillSourceQuantity: Bool = true, savesFavourite: Bool = false, entryDay: String? = nil,
+               saveEstimate: (@MainActor (FoodConfirmationState, LabelEstimateChoice) throws -> StoredFoodConfirmation)? = nil,
                save: (@MainActor (FoodConfirmationState) throws -> StoredFoodConfirmation)? = nil) -> FoodConfirmationViewModel {
         let (prepared, offering) = withMilkVolumeSource(input)
         var state = FoodConfirmationState(input: prepared, queryQuantity: queryQuantity, prefillSourceQuantity: prefillSourceQuantity)
@@ -148,7 +152,9 @@ final class FoodLedgerCompositionRoot {
         return FoodConfirmationViewModel(state: state, volumeConversionOffering: offering, portionGuides: countPortionGuides, searchInterpretation: searchInterpretation,
                                          now: { clock.now() }, calendar: confirmationCalendar,
                                          savesFavourite: savesFavourite, favouriteAction: favouriteAction,
-                                         whenNotice: FoodLogText.whenNotice(when)) { [confirmations, ids] state in
+                                         whenNotice: FoodLogText.whenNotice(when),
+                                         labelEstimate: saveEstimate == nil ? nil : labelEstimateModel(),
+                                         estimateSaveAction: saveEstimate) { [confirmations, ids] state in
             if let save { return try save(state) }
             return try confirmations.save(
                 state,
@@ -156,6 +162,25 @@ final class FoodLedgerCompositionRoot {
                 idempotencyKey: nil
             )
         }
+    }
+
+    /// The label estimate section's model (rule 7): the bundled generic rows through the same
+    /// generic search port the search route uses, searched only when the user confirms a cocoa
+    /// percentage. No network; Open Food Facts is not part of this searcher.
+    func labelEstimateModel(locale: Locale = .current) -> LabelEstimateModel {
+        let pool = LabelEstimateCandidatePool(searcher: genericFoodSearch, ids: ids)
+        let clock = confirmationClock
+        let identifier = locale.identifier.isEmpty ? "und" : locale.identifier
+        return LabelEstimateModel { percent in
+            try pool.options(cocoaPercent: percent, capturedAt: clock.now(), locale: LedgerText(identifier))
+        }
+    }
+
+    /// Confirm for a pasted label reading: Log saves the label, with a chosen estimate when there is one.
+    func pastedLabelConfirmationModel(_ input: PopulatedFoodConfirmation, entryDay: String?) -> FoodConfirmationViewModel {
+        model(for: input, prefillSourceQuantity: false, entryDay: entryDay, saveEstimate: { [confirmations, ids] state, estimate in
+            try confirmations.save(state, operationID: ids.makeID(OperationTag.self), idempotencyKey: nil, estimate: estimate)
+        })
     }
 
     private func withMilkVolumeSource(_ input: PopulatedFoodConfirmation)
@@ -209,10 +234,12 @@ final class FoodLedgerCompositionRoot {
         let when = entryWhen(day: entryDay)
         state.occurredAt = when.occurredAt
         let clock = confirmationClock
+        // A layered entry logs again as its label only (section 8); Confirm says so.
+        let layered = (try? store.foodConfirmation(logItemID: logItemID)).map(FoodEntryEstimateStatus.isPartlyEstimated) ?? false
         return FoodConfirmationViewModel(state: state, volumeConversionOffering: offering, portionGuides: countPortionGuides,
                                          now: { clock.now() }, calendar: confirmationCalendar,
                                          favouriteAction: favouriteAction(unlessFavourite: state),
-                                         whenNotice: FoodLogText.whenNotice(when)) { [confirmations, ids] state in
+                                         whenNotice: FoodLogText.whenNotice(when), labelEstimateNotCarried: layered) { [confirmations, ids] state in
             try confirmations.save(state, operationID: ids.makeID(OperationTag.self), idempotencyKey: nil)
         }
     }
@@ -296,7 +323,7 @@ final class FoodLedgerCompositionRoot {
     /// confirmation through the same save path, with the offered volume source carried into Confirm.
     /// `entryDay` applies only when Confirm opens straight from a quick-add item; the sheet's Edit
     /// passes nil and keeps the When already chosen on the sheet.
-    func model(quickAdd state: FoodConfirmationState, entryDay: String? = nil) -> FoodConfirmationViewModel {
+    func model(quickAdd state: FoodConfirmationState, entryDay: String? = nil, labelEstimateNotCarried: Bool = false) -> FoodConfirmationViewModel {
         let clock = confirmationClock
         let enriched = withMilkVolumeSource(state)
         var prepared = enriched.state
@@ -309,7 +336,8 @@ final class FoodLedgerCompositionRoot {
         }
         return FoodConfirmationViewModel(state: prepared, volumeConversionOffering: offering, portionGuides: countPortionGuides, now: { clock.now() },
                                          calendar: confirmationCalendar,
-                                         favouriteAction: favouriteAction(unlessFavourite: prepared), whenNotice: whenNotice) { [confirmations, ids] state in
+                                         favouriteAction: favouriteAction(unlessFavourite: prepared), whenNotice: whenNotice,
+                                         labelEstimateNotCarried: labelEstimateNotCarried) { [confirmations, ids] state in
             try confirmations.save(state, operationID: ids.makeID(OperationTag.self), idempotencyKey: nil)
         }
     }
@@ -875,7 +903,7 @@ struct PastedLabelFlowView: View {
         if source === sourceModel, let existing = confirmationModel, existing.savedResult == nil {
             existing.replaceSourceInput(input)
         } else {
-            confirmationModel = root.model(for: input, prefillSourceQuantity: false, entryDay: finish?.entryDay)
+            confirmationModel = root.pastedLabelConfirmationModel(input, entryDay: finish?.entryDay)
         }
         // Pasted label Confirm v1 (#306): an editable reading asks fortification on Confirm.
         confirmationModel?.answersLabelFortification(for: source)
@@ -1346,7 +1374,7 @@ struct QuickAddPresenter: ViewModifier {
                                                           notice: { [weak model] in model?.loggedNotice },
                                                           show: { [banner = root.loggedBanner] in banner.show($0) })
             sheetModel = model
-        case .confirm: openConfirm(preparation.state, entryDay: finish?.entryDay)
+        case .confirm: openConfirm(preparation.state, entryDay: finish?.entryDay, labelEstimateNotCarried: preparation.labelEstimateNotCarried)
         }
     }
 
@@ -1363,8 +1391,8 @@ struct QuickAddPresenter: ViewModifier {
         }
     }
 
-    private func openConfirm(_ state: FoodConfirmationState, entryDay: String? = nil) {
-        confirmModel = root.model(quickAdd: state, entryDay: entryDay)
+    private func openConfirm(_ state: FoodConfirmationState, entryDay: String? = nil, labelEstimateNotCarried: Bool = false) {
+        confirmModel = root.model(quickAdd: state, entryDay: entryDay, labelEstimateNotCarried: labelEstimateNotCarried)
         showsConfirm = true
     }
 }
@@ -1518,7 +1546,11 @@ extension FoodLedgerCompositionRoot {
     @MainActor
     func labelPhotoConfirmationModel(_ source: LabelPhotoSourceModel, entryDay: String?) -> FoodConfirmationViewModel {
         let confirmations = confirmations, store = store, ids = ids
-        let model = model(for: source.input, prefillSourceQuantity: false, entryDay: entryDay) { [weak source] state in
+        let model = model(for: source.input, prefillSourceQuantity: false, entryDay: entryDay, saveEstimate: { [weak source] state, estimate in
+            guard let source, source.canLog, state.input == source.input else { throw FoodConfirmationSaveError.invalidPastedLabelSource }
+            return try confirmations.saveLabelPhoto(state, imageBytes: source.imageBytes, attachmentStore: store,
+                                                     operationID: ids.makeID(OperationTag.self), estimate: estimate)
+        }) { [weak source] state in
             // Only the source's own verified input is logged: never a preview, and never an input
             // that no longer matches the source (invariant review of #327).
             guard let source, source.canLog, state.input == source.input else { throw FoodConfirmationSaveError.invalidPastedLabelSource }

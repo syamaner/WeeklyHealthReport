@@ -251,6 +251,9 @@ public struct UserAssertion: Codable, Equatable, Sendable {
     /// Typed inline decisions (food_confirmation_v5). Omitted from the encoding when nil,
     /// so every earlier assertion re-encodes byte for byte.
     public let confirmation: FoodLogDecisionRecord?
+    /// The cocoa percentage behind a label estimate layer (label-estimate-merge-v1, #383).
+    /// Omitted from the encoding when nil, like `confirmation`.
+    public let labelEstimate: LabelEstimateAssertion?
 
     public init(
         assertionID: AssertionID,
@@ -260,9 +263,11 @@ public struct UserAssertion: Codable, Equatable, Sendable {
         createdAt: Date,
         reason: LedgerText,
         claim: LedgerText,
-        confirmation: FoodLogDecisionRecord? = nil
+        confirmation: FoodLogDecisionRecord? = nil,
+        labelEstimate: LabelEstimateAssertion? = nil
     ) {
         self.confirmation = confirmation
+        self.labelEstimate = labelEstimate
         self.assertionID = assertionID
         self.evidenceID = evidenceID
         self.supersedesAssertionID = supersedesAssertionID
@@ -270,6 +275,43 @@ public struct UserAssertion: Codable, Equatable, Sendable {
         self.createdAt = createdAt
         self.reason = reason
         self.claim = claim
+    }
+}
+
+/// Where a confirmed cocoa percentage was first suggested (docs/label-estimate-merge-v1.md rule 2).
+public enum CocoaPercentOrigin: String, Codable, Sendable {
+    case name
+    case pastedText = "pasted_text"
+    case typed
+}
+
+/// The user-asserted decisive attribute `cocoa_percent` and the policy versions that admitted and
+/// merged the estimate (docs/label-estimate-merge-v1.md section 5), with the chosen generic row's
+/// name and variant so reopen can rerun compatibility (the decision stores neither).
+public struct LabelEstimateAssertion: Codable, Equatable, Sendable {
+    /// The one cocoa percentage rule (rule 2): 1 to 100, whole or one decimal place.
+    public static func isValidCocoaPercent(_ value: Double) -> Bool {
+        value.isFinite && value >= 1 && value <= 100 && (value * 10).rounded() == value * 10
+    }
+
+    public let cocoaPercent: Double
+    public let cocoaPercentOrigin: CocoaPercentOrigin
+    public let compatibilityVersion: LedgerText
+    public let mergeVersion: LedgerText
+    public let genericName: LedgerText
+    public let genericVariant: LedgerText?
+
+    /// 1 to 100, whole or one decimal place.
+    public init(cocoaPercent: Double, cocoaPercentOrigin: CocoaPercentOrigin,
+                compatibilityVersion: LedgerText, mergeVersion: LedgerText,
+                genericName: LedgerText, genericVariant: LedgerText? = nil) throws {
+        guard Self.isValidCocoaPercent(cocoaPercent) else { throw FoodLedgerValidationError.invalidCocoaPercent }
+        self.cocoaPercent = cocoaPercent
+        self.cocoaPercentOrigin = cocoaPercentOrigin
+        self.compatibilityVersion = compatibilityVersion
+        self.mergeVersion = mergeVersion
+        self.genericName = genericName
+        self.genericVariant = genericVariant
     }
 }
 
