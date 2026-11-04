@@ -68,7 +68,9 @@ public enum LabelEstimateCompatibility {
     private static func statedPercent(_ text: String) -> Double? {
         let lowered = text.lowercased()
         var values: Set<Double> = []
-        if case let .declared(lower, upper)? = CocoaPercentPolicy.band(name: text, description: nil, recordID: nil) {
+        // cocoa-percent-policy-v2 reads "at least 70% cocoa" as `.atLeast(70)`; the pre-fill
+        // reading keeps it as the stated 70, so rule 2 pre-fills as under v1.
+        if case let .declared(lower, upper)? = CocoaPercentPolicy.prefillBand(text: text) {
             guard lower == upper else { return nil }
             values.insert(lower)
         }

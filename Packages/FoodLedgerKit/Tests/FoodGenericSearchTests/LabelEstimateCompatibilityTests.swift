@@ -72,21 +72,24 @@ final class LabelEstimateCompatibilityTests: XCTestCase {
         XCTAssertFalse(LabelEstimateCompatibility.isCompatible(personal, cocoaPercent: 80))
     }
 
-    /// Rule 7's pool (label-estimate-pool-v1): the one query "dark chocolate <p>%" through the
-    /// composite generic search port, as the composition root wires it (CoFID, USDA, then TFDA as
-    /// a regional source), reaches the rows the compatibility tests above expect.
+    /// Rule 7's pool (label-estimate-pool-v2): the one query "dark chocolate <p>%" through the
+    /// composite generic search port, as the composition root wires it (CoFID, USDA, TFDA as a
+    /// regional source and Ciqual as a reference-only source), reaches the rows the compatibility
+    /// tests above expect, with the Ciqual rows after the others.
     func testThePoolQueryReachesTheCompatibleRowsInSearchOrder() throws {
         let ids = CompatibilityIDs()
         let search = CompositeGenericFoodSearch(sources: [try CoFIDGenericFoodSearch(ids: ids), try USDAGenericFoodSearch(ids: ids)],
-                                                regionalSources: [try TFDAGenericFoodSearch(ids: ids)], ids: ids)
+                                                regionalSources: [try TFDAGenericFoodSearch(ids: ids)],
+                                                referenceSources: [try CiqualGenericFoodSearch(ids: ids)], ids: ids)
         let pool = LabelEstimateCandidatePool(searcher: search, ids: ids)
         func options(_ p: Double) throws -> [LabelEstimateOption] {
             try pool.options(cocoaPercent: p, capturedAt: Date(timeIntervalSince1970: 1_700_000_000), locale: try LedgerText("en_GB"))
         }
         let band = "Chocolate, dark, 70-85% cacao solids", baking = "Baking chocolate, unsweetened, squares"
         let expected: [Double: [String]] = [
-            30: [], 40: ["Chocolate, plain"], 50: ["Chocolate, plain", "Chocolate, dark, 45- 59% cacao solids"],
-            70: [band], 85: [band], 85.5: [band], 86: [band], 90: [band], 99: [band], 99.5: [band], 100: [baking]
+            30: [], 40: ["Chocolate, plain"],
+            50: ["Chocolate, plain", "Chocolate, dark, 45- 59% cacao solids", "Dark chocolate, 50% cocoa, bar"],
+            70: [band, "Dark chocolate, 70% cocoa, bar"], 85: [band], 85.5: [band], 86: [band], 90: [band], 99: [band], 99.5: [band], 100: [baking]
         ]
         for (p, names) in expected {
             let found = try options(p)
@@ -96,6 +99,7 @@ final class LabelEstimateCompatibilityTests: XCTestCase {
                 XCTAssertTrue(LabelEstimateCompatibility.isCompatible(option.generic, cocoaPercent: p))
                 XCTAssertEqual(option.evidence.map(\.evidenceID), option.generic.candidate.evidenceIDs, "the save's evidence rule")
                 XCTAssertEqual(option.evidence.map(\.captureMethod.value), [LabelEstimateCandidatePool.captureMethod])
+                XCTAssertEqual(option.evidence.map(\.captureMethodVersion.value), ["label-estimate-pool-v2"])
                 XCTAssertEqual(option.sourceRelease.sourceReleaseID, option.generic.candidate.sourceReleaseID)
             }
         }

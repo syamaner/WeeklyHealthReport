@@ -126,6 +126,10 @@ final class RankedRetrievalDevelopmentTests: XCTestCase {
     /// with Taiwan TFDA as a regional source and the scenario's market; v6
     /// rows are the v5 rows plus the plural/singular cases (food-lexical-terms-v9);
     /// v7 rows are the v6 rows plus the dark chocolate cocoa cases (cocoa-percent-policy-v1).
+    /// v8 rows (#384, docs/ciqual-2025-admission-v1.md) are the v7 cases plus three chocolate
+    /// type cases, with the composite row from the production composite: Ciqual as a
+    /// reference-only source (composite-generic-ranking-v11). The v3 to v7 rows keep their
+    /// source lists; the v8 composite reuses each case's CoFID, USDA and TFDA searches.
     func testReplay() throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent()
@@ -136,27 +140,42 @@ final class RankedRetrievalDevelopmentTests: XCTestCase {
         }
         let v3 = try load("retrieval-scenarios-v3.json"), v4 = try load("retrieval-scenarios-v4.json")
         let v5 = try load("retrieval-scenarios-v5.json"), v6 = try load("retrieval-scenarios-v6.json")
-        let fixture = try load("retrieval-scenarios-v7.json")
-        for earlier in [v3, v4, v5, v6] {
+        let v7 = try load("retrieval-scenarios-v7.json")
+        let fixture = try load("retrieval-scenarios-v8.json")
+        for earlier in [v3, v4, v5, v6, v7] {
             XCTAssertEqual(earlier.cases.map(\.id), Array(fixture.cases.prefix(earlier.cases.count)).map(\.id))
             XCTAssertEqual(earlier.cases.map(\.query), Array(fixture.cases.prefix(earlier.cases.count)).map(\.query))
         }
         let ids = ReplayIDs()
         let cofid = try CoFIDGenericFoodSearch(ids: ids), usda = try USDAGenericFoodSearch(ids: ids)
         let tfda = try TFDAGenericFoodSearch(ids: ids)
+        let ciqual = try CiqualGenericFoodSearch(ids: ReplayIDs())
+        // Pure caches keyed by the composite's evidence: the v8 composite repeats the v7
+        // composite's source searches without calling `ids`, so v3 to v7 rows are unchanged.
+        let shared = [SharedSearch(cofid), SharedSearch(usda), SharedSearch(tfda)]
         let baseline = ProcessInfo.processInfo.environment["WHR_RETRIEVAL_REPORT_V5_BASELINE"] != nil
         let v3IDs = Set(v3.cases.map(\.id)), v4IDs = Set(v4.cases.map(\.id)), v5IDs = Set(v5.cases.map(\.id))
-        let v6IDs = Set(v6.cases.map(\.id))
-        var rows: [Row] = [], regionalRows: [Row] = [], baselineRows: [Row] = []
+        let v6IDs = Set(v6.cases.map(\.id)), v7IDs = Set(v7.cases.map(\.id))
+        var rows: [Row] = [], regionalRows: [Row] = [], baselineRows: [Row] = [], productionRows: [Row] = []
         for scenario in fixture.cases {
             let request = try replayRequest(scenario)
             let promoted = RegionalSourceOrderPolicy.promotesTaiwan(query: scenario.query, marketIsTaiwan: scenario.market == "taiwan")
-            let regional = CompositeGenericFoodSearch(sources: [cofid, usda], regionalSources: [tfda], promotesRegional: { request in
+            let promotes: (GenericFoodSearchRequest) -> Bool = { request in
                 RegionalSourceOrderPolicy.promotesTaiwan(query: request.text.value, marketIsTaiwan: scenario.market == "taiwan")
-            }, ids: ids)
+            }
+            let regional = CompositeGenericFoodSearch(sources: [shared[0], shared[1]], regionalSources: [shared[2]],
+                                                      promotesRegional: promotes, ids: ids)
+            let production = CompositeGenericFoodSearch(sources: [shared[0], shared[1]], regionalSources: [shared[2]],
+                                                        referenceSources: [ciqual], promotesRegional: promotes, ids: ReplayIDs())
             let local = [try replayRow(scenario, source: "cofid", request: request, search: cofid),
                          try replayRow(scenario, source: "usda", request: request, search: usda)]
             let composite = try replayRow(scenario, source: "composite", request: request, search: regional)
+            let evidence = try XCTUnwrap(shared[0].lastEvidence, scenario.id)
+            shared.forEach { $0.lastEvidence = nil }
+            let productionRequest = GenericFoodSearchRequest(text: request.text, identity: request.identity, capturedAt: request.capturedAt,
+                                                             locale: request.locale, captureEvidence: evidence)
+            productionRows += local + [try replayRow(scenario, source: "composite", request: productionRequest, search: production)]
+            shared.forEach { $0.clear() }
             regionalRows += local + [composite]
             if v4IDs.contains(scenario.id) {
                 // When Taiwan is not promoted, v9 places every TFDA row after the UK and US
@@ -176,7 +195,8 @@ final class RankedRetrievalDevelopmentTests: XCTestCase {
         try write(rows, environment: "WHR_RETRIEVAL_REPORT_V4")
         try write(regionalRows.filter { v5IDs.contains($0.id) }, environment: "WHR_RETRIEVAL_REPORT_V5")
         try write(regionalRows.filter { v6IDs.contains($0.id) }, environment: "WHR_RETRIEVAL_REPORT_V6")
-        try write(regionalRows, environment: "WHR_RETRIEVAL_REPORT_V7")
+        try write(regionalRows.filter { v7IDs.contains($0.id) }, environment: "WHR_RETRIEVAL_REPORT_V7")
+        try write(productionRows, environment: "WHR_RETRIEVAL_REPORT_V8")
         if baseline { try write(baselineRows.filter { v5IDs.contains($0.id) }, environment: "WHR_RETRIEVAL_REPORT_V5_BASELINE") }
     }
 
@@ -228,6 +248,24 @@ final class RankedRetrievalDevelopmentTests: XCTestCase {
         guard let output = ProcessInfo.processInfo.environment[environment] else { return }
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         try encoder.encode(rows).write(to: URL(fileURLWithPath: output))
+    }
+}
+/// Returns the stored outcome for a repeated request with the same capture evidence; requests
+/// without evidence are always searched.
+private final class SharedSearch: GenericFoodSearching, @unchecked Sendable {
+    let inner: any GenericFoodSearching
+    var lastEvidence: CaptureEvidence?
+    private var cache: [String: GenericFoodSearchOutcome] = [:]
+    init(_ inner: any GenericFoodSearching) { self.inner = inner }
+    func clear() { cache = [:] }
+    func search(_ request: GenericFoodSearchRequest) throws -> GenericFoodSearchOutcome {
+        guard let evidence = request.captureEvidence else { return try inner.search(request) }
+        lastEvidence = evidence
+        let key = "\(request.text.value)|\(String(describing: request.identity))|\(evidence.evidenceID.rawValue)|\(request.additionalEvidence.count)"
+        if let hit = cache[key] { return hit }
+        let outcome = try inner.search(request)
+        cache[key] = outcome
+        return outcome
     }
 }
 private final class ReplayIDs: LedgerIDGenerating, @unchecked Sendable {

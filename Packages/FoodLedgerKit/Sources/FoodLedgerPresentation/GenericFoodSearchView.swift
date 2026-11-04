@@ -73,6 +73,7 @@ public final class GenericFoodSearchViewModel: ObservableObject {
         if id.contains("cofid") { return "CoFID · on device" }
         if id.contains("usda") { return "USDA · on device" }
         if id == "tfda-taiwan" { return "TFDA · Taiwan · on device" }
+        if id == "ciqual" { return "Ciqual · on device" }
         if id.contains("openfoodfacts") || id.contains("open-food-facts") { return "Open Food Facts · online" }
         if stageReports.contains(where: { $0.stage == .gemini && $0.addedCandidateIDs.contains(match.searchID) }) { return "Web source" }
         if stageReports.contains(where: { $0.stage == .onlineDatabase && $0.addedCandidateIDs.contains(match.searchID) }) { return "Online food database" }

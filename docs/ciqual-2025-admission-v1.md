@@ -217,6 +217,7 @@ v2 adds one `Band` case, `.atLeast(N)`, and changes nothing else in v1.
    | `.atLeast(N)`, request M | Source states N% cocoa or more, with no single band; you asked for M%. | N% cocoa or more |
 
 6. **Phase B pre-fill (rule 2) unchanged.** `LabelEstimateCompatibility.statedPercent` reads `.declared` bands today, so label text such as "at least 70% cocoa", "minimum 70% cocoa", "more than 70% cocoa", "over 70% cocoa", "70% cocoa or more", "70% cocoa and more" and "70% cocoa minimum" pre-fill 70 under v1. Under v2 that text gives `.atLeast(70)`, so `statedPercent` turns `.atLeast(N)` from label text into a pre-fill of N, under the same one-value rule. `label-estimate-compatibility-v1` behaviour, including its pre-fill results, is unchanged.
+7. **Unbundled rows.** v2 also reads the names and variants of rows that are not bundled, such as personal-library and online rows: "Dark chocolate 70% cocoa minimum" there now reads `.atLeast(70)`, so it sorts in tier 4 and is not a cocoa match (v1 read it as [70, 70]). This changes display and ranking only; compatibility refuses those rows anyway, because their provenance is not a bundled generic release.
 
 ### 4.2 Band freezing
 
@@ -231,12 +232,13 @@ Milk, white and filled rows keep phase A's rules: milk and white are excluded fr
 
 - The composite takes three deferral groups: **default** (CoFID, USDA), **deferred regional** (TFDA, promotable by `regional-source-order-v1`) and, new, **reference-only** (Ciqual, never promoted). Reference-only routes are interleaved after all other routes at each rank, so the relative offsets of non-Ciqual rows are those of v10.
 - Key order: preparation verification, then deferral group (default; then TFDA when not promoted; then Ciqual), then cocoa tier, then exact name and representation preference. When Taiwan is promoted, CoFID, USDA and TFDA form one group and interleave as in v10, and Ciqual still follows. The fat partition and the outer preparation partition run afterwards, unchanged, as stable partitions.
-- **Cocoa tier keys are computed inside each deferral group.** `CocoaPercentPolicy.tierKeys` takes the bands of one group's rows only, so a reference row's band can never change which default or regional row is "the greatest band below" (tier 2) or move it between tiers. In v10 the keys were computed over all rows; for default and regional rows v11 computes them over exactly the rows v10 saw.
+- **Cocoa tier keys are computed over the non-reference rows together (as in v10) and over the reference-only rows separately.** A reference row's band can therefore never change which default or regional row is "the greatest band below" (tier 2) or move it between tiers; for default and regional rows v11 computes the keys over exactly the rows v10 saw.
 - **Invariant: removing Ciqual rows from any v11 output gives the v10 output exactly, for every request.** This holds through the fat and preparation partitions because they are stable and the comparator for any two non-Ciqual rows is unchanged. It is stated on the ranked match list; the one visible difference is that a request whose only matches are Ciqual rows returned no result in v10 and now returns them.
 - Consequence: for "dark chocolate 70%", USDA 170273 leads, and Ciqual 31074 follows every CoFID and USDA row in the same preparation and fat partition, including out-of-band ones such as CoFID 17-491. That is the cost of decision 5.
 - **Ciqual and TFDA (decided, D7).** Ciqual follows TFDA, so every existing row keeps its position.
 - Today `CompositeGenericFoodSearch` has one `promotesRegional` closure for all regional sources, so adding Ciqual to `regionalSources` would promote it whenever Taiwan is promoted. v11 adds the separate reference-only group instead.
 - `composite-generic-ranking-v11` is stamped on new capture evidence; stored v10 and older values still decode (free text). No schema, archive or export change.
+- **Known effects (C2 replay).** Under the USDA word-coverage rule, "milk", "whole milk", "almonds", "hazelnuts" and "peanuts" now also list Ciqual chocolate products (for example "Milk chocolate, bar" and "Chocolate-coated peanut") at the tail, at rank 14 and lower, after every UK, US and Taiwan row. The v7 replay has no precedent for a milk chocolate row under "milk". FoodSearchQuality v8 labels them as mentions (grade 1).
 
 ## 6. Phase B interplay
 
@@ -251,7 +253,7 @@ Milk, white and filled rows keep phase A's rules: milk and white are excluded fr
 | 31120 Chocolate, bar (average); bars, confectionery, spread, cake | never (no band) |
 | 31004, 31009, 31010, 31018, 31020, 31026, 31084, 31098 (milk or white) | never |
 
-The pinned USDA estimates for 86% to 99% and 100% are unchanged, as rule 3 promises. A 70% bar now gets two compatible rows (USDA 170273 and Ciqual 31074); the estimate list keeps search order, so Ciqual is listed second. Ciqual `< n` values are copied as bounds by `label-estimate-merge-v1` (rule 4, "unknown + bounded"). The rule 3 prose names "CoFID, USDA, or TFDA"; C2 updates that sentence to name Ciqual too, a wording change with no behaviour change. Phase B3, the Confirm estimate section, has merged (#397, 1b5d8bf), so phase C has no pending phase B dependency.
+The pinned USDA estimates for 86% to 99% and 100% are unchanged, as rule 3 promises. A 70% bar now gets two compatible rows (USDA 170273 and Ciqual 31074); the estimate list keeps search order, so Ciqual is listed second. Because the pool's source set now includes Ciqual, the pool is `label-estimate-pool-v2` (rule 7; programme lead decision under the owner's delegation, 4 November 2026); entries saved with `label-estimate-pool-v1` evidence keep that stamp and reopen unchanged. Ciqual `< n` values are copied as bounds by `label-estimate-merge-v1` (rule 4, "unknown + bounded"). The rule 3 prose names "CoFID, USDA, or TFDA"; C2 updates that sentence to name Ciqual too, a wording change with no behaviour change. Phase B3, the Confirm estimate section, has merged (#397, 1b5d8bf), so phase C has no pending phase B dependency.
 
 ## 7. Surfaces
 

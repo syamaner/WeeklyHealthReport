@@ -4,7 +4,7 @@ import FoodLedgerApplication
 import FoodLedgerDomain
 import XCTest
 
-/// composite-generic-ranking-v9 and v10: Taiwan rows follow UK and US rows by source unless promoted.
+/// composite-generic-ranking-v9 to v11: Taiwan rows follow UK and US rows by source unless promoted.
 final class RegionalSourceOrderTests: XCTestCase {
     private func request(_ text: String) throws -> GenericFoodSearchRequest {
         try .init(text: LedgerText(text), capturedAt: Date(timeIntervalSince1970: 1_700_000_000), locale: LedgerText("en_GB"))
@@ -17,7 +17,7 @@ final class RegionalSourceOrderTests: XCTestCase {
     }
 
     func testPolicyPromotesTaiwanOnlyForMarketNamedTaiwanOrChineseCharacters() {
-        XCTAssertEqual(CompositeGenericFoodSearch.version, "composite-generic-ranking-v10")
+        XCTAssertEqual(CompositeGenericFoodSearch.version, "composite-generic-ranking-v11")
         XCTAssertTrue(RegionalSourceOrderPolicy.promotesTaiwan(query: "120 g banana", marketIsTaiwan: true))
         for query in ["Taiwan banana", "taiwanese beef noodles", "香蕉", "120g 芭樂", "banana 台灣"] {
             XCTAssertTrue(RegionalSourceOrderPolicy.promotesTaiwan(query: query, marketIsTaiwan: false), query)

@@ -143,6 +143,8 @@ cancelled part-way through XCTest with no failure logged. These were timeouts,
 not hangs or failing tests. The timeout is now 25 minutes, about 1.8 times the
 slowest passing run, and stays below the 30 minutes of `Build and test`.
 
+That margin has gone again. On 4 November 2026 passing `main` runs of this job took 20m22s, 21m26s and 22m41s, and the Ciqual C2 pull request run (#401, which adds the Ciqual searcher, the composite v11 subsequence contract test and the FoodSearchQuality v8 replay) took 24m39s, 21 seconds under the limit. The timeout is now 40 minutes, about 1.6 times the slowest passing run, so a slow hosted runner does not cancel a passing suite. This is longer than the 30 minutes of `Build and test`; the two jobs run in parallel, so it does not lengthen a passing pipeline. Revisit it if the job's measured duration falls back below 15 minutes, or trim the suite if it approaches 30.
+
 ## Codecov disclosure boundary
 
 The pinned Codecov action runs only after the local coverage gate passes. Its

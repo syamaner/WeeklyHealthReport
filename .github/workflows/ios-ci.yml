@@ -93,10 +93,11 @@ jobs:
     needs: changes
     # Fail closed: only an explicit documentation-only decision skips this job.
     if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
-    # 25, not 15: on 31 Oct 2026 passing runs took 11m39s-13m48s and three runs
-    # (41175539897, 41180161020, 41180338859) hit the limit at 15m07s-15m22s
-    # with no failing test (see "FoodLedgerKit job timeout" in the CI analysis doc).
-    timeout-minutes: 25
+    # 40, not 25: on 4 Nov 2026 passing main runs took 20m22s-22m41s and the
+    # Ciqual C2 PR run took 24m39s, 21 s under the old limit (see "FoodLedgerKit
+    # job timeout" in the CI analysis doc). Earlier: 25, not 15, after the 31 Oct
+    # 2026 timeouts (41175539897, 41180161020, 41180338859).
+    timeout-minutes: 40
 
     steps:
       - name: Check out repository
@@ -109,6 +110,7 @@ jobs:
           WHR_RETRIEVAL_REPORT_V5: ${{ runner.temp }}/retrieval-v5-current.json
           WHR_RETRIEVAL_REPORT_V6: ${{ runner.temp }}/retrieval-v6-current.json
           WHR_RETRIEVAL_REPORT_V7: ${{ runner.temp }}/retrieval-v7-current.json
+          WHR_RETRIEVAL_REPORT_V8: ${{ runner.temp }}/retrieval-v8-current.json
         run: |
           set -euo pipefail
           swift test --package-path Packages/FoodLedgerKit
@@ -136,6 +138,12 @@ jobs:
             Tools/FoodSearchQuality/retrieval-scenarios-v7.json \
             "$WHR_RETRIEVAL_REPORT_V7" "$RUNNER_TEMP/retrieval-v7-metrics.json" \
             --verify-report Tools/FoodSearchQuality/retrieval-metrics-v7-final-cocoa-v1.json
+          # Ciqual 2025 admission (#384): v7 plus Ciqual rows through the production composite
+          # (composite-generic-ranking-v11) and the chocolate type cases.
+          python3 Tools/FoodSearchQuality/score_retrieval.py \
+            Tools/FoodSearchQuality/retrieval-scenarios-v8.json \
+            "$WHR_RETRIEVAL_REPORT_V8" "$RUNNER_TEMP/retrieval-v8-metrics.json" \
+            --verify-report Tools/FoodSearchQuality/retrieval-metrics-v8-final-ciqual-v1.json
 
   food-ledger-kit-isolation:
     name: FoodLedgerKit boundaries

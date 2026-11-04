@@ -199,6 +199,7 @@ public enum LabelEstimateText {
         case "usda-foundation": "USDA Foundation Foods"
         case "cofid": "CoFID"
         case "tfda-taiwan": "TFDA Taiwan"
+        case "ciqual": "Ciqual"
         default: release.sourceID.value
         }
         let formatter = DateFormatter()

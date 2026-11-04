@@ -4,8 +4,10 @@ import FoodLedgerDomain
 /// Cocoa percentage bands, eligibility exceptions, ordering and notes for generic search
 /// (`cocoa-percent-policy-v1`, #382, docs/cocoa-aware-search-v1.md). Presentation and ranking
 /// only: no nutrient, identity, provenance or selection changes.
+/// v2 (#384, docs/ciqual-2025-admission-v1.md section 4.1) adds open-ended bands, `.atLeast`,
+/// and changes nothing else: every bundled CoFID, USDA and TFDA row reads as under v1.
 public enum CocoaPercentPolicy {
-    public static let version = "cocoa-percent-policy-v1"
+    public static let version = "cocoa-percent-policy-v2"
 
     public enum Band: Hashable, Sendable {
         /// Read from the source name or description: `L-U% cocoa solids` or `N% cocoa`.
@@ -14,12 +16,15 @@ public enum CocoaPercentPolicy {
         case estimate100
         /// A parenthesised blend description, which is not a single band.
         case blend
+        /// v2: an open-ended statement ("more than 40% cocoa", "70% cocoa or more"). It is
+        /// not a single band: no range (tier 4), never admitted, never a declared band.
+        case atLeast(Double)
 
         var range: ClosedRange<Double>? {
             switch self {
             case let .declared(lower, upper): lower <= upper ? lower...upper : nil
             case .estimate100: 100...100
-            case .blend: nil
+            case .blend, .atLeast: nil
             }
         }
     }
@@ -45,6 +50,25 @@ public enum CocoaPercentPolicy {
     }
 
     public static func band(name: String, description: String?, recordID: String?) -> Band? {
+        band(name: name, description: description, recordID: recordID, openEndedAsStated: false)
+    }
+
+    /// Rule 2 pre-fill reading (docs/ciqual-2025-admission-v1.md 4.1 rule 6): an open-ended
+    /// statement on a label pre-fills its stated value, under the same one-value rule, so
+    /// `label-estimate-compatibility-v1` pre-fills exactly as it did under v1.
+    public static func prefillBand(text: String) -> Band? {
+        band(name: text, description: nil, recordID: nil, openEndedAsStated: true)
+    }
+
+    /// "more than / over / at least / minimum N% cocoa" or "N% cocoa (solids) or more / and
+    /// more / minimum", outside parentheses. An ingredient word after the cocoa wording is not
+    /// a band (the v1 point rule's guard).
+    static let openEndedPatterns = [
+        #"\b(?:more\s+than|over|at\s+least|minimum)\s+(\d+(?:\.\d+)?)\s*%\s*(?:cacao|cocoa)\b(?!\s*(?:butter|powder|mass|liquor|paste|nibs?|beans?))(?:\s+solids\b)?"#,
+        #"(\d+(?:\.\d+)?)\s*%\s*(?:cacao|cocoa)(?:\s+solids)?\s+(?:or\s+more|and\s+more|minimum)\b"#
+    ]
+
+    private static func band(name: String, description: String?, recordID: String?, openEndedAsStated: Bool) -> Band? {
         if recordID == estimate100RecordID { return .estimate100 }
         var found: [Band] = []
         for text in [name, description ?? ""] where !text.isEmpty {
@@ -57,19 +81,30 @@ public enum CocoaPercentPolicy {
                 guard let lower = Double(match[0]), let upper = Double(match[1]), lower <= upper else { return nil }
                 found.append(.declared(lower: lower, upper: upper))
             }
-            let withoutRanges = outside.replacingOccurrences(
+            var withoutRanges = outside.replacingOccurrences(
                 of: #"\d+(?:\.\d+)?\s*[-\x{2013}]\s*\d+(?:\.\d+)?\s*%"#, with: " ", options: .regularExpression)
+            // v2: open-ended matches are read, then stripped before the point pass.
+            for pattern in openEndedPatterns {
+                for match in captures(pattern, withoutRanges) {
+                    guard let value = Double(match[0]) else { return nil }
+                    found.append(openEndedAsStated ? .declared(lower: value, upper: value) : .atLeast(value))
+                }
+                withoutRanges = withoutRanges.replacingOccurrences(of: pattern, with: " ", options: .regularExpression)
+            }
             // "30% cocoa butter" or "100% cocoa powder" states an ingredient, not the chocolate's band.
             for match in captures(#"(\d+(?:\.\d+)?)\s*%\s*(?:cacao|cocoa)\b(?!\s*(?:butter|powder|mass|liquor|paste|nibs?|beans?))"#, withoutRanges) {
                 guard let value = Double(match[0]) else { return nil }
                 found.append(.declared(lower: value, upper: value))
             }
         }
-        let declared = found.filter { $0 != .blend }
-        if declared.isEmpty { return found.isEmpty ? nil : .blend }
-        guard Set(declared).count == 1, let range = declared[0].range,
-              range.lowerBound >= 0, range.upperBound <= 100 else { return nil }
-        return declared[0]
+        // A blend is ignored beside any declared or open-ended reading; two distinct readings
+        // of any kind give no band.
+        let stated = found.filter { $0 != .blend }
+        if stated.isEmpty { return found.isEmpty ? nil : .blend }
+        guard Set(stated).count == 1 else { return nil }
+        if case let .atLeast(value) = stated[0] { return (0...100).contains(value) ? stated[0] : nil }
+        guard let range = stated[0].range, range.lowerBound >= 0, range.upperBound <= 100 else { return nil }
+        return stated[0]
     }
 
     public static func band(_ candidate: PopulatedFoodCandidate) -> Band? {
@@ -91,7 +126,7 @@ public enum CocoaPercentPolicy {
               nameTerms.intersection(chocolateTypes).isSubset(of: foodTerms) else { return false }
         switch band(name: name, description: description, recordID: recordID) {
         case .declared, .estimate100: return true
-        case .blend, nil: return false
+        case .blend, .atLeast, nil: return false
         }
     }
 
@@ -138,6 +173,7 @@ public enum CocoaPercentPolicy {
             text = value == 100
                 ? "US unsweetened baking chocolate, used as a 100% cocoa estimate. It is not your bar; compare the label."
                 : "US unsweetened baking chocolate, a 100% cocoa estimate; you asked for \(literal)%. Estimate only."
+        case let .atLeast(lower)?: text = "Source states \(number(lower))% cocoa or more, with no single band; you asked for \(literal)%."
         case .blend?: text = "No single cocoa band from this source; you asked for \(literal)%."
         case nil: text = "Cocoa percentage not stated by this source; you asked for \(literal)%."
         }
@@ -151,6 +187,7 @@ public enum CocoaPercentPolicy {
             return (lower...upper).contains(value) ? "\(span(lower, upper)) cocoa" : "\(span(lower, upper)) cocoa · requested \(literal)%"
         case .estimate100?:
             return value == 100 ? "100% cocoa estimate · baking chocolate" : "100% cocoa estimate · requested \(literal)%"
+        case let .atLeast(lower)?: return "\(number(lower))% cocoa or more"
         case .blend?: return "No single cocoa band"
         case nil: return "Cocoa % not stated"
         }
