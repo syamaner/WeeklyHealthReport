@@ -12,6 +12,8 @@ This is the single engineering list of what may leave the device, where it goes 
 
 HealthKit access is read-only: authorisation `toShare` stays empty. No analytics, tracking, crash SDK, backend, account system or background delivery.
 
+Source datasets bundled with the app (CoFID 2021, USDA FoodData Central, TFDA and Ciqual 2025) are downloaded by a developer, outside the app, before the projection is built. That download carries no user data and is not app egress; the app reads only the bundled, hash-checked projections and makes no request to those publishers. Owner approval: 4 November 2026, on #384 ([ciqual-2025-admission-v1.md](ciqual-2025-admission-v1.md) section 1.3).
+
 ## Allowed egress
 
 | Destination | What is sent | When | Contract |
