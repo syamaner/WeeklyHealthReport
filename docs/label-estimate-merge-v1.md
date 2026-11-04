@@ -63,7 +63,7 @@ Every estimate-layer fact lives in an existing row; `StoredFoodConfirmation` is 
 
 - Label candidate, evidence and decision: stored unchanged, so manifest verification still holds byte for byte.
 - Generic choice: a second `CandidateDecision` row in `candidate_decision`, with its evidence in `candidate_decision_evidence` and its release in `source_release`.
-- Cocoa percentage, its origin (`name`, `pasted_text`, `typed`) and the policy versions (`label-estimate-compatibility-v1`, `label-estimate-merge-v1`): typed optional fields on the save's single `UserAssertion`, omitted when nil (the `confirmation` field precedent), so earlier assertions re-encode unchanged. The one-assertion-per-save rule holds.
+- Cocoa percentage, its origin (`name`, `pasted_text`, `typed`), the policy versions (`label-estimate-compatibility-v1`, `label-estimate-merge-v1`) and the chosen generic row's name and description (B2: `CandidateDecision` keeps neither, and reopen needs them to rerun rule 3): typed fields of one optional `labelEstimate` value on the save's single `UserAssertion`, omitted when nil (the `confirmation` field precedent), so earlier assertions re-encode unchanged. The one-assertion-per-save rule holds.
 - Resolution version: the merged nutrients, `sourceReleaseIDs` with both releases and `decisionIDs` with both decisions in position order, label first.
 
 Operation types and registry:
@@ -83,7 +83,7 @@ Reopen verifies each layer separately, then recomputes:
 
 1. Label layer: the existing pasted-label or photo verifier checks the restored label candidate against its manifest.
 2. Estimate layer: the stored generic decision is checked against its stored `SourceRelease` (release present; every copied entry's provenance names that release and record). The bundle is not re-read: no port looks rows up by ID, and section 9 forbids a withdrawn release from blocking reopening.
-3. Compatibility: `label-estimate-compatibility-v1` rerun on the stored cocoa assertion and the stored generic row must admit it.
+3. Compatibility: `label-estimate-compatibility-v1` rerun in full on the stored cocoa percentage, the stored row name and description, the decision's record ID and the stored generic nutrients must admit it.
 4. Nutrients: with a layer, the resolution nutrients must equal `label-estimate-merge-v1(label, generic)`; without one, they must equal the label candidate, as today. The same rule replaces the equality checks at save of a reopened entry.
 
 Any mismatch blocks reopening with the existing integrity failure state.

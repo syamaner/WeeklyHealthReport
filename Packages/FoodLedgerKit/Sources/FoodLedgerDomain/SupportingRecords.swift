@@ -140,6 +140,10 @@ public enum CandidateOutcome: String, Codable, Sendable {
     case selected
     case rejected
     case retainedConflict = "retained_conflict"
+    /// A generic row whose values fill a label's unprinted nutrients (label-estimate-merge-v1,
+    /// #383). Records estimate use without identity acceptance, so contradictions do not turn it
+    /// into `rejected`.
+    case selectedForEstimate = "selected_for_estimate"
 }
 
 public struct CandidateDecision: Codable, Equatable, Sendable {
@@ -174,7 +178,7 @@ public struct CandidateDecision: Codable, Equatable, Sendable {
         self.candidate = candidate
         self.expectedIdentity = expectedIdentity
         self.expectedEdibleQuantity = expectedEdibleQuantity
-        self.outcome = contradictions.isEmpty ? requestedOutcome : .rejected
+        self.outcome = contradictions.isEmpty || requestedOutcome == .selectedForEstimate ? requestedOutcome : .rejected
         self.contradictionReasons = contradictions
         self.assertionID = assertionID
         self.createdAt = createdAt

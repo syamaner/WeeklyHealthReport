@@ -152,6 +152,9 @@ public struct LedgerOperationType: RawRepresentable, Codable, Hashable, Sendable
     public static let confirmFoodV2 = Self(rawValue: "confirm_food_v2")!
     /// Confirmation carrying typed inline decisions (food_confirmation_v5).
     public static let confirmFoodV3 = Self(rawValue: "confirm_food_v3")!
+    /// Confirmation of a label entry with an estimate layer (label-estimate-merge-v1, food
+    /// contract 8): any V1 to V3 case plus the layer, or an edit that keeps it.
+    public static let confirmFoodV4 = Self(rawValue: "confirm_food_v4")!
     public static let recordLogItemV2 = Self(rawValue: "record_log_item_v2")!
     public static let correctLogItemV2 = Self(rawValue: "correct_log_item_v2")!
     public static let correctResolutionV2 = Self(rawValue: "correct_resolution_v2")!
@@ -159,7 +162,7 @@ public struct LedgerOperationType: RawRepresentable, Codable, Hashable, Sendable
     public static let restoreLogItemV2 = Self(rawValue: "restore_log_item_v2")!
     public static let compositeV2 = Self(rawValue: "composite_v2")!
     public static let declaredQuantityTypes: Set<Self> = [
-        .confirmFoodV2, .confirmFoodV3, .recordLogItemV2, .correctLogItemV2, .correctResolutionV2,
+        .confirmFoodV2, .confirmFoodV3, .confirmFoodV4, .recordLogItemV2, .correctLogItemV2, .correctResolutionV2,
         .removeLogItemV2, .restoreLogItemV2, .compositeV2
     ]
 
@@ -210,7 +213,25 @@ public struct LedgerOperationRegistry: Sendable {
            !LedgerOperationType.declaredQuantityTypes.contains(type) {
             throw FoodLedgerStoreError.unsupportedOperation
         }
-        if mutation.assertions.contains(where: { $0.confirmation != nil }), type != .confirmFoodV3 {
+        if mutation.assertions.contains(where: { $0.confirmation != nil }), ![.confirmFoodV3, .confirmFoodV4].contains(type) {
+            throw FoodLedgerStoreError.unsupportedOperation
+        }
+        // The estimate layer is carried only by confirm_food_v4: exactly one cocoa assertion and
+        // resolution versions of exactly two decisions, the second `selected_for_estimate` and the
+        // only one. A V4 edit that keeps the layer writes a log item only. Other types carry no
+        // cocoa assertion, no multi-decision resolution and no estimate decision.
+        let cocoaAssertions = mutation.assertions.filter { $0.labelEstimate != nil }.count
+        let multiDecision = mutation.resolutionVersions.contains { $0.decisionIDs.count > 1 }
+        let estimateDecisions = mutation.candidateDecisions.filter { $0.outcome == .selectedForEstimate }
+        if type == .confirmFoodV4 {
+            if !mutation.resolutionVersions.isEmpty || cocoaAssertions > 0 || !estimateDecisions.isEmpty {
+                guard cocoaAssertions == 1, !mutation.resolutionVersions.isEmpty,
+                      mutation.resolutionVersions.allSatisfy({ version in
+                          version.decisionIDs.count == 2
+                              && estimateDecisions.map(\.candidateDecisionID) == [version.decisionIDs[1]]
+                      }) else { throw FoodLedgerStoreError.unsupportedOperation }
+            }
+        } else if cocoaAssertions > 0 || multiDecision || !estimateDecisions.isEmpty {
             throw FoodLedgerStoreError.unsupportedOperation
         }
         // confirm_food_v3 exists only to carry typed decisions: it must carry exactly that.
@@ -219,20 +240,26 @@ public struct LedgerOperationRegistry: Sendable {
         }
     }
 
+    /// Adds `confirm_food_v4` (label estimate layer, food contract 8, schema food-ledger-v8).
+    public static let builtInV8 = LedgerOperationRegistry(supported:
+        LedgerOperationType.builtInV1.union([.removeLogItem, .restoreLogItem])
+            .union(LedgerOperationType.declaredQuantityTypes)
+            .union(LedgerOperationType.favouriteTypes))
+
     /// Adds the favourite operations (food contract 6, schema food-ledger-v6).
     public static let builtInV6 = LedgerOperationRegistry(supported:
         LedgerOperationType.builtInV1.union([.removeLogItem, .restoreLogItem])
-            .union(LedgerOperationType.declaredQuantityTypes)
+            .union(LedgerOperationType.declaredQuantityTypes.subtracting([.confirmFoodV4]))
             .union(LedgerOperationType.favouriteTypes))
 
     /// Adds `confirm_food_v3` (typed inline decisions, food contract 4, schema food-ledger-v4).
     public static let builtInV4 = LedgerOperationRegistry(supported:
         LedgerOperationType.builtInV1.union([.removeLogItem, .restoreLogItem])
-            .union(LedgerOperationType.declaredQuantityTypes))
+            .union(LedgerOperationType.declaredQuantityTypes.subtracting([.confirmFoodV4])))
 
     public static let builtInV3 = LedgerOperationRegistry(supported:
         LedgerOperationType.builtInV1.union([.removeLogItem, .restoreLogItem])
-            .union(LedgerOperationType.declaredQuantityTypes.subtracting([.confirmFoodV3])))
+            .union(LedgerOperationType.declaredQuantityTypes.subtracting([.confirmFoodV3, .confirmFoodV4])))
 
     public static let builtInV1 = LedgerOperationRegistry(supported: LedgerOperationType.builtInV1)
     public static let builtInV2 = LedgerOperationRegistry(supported: LedgerOperationType.builtInV1.union([.removeLogItem, .restoreLogItem]))
@@ -520,7 +547,7 @@ public struct OperationVerifier: Sendable {
     public init(
         encoder: any CanonicalEncoding,
         digester: any Digesting,
-        operationRegistry: LedgerOperationRegistry = .builtInV6
+        operationRegistry: LedgerOperationRegistry = .builtInV8
     ) {
         self.encoder = encoder
         self.digester = digester
