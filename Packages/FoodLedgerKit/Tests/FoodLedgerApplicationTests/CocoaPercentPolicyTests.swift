@@ -1,8 +1,9 @@
 import FoodLedgerApplication
 import XCTest
 
-/// cocoa-percent-policy-v1 (#382, docs/cocoa-aware-search-v1.md): pure band reading,
-/// eligibility exceptions and tier keys. Synthetic names only.
+/// cocoa-percent-policy-v1 (#382, docs/cocoa-aware-search-v1.md) and v2's open-ended bands
+/// (#384, docs/ciqual-2025-admission-v1.md 4.1): pure band reading, eligibility exceptions and
+/// tier keys. Synthetic names only.
 final class CocoaPercentPolicyTests: XCTestCase {
     private let estimateID = CocoaPercentPolicy.estimate100RecordID
 
@@ -10,7 +11,7 @@ final class CocoaPercentPolicyTests: XCTestCase {
         func band(_ name: String, _ description: String? = nil) -> CocoaPercentPolicy.Band? {
             CocoaPercentPolicy.band(name: name, description: description, recordID: nil)
         }
-        XCTAssertEqual(CocoaPercentPolicy.version, "cocoa-percent-policy-v1")
+        XCTAssertEqual(CocoaPercentPolicy.version, "cocoa-percent-policy-v2")
         XCTAssertEqual(band("Chocolate, dark, 45- 59% cacao solids"), .declared(lower: 45, upper: 59))
         XCTAssertEqual(band("Chocolate, dark, 70-85% cacao solids"), .declared(lower: 70, upper: 85))
         XCTAssertEqual(band("Chocolate, dark, 70\u{2013}85% cocoa solids"), .declared(lower: 70, upper: 85))
@@ -30,6 +31,45 @@ final class CocoaPercentPolicyTests: XCTestCase {
         XCTAssertNil(band("Chocolate drink powder", "contains 100% cocoa powder"))
         // Agreeing name and description are one band.
         XCTAssertEqual(band("Chocolate, dark, 70% cocoa", "70% cocoa solids"), .declared(lower: 70, upper: 70))
+    }
+
+    func testOpenEndedPhrasesReadAsAtLeastAndNeverAsAPointBand() {
+        func band(_ name: String, _ description: String? = nil) -> CocoaPercentPolicy.Band? {
+            CocoaPercentPolicy.band(name: name, description: description, recordID: nil)
+        }
+        for phrase in ["more than 40% cocoa", "over 40% cocoa", "at least 40% cocoa", "minimum 40% cocoa",
+                       "40% cocoa or more", "40% cocoa and more", "40% cocoa minimum", "More Than 40 % Cacao",
+                       "at least 40% cocoa solids", "40% cocoa solids or more", "40 %  cacao  and  more"] {
+            XCTAssertEqual(band("Dark chocolate, \(phrase), for cooking, bar"), .atLeast(40), phrase)
+        }
+        XCTAssertEqual(band("Dark chocolate, more than 40% cocoa, for cooking, bar"), .atLeast(40), "Ciqual 31085")
+        XCTAssertEqual(band("Dark chocolate, at least 85.5% cocoa"), .atLeast(85.5))
+        // Combination: a blend yields to an open-ended reading; a declared band or a second value gives no band.
+        XCTAssertEqual(band("Chocolate (45-59% cacao solids 90%)", "at least 50% cocoa"), .atLeast(50))
+        XCTAssertNil(band("Dark chocolate, at least 70% cocoa", "85% cocoa"))
+        XCTAssertNil(band("Dark chocolate, at least 70% cocoa", "70% cocoa"), "a declared band and an open-ended one are two readings")
+        XCTAssertNil(band("Dark chocolate, at least 70% cocoa, over 85% cocoa"))
+        XCTAssertEqual(band("Dark chocolate, at least 70% cocoa", "at least 70% cocoa"), .atLeast(70), "one distinct reading")
+        XCTAssertNil(band("Dark chocolate, at least 170% cocoa"), "outside 0 to 100")
+        // An ingredient word after the cocoa wording is not a band; parenthesised text is a blend.
+        XCTAssertNil(band("Milk chocolate, at least 30% cocoa butter"))
+        XCTAssertNil(band("Chocolate drink, minimum 20% cocoa powder"))
+        XCTAssertEqual(band("Dark chocolate (at least 70% cocoa)"), .blend)
+        // Without a qualifier, v1's point band is unchanged.
+        XCTAssertEqual(band("Dark chocolate, 70% cocoa, bar"), .declared(lower: 70, upper: 70))
+        XCTAssertEqual(band("Dark chocolate, overall 70% cocoa"), .declared(lower: 70, upper: 70), "a word boundary, not a prefix")
+    }
+
+    func testAnOpenEndedBandIsTierFourNeverAdmittedAndNotedAsSpecified() throws {
+        let keys = CocoaPercentPolicy.tierKeys([.atLeast(40), nil, .declared(lower: 50, upper: 50)], requested: 40)
+        XCTAssertEqual(keys[0], keys[1], "tier 4, as a row with no single band")
+        XCTAssertLessThan(keys[2], keys[0])
+        let parsed = FoodQueryParser.parse("dark chocolate 40%")
+        let name = "Dark chocolate, more than 40% cocoa, for cooking, bar"
+        XCTAssertFalse(CocoaPercentPolicy.admits(name: name, description: nil, recordID: nil, query: parsed, foodTerms: ["dark", "chocolate"]))
+        XCTAssertFalse(CocoaPercentPolicy.admits(name: "Chocolate, at least 70% cocoa", description: nil, recordID: nil,
+                                                 query: FoodQueryParser.parse("dark chocolate 70%"), foodTerms: ["dark", "chocolate"]),
+                       "only full word coverage reaches an open-ended row")
     }
 
     func testOnlyTheApprovedRecordIsTheHundredPercentEstimate() {

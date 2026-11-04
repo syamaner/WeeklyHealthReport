@@ -22,12 +22,15 @@ public struct LabelEstimateOption: Equatable, Sendable, Identifiable {
     }
 }
 
-/// Rule 7's candidate pool (`label-estimate-pool-v1`): the bundled generic rows reached through
-/// the generic search port for the query "dark chocolate <p>%", kept where rule 3 admits them,
-/// distinct by record ID, in search order. The searcher is the one the generic search route uses,
-/// wired at the composition root; no other source and no network.
+/// Rule 7's candidate pool: the bundled generic rows reached through the generic search port for
+/// the query "dark chocolate <p>%", kept where rule 3 admits them, distinct by record ID, in search
+/// order. The searcher is the one the generic search route uses, wired at the composition root; no
+/// other source and no network. The version, stamped on the pool's evidence, names the source set:
+/// `label-estimate-pool-v1` CoFID, USDA and TFDA (regional); `label-estimate-pool-v2` (#384) those
+/// plus Ciqual 2025 as a reference-only source (`composite-generic-ranking-v11`). Saved v1
+/// evidence keeps its stamp and reopens unchanged.
 public struct LabelEstimateCandidatePool: Sendable {
-    public static let version = "label-estimate-pool-v1"
+    public static let version = "label-estimate-pool-v2"
     /// The evidence capture method of the pool search, so a saved estimate never claims a search
     /// the user typed.
     public static let captureMethod = "label_estimate_pool_search"

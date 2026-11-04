@@ -5,7 +5,7 @@ import FoodLedgerDomain
 /// ("UK reference · cooked · 248 kcal for 150 g"); no text is produced here.
 public struct FoodSearchResultSummary: Equatable, Sendable {
     public enum SourceFamily: Equatable, Sendable {
-        case ukReference, usReference, taiwanReference, packagedProduct, webSource, yourFoods, otherSource
+        case ukReference, usReference, taiwanReference, frenchReference, packagedProduct, webSource, yourFoods, otherSource
     }
     public enum Energy: Equatable, Sendable {
         /// Energy scaled to the amount: kcal rounded to a whole number, half away from zero.
@@ -78,6 +78,7 @@ public struct FoodSearchResultSummary: Equatable, Sendable {
         if id.contains("cofid") { return .ukReference }
         if id.contains("usda") { return .usReference }
         if id == "tfda-taiwan" { return .taiwanReference }
+        if id == "ciqual" { return .frenchReference }
         if id.contains("openfoodfacts") || id.contains("open-food-facts") { return .packagedProduct }
         if id == "reviewed-web-proposal" { return .webSource }
         return .otherSource

@@ -3576,3 +3576,31 @@ The window runs from `2026-11-04T06:55:28Z` (the end of WHR-384-2026-11-04) to `
 Included: merging #398 and the PDF download. Excluded: this ledger edit, the commit, the push and the PR after that time.
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a charge. Local builds and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-384-2026-11-04c: Claude Code Ciqual search, cocoa policy v2 and composite v11, slice C2 (#384, phase C of #381)
+
+The coordinator session (`claude-opus-5-5`, session `8abede54-9564-4edc-9de1-c099dbc90ead`) did the following in this window:
+- fixed two Qodo findings on #400 (the audit now checks group codes and every nutrient key);
+- dismissed a third as deferred to C2, with the owner's approval;
+- merged #400;
+- briefed C2 and triaged its review;
+- decided the pool version bump to `label-estimate-pool-v2` under the owner's delegation;
+- checked the app test count against the log.
+
+Two subagents ran in the window:
+- One general-purpose implementer, in two turns: first `CiqualGenericFoodSearch`, `cocoa-percent-policy-v2`, `composite-generic-ranking-v11`, the French reference labels and FoodSearchQuality v8; then the eight review fixes, including running the subsequence test concurrently (313 s to 56 s locally).
+- One `invariant-reviewer`: PASS WITH CHANGES, with 4 medium and 4 low findings, all applied.
+
+The window runs from `2026-11-04T07:56:56Z` (the end of WHR-384-2026-11-04b) to `2026-11-04T10:37:07Z`. Cache writes: coordinator 47,312 1-hour, subagents 1,656,042 5-minute.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| C1 Qodo follow-up and Ciqual search (#384 C2), coordinator session | 9,728,077 (9,680,689) | 47,312 | 22,084 | 9,750,161 | $2.76 |
+| Implementation and invariant review (#384 C2), subagents | 45,055,349 (43,398,947) | 1,656,042 | 189,464 | 45,244,813 | $20.75 |
+| **Subtotal** | 54,783,426 (53,079,636) | 1,703,354 | 211,548 | 54,994,974 | $23.51 |
+
+Method: `phase_usage.py --format claude --since 2026-11-04T07:56:56Z --until 2026-11-04T10:37:07Z` on the session transcript, without and with `--include-subagents`; the subagent row is the difference. Exact USD 2.7566178 and 23.5073372.
+
+Included: merging #400 and the Qodo dismissal. Excluded: this ledger edit, the commit, the push and the PR after that time.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a charge. Local builds and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.

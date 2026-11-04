@@ -147,6 +147,7 @@ public enum FoodSearchResultText {
         case .ukReference: "UK reference"
         case .usReference: "US reference"
         case .taiwanReference: "Taiwan reference"
+        case .frenchReference: "French reference"
         case .packagedProduct: "Packaged product"
         case .webSource: "Web source"
         case .yourFoods: "Your foods"

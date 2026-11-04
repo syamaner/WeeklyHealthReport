@@ -2,8 +2,9 @@ import CryptoKit
 import Foundation
 import XCTest
 
-/// Pins the bundled Ciqual 2025 corpus (#384 C1, `docs/ciqual-2025-admission-v1.md`).
-/// The searcher that loads it arrives in C2; until then this test holds the bytes still.
+/// Pins the bundled Ciqual 2025 corpus (#384 C1, `docs/ciqual-2025-admission-v1.md`) from the
+/// raw JSON, independently of `CiqualGenericFoodSearch` (C2), whose own hash check at load must
+/// agree with these values (`CiqualGenericFoodSearchTests`).
 final class CiqualCorpusPinTests: XCTestCase {
     static let corpusSHA256 = "2a298bd5e9c43d2e32ed3164c2a53de0dc21f80c9812285faf137dde196f333f"
     static let sourceManifestSHA256 = "3134f8dc9feb3e17e4d297fdc42f7711eff41af3210facb5d24c35194fa0d847"

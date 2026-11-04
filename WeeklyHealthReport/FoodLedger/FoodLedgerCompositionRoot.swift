@@ -128,11 +128,13 @@ final class FoodLedgerCompositionRoot {
             clock: confirmationClock, ids: ids, digester: SHA256Digester(), calendar: confirmationCalendar)
         // Taiwan rows follow UK and US rows unless the Settings market is Taiwan or the
         // query names Taiwan or contains Chinese characters (composite-generic-ranking-v9).
+        // Ciqual (French reference) rows follow every other row and are never promoted
+        // (composite-generic-ranking-v11); the label estimate pool searches this composite too.
         let market = foodMarket
         genericFoodSearch = try CompositeGenericFoodSearch(sources: [
             CoFIDGenericFoodSearch(library: PersonalLibraryGenericFoodSearch(reader: store), ids: ids),
             USDAGenericFoodSearch(ids: ids)
-        ], regionalSources: [TFDAGenericFoodSearch(ids: ids)], promotesRegional: { request in
+        ], regionalSources: [TFDAGenericFoodSearch(ids: ids)], referenceSources: [CiqualGenericFoodSearch(ids: ids)], promotesRegional: { request in
             RegionalSourceOrderPolicy.promotesTaiwan(query: request.text.value, marketIsTaiwan: market.market == .taiwan)
         }, ids: ids)
         milkVolumeConversion = try CoFIDWholeMilkVolumeConversion()
