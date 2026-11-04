@@ -92,12 +92,17 @@ public struct QuickAddPreparation: Sendable {
     public let label: String
     /// Value and unit offered in the sheet, the default amount.
     public let defaultAmount: FavouriteAmount
+    /// The pinned entry carries a label estimate layer, which logging it again does not save:
+    /// Confirm says the label values only are logged (docs/label-estimate-merge-v1.md section 8).
+    public var labelEstimateNotCarried = false
 
     /// The same preparation with an equivalent rebuilt state (for example the input enriched with
     /// an offered volume source at the composition root). Eligibility is not re-derived.
     public func replacingState(_ state: FoodConfirmationState) -> QuickAddPreparation {
-        QuickAddPreparation(item: item, state: state, eligibility: eligibility, isPlainWater: isPlainWater,
-                            label: label, defaultAmount: defaultAmount)
+        var copy = QuickAddPreparation(item: item, state: state, eligibility: eligibility, isPlainWater: isPlainWater,
+                                       label: label, defaultAmount: defaultAmount)
+        copy.labelEstimateNotCarried = labelEstimateNotCarried
+        return copy
     }
 }
 
@@ -405,9 +410,11 @@ public final class FavouritesService: @unchecked Sendable {
     private func preparation(_ item: QuickAddItem, state: FoodConfirmationState, pinned: StoredFoodConfirmation?,
                              estimate: Bool, isPlainWater: Bool, label: String, amount: FavouriteAmount,
                              now: Date) -> QuickAddPreparation {
-        QuickAddPreparation(item: item, state: state,
+        var preparation = QuickAddPreparation(item: item, state: state,
             eligibility: QuickAddPolicy.eligibility(pinned: pinned, pinnedIsEstimate: estimate, rebuilt: state, now: now, calendar: calendar),
             isPlainWater: isPlainWater, label: label, defaultAmount: amount)
+        preparation.labelEstimateNotCarried = pinned.map(FoodEntryEstimateStatus.isPartlyEstimated) ?? false
+        return preparation
     }
 
     /// Whether a favourite's pinned entry is a derived estimate; nil when it cannot be verified.
@@ -415,6 +422,15 @@ public final class FavouritesService: @unchecked Sendable {
         guard case let .savedEntry(id) = version.binding else { return false }
         guard let pinned = try? confirmations.pinnedConfirmation(id), (try? confirmations.favouriteInput(pinned)) != nil else { return nil }
         return try? confirmations.isEstimate(pinned)
+    }
+
+    /// Whether a favourite's pinned entry is marked "Partly estimated" (the shared rule); false
+    /// when it cannot be verified (the row then says so instead).
+    public func isPartlyEstimated(_ version: FavouriteVersion) -> Bool {
+        guard case let .savedEntry(id) = version.binding, let pinned = try? confirmations.pinnedConfirmation(id),
+              let isEstimate = try? confirmations.isEstimate(pinned) else { return false }
+        return FoodEntryEstimateStatus.showsPartlyEstimated(isPartlyEstimated: FoodEntryEstimateStatus.isPartlyEstimated(pinned),
+                                                            isEstimate: isEstimate, quantityIsEstimate: false)
     }
 
     /// Whether a favourite's count amount means servings of a label (#306 journey QA; photo

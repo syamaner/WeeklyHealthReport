@@ -35,8 +35,9 @@ public struct FoodLogReadingService: Sendable {
     public func day(reportingDate: String) throws -> FoodLogDayContent {
         let records = try archive.archiveState().records
         let projection = try FoodIntakeProjection(records: records, reportingDate: reportingDate)
+        let status = statuses(projection.rows.map(\.logItemID))
         return FoodLogDayContent(projection: projection, reportingDate: reportingDate,
-                                 estimates: estimates(projection.rows.map(\.logItemID)),
+                                 estimates: status.estimates, partlyEstimated: status.partlyEstimated,
                                  plainWater: try PlainWaterDayTotal.total(records: records, reportingDate: reportingDate))
     }
 
@@ -67,12 +68,16 @@ public struct FoodLogReadingService: Sendable {
         change(logItemID, expected: expected, restoring: true)
     }
 
-    /// Entries whose current saved version is a labelled estimate. An unreadable entry is not labelled.
-    private func estimates(_ ids: [LogItemID]) -> Set<LogItemID> {
-        Set(ids.filter { id in
-            guard let stored = try? confirmationReader.foodConfirmation(logItemID: id) else { return false }
-            return (try? confirmations.isEstimate(stored)) == true
-        })
+    /// Entries whose current saved version is a labelled estimate, and those that carry a label
+    /// estimate layer ("partly estimated"). An unreadable entry is neither.
+    private func statuses(_ ids: [LogItemID]) -> (estimates: Set<LogItemID>, partlyEstimated: Set<LogItemID>) {
+        var estimates: Set<LogItemID> = [], partly: Set<LogItemID> = []
+        for id in ids {
+            guard let stored = try? confirmationReader.foodConfirmation(logItemID: id) else { continue }
+            if (try? confirmations.isEstimate(stored)) == true { estimates.insert(id) }
+            if FoodEntryEstimateStatus.isPartlyEstimated(stored) { partly.insert(id) }
+        }
+        return (estimates, partly)
     }
 
     private func change(_ logItemID: LogItemID, expected: LogItemVersionID, restoring: Bool) -> FoodLogChangeOutcome {

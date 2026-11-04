@@ -72,6 +72,41 @@ final class LabelEstimateCompatibilityTests: XCTestCase {
         XCTAssertFalse(LabelEstimateCompatibility.isCompatible(personal, cocoaPercent: 80))
     }
 
+    /// Rule 7's pool (label-estimate-pool-v1): the one query "dark chocolate <p>%" through the
+    /// composite generic search port, as the composition root wires it (CoFID, USDA, then TFDA as
+    /// a regional source), reaches the rows the compatibility tests above expect.
+    func testThePoolQueryReachesTheCompatibleRowsInSearchOrder() throws {
+        let ids = CompatibilityIDs()
+        let search = CompositeGenericFoodSearch(sources: [try CoFIDGenericFoodSearch(ids: ids), try USDAGenericFoodSearch(ids: ids)],
+                                                regionalSources: [try TFDAGenericFoodSearch(ids: ids)], ids: ids)
+        let pool = LabelEstimateCandidatePool(searcher: search, ids: ids)
+        func options(_ p: Double) throws -> [LabelEstimateOption] {
+            try pool.options(cocoaPercent: p, capturedAt: Date(timeIntervalSince1970: 1_700_000_000), locale: try LedgerText("en_GB"))
+        }
+        let band = "Chocolate, dark, 70-85% cacao solids", baking = "Baking chocolate, unsweetened, squares"
+        let expected: [Double: [String]] = [
+            30: [], 40: ["Chocolate, plain"], 50: ["Chocolate, plain", "Chocolate, dark, 45- 59% cacao solids"],
+            70: [band], 85: [band], 85.5: [band], 86: [band], 90: [band], 99: [band], 99.5: [band], 100: [baking]
+        ]
+        for (p, names) in expected {
+            let found = try options(p)
+            XCTAssertEqual(found.map(\.generic.name.value), names, "\(p)%")
+            XCTAssertEqual(Set(found.map(\.id)).count, found.count, "distinct by record ID at \(p)%")
+            for option in found {
+                XCTAssertTrue(LabelEstimateCompatibility.isCompatible(option.generic, cocoaPercent: p))
+                XCTAssertEqual(option.evidence.map(\.evidenceID), option.generic.candidate.evidenceIDs, "the save's evidence rule")
+                XCTAssertEqual(option.evidence.map(\.captureMethod.value), [LabelEstimateCandidatePool.captureMethod])
+                XCTAssertEqual(option.sourceRelease.sourceReleaseID, option.generic.candidate.sourceReleaseID)
+            }
+        }
+        XCTAssertEqual(try options(90).map(\.id), [LabelEstimateCompatibility.nearestBandRecordID], "FDC 170273 for 86 to 99%")
+        XCTAssertEqual(try options(100).map(\.id), [CocoaPercentPolicy.estimate100RecordID], "FDC 167568 for 100%")
+        XCTAssertEqual(try options(0), [])
+        XCTAssertEqual(try options(85.55), [], "invalid percentages search nothing")
+        XCTAssertEqual(LabelEstimateCandidatePool.query(cocoaPercent: 85.5), "dark chocolate 85.5%")
+        XCTAssertEqual(LabelEstimateCandidatePool.query(cocoaPercent: 90), "dark chocolate 90%")
+    }
+
     func testAMilkChocolateRowIsNeverCompatible() throws {
         for candidate in try rows("milk chocolate") where candidate.name.value.lowercased().contains("milk") {
             for p in [30.0, 40, 50] {

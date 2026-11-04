@@ -80,7 +80,8 @@ struct FoodLogView: View {
         .foodLoggedBannerScreen(root.loggedBanner)
         .navigationDestination(item: $openedEntry) { id in
             SavedFoodEntryView(model: root.savedEntryModel(id), favourites: root.favouriteSaveModel(),
-                               calendar: model.calendar, now: { root.confirmationNow }, photoBytes: { root.labelPhotoBytes($0) })
+                               calendar: model.calendar, now: { root.confirmationNow }, photoBytes: { root.labelPhotoBytes($0) },
+                               developerTools: root.userDefaults.bool(forKey: FoodSearchDeveloperTools.storageKey))
         }
         .onChange(of: openedEntry) { _, entry in if entry == nil { Task { await model.load() } } }
         // `presenting` captures the entry when the alert appears; dismissal clears pendingRemoval

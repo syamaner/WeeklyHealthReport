@@ -215,6 +215,17 @@ public enum LabelPhotoSavedEntryText {
                                           date: formatter.string(from: date))
     }
 
+    /// A resolution in words. A value left unknown on the label that a label estimate filled
+    /// reads as the estimate, never as both "Left unknown" and "Estimated" (#383).
+    public static func state(_ resolution: LabelPhotoAttention.Resolution, estimated: Bool) -> String {
+        switch resolution {
+        case .checked: LabelPhotoText.checkedByYou
+        case .corrected: LabelPhotoText.correctedByYou
+        case .entered: LabelPhotoText.enteredByYou
+        case .leftUnknown: estimated ? LabelEstimateSavedEntryText.estimatedState : LabelPhotoText.leftUnknown
+        }
+    }
+
     /// One line per value the user resolved: "Protein, per 100 g: Checked by you".
     public static func stateLines(_ detail: SavedFoodEntryDetail) -> [String] {
         guard let manifest = detail.labelPhoto else { return [] }
@@ -223,13 +234,13 @@ public enum LabelPhotoSavedEntryText {
             (LabelPhotoManifest.cellItem(rowID: cell.rowID, headerID: cell.headerID),
              LabelPhotoSourceModel.title(cell.nutrient, printed: cell.printedLabel) + ", " + LabelPhotoText.column(columns[cell.headerID] ?? cell.basis))
         }, uniquingKeysWith: { first, _ in first })
+        let keys = Dictionary(manifest.candidate.cells.map { cell in
+            (LabelPhotoManifest.cellItem(rowID: cell.rowID, headerID: cell.headerID), PastedLabelSource.ledgerKeys[cell.nutrient])
+        }, uniquingKeysWith: { first, _ in first })
+        let estimated = Set(detail.labelEstimate?.estimatedKeys ?? [])
         return manifest.attention.map { record in
-            let state: String = switch record.resolution {
-            case .checked: LabelPhotoText.checkedByYou
-            case .corrected: LabelPhotoText.correctedByYou
-            case .entered: LabelPhotoText.enteredByYou
-            case .leftUnknown: LabelPhotoText.leftUnknown
-            }
+            let isEstimated = keys[record.item].flatMap { $0 }.map(estimated.contains) ?? false
+            let state = Self.state(record.resolution, estimated: isEstimated)
             let title = titles[record.item] ?? (record.item == "serving_size" ? "Serving size" : "Servings per pack")
             return title + ": " + state
         }

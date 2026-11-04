@@ -110,6 +110,13 @@ final class LabelEstimateStorageContractTests: XCTestCase {
             let reopened = try XCTUnwrap(service.reopen(logItemID: saved.logItem.logItemID), harness.name)
             XCTAssertEqual(reopened.input.candidates, input.candidates, harness.name)
             XCTAssertEqual(reopened.reopened?.estimate, layer, harness.name)
+            // Section 8: the layered entry is "partly estimated"; its estimate status is unchanged.
+            XCTAssertTrue(FoodEntryEstimateStatus.isPartlyEstimated(saved), harness.name)
+            XCTAssertEqual(try service.isEstimate(saved), false, "a label source is not a generic estimate (\(harness.name))")
+            let detail = try XCTUnwrap(SavedFoodEntryDetail(stored: saved, isEstimate: false, history: []).labelEstimate, harness.name)
+            XCTAssertEqual(detail.releases.map(\.sourceReleaseID.value), [label.sourceReleaseID.value, Self.genericReleaseID], "both releases")
+            XCTAssertEqual(detail.decisions.map(\.outcome), [saved.candidateDecision.outcome, .selectedForEstimate], "both decisions")
+            XCTAssertEqual(detail.estimatedKeys, [.iron, .magnesium], "the keys the generic row filled, in catalogue order")
         }
     }
 
@@ -121,6 +128,9 @@ final class LabelEstimateStorageContractTests: XCTestCase {
             XCTAssertNil(saved.estimate, harness.name)
             XCTAssertEqual(saved.resolutionVersion.decisionIDs.count, 1, harness.name)
             XCTAssertEqual(saved.assertions, [], harness.name)
+            // Section 8: a label-only entry is never "partly estimated" and keeps its estimate status.
+            XCTAssertFalse(FoodEntryEstimateStatus.isPartlyEstimated(saved), harness.name)
+            XCTAssertNil(SavedFoodEntryDetail(stored: saved, isEstimate: false, history: []).labelEstimate, harness.name)
         }
         // An assertion without a layer encodes no estimate key and re-encodes byte for byte.
         let assertion = UserAssertion(assertionID: try LedgerFixtures.id(61, AssertionTag.self), author: .user,
