@@ -3,6 +3,7 @@ import hashlib
 import importlib.util
 from pathlib import Path
 import tempfile
+import json
 import unittest
 
 spec = importlib.util.spec_from_file_location('project_ciqual', Path(__file__).parents[1] / 'project_ciqual.py')
@@ -247,6 +248,15 @@ class CiqualProjectionTests(unittest.TestCase):
         corpus['records'][1]['nutrients']['iron']['value'] = '15'
         path.write_bytes(m.corpus_bytes(corpus))
         self.assertEqual(audit.audit(self.folder, path, files=files)['valueCorrespondence']['passed'], 77)
+        corpus['records'][1]['nutrients']['iron']['value'] = '1.5'
+        for field, tampered in (('groupCode', '99'), ('subSubgroupCode', '999999')):
+            with self.subTest(field=field):
+                changed = json.loads(m.corpus_bytes(corpus)); changed['records'][1][field] = tampered
+                path.write_bytes(m.corpus_bytes(changed))
+                self.assertEqual(audit.audit(self.folder, path, files=files)['identityFailures'], 1)
+        emptied = json.loads(m.corpus_bytes(corpus)); emptied['records'][1]['nutrients'] = {}
+        path.write_bytes(m.corpus_bytes(emptied))
+        self.assertGreater(audit.audit(self.folder, path, files=files)['identityFailures'], 0, 'an emptied record fails')
         corpus['records'] = corpus['records'][1:]
         path.write_bytes(m.corpus_bytes(corpus))
         with self.assertRaisesRegex(ValueError, 'scope binding'):

@@ -41,9 +41,12 @@ def audit(folder, corpus_path, files=projector.FILES):
     for record in corpus['records']:
         code = record['alimCode']
         food = foods[code]
-        if (food['alim_nom_eng'], food['alim_nom_fr'], food['alim_ssgrp_code']) != (
-                record['name'], record['frenchName'], record['subgroupCode']):
+        if (food['alim_nom_eng'], food['alim_nom_fr'], food['alim_grp_code'], food['alim_ssgrp_code'], food['alim_ssssgrp_code']) != (
+                record['name'], record['frenchName'], record.get('groupCode'), record['subgroupCode'], record.get('subSubgroupCode')):
             failures.append(dict(alimCode=code, field='identity'))
+        # Every catalogue key must be present: a dropped key is a failure, never a smaller denominator.
+        if set(record['nutrients']) != set(projector.MAPPING):
+            failures.append(dict(alimCode=code, field='nutrientKeys'))
         if record['recordID'] != corpus['sourceReleaseID'] + ':alim:' + code:
             failures.append(dict(alimCode=code, field='recordID'))
         for key in sorted(record['nutrients']):
