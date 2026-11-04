@@ -139,10 +139,12 @@ enum LabelFixtures {
     }
 
     /// A Confirm wired like the app: an in-memory ledger, the pasted-label conversion checker on
-    /// save, and each correction replacing Confirm's source input.
+    /// save, and each correction replacing Confirm's source input. With `labelEstimate`, Log saves
+    /// a chosen estimate through `save(_:estimate:)`, as the composition root wires the paste route.
     @MainActor
     static func confirm(_ source: PastedLabelSourceModel,
-                        conversions: any PastedLabelConversionChecking = Conversions()) throws -> (FoodConfirmationViewModel, InMemoryFoodLedgerStore) {
+                        conversions: any PastedLabelConversionChecking = Conversions(),
+                        labelEstimate: LabelEstimateModel? = nil) throws -> (FoodConfirmationViewModel, InMemoryFoodLedgerStore) {
         let store = InMemoryFoodLedgerStore()
         let ids = RandomLedgerIDGenerator()
         let ledger = FoodLedgerService(actorID: try LedgerID("00000000-0000-0000-0000-00000000a000"), committer: store,
@@ -150,8 +152,14 @@ enum LabelFixtures {
         let service = FoodConfirmationService(ledger: ledger, reader: store, clock: Clock(value: now), ids: ids,
             digester: SHA256Digester(), pastedLabelConversions: conversions)
         let input = try XCTUnwrapOrThrow(source.input)
+        var saveEstimate: (@MainActor (FoodConfirmationState, LabelEstimateChoice) throws -> StoredFoodConfirmation)?
+        if labelEstimate != nil {
+            saveEstimate = { (state: FoodConfirmationState, estimate: LabelEstimateChoice) in
+                try service.save(state, operationID: ids.makeID(OperationTag.self), idempotencyKey: nil, estimate: estimate)
+            }
+        }
         let model = FoodConfirmationViewModel(state: FoodConfirmationState(input: input, prefillSourceQuantity: false),
-                                              now: { now }) { state in
+                                              now: { now }, labelEstimate: labelEstimate, estimateSaveAction: saveEstimate) { state in
             try service.save(state, operationID: ids.makeID(OperationTag.self), idempotencyKey: nil)
         }
         source.onInputChange = { [weak model] in model?.replaceSourceInput($0) }
