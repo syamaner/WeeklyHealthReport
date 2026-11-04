@@ -3434,6 +3434,14 @@ Pricing uses the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M b
 
 `phase_usage.py --format claude --since 2026-11-03T07:06:59Z --until 2026-11-03T07:49:04Z` on the session transcript, without and with `--include-subagents` (the subagent row is the difference); exact USD 6.1190442 and 7.4732118. Excluded: the P2b validator and invariant review, which start after the window, this ledger edit and anything after the window. Token totals are not evidence of productivity, quality or provider efficiency.
 
+## WHR-389-2026-11-03: Copy daily JSON and bound the exact-file preview
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Codex implementation, signed device build and PR preparation | Unmeasured | Unmeasured | Unmeasured | Unmeasured | Unmeasured |
+
+No implementation baseline was captured for this phase. Hosted CI and subsequent review are outside this record.
+
 ## WHR-382-2026-11-03: Claude Code cocoa-aware generic search (#382, phase A of #381)
 
 The coordinator session (`claude-opus-5-5`, session `8abede54-9564-4edc-9de1-c099dbc90ead`) wrote `docs/cocoa-aware-search-v1.md`, froze FoodQueryEvaluation v10 and FoodSearchQuality v7, and implemented parser v11 and `cocoa-percent-policy-v1` with their tests. Five subagents ran inside the window: one Explore map of the evaluation harnesses, one `architecture-gate` (PASS WITH CHANGES, 14 findings), one `invariant-reviewer` (PASS WITH CHANGES, 7 findings), one `validator` run stopped early when the review fixes began, and one complete `validator` run (PASS). The window runs from the owner's go-ahead at `2026-11-03T08:38:41Z` (the logged message time) to `2026-11-03T09:43:36Z`. Cache writes: coordinator 219,138 1-hour, subagents 392,935 5-minute.

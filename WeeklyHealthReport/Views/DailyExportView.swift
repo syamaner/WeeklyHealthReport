@@ -1,4 +1,6 @@
 import SwiftUI
+import UIKit
+import UniformTypeIdentifiers
 
 struct DailyExportView: View {
     @ObservedObject var session: DailyDriveSessionController
@@ -9,6 +11,7 @@ struct DailyExportView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var exactJSON: ExactJSONInspection?
+    @State private var copiedExactJSON = false
     @State private var showingTrashedDestinationConfirmation = false
     @State private var showingTrashedFileConfirmation = false
     @State private var showingTrashedFoodFileConfirmation = false
@@ -62,17 +65,40 @@ struct DailyExportView: View {
                 Text("About the file")
             }
         }
-        .sheet(item: $exactJSON) { inspection in
+        .sheet(item: $exactJSON, onDismiss: { copiedExactJSON = false }) { inspection in
             NavigationStack {
-                ScrollView([.horizontal, .vertical]) {
-                    Text(inspection.text)
-                        .font(.system(.caption, design: .monospaced))
-                        .textSelection(.enabled)
-                        .padding()
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        if inspection.isPreviewLimited {
+                            Text("Showing the first part of this file. Copy JSON copies the complete file.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                        Text(inspection.previewText)
+                            .font(.system(.caption, design: .monospaced))
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .navigationTitle("Exact file")
                 .navigationBarTitleDisplayMode(.inline)
+                .safeAreaInset(edge: .bottom) {
+                    Button {
+                        UIPasteboard.general.setItems(
+                            [[UTType.utf8PlainText.identifier: inspection.text]],
+                            options: [.localOnly: true, .expirationDate: Date().addingTimeInterval(600)]
+                        )
+                        copiedExactJSON = true
+                    } label: {
+                        Label(copiedExactJSON ? "Copied" : "Copy JSON", systemImage: copiedExactJSON ? "checkmark" : "doc.on.doc")
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .padding()
+                    .background(.bar)
+                }
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Done") { exactJSON = nil }
@@ -536,6 +562,17 @@ struct DailyExportView: View {
 private struct ExactJSONInspection: Identifiable {
     let id = UUID()
     let text: String
+
+    // Keep the rendered text bounded; copying still uses the exact payload.
+    private static let previewCharacterLimit = 8_192
+
+    var previewText: String { String(text.prefix(Self.previewCharacterLimit)) }
+
+    var isPreviewLimited: Bool {
+        text.index(text.startIndex, offsetBy: Self.previewCharacterLimit, limitedBy: text.endIndex)
+            .map { $0 != text.endIndex } ?? false
+    }
+
 }
 
 private extension DailyDriveSessionController.FileReplacementReason {
