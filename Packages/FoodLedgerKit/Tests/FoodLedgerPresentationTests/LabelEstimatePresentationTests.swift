@@ -148,7 +148,7 @@ final class LabelEstimatePresentationTests: XCTestCase {
         XCTAssertEqual(estimate.confirmed?.origin, .typed)
     }
 
-    func testANewPrefillWithdrawsAConfirmationTakenFromTheOldOneButNotATypedValue() throws {
+    func testADifferentLabelWithdrawsAnyConfirmationAndChoiceTypedOrNot() throws {
         let (model, estimate, _, label) = try confirmWithSource()
         estimate.confirmPercent()
         estimate.choose(try XCTUnwrap(estimate.options.first).id)
@@ -166,8 +166,11 @@ final class LabelEstimatePresentationTests: XCTestCase {
         typed.confirmPercent()
         typed.choose(try XCTUnwrap(typed.options.first).id)
         typedLabel.updateNameAndBrand(name: "Synthetic dark chocolate 90% cocoa", brand: "Synthetic Mill")
-        XCTAssertEqual(typed.confirmed, .init(value: 80, origin: .typed), "a typed value is the user's and stays")
-        XCTAssertNotNil(typedModel.pendingLabelEstimate)
+        XCTAssertNil(typed.confirmed, "a percentage typed for another label does not carry over")
+        XCTAssertNil(typed.chosenID)
+        XCTAssertNil(typedModel.pendingLabelEstimate, "the new label never saves the old label's estimate")
+        XCTAssertEqual(typed.percentText, "90", "the new label's own suggestion")
+        XCTAssertTrue(typed.showsSuggestion)
     }
 
     func testACorrectionClearsTheChoiceAndTheModelStatesTheUnavailableNote() throws {

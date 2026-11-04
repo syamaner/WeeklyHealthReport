@@ -32,6 +32,8 @@ public final class LabelEstimateModel: ObservableObject {
     }
 
     private let lookup: Lookup
+    /// The label the section was last prepared for.
+    private var source: PopulatedFoodCandidate?
     /// The field's text. Editing it after a confirmation withdraws the confirmation and the list.
     @Published public private(set) var percentText = ""
     @Published public private(set) var confirmed: ConfirmedPercent?
@@ -51,10 +53,21 @@ public final class LabelEstimateModel: ObservableObject {
     }
 
     /// Follows every change of Confirm's state (the view model calls it at init and on each
-    /// change). It re-reads rule 2's pre-fill; a new pre-fill withdraws a confirmation that came
-    /// from the old one (never a typed value) with its list and choice; and a state that admits no
+    /// change). A different label resets the section; otherwise it re-reads rule 2's pre-fill, a
+    /// new pre-fill withdrawing a confirmation that came from the old one; and a state that admits no
     /// choice (for example after a correction) clears the choice, so none survives it.
     public func prepare(_ state: FoodConfirmationState) {
+        // A different label (a replaced paste or photo, or an edited reading) starts the section
+        // afresh, typed value included, so no percentage or row chosen for another label carries
+        // over to this one's save.
+        if let source, source != state.selectedCandidate {
+            withdrawConfirmation()
+            userEdited = false
+            percentError = nil
+            suggestion = nil
+            percentText = ""
+        }
+        source = state.selectedCandidate
         let unavailable = LabelEstimateOffer.applies(state) && !LabelEstimateOffer.admitsChoice(state)
         if unavailable != isUnavailableAfterCorrection { isUnavailableAfterCorrection = unavailable }
         if !LabelEstimateOffer.admitsChoice(state), chosenID != nil { chosenID = nil }

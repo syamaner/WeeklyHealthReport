@@ -430,7 +430,9 @@ public final class FavouritesService: @unchecked Sendable {
         guard case let .savedEntry(id) = version.binding, let pinned = try? confirmations.pinnedConfirmation(id),
               let isEstimate = try? confirmations.isEstimate(pinned) else { return false }
         return FoodEntryEstimateStatus.showsPartlyEstimated(isPartlyEstimated: FoodEntryEstimateStatus.isPartlyEstimated(pinned),
-                                                            isEstimate: isEstimate, quantityIsEstimate: false)
+                                                            isEstimate: isEstimate,
+                                                            quantityIsEstimate: FoodQuantityEstimate.isEstimate(pinned.logItemVersion,
+                                                                                                                conversion: pinned.quantityConversion))
     }
 
     /// Whether a favourite's count amount means servings of a label (#306 journey QA; photo

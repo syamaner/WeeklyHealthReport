@@ -178,15 +178,22 @@ enum LabelEstimateLayer {
     /// The merged nutrients for a label candidate and a generic row, or nil when the label offers no
     /// estimate, the row is not a bundled generic row of `release`, or a copied value would name
     /// another release or record. Rule 3 itself is the caller's (`isCompatible`).
+    /// The label-independent half of the save check, shared with the Confirm pool so a row is
+    /// offered only when it can be saved: a bundled generic row whose every value names this
+    /// row's own release and record (a personal-library alias of a bundled row does not).
+    static func isUsableGeneric(_ generic: ProviderNeutralCandidate, release: SourceRelease) -> Bool {
+        LabelEstimateCompatibility.isBundledGeneric(generic.nutrients) && release.sourceReleaseID == generic.sourceReleaseID
+            && generic.nutrients.entries.flatMap(\.value.provenance).allSatisfy {
+                $0.sourceReleaseID == generic.sourceReleaseID && $0.recordID == generic.recordID
+            }
+    }
+
     static func merged(label: PopulatedFoodCandidate, generic: ProviderNeutralCandidate, release: SourceRelease,
                        cocoaPercent: Double) throws -> NutrientSet? {
         guard LabelEstimateCompatibility.offersEstimate(name: label.name.value, basis: label.candidate.identity.servingBasis),
               LabelEstimateCompatibility.isValidPercent(cocoaPercent),
-              LabelEstimateCompatibility.isBundledGeneric(generic.nutrients),
-              release.sourceReleaseID == generic.sourceReleaseID, generic.sourceReleaseID != label.candidate.sourceReleaseID,
-              generic.nutrients.entries.flatMap(\.value.provenance).allSatisfy({
-                  $0.sourceReleaseID == generic.sourceReleaseID && $0.recordID == generic.recordID
-              }) else { return nil }
+              isUsableGeneric(generic, release: release), generic.sourceReleaseID != label.candidate.sourceReleaseID
+        else { return nil }
         return try LabelEstimateMerge.merge(label: label.candidate.nutrients, labelBasis: label.candidate.identity.servingBasis,
                                             generic: generic.nutrients, genericBasis: generic.identity.servingBasis)?.nutrients
     }

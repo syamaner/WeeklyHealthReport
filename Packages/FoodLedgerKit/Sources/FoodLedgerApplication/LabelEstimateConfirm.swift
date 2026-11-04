@@ -59,7 +59,8 @@ public struct LabelEstimateCandidatePool: Sendable {
         return route.matches.compactMap { match -> LabelEstimateOption? in
             let row = match.candidate
             guard LabelEstimateCompatibility.isCompatible(row, cocoaPercent: p), seen.insert(row.candidate.recordID.value).inserted,
-                  let release = route.confirmation.sourceReleases.first(where: { $0.sourceReleaseID == row.candidate.sourceReleaseID })
+                  let release = route.confirmation.sourceReleases.first(where: { $0.sourceReleaseID == row.candidate.sourceReleaseID }),
+                  LabelEstimateLayer.isUsableGeneric(row.candidate, release: release)
             else { return nil }
             let evidence = row.candidate.evidenceIDs.compactMap { id in route.confirmation.evidence.first { $0.evidenceID == id } }
             guard evidence.count == row.candidate.evidenceIDs.count else { return nil }
