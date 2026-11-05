@@ -367,20 +367,22 @@ final class FoodLedgerCompositionRoot {
     }
 
     /// Recent foods for Add food: 10 items within 30 days, each source re-verified (P1, P3).
-    func recentFoods() -> [FoodRecentRelogItem] { recentFoodsRead()() }
+    /// Empty when the ledger cannot be read.
+    func recentFoods() -> [FoodRecentRelogItem] { recentFoodsRead()() ?? [] }
 
     /// `recentFoods()` read off the main actor (#399), so a database read queued behind a Health
-    /// report refresh never freezes Add food. Same items in the same order.
-    func loadRecentFoods() async -> [FoodRecentRelogItem] {
+    /// report refresh never freezes Add food. Same items in the same order; nil when the ledger
+    /// cannot be read, so a failure is never shown as "No recent foods".
+    func loadRecentFoods() async -> [FoodRecentRelogItem]? {
         let read = recentFoodsRead()
         return await Task.detached(priority: .userInitiated) { read() }.value
     }
 
-    private func recentFoodsRead() -> @Sendable () -> [FoodRecentRelogItem] {
+    private func recentFoodsRead() -> @Sendable () -> [FoodRecentRelogItem]? {
         let service = FoodRecentItemsService(reader: store, confirmations: confirmations)
         let store = store, clock = confirmationClock, calendar = confirmationCalendar
         return {
-            guard let records = try? store.archiveState().records else { return [] }
+            guard let records = try? store.archiveState().records else { return nil }
             return service.items(records: records, now: clock.now(), calendar: calendar)
         }
     }
@@ -807,6 +809,8 @@ struct AddFoodFlowView: View {
     private let root: FoodLedgerCompositionRoot
     @State private var recents: [FoodRecentRelogItem] = []
     @State private var recentsLoaded = false
+    /// The last recents read failed: shown as such, never as "No recent foods".
+    @State private var recentsFailed = false
     @State private var submittedQuery: String?
     @State private var showsSearch = false
     @State private var showsBarcode = false
@@ -833,7 +837,7 @@ struct AddFoodFlowView: View {
     }
 
     var body: some View {
-        AddFoodView(recents: recents, recentsLoading: !recentsLoaded, now: now, calendar: root.confirmationDayCalendar,
+        AddFoodView(recents: recents, recentsLoading: !recentsLoaded, recentsFailed: recentsFailed, now: now, calendar: root.confirmationDayCalendar,
                     search: { submittedQuery = $0; showsSearch = true },
                     scanBarcode: { showsBarcode = true },
                     pasteOrDictate: { showsList = true },
@@ -893,7 +897,7 @@ struct AddFoodFlowView: View {
     private func reloadRecents() async {
         let loaded = await root.loadRecentFoods()
         guard !Task.isCancelled else { return }
-        now = root.confirmationNow; recents = loaded; recentsLoaded = true
+        now = root.confirmationNow; recents = loaded ?? []; recentsFailed = loaded == nil; recentsLoaded = true
     }
 
     private func reloadFavourites() async {

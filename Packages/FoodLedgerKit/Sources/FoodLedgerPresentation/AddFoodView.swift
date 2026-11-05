@@ -49,6 +49,8 @@ public struct AddFoodView: View {
     private let recents: [FoodRecentRelogItem]
     /// Recent foods are still being read (#399): shown as loading, never as "No recent foods".
     private let recentsLoading: Bool
+    /// Recent foods could not be read: shown as a failure, never as "No recent foods".
+    private let recentsFailed: Bool
     /// Favourites are still being read (#399): shown as loading, never as empty or failed.
     private let favouritesLoading: Bool
     private let now: Date
@@ -73,7 +75,7 @@ public struct AddFoodView: View {
     /// for now (confirmation v5 section 10), unlike the other routes.
     private let listImportNote: String?
 
-    public init(recents: [FoodRecentRelogItem], recentsLoading: Bool = false, now: Date = Date(), calendar: Calendar = .current,
+    public init(recents: [FoodRecentRelogItem], recentsLoading: Bool = false, recentsFailed: Bool = false, now: Date = Date(), calendar: Calendar = .current,
                 initialText: String = "",
                 search: @escaping (String) -> Void, scanBarcode: (() -> Void)?, pasteOrDictate: (() -> Void)?,
                 pasteLabel: (() -> Void)? = nil,
@@ -85,7 +87,8 @@ public struct AddFoodView: View {
                 listImportNote: String? = nil,
                 relog: @escaping (FoodRecentRelogItem) -> Void) {
         self.listImportNote = listImportNote
-        self.recents = recents; self.recentsLoading = recentsLoading; self.favouritesLoading = favouritesLoading
+        self.recents = recents; self.recentsLoading = recentsLoading; self.recentsFailed = recentsFailed
+        self.favouritesLoading = favouritesLoading
         self.now = now; self.calendar = calendar
         self.favouriteSaving = favouriteSaving
         self.search = search; self.scanBarcode = scanBarcode; self.pasteOrDictate = pasteOrDictate; self.pasteLabel = pasteLabel
@@ -157,11 +160,17 @@ public struct AddFoodView: View {
                 }
             } header: { Text("Favourites") }
             Section {
-                if recentsLoading {
-                    loadingRow(Self.recentsLoadingText)
-                } else if recents.isEmpty {
-                    Text("No recent foods").foregroundStyle(.secondary)
-                } else {
+                switch AddFoodRecentsState(recents, loading: recentsLoading, failed: recentsFailed) {
+                case .loading:
+                    loadingRow(AddFoodRecentsState.loadingText)
+                case .failed:
+                    Label(AddFoodRecentsState.failedText, systemImage: "exclamationmark.triangle")
+                        .frame(minHeight: 44)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(AddFoodRecentsState.failedText)
+                case .empty:
+                    Text(AddFoodRecentsState.emptyText).foregroundStyle(.secondary)
+                case .items:
                     ForEach(recents, id: \.item.logItemID) { recent in
                         let row = AddFoodRecentRowText(recent, now: now, calendar: calendar)
                         Button { relog(recent) } label: {
@@ -185,7 +194,7 @@ public struct AddFoodView: View {
     }
 
     /// The Recent section while recent foods are read (#399).
-    public static let recentsLoadingText = "Loading recent foods"
+    public static let recentsLoadingText = AddFoodRecentsState.loadingText
 
     /// A section still being read: a spinner and plain text, read by VoiceOver as the text alone.
     private func loadingRow(_ text: String) -> some View {
@@ -400,5 +409,22 @@ public enum AddFoodFavouritesState: Equatable {
         if loading { self = .loading; return }
         guard let items else { self = .failed; return }
         self = items.isEmpty || !quickAdd ? .empty : .items(items)
+    }
+}
+
+/// What Add food's Recent section shows (#399): loading before failed before empty, so a read
+/// still under way or a failed read is never shown as "No recent foods".
+public enum AddFoodRecentsState: Equatable {
+    case loading
+    case failed
+    case empty
+    case items
+
+    public static let loadingText = "Loading recent foods"
+    public static let failedText = "Recent foods could not be read."
+    public static let emptyText = "No recent foods"
+
+    public init(_ recents: [FoodRecentRelogItem], loading: Bool, failed: Bool) {
+        if loading { self = .loading } else if failed { self = .failed } else { self = recents.isEmpty ? .empty : .items }
     }
 }

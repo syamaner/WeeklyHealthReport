@@ -1072,6 +1072,16 @@ final class QuickAddAppTests: XCTestCase {
         XCTAssertEqual(AddFoodFavouritesState([.builtInWater], quickAdd: true, loading: false), .items([.builtInWater]))
     }
 
+    /// #399: a failed recents read is shown as a failure, never as "No recent foods"; loading
+    /// comes first, and "No recent foods" only follows a successful empty read.
+    func testAddFoodRecentsStateDistinguishesLoadingFailureAndEmpty() {
+        XCTAssertEqual(AddFoodRecentsState([], loading: true, failed: true), .loading)
+        XCTAssertEqual(AddFoodRecentsState([], loading: false, failed: true), .failed)
+        XCTAssertEqual(AddFoodRecentsState([], loading: false, failed: false), .empty)
+        XCTAssertEqual(AddFoodRecentsState.failedText, "Recent foods could not be read.")
+        XCTAssertEqual(AddFoodRecentsState.emptyText, "No recent foods")
+    }
+
     /// #399: Add food's off-main reads give the same recent foods, favourites and favourite
     /// states as the main-actor reads they replace.
     func testAddFoodOffMainReadsMatchTheSynchronousReads() async throws {
@@ -1082,7 +1092,8 @@ final class QuickAddAppTests: XCTestCase {
         let versionID = try XCTUnwrap(confirm.savedResult).logItemVersion.logItemVersionID
         root.favouriteSaveModel().save(versionID)
 
-        let recents = await root.loadRecentFoods()
+        let loadedRecents = await root.loadRecentFoods()
+        let recents = try XCTUnwrap(loadedRecents, "a readable ledger is not a failure")
         XCTAssertEqual(recents, root.recentFoods())
         XCTAssertEqual(recents.compactMap(\.logItemVersionID), [versionID])
         let favourites = await root.loadQuickAddItems()
