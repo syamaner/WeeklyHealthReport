@@ -255,7 +255,7 @@ final class FoodLogAppTests: XCTestCase {
     /// #288: today's fibre on Home's food card equals the Food Log strip's Fibre total for the same
     /// day, plain water adds 0 g, and both screens render at default and accessibility sizes in the
     /// simulator (renders attached).
-    func testHomeAndFoodLogShowTheSameFibreForToday() throws {
+    func testHomeAndFoodLogShowTheSameFibreForToday() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
         let defaults = isolatedDefaults()
@@ -275,7 +275,7 @@ final class FoodLogAppTests: XCTestCase {
         XCTAssertFalse(day.entries.contains { $0.unknownKeys.contains(.fiber) }, "no per-entry fibre flag (F10)")
 
         let home = FoodHomeModel(root: root)
-        home.reload()
+        await home.reload()
         guard case .logged(let logged) = home.state else { return XCTFail("Expected a logged card, got \(home.state)") }
         let row = try XCTUnwrap(logged.nutrients.last)
         XCTAssertEqual(row.label, "Fibre")
@@ -302,6 +302,65 @@ final class FoodLogAppTests: XCTestCase {
                 window.isHidden = true
             }
         }
+    }
+
+    /// #406: Today's off-main read gives the card and quick add exactly what the main-thread
+    /// reads gave, for food plus plain water.
+    func testHomeOffMainReadMatchesTheDirectReads() async throws {
+        let root = try makeIsolatedRoot()
+        _ = try saveClementine(root)
+        let water = root.quickAddSheetModel(try root.quickAddPreparation(.builtInWater))
+        water.log()
+        XCTAssertNotNil(water.savedResult)
+
+        let home = FoodHomeModel(root: root)
+        await home.reload()
+        let now = root.confirmationNow, calendar = root.confirmationDayCalendar
+        let expected = FoodHomeCardContent.make(projection: try root.intakeProjection(for: now, calendar: calendar),
+                                                plainWater: try root.plainWaterTotal(for: now, calendar: calendar))
+        guard case .logged = expected else { return XCTFail("Expected a logged card, got \(expected)") }
+        XCTAssertEqual(home.state, expected)
+        guard case .items(let items) = home.quickAdd else { return XCTFail("Expected quick add items, got \(home.quickAdd)") }
+        XCTAssertEqual(items, Array(try XCTUnwrap(root.quickAddItems()).prefix(FavouritesProjection.todayCount)))
+    }
+
+    /// #406: while a read is in flight the card keeps what it shows (never back to loading), and
+    /// of overlapping reads only the newest applies, even when an older one finishes last.
+    func testHomeKeepsShownValuesAndAppliesOnlyTheNewestRead() async throws {
+        final class Reads { var pending: [CheckedContinuation<FoodHomeRead, Never>] = [] }
+        let reads = Reads()
+        let home = FoodHomeModel(root: try makeIsolatedRoot()) {
+            await withCheckedContinuation { reads.pending.append($0) }
+        }
+        func waitForReads(_ count: Int) async {
+            while reads.pending.count < count { await Task.yield() }
+        }
+        XCTAssertEqual(home.state, .loading)
+
+        let first = Task { await home.reload() }
+        await waitForReads(1)
+        reads.pending[0].resume(returning: FoodHomeRead(day: .failed("first"), quickAdd: []))
+        await first.value
+        XCTAssertEqual(home.state, .failed("first"))
+
+        let older = Task { await home.reload() }
+        await waitForReads(2)
+        let newer = Task { await home.reload() }
+        await waitForReads(3)
+        XCTAssertEqual(home.state, .failed("first"), "shown values stay while reads are in flight")
+
+        reads.pending[2].resume(returning: FoodHomeRead(day: .failed("newest"), quickAdd: nil))
+        await newer.value
+        reads.pending[1].resume(returning: FoodHomeRead(day: .failed("older"), quickAdd: []))
+        await older.value
+        XCTAssertEqual(home.state, .failed("newest"))
+        guard case .unreadable = home.quickAdd else { return XCTFail("Expected the newest quick add state, got \(home.quickAdd)") }
+    }
+
+    private func makeIsolatedRoot() throws -> FoodLedgerCompositionRoot {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
+        return try FoodLedgerCompositionRoot(fileManager: IntakeRenderFileManager(directory: directory), userDefaults: isolatedDefaults())
     }
 
     /// A root on a fixed clock and calendar (09:42:17 BST on 14 October 2026), so the backdating

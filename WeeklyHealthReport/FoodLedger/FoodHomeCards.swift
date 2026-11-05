@@ -204,27 +204,34 @@ final class FoodHomeModel: ObservableObject {
     /// Set by a chip; phase 5's `QuickAddPresenter` consumes it and opens the sheet.
     @Published var quickAddRequest: QuickAddItem?
     let root: FoodLedgerCompositionRoot?
+    private let load: @MainActor () async -> FoodHomeRead
 
-    init(root: FoodLedgerCompositionRoot?) {
+    /// `load` defaults to the root's off-main read; tests substitute it to order overlapping reads.
+    init(root: FoodLedgerCompositionRoot?, load: (@MainActor () async -> FoodHomeRead)? = nil) {
         self.root = root
+        self.load = load ?? { await root?.loadHome() ?? FoodHomeRead(day: .failed(FoodHomeCardContent.unavailableMessage), quickAdd: nil) }
         if root == nil { state = .unavailable }
     }
 
-    func reload() {
-        guard let root else {
+    private var gate = LatestReloadGate()
+
+    /// Reads off the main actor (#406). The card keeps what it shows until the read finishes
+    /// (loading only before the first one), and only the newest of overlapping reads applies.
+    func reload() async {
+        guard root != nil else {
             state = .unavailable; quickAdd = .unavailable
             return
         }
-        let now = root.confirmationNow
-        let calendar = root.confirmationDayCalendar
-        do {
-            let projection = try root.intakeProjection(for: now, calendar: calendar)
-            let water = try root.plainWaterTotal(for: now, calendar: calendar)
+        let token = gate.begin()
+        let read = await load()
+        guard gate.isCurrent(token) else { return }
+        switch read.day {
+        case let .read(projection, water):
             state = FoodHomeCardContent.make(projection: projection, plainWater: water)
-        } catch {
-            state = .failed(FoodHomeCardContent.failureMessage(error))
+        case .failed(let message):
+            state = .failed(message)
         }
-        quickAdd = root.quickAddItems().map { .items(Array($0.prefix(FavouritesProjection.todayCount))) } ?? .unreadable
+        quickAdd = read.quickAdd.map { .items(Array($0.prefix(FavouritesProjection.todayCount))) } ?? .unreadable
     }
 
     /// Whether a chip's count amount means servings of a pasted label (#306).
@@ -245,7 +252,7 @@ enum FoodHomeCards {
                 }
             ],
             decorate: { view in AnyView(view.modifier(FoodHomeQuickAddHost(model: model))) },
-            refresh: { _ in model.reload() }
+            refresh: { _ in await model.reload() }
         )
     }
 }
@@ -257,7 +264,7 @@ private struct FoodHomeQuickAddHost: ViewModifier {
 
     func body(content: Content) -> some View {
         if let root = model.root {
-            content.quickAdd(root: root, request: $model.quickAddRequest, logged: { model.reload() })
+            content.quickAdd(root: root, request: $model.quickAddRequest, logged: { Task { await model.reload() } })
         } else {
             content
         }
@@ -276,7 +283,7 @@ struct FoodHomeCard: View {
                 Label(FoodHomeCardContent.unavailableMessage, systemImage: "exclamationmark.triangle")
             case .failed(let message):
                 Label(message, systemImage: "exclamationmark.triangle")
-                Button("Try again") { model.reload() }
+                Button("Try again") { Task { await model.reload() } }
             case .empty:
                 NavigationLink(value: AppRoute.foodLog) {
                     Text(FoodHomeCardContent.emptyMessage).foregroundStyle(.secondary)
