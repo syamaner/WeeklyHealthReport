@@ -1579,7 +1579,7 @@ extension WeeklyReportScreenshotTests {
     // MARK: Screen copy (UX copy pass, #140)
 
     /// The screen, tiles and Full Page reword a failed read and Title Case labels; Copy all
-    /// (the README's text contract) keeps its labels and says "Could not read Apple Health."
+    /// (the app reference's text contract) keeps its labels and says "Could not read Apple Health."
     /// for a failed read, with the technical message only in Developer tools.
     func testDisplayDocumentRewordsFailuresAndCopyAllUsesTheScreenLabels() throws {
         let calendar = testCalendar()

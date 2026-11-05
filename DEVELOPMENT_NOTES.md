@@ -3640,3 +3640,12 @@ Method: `phase_usage.py --format claude --since 2026-11-04T10:37:07Z --until 202
 Included: merging #401 and its Qodo dismissals. Excluded: the app test run, this ledger edit, the commit, the push and the PR after that time.
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a charge. Local builds and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
+## WHR-402-2026-11-05a: Claude Code README front page
+
+The README becomes a short front page and its previous content moves unchanged into `docs/app-reference.md` (#402). Work done in the main coordinator session `7521cbba-58e0-451b-ad06-633ab6b5a737`, without subagents.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| README front page (#402), coordinator session | Unmeasured | Unmeasured | Unmeasured | Unmeasured | Unmeasured |
+
+Unmeasured: no start boundary was captured for this documentation change, so no figure is estimated. Token totals are not evidence of productivity, quality or provider efficiency.
