@@ -6,6 +6,7 @@ Start with [`../AGENTS.md`](../AGENTS.md) for working rules and [privacy and egr
 
 ## Product and UX
 
+- [App reference](app-reference.md): screens, export workflow, privacy, setup and the metric-by-metric calculation and validation rules (moved from the repository README)
 - [UX revamp v1](ux-revamp-v1.md): journeys, screen states, contract changes and architecture gate; wireframes in [`designs/ux-revamp-v1/`](designs/ux-revamp-v1/README.md)
 - [Privacy and egress](privacy-and-egress.md) and the user-facing [privacy policy](privacy-policy.txt) (bundled in the app)
 

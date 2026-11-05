@@ -134,6 +134,7 @@ public final class GenericFoodSearchViewModel: ObservableObject {
     private let coordinator: ProgressiveFoodSearchCoordinator
     private let now: @MainActor () -> Date
     private let locale: LedgerText
+    private let recordDetails: (any GenericSourceRecordDetailing)?
     public let additionalEvidence: [CaptureEvidence]
 
     public init(
@@ -146,9 +147,11 @@ public final class GenericFoodSearchViewModel: ObservableObject {
         preferences: (any FoodSearchPreferences)? = nil,
         geminiCredentialReady: Bool = false,
         assessment: any FoodSearchCoverageAssessing = ConservativeFoodSearchCoverageAssessment(),
+        recordDetails: (any GenericSourceRecordDetailing)? = nil,
         now: @escaping @MainActor () -> Date = Date.init
     ) {
         self.preferences = preferences
+        self.recordDetails = recordDetails
         onlineDatabaseAvailable = database != nil
         geminiAvailable = gemini != nil
         geminiEnabled = preferences?.geminiEnabled ?? (services.gemini == .ready)
@@ -348,6 +351,12 @@ public final class GenericFoodSearchViewModel: ObservableObject {
                 }
                 lines.append("Source: \(match.candidate.candidate.sourceReleaseID.value)")
                 lines.append("Record: \(match.candidate.candidate.recordID.value)")
+                // Reference-row details (French name, literals, codes) for Developer tools only.
+                let candidate = match.candidate.candidate
+                if let details = recordDetails?.details(recordID: candidate.recordID) {
+                    lines += GenericSourceDetailsText.lines(details, nutrients: candidate.nutrients,
+                        release: route.confirmation.sourceReleases.first { $0.sourceReleaseID == candidate.sourceReleaseID })
+                }
             }
         }
         return lines

@@ -1241,7 +1241,11 @@ public struct FoodConfirmationView: View {
     private var foodSection: some View {
         Section("Food") {
             Text(model.displayedName.value).font(.headline)
-            if let line = sourceLine { Text(line).font(.subheadline).foregroundStyle(.secondary) }
+            if let line = sourceLine {
+                // VoiceOver reads "French reference, estimate", not the middle dot (ciqual-2025-admission-v1 section 7).
+                Text(line).font(.subheadline).foregroundStyle(.secondary)
+                    .accessibilityLabel(FoodSearchResultText.spokenSourceLine(line))
+            }
             if model.displayedName != model.state.selectedCandidate.name {
                 LabeledContent("Source food", value: model.state.selectedCandidate.name.value).font(.caption)
             }
