@@ -1,6 +1,6 @@
 # Pasted nutrition label, UK English v2 (plan draft, #371)
 
-Status: **draft, 5 November 2026. Owner decisions 1 to 4 made; decision 5 open; no architecture gate yet.** It follows the owner's decision of 5 November 2026 to hold UK English off release after the v1 release check, and to work on the reader first.
+Status: **draft, 5 November 2026. All five owner decisions made; no architecture gate yet.** It follows the owner's decision of 5 November 2026 to hold UK English off release after the v1 release check, and to work on the reader first.
 
 ## 1. Where v1 stands
 
@@ -59,4 +59,4 @@ If every change works as planned, up to 17 of the 24 v1 fresh labels might reach
 2. **Keep the release bar and goals as v1** (zero wrong values gates; decline at most 25% and median burden at most 1 are goals)? *Recommendation: yes.* **Decided (owner, in session, 5 November 2026): kept.**
 3. **Leave prepared-state headers (C9) declined in v2?** *Recommendation: yes. Supporting them needs its own identity contract, with the food recorded as prepared.* **Decided (owner, in session, 5 November 2026): leave them declined in v2.**
 4. **How to settle the copy question (C4, C8)?** *Recommendation: before P3, the owner pastes 3 of the C4 pages from Safari on the iPhone into a note, without running the reader. The shapes are then compared, counts only. If a real paste gives tabs, C4 is a copy artefact and change 6 is dropped.* **Decided (owner, in session, 5 November 2026): settled by 3 Safari copies on a Mac instead, at the owner's choice. All 3 kept one cell per line, so change 6 stays (section 3).**
-5. **Collector for the v2 fresh set:** the v1 Amendment 2 scripted copy, or a real Safari copy by the owner? *Recommendation: decide after decision 4. If scripted selections differ from real pastes, the owner copies.*
+5. **Collector for the v2 fresh set:** the v1 Amendment 2 scripted copy, or a real Safari copy by the owner? *Recommendation: decide after decision 4. If scripted selections differ from real pastes, the owner copies.* **Decided (owner, in session, 5 November 2026): keep the scripted copy (v1 Amendment 2).** The copy check found that scripted copies add blank lines and a title line that Safari copies do not, so every v2 rate carries the copy-method caveat, as in v1, and the v2 rules must read both forms.
