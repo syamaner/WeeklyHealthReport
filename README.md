@@ -3,7 +3,7 @@
 [![iOS CI](https://github.com/syamaner/WeeklyHealthReport/actions/workflows/ios-ci.yml/badge.svg)](https://github.com/syamaner/WeeklyHealthReport/actions/workflows/ios-ci.yml)
 [![codecov](https://codecov.io/gh/syamaner/WeeklyHealthReport/branch/main/graph/badge.svg)](https://codecov.io/gh/syamaner/WeeklyHealthReport)
 
-A personal iPhone app that reads Apple Health, logs what I eat and sends one reviewed file a day to Google Drive, where two scheduled AI coaches pick it up. It started as a weekly summary I could trust, because an Apple Shortcut gave numbers that did not match the Health app, and it has grown into a food log built around one person's needs.
+A personal iPhone app that reads Apple Health, logs what I eat and sends a reviewed daily export to Google Drive, where two scheduled AI coaches pick it up. It started as a weekly summary I could trust, because an Apple Shortcut gave numbers that did not match the Health app, and it has grown into a food log built around one person's needs.
 
 It is an informational utility, not medical software.
 
@@ -13,14 +13,14 @@ The app sits in the middle of the loop. Apple Health keeps what is measured, the
 
 ## Principles
 
-These rules are closed: they change only through a versioned contract, and tests hold each one in place.
+These rules are closed: they change only through a versioned contract, and tests and boundary checks cover them.
 
 1. **Apple Health is read-only.** The app never writes to HealthKit. HealthKit does not reveal a denied read, so the app says "no visible data or no access", never zero.
 2. **Unknown is never zero.** Missing data stays missing, estimates are labelled as estimates, and a partial total is shown as a known minimum.
-3. **Completed days only.** Report averages use whole local-calendar days, aggregated within each day first so a busy day does not dominate. Today's partial values are a separate, labelled "today so far".
+3. **Report averages use completed days.** Averages use whole local-calendar days, aggregated within each day first so a busy day does not dominate. Today's partial values are a separate, labelled "today so far", latest readings use their own lookback, and the Daily JSON covers one selected day.
 4. **HealthKit does the arithmetic.** Cumulative values use HealthKit statistics, so iPhone and Apple Watch samples are never added up by hand, and blood-pressure readings stay as intact pairs.
-5. **Every food entry is your decision.** Search results and label readings only pre-fill the shared Confirm screen. Nothing is saved without an explicit Log, and saved records are versioned and append-only.
-6. **Nothing leaves without a choice.** There is no backend, analytics or background sync. The daily JSON goes to Drive only after you review it and tap Export, and every outbound destination is listed in the [egress policy](docs/privacy-and-egress.md).
+5. **Every food entry is your decision.** Search results and label readings only pre-fill the shared Confirm screen. No entry is logged without an explicit Log, and saved records are versioned and append-only.
+6. **Nothing leaves without a choice.** There is no backend, analytics or background sync. The daily export (the health Daily JSON and, with Food log on, the food daily file) goes to Drive only after you review it and tap Export. Online food lookups, such as Open Food Facts or OpenRouter with your own key, run only when you enable or start them. Every outbound destination is listed in the [egress policy](docs/privacy-and-egress.md).
 
 ## How it works
 
@@ -51,7 +51,7 @@ All screenshots are taken in the iOS Simulator with invented values. The reposit
 
 - **Today** shows what you have logged so far and opens **Add food**. Every route (search, barcode, a pasted list, a nutrition label or a favourite) ends on the same Confirm screen.
 - **Health** is the completed-day report: pick a period, read the summary tiles and sections, and use **Copy all** or the screenshot editor's Full Page for a plain-text or PDF version.
-- **Export** prepares one day's JSON, shows exactly what is included and sends it to a Drive folder you chose, only when you tap Export.
+- **Export** prepares one day's files, shows exactly what is included and sends it to a Drive folder you chose, only when you tap Export.
 - **Developer Diagnostics** shows the per-day values behind every figure, so each one can be checked against Apple Health.
 
 ## What it covers
