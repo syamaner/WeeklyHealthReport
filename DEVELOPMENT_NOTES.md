@@ -3666,6 +3666,7 @@ Method: `phase_usage.py --format claude --since 2026-11-03T19:05:25Z --until 202
 Included: the rebase and re-push of #388 at the start of the window, the docs PR #394 and its CI re-run. Excluded: the owner's own browsing and checking time, this ledger edit, the commit, the push and the PR after the window, and the P4 device step, which has not run.
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a charge. Local builds and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
+
 ## WHR-399-2026-11-05a: Claude Code Add food freeze fix (#399)
 
 Device profiling on 5 Nov 2026 showed Add food freezing for 2.3 to 3.4 s behind the Health report's food refresh, which decoded the whole archive once per date and once or twice per entry. This phase reads the archive once per refresh and loads Add food's recents and favourites off the main thread. One `claude-opus-5-5` implementation subagent in session `7521cbba-58e0-451b-ad06-633ab6b5a737`, plus reviewers.
@@ -3675,3 +3676,16 @@ Device profiling on 5 Nov 2026 showed Add food freezing for 2.3 to 3.4 s behind 
 | Add food freeze fix (#399), coordinator and subagents | Unmeasured | Unmeasured | Unmeasured | Unmeasured | Unmeasured |
 
 Unmeasured: no start boundary was captured for this phase, so no figure is estimated. Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-371-2026-11-05b: Claude Code UK v1 hold-off record and UK reader v2 plan draft (#371)
+
+The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) probed the declined v1 fresh texts on scratch copies in a throwaway worktree (never committed), recorded the owner's decision not to ship v1, and drafted the v2 plan. No subagents. The window runs from the owner's decision at `2026-11-05T08:19:01Z` to `2026-11-05T08:38:06Z`. All cache writes were 1-hour.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| UK v1 decline probe and v2 plan draft (#371), coordinator session | 8,756,535 (8,726,430) | 30,051 | 18,177 | 8,774,712 | $2.35 |
+| **Subtotal** | 8,756,535 (8,726,430) | 30,051 | 18,177 | 8,774,712 | $2.35 |
+
+Method: `phase_usage.py --format claude --since 2026-11-05T08:19:01Z --until 2026-11-05T08:38:06Z --include-subagents` on the session transcript; exact USD 2.34945. Excluded: this ledger edit, the commits, the push and the PR after that time.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a charge. Local builds and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
