@@ -1,6 +1,6 @@
 # Pasted nutrition label, UK English v2 (plan draft, #371)
 
-Status: **draft, 5 November 2026. Direction approved by the owner (decision 1); decisions 2 to 5 open; no architecture gate yet.** It follows the owner's decision of 5 November 2026 to hold UK English off release after the v1 release check, and to work on the reader first.
+Status: **draft, 5 November 2026. Owner decisions 1 and 2 made; decisions 3 to 5 open; no architecture gate yet.** It follows the owner's decision of 5 November 2026 to hold UK English off release after the v1 release check, and to work on the reader first.
 
 ## 1. Where v1 stands
 
@@ -56,7 +56,7 @@ If every change works as planned, up to 17 of the 24 v1 fresh labels might reach
 ## 6. Owner decisions
 
 1. **Approve this plan's direction?** *Recommendation: yes.* **Decided (owner, in session, 5 November 2026): approved.**
-2. **Keep the release bar and goals as v1** (zero wrong values gates; decline at most 25% and median burden at most 1 are goals)? *Recommendation: yes.*
+2. **Keep the release bar and goals as v1** (zero wrong values gates; decline at most 25% and median burden at most 1 are goals)? *Recommendation: yes.* **Decided (owner, in session, 5 November 2026): kept.**
 3. **Leave prepared-state headers (C9) declined in v2?** *Recommendation: yes. Supporting them needs its own identity contract, with the food recorded as prepared.*
 4. **How to settle the copy question (C4, C8)?** *Recommendation: before P3, the owner pastes 3 of the C4 pages from Safari on the iPhone into a note, without running the reader. The shapes are then compared, counts only. If a real paste gives tabs, C4 is a copy artefact and change 6 is dropped.*
 5. **Collector for the v2 fresh set:** the v1 Amendment 2 scripted copy, or a real Safari copy by the owner? *Recommendation: decide after decision 4. If scripted selections differ from real pastes, the owner copies.*
