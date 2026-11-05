@@ -3678,7 +3678,7 @@ Unmeasured: no start boundary was captured for this phase, so no figure is estim
 
 ## WHR-406-2026-11-05a: Claude Code Today food card off the main thread (#406)
 
-After #399, the device trace on 5 Nov 2026 still showed 0.3 to 0.5 s hitches when returning to Today, because the food card decoded the whole archive on the main thread, twice per refresh. This phase reads the card and quick add once, off the main actor, keeps the shown values until the read finishes and applies only the newest of overlapping reads. Coordinator only in session `7521cbba-58e0-451b-ad06-633ab6b5a737` (`claude-opus-5-5`), plus reviewers.
+After #399, the device trace on 5 Nov 2026 still showed 0.3 to 0.5 s hitches when returning to Today, because the food card decoded the whole archive on the main thread, twice per refresh. This phase reads the card and quick add once, off the main actor, keeps the shown values on the same day (loading on a new day, so Today's Full Page never pairs a new date with the previous day's totals), applies only the newest of overlapping reads and refreshes Today's cards together. Coordinator only in session `7521cbba-58e0-451b-ad06-633ab6b5a737` (`claude-opus-5-5`), plus reviewers.
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |

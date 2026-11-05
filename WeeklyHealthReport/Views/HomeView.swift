@@ -135,8 +135,11 @@ struct HomeView: View {
         let day = now()
         today = day
         dayRefreshed(day)
-        for feature in features {
-            await feature.refresh(trigger)
+        // Features refresh together (#406), so a slow food read never delays the other cards.
+        await withTaskGroup(of: Void.self) { group in
+            for feature in features {
+                group.addTask { @MainActor in await feature.refresh(trigger) }
+            }
         }
     }
 }

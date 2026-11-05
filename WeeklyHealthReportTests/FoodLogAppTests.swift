@@ -329,7 +329,7 @@ final class FoodLogAppTests: XCTestCase {
     func testHomeKeepsShownValuesAndAppliesOnlyTheNewestRead() async throws {
         final class Reads { var pending: [CheckedContinuation<FoodHomeRead, Never>] = [] }
         let reads = Reads()
-        let home = FoodHomeModel(root: try makeIsolatedRoot()) {
+        let home = FoodHomeModel(root: try movableDayRoot(MovableFoodLogClock())) { _ in
             await withCheckedContinuation { reads.pending.append($0) }
         }
         func waitForReads(_ count: Int) async {
@@ -355,6 +355,44 @@ final class FoodLogAppTests: XCTestCase {
         await older.value
         XCTAssertEqual(home.state, .failed("newest"))
         guard case .unreadable = home.quickAdd else { return XCTFail("Expected the newest quick add state, got \(home.quickAdd)") }
+    }
+
+    /// #406: once the reporting day changes, the card shows loading until the new day's read
+    /// lands, so Today's Full Page never pairs the new date with the previous day's totals.
+    func testHomeShowsLoadingInsteadOfThePreviousDaysTotals() async throws {
+        final class Reads { var pending: [CheckedContinuation<FoodHomeRead, Never>] = []; var dates: [Date] = [] }
+        let reads = Reads(), clock = MovableFoodLogClock()
+        let home = FoodHomeModel(root: try movableDayRoot(clock)) { now in
+            reads.dates.append(now)
+            return await withCheckedContinuation { reads.pending.append($0) }
+        }
+        func waitForReads(_ count: Int) async {
+            while reads.pending.count < count { await Task.yield() }
+        }
+
+        let first = Task { await home.reload() }
+        await waitForReads(1)
+        reads.pending[0].resume(returning: FoodHomeRead(day: .failed("day one"), quickAdd: []))
+        await first.value
+        XCTAssertEqual(home.state, .failed("day one"))
+
+        clock.date = clock.date.addingTimeInterval(24 * 60 * 60)
+        let next = Task { await home.reload() }
+        await waitForReads(2)
+        XCTAssertEqual(home.state, .loading, "a new day never shows the previous day's totals")
+        XCTAssertEqual(reads.dates.last, clock.date, "the read uses the time the day was taken from")
+        reads.pending[1].resume(returning: FoodHomeRead(day: .failed("day two"), quickAdd: []))
+        await next.value
+        XCTAssertEqual(home.state, .failed("day two"))
+    }
+
+    private func movableDayRoot(_ clock: MovableFoodLogClock) throws -> FoodLedgerCompositionRoot {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
+        var london = Calendar(identifier: .gregorian)
+        london.timeZone = try XCTUnwrap(TimeZone(identifier: "Europe/London"))
+        return try FoodLedgerCompositionRoot(fileManager: IntakeRenderFileManager(directory: directory), userDefaults: isolatedDefaults(),
+            confirmationClock: clock, confirmationCalendar: london)
     }
 
     private func makeIsolatedRoot() throws -> FoodLedgerCompositionRoot {
@@ -1363,6 +1401,12 @@ private extension FoodConfirmationViewModel {
             send(.decideDifference(facet, offered.first { $0 == .matchesSource } ?? offered[0]))
         }
     }
+}
+
+/// A confirmation clock a test can move (#406), starting at 09:42:17 BST on 14 October 2026.
+private final class MovableFoodLogClock: LedgerClock, @unchecked Sendable {
+    var date = Date(timeIntervalSince1970: 1_791_967_337)
+    func now() -> Date { date }
 }
 
 private struct FixedFoodLogClock: LedgerClock {

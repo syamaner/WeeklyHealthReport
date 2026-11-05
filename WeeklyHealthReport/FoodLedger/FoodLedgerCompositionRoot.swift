@@ -413,10 +413,10 @@ final class FoodLedgerCompositionRoot {
     /// Today's food card and quick add read off the main actor (#406), so returning to Today
     /// never decodes the archive on the main thread. One archive read gives the same projection
     /// and plain water total as `intakeProjection(for:calendar:)` and `plainWaterTotal(for:calendar:)`;
-    /// the quick add items are `quickAddItems()`.
-    func loadHome() async -> FoodHomeRead {
+    /// the quick add items are `quickAddItems()`. `now` is the confirmation clock's time read by the caller.
+    func loadHome(at now: Date) async -> FoodHomeRead {
         let store = store, favourites = favourites
-        let now = confirmationClock.now(), calendar = confirmationCalendar
+        let calendar = confirmationCalendar
         return await Task.detached(priority: .userInitiated) {
             FoodLedgerSignposts.signposter.withIntervalSignpost("home.foodCard") {
                 let day: FoodHomeRead.Day

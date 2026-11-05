@@ -204,27 +204,36 @@ final class FoodHomeModel: ObservableObject {
     /// Set by a chip; phase 5's `QuickAddPresenter` consumes it and opens the sheet.
     @Published var quickAddRequest: QuickAddItem?
     let root: FoodLedgerCompositionRoot?
-    private let load: @MainActor () async -> FoodHomeRead
+    private let load: @MainActor (Date) async -> FoodHomeRead
+    private var gate = LatestReloadGate()
+    /// The reporting day of the values shown, so a new day never shows the previous day's totals.
+    private var shownDay: String?
 
     /// `load` defaults to the root's off-main read; tests substitute it to order overlapping reads.
-    init(root: FoodLedgerCompositionRoot?, load: (@MainActor () async -> FoodHomeRead)? = nil) {
+    init(root: FoodLedgerCompositionRoot?, load: (@MainActor (Date) async -> FoodHomeRead)? = nil) {
         self.root = root
-        self.load = load ?? { await root?.loadHome() ?? FoodHomeRead(day: .failed(FoodHomeCardContent.unavailableMessage), quickAdd: nil) }
+        self.load = load ?? { now in
+            await root?.loadHome(at: now) ?? FoodHomeRead(day: .failed(FoodHomeCardContent.unavailableMessage), quickAdd: nil)
+        }
         if root == nil { state = .unavailable }
     }
 
-    private var gate = LatestReloadGate()
-
-    /// Reads off the main actor (#406). The card keeps what it shows until the read finishes
-    /// (loading only before the first one), and only the newest of overlapping reads applies.
+    /// Reads off the main actor (#406). On the same reporting day the card keeps what it shows
+    /// until the read finishes; before the first read, or once the day has changed, it shows
+    /// loading, so Today's Full Page never pairs a new date with the previous day's totals.
+    /// Only the newest of overlapping reads applies.
     func reload() async {
-        guard root != nil else {
+        guard let root else {
             state = .unavailable; quickAdd = .unavailable
             return
         }
+        let now = root.confirmationNow
+        let day = FoodReportingDay.key(for: now, calendar: root.confirmationDayCalendar)
+        if day != shownDay { state = .loading }
         let token = gate.begin()
-        let read = await load()
+        let read = await load(now)
         guard gate.isCurrent(token) else { return }
+        shownDay = day
         switch read.day {
         case let .read(projection, water):
             state = FoodHomeCardContent.make(projection: projection, plainWater: water)
