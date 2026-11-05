@@ -31,6 +31,8 @@ DOCUMENTATION_PREFIXES = ("docs/",)
 AGENT_MARKDOWN_PREFIXES = (".agents/", ".claude/")
 # Paths under docs/ that code, tests or CI read. They always need a full run.
 CODE_READ_DOCS = {
+    # Metric semantics cited by model and presentation doc comments (#402).
+    "docs/app-reference.md",
     "docs/food-healthkit-write-plan.md",
     "docs/privacy-policy.txt",
     # Cited by the food daily export builder, Drive policy and their tests (#287).
