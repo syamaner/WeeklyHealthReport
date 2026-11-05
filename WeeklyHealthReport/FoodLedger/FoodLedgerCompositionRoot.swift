@@ -19,6 +19,8 @@ final class FoodLedgerCompositionRoot {
     private let favourites: FavouritesService
     private let ledger: FoodLedgerService
     private let genericFoodSearch: any GenericFoodSearching
+    /// Ciqual's French names and source literals, for search Developer tools lines only.
+    private let referenceRecordDetails: any GenericSourceRecordDetailing
     private let milkVolumeConversion: CoFIDWholeMilkVolumeConversion
     /// Count portion guides (count-portion-estimate-v1, #307): bundled, hash-pinned, no network.
     private let countPortionGuides: USDACountPortionGuides
@@ -131,10 +133,12 @@ final class FoodLedgerCompositionRoot {
         // Ciqual (French reference) rows follow every other row and are never promoted
         // (composite-generic-ranking-v11); the label estimate pool searches this composite too.
         let market = foodMarket
+        let ciqual = try CiqualGenericFoodSearch(ids: ids)
+        referenceRecordDetails = ciqual
         genericFoodSearch = try CompositeGenericFoodSearch(sources: [
             CoFIDGenericFoodSearch(library: PersonalLibraryGenericFoodSearch(reader: store), ids: ids),
             USDAGenericFoodSearch(ids: ids)
-        ], regionalSources: [TFDAGenericFoodSearch(ids: ids)], referenceSources: [CiqualGenericFoodSearch(ids: ids)], promotesRegional: { request in
+        ], regionalSources: [TFDAGenericFoodSearch(ids: ids)], referenceSources: [ciqual], promotesRegional: { request in
             RegionalSourceOrderPolicy.promotesTaiwan(query: request.text.value, marketIsTaiwan: market.market == .taiwan)
         }, ids: ids)
         milkVolumeConversion = try CoFIDWholeMilkVolumeConversion()
@@ -400,7 +404,8 @@ final class FoodLedgerCompositionRoot {
             locale: try LedgerText(locale.identifier),
             additionalEvidence: additionalEvidence,
             database: OpenFoodFactsSearch(transport: offSearchTransport, locale: try LedgerText(locale.identifier), ids: ids),
-            preferences: searchPreferences
+            preferences: searchPreferences,
+            recordDetails: referenceRecordDetails
         )
     }
 

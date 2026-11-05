@@ -142,6 +142,10 @@ public enum FoodSearchResultText {
         if family == .otherSource { return "Generic food estimate" }
         return "\(self.family(family)) · estimate"
     }
+    /// The spoken form of a "·"-joined source line: VoiceOver reads "French reference, estimate".
+    public static func spokenSourceLine(_ line: String) -> String {
+        line.replacingOccurrences(of: " · ", with: ", ")
+    }
     public static func family(_ family: FoodSearchResultSummary.SourceFamily) -> String {
         switch family {
         case .ukReference: "UK reference"

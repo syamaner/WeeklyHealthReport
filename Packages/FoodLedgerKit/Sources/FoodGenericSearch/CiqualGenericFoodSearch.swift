@@ -9,7 +9,7 @@ public enum CiqualSearchError: Error, Equatable { case missingCorpus, hashMismat
 /// (docs/ciqual-2025-admission-v1.md). Whole-record candidates with the USDA eligibility rules;
 /// never backfills another source and never a re-resolution target. Wired as a reference-only
 /// source of `composite-generic-ranking-v11`.
-public final class CiqualGenericFoodSearch: GenericFoodSearching, @unchecked Sendable {
+public final class CiqualGenericFoodSearch: GenericFoodSearching, GenericSourceRecordDetailing, @unchecked Sendable {
     public static let matcherVersion = "ciqual-generic-ranking-v1"
     public static let corpusSHA256 = "2a298bd5e9c43d2e32ed3164c2a53de0dc21f80c9812285faf137dde196f333f"
     public static let sourceManifestSHA256 = "3134f8dc9feb3e17e4d297fdc42f7711eff41af3210facb5d24c35194fa0d847"
@@ -20,6 +20,7 @@ public final class CiqualGenericFoodSearch: GenericFoodSearching, @unchecked Sen
     private let corpus: CiqualCorpus
     private let release: SourceRelease
     private let nutrientSets: [String: NutrientSet]
+    private let recordDetails: [String: GenericSourceRecordDetails]
     private let ids: any LedgerIDGenerating
 
     public convenience init(ids: any LedgerIDGenerating) throws {
@@ -58,10 +59,15 @@ public final class CiqualGenericFoodSearch: GenericFoodSearching, @unchecked Sen
             sets[record.alimCode] = try Self.nutrients(record, release: release)
         }
         nutrientSets = sets
+        recordDetails = try Dictionary(uniqueKeysWithValues: corpus.records.map { ($0.recordID, try Self.details($0)) })
         self.ids = ids
     }
 
     public var recordCount: Int { corpus.records.count }
+
+    /// Developer tools only (section 7, D5, A7): the French name and each value's literal,
+    /// confidence, source code and `min`/`max` literals. Nothing here reaches a candidate.
+    public func details(recordID: ExternalIdentifier) -> GenericSourceRecordDetails? { recordDetails[recordID.value] }
 
     public func search(_ request: GenericFoodSearchRequest) throws -> GenericFoodSearchOutcome {
         let evidence = try request.captureEvidence ?? CaptureEvidence(
@@ -176,6 +182,22 @@ public final class CiqualGenericFoodSearch: GenericFoodSearching, @unchecked Sen
         })
     }
 
+    /// Every value with a source row, in catalogue order; the four keys with no constituent
+    /// have none. A row whose codes do not match its literal is a corrupt corpus.
+    private static func details(_ record: CiqualRecord) throws -> GenericSourceRecordDetails {
+        let values = try NutrientKey.allCases.compactMap { key -> GenericSourceRecordDetails.Value? in
+            guard let value = record.nutrients[key.rawValue], let literal = value.literal else { return nil }
+            // A "-" carries no confidence or source code; every other literal carries both (3.2).
+            let dash = literal == "-"
+            guard let constCode = value.constCode, dash == (value.confidence == nil), dash == (value.sourceCode == nil),
+                  value.confidence.map({ ["A", "B", "C", "D"].contains($0) }) ?? true else { throw CiqualSearchError.invalidCorpus }
+            return GenericSourceRecordDetails.Value(key: key, constituentCode: constCode, literal: literal, confidence: value.confidence,
+                                                    sourceCode: value.sourceCode, minimum: value.min, maximum: value.max)
+        }
+        return GenericSourceRecordDetails(sourceName: "Ciqual", originalNameLanguage: "French",
+                                          originalName: record.frenchName, values: values)
+    }
+
     /// The per-value reference is built at runtime from the corpus SHA-256, as TFDA does.
     private static func provenance(_ record: CiqualRecord, _ value: CiqualValue, release: SourceRelease) throws -> NutrientProvenance {
         guard let constCode = value.constCode, let literal = value.literal, let confidence = value.confidence,
@@ -221,6 +243,6 @@ private struct CiqualRecord: Decodable {
 }
 private struct CiqualValue: Decodable {
     let state: String
-    let value, upper, unit, constCode, literal, confidence, reason: String?
+    let value, upper, unit, constCode, literal, confidence, reason, sourceCode, min, max: String?
     let upperClosed: Bool?
 }
