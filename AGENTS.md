@@ -1,6 +1,6 @@
 # WeeklyHealthReport agent guide
 
-Shared rules for every coding agent in this repository (Codex reads this file directly; Claude Code reads it through `CLAUDE.md`). Keep it short. Metric semantics live in `README.md`, contracts in [`docs/`](docs/README.md), egress in [`docs/privacy-and-egress.md`](docs/privacy-and-egress.md) and the current product direction in [`docs/ux-revamp-v1.md`](docs/ux-revamp-v1.md).
+Shared rules for every coding agent in this repository (Codex reads this file directly; Claude Code reads it through `CLAUDE.md`). Keep it short. Metric semantics live in [`docs/app-reference.md`](docs/app-reference.md), contracts in [`docs/`](docs/README.md), egress in [`docs/privacy-and-egress.md`](docs/privacy-and-egress.md) and the current product direction in [`docs/ux-revamp-v1.md`](docs/ux-revamp-v1.md).
 
 ## Priorities
 
@@ -13,7 +13,7 @@ Shared rules for every coding agent in this repository (Codex reads this file di
 - **HealthKit is read-only.** Authorisation `toShare` stays empty. HealthKit does not disclose read denial: say "no visible data or no access", never zero or a definite denial.
 - **Egress** is limited to the destinations in [`docs/privacy-and-egress.md`](docs/privacy-and-egress.md). Adding or widening one needs a contract, a policy update and explicit user approval.
 - **Unknown is never zero; empty is not zero.** Bounds stay bounds, estimates are labelled, partial totals are known minimums.
-- **Three day rules stay distinct.** Health report period averages use local-calendar completed days (start included, end excluded, today omitted), aggregated within each day first and then weighting days equally unless `README.md` defines otherwise. The Daily JSON export covers one selected day under [`docs/daily-export-contract.md`](docs/daily-export-contract.md): today from local midnight to the frozen refresh cutoff, or one of the previous seven complete days. Home's "today so far" values are a separate, labelled projection. A latest measurement may use its documented lookback and may include today independently of completed-day summaries.
+- **Three day rules stay distinct.** Health report period averages use local-calendar completed days (start included, end excluded, today omitted), aggregated within each day first and then weighting days equally unless `docs/app-reference.md` defines otherwise. The Daily JSON export covers one selected day under [`docs/daily-export-contract.md`](docs/daily-export-contract.md): today from local midnight to the frozen refresh cutoff, or one of the previous seven complete days. Home's "today so far" values are a separate, labelled projection. A latest measurement may use its documented lookback and may include today independently of completed-day summaries.
 - **Use HealthKit statistics** for cumulative and source-resolved values; never sum overlapping sources by hand. Convert units at the query boundary. Keep correlated records (systolic/diastolic) as intact pairs.
 - **Food records are versioned and append-only.** Every save is an explicit user action bound to its source evidence; no automatic selection or saving. Model output, citations or confidence never authorise nutrition by themselves.
 - **Show every metric consistently** on the Health screen, in Copy all and in Developer tools unless its specification says otherwise.
@@ -42,7 +42,7 @@ Shared rules for every coding agent in this repository (Codex reads this file di
 ## Working method
 
 - Check `git status` first and never overwrite unrelated changes. Use `rg` and focused reads.
-- Before changing code, read the relevant README semantics, contracts, models, queries, formatters, view-model flow and tests, and confirm semantics and edge cases. Correctness repairs cost more than a short design pass.
+- Before changing code, read the relevant metric semantics in `docs/app-reference.md`, contracts, models, queries, formatters, view-model flow and tests, and confirm semantics and edge cases. Correctness repairs cost more than a short design pass.
 - For a HealthKit metric, use the `healthkit-metric-delivery` skill and current Apple documentation; propose semantics before code.
 - Add pure tests with synthetic fixtures for rules, view-model tests for orchestration and simulator UI tests for routes. Run the narrowest tests while iterating and the full gates once the code is stable.
 - Parallelise independent read-only checks; skip extra review loops for small, tightly coupled changes.
