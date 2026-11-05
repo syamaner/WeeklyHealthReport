@@ -75,7 +75,7 @@ Nothing is uploaded until you review that snapshot and tap **Export**.
    `food-daily-YYYY-MM-DD.json` for the day: the foods you logged, their
    amounts, nutrient values with their sources and the day's totals, with
    unknown values left unknown. It goes to the same folder and has its own
-   result (`docs/food-daily-export-contract-v1.md`).
+   result ([food-daily-export-contract-v1.md](food-daily-export-contract-v1.md)).
 5. Tap **Export**. The screen reports verified only from a verified Drive result. Refresh first if a saved note or relevant
    selection changed, because the previous preview is deliberately made stale
    rather than silently altered.

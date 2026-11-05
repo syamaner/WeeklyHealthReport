@@ -73,7 +73,7 @@ The first brief was mostly about what correct means, metric by metric, and that 
 - **Semantics before code.** Each metric and contract is written down first, edge cases included, in the [app reference](docs/app-reference.md) and the [contracts in `docs/`](docs/README.md).
 - **Checked against Apple Health.** Developer Diagnostics exposes the daily inputs, and the [validation checklist](docs/app-reference.md#check-the-results-against-apple-health) compares each metric with the Health app on a real iPhone.
 - **Tested in layers.** Pure rule tests with synthetic fixtures, view-model tests for orchestration, simulator UI tests for the routes, and boundary checks that keep the food domain free of HealthKit, storage and networking.
-- **Built with coding agents.** Codex and Claude Code did most of the implementation under the rules in [AGENTS.md](AGENTS.md), with read-only reviewers checking changes against the principles above. [DEVELOPMENT_NOTES.md](DEVELOPMENT_NOTES.md) records each phase and its measured token use.
+- **Built with coding agents.** Codex and Claude Code did most of the implementation under the rules in [AGENTS.md](AGENTS.md), with read-only reviewers checking changes against the principles above. [DEVELOPMENT_NOTES.md](DEVELOPMENT_NOTES.md) records each phase with bounded token and API-equivalent cost estimates, or marks it Unmeasured.
 
 ## Run it
 
