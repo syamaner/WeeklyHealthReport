@@ -33,7 +33,26 @@ public struct FoodLogReadingService: Sendable {
 
     /// Throws `FoodIntakeProjectionError` for competing versions, mixtures or missing references.
     public func day(reportingDate: String) throws -> FoodLogDayContent {
+        try day(reportingDate: reportingDate, records: try archive.archiveState().records)
+    }
+
+    /// The content `day(reportingDate:)` gives for each date, in order, from one archive read
+    /// (#399): a period costs one read, not one per day. No read for no dates.
+    public func days(reportingDates: [String]) throws -> [FoodLogDayContent] {
+        guard !reportingDates.isEmpty else { return [] }
         let records = try archive.archiveState().records
+        return try reportingDates.map { try day(reportingDate: $0, records: records) }
+    }
+
+    /// Whether the entry's current saved version is the app's plain water reference: the same
+    /// answer as `savedEntry(_:)?.isPlainWater == true`, without reading the entry's history
+    /// (#399). False when the entry is missing or removed.
+    public func isPlainWater(_ logItemID: LogItemID) throws -> Bool {
+        guard let stored = try confirmationReader.foodConfirmation(logItemID: logItemID) else { return false }
+        return PlainWaterReference.isPlainWater(stored.resolutionVersion)
+    }
+
+    private func day(reportingDate: String, records: LedgerMutation) throws -> FoodLogDayContent {
         let projection = try FoodIntakeProjection(records: records, reportingDate: reportingDate)
         let status = statuses(projection.rows.map(\.logItemID))
         return FoodLogDayContent(projection: projection, reportingDate: reportingDate,
@@ -52,10 +71,12 @@ public struct FoodLogReadingService: Sendable {
                                     history: try historyEvents(logItemID, isServings: servings))
     }
 
+    /// One archive read serves both the versions and the conversions they reference (#399).
     public func historyEvents(_ logItemID: LogItemID, isServings: Bool = false) throws -> [FoodEntryHistoryEvent] {
-        let versions = try history.versions(for: logItemID)
+        let records = try archive.archiveState().records
+        let versions = try history.versions(for: logItemID, in: records)
         let referenced = Set(versions.compactMap(\.quantityConversionVersionID))
-        let conversions = referenced.isEmpty ? [] : try archive.archiveState().records.quantityConversions
+        let conversions = referenced.isEmpty ? [] : records.quantityConversions
             .filter { referenced.contains($0.quantityConversionVersionID) }
         return FoodEntryHistory.events(versions: versions, conversions: conversions, isServings: isServings)
     }

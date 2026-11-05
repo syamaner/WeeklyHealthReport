@@ -94,7 +94,12 @@ public final class FavouriteSaveModel: ObservableObject {
     /// preparation and amount, so re-logging a favourite keeps "Already a favourite" (#308). The
     /// matches are read once per refresh, not once per row.
     public func refresh(_ ids: [LogItemVersionID]) {
-        let matches = try? store.activeFavourites(matching: ids)
+        apply(ids, matches: try? store.activeFavourites(matching: ids))
+    }
+
+    /// `refresh(_:)` with the matches read elsewhere, such as off the main actor (#399); nil when
+    /// favourites could not be read, as in `refresh(_:)`.
+    public func apply(_ ids: [LogItemVersionID], matches: [LogItemVersionID: FavouriteVersion]?) {
         var next: [LogItemVersionID: FavouriteSaveState] = [:]
         for id in ids {
             let active = matches?[id] != nil

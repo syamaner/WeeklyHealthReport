@@ -1065,6 +1065,39 @@ final class QuickAddAppTests: XCTestCase {
         XCTAssertEqual(AddFoodFavouritesState([.builtInWater], quickAdd: true), .items([.builtInWater]))
     }
 
+    /// #399: while favourites are read off the main actor the section is loading, never empty or failed.
+    func testAddFoodFavouritesStateIsLoadingUntilRead() {
+        XCTAssertEqual(AddFoodFavouritesState(nil, quickAdd: true, loading: true), .loading)
+        XCTAssertEqual(AddFoodFavouritesState([], quickAdd: true, loading: true), .loading)
+        XCTAssertEqual(AddFoodFavouritesState([.builtInWater], quickAdd: true, loading: false), .items([.builtInWater]))
+    }
+
+    /// #399: Add food's off-main reads give the same recent foods, favourites and favourite
+    /// states as the main-actor reads they replace.
+    func testAddFoodOffMainReadsMatchTheSynchronousReads() async throws {
+        let root = try makeRoot()
+        let confirm = root.model(for: try exactInput("Skyr"), prefillSourceQuantity: false)
+        confirm.send(.setQuantity(170, .grams))
+        confirm.log()
+        let versionID = try XCTUnwrap(confirm.savedResult).logItemVersion.logItemVersionID
+        root.favouriteSaveModel().save(versionID)
+
+        let recents = await root.loadRecentFoods()
+        XCTAssertEqual(recents, root.recentFoods())
+        XCTAssertEqual(recents.compactMap(\.logItemVersionID), [versionID])
+        let favourites = await root.loadQuickAddItems()
+        XCTAssertEqual(favourites.items, root.quickAddItems())
+        XCTAssertEqual(favourites.items?.count, 2, "built-in water and the saved favourite")
+        XCTAssertEqual(favourites.servings, (favourites.items ?? []).map { root.favouriteAmountIsServings($0) })
+
+        let ids = recents.compactMap(\.logItemVersionID)
+        let synchronous = root.favouriteSaveModel(), offMain = root.favouriteSaveModel()
+        synchronous.refresh(ids)
+        offMain.apply(ids, matches: await root.loadActiveFavourites(matching: ids))
+        XCTAssertEqual(offMain.states, synchronous.states)
+        XCTAssertEqual(offMain.state(for: versionID), .alreadyFavourite)
+    }
+
     /// Owner decision A: logging without Save as favourite, then saving from the saved entry and
     /// from "From what you’ve logged" pins the current version; a repeat shows Already a favourite.
     func testSaveAsFavouriteFromTheSavedEntryAndFromWhatYouLogged() throws {

@@ -47,6 +47,10 @@ public struct AddFoodView: View {
     @State private var text = ""
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     private let recents: [FoodRecentRelogItem]
+    /// Recent foods are still being read (#399): shown as loading, never as "No recent foods".
+    private let recentsLoading: Bool
+    /// Favourites are still being read (#399): shown as loading, never as empty or failed.
+    private let favouritesLoading: Bool
     private let now: Date
     private let calendar: Calendar
     private let search: (String) -> Void
@@ -69,18 +73,20 @@ public struct AddFoodView: View {
     /// for now (confirmation v5 section 10), unlike the other routes.
     private let listImportNote: String?
 
-    public init(recents: [FoodRecentRelogItem], now: Date = Date(), calendar: Calendar = .current,
+    public init(recents: [FoodRecentRelogItem], recentsLoading: Bool = false, now: Date = Date(), calendar: Calendar = .current,
                 initialText: String = "",
                 search: @escaping (String) -> Void, scanBarcode: (() -> Void)?, pasteOrDictate: (() -> Void)?,
                 pasteLabel: (() -> Void)? = nil,
                 photoLabel: (() -> Void)? = nil,
-                favourites: (() -> Void)?, favouriteItems: [QuickAddItem]? = [], favouriteAmountIsServings: @escaping (QuickAddItem) -> Bool = { _ in false },
+                favourites: (() -> Void)?, favouriteItems: [QuickAddItem]? = [], favouritesLoading: Bool = false,
+                favouriteAmountIsServings: @escaping (QuickAddItem) -> Bool = { _ in false },
                 quickAdd: ((QuickAddItem) -> Void)? = nil,
                 favouriteSaving: FavouriteSaveModel? = nil,
                 listImportNote: String? = nil,
                 relog: @escaping (FoodRecentRelogItem) -> Void) {
         self.listImportNote = listImportNote
-        self.recents = recents; self.now = now; self.calendar = calendar
+        self.recents = recents; self.recentsLoading = recentsLoading; self.favouritesLoading = favouritesLoading
+        self.now = now; self.calendar = calendar
         self.favouriteSaving = favouriteSaving
         self.search = search; self.scanBarcode = scanBarcode; self.pasteOrDictate = pasteOrDictate; self.pasteLabel = pasteLabel
         self.photoLabel = photoLabel
@@ -130,7 +136,9 @@ public struct AddFoodView: View {
                 if pasteOrDictate != nil, let listImportNote { Text(listImportNote) }
             }
             Section {
-                switch AddFoodFavouritesState(favouriteItems, quickAdd: quickAdd != nil) {
+                switch AddFoodFavouritesState(favouriteItems, quickAdd: quickAdd != nil, loading: favouritesLoading) {
+                case .loading:
+                    loadingRow(AddFoodFavouritesState.loadingText)
                 case .failed:
                     Label(AddFoodFavouritesState.failedText, systemImage: "exclamationmark.triangle")
                     if let favourites { routeRow("Review favourites", systemImage: "star", action: favourites) }
@@ -149,7 +157,9 @@ public struct AddFoodView: View {
                 }
             } header: { Text("Favourites") }
             Section {
-                if recents.isEmpty {
+                if recentsLoading {
+                    loadingRow(Self.recentsLoadingText)
+                } else if recents.isEmpty {
                     Text("No recent foods").foregroundStyle(.secondary)
                 } else {
                     ForEach(recents, id: \.item.logItemID) { recent in
@@ -172,6 +182,20 @@ public struct AddFoodView: View {
             }
         }
         .navigationTitle("Add food")
+    }
+
+    /// The Recent section while recent foods are read (#399).
+    public static let recentsLoadingText = "Loading recent foods"
+
+    /// A section still being read: a spinner and plain text, read by VoiceOver as the text alone.
+    private func loadingRow(_ text: String) -> some View {
+        HStack(spacing: 8) {
+            ProgressView().accessibilityHidden(true)
+            Text(text).foregroundStyle(.secondary)
+        }
+        .frame(minHeight: 44)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(text)
     }
 
     /// Whether any row can still be saved: pinnable, not plain water and not already a favourite.
@@ -362,14 +386,18 @@ public final class FoodSearchDiagnosticsLog: ObservableObject {
 
 /// What Add food's Favourites section shows (#198).
 public enum AddFoodFavouritesState: Equatable {
+    /// Still being read (#399); never shown as empty or failed.
+    case loading
     case failed
     case empty
     case items([QuickAddItem])
 
     public static let failedText = "Favourites could not be read."
     public static let emptyText = "No favourites yet"
+    public static let loadingText = "Loading favourites"
 
-    public init(_ items: [QuickAddItem]?, quickAdd: Bool) {
+    public init(_ items: [QuickAddItem]?, quickAdd: Bool, loading: Bool = false) {
+        if loading { self = .loading; return }
         guard let items else { self = .failed; return }
         self = items.isEmpty || !quickAdd ? .empty : .items(items)
     }

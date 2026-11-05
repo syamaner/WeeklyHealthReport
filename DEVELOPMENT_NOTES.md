@@ -3612,3 +3612,13 @@ Method: `phase_usage.py --format claude --since 2026-11-04T07:56:56Z --until 202
 Included: merging #400 and the Qodo dismissal. Excluded: this ledger edit, the commit, the push and the PR after that time.
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a charge. Local builds and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-399-2026-11-05a: Claude Code Add food freeze fix (#399)
+
+Device profiling on 5 Nov 2026 showed Add food freezing for 2.3 to 3.4 s behind the Health report's food refresh, which decoded the whole archive once per date and once or twice per entry. This phase reads the archive once per refresh and loads Add food's recents and favourites off the main thread. One `claude-opus-5-5` implementation subagent in session `7521cbba-58e0-451b-ad06-633ab6b5a737`, plus reviewers.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Add food freeze fix (#399), coordinator and subagents | Unmeasured | Unmeasured | Unmeasured | Unmeasured | Unmeasured |
+
+Unmeasured: no start boundary was captured for this phase, so no figure is estimated. Token totals are not evidence of productivity, quality or provider efficiency.
