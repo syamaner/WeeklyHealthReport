@@ -1,6 +1,6 @@
 # Pasted nutrition label, UK English v2 (plan draft, #371)
 
-Status: **draft, 5 November 2026. Owner decisions 1 to 3 made; decisions 4 and 5 open; no architecture gate yet.** It follows the owner's decision of 5 November 2026 to hold UK English off release after the v1 release check, and to work on the reader first.
+Status: **draft, 5 November 2026. Owner decisions 1 to 4 made; decision 5 open; no architecture gate yet.** It follows the owner's decision of 5 November 2026 to hold UK English off release after the v1 release check, and to work on the reader first.
 
 ## 1. Where v1 stands
 
@@ -30,7 +30,7 @@ Some labels need more than one fix: removing one cause can expose the next (two 
 
 **C9 declines are correct today.** The identity rule (P2b) keeps a value for the food as prepared from being stored as the food as sold. v2 leaves them declined (decision 3); supporting them would need a versioned identity contract of its own.
 
-**C4 and C8 may depend on how the text was copied.** C4 came from scripted selections of grid layouts, and C8 from Preview's text order. Whether a Safari or iPhone paste of the same pages gives the same shape is not known. Decision 4 asks how to find out.
+**C4 is a real copy shape; C8 is not settled.** C4 came from scripted selections of grid layouts, and C8 from Preview's text order. Under decision 4, the owner copied the 3 C4 tables in Safari on a Mac (5 November 2026; the iPhone simulator's copy did not reach its clipboard). All 3 Safari copies kept one cell per line: a tab only in the heading row, then each nutrient's name and value on separate lines. The scripted copies have the same shape plus a blank line between cells (17 to 20 lines against 37 to 41), and an extra title line before the heading. Mac Safari shares its engine with iPhone Safari but is not the iPhone; no iPhone paste was taken. C8 rests on one PDF and was not re-copied.
 
 ## 4. Proposed changes, in order of value
 
@@ -39,7 +39,7 @@ Some labels need more than one fix: removing one cause can expose the next (two 
 3. **C3, a following vitamins and minerals table.** A titled table naming vitamins and minerals, after a complete nutrition table, ends the reading; its rows are not read.
 4. **C5, headings without "per".** `100 ml` or `100g` as a whole heading cell reads as per 100; a weight or volume with a serving word reads as per serving; a pack-count cell in the label column is ignored.
 5. **C7, stacked duplicate tables.** Two complete tables with identical values for every row, one per 100 and one per serving, read as the first table; any difference still declines.
-6. **C4, one cell per line.** Only if decision 4 shows real pastes keep this shape.
+6. **C4, one cell per line.** Kept: decision 4 showed real Safari copies keep this shape. The rule must read it with and without blank lines between cells, and pair a name line with the value line after it only where the pairing is unambiguous; anything else declines.
 
 Each change is a parser or normaliser rule with positive and negative synthetic tests, under the same invariants as v1: no number, unit or comparator is ever invented, unknown is never zero, a misbinding always declines, and Taiwan readings stay byte-identical.
 
@@ -58,5 +58,5 @@ If every change works as planned, up to 17 of the 24 v1 fresh labels might reach
 1. **Approve this plan's direction?** *Recommendation: yes.* **Decided (owner, in session, 5 November 2026): approved.**
 2. **Keep the release bar and goals as v1** (zero wrong values gates; decline at most 25% and median burden at most 1 are goals)? *Recommendation: yes.* **Decided (owner, in session, 5 November 2026): kept.**
 3. **Leave prepared-state headers (C9) declined in v2?** *Recommendation: yes. Supporting them needs its own identity contract, with the food recorded as prepared.* **Decided (owner, in session, 5 November 2026): leave them declined in v2.**
-4. **How to settle the copy question (C4, C8)?** *Recommendation: before P3, the owner pastes 3 of the C4 pages from Safari on the iPhone into a note, without running the reader. The shapes are then compared, counts only. If a real paste gives tabs, C4 is a copy artefact and change 6 is dropped.*
+4. **How to settle the copy question (C4, C8)?** *Recommendation: before P3, the owner pastes 3 of the C4 pages from Safari on the iPhone into a note, without running the reader. The shapes are then compared, counts only. If a real paste gives tabs, C4 is a copy artefact and change 6 is dropped.* **Decided (owner, in session, 5 November 2026): settled by 3 Safari copies on a Mac instead, at the owner's choice. All 3 kept one cell per line, so change 6 stays (section 3).**
 5. **Collector for the v2 fresh set:** the v1 Amendment 2 scripted copy, or a real Safari copy by the owner? *Recommendation: decide after decision 4. If scripted selections differ from real pastes, the owner copies.*
