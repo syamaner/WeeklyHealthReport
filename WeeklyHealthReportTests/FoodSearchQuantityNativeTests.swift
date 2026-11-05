@@ -1027,6 +1027,15 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
         let states: [(String, AnyView, CGFloat, [String])] = [
             ("add-food-recents", AnyView(addFood(recents)), 844, ["Add food", "Recent", "Last: 150 g"]),
             ("add-food-empty", AnyView(addFood([])), 844, ["No favourites yet", "No recent foods"]),
+            // #399: both sections read off the main actor show loading, never empty, until read.
+            ("add-food-loading", AnyView(AddFoodView(recents: [], recentsLoading: true, now: now, calendar: calendar,
+                search: { _ in XCTFail("Rendering cannot search") }, scanBarcode: {}, pasteOrDictate: {}, favourites: {},
+                favouritesLoading: true, relog: { _ in XCTFail("Rendering cannot log") })),
+             844, ["Scan barcode", "Loading favourites", "Loading recent foods"]),
+            ("add-food-recents-failed", AnyView(AddFoodView(recents: [], recentsFailed: true, now: now, calendar: calendar,
+                search: { _ in XCTFail("Rendering cannot search") }, scanBarcode: {}, pasteOrDictate: {}, favourites: {},
+                relog: { _ in XCTFail("Rendering cannot log") })),
+             844, ["Recent foods could not be read"]),
             ("search-searching", AnyView(results(searching)), 844, ["Looking for more matches online", "Stop"]),
             ("search-energy-for-amount", AnyView(results(energy)), 1400, ["Best matches", "kcal for 150 g", "Not what you ate?"]),
             ("search-basis-only", AnyView(results(basisOnly)), 1400, ["Best matches", "per 100 g"]),
