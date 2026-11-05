@@ -71,6 +71,9 @@ public struct AddFoodView: View {
     private let relog: (FoodRecentRelogItem) -> Void
     /// Save as favourite on recent rows (owner decision A); nil hides it.
     private let favouriteSaving: FavouriteSaveModel?
+    /// The shown rows' favourite states have been read (#399). Until then rows still re-log, but
+    /// their badges, swipe hint and Save actions are withheld, so a favourite never offers Save.
+    private let favouriteStatesLoaded: Bool
     /// Under the list route when Add food carries a past Food Log day: list items are logged
     /// for now (confirmation v5 section 10), unlike the other routes.
     private let listImportNote: String?
@@ -84,6 +87,7 @@ public struct AddFoodView: View {
                 favouriteAmountIsServings: @escaping (QuickAddItem) -> Bool = { _ in false },
                 quickAdd: ((QuickAddItem) -> Void)? = nil,
                 favouriteSaving: FavouriteSaveModel? = nil,
+                favouriteStatesLoaded: Bool = true,
                 listImportNote: String? = nil,
                 relog: @escaping (FoodRecentRelogItem) -> Void) {
         self.listImportNote = listImportNote
@@ -91,6 +95,7 @@ public struct AddFoodView: View {
         self.favouritesLoading = favouritesLoading
         self.now = now; self.calendar = calendar
         self.favouriteSaving = favouriteSaving
+        self.favouriteStatesLoaded = favouriteStatesLoaded
         self.search = search; self.scanBarcode = scanBarcode; self.pasteOrDictate = pasteOrDictate; self.pasteLabel = pasteLabel
         self.photoLabel = photoLabel
         self.favourites = favourites; self.favouriteItems = favouriteItems; self.favouriteAmountIsServings = favouriteAmountIsServings; self.quickAdd = quickAdd; self.relog = relog
@@ -218,8 +223,13 @@ public struct AddFoodView: View {
 
     /// The saving model for a row that may be saved: verified, pinnable and not plain water.
     private func savingModel(_ recent: FoodRecentRelogItem) -> FavouriteSaveModel? {
-        guard recent.logItemVersionID != nil, !recent.isPlainWater else { return nil }
-        return favouriteSaving
+        Self.offersFavouriteSaving(recent, statesLoaded: favouriteStatesLoaded) ? favouriteSaving : nil
+    }
+
+    /// Whether a recent row carries the favourite badge and Save actions: pinnable, not plain
+    /// water, and only once the favourite states have been read (#399).
+    public static func offersFavouriteSaving(_ recent: FoodRecentRelogItem, statesLoaded: Bool) -> Bool {
+        statesLoaded && recent.logItemVersionID != nil && !recent.isPlainWater
     }
 
     @ViewBuilder

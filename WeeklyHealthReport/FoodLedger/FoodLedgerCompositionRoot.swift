@@ -819,14 +819,13 @@ struct AddFoodFavourites: Sendable {
 /// Add food (#196): one field, the other entry routes and recent foods. Every route ends on Confirm.
 /// Recent foods and favourites are read off the main actor (#399) and shown as loading until the
 /// first read finishes; the field and the routes are usable at once. Later reloads keep the shown
-/// rows until the fresh ones arrive.
+/// rows until the fresh ones arrive, and only the newest of overlapping reads applies. Favourite
+/// badges and Save actions on recent rows wait for their favourite states.
 struct AddFoodFlowView: View {
     private let finish: FoodEntryFinish?
     private let root: FoodLedgerCompositionRoot
-    @State private var recents: [FoodRecentRelogItem] = []
-    @State private var recentsLoaded = false
-    /// The last recents read failed: shown as such, never as "No recent foods".
-    @State private var recentsFailed = false
+    /// Loading, failed or loaded recent foods; never "No recent foods" for a failed read.
+    @StateObject private var recentsModel: AddFoodRecentsModel
     @State private var submittedQuery: String?
     @State private var showsSearch = false
     @State private var showsBarcode = false
@@ -841,19 +840,21 @@ struct AddFoodFlowView: View {
     /// Nil items when favourites cannot be read (shown as a failure, never as empty).
     @State private var favouriteItems = AddFoodFavourites(items: [], servings: [])
     @State private var favouritesLoaded = false
-    /// The versions whose favourite state was last refreshed, so a reappearance with the same
-    /// rows does not refresh again (the earlier `onChange` behaviour).
-    @State private var favouriteStateIDs: [LogItemVersionID]?
+    /// Only the newest favourites reload applies (#399).
+    @State private var favouritesGate = LatestReloadGate()
     @State private var quickAddRequest: QuickAddItem?
     @StateObject private var favouriteSaving: FavouriteSaveModel
 
     init(root: FoodLedgerCompositionRoot, finish: FoodEntryFinish? = nil) {
         self.root = root; self.finish = finish
         _favouriteSaving = StateObject(wrappedValue: root.favouriteSaveModel())
+        _recentsModel = StateObject(wrappedValue: AddFoodRecentsModel { [root] in await root.loadRecentFoods() })
     }
 
+    private var recents: [FoodRecentRelogItem] { recentsModel.recents }
+
     var body: some View {
-        AddFoodView(recents: recents, recentsLoading: !recentsLoaded, recentsFailed: recentsFailed, now: now, calendar: root.confirmationDayCalendar,
+        AddFoodView(recents: recents, recentsLoading: !recentsModel.loaded, recentsFailed: recentsModel.failed, now: now, calendar: root.confirmationDayCalendar,
                     search: { submittedQuery = $0; showsSearch = true },
                     scanBarcode: { showsBarcode = true },
                     pasteOrDictate: { showsList = true },
@@ -865,6 +866,7 @@ struct AddFoodFlowView: View {
                     favouriteAmountIsServings: { [favouriteItems] in favouriteItems.amountIsServings($0) },
                     quickAdd: { quickAddRequest = $0 },
                     favouriteSaving: favouriteSaving,
+                    favouriteStatesLoaded: favouriteSaving.hasStates(for: recents.compactMap(\.logItemVersionID)),
                     listImportNote: FoodLogText.listImportNote(entryDay: finish?.entryDay),
                     relog: { recent in
                         if let model = try? root.model(relogging: recent.item.logItemID, entryDay: finish?.entryDay) {
@@ -911,22 +913,24 @@ struct AddFoodFlowView: View {
     }
 
     private func reloadRecents() async {
-        let loaded = await root.loadRecentFoods()
-        guard !Task.isCancelled else { return }
-        now = root.confirmationNow; recents = loaded ?? []; recentsFailed = loaded == nil; recentsLoaded = true
+        if await recentsModel.reload() { now = root.confirmationNow }
     }
 
     private func reloadFavourites() async {
+        let token = favouritesGate.begin()
         let loaded = await root.loadQuickAddItems()
-        guard !Task.isCancelled else { return }
+        guard favouritesGate.isCurrent(token), !Task.isCancelled else { return }
         favouriteItems = loaded; favouritesLoaded = true
     }
 
+    /// Reads the shown rows' favourite states once per set of rows (a reappearance with the same
+    /// rows reads nothing). A save begun during the read keeps its state (`readGeneration`).
     private func refreshFavouriteStates(_ ids: [LogItemVersionID]) async {
-        guard ids != favouriteStateIDs else { return }
+        guard !favouriteSaving.hasStates(for: ids) else { return }
+        let generation = favouriteSaving.saveGeneration
         let matches = await root.loadActiveFavourites(matching: ids)
         guard !Task.isCancelled else { return }
-        favouriteSaving.apply(ids, matches: matches); favouriteStateIDs = ids
+        favouriteSaving.apply(ids, matches: matches, readGeneration: generation)
     }
 
     /// Favourites opened from Add food carries Add food's finish, so a favourite created there
