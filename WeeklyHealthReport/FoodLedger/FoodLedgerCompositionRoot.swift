@@ -9,6 +9,7 @@ import FoodLabelPhotoCapture
 import FoodLabelPhotoUI
 import FoodLabelTextCapture
 import Foundation
+import OSLog
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -375,7 +376,9 @@ final class FoodLedgerCompositionRoot {
     /// cannot be read, so a failure is never shown as "No recent foods".
     func loadRecentFoods() async -> [FoodRecentRelogItem]? {
         let read = recentFoodsRead()
-        return await Task.detached(priority: .userInitiated) { read() }.value
+        return await Task.detached(priority: .userInitiated) {
+            FoodLedgerSignposts.signposter.withIntervalSignpost("addFood.recentFoods") { read() }
+        }.value
     }
 
     private func recentFoodsRead() -> @Sendable () -> [FoodRecentRelogItem]? {
@@ -392,15 +395,19 @@ final class FoodLedgerCompositionRoot {
     func loadQuickAddItems() async -> AddFoodFavourites {
         let favourites = favourites
         return await Task.detached(priority: .userInitiated) {
-            let items = try? favourites.projection().quickAddItems
-            return AddFoodFavourites(items: items, servings: (items ?? []).map { Self.amountIsServings($0, favourites: favourites) })
+            FoodLedgerSignposts.signposter.withIntervalSignpost("addFood.quickAddItems") {
+                let items = try? favourites.projection().quickAddItems
+                return AddFoodFavourites(items: items, servings: (items ?? []).map { Self.amountIsServings($0, favourites: favourites) })
+            }
         }.value
     }
 
     /// `FavouriteSaveModel.refresh(_:)`'s read, off the main actor (#399); nil when favourites cannot be read.
     func loadActiveFavourites(matching ids: [LogItemVersionID]) async -> [LogItemVersionID: FavouriteVersion]? {
         let favourites = favourites
-        return await Task.detached(priority: .userInitiated) { try? favourites.activeFavourites(matching: ids) }.value
+        return await Task.detached(priority: .userInitiated) {
+            FoodLedgerSignposts.signposter.withIntervalSignpost("addFood.favouriteStates") { try? favourites.activeFavourites(matching: ids) }
+        }.value
     }
 
     /// The confirmation clock and calendar, so Add food's "today" and "yesterday" match Confirm.
@@ -642,12 +649,21 @@ extension FoodLedgerCompositionRoot: DailyFoodLedgerSnapshotReading {
 /// Competing current versions throw, so the section reports a read failure. The whole period
 /// costs one archive read (#399): plain water is read per entry from its current version only,
 /// never through its history.
+/// Points of Interest intervals for the Add food open path and the Health report's food refresh
+/// (#399), so a cold or warm open can be compared in Instruments without a code change.
+enum FoodLedgerSignposts {
+    static let signposter = OSSignposter(subsystem: Bundle.main.bundleIdentifier ?? "WeeklyHealthReport",
+                                         category: .pointsOfInterest)
+}
+
 struct FoodLogPeriodReader: FoodLogPeriodReading {
     let service: FoodLogReadingService
 
     func dayFacts(for reportingDates: [String]) async throws -> [FoodLogDayFacts] {
-        try service.days(reportingDates: reportingDates).map { content in
-            try Self.facts(content) { id in try service.isPlainWater(id) }
+        try FoodLedgerSignposts.signposter.withIntervalSignpost("healthReport.foodLogDayFacts") {
+            try service.days(reportingDates: reportingDates).map { content in
+                try Self.facts(content) { id in try service.isPlainWater(id) }
+            }
         }
     }
 

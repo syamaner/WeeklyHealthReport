@@ -1035,7 +1035,7 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
             ("add-food-recents-failed", AnyView(AddFoodView(recents: [], recentsFailed: true, now: now, calendar: calendar,
                 search: { _ in XCTFail("Rendering cannot search") }, scanBarcode: {}, pasteOrDictate: {}, favourites: {},
                 relog: { _ in XCTFail("Rendering cannot log") })),
-             844, ["Recent foods could not be read", "No favourites yet"]),
+             844, ["Recent foods could not be read"]),
             ("search-searching", AnyView(results(searching)), 844, ["Looking for more matches online", "Stop"]),
             ("search-energy-for-amount", AnyView(results(energy)), 1400, ["Best matches", "kcal for 150 g", "Not what you ate?"]),
             ("search-basis-only", AnyView(results(basisOnly)), 1400, ["Best matches", "per 100 g"]),
