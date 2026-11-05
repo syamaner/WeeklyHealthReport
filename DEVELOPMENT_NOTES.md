@@ -3649,6 +3649,23 @@ The README becomes a short front page and its previous content moves unchanged i
 | README front page (#402), coordinator session | Unmeasured | Unmeasured | Unmeasured | Unmeasured | Unmeasured |
 
 Unmeasured: no start boundary was captured for this documentation change, so no figure is estimated. Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-371-2026-11-05: Claude Code UK release check P4, collection to harness run (#371)
+
+The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) set up and amended the fresh-set protocol (Amendments 1 and 2), prepared the private folders, relayed the owner's Google pastes and approvals, downloaded the approved PDFs, ran the committed seal, validate, run and score steps, and wrote this results file. Two independent sessions did the protocol roles: the collector (session `d923e950-26ab-4a33-9c1f-9c4f0070b00b`) and the blind transcriber (session `83a3db40-507c-4358-a220-db274ddda647`), both `claude-opus-5-5`, run in the private folders. The window runs from the owner's go-ahead for an agent collector at `2026-11-03T19:05:25Z` to the owner's request for this PR at `2026-11-05T07:41:27Z`. All cache writes were 1-hour.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| UK P4 coordination, seals, run and results (#371), coordinator session | 43,188,402 (42,567,548) | 620,328 | 88,527 | 43,276,929 | $15.25 |
+| UK P4 fresh-set collection (#371), collector session | 110,608,663 (109,704,053) | 903,776 | 280,002 | 110,888,665 | $34.77 |
+| UK P4 blind transcription (#371), transcriber session | 2,498,267 (2,374,652) | 123,575 | 48,427 | 2,546,694 | $2.43 |
+| **Subtotal** | 156,295,332 (154,646,253) | 1,647,679 | 416,956 | 156,712,288 | $52.46 |
+
+Method: `phase_usage.py --format claude --since 2026-11-03T19:05:25Z --until 2026-11-05T07:41:27Z` on the coordinator transcript (with and without `--include-subagents`, which gave the same figures), and `--until 2026-11-05T07:41:27Z --include-subagents` on each side session's whole transcript. Exact USD 15.2487776, 34.7743946 and 2.4322304 (52.4554026 in all).
+
+Included: the rebase and re-push of #388 at the start of the window, the docs PR #394 and its CI re-run. Excluded: the owner's own browsing and checking time, this ledger edit, the commit, the push and the PR after the window, and the P4 device step, which has not run.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a charge. Local builds and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
 ## WHR-399-2026-11-05a: Claude Code Add food freeze fix (#399)
 
 Device profiling on 5 Nov 2026 showed Add food freezing for 2.3 to 3.4 s behind the Health report's food refresh, which decoded the whole archive once per date and once or twice per entry. This phase reads the archive once per refresh and loads Add food's recents and favourites off the main thread. One `claude-opus-5-5` implementation subagent in session `7521cbba-58e0-451b-ad06-633ab6b5a737`, plus reviewers.
