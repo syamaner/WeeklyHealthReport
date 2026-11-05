@@ -3613,6 +3613,33 @@ Included: merging #400 and the Qodo dismissal. Excluded: this ledger edit, the c
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a charge. Local builds and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
 
+## WHR-384-2026-11-05: Claude Code Ciqual Developer tools lines, export check and journey QA, slice C3 (#384, phase C of #381)
+
+The coordinator session (`claude-opus-5-5`, session `8abede54-9564-4edc-9de1-c099dbc90ead`) did the following in this window:
+- synced #401 with main, dismissed its two Qodo findings with the owner's approval (timeout intentional, attribution false positive), checked the PR diff was unchanged since the last completed review, and merged #401;
+- briefed C3 and reviewed its diff;
+- applied the invariant review's missing-release suggestion and the journey QA's findings (spec wording for the row label and the #308 grouping, a spoken label for Confirm's source line);
+- ran the gates itself after the validator subagent stalled without reporting.
+
+Four subagents ran in the window:
+- One general-purpose implementer: `GenericSourceRecordDetails`, the Ciqual details lookup, `GenericSourceDetailsText`, the composition root wiring and the export contract test.
+- One `invariant-reviewer`: PASS, with three optional notes (one applied).
+- One `journey-qa`: the Ciqual search, Developer tools, Confirm estimate (70%, 50%, 40%) and saved-entry walk in the simulator; three low findings, all addressed.
+- One `validator`: started the gates but stalled without a report; its tokens are counted here, its results are not used.
+
+The window runs from `2026-11-04T10:37:07Z` (the end of WHR-384-2026-11-04c) to `2026-11-05T05:32:00Z`. Cache writes: coordinator 259,828 1-hour, subagents 653,763 5-minute.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| C2 merge and Ciqual surfaces (#384 C3), coordinator session | 17,556,588 (17,296,584) | 259,828 | 40,079 | 17,596,667 | $6.34 |
+| Implementation, invariant review, journey QA and validator (#384 C3), subagents | 37,117,127 (36,462,874) | 653,763 | 95,492 | 37,212,619 | $12.47 |
+| **Subtotal** | 54,673,715 (53,759,458) | 913,591 | 135,571 | 54,809,286 | $18.81 |
+
+Method: `phase_usage.py --format claude --since 2026-11-04T10:37:07Z --until 2026-11-05T05:32:00Z` on the session transcript, without and with `--include-subagents`; the subagent row is the difference. Exact USD 6.3402248 and 18.8134146.
+
+Included: merging #401 and its Qodo dismissals. Excluded: the app test run, this ledger edit, the commit, the push and the PR after that time.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a charge. Local builds and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
 ## WHR-402-2026-11-05a: Claude Code README front page
 
 The README becomes a short front page and its previous content moves unchanged into `docs/app-reference.md` (#402). Work done in the main coordinator session `7521cbba-58e0-451b-ad06-633ab6b5a737`, without subagents.
