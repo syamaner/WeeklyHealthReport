@@ -71,10 +71,11 @@ public struct FoodLogReadingService: Sendable {
                                     history: try historyEvents(logItemID, isServings: servings))
     }
 
-    /// One archive read serves both the versions and the conversions they reference (#399).
+    /// One archive read serves both the versions and the conversions they reference (#399): the
+    /// versions are the archive's own, as `ArchiveFoodLogHistoryReader` reads them.
     public func historyEvents(_ logItemID: LogItemID, isServings: Bool = false) throws -> [FoodEntryHistoryEvent] {
         let records = try archive.archiveState().records
-        let versions = try history.versions(for: logItemID, in: records)
+        let versions = records.logItemVersions.filter { $0.logItemID == logItemID }
         let referenced = Set(versions.compactMap(\.quantityConversionVersionID))
         let conversions = referenced.isEmpty ? [] : records.quantityConversions
             .filter { referenced.contains($0.quantityConversionVersionID) }

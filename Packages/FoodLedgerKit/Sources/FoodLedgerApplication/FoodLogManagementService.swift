@@ -3,31 +3,14 @@ import FoodLedgerDomain
 
 public protocol FoodLogHistoryReading: Sendable {
     func versions(for logItemID: LogItemID) throws -> [LogItemVersion]
-    /// The same versions, given a snapshot of this ledger's records that the caller has already
-    /// read (#399), so one read can serve several questions. The default ignores the snapshot and
-    /// reads as `versions(for:)` does; an archive-backed reader answers from the snapshot.
-    func versions(for logItemID: LogItemID, in records: LedgerMutation) throws -> [LogItemVersion]
     func change(operationID: OperationID) throws -> LedgerOperation?
-}
-
-public extension FoodLogHistoryReading {
-    func versions(for logItemID: LogItemID, in records: LedgerMutation) throws -> [LogItemVersion] {
-        try versions(for: logItemID)
-    }
 }
 
 public struct ArchiveFoodLogHistoryReader: FoodLogHistoryReading {
     private let archive: any FoodArchiveLedgerAccess
     public init(archive: any FoodArchiveLedgerAccess) { self.archive = archive }
     public func versions(for logItemID: LogItemID) throws -> [LogItemVersion] {
-        Self.versions(for: logItemID, in: try archive.archiveState().records)
-    }
-    /// `records` must be a snapshot of this reader's archive; no second archive read.
-    public func versions(for logItemID: LogItemID, in records: LedgerMutation) throws -> [LogItemVersion] {
-        Self.versions(for: logItemID, in: records)
-    }
-    static func versions(for logItemID: LogItemID, in records: LedgerMutation) -> [LogItemVersion] {
-        records.logItemVersions.filter { $0.logItemID == logItemID }
+        try archive.archiveState().records.logItemVersions.filter { $0.logItemID == logItemID }
     }
     public func change(operationID: OperationID) throws -> LedgerOperation? {
         try archive.operation(id: operationID)
