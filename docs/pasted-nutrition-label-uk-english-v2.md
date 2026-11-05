@@ -1,6 +1,6 @@
 # Pasted nutrition label, UK English v2 (plan draft, #371)
 
-Status: **draft, 5 November 2026. Owner decisions 1 and 2 made; decisions 3 to 5 open; no architecture gate yet.** It follows the owner's decision of 5 November 2026 to hold UK English off release after the v1 release check, and to work on the reader first.
+Status: **draft, 5 November 2026. Owner decisions 1 to 3 made; decisions 4 and 5 open; no architecture gate yet.** It follows the owner's decision of 5 November 2026 to hold UK English off release after the v1 release check, and to work on the reader first.
 
 ## 1. Where v1 stands
 
@@ -28,7 +28,7 @@ Causes from a leave-one-line-out probe of each declined v1 fresh text, run on sc
 
 Some labels need more than one fix: removing one cause can expose the next (two C1 labels and the C6 label move to `count_mismatch` when their line goes). The P1 set's 8 remaining declines are `basis_state_not_supported` 2, `count_mismatch` 2, `uk_orphan_unit` 2, `energy_without_unit` 1 and `value_without_unit` 1; v2 maps them to these causes during P1 below.
 
-**C9 declines are correct today.** The identity rule (P2b) keeps a value for the food as prepared from being stored as the food as sold. v2 does not change that without a versioned identity contract (decision 3).
+**C9 declines are correct today.** The identity rule (P2b) keeps a value for the food as prepared from being stored as the food as sold. v2 leaves them declined (decision 3); supporting them would need a versioned identity contract of its own.
 
 **C4 and C8 may depend on how the text was copied.** C4 came from scripted selections of grid layouts, and C8 from Preview's text order. Whether a Safari or iPhone paste of the same pages gives the same shape is not known. Decision 4 asks how to find out.
 
@@ -57,6 +57,6 @@ If every change works as planned, up to 17 of the 24 v1 fresh labels might reach
 
 1. **Approve this plan's direction?** *Recommendation: yes.* **Decided (owner, in session, 5 November 2026): approved.**
 2. **Keep the release bar and goals as v1** (zero wrong values gates; decline at most 25% and median burden at most 1 are goals)? *Recommendation: yes.* **Decided (owner, in session, 5 November 2026): kept.**
-3. **Leave prepared-state headers (C9) declined in v2?** *Recommendation: yes. Supporting them needs its own identity contract, with the food recorded as prepared.*
+3. **Leave prepared-state headers (C9) declined in v2?** *Recommendation: yes. Supporting them needs its own identity contract, with the food recorded as prepared.* **Decided (owner, in session, 5 November 2026): leave them declined in v2.**
 4. **How to settle the copy question (C4, C8)?** *Recommendation: before P3, the owner pastes 3 of the C4 pages from Safari on the iPhone into a note, without running the reader. The shapes are then compared, counts only. If a real paste gives tabs, C4 is a copy artefact and change 6 is dropped.*
 5. **Collector for the v2 fresh set:** the v1 Amendment 2 scripted copy, or a real Safari copy by the owner? *Recommendation: decide after decision 4. If scripted selections differ from real pastes, the owner copies.*
