@@ -64,9 +64,15 @@ final class SearchQualityDevelopmentTests: XCTestCase {
                      ("raspberry", "raspberries"), ("blackberry", "blackberries"),
                      ("cherry", "cherries"), ("plum", "plums"), ("apricot", "apricots"),
                      ("mandarin", "mandarins"), ("tangerine", "tangerines")]
-        for (index, source) in sources.enumerated() {
-            for (singular, plural) in pairs {
-                let a = try source.search(request(singular)), b = try source.search(request(plural))
+        // The searchers hold no mutable state, so every (source, pair) runs concurrently (CI time, #405).
+        let work = sources.indices.flatMap { index in pairs.indices.map { (index, $0) } }
+        let lock = NSLock()
+        var errors: [String] = []
+        DispatchQueue.concurrentPerform(iterations: work.count) { item in
+            let (index, pair) = work[item]
+            let (singular, plural) = pairs[pair]
+            do {
+                let a = try sources[index].search(request(singular)), b = try sources[index].search(request(plural))
                 switch (a, b) {
                 case let (.confirmation(a), .confirmation(b)):
                     XCTAssertEqual(a.matches.map { $0.candidate.candidate.recordID }, b.matches.map { $0.candidate.candidate.recordID }, singular)
@@ -77,7 +83,13 @@ final class SearchQualityDevelopmentTests: XCTestCase {
                     XCTAssertFalse(singular == "clementine" && index > 0)
                 default: XCTFail("Inconsistent plural matching: \(singular)")
                 }
+            } catch {
+                lock.lock(); defer { lock.unlock() }
+                errors.append("\(index) \(singular): \(error)")
             }
+        }
+        XCTAssertEqual(errors, [])
+        for source in sources {
             guard case .noResult = try source.search(request("clementine beef")) else { return XCTFail("All query terms must match") }
         }
     }
@@ -119,9 +131,12 @@ final class SearchQualityDevelopmentTests: XCTestCase {
     }
 }
 
+/// Locked because some tests search concurrently (#405); identifier order is never asserted.
 private final class QualityIDs: LedgerIDGenerating, @unchecked Sendable {
+    private let lock = NSLock()
     private var value = 1
     func makeID<Tag>(_ tag: Tag.Type) throws -> LedgerID<Tag> {
+        lock.lock(); defer { lock.unlock() }
         defer { value += 1 }
         return try LedgerID(String(format: "00000000-0000-0000-0000-%012x", value))
     }
