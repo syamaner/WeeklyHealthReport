@@ -228,8 +228,7 @@ final class FoodHomeModel: ObservableObject {
             return
         }
         let now = root.confirmationNow
-        let day = FoodReportingDay.key(for: now, calendar: root.confirmationDayCalendar)
-        if day != shownDay { state = .loading }
+        let day = dropValuesFromAnotherDay(now: now, root: root)
         let token = gate.begin()
         let read = await load(now)
         guard gate.isCurrent(token) else { return }
@@ -241,6 +240,20 @@ final class FoodHomeModel: ObservableObject {
             state = .failed(message)
         }
         quickAdd = read.quickAdd.map { .items(Array($0.prefix(FavouritesProjection.todayCount))) } ?? .unreadable
+    }
+
+    /// Shows loading at once when the reporting day differs from the day of the values shown.
+    /// Home calls it synchronously before rendering a refreshed day, so neither the screen nor
+    /// Today's Full Page pairs the new date with the previous day's totals.
+    func willRefresh() {
+        guard let root else { return }
+        _ = dropValuesFromAnotherDay(now: root.confirmationNow, root: root)
+    }
+
+    private func dropValuesFromAnotherDay(now: Date, root: FoodLedgerCompositionRoot) -> String {
+        let day = FoodReportingDay.key(for: now, calendar: root.confirmationDayCalendar)
+        if day != shownDay { state = .loading }
+        return day
     }
 
     /// Whether a chip's count amount means servings of a pasted label (#306).
@@ -261,6 +274,7 @@ enum FoodHomeCards {
                 }
             ],
             decorate: { view in AnyView(view.modifier(FoodHomeQuickAddHost(model: model))) },
+            willRefresh: { _ in model.willRefresh() },
             refresh: { _ in await model.reload() }
         )
     }

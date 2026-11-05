@@ -66,6 +66,9 @@ enum HomeRefreshTrigger: Equatable {
 struct HomeFeature {
     let cards: [HomeCard]
     var decorate: @MainActor (AnyView) -> AnyView = { $0 }
+    /// Runs synchronously when Home moves to the refresh's day, before any card renders it,
+    /// so a feature can drop values from a previous day before its read starts (#406).
+    var willRefresh: @MainActor (HomeRefreshTrigger) -> Void = { _ in }
     var refresh: @MainActor (HomeRefreshTrigger) async -> Void = { _ in }
 }
 
@@ -133,6 +136,7 @@ struct HomeView: View {
 
     private func refresh(_ trigger: HomeRefreshTrigger) async {
         let day = now()
+        for feature in features { feature.willRefresh(trigger) }
         today = day
         dayRefreshed(day)
         // Features refresh together (#406), so a slow food read never delays the other cards.

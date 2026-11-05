@@ -386,6 +386,23 @@ final class FoodLogAppTests: XCTestCase {
         XCTAssertEqual(home.state, .failed("day two"))
     }
 
+    func testHomeFeatureDropsThePreviousDayBeforeItsReadStarts() async throws {
+        let clock = MovableFoodLogClock()
+        let home = FoodHomeModel(root: try movableDayRoot(clock)) { _ in
+            FoodHomeRead(day: .failed("read"), quickAdd: [])
+        }
+        await home.reload()
+        let feature = FoodHomeCards.feature(model: home)
+
+        feature.willRefresh(.calendarDayChanged)
+        XCTAssertEqual(home.state, .failed("read"), "the same day keeps its values")
+
+        clock.date = clock.date.addingTimeInterval(24 * 60 * 60)
+        feature.willRefresh(.calendarDayChanged)
+        XCTAssertEqual(home.state, .loading, "Home's new date never renders with the previous day's totals")
+        XCTAssertEqual(FoodHomeCardContent.fullPageSection(home.state), FoodHomeCardContent.fullPageSection(.loading))
+    }
+
     private func movableDayRoot(_ clock: MovableFoodLogClock) throws -> FoodLedgerCompositionRoot {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
