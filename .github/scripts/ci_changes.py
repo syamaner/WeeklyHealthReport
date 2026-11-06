@@ -84,6 +84,8 @@ CODE_READ_DOCS = {
     "docs/pasted-nutrition-label-uk-english-v1-p3.md",
     # Cited by the UK reader v2 region rules, guard, identity v3 and their tests (#371 v2 P2).
     "docs/pasted-nutrition-label-uk-english-v2-p1.md",
+    # Cited by the UK freeze re-pin 2, scorer v2 and the UK fresh-set harness and tests (#371 v2 P3).
+    "docs/pasted-nutrition-label-uk-english-v2-p3.md",
     # Cited by the label estimate compatibility and merge policies and their tests (#383).
     "docs/label-estimate-merge-v1.md",
     # Cited by the Ciqual projector, audit and tests and, from C2, the Ciqual searcher (#384).

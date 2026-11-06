@@ -1,6 +1,6 @@
 # Pasted nutrition label, UK English v2 (plan draft, #371)
 
-Status: **draft, 5 November 2026. All five owner decisions made. P1 rule spec: [revision 3](pasted-nutrition-label-uk-english-v2-p1.md), architecture gate PASS WITH CHANGES applied, 6 November 2026; it sets reference-value columns aside rather than binding them (change 2).** It follows the owner's decision of 5 November 2026 to hold UK English off release after the v1 release check, and to work on the reader first.
+Status: **draft, 5 November 2026. All five owner decisions made. P1 rule spec: [revision 3](pasted-nutrition-label-uk-english-v2-p1.md), architecture gate PASS WITH CHANGES applied, 6 November 2026; it sets reference-value columns aside rather than binding them (change 2). P2 merged in PR 413. P3: [freeze and fresh-set protocol](pasted-nutrition-label-uk-english-v2-p3.md), 6 November 2026.** It follows the owner's decision of 5 November 2026 to hold UK English off release after the v1 release check, and to work on the reader first.
 
 ## 1. Where v1 stands
 
