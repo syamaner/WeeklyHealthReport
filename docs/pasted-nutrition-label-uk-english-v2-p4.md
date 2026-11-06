@@ -27,6 +27,17 @@ From this commit:
 2. **The block rule is unchanged.** The first CAPTCHA, bot check or traffic-verification page Google shows the agent is logged `blocked` (collector `agent`), is never bypassed, and moves Google to the owner in a Safari private window for the rest of collection.
 3. **Recorded.** The change and any later switch are recorded in `collectors.json`.
 
+### Amendment 3 (owner, 6 November 2026, during the retailer slots)
+
+The owner wants to watch collection and be able to step in. Computer use can only see a browser, not click or type in it, so it cannot drive Safari. The owner chose Claude in Chrome, the browser extension that acts in the owner's own Chrome. The browser is the same for every remaining label, chosen before the next slot's pages are opened, so it cannot depend on what a label shows.
+
+From this commit:
+
+1. **The agent's browser** is Claude in Chrome from the first slot the collector starts after reading this amendment. Labels already saved keep their records and stay as collected in the built-in browser. Each `source.json` names the browser.
+2. **The copy method is unchanged:** one DOM range from the first visible character of the nutrition section to the last, and `window.getSelection().toString()` saved as UTF-8, byte for byte (v1 Amendment 2 item 1). **Google searches stay in the built-in browser** (Amendment 2), because it is signed out and the owner's Chrome may not be; the agent opens each result in Chrome. No site is signed in to, and the agent never signs the owner out of anything.
+3. **The block rule is unchanged.** On a CAPTCHA, bot check or traffic-verification page the agent stops, logs `blocked` (collector `agent`) and never clears it. The owner becomes that site's collector for the rest of collection.
+4. **Reported.** The results count labels by browser beside the copy-method counts.
+
 ## 2. Results
 
 Not yet run.
