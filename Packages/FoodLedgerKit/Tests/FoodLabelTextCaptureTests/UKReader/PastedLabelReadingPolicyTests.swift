@@ -26,15 +26,16 @@ final class PastedLabelReadingPolicyTests: XCTestCase {
 
     // MARK: Test 3, closure
 
-    func testThePolicyIsClosedAndAUKScopeAlwaysReadsWithIdentityV2() {
+    func testThePolicyIsClosedAndAUKScopeAlwaysReadsWithIdentityV3() {
         XCTAssertEqual(PastedLabelReadingPolicy.product.launchScope, ["taiwan_nutrition_labelling"])
         XCTAssertEqual(PastedLabelReadingPolicy.product.launchScope, PastedLabelLaunchScope.enabledFormats)
         XCTAssertEqual(PastedLabelReadingPolicy.product.identity, .v1)
         XCTAssertEqual(PastedLabelReadingPolicy.Identity.v1.rawValue, PastedLabelIdentity.version)
         XCTAssertEqual(PastedLabelReadingPolicy.Identity.v2.rawValue, PastedLabelBasisStateV2.version)
+        XCTAssertEqual(PastedLabelReadingPolicy.Identity.v3.rawValue, PastedLabelBasisStateV3.version)
         XCTAssertEqual(PastedLabelReadingPolicy.ukDevelopment.launchScope.last, LabelFormatInference.Outcome.uk.rawValue)
         for policy in PastedLabelReadingPolicy.all where policy.admits(LabelFormatInference.Outcome.uk.rawValue) {
-            XCTAssertEqual(policy.identity, .v2)
+            XCTAssertEqual(policy.identity, .v3)
         }
     }
 
@@ -48,7 +49,7 @@ final class PastedLabelReadingPolicyTests: XCTestCase {
         }
     }
 
-    func testTheUKPolicyOnlyRemovesTheScopeDeclineFromUKTablesAndAppliesIdentityV2() throws {
+    func testTheUKPolicyOnlyRemovesTheScopeDeclineFromUKTablesAndAppliesIdentityV3() throws {
         var admitted = 0
         for text in try fixtureTexts() {
             let mine = uk.read(text), theirs = product.read(text)
@@ -62,7 +63,7 @@ final class PastedLabelReadingPolicyTests: XCTestCase {
             if reading(theirs)?.format == LabelFormatInference.Outcome.uk.rawValue {
                 expected.removeAll { $0 == PastedLabelCodes.layoutNotSupported }
             }
-            if !PastedLabelBasisStateV2.isAsSold(candidate), PastedLabelBasisState.isAsSold(candidate),
+            if !PastedLabelBasisStateV3.isAsSold(candidate), PastedLabelBasisState.isAsSold(candidate),
                !expected.contains(PastedLabelIdentity.basisStateNotSupported) {
                 let noTable = expected.firstIndex(of: PastedLabelCodes.noTable) ?? expected.endIndex
                 expected.insert(PastedLabelIdentity.basisStateNotSupported, at: noTable)
@@ -102,7 +103,7 @@ final class PastedLabelReadingPolicyTests: XCTestCase {
                                                    digester: SHA256Digester(), conversions: NutritionLabelConversionChecker(),
                                                    policy: .ukDevelopment)
         XCTAssertThrowsError(try confirmation.manifest(review, details: .init(name: "Synthetic oat bar"), corrections: [])) { error in
-            XCTAssertEqual(error as? PastedLabelConfirmationError, .identityNotRecordable(PastedLabelBasisStateV2.version))
+            XCTAssertEqual(error as? PastedLabelConfirmationError, .identityNotRecordable(PastedLabelBasisStateV3.version))
         }
         // The UK pipeline is not admitted either, so even under `.product` no UK manifest is built.
         let productConfirmation = PastedLabelConfirmation(ids: RandomLedgerIDGenerator(), clock: Clock(),

@@ -12,6 +12,15 @@ import Foundation
 /// an accuracy rate. Every real file lives in the private folder, which `FreshSet.privateFolder`
 /// keeps outside every git checkout.
 enum UKDevelopmentSet {
+    /// One label's set-aside file (`UKSetAsideRecord.fileSchema`).
+    struct SetAsideFile: Codable, Equatable {
+        let schema: String
+        let labelID: String
+        let entries: [UKSetAsideRecord]
+
+        enum CodingKeys: String, CodingKey { case schema, labelID = "label_id", entries }
+    }
+
     struct Extra: Codable, Equatable {
         let labelID: String
         /// The inferred format (`uk_nutrition_declaration`, `us_nutrition_facts`, `format_ambiguous`, ...).
@@ -42,7 +51,7 @@ enum UKDevelopmentSet {
         let builder = UKFreshSet.builder()
         let ids = try labelIDs(root)
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-        for folder in ["run", "run-extra"] {
+        for folder in ["run", "run-extra", "set-aside"] {
             try FileManager.default.createDirectory(at: root.appendingPathComponent(folder), withIntermediateDirectories: true)
         }
         for id in ids {
@@ -51,6 +60,9 @@ enum UKDevelopmentSet {
             let (result, extra) = run(labelID: id, text: text, transcription: t) { try builder.choose($0, in: $1) }
             try encoder.encode(result).write(to: root.appendingPathComponent("run/\(id).json"))
             try encoder.encode(extra).write(to: root.appendingPathComponent("run-extra/\(id).json"))
+            // The set-aside list beside the run output, so the run schema is unchanged (v2 P1 section 2).
+            try encoder.encode(SetAsideFile(schema: UKSetAsideRecord.fileSchema, labelID: id, entries: UKEnglishLabelTextReader().setAside(text)))
+                .write(to: root.appendingPathComponent("set-aside/\(id).json"))
         }
         try FreshSet.append("run \(ISO8601DateFormatter().string(from: now)) commit=\(commit) labels=\(ids.count)\n",
                             to: root.appendingPathComponent("run-log.txt"))

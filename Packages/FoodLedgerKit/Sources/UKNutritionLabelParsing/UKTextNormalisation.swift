@@ -2,9 +2,11 @@ import Foundation
 import NutritionLabelParsing
 
 /// The UK reader's closed normalisation rules N1 to N4 (`docs/pasted-nutrition-label-uk-english-v1-p2.md`
-/// section 2) and N5 (`docs/pasted-nutrition-label-uk-english-v1-p2b.md` section 2), applied to English text only, before parser v3. Each rule moves or respells printed
-/// tokens; none adds, drops or changes a digit run, decimal separator or comparator. A line no
-/// rule matches is returned byte for byte. Part of `nutrition-label-text-parser-uk-v2`: any change
+/// section 2), N5 (`docs/pasted-nutrition-label-uk-english-v1-p2b.md` section 2), and N6 and N7
+/// (`docs/pasted-nutrition-label-uk-english-v2-p1.md` section 3), applied to English text only,
+/// after the region stage and before parser v3. Each rule moves, joins or respells printed tokens;
+/// none adds, drops or changes a digit run, decimal separator or comparator. A line no rule
+/// matches is returned byte for byte. Part of `nutrition-label-text-parser-uk-v3`: any change
 /// here is a new parser version.
 public enum UKTextNormalisation {
     /// The normalised text, its lines joined with `\n` exactly as the input's lines were split.
@@ -13,16 +15,102 @@ public enum UKTextNormalisation {
     }
 
     /// The normalised lines: N4 splits first, then each line gets at most one of N1, N2, N3, N5.
+    /// The language is checked on `text` itself; the UK parser passes the pasted text's decision
+    /// through `lines(_:english:)` instead.
     public static func lines(_ text: String) -> [String] {
-        // English text only (parser v3's language, through its public API); anything else is untouched.
-        guard NutritionLabelTextParserV3().parse(text, inputSHA256: "").language == .english else { return text.components(separatedBy: "\n") }
+        lines(text.components(separatedBy: "\n"),
+              english: NutritionLabelTextParserV3().parse(text, inputSHA256: "").language == .english).lines
+    }
+
+    /// The normalised lines of English text (`english` is the pasted text's language decision, so
+    /// the region stage and normalisation always agree), and the number of row pairs N7 wrote, if
+    /// it fired. Order: N7 on the whole text; then N4 splits and each line gets at most one of
+    /// N1, N2, N3, N5; then N6 on the heading line. Anything not English is untouched.
+    public static func lines(_ input: [String], english: Bool) -> (lines: [String], n7Pairs: Int?) {
+        guard english else { return (input, nil) }
+        let joined = joinOneCellPerLine(input)
         var out: [String] = []
-        for line in text.components(separatedBy: "\n") {
+        for line in joined?.lines ?? input {
             for piece in splitGluedTitle(line) {
                 out.append(rewrite(piece, above: out))
             }
         }
+        return (headingWithoutPer(out), joined?.pairs)
+    }
+
+    // MARK: N6 a heading without "per"
+
+    static let wholeQuantity = UKPattern(#"(?i)^\d+(?:[.,]\d+)?\s*(?:g|ml)$"#)
+    static let hundredQuantity = UKPattern(#"(?i)^100\s*(?:g|ml)$"#)
+    static let quantityWithServingWord = UKPattern(
+        #"(?i)^(?:\d+(?:[.,]\d+)?\s*(?:g|ml)\s+(?:"# + UKVocabulary.servingWords.joined(separator: "|")
+            + #")|(?:1|one|1/\d+\s+of\s+a)\s+(?:"# + UKVocabulary.servingWords.joined(separator: "|")
+            + #")\s*\(\s*\d+(?:[.,]\d+)?\s*(?:g|ml)\s*\))$"#)
+
+    /// On the heading line only: a whole `100 g` or `100 ml` cell gains `Per`, so does a weight or
+    /// volume with a closed serving word, and an empty first cell (left by S5) becomes
+    /// `Typical values`. No digit, unit or comparator changes.
+    static func headingWithoutPer(_ lines: [String]) -> [String] {
+        guard let heading = UKTableRegion.headingIndex(lines) else { return lines }
+        var cells = lines[heading].components(separatedBy: "\t")
+        guard cells.count >= 2 else { return lines }
+        var changed = false
+        for index in cells.indices.dropFirst() {
+            let cell = UKTableRegion.trimmed(cells[index])
+            if hundredQuantity.contains(cell) || quantityWithServingWord.contains(cell) {
+                cells[index] = "Per " + cell
+                changed = true
+            }
+        }
+        if UKTableRegion.trimmed(cells[0]).isEmpty, cells.dropFirst().contains(where: { headerPhrase.contains($0) }) {
+            cells[0] = "Typical values"
+            changed = true
+        }
+        guard changed else { return lines }
+        var out = lines
+        out[heading] = cells.joined(separator: "\t")
         return out
+    }
+
+    // MARK: N7 one cell per line
+
+    static let valueCell = UKPattern(
+        #"(?i)^(?:less than|<)?\s*\d+(?:[.,]\d+)?\s*(?:kj|kcal|mcg|mg|µg|μg|ml|g)?(?:\s*/\s*(?:less than|<)?\s*\d+(?:[.,]\d+)?\s*(?:kj|kcal|mcg|mg|µg|μg|ml|g)?)?$"#)
+    static let markerCells: Set<String> = ["trace", "tr", "-", "nil"]
+    static let referenceBasis = UKPattern(#"(?i)%\s*RI|\bRI\b|reference intake|%\s*DV|daily value|\bNRV\b"#)
+
+    /// The whole one-cell-per-line shape (optional title lines, a title heading with an optional
+    /// empty second cell, exactly one basis line, then label and value line pairs to the end),
+    /// blank lines allowed anywhere, rewritten as tabbed lines; nil when anything breaks it.
+    static func joinOneCellPerLine(_ input: [String]) -> (lines: [String], pairs: Int)? {
+        let lines = input.map(UKTableRegion.trimmed).filter { !$0.isEmpty }
+        var index = 0
+        var titles: [String] = []
+        // 1 and 2: title lines, then the heading's title cell (the last title before the basis line).
+        while index < lines.count {
+            let cells = lines[index].components(separatedBy: "\t").map(UKTableRegion.trimmed)
+            guard cells.count <= 2, UKTableRegion.isTableTitle(cells[0]), cells.count == 1 || cells[1].isEmpty else { break }
+            titles.append(cells[0])
+            index += 1
+        }
+        guard let headingTitle = titles.popLast(), index < lines.count else { return nil }
+        // 3: exactly one basis line.
+        let basis = lines[index]
+        guard !basis.contains("\t"), headerPhrase.contains(basis), !referenceBasis.contains(basis) else { return nil }
+        index += 1
+        // 4 and 5: label and value pairs to the end of the kept text.
+        var rows: [String] = []
+        while index < lines.count {
+            let label = lines[index]
+            guard index + 1 < lines.count else { return nil }
+            let cell = lines[index + 1]
+            guard !label.contains("\t"), !label.contains(where: \.isNumber), !headerPhrase.contains(label),
+                  !cell.contains("\t"), valueCell.contains(cell) || markerCells.contains(cell.lowercased()) else { return nil }
+            rows.append(label + "\t" + cell)
+            index += 2
+        }
+        guard rows.count >= 2 else { return nil }
+        return (titles + [headingTitle + "\t" + basis] + rows, rows.count)
     }
 
     static func rewrite(_ line: String, above: [String]) -> String {
