@@ -33,6 +33,11 @@ import XCTest
 ///    3 gains `UKTableRegion.swift`, `PastedLabelBasisStateV3.swift` and the development harness,
 ///    which writes the set-aside file, and re-hashes the changed UK files. uk-v2 was never admitted
 ///    or stored; the v1 release check stays the record of uk-v2.
+/// 2. UK reader v2 P3 (#371, `docs/pasted-nutrition-label-uk-english-v2-p3.md` section 1): the
+///    freeze reference of the v2 P4 release check. Pins 1 and 2 are unchanged. Pin 3 re-hashes
+///    `UKFreshSetProtocol.swift` (scorer v2 rules R1 to R3, the release run's set-aside files) and
+///    `UKDevelopmentSet.swift` (its set-aside file type moved to the release harness). A new pin 4
+///    holds the scorer version and the R1 to R3 tables, so pin 2's listing stays byte-identical.
 ///
 /// No label text, value or product name is here: only rule tables and source hashes.
 final class UKReaderFreezeTests: XCTestCase {
@@ -151,6 +156,28 @@ final class UKReaderFreezeTests: XCTestCase {
         return lines.joined(separator: "\n") + "\n"
     }
 
+    // MARK: 4. Scorer v2 rules (re-pin 2)
+
+    static let frozenScorerRulesSHA256 = "bf238343393993c73844f4fc8182948ea65b46cf54473644b0842ea7739607d0"
+
+    func testFrozenScorerRulesAreUnchanged() {
+        let listing = Self.scorerRuleListing()
+        XCTAssertEqual(Self.sha256(Data(listing.utf8)), Self.frozenScorerRulesSHA256,
+                       "A frozen UK scorer rule changed. That is a new scorer version and a new fresh set (v2 P3 section 1). Listing:\n\(listing)")
+    }
+
+    /// The scorer version and the closed tables of R1 to R3, one line each, sorted where the source is a dictionary.
+    static func scorerRuleListing() -> String {
+        var lines: [String] = []
+        func add(_ section: String, _ items: [String]) { lines.append("## " + section); lines.append(contentsOf: items) }
+        add("scorer-version", [UKFreshSet.scorerVersion])
+        add("r1-r2-percent-unit", [UKFreshSet.percentUnit])
+        add("r2-energy-partners", UKFreshSet.energyPartners.keys.sorted().map { "\($0)\t\(UKFreshSet.energyPartners[$0]!)" })
+        add("r2-dashes", UKFreshSet.dashes)
+        add("r3-label-unit-tokens", UKFreshSet.labelUnitTokens)
+        return lines.joined(separator: "\n") + "\n"
+    }
+
     // MARK: 3. Frozen source files
 
     /// Paths relative to the FoodLedgerKit package root, each with its own UK hash.
@@ -190,8 +217,8 @@ final class UKReaderFreezeTests: XCTestCase {
         "Sources/UKNutritionLabelParsing/UKVocabulary.swift": "62c97a1cb4370c3652cc2362b4df854b9a96980e34909e27744fe87a8fddb90f",
         "Tests/FoodLabelTextCaptureTests/FreshSet/FreshSetProtocol.swift": "c2ad61b6ee3cc1d331d5c8d9c6fce64f520f6b52381a42c23549b5d1fe76b40a",
         "Tests/FoodLabelTextCaptureTests/FreshSet/FreshSetStepTests.swift": "42a5bf8d4c1bd2f96a3629f8a04c976ef7626027098b2f6ffef079dd2eaf4864",
-        "Tests/FoodLabelTextCaptureTests/UKDevelopment/UKDevelopmentSet.swift": "876129658fd7c1ae90a8ec51ba7757a1dc8c958697ac6ff843efd4a61d64e27a",
-        "Tests/FoodLabelTextCaptureTests/UKFreshSet/UKFreshSetProtocol.swift": "11e5a346818bdeb1fbeb58f30f0a87a421f0ca308c8b06ea42afd9d5ab19d85d",
+        "Tests/FoodLabelTextCaptureTests/UKDevelopment/UKDevelopmentSet.swift": "dd1e2db2d7e20e2e1d09cd0ff3d4851bbf850c75924b26af40008d379ec27d6d",
+        "Tests/FoodLabelTextCaptureTests/UKFreshSet/UKFreshSetProtocol.swift": "8a2cac3e291c0f78bc7e559594712855d0cc71ddb4359c5f4a2045291b35846f",
         "Tests/FoodLabelTextCaptureTests/UKFreshSet/UKFreshSetStepTests.swift": "b14aa527624d1cb203e87f7866443d1d22c9f449f3c0782d82b6b7bef182498f",
     ]
 

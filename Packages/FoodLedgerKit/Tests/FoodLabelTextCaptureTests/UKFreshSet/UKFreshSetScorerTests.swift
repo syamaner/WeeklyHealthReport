@@ -221,6 +221,12 @@ final class UKFreshSetScorerTests: XCTestCase {
         let output = try JSONDecoder().decode(UKFreshSet.RunResult.self, from: Data(contentsOf: root.appendingPathComponent("run/K02.json")))
         XCTAssertEqual(output.schema, UKFreshSet.runSchema)
         XCTAssertEqual(output.format, LabelFormatInference.Outcome.uk.rawValue)
+        // v2 P3 section 3: the run writes each label's set-aside file, the reader's own list.
+        let setAside = try JSONDecoder().decode(UKFreshSet.SetAsideFile.self, from: Data(contentsOf: root.appendingPathComponent("set-aside/K02.json")))
+        XCTAssertEqual(setAside, UKFreshSet.SetAsideFile(labelID: "K02", text: Self.continuation))
+        XCTAssertEqual(setAside.schema, "uk-set-aside-v1")
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: root.appendingPathComponent("set-aside").path), ["K02.json"],
+                       "one file per label read, and the rerun read none")
 
         let summary = try UKFreshSet.scoreAll(root)
         XCTAssertEqual(summary.overall.wrongValues, 0)
@@ -239,6 +245,35 @@ final class UKFreshSetScorerTests: XCTestCase {
         try Data((Self.continuation + "\n").utf8).write(to: root.appendingPathComponent("texts/K02.txt"))
         XCTAssertThrowsError(try UKFreshSet.scoreAll(root))
         XCTAssertThrowsError(try FreshSet.requireSealed(root))
+    }
+
+    /// v2 P3 section 3: the set-aside file carries the reader's entries under `label_id`, and
+    /// round-trips unchanged. Synthetic text only.
+    func testTheSetAsideFileCarriesTheReadersEntries() throws {
+        let text = ". Contains 3 Servings\nTypical values\tPer 100g\nEnergy\t1000kJ / 240kcal\nFat\t3.2g\nof which saturates\t1.1g\n"
+            + "Carbohydrate\t30.0g\nof which sugars\t5.0g\nProtein\t6.0g\nSalt\t0.40g"
+        let file = UKFreshSet.SetAsideFile(labelID: "K09", text: text)
+        XCTAssertEqual(file.entries, UKEnglishLabelTextReader().setAside(text))
+        XCTAssertEqual(file.entries.map(\.rule), ["S1"])
+        let data = try JSONEncoder().encode(file)
+        let keys = (try JSONSerialization.jsonObject(with: data) as? [String: Any]).map { Set($0.keys) }
+        XCTAssertEqual(keys, ["schema", "label_id", "entries"])
+        XCTAssertEqual(try JSONDecoder().decode(UKFreshSet.SetAsideFile.self, from: data), file)
+    }
+
+    /// v2 P3 section 3: the set-aside file describes the same read as the run. Each S2 entry that
+    /// holds a value is one `uk_set_aside` unread row of the reading, in order. Synthetic text only.
+    func testSetAsideEntriesMatchTheReadingsUnreadRows() throws {
+        let text = ["Typical values\tPer 100g\tPer 30g serving", "Energy\t1500kJ / 360kcal\t450kJ / 108kcal", "Fat\t12.0g\t3.6g",
+                    "of which saturates\t4.0g\t1.2g", "Carbohydrate\t50.0g\t15.0g", "of which sugars\t20.0g\t6.0g", "Protein\t8.0g\t2.4g",
+                    "Salt\t0.50g\t0.15g", "Vitamins and Minerals", "Vitamin C\t35mg\t10.5mg", "Iron\t4.5mg\t1.4mg",
+                    "*NRV = Nutrient Reference Value"].joined(separator: "\n")
+        let file = UKFreshSet.SetAsideFile(labelID: "K10", text: text)
+        let unread = UKEnglishLabelTextReader().read(text, textSHA256: "h", assertedBases: nil).unreadRows
+            .filter { $0.reason == "uk_set_aside" }.map(\.printedLabel)
+        XCTAssertEqual(unread, ["Vitamin C", "Iron"])
+        let valued = file.entries.filter { $0.rule == "S2" && $0.text.contains(where: \.isNumber) && $0.text.first?.isLetter == true }
+        XCTAssertEqual(valued.map { $0.text.components(separatedBy: "\t")[0] }, unread)
     }
 
     func testARunOnChangedTextsOrOutputsTheLogDoesNotAccountForIsRefused() throws {

@@ -11,7 +11,9 @@ import Foundation
 /// label text: every real file lives in a private folder outside every git checkout.
 ///
 /// Steps, each run by `UKFreshSetStepTests` with `WHR_UK_FRESH_SET_DIR` and `WHR_UK_FRESH_SET_STEP`:
-/// `seal-texts`, `validate`, `seal-1`, `seal-2`, `run`, `score`.
+/// `seal-texts`, `validate`, `seal-1`, `seal-2`, `run`, `score`. From UK reader v2 P3
+/// (`docs/pasted-nutrition-label-uk-english-v2-p3.md` section 3) the run also writes each label's
+/// set-aside file.
 enum UKFreshSet {
     typealias Failure = FreshSet.Failure
     typealias Seal = FreshSet.Seal
@@ -219,8 +221,25 @@ enum UKFreshSet {
 
     private struct SystemClock: LedgerClock { func now() -> Date { Date() } }
 
-    /// The UK reader, read under `.ukDevelopment` (both formats, identity v2).
+    /// The UK reader, read under `.ukDevelopment` (both formats, identity v3 from UK reader v2 P2).
     static let reader = PastedLabelReader(reader: UKEnglishLabelTextReader(), digester: SHA256Digester(), policy: .ukDevelopment)
+
+    /// One label's set-aside file (`UKSetAsideRecord.fileSchema`), beside the run output so the run
+    /// schema is unchanged (v2 P1 section 2, v2 P3 section 3). Written by both harnesses; read by
+    /// nothing in the scorer.
+    struct SetAsideFile: Codable, Equatable {
+        let schema: String
+        let labelID: String
+        let entries: [UKSetAsideRecord]
+
+        enum CodingKeys: String, CodingKey { case schema, labelID = "label_id", entries }
+
+        init(labelID: String, text: String) {
+            schema = UKSetAsideRecord.fileSchema
+            self.labelID = labelID
+            entries = UKEnglishLabelTextReader().setAside(text)
+        }
+    }
 
     /// The harness's confirmation builder, under the **same** `.ukDevelopment` policy. The run
     /// only calls `choose`; it never builds a manifest, which throws `identityNotRecordable` for
@@ -273,7 +292,8 @@ enum UKFreshSet {
         let builder = builder()
         let ids = try labelIDs(root)
         let runFolder = root.appendingPathComponent("run")
-        try FileManager.default.createDirectory(at: runFolder, withIntermediateDirectories: true)
+        let setAsideFolder = root.appendingPathComponent("set-aside")
+        for folder in [runFolder, setAsideFolder] { try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true) }
         let logURL = root.appendingPathComponent("run-log.txt")
         let log = (try? String(contentsOf: logURL, encoding: .utf8)) ?? ""
         let lines = log.split(separator: "\n").map(String.init)
@@ -294,6 +314,7 @@ enum UKFreshSet {
             let t = try transcription(Data(contentsOf: root.appendingPathComponent("transcription/\(id).json")))
             let result = run(labelID: id, text: text, transcription: t) { try builder.choose($0, in: $1) }
             try encoder.encode(result).write(to: runFolder.appendingPathComponent("\(id).json"))
+            try encoder.encode(SetAsideFile(labelID: id, text: text)).write(to: setAsideFolder.appendingPathComponent("\(id).json"))
             try FreshSet.append("wrote \(id)\n", to: logURL)
         }
         return pending.count
@@ -384,6 +405,10 @@ enum UKFreshSet {
         switch same.count {
         case 0: return .notPrinted
         case 1: return .index(same[0])
+        case _ where header.basis == "reference_intake":
+            // R1 (v2 P3 section 2): of two or more reference intake columns, the one percent column.
+            let percent = same.filter { isPercentColumn(t, $0) }
+            return percent.count == 1 ? .index(percent[0]) : .ambiguous
         default:
             let readerAmounts = candidate.headers.filter { $0.basis != "reference_intake" }
             let printedAmounts = t.columns.indices.filter { t.columns[$0].basis != "reference_intake" }
@@ -395,6 +420,53 @@ enum UKFreshSet {
     }
 
     typealias Expected = FreshSet.Expected
+
+    // MARK: Scorer v2 rules R1 to R3 (`docs/pasted-nutrition-label-uk-english-v2-p3.md` section 2)
+
+    /// The scorer's version. v1 (implicit) is the v1 P3 scorer; v2 adds R1 to R3, each of which only
+    /// decides which printed cell a read value is compared with. Pinned by `UKReaderFreezeTests` pin 4.
+    static let scorerVersion = "uk-fresh-scorer-v2"
+    /// R2: the energy rows whose single reference intake percentage a transcriber and a reader may
+    /// place on either row.
+    static let energyPartners = ["energy_kj": "energy_kcal", "energy_kcal": "energy_kj"]
+    /// R3: the bare last tokens of a row label that name its unit (bracket groups are read through `unit`).
+    static let labelUnitTokens = ["kj", "kcal"]
+    /// The canonical unit of a reference intake percentage (R1, R2).
+    static let percentUnit = "%"
+
+    /// R2: a printed dash of the marker class (not `Trace` or `Tr`).
+    static func isDash(_ value: Transcription.Value) -> Bool { isClassMarker(value) && dashes.contains(value.number) }
+    static let dashes = ["-", "–", "—", "−"]
+
+    /// R3's limit: true for a reader header whose basis is `reference_intake`.
+    static func isReferenceHeader(_ headerID: String, _ candidate: PastedLabelManifest.Candidate) -> Bool {
+        candidate.headers.first { $0.headerID == headerID }?.basis == "reference_intake"
+    }
+
+    /// R1: a column holding at least one percentage and, apart from class markers, nothing else.
+    static func isPercentColumn(_ t: Transcription, _ col: Int) -> Bool {
+        let values = t.rows.compactMap { value($0, col) }.filter { !isClassMarker($0) }
+        return !values.isEmpty && values.allSatisfy { unit($0.unit) == percentUnit }
+    }
+
+    /// R3: the one canonical unit a row label names, in a bracket group or as a bare last `kJ` or
+    /// `kcal` token; nil when it names none or more than one.
+    static func labelUnit(_ label: String) -> String? {
+        let text = label.precomposedStringWithCompatibilityMapping
+        var named = Set<String>()
+        if let pattern = try? NSRegularExpression(pattern: #"\(([^()]*)\)"#) {
+            for match in pattern.matches(in: text, range: NSRange(text.startIndex..., in: text)) {
+                if let inner = Range(match.range(at: 1), in: text), let u = unit(String(text[inner]).trimmingCharacters(in: .whitespaces)) {
+                    named.insert(u)
+                }
+            }
+        }
+        if let last = text.split(whereSeparator: { $0.isWhitespace }).last.map({ String($0).lowercased() }),
+           labelUnitTokens.contains(last), let u = unit(last) {
+            named.insert(u)
+        }
+        return named.count == 1 ? named.first : nil
+    }
 
     static func value(_ row: Transcription.Row, _ col: Int) -> Transcription.Value? {
         row.values.indices.contains(col) ? row.values[col] : nil
@@ -430,6 +502,16 @@ enum UKFreshSet {
             guard !rows.isEmpty else { return .ambiguous }
         }
         guard rows.count == 1 else { return rows.isEmpty ? .notPrinted : .ambiguous }
+        // R2: the energy reference intake percentage is one quantity, the same against kJ or kcal, so
+        // when it is printed on one energy row only (the other empty or a dash), it is compared on
+        // that row, whichever energy row the reader bound it to.
+        if value(rows[0], col).map(isDash) ?? true, let partner = energyPartners[nutrient], t.columns[col].basis == "reference_intake",
+           isPercentColumn(t, col), !candidate.cells.contains(where: { $0.headerID == headerID && $0.nutrient == partner }) {
+            let partners = t.rows.filter { $0.nutrient == partner }
+            if partners.count == 1, let printed = value(partners[0], col), unit(printed.unit) == percentUnit {
+                return .value(printed, rowLabel: partners[0].label)
+            }
+        }
         return value(rows[0], col).map { Expected.value($0, rowLabel: rows[0].label) } ?? .notPrinted
     }
 
@@ -449,13 +531,17 @@ enum UKFreshSet {
     /// read marker of the class (any number, `0` included, is wrong); an Amendment 3 marker
     /// matches only itself; a printed form with no mapping never matches.
     static func same(comparator read: String, number: String, unit readUnit: String, readLabel: String,
-                     as value: Transcription.Value, printedLabel: String) -> Bool {
+                     as value: Transcription.Value, printedLabel: String, inReferenceColumn: Bool = false) -> Bool {
         if isClassMarker(value) { return isMarkerText(number) }
         if FreshSet.isMarker(value) { return number == value.number }
         guard let printedComparator = comparator(value.comparator), read == printedComparator,
               let readNumber = FreshSet.rowNumber(number, rowLabel: readLabel),
               let printed = FreshSet.rowNumber(value.number, rowLabel: printedLabel),
-              let canonical = unit(value.unit) else { return false }
+              // R3: in an amount column, an empty printed unit (recorded with `outside_table`, as
+              // validation requires) takes the one unit the printed row label names. Never in a
+              // reference intake column, where a bare number is a percentage. Markers never reach here.
+              let canonical = value.unit.isEmpty ? (inReferenceColumn ? nil : labelUnit(printedLabel)) : unit(value.unit)
+        else { return false }
         return readNumber == printed && readUnit.lowercased() == canonical.lowercased()
     }
 
@@ -491,7 +577,7 @@ enum UKFreshSet {
             case .notPrinted: wrong.append("\(where_): bound, but not printed")
             case let .value(value, printedLabel):
                 if !same(comparator: cell.comparator, number: cell.decimalText, unit: cell.canonicalUnit, readLabel: cell.printedLabel,
-                         as: value, printedLabel: printedLabel) {
+                         as: value, printedLabel: printedLabel, inReferenceColumn: isReferenceHeader(cell.headerID, candidate)) {
                     wrong.append("\(where_): read \(cell.comparator)\(cell.decimalText) \(cell.canonicalUnit)")
                 }
             }
@@ -506,7 +592,8 @@ enum UKFreshSet {
                   case let .value(value, printedLabel) = expected(t, candidate: candidate, headerID: source.headerID, nutrient: source.nutrient,
                                                                   label: source.printedLabel, unit: source.canonicalUnit),
                   same(comparator: source.comparator, number: conversion.operandText, unit: FreshSet.operandUnit(conversion.operandUnit),
-                       readLabel: source.printedLabel, as: value, printedLabel: printedLabel)
+                       readLabel: source.printedLabel, as: value, printedLabel: printedLabel,
+                       inReferenceColumn: isReferenceHeader(source.headerID, candidate))
             else { wrong.append("calculated \(conversion.nutrient): operand does not match its printed source"); continue }
             if case let .value(printed, _) = expected(t, candidate: candidate, headerID: conversion.sourceHeaderID, nutrient: conversion.nutrient,
                                                       label: "-", unit: ""),
