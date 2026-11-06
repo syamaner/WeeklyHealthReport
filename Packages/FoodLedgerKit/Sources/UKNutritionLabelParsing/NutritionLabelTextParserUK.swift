@@ -98,8 +98,9 @@ public struct NutritionLabelTextParserUK: Sendable {
 
 /// The set-aside report (`docs/pasted-nutrition-label-uk-english-v2-p1.md` section 2): after the
 /// guard passes, one `row_not_read: uk_set_aside: <printed label>` warning per row S2 set aside,
-/// so the person sees them under "Printed but not read". Never runs on a declined candidate and
-/// changes no other field.
+/// so the person sees them under "Printed but not read". Never runs on a declined candidate. Like
+/// any parser v3 warning, a reported row means the candidate would not mark ready; no other field
+/// changes.
 public enum UKSetAsideReport {
     public static let reason = "uk_set_aside"
 
@@ -107,6 +108,7 @@ public enum UKSetAsideReport {
         guard !candidate.declined, !reportedRows.isEmpty else { return candidate }
         var out = candidate
         out.warnings += reportedRows.map { "row_not_read: \(reason): \($0)" }
+        out.wouldMarkReady = false
         return out
     }
 }

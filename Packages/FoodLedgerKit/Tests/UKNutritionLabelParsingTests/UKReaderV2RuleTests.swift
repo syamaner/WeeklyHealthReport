@@ -36,6 +36,13 @@ enum UKV2Cases {
     static let stackedDifferent = text(["Nutritional Information", "Per 100g:"] + per100Body + ["Per Serving:"]
         + servingBody.map { $0.replacingOccurrences(of: "12.0g", with: "3.6g") })
     static let stackedUnclear = text(["Nutritional Information", "Per pack:"] + per100Body + ["Per Serving:"] + servingBody)
+    // Review fixes: a trailing reference intake footnote is neither a table row nor a reported row.
+    static let footnote = "Reference intake of an average adult (8400 kJ / 2000 kcal)"
+    static let stackedWithFootnote = text(["Nutritional Information", "Per 100g:"] + per100Body + ["Per Serving:"] + servingBody
+        + ["* " + footnote])
+    static let stackedServingFirstWithFootnote = text(["Nutritional Information", "Per Serving:"] + servingBody + ["Per 100g:"] + per100Body
+        + [footnote])
+    static let vitaminsWithFootnote = text([heading] + body + ["Vitamins and Minerals", "Vitamin C\t35mg\t10.5mg", footnote])
 
     // S4 and S7 (C2).
     static let riHeading = "Typical Values\tPer 100g\tPer bar (15g)\t%RI*\tRI*"
@@ -102,11 +109,13 @@ enum UKV2Cases {
     static func headed(_ heading: String) -> String { text([heading] + body) }
 
     static let positives = [countBefore, packCountBefore, countAfter, vitamins, stacked, stackedServingFirst, referenceColumn, riFootnote,
-                            countCell, noPer, c4Safari, c4Scripted, c4Comparator, c4WithCount, c4WithVitamins, gluedWithVitamins]
+                            countCell, noPer, c4Safari, c4Scripted, c4Comparator, c4WithCount, c4WithVitamins, gluedWithVitamins,
+                            stackedWithFootnote, stackedServingFirstWithFootnote]
     static let all = positives + [plain, packSizeOnly, countInside, vitaminsThenSodium, stackedDifferent, stackedUnclear,
                                   referenceColumnRagged, c4TwoLabels, c4TwoValues, c4TwoCells, c4Reference, c4Prepared, c4Trace]
         + countForms + countNegatives + titledHeadings + [tableOfVitamins, referenceColumnUntabbed, c4OtherBasis, footnoteWithValue,
-                                                          footnoteBeforeLastRow, oneBar, fractionBag, fractionNoWeight, c4Duplicate]
+                                                          footnoteBeforeLastRow, oneBar, fractionBag, fractionNoWeight, c4Duplicate,
+                                                          vitaminsWithFootnote]
 }
 
 final class UKReaderV2RuleTests: XCTestCase {
@@ -162,6 +171,24 @@ final class UKReaderV2RuleTests: XCTestCase {
         XCTAssertEqual(parse(UKV2Cases.vitaminsThenSodium).declineReasons, [UKTableRegion.rowsAfterTable])
     }
 
+    func testAReferenceIntakeFootnoteAfterAVitaminsTableIsNotAReportedRow() {
+        let candidate = parse(UKV2Cases.vitaminsWithFootnote)
+        XCTAssertFalse(candidate.declined, "\(candidate.declineReasons)")
+        XCTAssertEqual(candidate.warnings.filter { $0.hasPrefix("row_not_read: \(UKSetAsideReport.reason): ") },
+                       ["row_not_read: uk_set_aside: Vitamin C"])
+        XCTAssertEqual(Set(rules(UKV2Cases.vitaminsWithFootnote)), ["S2"])
+    }
+
+    func testAReportedRowMeansTheCandidateWouldNotMarkReady() {
+        for text in [UKV2Cases.vitamins, UKV2Cases.vitaminsWithFootnote, UKV2Cases.gluedWithVitamins] {
+            let candidate = parse(text)
+            XCTAssertFalse(candidate.declined)
+            XCTAssertFalse(candidate.wouldMarkReady, "a row printed but not read blocks ready, as any parser v3 warning does")
+        }
+        let plain = parse(UKV2Cases.plain)
+        XCTAssertEqual(plain.wouldMarkReady, plain.warnings.isEmpty, "no report, no change")
+    }
+
     func testS3KeepsThePer100TableOfIdenticalStackedTablesWhicheverComesFirst() {
         for text in [UKV2Cases.stacked, UKV2Cases.stackedServingFirst] {
             XCTAssertEqual(bases(text), [.per100g])
@@ -170,6 +197,11 @@ final class UKReaderV2RuleTests: XCTestCase {
         XCTAssertTrue(parse(UKV2Cases.stackedDifferent).declined, "any difference declines")
         XCTAssertEqual(rules(UKV2Cases.stackedDifferent), [])
         XCTAssertEqual(rules(UKV2Cases.stackedUnclear), [], "bases that cannot be told apart do not trigger S3")
+        for text in [UKV2Cases.stackedWithFootnote, UKV2Cases.stackedServingFirstWithFootnote] {
+            XCTAssertEqual(bases(text), [.per100g], "a trailing footnote does not defeat S3")
+            XCTAssertEqual(rules(text).last, "S7", "S7, not S3, sets the footnote aside")
+            XCTAssertEqual(Set(rules(text)), ["S3", "S7"])
+        }
     }
 
     func testS4SetsAReferenceValueColumnAsideAndKeepsThePercentColumn() {

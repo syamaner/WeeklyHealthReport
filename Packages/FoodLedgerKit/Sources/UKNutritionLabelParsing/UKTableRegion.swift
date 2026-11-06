@@ -231,7 +231,9 @@ public enum UKTableRegion {
         var index = 0
         while index < nonBlank.count {
             let line = nonBlank[index]
-            if let first = value.matches(line).first {
+            if isReferenceIntakeFootnote(line) {
+                index += 1
+            } else if let first = value.matches(line).first {
                 let label = trimmed(String(line[..<first.range.lowerBound]))
                 if isReportableLabel(label) { rows.append(label) }
                 index += 1
@@ -259,8 +261,9 @@ public enum UKTableRegion {
     static func duplicateTable(_ lines: [String], kept: [String?]) -> [Int]? {
         let headings = lines.indices.filter { kept[$0] != nil && isOneBasisHeading(lines[$0]) }
         guard headings.count == 2, let first = headings.first, let second = headings.last else { return nil }
-        let firstBody = Array(lines[(first + 1)..<second])
-        let secondBody = (second + 1..<lines.count).filter { kept[$0] != nil }.map { lines[$0] }
+        // A reference intake footnote is not part of either body; S7 sets it aside after S3.
+        let firstBody = Array(lines[(first + 1)..<second]).filter { !isReferenceIntakeFootnote($0) }
+        let secondBody = (second + 1..<lines.count).filter { kept[$0] != nil && !isReferenceIntakeFootnote(lines[$0]) }.map { lines[$0] }
         guard completeTableEnd(lines, heading: first) != nil, completeTableEnd(lines, heading: second) ?? Int.max < lines.count else { return nil }
         let firstRows = firstBody.filter { !trimmed($0).isEmpty }.map(canonicalRow)
         let secondRows = secondBody.filter { !trimmed($0).isEmpty }.map(canonicalRow)
@@ -270,7 +273,7 @@ public enum UKTableRegion {
         guard per100First != per100Second, isPerServing(per100First ? lines[second] : lines[first]) else { return nil }
         let servingHeading = per100First ? second : first
         let servingEnd = per100First ? lines.count : second
-        return Array(servingHeading..<servingEnd).filter { kept[$0] != nil }
+        return Array(servingHeading..<servingEnd).filter { kept[$0] != nil && !isReferenceIntakeFootnote(lines[$0]) }
     }
 
     static let per100 = UKPattern(#"(?i)\bper\s*100\s*(?:g|ml)(?![\p{L}])"#)
