@@ -294,7 +294,7 @@ final class UKFreshSetScorerTests: XCTestCase {
                        .ukDevelopment)
         guard case let .usable(review) = UKFreshSet.reader.read(Self.declaration) else { return XCTFail("no UK review") }
         XCTAssertThrowsError(try builder.manifest(review, details: .init(name: "Synthetic oat bar"), corrections: [])) { error in
-            XCTAssertEqual(error as? PastedLabelConfirmationError, .identityNotRecordable(PastedLabelBasisStateV2.version))
+            XCTAssertEqual(error as? PastedLabelConfirmationError, .identityNotRecordable(PastedLabelBasisStateV3.version))
         }
     }
 

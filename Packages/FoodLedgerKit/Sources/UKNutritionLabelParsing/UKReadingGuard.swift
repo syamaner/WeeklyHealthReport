@@ -2,27 +2,40 @@ import Foundation
 import NutritionLabelParsing
 
 /// The UK reader's closed guard rules G1 to G3 (`docs/pasted-nutrition-label-uk-english-v1-p2.md`
-/// section 3). The guard only ever returns its candidate unchanged or a decline: it never moves a
-/// value, basis or row. Part of `nutrition-label-text-parser-uk-v2`.
+/// section 3) and G4 (`docs/pasted-nutrition-label-uk-english-v2-p1.md` section 3). The guard only
+/// ever returns its candidate unchanged or a decline: it never moves a value, basis or row. G4 runs
+/// first, so its code takes precedence over parser codes; G3 also reads the set-aside text. Part of
+/// `nutrition-label-text-parser-uk-v3`.
 public enum UKReadingGuard {
     public static let headerBasisUnrecognised = "uk_header_basis_unrecognised"
     public static let conflictingUnits = "uk_orphan_unit"
     /// The application's identity decline code (`PastedLabelIdentity.basisStateNotSupported`).
     public static let basisStateNotSupported = "basis_state_not_supported"
+    public static let regionInconsistent = "uk_region_inconsistent"
 
     /// The guarded candidate: `candidate` itself, or a decline with the first rule that fires.
-    public static func apply(_ candidate: LabelCaptureCandidate, normalisedLines lines: [String]) -> LabelCaptureCandidate {
-        guard let code = declineCode(candidate, normalisedLines: lines) else { return candidate }
+    public static func apply(_ candidate: LabelCaptureCandidate, normalisedLines lines: [String], setAside: [String] = [],
+                             n7Pairs: Int? = nil) -> LabelCaptureCandidate {
+        guard let code = declineCode(candidate, normalisedLines: lines, setAside: setAside, n7Pairs: n7Pairs) else { return candidate }
         return .declined(route: candidate.route, inputSHA256: candidate.inputSHA256, language: candidate.language, reasons: [code])
     }
 
-    static func declineCode(_ candidate: LabelCaptureCandidate, normalisedLines lines: [String]) -> String? {
+    static func declineCode(_ candidate: LabelCaptureCandidate, normalisedLines lines: [String], setAside: [String] = [],
+                            n7Pairs: Int? = nil) -> String? {
+        // G4 (a) a count line left inside the table; (b) N7's pairs against the rows parser v3 saw.
+        if lines.contains(where: UKTableRegion.isCountStatement) { return regionInconsistent }
+        if let n7Pairs, !candidate.declined, valueCount(candidate) != n7Pairs { return regionInconsistent }
         if !candidate.declined, candidate.headers.contains(where: { $0.basis == .perServing && namesHundred($0.printedText) }) {
             return headerBasisUnrecognised
         }
         if lines.contains(where: hasConflictingUnits) { return conflictingUnits }
-        if lines.contains(where: carriesIdentityMarker) { return basisStateNotSupported }
+        if (lines + setAside).contains(where: carriesIdentityMarker) { return basisStateNotSupported }
         return nil
+    }
+
+    /// What parser v3 made of N7's values, duplicates kept: every bound cell plus every unread row.
+    static func valueCount(_ candidate: LabelCaptureCandidate) -> Int {
+        candidate.cells.count + candidate.warnings.filter { $0.hasPrefix("row_not_read: ") }.count
     }
 
     // MARK: G1 header basis
@@ -104,6 +117,15 @@ public enum UKReadingGuard {
     static func carriesIdentityMarker(_ line: String) -> Bool {
         if UKVocabulary.identitySymbolMarkers.contains(where: line.contains) { return true }
         let words = line.lowercased().split { !$0.isLetter }
-        return words.contains { UKVocabulary.identityWordMarkers.contains(String($0)) }
+        return words.contains { word in
+            UKVocabulary.identityWordMarkers.contains(String(word)) || isCompoundCookingWord(String(word))
+        }
+    }
+
+    /// Identity v3's rule I1 on one lower-cased letter run.
+    static func isCompoundCookingWord(_ word: String) -> Bool {
+        UKVocabulary.identityCompoundPrefixes.contains { prefix in
+            word.hasPrefix(prefix) && UKVocabulary.identityCompoundCookingWords.contains(String(word.dropFirst(prefix.count)))
+        }
     }
 }
