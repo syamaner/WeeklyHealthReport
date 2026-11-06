@@ -1,6 +1,6 @@
 # Pasted nutrition label, UK English v2 (plan draft, #371)
 
-Status: **draft, 5 November 2026. All five owner decisions made; no architecture gate yet.** It follows the owner's decision of 5 November 2026 to hold UK English off release after the v1 release check, and to work on the reader first.
+Status: **draft, 5 November 2026. All five owner decisions made. P1 rule spec: [revision 3](pasted-nutrition-label-uk-english-v2-p1.md), architecture gate PASS WITH CHANGES applied, 6 November 2026; it sets reference-value columns aside rather than binding them (change 2).** It follows the owner's decision of 5 November 2026 to hold UK English off release after the v1 release check, and to work on the reader first.
 
 ## 1. Where v1 stands
 
@@ -43,7 +43,7 @@ Some labels need more than one fix: removing one cause can expose the next (two 
 
 Each change is a parser or normaliser rule with positive and negative synthetic tests, under the same invariants as v1: no number, unit or comparator is ever invented, unknown is never zero, a misbinding always declines, and Taiwan readings stay byte-identical.
 
-If every change works as planned, up to 17 of the 24 v1 fresh labels might reach Confirm (20 with change 6), against 4 today; the C8 label and the 3 C9 labels would still decline. That is an upper bound on development data, not a prediction: only the new fresh set measures v2.
+If every change works as planned, up to 17 of the 24 v1 fresh labels might reach Confirm (19 with change 6, after the [P1 spec](pasted-nutrition-label-uk-english-v2-p1.md) found that one C4 label names a prepared state in a compound word), against 4 today; the C8 label and the C9 labels would still decline. That is an upper bound on development data, not a prediction: only the new fresh set measures v2.
 
 ## 5. Phases
 
