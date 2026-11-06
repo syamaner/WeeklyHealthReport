@@ -289,6 +289,26 @@ final class UKFreshSetScorerTests: XCTestCase {
         XCTAssertThrowsError(try UKFreshSet.runAll(root, commit: "c"), "texts that differ from the text seal")
     }
 
+    /// v2 P3 section 3: a set-aside write that fails leaves no run output, so the one rerun
+    /// reads the label and completes it rather than refusing an output the log does not account for.
+    func testAFailedSetAsideWriteDoesNotBlockTheRerun() throws {
+        let root = try scratchFolder()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try write(Self.continuation, try JSONEncoder().encode(Self.continuationTranscription()), to: root, id: "K02")
+        for seal in UKFreshSet.Seal.allCases { _ = try UKFreshSet.seal(seal, root) }
+        // A folder where the file should go makes the set-aside write fail.
+        let blocked = root.appendingPathComponent("set-aside/K02.json")
+        try FileManager.default.createDirectory(at: blocked, withIntermediateDirectories: true)
+        XCTAssertThrowsError(try UKFreshSet.runAll(root, commit: "c"), "the first attempt stops at the set-aside write")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("run/K02.json").path), "no run output without its file")
+        try FileManager.default.removeItem(at: blocked)
+        XCTAssertEqual(try UKFreshSet.runAll(root, commit: "c"), 1, "the rerun reads the label")
+        let setAside = try JSONDecoder().decode(UKFreshSet.SetAsideFile.self, from: Data(contentsOf: blocked))
+        XCTAssertEqual(setAside, UKFreshSet.SetAsideFile(labelID: "K02", text: Self.continuation))
+        let log = try String(contentsOf: root.appendingPathComponent("run-log.txt"), encoding: .utf8)
+        XCTAssertTrue(log.hasSuffix("attempt=2 pending=K02\nwrote K02\n"), log)
+    }
+
     // MARK: Test 4, the run
 
     func testASyntheticDeclarationIsUsableUnderTheUKPolicy() {

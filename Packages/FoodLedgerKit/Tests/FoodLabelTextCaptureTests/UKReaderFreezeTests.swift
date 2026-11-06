@@ -218,7 +218,7 @@ final class UKReaderFreezeTests: XCTestCase {
         "Tests/FoodLabelTextCaptureTests/FreshSet/FreshSetProtocol.swift": "c2ad61b6ee3cc1d331d5c8d9c6fce64f520f6b52381a42c23549b5d1fe76b40a",
         "Tests/FoodLabelTextCaptureTests/FreshSet/FreshSetStepTests.swift": "42a5bf8d4c1bd2f96a3629f8a04c976ef7626027098b2f6ffef079dd2eaf4864",
         "Tests/FoodLabelTextCaptureTests/UKDevelopment/UKDevelopmentSet.swift": "dd1e2db2d7e20e2e1d09cd0ff3d4851bbf850c75924b26af40008d379ec27d6d",
-        "Tests/FoodLabelTextCaptureTests/UKFreshSet/UKFreshSetProtocol.swift": "8a2cac3e291c0f78bc7e559594712855d0cc71ddb4359c5f4a2045291b35846f",
+        "Tests/FoodLabelTextCaptureTests/UKFreshSet/UKFreshSetProtocol.swift": "c3917b0f019086dde2ffe918701605574a85bad27a91084bd79f0e2b7ca3435d",
         "Tests/FoodLabelTextCaptureTests/UKFreshSet/UKFreshSetStepTests.swift": "b14aa527624d1cb203e87f7866443d1d22c9f449f3c0782d82b6b7bef182498f",
     ]
 

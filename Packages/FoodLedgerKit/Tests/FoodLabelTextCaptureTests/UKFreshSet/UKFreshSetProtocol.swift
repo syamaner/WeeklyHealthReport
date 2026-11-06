@@ -313,8 +313,10 @@ enum UKFreshSet {
             let text = try String(contentsOf: root.appendingPathComponent("texts/\(id).txt"), encoding: .utf8)
             let t = try transcription(Data(contentsOf: root.appendingPathComponent("transcription/\(id).json")))
             let result = run(labelID: id, text: text, transcription: t) { try builder.choose($0, in: $1) }
-            try encoder.encode(result).write(to: runFolder.appendingPathComponent("\(id).json"))
+            // The set-aside file goes first: a failed write leaves no run output, so the one rerun
+            // reads the label again and replaces the file, rather than refusing an unlogged output.
             try encoder.encode(SetAsideFile(labelID: id, text: text)).write(to: setAsideFolder.appendingPathComponent("\(id).json"))
+            try encoder.encode(result).write(to: runFolder.appendingPathComponent("\(id).json"))
             try FreshSet.append("wrote \(id)\n", to: logURL)
         }
         return pending.count

@@ -81,7 +81,7 @@ R2's dash case was added after the gate. The gate's R2 required the own row to b
 
 ## 3. Harness change: set-aside files in the release run
 
-For each label it reads, `UKFreshSet.runAll` also writes `set-aside/<id>.json`, with schema `uk-set-aside-v1` (`schema`, `label_id`, `entries`). This is the same file the development harness writes from P2. It is written before the label's `wrote <id>` line, so every `wrote` ID has its file and a rerun writes none for labels it does not read.
+For each label it reads, `UKFreshSet.runAll` also writes `set-aside/<id>.json`, with schema `uk-set-aside-v1` (`schema`, `label_id`, `entries`). This is the same file the development harness writes from P2. It is written before the label's run output and its `wrote <id>` line, so every `wrote` ID has its file and a rerun writes none for labels it does not read. A failed set-aside write leaves no run output, so the one permitted rerun reads that label again rather than refusing an output the log does not account for.
 
 The run schema `uk-english-v1-fresh-run-v1` and the transcription schema `uk-english-v1-fresh-transcription-v1` are unchanged and keep their names: they name formats, not sets (gate Q3). A v2 run is identified by its folder, by the commit in the run log's start line and by the scorer version.
 
