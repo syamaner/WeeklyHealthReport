@@ -403,6 +403,22 @@ final class FoodLogAppTests: XCTestCase {
         XCTAssertEqual(FoodHomeCardContent.fullPageSection(home.state), FoodHomeCardContent.fullPageSection(.loading))
     }
 
+    func testAReadFromThePreviousDayNeverAppliesAfterTheDayChanges() async throws {
+        final class Reads { var pending: [CheckedContinuation<FoodHomeRead, Never>] = [] }
+        let reads = Reads(), clock = MovableFoodLogClock()
+        let home = FoodHomeModel(root: try movableDayRoot(clock)) { _ in
+            await withCheckedContinuation { reads.pending.append($0) }
+        }
+        let stale = Task { await home.reload() }
+        while reads.pending.isEmpty { await Task.yield() }
+
+        clock.date = clock.date.addingTimeInterval(24 * 60 * 60)
+        home.willRefresh()
+        reads.pending[0].resume(returning: FoodHomeRead(day: .failed("yesterday"), quickAdd: []))
+        await stale.value
+        XCTAssertEqual(home.state, .loading, "yesterday's read never returns after the day changed")
+    }
+
     private func movableDayRoot(_ clock: MovableFoodLogClock) throws -> FoodLedgerCompositionRoot {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         addTeardownBlock { try? FileManager.default.removeItem(at: directory) }

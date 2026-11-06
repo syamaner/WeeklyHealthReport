@@ -252,7 +252,11 @@ final class FoodHomeModel: ObservableObject {
 
     private func dropValuesFromAnotherDay(now: Date, root: FoodLedgerCompositionRoot) -> String {
         let day = FoodReportingDay.key(for: now, calendar: root.confirmationDayCalendar)
-        if day != shownDay { state = .loading }
+        if day != shownDay {
+            state = .loading
+            // A read from the previous day that is still in flight must not apply afterwards.
+            _ = gate.begin()
+        }
         return day
     }
 
