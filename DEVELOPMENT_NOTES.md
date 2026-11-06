@@ -3689,3 +3689,13 @@ The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13
 Method: `phase_usage.py --format claude --since 2026-11-05T08:19:01Z --until 2026-11-05T08:38:06Z --include-subagents` on the session transcript; exact USD 2.34945. Excluded: this ledger edit, the commits, the push and the PR after that time.
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a charge. Local builds and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-406-2026-11-05a: Claude Code Today food card off the main thread (#406)
+
+After #399, the device trace on 5 Nov 2026 still showed 0.3 to 0.5 s hitches when returning to Today, because the food card decoded the whole archive on the main thread, twice per refresh. This phase reads the card and quick add once, off the main actor, keeps the shown values on the same day (loading on a new day, so Today's Full Page never pairs a new date with the previous day's totals), applies only the newest of overlapping reads and refreshes Today's cards together. Coordinator only in session `7521cbba-58e0-451b-ad06-633ab6b5a737` (`claude-opus-5-5`), plus reviewers.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Today food card off the main thread (#406), coordinator and reviewers | Unmeasured | Unmeasured | Unmeasured | Unmeasured | Unmeasured |
+
+Unmeasured: no start boundary was captured for this phase, so no figure is estimated. Token totals are not evidence of productivity, quality or provider efficiency.

@@ -410,6 +410,29 @@ final class FoodLedgerCompositionRoot {
         }.value
     }
 
+    /// Today's food card and quick add read off the main actor (#406), so returning to Today
+    /// never decodes the archive on the main thread. One archive read gives the same projection
+    /// and plain water total as `intakeProjection(for:calendar:)` and `plainWaterTotal(for:calendar:)`;
+    /// the quick add items are `quickAddItems()`. `now` is the confirmation clock's time read by the caller.
+    func loadHome(at now: Date) async -> FoodHomeRead {
+        let store = store, favourites = favourites
+        let calendar = confirmationCalendar
+        return await Task.detached(priority: .userInitiated) {
+            FoodLedgerSignposts.signposter.withIntervalSignpost("home.foodCard") {
+                let day: FoodHomeRead.Day
+                do {
+                    let records = try store.archiveState().records
+                    let reportingDate = FoodReportingDay.key(for: now, calendar: calendar)
+                    day = .read(try FoodIntakeProjection(records: records, reportingDate: reportingDate),
+                                water: try PlainWaterDayTotal.total(records: records, reportingDate: reportingDate))
+                } catch {
+                    day = .failed(FoodHomeCardContent.failureMessage(error))
+                }
+                return FoodHomeRead(day: day, quickAdd: try? favourites.projection().quickAddItems)
+            }
+        }.value
+    }
+
     /// The confirmation clock and calendar, so Add food's "today" and "yesterday" match Confirm.
     var confirmationNow: Date { confirmationClock.now() }
     var confirmationDayCalendar: Calendar { confirmationCalendar }
@@ -802,6 +825,18 @@ struct GenericFoodSearchFlowView: View {
         }
         .foodLoggedBannerScreen(root.loggedBanner)
     }
+}
+
+/// Today's food card read (#406): the day's projection and plain water, or the card's failure
+/// message; quick add items are nil when favourites cannot be read.
+struct FoodHomeRead: Sendable {
+    enum Day: Sendable {
+        case read(FoodIntakeProjection, water: FoodIntakeTotal?)
+        case failed(String)
+    }
+
+    let day: Day
+    let quickAdd: [QuickAddItem]?
 }
 
 /// Add food's favourites as read off the main actor (#399): the quick-add items (nil when they
