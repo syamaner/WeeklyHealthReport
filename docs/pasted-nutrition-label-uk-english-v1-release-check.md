@@ -2,7 +2,7 @@
 
 Results of the harness step of the UK release check, phase P4 of [the UK English plan](pasted-nutrition-label-uk-english-v1.md), run under the protocol of the [P3 spec](pasted-nutrition-label-uk-english-v1-p3.md) section 4 (adapted from reader v3 section 12.2). As in the [Taiwan release check](pasted-nutrition-label-reader-v3-release-check.md), this file holds counts only: no label text, product name, page address, transcription, per-label result or hash. Everything else stays in the private run folder outside the repository.
 
-The device step (the `#if DEBUG` switch and a Debug build on the owner's iPhone, plan decision 9) has not run yet; this file is updated when it has.
+The device step (the `#if DEBUG` switch and a Debug build on the owner's iPhone, plan decision 9) was not run: the owner decided not to ship v1 (see the end of this file).
 
 ## Protocol record
 
@@ -70,7 +70,7 @@ No flags or warnings were shown on the 4 labels that reached Confirm.
 | --- | --- |
 | Residual errors after the owner's check | 0 (no wrong value in accepted tables) |
 | Disputes raised after the run | None |
-| Device-build outcome compared with the harness | Pending: the device step of P4 |
+| Device-build outcome compared with the harness | Not run: v1 is not shipped |
 
 **Statistical limit (rule of three).** With 58 values checked and none wrong, the per-value wrong-value rate is below 3/58 = 0.052 with 95% confidence. With only 4 tables reaching Confirm, the per-table rate is below 3/4 = 0.75. The table-level limit is weak: the zero rests on very few accepted tables. Neither figure is a claim of a zero rate.
 
@@ -89,8 +89,8 @@ Missing the decline goal does not block release when the bar passes. It does mea
 - **Google results read from the owner's pastes.** For slots 21 to 24, the owner pasted Google's results pages from Safari. The coordinator numbered the organic results in order without judging them, and the collector judged each one. Where Google's order had changed since the first load, the first load's order stood (reader v3 section 12.2.3). The owner opened one result in Safari and pasted its text, and the collector judged that result from the paste.
 - **One refused run attempt.** The run step refused to start in a checkout with an untracked folder, before reading any text and without writing the run log. The run then went ahead from a clean checkout at the same commit.
 
-## Owner decision
+## Owner decision (5 November 2026)
 
-Pending. Whether UK ships at P5 is the owner's decision, after the device step. The open question in the P3 spec section 6 (whether the app's `.product` policy becomes `.ukDevelopment`) is part of it.
+Do not ship v1. The decline rate is too high for UK support to be useful, so the reader is improved first and measured again on a new fresh set. The device step and P5 are not run for v1. The follow-up is the [UK English v2 plan](pasted-nutrition-label-uk-english-v2.md). The fresh set was probed after the run to find the decline causes, so it is now development data.
 
 Only counts and rules were added from the real-text set; no text, value, product name or hash.
