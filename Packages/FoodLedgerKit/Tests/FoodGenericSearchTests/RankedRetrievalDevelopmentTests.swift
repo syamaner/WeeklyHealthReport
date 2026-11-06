@@ -149,15 +149,19 @@ final class RankedRetrievalDevelopmentTests: XCTestCase {
         let ids = ReplayIDs()
         let cofid = try CoFIDGenericFoodSearch(ids: ids), usda = try USDAGenericFoodSearch(ids: ids)
         let tfda = try TFDAGenericFoodSearch(ids: ids)
-        let ciqual = try CiqualGenericFoodSearch(ids: ReplayIDs())
-        // Pure caches keyed by the composite's evidence: the v8 composite repeats the v7
-        // composite's source searches without calling `ids`, so v3 to v7 rows are unchanged.
-        let shared = [SharedSearch(cofid), SharedSearch(usda), SharedSearch(tfda)]
+        let ciqual = try CiqualGenericFoodSearch(ids: ids)
         let baseline = ProcessInfo.processInfo.environment["WHR_RETRIEVAL_REPORT_V5_BASELINE"] != nil
         let v3IDs = Set(v3.cases.map(\.id)), v4IDs = Set(v4.cases.map(\.id)), v5IDs = Set(v5.cases.map(\.id))
         let v6IDs = Set(v6.cases.map(\.id)), v7IDs = Set(v7.cases.map(\.id))
-        var rows: [Row] = [], regionalRows: [Row] = [], baselineRows: [Row] = [], productionRows: [Row] = []
-        for scenario in fixture.cases {
+        struct CaseRows { var local: [Row] = []; var composite: Row?; var production: Row?; var baseline: Row?; var failure: String? }
+        /// One scenario's rows. The searchers hold no mutable state and every composite request
+        /// carries its own capture evidence, so each case has its own caches and the cases run
+        /// concurrently; rows are reassembled in fixture order below (CI time, #405). The scorer
+        /// reads record IDs, names and sources only, never the generated ledger identifiers.
+        func replayCase(_ scenario: Scenario) throws -> CaseRows {
+            // Pure caches keyed by the composite's evidence: the v8 composite repeats the v7
+            // composite's source searches, so v3 to v7 rows are unchanged.
+            let shared = [SharedSearch(cofid), SharedSearch(usda), SharedSearch(tfda)]
             let request = try replayRequest(scenario)
             let promoted = RegionalSourceOrderPolicy.promotesTaiwan(query: scenario.query, marketIsTaiwan: scenario.market == "taiwan")
             let promotes: (GenericFoodSearchRequest) -> Bool = { request in
@@ -166,30 +170,47 @@ final class RankedRetrievalDevelopmentTests: XCTestCase {
             let regional = CompositeGenericFoodSearch(sources: [shared[0], shared[1]], regionalSources: [shared[2]],
                                                       promotesRegional: promotes, ids: ids)
             let production = CompositeGenericFoodSearch(sources: [shared[0], shared[1]], regionalSources: [shared[2]],
-                                                        referenceSources: [ciqual], promotesRegional: promotes, ids: ReplayIDs())
-            let local = [try replayRow(scenario, source: "cofid", request: request, search: cofid),
-                         try replayRow(scenario, source: "usda", request: request, search: usda)]
+                                                        referenceSources: [ciqual], promotesRegional: promotes, ids: ids)
+            var result = CaseRows()
+            result.local = [try replayRow(scenario, source: "cofid", request: request, search: cofid),
+                            try replayRow(scenario, source: "usda", request: request, search: usda)]
             let composite = try replayRow(scenario, source: "composite", request: request, search: regional)
-            let evidence = try XCTUnwrap(shared[0].lastEvidence, scenario.id)
-            shared.forEach { $0.lastEvidence = nil }
+            guard let evidence = shared[0].lastEvidence else { throw ReplayFailure.noEvidence(scenario.id) }
             let productionRequest = GenericFoodSearchRequest(text: request.text, identity: request.identity, capturedAt: request.capturedAt,
                                                              locale: request.locale, captureEvidence: evidence)
-            productionRows += local + [try replayRow(scenario, source: "composite", request: productionRequest, search: production)]
-            shared.forEach { $0.clear() }
-            regionalRows += local + [composite]
+            result.production = try replayRow(scenario, source: "composite", request: productionRequest, search: production)
+            result.composite = composite
+            if v4IDs.contains(scenario.id) && promoted { result.failure = "\(scenario.id): a v4 case promotes Taiwan" }
+            if baseline {
+                // composite-generic-ranking-v8 equivalent: every source interleaved.
+                let interleaved = CompositeGenericFoodSearch(sources: [cofid, usda, tfda], ids: ids)
+                result.baseline = try replayRow(scenario, source: "composite", request: request, search: interleaved)
+            }
+            return result
+        }
+        let lock = NSLock()
+        var results = [CaseRows](repeating: CaseRows(), count: fixture.cases.count)
+        DispatchQueue.concurrentPerform(iterations: fixture.cases.count) { index in
+            let scenario = fixture.cases[index]
+            let result: CaseRows
+            do { result = try replayCase(scenario) } catch { result = CaseRows(failure: "\(scenario.id): \(error)") }
+            lock.lock(); defer { lock.unlock() }
+            results[index] = result
+        }
+        XCTAssertEqual(results.compactMap(\.failure), [])
+        var rows: [Row] = [], regionalRows: [Row] = [], baselineRows: [Row] = [], productionRows: [Row] = []
+        for (scenario, result) in zip(fixture.cases, results) {
+            guard let composite = result.composite, let production = result.production else { continue }
+            productionRows += result.local + [production]
+            regionalRows += result.local + [composite]
             if v4IDs.contains(scenario.id) {
                 // When Taiwan is not promoted, v9 places every TFDA row after the UK and US
                 // rows without reordering them, so the two-source composite used by the
                 // v3 and v4 labels is the regional row without TFDA records (exact for scored fields).
                 // This avoids searching CoFID and USDA a third time per case.
-                XCTAssertFalse(promoted, scenario.id)
-                rows += local + [composite.removingTaiwanRecords()]
+                rows += result.local + [composite.removingTaiwanRecords()]
             }
-            if baseline {
-                // composite-generic-ranking-v8 equivalent: every source interleaved.
-                let interleaved = CompositeGenericFoodSearch(sources: [cofid, usda, tfda], ids: ids)
-                baselineRows += local + [try replayRow(scenario, source: "composite", request: request, search: interleaved)]
-            }
+            if let row = result.baseline { baselineRows += result.local + [row] }
         }
         try write(rows.filter { v3IDs.contains($0.id) }, environment: "WHR_RETRIEVAL_REPORT")
         try write(rows, environment: "WHR_RETRIEVAL_REPORT_V4")
@@ -268,10 +289,15 @@ private final class SharedSearch: GenericFoodSearching, @unchecked Sendable {
         return outcome
     }
 }
+/// Sequential identifiers, locked because the replay's cases run concurrently (#405); the
+/// order they are handed out in is not part of any scored field.
 private final class ReplayIDs: LedgerIDGenerating, @unchecked Sendable {
+    private let lock = NSLock()
     private var value = 1
     func makeID<Tag>(_ tag: Tag.Type) throws -> LedgerID<Tag> {
+        lock.lock(); defer { lock.unlock() }
         defer { value += 1 }
         return try LedgerID(String(format: "00000000-0000-0000-0000-%012x", value))
     }
 }
+private enum ReplayFailure: Error { case noEvidence(String) }

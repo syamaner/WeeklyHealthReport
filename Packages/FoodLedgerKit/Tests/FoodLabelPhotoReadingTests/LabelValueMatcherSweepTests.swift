@@ -126,8 +126,8 @@ final class LabelValueMatcherSweepTests: XCTestCase {
     func testNoSingleModelErrorIsFound() {
         var baselines: [String: Int] = [:]
         struct Finding: Hashable { let layout: String; let cls: String; let id: String; let truth: String; let read: String; let note: String }
-        var findings: [Finding] = []
-        var total = 0
+        var allFindings: [Finding] = []
+        var grandTotal = 0
         let layouts = [Layout(name: "2col clean", cols: 2, headersRead: true, merged: false, unitSplit: false),
                        Layout(name: "2col headers unread", cols: 2, headersRead: false, merged: false, unitSplit: false),
                        Layout(name: "2col unit split", cols: 2, headersRead: true, merged: false, unitSplit: true),
@@ -142,20 +142,33 @@ final class LabelValueMatcherSweepTests: XCTestCase {
                        Layout(name: "1col drift 0.45, labels misread", cols: 1, headersRead: true, merged: false, unitSplit: false,
                               misreadLabels: true, drift: 0.45)]
 
-        for L in layouts {
+        // Every layout's baseline is computed first; then each (layout, value) pair's mutations
+        // are checked concurrently, since the matcher and these fixtures are pure (CI time, #405).
+        // Findings are compared as an unordered set, so the order they arrive in does not matter.
+        struct Context { let L: Layout; let ls: [M.Line]; let sb: M.SubBox; let base: [(M.Query, String, M.Box?)]
+                         let hdrs: [String]; let baseRes: [M.Location] }
+        let rowLabels = rows2.map(\.label)
+        let contexts: [Context] = layouts.map { L in
           let ls = lines(L); let sb = subBox(ls)
           // truth queries
           var base: [(M.Query, String, M.Box?)] = []
-          for (i, r) in rows2.enumerated() { for c in 0..<L.cols {
-            base.append((M.Query(id: "\(r.label)/\(headers2[c])", rowLabel: r.label, headerText: headers2[c], printedText: r.values[c]), r.values[c], nil)); _ = i } }
+          for r in rows2 { for c in 0..<L.cols {
+            base.append((M.Query(id: "\(r.label)/\(headers2[c])", rowLabel: r.label, headerText: headers2[c], printedText: r.values[c]), r.values[c], nil)) } }
           for s in servings { base.append((M.Query(id: s.0, rowLabel: nil, headerText: nil, printedText: s.1), s.1, nil)) }
-          let rowLabels = rows2.map(\.label)
           let hdrs = Array(headers2.prefix(L.cols))
-          func run(_ qs: [M.Query]) -> [M.Location] { M.locate(qs, lines: ls, headers: hdrs, rowLabels: rowLabels, columnCount: L.cols, subBox: sb) }
           // baseline: record correct-found boxes
-          let baseRes = run(base.map(\.0))
-          let baseFound = baseRes.filter { $0.status == .found }.count
-          baselines[L.name] = baseFound
+          let baseRes = M.locate(base.map(\.0), lines: ls, headers: hdrs, rowLabels: rowLabels, columnCount: L.cols, subBox: sb)
+          return Context(L: L, ls: ls, sb: sb, base: base, hdrs: hdrs, baseRes: baseRes)
+        }
+        for context in contexts { baselines[context.L.name] = context.baseRes.filter { $0.status == .found }.count }
+        let work = contexts.indices.flatMap { layout in contexts[layout].base.indices.map { (layout, $0) } }
+        let lock = NSLock()
+        DispatchQueue.concurrentPerform(iterations: work.count) { item in
+          let context = contexts[work[item].0], idx = work[item].1
+          let L = context.L, ls = context.ls, sb = context.sb, base = context.base, hdrs = context.hdrs, baseRes = context.baseRes
+          var findings: [Finding] = []
+          var total = 0
+          func run(_ qs: [M.Query]) -> [M.Location] { M.locate(qs, lines: ls, headers: hdrs, rowLabels: rowLabels, columnCount: L.cols, subBox: sb) }
           func check(_ qs: [M.Query], _ wrongIndex: Int, cls: String, truth: String) {
             total += 1
             let res = run(qs)
@@ -172,7 +185,8 @@ final class LabelValueMatcherSweepTests: XCTestCase {
               findings.append(.init(layout: L.name, cls: cls + " (side effect upgrade)", id: base[k].0.id, truth: base[k].1, read: "now found", note: ""))
             }
           }
-          for (idx, entry) in base.enumerated() {
+          repeat { // "continue" below ends this value's checks
+            let entry = base[idx]
             let q = entry.0
             func with(_ text: String? = nil, label: String?? = nil, header: String?? = nil) -> [M.Query] {
               var qs = base.map(\.0)
@@ -201,16 +215,18 @@ final class LabelValueMatcherSweepTests: XCTestCase {
             // label spelling typo (value correct) is not a value error; label typo + adjacent value is two errors; skip.
             // full-width digits of a changed digit are covered by NFKC; test full-width wrong value once
             if let (cls, t) = mutations(q.printedText).first { check(with(t.applyingTransform(.fullwidthToHalfwidth, reverse: true) ?? t), idx, cls: "full-width " + cls, truth: entry.1) }
-          }
+          } while false
+          lock.lock(); defer { lock.unlock() }
+          allFindings += findings; grandTotal += total
         }
 
         // Known artefacts of the harness, not matcher findings: its mutator treats the Han numeral
         // 一 as a digit, so "每一份量" mutations only change wording; and the wording-only serving change.
-        let real = findings.filter { finding in
+        let real = allFindings.filter { finding in
             let digits: (String) -> String = { text in String(text.filter { $0.isASCII && $0.isNumber }) }
             return !(finding.cls.hasPrefix("serving: ") && digits(finding.read) == digits(finding.truth))
         }
-        XCTAssertGreaterThan(total, 3_000)
+        XCTAssertGreaterThan(grandTotal, 3_000)
         XCTAssertEqual(real.map { "\($0.layout) | \($0.cls) | \($0.id) | \($0.read)" }, [])
         // Baselines must not collapse (two columns with unread headers are never found by design).
         XCTAssertEqual(baselines["2col clean"], 22)
