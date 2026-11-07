@@ -32,7 +32,7 @@ def scores(*, outcome="reached_confirm", printed=10, shown=10, correct=10, wrong
     return out
 
 
-def result(label, named, *, cost="0.004", latency=2.0, provider="model-a", prompt="prompt-v1", attempt="responded"):
+def result(label, named, *, cost: str | None = "0.004", latency=2.0, provider="model-a", prompt="prompt-v1", attempt="responded"):
     send = {"attempt": attempt, "cost_usd": cost, "latency_seconds": latency}
     return {"vars": {"label_id": label}, "provider": {"id": "file://provider.js", "label": provider}, "prompt": {"label": prompt},
             "gradingResult": {"namedScores": named}, "response": {"output": json.dumps(send)}}
@@ -109,7 +109,12 @@ class MetricTests(unittest.TestCase):
         return stats.load_results(write(rows))["model-a|prompt-v1"]
 
     def test_field_metrics_by_hand(self):
-        m = stats.field_metrics(self.labels())
+        metrics = stats.field_metrics(self.labels())
+        m: dict[str, float] = {}
+        for name, value in metrics.items():
+            self.assertIsNotNone(value, name)
+            assert value is not None  # narrows the type for the checker
+            m[name] = value
         # Micro: correct 16 of 18 shown and of 30 printed.
         self.assertAlmostEqual(m["field_precision_micro"], 16 / 18)
         self.assertAlmostEqual(m["field_recall_micro"], 16 / 30)

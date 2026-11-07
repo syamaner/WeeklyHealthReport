@@ -398,7 +398,7 @@ def compare(cells: dict[str, list[Label]], a: str, b: str, resamples: int, seed:
 
 
 def main(argv: list[str]) -> int:
-    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser = argparse.ArgumentParser(description=(__doc__ or "").split("\n\n")[0])
     sub = parser.add_subparsers(dest="command", required=True)
     s = sub.add_parser("summary")
     s.add_argument("results", type=Path)
