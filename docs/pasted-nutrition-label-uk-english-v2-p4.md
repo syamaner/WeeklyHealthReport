@@ -105,4 +105,53 @@ The transcription schema records a column's basis "as the heading states it", or
 
 ## 2. Results
 
+### 2.1 Run
+
+- **Seals.** Text seal 7 November 2026, 11:42 UTC; seal 1 (blind transcriptions as handed over) 15:44 UTC; seal 2 (after the independent check and Amendment 6) 15:45 UTC. 24 files under each seal.
+- **Transcription check.** An independent read-only check compared all 24 transcriptions with their screenshots, blind to the copied texts and to reader output. It passed 23, and the other is the one Amendment 6 covers.
+- **Reader run.** One run, from a clean checkout of the freeze reference `21c3247`, attempt 1, with no rerun. Since that commit only documentation has changed. The run wrote 24 outputs, and scorer v2 scored all 24.
+
+### 2.2 Bar and goals (harness)
+
+| | Labels | Reached Confirm | Declined | Values checked | Wrong values | Tables with a wrong value |
+|---|---|---|---|---|---|---|
+| All | 24 | 5 | 19 | 87 | 0 | 0 |
+| Tier A | 9 | 0 | 9 | 0 | 0 | 0 |
+| Tier B | 15 | 5 | 10 | 87 | 0 | 0 |
+
+- **The bar holds in the harness: zero wrong values** in every table that reached Confirm. Rule-of-three upper limits (95%), all labels: 0.034 per value and 0.600 per table. The per-table limit is wide because only 5 tables reached Confirm.
+- **Decline rate (goal at most 25%, not gating):** 79% of all labels (19 of 24), 100% of tier A (9 of 9) and 67% of tier B (10 of 15). The goal is not met.
+- **Correction burden (goal median at most 1, not gating):** mean 0.8, median 1, over the 5 tables that reached Confirm. Met. No basis choice was needed.
+- **Other counts:** 0 rows printed but not read; 0 calculated-versus-printed discrepancies. All 24 were scored on the UK declaration panel.
+- **Tier A** is the figure least dependent on the sites the rules were built on. None of its 9 labels reached Confirm, so its value and table limits rest on no tables. On new sites the bar holds because the reader declines, not because it reads.
+
+### 2.3 Declines by reason
+
+| Reason | All | Tier A | Tier B |
+|---|---|---|---|
+| `count_mismatch` | 7 | 4 | 3 |
+| `value_without_unit` | 4 | 3 | 1 |
+| `basis_state_not_supported` | 2 | 0 | 2 |
+| `no_basis_header` | 2 | 0 | 2 |
+| `duplicate_basis` | 1 | 0 | 1 |
+| `layout_ambiguous` | 1 | 0 | 1 |
+| `multiple_panels` | 1 | 1 | 0 |
+| `uk_orphan_unit` | 1 | 1 | 0 |
+
+### 2.4 By copy method and browser
+
+| Copy method and browser | Labels | Reached Confirm | Declined | Values checked | Wrong |
+|---|---|---|---|---|---|
+| Scripted range, built-in browser | 15 | 3 | 12 | 67 | 0 |
+| Scripted range, Claude in Chrome | 8 | 2 | 6 | 20 | 0 |
+| Owner's rectangular Preview selection (PDF) | 1 | 0 | 1 | 0 | 0 |
+
+Every rate here carries the copy-check caveat of P3 section 4.4: scripted copies add blank lines and a title line that Safari copies do not.
+
+### 2.5 Set-aside counts by rule
+
+87 entries: S2 45, S4 34, S7 6, S1 2.
+
+### 2.6 Device step
+
 Not yet run.
