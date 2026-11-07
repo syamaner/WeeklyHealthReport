@@ -84,7 +84,7 @@ A pure, deterministic check of the model's answer against the text. It never pro
 
      Comparators and units come from closed lists held in the application layer (11.1). The text target's copy of `parseValue` uses the same lists (4.2), including `＜` and `少於` and the Taiwan units such as `公克`, `毫克` and `大卡`. Inside a token, only spaces, tabs, U+00A0 or U+202F may sit between the parts.
    - **A token is the longest grammar match** that starts and ends at a boundary. Spaces inside it do not split it, so `5 g` and `less than 0.5 g` are each one token.
-   - **Decimal mark:** a `.`, or a `,` that sits between two digits. Any other `,` is a boundary, so `0,5g` is one token and `5g, 2g` is two.
+   - **Decimal mark:** a `.`, or a `,` between two digits that is not a thousands separator (next item). Any other `,` is a boundary, so `0,5g` is one token and `5g, 2g` is two.
    - **Thousands separator:** a `,` followed by exactly three digits and then a non-digit is a thousands separator, so `1,046kJ` is 1046 and `0,5g` is 0.5. A token with both a thousands `,` and a decimal mark (`1,046.5`) is read the same way. The photo copy reads every `,` as a decimal mark, so parity excludes this rule, and a vector covers it.
    - **Token boundaries:** start or end of line, whitespace (U+00A0 and U+202F included) outside a token, or one of `( ) [ ] ; : /`, `|` and a boundary `,`. So `1g` never matches inside `11g` or `0.1g`.
    - Trailing `*` and `†` footnote marks are kept as printed and ignored for matching.
@@ -183,7 +183,7 @@ Only for a closed set of the frozen reader's decline codes, fixed in A1 from `La
 
 v1 admits UK-format declarations and the Taiwan pastes the reader declines (D2 as amended).
 
-- **EU English panels** follow the same rules and cannot be told apart reliably, so they are read as UK-format declarations under the UK rules and the UK bar (D18).
+- **EU English panels** follow the same rules and cannot be told apart reliably, so they are read as UK-format declarations under the UK rules and the UK bar (D18). No tuning or held-out label is EU English, so their accuracy is measured only as far as they match UK panels. The A4 result and the release note say so.
 - **US per 100, Australian and New Zealand panels** stay declined in v1 (D13). A closed, pure detector on the pasted text runs **before anything is sent**. It declines them on their distinct rows, for example sodium in mg with no salt row, or an Australian per-serve column with average quantity wording, so the text is never sent and no read is spent. The same detector runs again on the model's candidate, as a second check. Each detector rule gets a vector, including one that proves no request is built for a detected panel.
 
 ### 4.8 Flags and attention
