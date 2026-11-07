@@ -287,15 +287,21 @@ jobs:
     needs: changes
     # Fail closed: only an explicit documentation-only decision skips this job.
     if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
-    timeout-minutes: 5
+    # #416 A2: the tool now builds the FoodLedgerKit modules it runs (the text reader and capture).
+    timeout-minutes: 15
 
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # #416 A1: the evaluation case converters on synthetic fixtures and the bar's SHA-256 pin.
-      - name: Verify converters and the committed held-out bar
+      # #416 A1 and A2: the converters, the bar's SHA-256 pin, the scorer, and send and score over
+      # the fake transport, on synthetic fixtures. No network beyond the package checkout.
+      - name: Verify converters, the committed held-out bar and the harness
         run: swift test --package-path Tools/PastedLabelAITextEval
+
+      # #416 A2: the statistics script on synthetic results (standard library only, isolated mode).
+      - name: Verify the evaluation statistics
+        run: python3 -I -m unittest discover -s Tools/PastedLabelAITextEval/statistics/tests
 
   drive-export-kit-isolation:
     name: DriveExportKit isolation

@@ -85,16 +85,23 @@ public struct LabelScore: Codable, Equatable, Sendable {
         case exactMatch = "exact_match", noEdit = "no_edit", silentErrorTable = "silent_error_table", byNutrient = "by_nutrient"
     }
 
-    /// The per-label named scores the promptfoo assertion returns (numbers only).
+    /// The per-label named scores the promptfoo assertion returns (numbers only), with the
+    /// per-nutrient counts as `nutrient.<id>.<count>` for the breakdown by nutrient.
     public var namedScores: [String: Double] {
         func b(_ value: Bool) -> Double { value ? 1 : 0 }
-        return [
+        var byNutrientScores: [String: Double] = [:]
+        for (nutrient, counts) in byNutrient {
+            for (name, value) in [("printed", counts.printed), ("shown", counts.shown), ("correct", counts.correct), ("wrong", counts.wrong)] {
+                byNutrientScores["nutrient.\(nutrient).\(name)"] = Double(value)
+            }
+        }
+        return byNutrientScores.merging([
             "reached_confirm": b(outcome == "reached_confirm"), "declined": b(outcome == "declined"), "failed": b(outcome == "failed"),
             "fields_printed": Double(fieldsPrinted), "fields_shown": Double(fieldsShown), "fields_correct": Double(fieldsCorrect),
             "fields_wrong": Double(fieldsWrong), "wrong_flagged": Double(wrongFlagged), "wrong_silent": Double(wrongSilent),
             "attention_items": Double(attentionItems), "printed_not_correct": Double(printedNotCorrect), "exact_match": b(exactMatch),
             "no_edit": b(noEdit), "silent_error_table": b(silentErrorTable),
-        ]
+        ]) { first, _ in first }
     }
 
     /// Field F1 for this label (0 when it shows or reads nothing).
