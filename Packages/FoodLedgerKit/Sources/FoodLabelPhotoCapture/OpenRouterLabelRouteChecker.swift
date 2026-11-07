@@ -82,6 +82,9 @@ public struct OpenRouterLabelRouteChecker: LabelPhotoRouteChecking {
         guard let root = (try? JSONSerialization.jsonObject(with: listing)) as? [String: Any],
               let model = root["data"] as? [String: Any], let slug = model["id"] as? String,
               let endpoints = model["endpoints"] as? [[String: Any]] else { throw CheckError.malformed }
+        // The listing must be the route's model (exactly, or one of its pinned dated slugs, the
+        // response rule of E5) before any endpoint in it qualifies (Qodo finding 2 on A2).
+        guard OpenRouterLabelPhotoAttempt.modelMatches(requested: routeModel, returned: slug) else { throw CheckError.malformed }
         let modalities = ((model["architecture"] as? [String: Any])?["input_modalities"] as? [String]) ?? []
         let matches = endpoints.filter { $0["tag"] as? String == routeEndpoint }
         guard matches.count == 1, let pricing = matches[0]["pricing"] as? [String: Any],

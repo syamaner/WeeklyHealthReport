@@ -206,6 +206,20 @@ final class OpenRouterPastedLabelAITextRouteTests: XCTestCase {
                                                                                 route: Self.route, at: 1, reasoningBilledSeparately: true))
     }
 
+    /// Qodo finding 2 on A2: a listing for another model that happens to hold the endpoint tag never qualifies it.
+    func testAListingForAnotherModelIsRefused() throws {
+        var listing = OpenRouterLabelPhotoRouteTests.listing
+        var data = listing["data"] as! [String: Any]
+        data["id"] = "google/gemini-4-argon-lite"
+        listing["data"] = data
+        let other = try JSONSerialization.data(withJSONObject: listing)
+        let zdr = try JSONSerialization.data(withJSONObject: OpenRouterLabelPhotoRouteTests.zdr)
+        XCTAssertThrowsError(try OpenRouterPastedLabelAITextRouteChecker.parse(listing: other, zeroDataRetention: zdr, route: Self.route, at: 1,
+                                                                                reasoningBilledSeparately: true))
+        XCTAssertThrowsError(try OpenRouterLabelRouteChecker.parse(listing: other, zeroDataRetention: zdr, route: LabelPhotoRoute.current, at: 1,
+                                                                   reasoningBilledSeparately: true))
+    }
+
     func testTheTextCheckerRefusesPhotoRoutesAndThePhotoCheckerRefusesTextRoutes() async throws {
         let photoAsText = PastedLabelAITextRoute.Route(version: LabelPhotoRoute.current.version, candidateID: Self.route.candidateID,
                                                        model: LabelPhotoRoute.current.model, endpoint: LabelPhotoRoute.current.endpoint,
