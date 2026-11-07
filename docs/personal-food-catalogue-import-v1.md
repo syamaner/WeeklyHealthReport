@@ -397,5 +397,7 @@ owner-typed or owner-confirmed labels.
 
 1. Decided: another brand's label stays out of v1 (decision 7).
 2. Decided: developer-side egress recorded (section 8).
-3. Supplements are per serving; proposal: a separate v2 with a count basis.
-4. Pasted food list and label-estimate pool: keep database rows out in v1 (proposal).
+3. Decided 7 November 2026: supplements stay out of v1; a separate v2 with a count basis (per tablet,
+   capsule or scoop) will cover them.
+4. Decided 7 November 2026: database rows stay out of the pasted food list queue and the
+   label-estimate pool in v1; they appear only in ordinary search.
