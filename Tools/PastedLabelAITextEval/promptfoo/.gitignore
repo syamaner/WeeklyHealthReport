@@ -1,0 +1,2 @@
+# promptfoo is installed locally with `npm ci --ignore-scripts`; its modules are never committed.
+node_modules/

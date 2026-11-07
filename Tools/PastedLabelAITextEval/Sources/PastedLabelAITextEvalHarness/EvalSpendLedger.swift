@@ -6,8 +6,9 @@ import Foundation
 /// same `fcntl` lock on its sibling `.lock` file, so the Python stops and this tool always see one
 /// file. Every member this tool does not own is kept as it is.
 ///
-/// - **Before a call** the worst case W is reserved as an open entry (`cost_usd` null, so the
-///   Python stop counts it as an unknown-cost call until it settles). The reservation is refused
+/// - **Before a call** the worst case W is reserved as an open entry charged at W (its `cost_usd`
+///   holds W until it settles, as `budget.py` charges an open call at its ceiling, so the Python
+///   total sees it and concurrent calls never count as unknown). The reservation is refused
 ///   when the cell's charges plus W would pass the $5 cell stop, the programme's would pass the
 ///   $25 programme stop, or the ledger's own unknown-cost stop is already reached.
 /// - **After the call** the entry settles to the reported cost. With no reported cost it stays
@@ -145,7 +146,7 @@ public final class EvalSpendLedger: @unchecked Sendable {
             if text.filter({ $0["cell"] as? String == cell }).map(Self.charge).reduce(0, +) + worstCase > cellStop { throw Refusal.cellStop }
             if text.map(Self.charge).reduce(0, +) + worstCase > programmeStop { throw Refusal.programmeStop }
             let entry: [String: Any] = ["at": at, "purpose": Self.purpose, "model": model, "returned_model": NSNull(), "case_id": caseID,
-                                        "sealed": false, "cost_usd": NSNull(), "kind": Self.openKind, "reservation_id": id, "cell": cell,
+                                        "sealed": false, "cost_usd": "\(worstCase)", "kind": Self.openKind, "reservation_id": id, "cell": cell,
                                         "reserved_usd": "\(worstCase)"]
             ledger["entries"] = entries + [entry]
             return id

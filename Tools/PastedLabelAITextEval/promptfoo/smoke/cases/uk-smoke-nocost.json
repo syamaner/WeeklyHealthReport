@@ -1,0 +1,116 @@
+{
+ "copy_method": "synthetic",
+ "expected": {
+  "columns": [
+   {
+    "basis": "per_100g",
+    "heading": "Per 100g"
+   }
+  ],
+  "notes": [
+   "synthetic"
+  ],
+  "panel": "uk_declaration",
+  "rows": [
+   {
+    "label": "Energy",
+    "nutrient": "energy_kj",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "1046",
+      "unit": "kJ"
+     }
+    ]
+   },
+   {
+    "label": "Energy",
+    "nutrient": "energy_kcal",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "250",
+      "unit": "kcal"
+     }
+    ]
+   },
+   {
+    "label": "Fat",
+    "nutrient": "fat",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "9.5",
+      "unit": "g"
+     }
+    ]
+   },
+   {
+    "label": "of which saturates",
+    "nutrient": "saturates",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "3.2",
+      "unit": "g"
+     }
+    ]
+   },
+   {
+    "label": "Carbohydrate",
+    "nutrient": "carbohydrate",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "30",
+      "unit": "g"
+     }
+    ]
+   },
+   {
+    "label": "of which sugars",
+    "nutrient": "sugars",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "12",
+      "unit": "g"
+     }
+    ]
+   },
+   {
+    "label": "Protein",
+    "nutrient": "protein",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "8.1",
+      "unit": "g"
+     }
+    ]
+   },
+   {
+    "label": "Salt",
+    "nutrient": "salt",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "0.75",
+      "unit": "g"
+     }
+    ]
+   }
+  ]
+ },
+ "format": "uk",
+ "label_id": "uk-smoke-nocost",
+ "role": "tuning",
+ "schema": "pasted-label-ai-text-eval-case-v1",
+ "set": "uk_v1_fresh",
+ "source": {
+  "schema": "uk-english-v1-fresh-transcription-v1",
+  "sha256": "ccd3373ef93bd69e27b9297d9b79c43c2c327db1ce9e3a46fc98d9082c93d04b"
+ },
+ "text_sha256": "25409b1a023d009c09061119093cee35960f24016e09fa25f02e0141701e1c9a",
+ "tier": "A"
+}

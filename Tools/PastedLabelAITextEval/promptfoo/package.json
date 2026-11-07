@@ -1,0 +1,9 @@
+{
+  "name": "pasted-label-ai-text-eval-promptfoo",
+  "private": true,
+  "description": "Local promptfoo harness for #416 (docs/pasted-label-ai-text-v1.md 5.2). No hosted service, telemetry, updates or sharing.",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "promptfoo": "0.125.0"
+  }
+}
