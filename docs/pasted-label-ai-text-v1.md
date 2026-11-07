@@ -1,6 +1,6 @@
 # Pasted label AI reading v1: text first (#416)
 
-Status: **draft spec, revision 4, 7 November 2026. Documents only; no production code and no egress yet.** The owner decided D2 to D20 on 7 November 2026 (section 9), including the evaluation egress terms T1 to T7. The product route's egress terms (T8 to T12) still need line-by-line approval before the route sends anything. The architecture gate returned FAIL on revision 1 and PASS WITH CHANGES on revision 2. Revision 3 applied N1 to N16, and its re-check returned PASS WITH CHANGES. This revision 4 applies its R1 to R6 for a one-pass confirmation.
+Status: **draft spec, revision 5, 7 November 2026. Documents only; no production code and no egress yet.** The owner decided D2 to D20 on 7 November 2026 (section 9), including the evaluation egress terms T1 to T7. The product route's egress terms (T8 to T12) still need line-by-line approval before the route sends anything. The architecture gate returned FAIL on revision 1 and PASS WITH CHANGES on revision 2. Revision 3 applied N1 to N16, and its re-check returned PASS WITH CHANGES. Revision 4 applied R1 to R6, confirmed PASS WITH CHANGES, and this revision 5 closes that pass's five wording gaps in 4.3 and 11.1. The gate cleared A1.
 
 ## 1. Problem
 
@@ -79,26 +79,31 @@ A pure, deterministic check of the model's answer against the text. It never pro
 2. **Token grammar:**
    - A value token has three parts:
      - an optional comparator;
-     - a number in ASCII or full-width digits, with at most one decimal mark;
+     - a number in Unicode decimal digits (general category Nd, as the copied `parseValue` accepts), with at most one decimal mark;
      - an optional unit or `%`.
 
-     Comparators and units come from closed lists. They are the same lists as the text target's copy of `parseValue` (4.2), including `＜` and `少於` and the Taiwan units such as `公克`, `毫克` and `大卡`. Inside a token, only spaces or tabs may sit between the parts.
+     Comparators and units come from closed lists. They are the same lists as the text target's copy of `parseValue` (4.2), including `＜` and `少於` and the Taiwan units such as `公克`, `毫克` and `大卡`. Inside a token, only spaces, tabs, U+00A0 or U+202F may sit between the parts.
+   - **A token is the longest grammar match** that starts and ends at a boundary. Spaces inside it do not split it, so `5 g` and `less than 0.5 g` are each one token.
    - **Decimal mark:** a `.`, or a `,` that sits between two digits. Any other `,` is a boundary, so `0,5g` is one token and `5g, 2g` is two.
-   - **Token boundaries:** start or end of line, whitespace, or one of `( ) [ ] ; : /`, `|` and a boundary `,`. So `1g` never matches inside `11g` or `0.1g`.
+   - **Token boundaries:** start or end of line, whitespace (U+00A0 and U+202F included) outside a token, or one of `( ) [ ] ; : /`, `|` and a boundary `,`. So `1g` never matches inside `11g` or `0.1g`.
    - Trailing `*` and `†` footnote marks are kept as printed and ignored for matching.
    - The model's printed text must equal one token exactly, after that normalisation. Nothing else is normalised.
 3. **Whole words.**
-   - Latin script: bounded by line edges, whitespace or punctuation.
-   - CJK text (`每100公克`, `蛋白質`): an exact substring whose neighbours on both sides are a line edge, whitespace, punctuation, a value token, or a character that is not CJK.
+   - **Definitions:**
+     - *CJK* means Script=Han, Hiragana or Katakana;
+     - *punctuation* means general category P*;
+     - *whitespace* means White_Space.
+   - **Latin script:** bounded by line edges, whitespace or punctuation.
+   - **CJK text** (`每100公克`, `蛋白質`): an exact substring whose neighbours on both sides are a line edge, whitespace, punctuation, a value token, or a character that is not CJK.
 4. **Headers:** the model's amount headers, each located as the unique line holding its printed text as whole words. A model header not located, or located more than once, puts every value in its column under attention.
 5. **Row labels:** located as unique whole words, longest match first, so `saturated fat` is taken before `fat` and `飽和脂肪` before `脂肪`. A label left ambiguous puts that row's values under attention.
-6. **Row blocks:** a row's block runs from its label to the next located row label. The last block ends at the first blank line after its last value token, or at the end of the text. This covers one value per line as well as one row per line.
+6. **Row blocks:** a row's block runs from its label to the next located row label. The last block ends at the first blank line after a value token in that block, or at the end of the text. This covers one value per line as well as one row per line.
 7. **Columns:** "headers" here means the model's amount headers that were located (item 4). A kJ and kcal pair counts as one cell (item 8).
    1. `%` tokens and the reference-intake header are set aside first. Each `%` token matches the reference-intake column.
    2. When the remaining cells equal the remaining headers in number, they match in printed order.
    3. When there are fewer cells, the block is **always attention**.
    4. When there are more, the block is attention.
-8. **Energy pairs:** a kJ and kcal pair in one cell or line is one cell holding two values, kJ first as printed. A swap the vocabulary cannot see is left to `kj_kcal_ratio` in `label-arithmetic-checks-v2`.
+8. **Energy pairs:** a pair is a kJ token and a kcal token next to each other, separated only by boundaries. It is one cell holding two values, stored as kJ then kcal whichever order is printed (kcal-first included). On one row per line, `1046kJ/250kcal 523kJ/125kcal` is two pairs, so two cells. A swap the vocabulary cannot see is left to `kj_kcal_ratio` in `label-arithmetic-checks-v2`.
 9. **Repeats:** equal values in one block (`0g 0g`) are matched by ordinal.
 10. **Result:** exactly one match is found. Zero or several matches is an attention item.
 
@@ -118,6 +123,10 @@ A vector is committed for each of these:
 - CJK whole-word header and row-label location;
 - `%` with too few other cells;
 - a kJ and kcal cell counted as one cell;
+- `5 g` and `less than 0.5 g` as one token each, and U+00A0 inside a token;
+- two energy pairs on one line, and a kcal-first pair;
+- a digit outside ASCII and full width, under the copy's rule and parity test 26;
+- a last block followed by footer text with no blank line;
 - not found and several matches.
 
 ### 4.4 Assignment check `pasted-label-ai-text-vocabulary-v1`
@@ -383,12 +392,15 @@ The gate returned **FAIL** on revision 1, **PASS WITH CHANGES** on revision 2 an
   - a new rule, `check_imports FoodLabelTextAIReading '^(Foundation|FoodLedgerApplication|FoodLedgerDomain|NutritionLabelParsing)$'`;
   - `FoodLabelTextAIReading` and `FoodLabelTextAIReadingTests` added to the `NutritionLabelParsing` file and package allow-lists;
   - only `FoodLabelTextAIReadingTests` added to the `FoodLabelPhotoReading` file and package allow-lists;
-  - a rule that only the composition root and its tests may import `FoodLabelTextAIReading`, with the pbxproj link rule to match.
+  - a rule that only `FoodLedgerCompositionRoot.swift` and `Tests/FoodLabelTextAIReadingTests/` may import `FoodLabelTextAIReading`;
+  - `FoodLabelTextAIReading` added to the `for dep in` package loop, with the package allow-list `^(FoodLabelTextAIReadingTests)$`;
+  - the pbxproj rule: the app may link `FoodLabelTextAIReading`, and still may not link `NutritionLabelParsing` directly (the existing rule).
 
   The negative fixtures:
   - the application or presentation layer importing `FoodLabelTextAIReading`;
   - the new target importing `FoodLabelPhotoReading`;
-  - a non-test target reaching `FoodLabelPhotoReading` through the new target.
+  - a non-test target reaching `FoodLabelPhotoReading` through the new target;
+  - a package target depending on `FoodLabelTextAIReading`.
 
 ### 11.2 Invariants
 
