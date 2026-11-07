@@ -306,6 +306,26 @@ final class PastedLabelTextLocatorTests: XCTestCase {
         XCTAssertFalse(plain.values[0].needsAttention, "a label's colon is not a bound")
     }
 
+    func testBoundWordsOnEitherSideAreAttention() {
+        let perServing = [Locator.Header(id: "h1", printedText: "每份", basis: "per_serving")]
+        for (line, printed) in [("鈉 未滿 0.5 公克", "0.5 公克"), ("鈉 0.5 公克 以下", "0.5 公克"), ("鈉 低於 0.5公克", "0.5公克"),
+                                ("鈉 不到：0.5公克", "0.5公克"), ("鈉 0.5公克（以內）", "0.5公克")] {
+            let text = "每份\n" + line
+            let result = Locator.locate(text: text, headers: perServing, rows: [Self.row("鈉", [("h1", printed)])])
+            XCTAssertEqual(result.values[0].status, .found(Self.scalars(printed, in: text)), line)
+            XCTAssertEqual(result.values[0].attention, [.comparatorOutsideToken], line)
+        }
+        for (line, printed) in [("Salt 0.5g or less", "0.5g"), ("Salt 0.5g, max", "0.5g"), ("Salt Max 0.5g", "0.5g"), ("Salt UNDER 0.5g", "0.5g")] {
+            let text = "Per 100g\n" + line
+            let result = Locator.locate(text: text, headers: [Self.per100], rows: [Self.row("Salt", [("h1", printed)])])
+            XCTAssertEqual(result.values[0].attention, [.comparatorOutsideToken], line)
+        }
+        let clean = "每份\n鈉 0.5 公克"
+        XCTAssertFalse(Locator.locate(text: clean, headers: perServing, rows: [Self.row("鈉", [("h1", "0.5 公克")])]).values[0].needsAttention)
+        let maximal = Locator.locate(text: "Per 100g\nSalt 0.5g maximal", headers: [Self.per100], rows: [Self.row("Salt", [("h1", "0.5g")])])
+        XCTAssertFalse(maximal.values[0].needsAttention, "max must end a word")
+    }
+
     func testPercentWithoutAReferenceIntakeHeaderIsAttention() {
         let text = "Per 100g %RI\nFat 1g 5%"
         let result = Locator.locate(text: text, headers: [Self.per100], rows: [Self.row("Fat", [("h1", "1g")])])

@@ -142,6 +142,19 @@ final class EvalCaseConverterTests: XCTestCase {
             #""label": "Salt 鹽", "nutrient": "salt", "values": [{"comparator": "<", "number": "0,5", "outside_table": true"#), metadata: uk))
     }
 
+    func testUKDevelopmentClassMarkersAreNormalisedAsTheFrozenConverterDoes() throws {
+        let marked = Self.replacing(Self.taiwan, #""comparator": "少於", "number": "5", "unit": "毫克"}"#,
+                                    #""comparator": "=", "number": "Trace", "unit": "", "outside_table": true}"#)
+        let development = try EvalCaseConverter.fromTaiwan(marked, metadata: metadata(.ukV1Development, tier: "A"))
+        XCTAssertEqual(development.expected.rows[1].values[0], TranscriptionShapes.Value(comparator: "=", number: "Trace", unit: ""))
+        XCTAssertNil(development.expected.rows[1].values[0]?.outsideTable)
+        XCTAssertEqual(development.expected.rows[2].values[0]?.outsideTable, true, "an Amendment 3 marker that is not a class marker is kept")
+        XCTAssertEqual(try EvalCase.decode(try development.canonicalJSON()), development)
+        // The Taiwan set keeps the file's values exactly.
+        let taiwan = try EvalCaseConverter.fromTaiwan(marked, metadata: metadata(.taiwanV3Fresh))
+        XCTAssertEqual(taiwan.expected.rows[1].values[0]?.outsideTable, true)
+    }
+
     func testSetAndSchemaPairingIsClosed() {
         XCTAssertThrowsError(try EvalCaseConverter.fromTaiwan(Self.taiwan, metadata: metadata(.taiwanV3Development)),
                              "no committed harness records the Taiwan v3 development schema")

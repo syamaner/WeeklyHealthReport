@@ -94,7 +94,9 @@ enum TranscriptionRules {
     }
 
     /// Every value problem, as the frozen `problems` lists them.
-    static func problems(_ expected: EvalCase.Expected, _ schema: Schema) -> [String] {
+    /// `ukMarkers` admits the UK class markers; it holds for a UK-format case in either schema
+    /// (the UK development set's Taiwan-schema files are scored by the UK scorer).
+    static func problems(_ expected: EvalCase.Expected, _ schema: Schema, ukMarkers: Bool) -> [String] {
         var out: [String] = []
         if let s = expected.servingSize, s.outsideTable != true, !decimal(s.number) || unit(s.unit, schema) == nil {
             out.append("serving_size: outside the table without outside_table")
@@ -103,7 +105,7 @@ enum TranscriptionRules {
         if expected.columns.isEmpty { out.append("no columns") }
         for row in expected.rows {
             for value in row.values.compactMap({ $0 }) {
-                if schema == .uk, isClassMarker(value) {
+                if ukMarkers, isClassMarker(value) {
                     if value.outsideTable == true { out.append("\(row.label): marker \(value.number) with outside_table") }
                     continue
                 }

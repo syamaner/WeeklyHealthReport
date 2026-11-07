@@ -198,7 +198,7 @@ public struct EvalCase: Codable, Equatable, Sendable {
         }
         // The frozen harnesses' value rules, by the source schema's tables.
         let schema: TranscriptionRules.Schema = source.schema == TranscriptionShapes.TaiwanTranscription.schema ? .taiwan : .uk
-        let problems = TranscriptionRules.problems(expected, schema)
+        let problems = TranscriptionRules.problems(expected, schema, ukMarkers: format == .uk)
         guard problems.isEmpty else { throw Invalid("\(labelID): " + problems.joined(separator: "; ")) }
     }
 

@@ -63,6 +63,15 @@ final class PastedLabelAITextVocabularyTests: XCTestCase {
         XCTAssertEqual(Vocabulary.checkHeader(printedText: "Per 1/2 pack", basis: "per_serving"), .unknown)
     }
 
+    func testOnlyAPerServingPhraseNamesTheBasis() {
+        for header in ["Per serving", "per portion", "Per 30g serving", "Per 30 g serving", "Serving (30g)", "Portion (150 g)", "每份", "每一份"] {
+            XCTAssertEqual(Vocabulary.checkHeader(printedText: header, basis: "per_serving"), .agrees, header)
+        }
+        for header in ["Serving suggestions", "Serving", "Each serving", "Portion", "Serving suggestion: 2 slices"] {
+            XCTAssertEqual(Vocabulary.checkHeader(printedText: header, basis: "per_serving"), .unknown, header)
+        }
+    }
+
     func testQuantityHeadersAreNotABasis() {
         for header in ["Serving size", "Serving Size: 30g", "Portion size", "Servings per pack", "Servings per package: 4", "Portions per pack",
                        "每份重量", "每份重量30公克", "本包裝含8份", "份量"] {

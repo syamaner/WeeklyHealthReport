@@ -104,7 +104,8 @@ public enum PastedLabelAITextVocabulary {
     /// substrings of the header with its spaces removed. A reference-intake word decides the
     /// basis on its own (`%RI per serving` is the reference-intake column). A header that names a
 /// quantity (`serving size`, `portion size`, `servings per pack`, `每份重量`, `本包裝含`, `份量`)
-/// names no basis.
+/// names no basis, and neither does a standalone `serving` or `portion` without a per-serving
+/// phrase or a printed quantity.
     public static func basis(forHeader printed: String) -> String? {
         let lower = printed.lowercased()
         var words: [String] = []
@@ -137,7 +138,20 @@ public enum PastedLabelAITextVocabulary {
         if words.contains("100ml") || phrase(["100", "ml"]) || compact.contains("每100毫升") || compact.contains("每100ml") {
             found.insert("per_100ml")
         }
-        if words.contains("serving") || words.contains("portion") || compact.contains("每份") || compact.contains("每一份") {
+        // Only a per-serving phrase names the basis (Qodo finding on #421 at 21e2d76): `per serving`,
+        // `per portion`, `per <number> <unit> serving`, `每份`, `每一份`, or `serving` or `portion`
+        // in a header that also prints a quantity with a unit (`Serving (30g)`). A standalone
+        // word (`Serving suggestions`) names none.
+        let servingWord = words.contains("serving") || words.contains("portion")
+        let quantityWithUnit = PastedLabelTextScan(printed).tokens.contains { $0.unit != nil && $0.canonicalUnit != "%" }
+        let perNumberServing = words.indices.contains { start in
+            guard words[start] == "per" else { return false }
+            let rest = Array(words[(start + 1)...].prefix(3))
+            guard let servingIndex = rest.firstIndex(where: { $0 == "serving" || $0 == "portion" }), servingIndex > 0 else { return false }
+            return rest[..<servingIndex].allSatisfy { $0.first?.isNumber == true || PastedLabelAITextValueGrammar.canonicalUnit($0) != nil }
+        }
+        if phrase(["per", "serving"]) || phrase(["per", "portion"]) || perNumberServing || (servingWord && quantityWithUnit)
+            || compact.contains("每份") || compact.contains("每一份") {
             found.insert("per_serving")
         }
         return found.count == 1 ? found.first : nil

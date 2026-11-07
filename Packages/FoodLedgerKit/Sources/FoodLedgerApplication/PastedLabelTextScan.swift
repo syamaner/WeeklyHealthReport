@@ -221,8 +221,12 @@ public struct PastedLabelTextScan: Sendable {
     /// Whether a token that printed no comparator has, as its left neighbour past whitespace and
     /// punctuation (P*, `:` and `：` included; Qodo finding 3 on #421), a
     /// comparator word of the closed list in any case (`Less than`, `LESS THAN`) or a math symbol
-    /// (Unicode Sm: `≦`, `~`, `=` and the like). The token then may have lost its bound.
+    /// (Unicode Sm: `≦`, `~`, `=` and the like), or a bound word of `leftBoundWords`; or has, as
+    /// its right neighbour past spaces and punctuation on its line, a bound word of
+    /// `rightBoundWords` (Qodo findings on #421 at 21e2d76). The token then may have lost its
+    /// bound. The closed comparator lists of the grammar are unchanged.
     public func comparatorOutside(_ token: Token) -> Bool {
+        if boundWordAfter(token) { return true }
         guard token.comparator == "=" else { return false }
         var index = token.start - 1
         while index >= 0, scalars[index].properties.isWhitespace || Self.isLineBreak(scalars[index]) || Self.isPunctuation(scalars[index]) {
@@ -232,11 +236,32 @@ public struct PastedLabelTextScan: Sendable {
         if scalars[index].properties.generalCategory == .mathSymbol { return true }
         let start = max(0, index - 15)
         let before = text(start..<(index + 1)).lowercased()
-        for comparator in PastedLabelAITextValueGrammar.comparators {
-            let word = comparator.printed.lowercased()
-            guard before.hasSuffix(word) else { continue }
+        let words = PastedLabelAITextValueGrammar.comparators.map { $0.printed.lowercased() } + Self.leftBoundWords
+        for word in words where before.hasSuffix(word) {
+            // A CJK word needs no word start; an English word must start one.
+            if Self.isCJK(word.unicodeScalars.first!) { return true }
             let wordStart = index + 1 - word.unicodeScalars.count
             if wordStart == 0 || !scalars[wordStart - 1].properties.isAlphabetic { return true }
+        }
+        return false
+    }
+
+    /// Bound words checked to the left of a token, lower-cased (English in any case).
+    static let leftBoundWords = ["未滿", "少於", "低於", "不到", "小於", "less than", "fewer than", "under", "below", "up to", "max", "maximum",
+                                 "not more than", "no more than"]
+    /// Bound words checked to the right of a token, past spaces and punctuation on its line.
+    static let rightBoundWords = ["以下", "以內", "or less", "max", "maximum", "or under", "or below"]
+
+    func boundWordAfter(_ token: Token) -> Bool {
+        guard let line = line(containing: token.start) else { return false }
+        var index = token.end
+        while index < line.end, scalars[index].properties.isWhitespace || Self.isPunctuation(scalars[index]) { index += 1 }
+        guard index < line.end else { return false }
+        let after = text(index..<min(line.end, index + 16)).lowercased()
+        for word in Self.rightBoundWords where after.hasPrefix(word) {
+            if Self.isCJK(word.unicodeScalars.first!) { return true }
+            let end = index + word.unicodeScalars.count
+            if end >= line.end || !scalars[end].properties.isAlphabetic { return true }
         }
         return false
     }
