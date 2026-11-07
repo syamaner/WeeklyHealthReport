@@ -29,6 +29,12 @@ public struct EvalCase: Codable, Equatable, Sendable {
 
     public enum Role: String, Codable, CaseIterable, Sendable { case tuning, heldOut = "held_out" }
 
+    /// The label's layout shape (5.2.1 breakdowns, Qodo finding 9 on A2): a closed set, assigned on
+    /// the case when cases are built in A3, never inferred from the text.
+    public enum LayoutShape: String, Codable, CaseIterable, Sendable {
+        case oneRowPerLine = "one_row_per_line", oneValuePerLine = "one_value_per_line", misaligned, unitless, other
+    }
+
     /// The format the label is read under: Taiwan, or a UK-format declaration (EU English included, D18).
     public enum Format: String, Codable, CaseIterable, Sendable { case taiwan, uk }
 
@@ -107,17 +113,20 @@ public struct EvalCase: Codable, Equatable, Sendable {
     /// (A2: the Taiwan reader v3 development set's older answer format). Absent for every other
     /// schema, so their canonical bytes are unchanged.
     public let legacy: TranscriptionShapes.LegacyExtras?
+    /// Optional; absent until assigned, and then not encoded, so existing canonical bytes are unchanged.
+    public let layoutShape: LayoutShape?
 
     enum CodingKeys: String, CodingKey, CaseIterable {
-        case schema, set, role, format, tier, expected, source, legacy
+        case schema, set, role, format, tier, expected, source, legacy, layoutShape = "layout_shape"
         case labelID = "label_id", copyMethod = "copy_method", textSHA256 = "text_sha256"
     }
 
     public init(labelID: String, set: EvalSet, tier: String?, copyMethod: String, textSHA256: String, expected: Expected, source: Source,
-                legacy: TranscriptionShapes.LegacyExtras? = nil) throws {
+                legacy: TranscriptionShapes.LegacyExtras? = nil, layoutShape: LayoutShape? = nil) throws {
         self.schema = Self.schema
         self.labelID = labelID; self.set = set; self.role = set.role; self.format = set.format; self.tier = tier
         self.copyMethod = copyMethod; self.textSHA256 = textSHA256; self.expected = expected; self.source = source; self.legacy = legacy
+        self.layoutShape = layoutShape
         try validate()
     }
 
@@ -128,6 +137,7 @@ public struct EvalCase: Codable, Equatable, Sendable {
         try container.encodeIfPresent(tier, forKey: .tier); try container.encode(copyMethod, forKey: .copyMethod)
         try container.encode(textSHA256, forKey: .textSHA256); try container.encode(expected, forKey: .expected)
         try container.encode(source, forKey: .source); try container.encodeIfPresent(legacy, forKey: .legacy)
+        try container.encodeIfPresent(layoutShape, forKey: .layoutShape)
     }
 
     public init(from decoder: any Decoder) throws {
@@ -144,6 +154,7 @@ public struct EvalCase: Codable, Equatable, Sendable {
         expected = try container.decode(Expected.self, forKey: .expected)
         source = try container.decode(Source.self, forKey: .source)
         legacy = try container.decodeIfPresent(TranscriptionShapes.LegacyExtras.self, forKey: .legacy)
+        layoutShape = try container.decodeIfPresent(LayoutShape.self, forKey: .layoutShape)
         try validate()
     }
 

@@ -140,7 +140,10 @@ public enum PastedLabelAITextScorer {
     enum ColumnMatch: Equatable { case index(Int), notPrinted, ambiguous }
 
     public static func score(_ evalCase: EvalCase, outcome: String, declineReasons: [String], failure: String?, table: ConfirmTable?) -> LabelScore {
-        let schema: TranscriptionRules.Schema = evalCase.source.schema == TranscriptionShapes.UKTranscription.schema ? .uk : .taiwan
+        // The comparison rules follow the case's scoring format, not its source schema: a UK
+        // development case from a Taiwan-schema file is scored by the UK rules, as the frozen
+        // harness does (Qodo finding 3 on A2).
+        let schema: TranscriptionRules.Schema = evalCase.format == .uk ? .uk : .taiwan
         let fields = evalCase.fields
         var byNutrient: [String: LabelScore.Counts] = [:]
         for field in fields { byNutrient[field.nutrient, default: .init()].printed += 1 }
@@ -188,6 +191,9 @@ public enum PastedLabelAITextScorer {
             if decimal(read.first ?? "") != decimal(printed.number) || !unitMatches { servingEdits += 1 }
         }
         if evalCase.expected.servingsPerPack != nil, table.servingsPerPack == nil { servingEdits += 1 }
+        // An entry at Confirm that the label does not print must be removed: an edit (Qodo finding 4 on A2).
+        if evalCase.expected.servingSize == nil, table.servingSize != nil { servingEdits += 1 }
+        if evalCase.expected.servingsPerPack == nil, table.servingsPerPack != nil { servingEdits += 1 }
         if let read = table.servingsPerPack, let printed = evalCase.expected.servingsPerPack,
            decimal(read.first ?? "") != decimal(printed.number) || (read.last == "true") != printed.approximate { servingEdits += 1 }
         let exact = wrongCount == 0 && printedNotCorrect == 0

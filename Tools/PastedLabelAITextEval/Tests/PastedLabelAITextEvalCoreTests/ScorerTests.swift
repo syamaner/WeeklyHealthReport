@@ -101,6 +101,41 @@ final class ScorerTests: XCTestCase {
         XCTAssertEqual(PastedLabelAITextScorer.version, "pasted-label-ai-text-scorer-v1 (rules of uk-fresh-scorer-v2)")
     }
 
+    /// Qodo finding 3: a UK development case from a Taiwan-schema file is scored by the UK rules.
+    func testAUKDevelopmentCaseFromATaiwanSchemaFileUsesTheUKRules() throws {
+        let file = Data("""
+        {"schema": "reader-v3-fresh-transcription-v1", "label_id": "uk-dev-synthetic",
+         "columns": [{"heading": "Per 100g", "basis": "per_100g"}],
+         "rows": [{"label": "Fat", "nutrient": "fat", "values": [{"comparator": "=", "number": "5", "unit": "gms", "outside_table": true}]}],
+         "notes": []}
+        """.utf8)
+        let evalCase = try EvalCaseConverter.fromTaiwan(file, metadata: .init(set: .ukV1Development, tier: "A", copyMethod: "m",
+                                                                              textSHA256: String(repeating: "ab", count: 32)))
+        let result = PastedLabelAITextScorer.score(evalCase, outcome: "reached_confirm", declineReasons: [], failure: nil,
+                                                   table: .init(headers: [.init(id: "h1", basis: "per_100g")], cells: [Self.cell("fat", "h1", "=", "5", "g")],
+                                                                servingSize: nil, servingsPerPack: nil, attentionItems: 0))
+        XCTAssertEqual(result.fieldsCorrect, 1, "`gms` is a UK unit; under the Taiwan tables it would be wrong")
+        XCTAssertNil(TranscriptionRules.unit("gms", .taiwan))
+    }
+
+    /// Qodo finding 4: a serving line read at Confirm that the label does not print is an edit.
+    func testAServingEntryTheLabelDoesNotPrintIsAnEdit() throws {
+        let evalCase = try EvalCase(labelID: "fat-only", set: .ukV1Fresh, tier: "A", copyMethod: "m", textSHA256: String(repeating: "ab", count: 32),
+                                    expected: .init(panel: "uk_declaration", servingSize: nil, servingsPerPack: nil,
+                                                    columns: [.init(heading: "Per 100g", basis: "per_100g")],
+                                                    rows: [.init(label: "Fat", nutrient: "fat", values: [.init(comparator: "=", number: "5", unit: "g")])], notes: []),
+                                    source: .init(schema: TranscriptionShapes.UKTranscription.schema, sha256: String(repeating: "ab", count: 32)))
+        func score(size: [String]?, pack: [String]?) -> LabelScore {
+            PastedLabelAITextScorer.score(evalCase, outcome: "reached_confirm", declineReasons: [], failure: nil,
+                                          table: .init(headers: [.init(id: "h1", basis: "per_100g")], cells: [Self.cell("fat", "h1", "=", "5", "g")],
+                                                       servingSize: size, servingsPerPack: pack, attentionItems: 0))
+        }
+        XCTAssertTrue(score(size: nil, pack: nil).noEdit)
+        XCTAssertFalse(score(size: ["30", "g"], pack: nil).noEdit, "a serving size the label does not print must be removed")
+        XCTAssertFalse(score(size: nil, pack: ["8", "false"]).noEdit, "so must a pack count")
+        XCTAssertTrue(score(size: ["30", "g"], pack: nil).exactMatch, "the printed fields are still all correct")
+    }
+
     func testDeclinedAndFailedLabelsScoreNothing() {
         for outcome in ["declined", "failed"] {
             let result = PastedLabelAITextScorer.score(Self.ukCase, outcome: outcome, declineReasons: ["x"], failure: nil, table: nil)
