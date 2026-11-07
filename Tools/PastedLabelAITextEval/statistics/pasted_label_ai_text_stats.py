@@ -154,7 +154,7 @@ def tap_cost(send: dict, cap: float) -> tuple[float, bool]:
     attempt = str(send.get("attempt", ""))
     if send.get("cost_usd") is not None:
         return float(send["cost_usd"]), True
-    if attempt.startswith(("refused:", "not_sent:")):
+    if attempt.startswith(("refused:", "not_sent:", "declined_before_send:")):
         return 0.0, True
     return cap, False
 
@@ -192,6 +192,13 @@ def load_results(path: Path, cases: Path | None = None, cap: float = PER_TAP_CAP
         ids = [label.label_id for label in labels]
         if len(ids) != len(set(ids)):
             raise ValueError(f"{cell}: a label appears twice")
+        # With the cases named, every cell must have run exactly the case set: a missing label
+        # would silently shrink a denominator, and an extra one would score against nothing.
+        if cases is not None:
+            expected = {path.stem for path in cases.glob("*.json")}
+            if set(ids) != expected:
+                missing, extra = sorted(expected - set(ids)), sorted(set(ids) - expected)
+                raise ValueError(f"{cell}: the results do not match the case set (missing {missing}, extra {extra})")
     return cells
 
 
@@ -330,13 +337,16 @@ def bar(labels: list[Label], bar_path: Path) -> dict:
     failed = len(labels) - len(reached)
     op = operational(labels)
     median, p90 = op["cost_usd"]["p50_upper_median"], op["latency_seconds"]["p90_nearest_rank"]
+    missing_latency = sum(1 for label in labels if label.latency_seconds is None)
     return {
         "bar_1": {"value": silent, "pass": silent == gates["bar_1"]["threshold"]},
         "bar_2": {"value": _ratio(no_edit, len(reached)), "pass": bool(reached) and no_edit / len(reached) >= gates["bar_2"]["threshold"]},
         "bar_3": {"value": failed, "pass": failed <= gates["bar_3"]["threshold"] if len(labels) == gates["bar_3"]["denominator_count"]
                   else failed / len(labels) <= gates["bar_3"]["fraction"] if labels else False},
         "bar_4_cost": {"value": median, "pass": median is not None and median <= gates["bar_4_cost"]["threshold"]},
-        "bar_4_latency": {"value": p90, "pass": p90 is not None and p90 <= gates["bar_4_latency"]["threshold"]},
+        # Bar 4 is over all taps: a tap with no recorded latency fails it rather than leaving the count.
+        "bar_4_latency": {"value": p90, "missing": missing_latency,
+                          "pass": missing_latency == 0 and p90 is not None and p90 <= gates["bar_4_latency"]["threshold"]},
         "labels": len(labels),
     }
 

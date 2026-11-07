@@ -32,7 +32,7 @@ def scores(*, outcome="reached_confirm", printed=10, shown=10, correct=10, wrong
     return out
 
 
-def result(label, named, *, cost: str | None = "0.004", latency=2.0, provider="model-a", prompt="prompt-v1", attempt="responded"):
+def result(label, named, *, cost: str | None = "0.004", latency: float | None = 2.0, provider="model-a", prompt="prompt-v1", attempt="responded"):
     send = {"attempt": attempt, "cost_usd": cost, "latency_seconds": latency}
     return {"vars": {"label_id": label}, "provider": {"id": "file://provider.js", "label": provider}, "prompt": {"label": prompt},
             "gradingResult": {"namedScores": named}, "response": {"output": json.dumps(send)}}
@@ -172,7 +172,30 @@ class MetricTests(unittest.TestCase):
         self.assertAlmostEqual(figures["bar_4_cost"]["value"], 0.013)
         self.assertFalse(figures["bar_4_cost"]["pass"])
         # Latencies 1 to 18 and six of 30: the 22nd sorted is 30.
-        self.assertEqual(figures["bar_4_latency"], {"value": 30.0, "pass": False})
+        self.assertEqual(figures["bar_4_latency"], {"value": 30.0, "missing": 0, "pass": False})
+
+
+class GateFiveTests(unittest.TestCase):
+    def test_a_detector_decline_before_sending_costs_nothing_and_is_known(self):
+        self.assertEqual(stats.tap_cost({"attempt": "declined_before_send:nutrition_facts_title", "cost_usd": None}, 0.05), (0.0, True))
+
+    def test_a_missing_latency_fails_bar_four(self):
+        rows = [result(f"h{i:02}", scores(), cost="0.001", latency=1.0) for i in range(23)]
+        rows.append(result("h23", scores(), cost="0.001", latency=None))
+        figures = stats.bar(stats.load_results(write(rows))["model-a|prompt-v1"], BAR)
+        self.assertEqual(figures["bar_4_latency"]["missing"], 1)
+        self.assertFalse(figures["bar_4_latency"]["pass"])
+
+    def test_the_results_must_equal_the_case_set(self):
+        with tempfile.TemporaryDirectory() as directory:
+            cases = Path(directory)
+            for label in ("a", "b"):
+                (cases / f"{label}.json").write_text("{}", encoding="utf-8")
+            self.assertEqual(len(stats.load_results(write([result("a", scores()), result("b", scores())]), cases)["model-a|prompt-v1"]), 2)
+            with self.assertRaises(ValueError):
+                stats.load_results(write([result("a", scores())]), cases)
+            with self.assertRaises(ValueError):
+                stats.load_results(write([result("a", scores()), result("b", scores()), result("c", scores())]), cases)
 
 
 class CompareTests(unittest.TestCase):
