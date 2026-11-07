@@ -15,19 +15,29 @@
 # and that telemetry, updates and sharing are switched off.
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
-scratch="${1:?usage: run-smoke.sh SCRATCH_DIR}"
-# Resolve the path through its (existing) parent before creating anything, so a refused path is
-# never created.
-parent="$(cd "$(dirname "$scratch")" 2>/dev/null && pwd -P)" || { echo "the scratch directory's parent must exist" >&2; exit 2; }
-scratch="$parent/$(basename "$scratch")"
+check_only=0
+if [[ "${1:-}" == "--check-scratch" ]]; then check_only=1; shift; fi
+scratch="${1:?usage: run-smoke.sh [--check-scratch] SCRATCH_DIR}"
+# Resolve the whole path before creating anything, so a refused path is never created: an existing
+# path through `cd -P` (every symbolic link, the last component included, Qodo finding 5 on A2);
+# a new one through its existing parent. A dangling symbolic link is refused.
+if [[ -L "$scratch" && ! -e "$scratch" ]]; then echo "the scratch directory is a dangling symbolic link" >&2; exit 2; fi
+if [[ -e "$scratch" ]]; then
+  scratch="$(cd -P "$scratch" 2>/dev/null && pwd -P)" || { echo "the scratch path is not a directory" >&2; exit 2; }
+else
+  parent="$(cd -P "$(dirname "$scratch")" 2>/dev/null && pwd -P)" || { echo "the scratch directory's parent must exist" >&2; exit 2; }
+  case "$(basename "$scratch")" in .|..) echo "the scratch directory must be named" >&2; exit 2 ;; esac
+  scratch="$parent/$(basename "$scratch")"
+fi
 # Never inside the repository (any path under its top level) or promptfoo's home default.
 repo="$(git -C "$here" rev-parse --show-toplevel)"
-repo="$(cd "$repo" && pwd -P)"
-scratch_real="$scratch"
-case "$scratch_real/" in
+repo="$(cd -P "$repo" && pwd -P)"
+case "$scratch/" in
   "$repo"/*) echo "the scratch directory must be outside the repository ($repo)" >&2; exit 2 ;;
 esac
-case "$scratch_real" in "$HOME"/.promptfoo*) echo "the scratch directory must not be promptfoo's home default" >&2; exit 2 ;; esac
+home="$(cd -P "$HOME" && pwd -P)"
+case "$scratch/" in "$home"/.promptfoo/*) echo "the scratch directory must not be promptfoo's home default" >&2; exit 2 ;; esac
+if [[ "$check_only" == 1 ]]; then echo "$scratch"; exit 0; fi
 mkdir -p "$scratch"
 swift build --package-path "$here/.." -c debug --product PastedLabelAITextEval >&2
 bin="$(swift build --package-path "$here/.." -c debug --show-bin-path)/PastedLabelAITextEval"

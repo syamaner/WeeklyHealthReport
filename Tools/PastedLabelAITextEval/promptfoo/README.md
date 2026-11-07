@@ -19,3 +19,5 @@ npm ci --ignore-scripts
 ```
 
 The script refuses a scratch path inside the repository or promptfoo's home default. It switches off telemetry, update checks and sharing, keeps promptfoo's config, database, cache and logs in the scratch directory, and runs five synthetic labels over the directory fake transport. A2 wires no live transport, so nothing is sent to OpenRouter or any provider.
+
+`tests/test-scratch-path.sh` checks the scratch path refusal, including a symbolic link outside the repository that points inside it.
