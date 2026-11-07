@@ -363,6 +363,48 @@ check_imports FoodLedgerArchive '^(Foundation|FoodLedgerApplication|FoodLedgerGR
 check_imports FoodLedgerTestSupport '^(Foundation|FoodLedgerApplication|FoodLedgerDomain)$'
 check_imports FoodLedgerGRDB '^(Foundation|FoodLedgerApplication|FoodLedgerDomain|GRDB)$'
 
+# Pasted label AI text evaluation core (#416 A1, docs/pasted-label-ai-text-v1.md 5): the case
+# format, converters and bar tooling outside the package import Foundation and CryptoKit only.
+# The scan covers that one directory (every Swift file under it); the self-test proves a
+# forbidden import in any form fails.
+tool_import_violations() {
+  local dir="$1" allowed="$2"
+  if [[ ! -d "$dir" ]]; then echo "$dir: missing"; return 0; fi
+  find "$dir" -name '*.swift' -type f -print0 | xargs -0 sed -nE "s/${import_attributes}([A-Za-z0-9_]+).*$/\5/p" \
+    | sort -u | grep -Ev "$allowed" || true
+}
+eval_core_allowed='^(CryptoKit|Foundation)$'
+self_test_eval_core_imports() {
+  local scratch status=0 fixture
+  scratch="$(mktemp -d "${TMPDIR:-/tmp}/check-boundaries-eval.XXXXXX")"
+  mkdir -p "$scratch/base/Nested"
+  printf 'import Foundation\nimport CryptoKit\n' > "$scratch/base/Case.swift"
+  echo '@preconcurrency import Foundation // comment' > "$scratch/base/Nested/Strict.swift"
+  if [[ -n "$(tool_import_violations "$scratch/base" "$eval_core_allowed")" ]]; then
+    echo "check-boundaries self-test: the eval core baseline must pass" >&2; status=1
+  fi
+  for fixture in testable struct_form nested; do
+    cp -R "$scratch/base" "$scratch/$fixture"
+    case "$fixture" in
+      testable) echo '@testable import FoodLedgerApplication' > "$scratch/$fixture/Leak.swift" ;;
+      struct_form) echo 'import struct FoodLabelPhotoReading.LabelPhotoWire' > "$scratch/$fixture/Leak.swift" ;;
+      nested) echo 'import NutritionLabelParsing' > "$scratch/$fixture/Nested/Leak.swift" ;;
+    esac
+    if [[ -z "$(tool_import_violations "$scratch/$fixture" "$eval_core_allowed")" ]]; then
+      echo "check-boundaries self-test: the eval core $fixture fixture must fail" >&2; status=1
+    fi
+  done
+  rm -rf "$scratch"
+  return "$status"
+}
+self_test_eval_core_imports
+eval_core_unexpected="$(tool_import_violations "$app_root/Tools/PastedLabelAITextEval/Sources/PastedLabelAITextEvalCore" "$eval_core_allowed")"
+if [[ -n "$eval_core_unexpected" ]]; then
+  echo "PastedLabelAITextEvalCore has forbidden imports:" >&2
+  echo "$eval_core_unexpected" >&2
+  exit 1
+fi
+
 if grep -RnsE '^import (GRDB|SwiftUI|UIKit|HealthKit)$' \
   "$package_root/Sources/FoodLedgerDomain" \
   "$package_root/Sources/FoodLedgerApplication"; then

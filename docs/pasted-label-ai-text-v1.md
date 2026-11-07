@@ -1,6 +1,6 @@
 # Pasted label AI reading v1: text first (#416)
 
-Status: **draft spec, revision 5, 7 November 2026. Documents only; no production code and no egress yet.** The owner decided D2 to D22 on 7 November 2026 (section 9), including the evaluation egress terms T1 to T7. The product route's egress terms (T8 to T12) still need line-by-line approval before the route sends anything. The architecture gate returned FAIL on revision 1 and PASS WITH CHANGES on revision 2. Revision 3 applied N1 to N16, and its re-check returned PASS WITH CHANGES. Revision 4 applied R1 to R6 and was confirmed PASS WITH CHANGES, with five wording gaps that were not blocking. Revision 5 closes those gaps and the six findings from a local Qodo review. Revision 5 itself has not been re-gated. The A1 PR opens with a gate pass on its own diff.
+Status: **draft spec, revision 6, 7 November 2026.** The owner decided D2 to D23 on 7 November 2026 (section 9), including the evaluation egress terms T1 to T7. The product route's egress terms (T8 to T12) still need line-by-line approval before the route sends anything. The gate history is: revision 1 FAIL, then PASS WITH CHANGES on revisions 2, 3 and 4, with revision 5 closing the last wording gaps and the local Qodo findings. Revision 6 records A1's implementation amendments: the full-width boundaries and the attention rules for hidden cells, comparator words, glued basis quantities and nested labels (4.3), the unit and vocabulary details (4.2, 4.4), the offer and detector details (4.6, 4.7), D23, and the items moved to A5. A1's pure checks exist as code. Nothing sends.
 
 ## 1. Problem
 
@@ -62,7 +62,7 @@ The photo pieces below are image-typed or Taiwan-only, so the text route has its
 | Request and attempt port | The photo body is an image data URI with schema `label_image_extraction_v1`, and `LabelPhotoAttempting` takes a `PreparedLabelImage` | A text-only request builder (instruction and schema pinned by SHA) and a `PastedLabelAITextAttempting` port |
 | Route set | `LabelPhotoRoute` is a closed set of photo routes | `PastedLabelAITextRoute`, its own closed set |
 | Wire schema | `label-photo-wire-schema-v1` has no unit member (`LabelPhotoWire.Value` holds a header ID and printed text only) | `pasted-label-ai-text-wire-schema-v1`: printed text as printed, plus an optional `unit` member the model fills only for a bare number, with its own strict decoder and goldens |
-| Mapping | `label-photo-wire-mapping-v1` takes units from row labels for energy only | `pasted-label-ai-text-mapping-v1`, in a new file with its own copy of `parseValue`. Its unit table and comparators are the closed lists in the application layer (11.1), because the photo copy is internal to a pinned file. Parity with the photo copy is tested, except for the thousands rule in 4.3. Otherwise as v1, except that the model's unit for a bare number is accepted only when the sent text states that unit for the values (D10), and otherwise is an attention item. A unit is stated for the values when it is:<br>- a unit-only token in the column's header, such as `(g)`, `g` or `mg`; or<br>- a unit-only token in the row's label, such as `Fat (g)`.<br>A number followed by a unit in a header (`per 100 g`, `100g`, `per 30 g serving`) is the basis quantity and never states a unit (D16). Parity with v1 on every v1 vector where a unit is printed |
+| Mapping | `label-photo-wire-mapping-v1` takes units from row labels for energy only | `pasted-label-ai-text-mapping-v1`, in a new file with its own copy of `parseValue`. Its unit table and comparators are the closed lists in the application layer (11.1), because the photo copy is internal to a pinned file. Parity with the photo copy is tested, except for the thousands rule in 4.3. Otherwise as v1, except that the model's unit for a bare number is accepted only when the sent text states that unit for the values (D10), and otherwise is an attention item. A unit is stated for the values when it is:<br>- a unit-only token in the column's header, such as `(g)`, `g` or `mg`; or<br>- a unit-only token in the row's label, such as `Fat (g)`.<br>A number followed by a unit in a header (`per 100 g`, `100g`, `per 30 g serving`) is the basis quantity and never states a unit (D16), nor does a unit with a digit just before it, even across a space (`per100 g`, `每100 公克`). The row label's region runs from the label to the first value token on its line. A row label that states a unit overrides the header, a unit outside the closed table is not stated, and a printed unit that conflicts with the model's unit is attention. Parity with v1 on every v1 vector where a unit is printed |
 | Attention | The `label-photo-attention-v1` reasons are a closed, pinned set | `pasted-label-ai-text-attention-v1` in a new file: composes v1 and adds the reasons `unit_not_stated`, `vocabulary_mismatch` and `label_unknown`, with goldens |
 | Spend | `LabelPhotoSpendPolicy` has a fixed 6,000-token ceiling and per-tap limit, and an unversioned day record | A per-route spend policy over one versioned shared day record (D14). It replaces `LabelPhotoSpendPolicy`'s day record (not pinned), so the photo route's read and write paths change in the same PR and count against the shared record. An over-ceiling text read pauses only the text route (D17). Existing day records are read as photo-only, and a corrupt record fails closed |
 | Route checker | `OpenRouterLabelRouteChecker` accepts photo routes only | A text route checker with a parity test against the photo checker's rules |
@@ -85,9 +85,11 @@ A pure, deterministic check of the model's answer against the text. It never pro
      Comparators and units come from closed lists held in the application layer (11.1). The text target's copy of `parseValue` uses the same lists (4.2), including `＜` and `少於` and the Taiwan units such as `公克`, `毫克` and `大卡`. Inside a token, only spaces, tabs, U+00A0 or U+202F may sit between the parts.
    - **A token is the longest grammar match** that starts and ends at a boundary. Spaces inside it do not split it, so `5 g` and `less than 0.5 g` are each one token.
    - **Decimal mark:** a `.`, or a `,` between two digits that is not a thousands separator (next item). Any other `,` is a boundary, so `0,5g` is one token and `5g, 2g` is two.
-   - **Thousands separator:** a `,` followed by exactly three digits and then a non-digit is a thousands separator, so `1,046kJ` is 1046 and `0,5g` is 0.5. A token with both a thousands `,` and a decimal mark (`1,046.5`) is read the same way. The photo copy reads every `,` as a decimal mark, so parity excludes this rule, and a vector covers it.
-   - **Token boundaries:** start or end of line, whitespace (U+00A0 and U+202F included) outside a token, or one of `( ) [ ] ; : /`, `|` and a boundary `,`. So `1g` never matches inside `11g` or `0.1g`.
+   - **Thousands separator:** a `,` followed by exactly three digits and then a non-digit is a thousands separator, so `1,046kJ` is 1046 and `0,5g` is 0.5. A token with both a thousands `,` and a decimal mark (`1,046.5`) is read the same way. A thousands group led by `0` (`0,500g`) is ambiguous, so the A2 mapping makes it an attention item rather than reading 500. The photo copy reads every `,` as a decimal mark, so parity excludes this rule, and a vector covers it.
+   - **Token boundaries:** start or end of line, whitespace (U+00A0 and U+202F included) outside a token, or one of `( ) [ ] ; : /`, `|` and a boundary `,`, together with their full-width forms `（ ） ［ ］ ； ： ／ ｜ ，` and the ideographic `、` and `。`. A CJK letter touching a value is not a boundary, so that value is not a token. So `1g` never matches inside `11g` or `0.1g`.
    - Trailing `*` and `†` footnote marks are kept as printed and ignored for matching.
+   - A full-width `，` between two digits is neither a decimal mark nor a boundary, so no token forms there and the value is attention.
+   - **Qualifiers in front of a token:** a value token whose left neighbour, looking past spaces, ends with a comparator word in any letter case (`Less than`, `LESS THAN`), or with a math-symbol (Unicode Sm) scalar that is not itself a listed comparator (`≦`, `~`), is attention. A bound is never read as an exact value.
    - The model's printed text must equal one token exactly, after that normalisation. Nothing else is normalised.
 3. **Whole words.**
    - **Definitions:**
@@ -96,8 +98,8 @@ A pure, deterministic check of the model's answer against the text. It never pro
      - *whitespace* means White_Space.
    - **Latin script:** bounded by line edges, whitespace or punctuation.
    - **CJK text** (`每100公克`, `蛋白質`): an exact substring whose neighbours on both sides are a line edge, whitespace, punctuation, a value token, or a character that is not CJK.
-4. **Headers:** the model's amount headers, each located as the unique line holding its printed text as whole words. A model header not located, or located more than once, puts every value in its column under attention.
-5. **Row labels:** located as unique whole words, longest match first, so `saturated fat` is taken before `fat` and `飽和脂肪` before `脂肪`. A label left ambiguous puts that row's values under attention.
+4. **Headers:** the model's amount headers, each located as a single whole-word occurrence in the whole text. A model header not located, or located more than once, puts every value in its column under attention. A located header whose span lies inside a row block puts that block under attention. A header whose vocabulary verdict is not `agrees` never removes value tokens from the cells, so a fake or unknown header cannot hide a cell.
+5. **Row labels:** located as unique whole words, longest match first, so `saturated fat` is taken before `fat` and `飽和脂肪` before `脂肪`. A label left ambiguous puts that row's values under attention. Before the model's labels are located, every occurrence of a longer vocabulary label is claimed (matched case-insensitively), so a short label such as `fat` never matches inside `Saturated fat` when the model omitted that row. Model rows with the same printed label share one location.
 6. **Row blocks:** a row's block runs from its label to the next located row label. The last block ends at the first blank line after a value token in that block, or at the end of the text. This covers one value per line as well as one row per line.
 7. **Columns:** "headers" here means the model's amount headers that were located (item 4). A kJ and kcal pair counts as one cell (item 8).
    1. `%` tokens and the reference-intake header are set aside first. Each `%` token matches the reference-intake column.
@@ -132,7 +134,7 @@ A vector is committed for each of these:
 
 ### 4.4 Assignment check `pasted-label-ai-text-vocabulary-v1`
 
-A closed, versioned vocabulary of row-label words (for example salt, sodium, sugars, of which saturates, and the Taiwan equivalents) and header words (per 100 g, per 100 ml, per serving, reference intake). When the model's nutrient or basis disagrees with the vocabulary entry for the located row label or header, that value is an attention item. A label or header the vocabulary does not know is attention too. The check never assigns anything (D11).
+A closed, versioned vocabulary of row-label words (for example salt, sodium, sugars, of which saturates, and the Taiwan equivalents) and header words (per 100 g, per 100 ml, per serving, reference intake). When the model's nutrient or basis disagrees with the vocabulary entry for the located row label or header, that value is an attention item. A label or header the vocabulary does not know is attention too (`label_unknown`), and so is a header naming two bases. A reference-intake word decides the basis on its own. The check never assigns anything (D11).
 
 ### 4.5 Manifest, versions and records
 
@@ -157,7 +159,7 @@ A closed, versioned vocabulary of row-label words (for example salt, sodium, sug
 - **Provenance:** unchanged values reuse `user_verified_panel` with release ID `pasted-label-ai:`. Corrected or entered values carry `manual_declaration`, and export gives `label_checked_by_you` and `entered_by_you`, with no new export key.
 - **Identity:** UK candidates record `pasted-label-ai-text-identity-v1` (D9), which applies the UK as-sold rules of identity v3 and records them explicitly. Taiwan candidates record the existing Taiwan identity v1 facets, which confirmation already accepts.
 - **Export:** the stored text is handled exactly as the pasted route handles its text today, with no new export key and no change to the Drive egress (D20).
-- **Archive:** a new food contract number, chosen in A1 as the next unused one after reading `CanonicalFoodArchive`. Older readers decline it cleanly, and every existing record decodes, verifies and re-encodes unchanged. A1 also checks that photo evidence is covered by its contract, which the gate found unverified.
+- **Archive:** a new food contract number, chosen in A5 as the next unused one after reading `CanonicalFoodArchive`. Older readers decline it cleanly, and every existing record decodes, verifies and re-encodes unchanged. A5 also checks that photo evidence is covered by its contract, which the gate found unverified.
 - **Admission:** `LabelSourceAdmission` becomes three-way (pasted, photo, text), and a candidate naming two sources is refused.
 - **Manifest-keyed sites:** each gets a stated answer for text evidence, in a table in section 11:
   - `PastedLabelSource` (two sites);
@@ -172,8 +174,8 @@ A closed, versioned vocabulary of row-label words (for example salt, sodium, sug
 ### 4.6 When Read with AI is offered
 
 Only for a closed set of the frozen reader's decline codes, fixed in A1 from `LabelReading`'s codes:
-- **layout declines** of a Taiwan table;
-- **`layout_not_supported` for a UK-format paste.** Under the product scope, the reader declines every UK table with this code after its gate inferred the UK format, and that inferred format is how the paste is known to be UK. Read with AI is never offered for:
+- **layout declines** of a Taiwan table, from the closed set `PastedLabelAITextOffer.taiwanLayoutCodes` (offered only when every decline code is in it);
+- **`layout_not_supported` for a UK-format paste.** Under the product scope, the reader declines every UK table with this code after its gate inferred the UK format, and that inferred format is how the paste is known to be UK. It is offered only when the decline codes are exactly `{layout_not_supported}`. Read with AI is never offered for:
 - identity declines such as `basis_state_not_supported`;
 - `text_too_long`;
 - empty pastes and hash failures;
@@ -184,7 +186,7 @@ Only for a closed set of the frozen reader's decline codes, fixed in A1 from `La
 v1 admits UK-format declarations and the Taiwan pastes the reader declines (D2 as amended).
 
 - **EU English panels** follow the same rules and cannot be told apart reliably, so they are read as UK-format declarations under the UK rules and the UK bar (D18). No tuning or held-out label is EU English, so their accuracy is measured only as far as they match UK panels. The A4 result and the release note say so.
-- **US per 100, Australian and New Zealand panels** stay declined in v1 (D13). A closed, pure detector on the pasted text runs **before anything is sent**. It declines them on their distinct rows, for example sodium in mg with no salt row, or an Australian per-serve column with average quantity wording, so the text is never sent and no read is spent. The same detector runs again on the model's candidate, as a second check. Each detector rule gets a vector, including one that proves no request is built for a detected panel.
+- **US per 100, Australian and New Zealand panels** stay declined in v1 (D13). A closed, pure detector on the pasted text runs **before anything is sent**. It declines them on their distinct rows, for example sodium in mg with no salt row, or an Australian per-serve column with average quantity wording, so the text is never sent and no read is spent. The same detector, version `pasted-label-ai-text-panel-detector-v1`, runs again on the model's candidate, as a second check. The `sodium_without_salt` rule looks for the word salt anywhere in the text, does not require mg, and is skipped when the text contains CJK script, so a bilingual Taiwan paste passes. Each detector rule gets a vector. The vector proving that no request is built for a detected panel comes in A5, with the orchestrator.
 
 ### 4.8 Flags and attention
 
@@ -195,7 +197,7 @@ Attention items block Log, as photo decision P12. On the text route these are at
 - arithmetic implications;
 - G3 and G4 flags on the affected nutrients.
 
-G5 and G6, and G3 for a missing optional row, inform without blocking. The attention version is recorded.
+G5 and G6, and G3 for a missing optional row, inform without blocking. A value that is found but whose position is uncertain maps to `ambiguous`, and the locator's block, header and label reasons map to `ambiguous` too. The attention version is recorded.
 
 ### 4.9 Prompt injection and privacy
 
@@ -294,7 +296,7 @@ Each metric is computed per cell on the tuning set, and once on the held-out set
 - **Comparing versions** (tuning set only):
   - prompt and model versions are compared on the same labels;
   - a **McNemar test** for table-level exact match;
-  - a **paired bootstrap** (10,000 resamples over labels) for field F1;
+  - a **paired bootstrap** (10,000 resamples over labels, with the seed recorded in each run) for field F1;
   - the number of versions compared is reported with the winner, and no held-out label informs the choice.
 - **Ground-truth reliability:** for a sample of at least 12 tuning labels, a second independent blind transcription. Field-level exact agreement is reported. A disagreement is resolved against the source before scoring, and the rate is published.
 - **The 5.3 bar** is unchanged and still gates release. It is reported beside these metrics. The held-out set is small: zero silent errors in 24 tables still allows a true rate of up to about 14% (two-sided 95%), and the result states this.
@@ -315,7 +317,7 @@ Each metric is computed per cell on the tuning set, and once on the held-out set
 1. **Zero silent-error tables.** The locator, the unit check and the vocabulary check together make this reachable.
 2. **Tables needing no edit:** at least 80% of the tables that reach Confirm.
 3. **AI reads that fail or decline:** at most 25% of all 24 held-out labels, since the shipped reader declines every UK paste (D12). That is at most 6.
-4. **Median cost** at most $0.01 per tap; **p90 latency** at most 15 s.
+4. **Median cost** at most $0.01 per tap, as the upper median (the 13th of 24 sorted costs, D23); **p90 latency** at most 15 s.
 
 **Reported, not gating:**
 - wrong values that were flagged;
@@ -368,11 +370,11 @@ Two separate approvals: the evaluation runs (T1 to T7), then the product route (
 | Phase | Content | Egress |
 |---|---|---|
 | A0 | This spec, the owner decisions, the architecture gate | None |
-| A1 | The evaluation format, converters, the text locator as pure code, synthetic adversarial fixtures, and the bar committed | None |
+| A1 | The evaluation format and converters; the closed lists, text locator, unit check, vocabulary, panel detector, offer rule and attention reasons as pure code; synthetic vectors and adversarial fixtures against those checks; and the bar committed and pinned by SHA in `Tools/PastedLabelAITextEval/bar-v1.json`. Done in the A1 PR | None |
 | A2 | The harness: `PastedLabelAITextEval` (request builder and scorer CLI), the promptfoo configuration with its custom `file://` provider and assertion, the spend reservation and the response cache, the statistics script, and promptfoo pinned with telemetry, updates and sharing off. All run over a fake transport, with scorer parity on synthetic runs | None |
 | A3 | Tuning runs: the matrix, results as counts, and prompt and model frozen. Before the first run, a developer-tooling note for these runs is added to `privacy-and-egress.md` | T1 to T6 |
 | A4 | The held-out run and its result | T7 |
-| A5 | The product route behind a launch argument: Read with AI, Confirm with the text pane, manifest and admission | None until T8 to T12 |
+| A5 | The identity contract (D9) and its goldens, the archive contract number (4.5), the 11.4 site table with line numbers, the photo-evidence contract check (4.5), the full attention composition and the "no request for a detected panel" vector (4.7), all moved from A1 because they need the manifest. Then the product route behind a launch argument: Read with AI, Confirm with the text pane, manifest and admission | None until T8 to T12 |
 | A6 | Device check by the owner, the records in force, and the route turned on | As approved |
 
 ## 9. Decisions for the owner (asked one at a time)
@@ -401,6 +403,7 @@ Two separate approvals: the evaluation runs (T1 to T7), then the product route (
 | D20 | Is the stored text in the Drive export and archives? | **Decided (owner, 7 November 2026): as the pasted route does today,** with no new export key |
 | D21 | Evaluation framework | **Decided (owner, 7 November 2026): promptfoo, run locally,** driving the shipped Swift request builder and scorer (5.2). Ragas and other LLM-judge tools were rejected, because the labels have exact ground truth. Hosted platforms were rejected because they would be a new egress destination |
 | D22 | Metrics | **Decided (owner, 7 November 2026): standard metrics** (5.2.1), each with a 95% interval: field precision, recall and F1, exact match, coverage and risk, error-detection precision and recall, paired tests between versions, and ground-truth agreement |
+| D23 | The median for bar 4 over an even count | **Decided (owner, 7 November 2026): the upper median,** the 13th of 24 sorted costs, which is the stricter reading and always an observed cost |
 
 ## 10. Not changing
 
@@ -469,7 +472,7 @@ The gate returned **FAIL** on revision 1, **PASS WITH CHANGES** on revision 2 an
 
 Nothing else is open.
 
-### 11.4 Manifest-keyed sites (filled in A1 with the code's line numbers)
+### 11.4 Manifest-keyed sites (line numbers filled in A5)
 
 | Site | Answer for text evidence |
 |---|---|

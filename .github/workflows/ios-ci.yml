@@ -281,6 +281,22 @@ jobs:
       - name: Build and test HealthKit-free DriveExportKit
         run: swift test --package-path Packages/DriveExportKit
 
+  pasted-label-ai-text-eval:
+    name: Pasted label AI text evaluation contracts
+    runs-on: macos-26
+    needs: changes
+    # Fail closed: only an explicit documentation-only decision skips this job.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # #416 A1: the evaluation case converters on synthetic fixtures and the bar's SHA-256 pin.
+      - name: Verify converters and the committed held-out bar
+        run: swift test --package-path Tools/PastedLabelAITextEval
+
   drive-export-kit-isolation:
     name: DriveExportKit isolation
     runs-on: macos-26
