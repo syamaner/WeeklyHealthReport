@@ -64,10 +64,18 @@ final class LegacyConverterTests: XCTestCase {
             #"{"id": "x", "columns": [], "values": [], "extra": 1}"#,
             #"{"id": "x", "columns": [{"key": "a", "printed": "每份", "basis": "per_serving"}], "values": []}"#,
             #"{"id": "x", "columns": [{"key": "a", "printed": "每份"}], "values": [{"nutrient": "vitamin_c", "column": "a", "value": "1", "unit": "毫克", "comparator": "="}]}"#,
+            // A basis key that disagrees with the heading it prints (A2 gate finding 11).
+            #"{"id": "x", "columns": [{"key": "per_100g", "printed": "每份"}], "values": []}"#,
         ]
         for json in refused {
             XCTAssertThrowsError(try EvalCaseConverter.fromTaiwanLegacy(Data(json.utf8), metadata: metadata()), json)
         }
+    }
+
+    func testABasisKeyAgreeingWithItsHeadingOrWithAnUnknownHeadingIsKept() throws {
+        let agreeing = #"{"id": "x", "columns": [{"key": "per_100g", "printed": "每100公克"}, {"key": "per_serving", "printed": "Per portion"}], "values": []}"#
+        let evalCase = try EvalCaseConverter.fromTaiwanLegacy(Data(agreeing.utf8), metadata: metadata())
+        XCTAssertEqual(evalCase.expected.columns.map(\.basis), ["per_100g", "per_serving"])
     }
 
     func testOnlyTheDevelopmentSetTakesTheLegacySchema() throws {

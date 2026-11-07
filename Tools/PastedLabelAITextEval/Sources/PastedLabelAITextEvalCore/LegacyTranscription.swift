@@ -210,12 +210,20 @@ extension EvalCaseConverter {
     /// closed Taiwan heading it prints (`每份`, `每100公克`, `每100克`, `每100毫升`, `每日參考值百分比`),
     /// spaces removed; otherwise nil (an unknown basis, which the scorer never matches, so such a
     /// column's values count as wrong rather than as read).
-    static func legacyBasis(_ column: TranscriptionShapes.TaiwanLegacyTranscription.Column) -> String? {
-        if EvalCase.bases.contains(column.key) { return column.key }
+    /// A key that is a basis identifier and a printed heading of the closed table that names
+    /// another basis is refused, never resolved either way (A2 gate finding 11).
+    static func legacyBasis(_ column: TranscriptionShapes.TaiwanLegacyTranscription.Column) throws -> String? {
         let compact = (column.printed ?? "").filter { !$0.isWhitespace }
         let table = ["每份": "per_serving", "每一份": "per_serving", "每100公克": "per_100g", "每100克": "per_100g", "每100g": "per_100g",
                      "每100毫升": "per_100ml", "每100ml": "per_100ml", "每日參考值百分比": "reference_intake"]
-        return table[compact]
+        let heading = table[compact]
+        if EvalCase.bases.contains(column.key) {
+            if let heading, heading != column.key {
+                throw Refused("column \(column.key) prints \(column.printed ?? ""), which names \(heading)")
+            }
+            return column.key
+        }
+        return heading
     }
 
     /// A legacy Taiwan reader v3 development file as a case. Each nutrient becomes one row, in the
@@ -255,7 +263,7 @@ extension EvalCaseConverter {
                             expected: EvalCase.Expected(panel: nil,
                                                         servingSize: t.servingSize.map { .init(number: $0.value.text, unit: $0.unit) },
                                                         servingsPerPack: t.servingsPerPack.map { .init(number: $0.value.text, approximate: $0.approximate) },
-                                                        columns: t.columns.map { .init(heading: $0.printed, basis: legacyBasis($0)) },
+                                                        columns: try t.columns.map { .init(heading: $0.printed, basis: try legacyBasis($0)) },
                                                         rows: rows.map { .init(label: $0.nutrient, nutrient: $0.nutrient, values: $0.values) },
                                                         notes: t.notes?.lines ?? []),
                             source: EvalCase.Source(schema: TranscriptionShapes.TaiwanLegacyTranscription.schema, sha256: EvalCase.sha256(data)),
