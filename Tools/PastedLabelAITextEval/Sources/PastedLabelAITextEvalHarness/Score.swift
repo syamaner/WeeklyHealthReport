@@ -37,10 +37,11 @@ public enum ScoreCommand {
     }
 
     public enum Failure: Error, CustomStringConvertible {
-        case textMismatch, unreadableText, unknownRoute(String)
+        case textMismatch, sendTextMismatch, unreadableText, unknownRoute(String)
         public var description: String {
             switch self {
             case .textMismatch: "the text's SHA-256 is not the case's text_sha256"
+            case .sendTextMismatch: "the send record's text_sha256 is not the case's"
             case .unreadableText: "the text file is not UTF-8"
             case let .unknownRoute(id): "route candidate \(id) is not in the closed set"
             }
@@ -49,6 +50,8 @@ public enum ScoreCommand {
 
     public static func run(evalCase: EvalCase, textData: Data, send: SendCommand.Output) throws -> Output {
         guard EvalCase.sha256(textData) == evalCase.textSHA256 else { throw Failure.textMismatch }
+        // The send record must be for this case's text (A2 gate finding 7).
+        guard send.textSHA256 == evalCase.textSHA256 else { throw Failure.sendTextMismatch }
         guard let text = String(data: textData, encoding: .utf8) else { throw Failure.unreadableText }
         guard let route = PastedLabelAITextRoute.candidate(send.routeCandidate) else { throw Failure.unknownRoute(send.routeCandidate) }
         let versions = PastedLabelAITextReader.versions

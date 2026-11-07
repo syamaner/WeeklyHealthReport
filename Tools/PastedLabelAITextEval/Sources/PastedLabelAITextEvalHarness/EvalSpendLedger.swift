@@ -15,6 +15,10 @@ import Foundation
 ///   unknown (`cost_usd` null) and is charged at W towards both stops, so the ledger's unknown-cost
 ///   stop still applies. A call that sent nothing settles to zero.
 /// - A text entry is charged its reported cost, or its W when the cost is unknown or open.
+/// - **The ledger's own stops apply too** (A2 gate finding 2): a W above its `per_call_usd` is
+///   refused, a model or cell named in `stopped_models` is refused, and a reported cost above
+///   `per_call_usd` stops the model, as `budget.py` does. A settle whose reported cost passes W, or
+///   whose prompt tokens pass the request's bound, stops the cell: W was not a true bound.
 ///
 /// The ledger records the purpose, cell, model, case ID, W and the reported cost; never a key, a
 /// header, a prompt, the text or a response.
@@ -32,6 +36,7 @@ public final class EvalSpendLedger: @unchecked Sendable {
 
     public enum Refusal: Error, Equatable, CustomStringConvertible {
         case unknownSchema, unreadable, cellStop, programmeStop, unknownCostStop, noOpenReservation, stopsOutOfRange
+        case perCallStop, modelStopped, cellStopped, promptBoundOverCeiling
         public var description: String {
             switch self {
             case .unknownSchema: "the spend ledger has an unknown schema"
@@ -41,6 +46,10 @@ public final class EvalSpendLedger: @unchecked Sendable {
             case .unknownCostStop: "the ledger's unknown-cost stop is reached"
             case .noOpenReservation: "no open reservation with that ID"
             case .stopsOutOfRange: "the stops may not exceed $5 per cell and $25 for the programme"
+            case .perCallStop: "W passes the ledger's per-call stop"
+            case .modelStopped: "the model is stopped in the ledger"
+            case .cellStopped: "the cell is stopped: an earlier call passed its W or its prompt bound"
+            case .promptBoundOverCeiling: "the request's prompt bound passes the prompt-token ceiling"
             }
         }
     }
@@ -83,7 +92,7 @@ public final class EvalSpendLedger: @unchecked Sendable {
     /// A new ledger in `budget.py`'s shape, with its default limits and no sealed reservation.
     static func fresh() -> [String: Any] {
         ["schema_version": schema,
-         "limits": ["per_call_usd": "0.05", "total_usd": "25", "unknown_cost_calls_allowed": 3, "sealed_reserved_calls": 0,
+         "limits": ["per_call_usd": "0.20", "total_usd": "25", "unknown_cost_calls_allowed": 3, "sealed_reserved_calls": 0,
                     "sealed_reserved_per_call_usd": "0.05"],
          "reported_spend_usd": "0", "unknown_cost_calls": 0, "sealed_calls_made": 0, "sealed_reservation_remaining_calls": 0, "open_calls": 0,
          "open_sealed_calls": 0, "stopped_models": [String](), "limits_history": [Any](), "amendments": [Any](), "entries": [Any]()]
@@ -135,11 +144,22 @@ public final class EvalSpendLedger: @unchecked Sendable {
                       programme: entries.map(Self.charge).reduce(0, +))
     }
 
+    /// The `stopped_models` key of a stopped text cell (`budget.py` keeps the list as it is).
+    public static func cellKey(_ cell: String) -> String { "pasted-label-ai-text-cell:" + cell }
+
+    static func perCall(_ limits: [String: Any]) -> Decimal? {
+        (limits["per_call_usd"] as? String).flatMap(decimal) ?? (limits["per_call_usd"] as? NSNumber).flatMap { decimal($0.stringValue) }
+    }
+
     /// Reserves W for one call; returns the reservation ID, or throws the stop that refuses it.
     public func reserve(cell: String, caseID: String, model: String, worstCase: Decimal, at: String, id: String) throws -> String {
         try locked { ledger in
             let entries = ledger["entries"] as? [[String: Any]] ?? []
             let limits = ledger["limits"] as? [String: Any] ?? [:]
+            let stopped = Set(ledger["stopped_models"] as? [String] ?? [])
+            if stopped.contains(model) { throw Refusal.modelStopped }
+            if stopped.contains(Self.cellKey(cell)) { throw Refusal.cellStopped }
+            if let perCall = Self.perCall(limits), worstCase > perCall { throw Refusal.perCallStop }
             let allowed = (limits["unknown_cost_calls_allowed"] as? Int) ?? 3
             if Self.unknownCount(entries) >= allowed { throw Refusal.unknownCostStop }
             let text = Self.textEntries(ledger)
@@ -160,8 +180,12 @@ public final class EvalSpendLedger: @unchecked Sendable {
     }
 
     /// Settles an open reservation in place: to the reported cost, to unknown (charged at W), or to
-    /// zero when nothing was sent.
-    public func settle(id: String, _ settlement: Settlement, returnedModel: String?, generationID: String?, at: String) throws {
+    /// zero when nothing was sent. `promptTokens` above `promptTokenBound`, or a reported cost above
+    /// the reservation's W, stops the cell; a reported cost above `per_call_usd` stops the model.
+    /// Returns whether the cell was stopped.
+    @discardableResult
+    public func settle(id: String, _ settlement: Settlement, returnedModel: String?, generationID: String?, at: String,
+                       promptTokens: Int? = nil, promptTokenBound: Int? = nil) throws -> Bool {
         try locked { ledger in
             var entries = ledger["entries"] as? [[String: Any]] ?? []
             guard let index = entries.firstIndex(where: { $0["reservation_id"] as? String == id && $0["kind"] as? String == Self.openKind }) else {
@@ -178,6 +202,20 @@ public final class EvalSpendLedger: @unchecked Sendable {
             entry["settled_at"] = at
             entries[index] = entry
             ledger["entries"] = entries
+            var stopped = ledger["stopped_models"] as? [String] ?? []
+            let reserved = (entry["reserved_usd"] as? String).flatMap(Self.decimal) ?? 0
+            var stopCell = false
+            if case let .reported(cost) = settlement {
+                if cost > reserved { stopCell = true }
+                if let perCall = Self.perCall(ledger["limits"] as? [String: Any] ?? [:]), cost > perCall,
+                   let model = entry["model"] as? String, !stopped.contains(model) {
+                    stopped.append(model)
+                }
+            }
+            if let promptTokens, let promptTokenBound, promptTokens > promptTokenBound { stopCell = true }
+            if stopCell, let cell = entry["cell"] as? String, !stopped.contains(Self.cellKey(cell)) { stopped.append(Self.cellKey(cell)) }
+            ledger["stopped_models"] = stopped.sorted()
+            return stopCell
         }
     }
 }

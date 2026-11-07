@@ -133,7 +133,13 @@ public enum SendCommand {
         let prices = LabelPhotoSpendPolicy.Prices(promptPerToken: prompt, completionPerToken: completion,
                                                   reasoningBilledSeparately: options.reasoningBilledSeparately,
                                                   maxOutputTokens: options.route.maxOutputTokens)
-        let worstCase = PastedLabelAITextSpendPolicy.worstCase(prices, reasoningLimit: options.route.reasoningLimit)
+        // W from this request's own prompt bound (A2 gate finding 2); a bound past the ceiling is refused.
+        let promptBound = request.promptTokenBound(text)
+        guard let worstCase = PastedLabelAITextSpendPolicy.worstCase(prices, reasoningLimit: options.route.reasoningLimit,
+                                                                     promptTokenBound: promptBound) else {
+            output.attempt = "refused:\(EvalSpendLedger.Refusal.promptBoundOverCeiling)"
+            return output
+        }
         output.reservedUSD = "\(worstCase)"
         let ledger = try EvalSpendLedger(url: options.ledgerURL, cellStop: options.cellStop, programmeStop: options.programmeStop)
         let reservation: String
@@ -161,7 +167,8 @@ public enum SendCommand {
             let usage = PastedLabelAITextEnvelope.usage(response.body)
             let cost = usage.flatMap { $0.costUSD == LabelPhotoManifest.Usage.unknownCost ? nil : Decimal(string: $0.costUSD) }
             try ledger.settle(id: reservation, cost.map(EvalSpendLedger.Settlement.reported) ?? .unknown, returnedModel: object?["model"] as? String,
-                              generationID: object?["id"] as? String, at: timestamp())
+                              generationID: object?["id"] as? String, at: timestamp(), promptTokens: usage?.promptTokens,
+                              promptTokenBound: promptBound)
             output.attempt = "responded"
             output.status = response.status
             output.response = String(decoding: response.body, as: UTF8.self)
@@ -169,7 +176,11 @@ public enum SendCommand {
             output.chargedUSD = "\(cost ?? worstCase)"
             output.promptTokens = usage?.promptTokens
             output.completionTokens = usage?.completionTokens
-            try cache.store(requestSHA, output)
+            // Only an HTTP 200 reply that passes the envelope check is cached (A2 gate finding 8),
+            // so a failed or rejected reply is never replayed as if it had answered.
+            if response.status == 200, case .answered = PastedLabelAITextEnvelope.check(response, route: options.route) {
+                try cache.store(requestSHA, output)
+            }
         }
         return output
     }

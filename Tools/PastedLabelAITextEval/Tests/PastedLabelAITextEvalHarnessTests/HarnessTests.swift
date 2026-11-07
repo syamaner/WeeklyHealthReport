@@ -1,3 +1,4 @@
+import FoodLabelPhotoCapture
 import FoodLedgerApplication
 import Foundation
 @testable import PastedLabelAITextEvalCore
@@ -29,6 +30,15 @@ final class HarnessTests: XCTestCase {
 
     func entries() throws -> [[String: Any]] { try XCTUnwrap(ledger()["entries"] as? [[String: Any]]) }
 
+    /// W for a text, from the request's own prompt bound (gate finding 2): the bound at the fixture's
+    /// prompt price, plus 2,400 completion and 500 reasoning tokens at its completion price.
+    static func w(_ text: String) throws -> Decimal {
+        let bound = try OpenRouterPastedLabelAITextRequest(route: PastedLabelAITextRoute.gemini4ArgonVertexUS).promptTokenBound(text)
+        return Decimal(bound) * Decimal(string: "0.0000022")! + Decimal(2_900) * Decimal(string: "0.000011")!
+    }
+    static var ukW: Decimal { try! w(Fixtures.ukText) }
+    static var noCostW: Decimal { try! w(Fixtures.ukText + "\n") }
+
     // MARK: send
 
     func testSendReservesWSettlesToTheReportedCostAndCaches() async throws {
@@ -37,14 +47,14 @@ final class HarnessTests: XCTestCase {
         XCTAssertFalse(first.cached)
         XCTAssertEqual(first.costUSD, "0.004")
         XCTAssertEqual(first.chargedUSD, "0.004")
-        // W: 12,000 x 0.0000022 + (2,400 + 500) x 0.000011.
-        XCTAssertEqual(first.reservedUSD, "0.0583")
+        XCTAssertEqual(first.reservedUSD, "\(Self.ukW)")
+        XCTAssertLessThan(Self.ukW, Decimal(string: "0.05")!, "W prices this request's bound, not the ceiling")
         XCTAssertEqual(first.requestSHA256.count, 64)
         let settled = try entries()
         XCTAssertEqual(settled.count, 1)
         XCTAssertEqual(settled[0]["kind"] as? String, EvalSpendLedger.settledKind)
         XCTAssertEqual(settled[0]["cost_usd"] as? String, "0.004")
-        XCTAssertEqual(settled[0]["reserved_usd"] as? String, "0.0583")
+        XCTAssertEqual(settled[0]["reserved_usd"] as? String, "\(Self.ukW)")
         XCTAssertEqual(settled[0]["purpose"] as? String, "pasted-label-ai-text-eval")
         XCTAssertEqual(try ledger()["reported_spend_usd"] as? String, "0.004")
         XCTAssertEqual(try ledger()["unknown_cost_calls"] as? Int, 0)
@@ -62,22 +72,23 @@ final class HarnessTests: XCTestCase {
         let result = try await SendCommand.run(options(label: "uk-no-cost"))
         XCTAssertEqual(result.attempt, "responded")
         XCTAssertNil(result.costUSD)
-        XCTAssertEqual(result.chargedUSD, "0.0583")
+        XCTAssertEqual(result.chargedUSD, "\(Self.noCostW)")
         let entry = try XCTUnwrap(entries().first)
         XCTAssertEqual(entry["kind"] as? String, EvalSpendLedger.unknownKind)
         XCTAssertTrue(entry["cost_usd"] is NSNull, "unknown, never zero")
         XCTAssertEqual(try ledger()["unknown_cost_calls"] as? Int, 1)
-        XCTAssertEqual(try EvalSpendLedger(url: root.appendingPathComponent("ledger.json")).totals(cell: "cell-a").cell, Decimal(string: "0.0583"))
+        XCTAssertEqual(try EvalSpendLedger(url: root.appendingPathComponent("ledger.json")).totals(cell: "cell-a").cell, Self.noCostW)
     }
 
     func testTheCellAndProgrammeStopsRefuseBeforeSending() async throws {
-        let cell = try await SendCommand.run(options(cellStop: Decimal(string: "0.05")!))
+        let cell = try await SendCommand.run(options(cellStop: Self.ukW - Decimal(string: "0.001")!))
         XCTAssertEqual(cell.attempt, "refused:the $5 cell stop would be passed")
         XCTAssertNil(cell.response)
         XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("ledger.json").path), "nothing reserved or written")
         // Programme: one call in cell A, then cell B is refused once the programme total plus W passes the stop.
-        _ = try await SendCommand.run(options(label: "uk-no-cost", programmeStop: Decimal(string: "0.1")!))
-        let programme = try await SendCommand.run(options(cell: "cell-b", programmeStop: Decimal(string: "0.1")!))
+        let programmeStop = Self.noCostW + Self.ukW - Decimal(string: "0.001")!
+        _ = try await SendCommand.run(options(label: "uk-no-cost", programmeStop: programmeStop))
+        let programme = try await SendCommand.run(options(cell: "cell-b", programmeStop: programmeStop))
         XCTAssertEqual(programme.attempt, "refused:the $25 programme stop would be passed")
         XCTAssertEqual(try entries().count, 1)
         XCTAssertThrowsError(try EvalSpendLedger(url: root.appendingPathComponent("x.json"), cellStop: 6))
@@ -122,7 +133,7 @@ final class HarnessTests: XCTestCase {
         try FileManager.default.removeItem(at: root.appendingPathComponent("fake/responses/uk-synthetic-01.json"))
         let result = try await SendCommand.run(options())
         XCTAssertEqual(result.attempt, "transport_failed:failed")
-        XCTAssertEqual(result.chargedUSD, "0.0583")
+        XCTAssertEqual(result.chargedUSD, "\(Self.ukW)")
         XCTAssertEqual(try entries().first?["kind"] as? String, EvalSpendLedger.unknownKind)
     }
 
@@ -132,9 +143,79 @@ final class HarnessTests: XCTestCase {
         XCTAssertEqual(send.attempt, "declined_before_send:nutrition_facts_title,sodium_without_salt")
         XCTAssertEqual(send.chargedUSD, "0")
         XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("ledger.json").path), "nothing reserved")
-        let output = try ScoreCommand.run(evalCase: Fixtures.ukCase, textData: Data(Fixtures.ukText.utf8), send: send)
+        let usText = Data("Nutrition Facts\nPer 100g\nSodium 100mg".utf8)
+        let usCase = try EvalCase(labelID: "us-synthetic", set: .ukV1Fresh, tier: "A", copyMethod: "synthetic", textSHA256: EvalCase.sha256(usText),
+                                  expected: .init(panel: "us_nutrition_facts", servingSize: nil, servingsPerPack: nil,
+                                                  columns: [.init(heading: "Per 100g", basis: "per_100g")],
+                                                  rows: [.init(label: "Sodium", nutrient: "sodium", values: [.init(comparator: "=", number: "100", unit: "mg")])],
+                                                  notes: []),
+                                  source: .init(schema: TranscriptionShapes.UKTranscription.schema, sha256: String(repeating: "ab", count: 32)))
+        let output = try ScoreCommand.run(evalCase: usCase, textData: usText, send: send)
         XCTAssertEqual(output.score.outcome, "declined")
         XCTAssertEqual(output.score.declineReasons, ["detector:nutrition_facts_title", "detector:sodium_without_salt"])
+    }
+
+    // MARK: Gate findings 2 and 8: W from the request, overruns, the ledger's own stops, the cache
+
+    func testAFull8000ScalarTraditionalChineseTextIsReservedAtItsOwnBound() async throws {
+        let text = String(repeating: "鈉", count: 8_000)
+        try Data(text.utf8).write(to: root.appendingPathComponent("texts/tw-full.txt"))
+        try Fixtures.json(Fixtures.reply(cost: "0.03"), root.appendingPathComponent("fake/responses/tw-full.json"))
+        let send = try await SendCommand.run(options(label: "tw-full"))
+        XCTAssertEqual(send.attempt, "responded")
+        XCTAssertEqual(send.reservedUSD, "\(try Self.w(text))")
+        XCTAssertGreaterThan(try Self.w(text), Self.ukW)
+    }
+
+    func testAnOverrunStopsTheCell() async throws {
+        // Prompt tokens above the request's bound: W was not a true bound, so the cell stops.
+        try Fixtures.json(Fixtures.reply(cost: "0.004", promptTokens: 999_999), root.appendingPathComponent("fake/responses/uk-synthetic-01.json"))
+        let first = try await SendCommand.run(options())
+        XCTAssertEqual(first.attempt, "responded")
+        XCTAssertTrue((try ledger()["stopped_models"] as? [String] ?? []).contains(EvalSpendLedger.cellKey("cell-a")))
+        let next = try await SendCommand.run(options(label: "uk-no-cost"))
+        XCTAssertEqual(next.attempt, "refused:the cell is stopped: an earlier call passed its W or its prompt bound")
+        let other = try await SendCommand.run(options(label: "uk-no-cost", cell: "cell-b"))
+        XCTAssertEqual(other.attempt, "responded", "another cell is not stopped")
+    }
+
+    func testAReportedCostAboveWStopsTheCell() async throws {
+        try Fixtures.json(Fixtures.reply(cost: "0.5"), root.appendingPathComponent("fake/responses/uk-synthetic-01.json"))
+        _ = try await SendCommand.run(options())
+        let stopped = try ledger()["stopped_models"] as? [String] ?? []
+        XCTAssertTrue(stopped.contains(EvalSpendLedger.cellKey("cell-a")))
+        XCTAssertTrue(stopped.contains("google/gemini-4-argon"), "above the ledger's per-call stop, the model stops too")
+        let next = try await SendCommand.run(options(label: "uk-no-cost", cell: "cell-b"))
+        XCTAssertEqual(next.attempt, "refused:the model is stopped in the ledger")
+    }
+
+    func testTheLedgersPerCallStopAndStoppedModelsAreHonoured() async throws {
+        var existing = EvalSpendLedger.fresh()
+        existing["limits"] = ["per_call_usd": "0.01", "total_usd": "65", "unknown_cost_calls_allowed": 3]
+        try JSONSerialization.data(withJSONObject: existing).write(to: root.appendingPathComponent("ledger.json"))
+        let perCall = try await SendCommand.run(options())
+        XCTAssertEqual(perCall.attempt, "refused:W passes the ledger's per-call stop")
+        existing["limits"] = ["per_call_usd": "0.20", "total_usd": "65", "unknown_cost_calls_allowed": 3]
+        existing["stopped_models"] = ["google/gemini-4-argon"]
+        try JSONSerialization.data(withJSONObject: existing).write(to: root.appendingPathComponent("ledger.json"))
+        let stopped = try await SendCommand.run(options())
+        XCTAssertEqual(stopped.attempt, "refused:the model is stopped in the ledger")
+    }
+
+    func testOnlyAnAnsweringHTTP200ReplyIsCached() async throws {
+        try Fixtures.json(["status": 503, "headers": [String: String](), "body": #"{"error": {"code": 503}, "usage": {"cost": 0.001}}"#],
+                          root.appendingPathComponent("fake/responses/uk-synthetic-01.json"))
+        let first = try await SendCommand.run(options())
+        XCTAssertEqual(first.status, 503)
+        let second = try await SendCommand.run(options())
+        XCTAssertFalse(second.cached, "a failed reply is sent again, never replayed from the cache")
+        XCTAssertEqual(try entries().count, 2)
+    }
+
+    func testScoreRefusesASendRecordForAnotherText() async throws {
+        var send = try await SendCommand.run(options())
+        send.textSHA256 = String(repeating: "0", count: 64)
+        XCTAssertThrowsError(try ScoreCommand.run(evalCase: Fixtures.ukCase, textData: Data(Fixtures.ukText.utf8), send: send))
     }
 
     // MARK: score
@@ -189,9 +270,9 @@ enum Fixtures {
     static let wire = #"{"declined": false, "decline_reasons": [], "language": "en", "serving_size_text": "unknown", "servings_per_pack_text": "unknown", "headers": [{"header_id": "h1", "printed_text": "Per 100g", "basis": "per_100g"}], "rows": [{"printed_label": "Energy", "nutrient": "energy_kj", "parent_nutrient": "none", "values": [{"header_id": "h1", "printed_text": "1046kJ", "unit": ""}]}, {"printed_label": "Energy", "nutrient": "energy_kcal", "parent_nutrient": "none", "values": [{"header_id": "h1", "printed_text": "250kcal", "unit": ""}]}, {"printed_label": "Fat", "nutrient": "fat", "parent_nutrient": "none", "values": [{"header_id": "h1", "printed_text": "9.5g", "unit": ""}]}, {"printed_label": "of which saturates", "nutrient": "saturates", "parent_nutrient": "fat", "values": [{"header_id": "h1", "printed_text": "3.2g", "unit": ""}]}, {"printed_label": "Carbohydrate", "nutrient": "carbohydrate", "parent_nutrient": "none", "values": [{"header_id": "h1", "printed_text": "30g", "unit": ""}]}, {"printed_label": "of which sugars", "nutrient": "sugars", "parent_nutrient": "carbohydrate", "values": [{"header_id": "h1", "printed_text": "12g", "unit": ""}]}, {"printed_label": "Fibre", "nutrient": "fibre", "parent_nutrient": "none", "values": [{"header_id": "h1", "printed_text": "3g", "unit": ""}]}, {"printed_label": "Protein", "nutrient": "protein", "parent_nutrient": "none", "values": [{"header_id": "h1", "printed_text": "8.1g", "unit": ""}]}, {"printed_label": "Salt", "nutrient": "salt", "parent_nutrient": "none", "values": [{"header_id": "h1", "printed_text": "0.75g", "unit": ""}]}]}"#
 
     /// The canned reply, with its body as the exact bytes OpenRouter would print (a cost literal as written).
-    static func reply(cost: String?) -> [String: Any] {
+    static func reply(cost: String?, promptTokens: Int = 1_200) -> [String: Any] {
         let content = String(decoding: try! JSONEncoder().encode(wire), as: UTF8.self)
-        let usage = #""prompt_tokens": 1200, "completion_tokens": 400"# + (cost.map { #", "cost": \#($0)"# } ?? "")
+        let usage = #""prompt_tokens": \#(promptTokens), "completion_tokens": 400"# + (cost.map { #", "cost": \#($0)"# } ?? "")
         let body = #"{"id": "gen-1", "model": "google/gemini-4-argon", "provider": "Google", "choices": [{"index": 0, "finish_reason": "stop", "message": {"role": "assistant", "content": \#(content)}}], "usage": {\#(usage)}}"#
         return ["status": 200, "headers": [String: String](), "body": body]
     }
@@ -212,6 +293,10 @@ enum Fixtures {
                                                     row("of which sugars", "sugars", "12", "g"), row("Protein", "protein", "8.1", "g"), row("Salt", "salt", "0.75", "g")],
                                              notes: []),
                              source: .init(schema: TranscriptionShapes.UKTranscription.schema, sha256: String(repeating: "ab", count: 32)))
+    }
+
+    static func json(_ object: Any, _ url: URL) throws {
+        try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]).write(to: url)
     }
 
     static func write(to root: URL) throws {
