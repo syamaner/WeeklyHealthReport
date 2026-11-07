@@ -93,6 +93,16 @@ The owner made four rulings in chat during the Amendment 4 recheck. No reader or
 
 The recheck changed no label: 24 labels stand, with none withdrawn and no new IDs.
 
+### Amendment 6 (owner, 7 November 2026, after blind transcription, before seal 1 and before any reader run on fresh text)
+
+An independent read-only check compared the 24 transcriptions with their screenshots, without seeing the copied texts or any reader output. It passed 23. On the other, the only column heading names both a per 100 g and a per 100 ml basis, and the transcriber recorded one of them, chosen from the kind of product rather than from the table.
+
+The transcription schema records a column's basis "as the heading states it", or `null` when the label states none. From this commit:
+
+1. **A heading that names more than one basis records `null`.** A basis is recorded only when the label states one basis for that column. A heading that offers two is not one basis, and the product's kind, packaging or category does not choose between them. The note says which bases the heading names.
+2. **Scored as recorded.** The scorer is unchanged. If the reader asks for the basis, the simulated choice is "not sure"; if the reader assumes one, that column has no printed match.
+3. **One label is affected,** and it is re-transcribed by the blind transcriber before seal 1. The other 23 are unchanged.
+
 ## 2. Results
 
 Not yet run.
