@@ -63,13 +63,42 @@ final class ScorerTests: XCTestCase {
         let value = TranscriptionShapes.Value(comparator: "=", number: "0,5", unit: "g", outsideTable: true)
         let read = Self.cell("salt", "h1", "=", "0.5", "g")
         XCTAssertTrue(PastedLabelAITextScorer.same(read, as: value, printedLabel: "Salt", inReferenceColumn: false, schema: .uk))
-        let thousands = TranscriptionShapes.Value(comparator: "=", number: "1,046", unit: "kJ", outsideTable: true)
-        XCTAssertFalse(PastedLabelAITextScorer.same(Self.cell("energy_kj", "h1", "=", "1046", "kJ"), as: thousands, printedLabel: "Energy",
-                                                    inReferenceColumn: false, schema: .uk), "the frozen rule: a three-digit comma is unparsable")
         // R3: a unit printed only in the row label, in an amount column.
         let bare = TranscriptionShapes.Value(comparator: "=", number: "5", unit: "", outsideTable: true)
         XCTAssertTrue(PastedLabelAITextScorer.same(Self.cell("fat", "h1", "=", "5", "g"), as: bare, printedLabel: "Fat (g)", inReferenceColumn: false, schema: .uk))
         XCTAssertFalse(PastedLabelAITextScorer.same(Self.cell("fat", "h1", "=", "5", "g"), as: bare, printedLabel: "Fat (g)", inReferenceColumn: true, schema: .uk))
+    }
+
+    // MARK: Gate finding 1: thousands
+
+    /// A mapped `1,046kJ` (decimal text 1046, the text mapping's thousands rule) against a
+    /// transcribed `1046` is correct.
+    func testAMappedThousandsValueMatchesItsASCIITranscription() {
+        let printed = TranscriptionShapes.Value(comparator: "=", number: "1046", unit: "kJ")
+        XCTAssertTrue(PastedLabelAITextScorer.same(Self.cell("energy_kj", "h1", "=", "1046", "kJ"), as: printed, printedLabel: "Energy",
+                                                   inReferenceColumn: false, schema: .uk))
+        XCTAssertEqual(score([Self.cell("energy_kj", "h1", "=", "1046", "kJ")]).fieldsCorrect, 1)
+    }
+
+    /// A transcription holding `1,046` or `0,500` is refused by validation, with or without
+    /// `outside_table`, never scored.
+    func testAThousandsStyleTranscriptionIsRefused() {
+        for (number, outside) in [("1,046", false), ("1,046", true), ("0,500", false), ("0,500", true), ("1,046.5", true)] {
+            let outsideText = outside ? #", "outside_table": true"# : ""
+            let data = Data(String(decoding: EvalCaseConverterTests.uk, as: UTF8.self).replacingOccurrences(
+                of: #""number": "1046", "unit": "kJ"}"#, with: #""number": "\#(number)", "unit": "kJ"\#(outsideText)}"#).utf8)
+            XCTAssertThrowsError(try EvalCaseConverter.convert(data, metadata: .init(set: .ukV1Fresh, tier: "A", copyMethod: "m",
+                                                                                     textSHA256: String(repeating: "ab", count: 32))), "\(number) \(outside)")
+        }
+    }
+
+    /// `0,500` stays ambiguous: the frozen number rule cannot read it either way.
+    func testZeroLedThousandsStaysAmbiguous() {
+        XCTAssertNil(PastedLabelAITextScorer.rowNumber("0,500", label: "Salt"))
+        XCTAssertNil(PastedLabelAITextScorer.rowNumber("1,046", label: "Energy"))
+        XCTAssertEqual(PastedLabelAITextScorer.rowNumber("0,5", label: "Salt"), Decimal(string: "0.5"))
+        XCTAssertNil(PastedLabelAITextScorer.rowNumber("0,5", label: "鹽"), "any comma on a CJK row (the documented deviation)")
+        XCTAssertEqual(PastedLabelAITextScorer.version, "pasted-label-ai-text-scorer-v1 (rules of uk-fresh-scorer-v2)")
     }
 
     func testDeclinedAndFailedLabelsScoreNothing() {

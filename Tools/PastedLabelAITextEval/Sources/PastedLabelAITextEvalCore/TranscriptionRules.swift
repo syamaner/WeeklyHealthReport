@@ -85,6 +85,11 @@ enum TranscriptionRules {
         return text[text.index(after: comma)...].count != 3
     }
 
+    /// A comma between a digit and exactly three digits that end the number.
+    static func hasThousandsComma(_ text: String) -> Bool {
+        text.range(of: #"[0-9],[0-9]{3}([^0-9]|$)"#, options: .regularExpression) != nil
+    }
+
     static func hasCJK(_ text: String) -> Bool {
         text.range(of: #"[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]"#, options: .regularExpression) != nil
     }
@@ -105,6 +110,13 @@ enum TranscriptionRules {
         if expected.columns.isEmpty { out.append("no columns") }
         for row in expected.rows {
             for value in row.values.compactMap({ $0 }) {
+                // A thousands-style comma (`1,046`, `0,500`) is never a transcribed number, even
+                // with `outside_table`: the schema writes ASCII digits with at most one decimal
+                // point (`1046`), and the scorer could never match it (A2 gate finding 1).
+                if hasThousandsComma(value.number) {
+                    out.append("\(row.label): number \(value.number) has a thousands-style comma; write it as ASCII digits")
+                    continue
+                }
                 if ukMarkers, isClassMarker(value) {
                     if value.outsideTable == true { out.append("\(row.label): marker \(value.number) with outside_table") }
                     continue

@@ -112,7 +112,7 @@ public struct LabelScore: Codable, Equatable, Sendable {
     }
 }
 
-/// `pasted-label-ai-text-scorer-v1`: the frozen fresh-set scorer's comparison
+/// `pasted-label-ai-text-scorer-v1 (rules of uk-fresh-scorer-v2)`: the frozen fresh-set scorer's comparison
 /// (`UKFreshSet.score` and `FreshSet`, `uk-fresh-scorer-v2` rules R1 to R3, in
 /// `Packages/FoodLedgerKit/Tests/FoodLabelTextCaptureTests/`), copied because this tool never
 /// imports a test target. Each rule only chooses the printed cell a read value is compared with;
@@ -120,12 +120,21 @@ public struct LabelScore: Codable, Equatable, Sendable {
 /// correct only on an exact match; a value with no single transcribed row and column is wrong.
 /// The UK tables apply to a UK-schema case and the Taiwan tables to a Taiwan-schema case.
 ///
-/// Two readings carried over unchanged, and so pessimistic: a printed number with a comma followed
-/// by exactly three digits (`1,046`) is unparsable, as the frozen reader's own rule makes it, so
-/// a value transcribed that way is never matched; and calculated values (conversions) are not
-/// fields, since a conversion is not printed.
+/// Readings carried over, and so pessimistic:
+/// - a number with a comma followed by exactly three digits (`1,046`, `0,500`) is unparsable, as
+///   the frozen reader's rule makes it. A transcription never holds one: validation refuses it
+///   (the schema writes ASCII digits with at most one decimal point, so `1046`), and a mapped
+///   `1,046kJ` (decimal text `1046`) matches a transcribed `1046`;
+/// - calculated values (conversions) are not fields, since a conversion is not printed.
+///
+/// One deliberate deviation, also pessimistic: the frozen rule makes any comma ambiguous on a
+/// Taiwan alias row (`RowClassifierV3.isTaiwanAlias`, inside the frozen parser, which this tool
+/// cannot import). Here any comma on a row whose label holds CJK script is ambiguous
+/// (`TranscriptionRules.hasCJK`). The alias rows are Chinese labels, so this is meant to cover
+/// them; a CJK row that is not an alias is made ambiguous too, where the frozen scorer could
+/// match it. Validation already requires `outside_table` for such a comma (`TranscriptionRules`).
 public enum PastedLabelAITextScorer {
-    public static let version = "pasted-label-ai-text-scorer-v1"
+    public static let version = "pasted-label-ai-text-scorer-v1 (rules of uk-fresh-scorer-v2)"
 
     enum Expected: Equatable { case value(TranscriptionShapes.Value, rowLabel: String), notPrinted, ambiguous }
     enum ColumnMatch: Equatable { case index(Int), notPrinted, ambiguous }
@@ -157,7 +166,7 @@ public enum PastedLabelAITextScorer {
                 let reference = isReference(cell.headerID, table)
                 if same(cell, as: value, printedLabel: printedLabel, inReferenceColumn: reference, schema: schema) {
                     isCorrect = true
-                    if let position = position(evalCase, table: table, cell: cell) { matched.insert(position) }
+                    if let position = position(evalCase, table: table, cell: cell, schema: schema) { matched.insert(position) }
                 } else {
                     wrong.append("\(place): read \(cell.comparator)\(cell.decimalText) \(cell.canonicalUnit)")
                 }
@@ -229,45 +238,78 @@ public enum PastedLabelAITextScorer {
     static let energyPartners = ["energy_kj": "energy_kcal", "energy_kcal": "energy_kj"]
     static let dashes = ["-", "–", "—", "−"]
 
-    static func rows(_ e: EvalCase.Expected, cell: ConfirmTable.Cell) -> [(offset: Int, row: TranscriptionShapes.Row)] {
-        let indexed = Array(e.rows.enumerated()).map { (offset: $0.offset, row: $0.element) }
-        if cell.nutrient == "unrecognised" {
-            let key = normalisedLabel(cell.printedLabel)
-            return key.isEmpty ? [] : indexed.filter { normalisedLabel($0.row.label) == key }
+    /// The frozen `UKFreshSet.expected` (`UKFreshSetProtocol.swift` lines 482 to 520), ported
+    /// exactly, returning the matched printed field's position too, so the position a correct cell
+    /// counts against is decided by the same code path as its comparison. A recognised cell takes the
+    /// rows with its nutrient. An unrecognised cell takes the rows whose normalised label equals its
+    /// own; its label's bracketed units must name only its unit (`namesOnly`), the rows are kept only
+    /// when theirs do too, and two or more rows are separated by the unit of their value in the
+    /// column; still none or more than one is ambiguous. R2 applies when the own value is absent or a
+    /// dash, exactly as the frozen condition reads.
+    static func resolve(_ evalCase: EvalCase, table: ConfirmTable, cell: ConfirmTable.Cell,
+                        schema: TranscriptionRules.Schema) -> (expected: Expected, position: [Int]?) {
+        let e = evalCase.expected
+        let col: Int
+        switch column(cell.headerID, table, e) {
+        case .ambiguous: return (.ambiguous, nil)
+        case .notPrinted: return (.notPrinted, nil)
+        case let .index(i): col = i
         }
-        return indexed.filter { $0.row.nutrient == cell.nutrient }
+        let indexed = Array(e.rows.enumerated()).map { (offset: $0.offset, row: $0.element) }
+        let key = normalisedLabel(cell.printedLabel)
+        var rows = cell.nutrient == "unrecognised"
+            ? (key.isEmpty ? [] : indexed.filter { normalisedLabel($0.row.label) == key })
+            : indexed.filter { $0.row.nutrient == cell.nutrient }
+        if cell.nutrient == "unrecognised" {
+            guard namesOnly(cell.canonicalUnit, cell.printedLabel, schema) else { return (.ambiguous, nil) }
+            rows = rows.filter { namesOnly(cell.canonicalUnit, $0.row.label, schema) }
+            if rows.count > 1 {
+                rows = rows.filter { candidate in
+                    value(candidate.row, col).flatMap { TranscriptionRules.unit($0.unit, schema) }?.lowercased() == cell.canonicalUnit.lowercased()
+                }
+                guard rows.count == 1 else { return (.ambiguous, nil) }
+            }
+            guard !rows.isEmpty else { return (.ambiguous, nil) }
+        }
+        guard rows.count == 1 else { return (rows.isEmpty ? .notPrinted : .ambiguous, nil) }
+        let row = rows[0]
+        // R2: the energy reference intake percentage printed once, on the partner row.
+        if isNilOrDash(value(row.row, col)), let partner = energyPartners[cell.nutrient], e.columns[col].basis == "reference_intake",
+           isPercentColumn(e, col), !table.cells.contains(where: { $0.headerID == cell.headerID && $0.nutrient == partner }) {
+            let partners = indexed.filter { $0.row.nutrient == partner }
+            if partners.count == 1, let printed = value(partners[0].row, col), TranscriptionRules.unit(printed.unit, schema) == "%" {
+                return (.value(printed, rowLabel: partners[0].row.label), [partners[0].offset, col])
+            }
+        }
+        guard let printed = value(row.row, col) else { return (.notPrinted, nil) }
+        return (.value(printed, rowLabel: row.row.label), [row.offset, col])
+    }
+
+    /// R2's condition, as `value(rows[0], col).map(isDash) ?? true` reads in the frozen scorer.
+    static func isNilOrDash(_ value: TranscriptionShapes.Value?) -> Bool {
+        guard let value else { return true }
+        return TranscriptionRules.isClassMarker(value) && dashes.contains(value.number)
     }
 
     static func expected(_ evalCase: EvalCase, table: ConfirmTable, cell: ConfirmTable.Cell, schema: TranscriptionRules.Schema) -> Expected {
-        let e = evalCase.expected
-        guard case let .index(col) = column(cell.headerID, table, e) else {
-            return column(cell.headerID, table, e) == .notPrinted ? .notPrinted : .ambiguous
-        }
-        let candidates = rows(e, cell: cell)
-        guard candidates.count == 1 else { return candidates.isEmpty ? .notPrinted : .ambiguous }
-        let row = candidates[0].row
-        // R2: the energy reference intake percentage printed once, on the partner row.
-        if value(row, col).map({ TranscriptionRules.isClassMarker($0) && dashes.contains($0.number) }) ?? true,
-           let partner = energyPartners[cell.nutrient], e.columns[col].basis == "reference_intake", isPercentColumn(e, col),
-           !table.cells.contains(where: { $0.headerID == cell.headerID && $0.nutrient == partner }) {
-            let partners = e.rows.filter { $0.nutrient == partner }
-            if partners.count == 1, let printed = value(partners[0], col), TranscriptionRules.unit(printed.unit, schema) == "%" {
-                return .value(printed, rowLabel: partners[0].label)
-            }
-        }
-        return value(row, col).map { Expected.value($0, rowLabel: row.label) } ?? .notPrinted
+        resolve(evalCase, table: table, cell: cell, schema: schema).expected
     }
 
-    /// The printed field a correct cell matched, as `[row, column]`.
-    static func position(_ evalCase: EvalCase, table: ConfirmTable, cell: ConfirmTable.Cell) -> [Int]? {
-        guard case let .index(col) = column(cell.headerID, table, evalCase.expected) else { return nil }
-        let candidates = rows(evalCase.expected, cell: cell)
-        guard candidates.count == 1 else { return nil }
-        if value(candidates[0].row, col) == nil, let partner = energyPartners[cell.nutrient],
-           let index = evalCase.expected.rows.firstIndex(where: { $0.nutrient == partner }) {
-            return [index, col]
+    /// The printed field a correct cell matched, as `[row, column]`, from the same path as `expected`.
+    static func position(_ evalCase: EvalCase, table: ConfirmTable, cell: ConfirmTable.Cell, schema: TranscriptionRules.Schema) -> [Int]? {
+        resolve(evalCase, table: table, cell: cell, schema: schema).position
+    }
+
+    /// The frozen `namesOnly`: every bracket group of the label that holds a unit of the table
+    /// names the same canonical unit as the cell (a label naming no unit agrees with any cell).
+    static func namesOnly(_ cellUnit: String, _ label: String, _ schema: TranscriptionRules.Schema) -> Bool {
+        guard let pattern = try? NSRegularExpression(pattern: #"\(([^()]*)\)"#) else { return false }
+        let text = label.precomposedStringWithCompatibilityMapping
+        return pattern.matches(in: text, range: NSRange(text.startIndex..., in: text)).allSatisfy { match in
+            guard let inner = Range(match.range(at: 1), in: text),
+                  let named = TranscriptionRules.unit(String(text[inner]).trimmingCharacters(in: .whitespaces), schema) else { return true }
+            return named.lowercased() == cellUnit.lowercased()
         }
-        return [candidates[0].offset, col]
     }
 
     /// R3: the one canonical unit a row label names, in a bracket group or as a bare last `kJ` or `kcal`.
