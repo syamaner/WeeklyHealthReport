@@ -32,6 +32,26 @@ final class PastedLabelAITextWireTests: XCTestCase {
         }
     }
 
+    /// Qodo finding 1 on A2: a member named twice in one object is refused, wherever it is, and
+    /// names are compared after unescaping.
+    func testDuplicateMembersAreRefused() {
+        let valid = String(decoding: Self.answer(values: #"{"header_id": "h1", "printed_text": "5g"}"#), as: UTF8.self)
+        XCTAssertNotNil(PastedLabelAITextWire.decode(Data(valid.utf8)))
+        let duplicated = [
+            valid.replacingOccurrences(of: #"{"declined": false,"#, with: #"{"declined": false, "declined": true,"#),
+            valid.replacingOccurrences(of: #"{"declined": false,"#, with: #"{"declined": true, "\u0064eclined": false,"#),
+            valid.replacingOccurrences(of: #""printed_text": "5g"}"#, with: #""printed_text": "5g", "printed_text": "50g"}"#),
+            valid.replacingOccurrences(of: #""basis": "per_100g"}"#, with: #""basis": "per_100g", "basis": "per_100ml"}"#),
+        ]
+        for text in duplicated {
+            XCTAssertNotEqual(text, valid)
+            XCTAssertNil(PastedLabelAITextWire.decode(Data(text.utf8)), text)
+        }
+        XCTAssertTrue(JSONMemberScan.hasNoDuplicateMembers(Data(#"{"a": [{"b": 1}, {"b": 2}], "c": "{\"a\": 1, \"a\": 2}"}"#.utf8)),
+                      "the same name in sibling objects, or inside a string, is not a duplicate")
+        XCTAssertFalse(JSONMemberScan.hasNoDuplicateMembers(Data(#"{"a": 1"#.utf8)), "unscannable bytes fail closed")
+    }
+
     func testAnythingOffTheSchemaIsRefused() {
         let refused: [Data] = [
             Self.answer(values: #"{"header_id": "h1", "printed_text": "5", "unit": 5}"#),

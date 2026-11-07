@@ -122,14 +122,18 @@ public struct PastedLabelAITextWire: Decodable, Equatable, Sendable {
         }
     }
 
-    /// The answer bytes decoded strictly, or nil when they are not a schema-valid answer.
+    /// The answer bytes decoded strictly, or nil when they are not a schema-valid answer. A reply
+    /// that names any member twice in one object is refused before decoding (Qodo finding 1 on A2):
+    /// the keyed decoder keeps only one of them, so the other would be silently dropped.
     public static func decode(_ data: Data) -> PastedLabelAITextWire? {
-        try? JSONDecoder().decode(PastedLabelAITextWire.self, from: data)
+        guard JSONMemberScan.hasNoDuplicateMembers(data) else { return nil }
+        return try? JSONDecoder().decode(PastedLabelAITextWire.self, from: data)
     }
 }
 
-/// Every required member present exactly once, the optional ones at most once, and no other (the
-/// schema's `additionalProperties: false`).
+/// Every required member present, the optional ones allowed, and no other (the schema's
+/// `additionalProperties: false`). Repeated members never reach here: `JSONMemberScan` refuses them
+/// on the raw bytes, since the keyed container has already collapsed them.
 enum TextWireKeys {
     private struct AnyKey: CodingKey {
         let stringValue: String; let intValue: Int? = nil
