@@ -57,7 +57,6 @@ def _norm(b):
 # and a canonical brand's words are removed from product names only when that brand is in play.
 BRAND_ALIASES = {_norm(c): sorted({_norm(c), *(_norm(s) for s in v)}, key=len, reverse=True)
                  for c, v in CONFIG["brand_aliases"].items()}
-ALIAS_LEADS = tuple(sorted({sp.split()[0] for v in BRAND_ALIASES.values() for sp in v if len(sp.split()[0]) > 1}))
 ALIAS_WORDS = {c: {t for sp in v for t in re.findall(r"[a-z0-9%]+", sp.replace("&", " "))} for c, v in BRAND_ALIASES.items()}
 
 
@@ -78,9 +77,9 @@ def norm_brand(b):
 
 
 def alias_lead(title):
-    """The canonical brand when the title starts with one of its spellings, else None."""
+    """The canonical brand when the normalised title starts with one of its spellings, else None."""
     nt = norm_brand(title)
-    return nt if nt in BRAND_ALIASES and title.casefold().startswith(ALIAS_LEADS) else None
+    return nt if nt in BRAND_ALIASES else None
 
 
 def score_off(title, brand_guess, hit):

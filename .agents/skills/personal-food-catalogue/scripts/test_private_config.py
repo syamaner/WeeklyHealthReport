@@ -68,6 +68,10 @@ with tempfile.TemporaryDirectory() as tmp:
                     "A.name_coverage('Oats', {'product_name': 'Alpha Beta Oats', 'brands': ['Other']}))", good)
     results.append(("config: alias words are kept for an unrelated brand", rc == 0 and out == "0.8 0.3333333333333333"))
 
+    rc, out = probe("import assemble as A; print(A.score_off('A & B Greek Yogurt', None, "
+                    "{'product_name': 'Greek Yogurt', 'brands': ['Alpha and Beta']})[1])", good)
+    results.append(("config: a spaced spelling at the start of a title is that brand", rc == 0 and out == "True"))
+
     rc, out = probe("import assemble as A; print(A.norm_brand('ALPHA & BETA'))", good)
     results.append(("config: spellings are normalised like brands ('and' and '&')", rc == 0 and out == "a&b"))
 
