@@ -61,7 +61,7 @@ public enum ScoreCommand {
                               "scorer": PastedLabelAITextScorer.version]
         func output(_ score: LabelScore) -> Output {
             Output(score: score, pass: score.outcome == "reached_confirm" && !score.silentErrorTable, f1: score.fieldF1,
-                   namedScores: score.namedScores, costUSD: send.costUSD, chargedUSD: send.chargedUSD, latencySeconds: send.latencySeconds,
+                   namedScores: score.namedScores, costUSD: send.cached ? send.cachedCostUSD : send.costUSD, chargedUSD: send.chargedUSD, latencySeconds: send.latencySeconds,
                    cached: send.cached, routeCandidate: send.routeCandidate, promptVersion: send.promptVersion, readerVersions: readerVersions)
         }
         func failed(_ reason: String) -> Output {

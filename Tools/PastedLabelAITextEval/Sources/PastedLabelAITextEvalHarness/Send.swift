@@ -58,10 +58,13 @@ public enum SendCommand {
         public var status: Int?
         /// The raw reply body, verbatim (UTF-8).
         public var response: String?
-        /// The reported cost, nil when unknown.
+        /// The reported cost of this invocation's call, nil when unknown or when served from the cache.
         public var costUSD: String?
-        /// What the ledger charged: the reported cost, or W when unknown.
+        /// What the ledger charged this invocation: the reported cost, W when unknown, 0 when cached.
         public var chargedUSD: String
+        /// On a cache hit, the original tap's recorded cost (nil when it was unknown). The statistics
+        /// count a cached tap at this cost once, as its original tap; nothing is charged again.
+        public var cachedCostUSD: String?
         public var reservedUSD: String?
         public var latencySeconds: Double?
         public var promptTokens: Int?
@@ -72,6 +75,7 @@ public enum SendCommand {
             case labelID = "label_id", routeCandidate = "route_candidate", promptVersion = "prompt_version"
             case instructionSHA256 = "instruction_sha256", schemaSHA256 = "schema_sha256", textSHA256 = "text_sha256"
             case requestSHA256 = "request_sha256", costUSD = "cost_usd", chargedUSD = "charged_usd", reservedUSD = "reserved_usd"
+            case cachedCostUSD = "cached_cost_usd"
             case latencySeconds = "latency_seconds", promptTokens = "prompt_tokens", completionTokens = "completion_tokens"
         }
     }
@@ -103,7 +107,8 @@ public enum SendCommand {
                           schemaSHA256: OpenRouterPastedLabelAITextRequest.wireSchemaSHA256, textSHA256: EvalCase.sha256(textData),
                           requestSHA256: "", cached: false,
                           attempt: "declined_before_send:" + detector.markers.map(\.rawValue).joined(separator: ","), status: nil, response: nil,
-                          costUSD: nil, chargedUSD: "0", reservedUSD: nil, latencySeconds: 0, promptTokens: nil, completionTokens: nil)
+                          costUSD: nil, chargedUSD: "0", cachedCostUSD: nil, reservedUSD: nil, latencySeconds: 0, promptTokens: nil,
+                          completionTokens: nil)
         }
         let body: Data
         do { body = try request.body(text) } catch { throw Failure.textRefused("\(error)") }
@@ -113,14 +118,30 @@ public enum SendCommand {
                             instructionSHA256: OpenRouterPastedLabelAITextRequest.instructionSHA256,
                             schemaSHA256: OpenRouterPastedLabelAITextRequest.wireSchemaSHA256, textSHA256: EvalCase.sha256(textData),
                             requestSHA256: requestSHA, cached: false, attempt: "", status: nil, response: nil, costUSD: nil, chargedUSD: "0",
-                            reservedUSD: nil, latencySeconds: nil, promptTokens: nil, completionTokens: nil)
+                            cachedCostUSD: nil, reservedUSD: nil, latencySeconds: nil, promptTokens: nil, completionTokens: nil)
         let cache = ResponseCache(directory: options.cacheDirectory)
-        if var cached = try cache.load(requestSHA) {
-            cached.cached = true
-            cached.cell = options.cell
-            cached.labelID = options.labelID
-            return cached
+        // One caller per request body at a time, across processes (Qodo finding 6 on A2): the cache
+        // check, the reservation, the send and the store run under a lock file keyed by the body's
+        // SHA-256, so concurrent identical sends make one call and the others read its cache entry.
+        return try await ResponseCache.withRequestLock(options.cacheDirectory, requestSHA) {
+            if var cached = try cache.load(requestSHA) {
+                // Nothing is charged this time; the original cost is kept apart (Qodo finding 7 on A2).
+                cached.cached = true
+                cached.cell = options.cell
+                cached.labelID = options.labelID
+                cached.cachedCostUSD = cached.costUSD
+                cached.costUSD = nil
+                cached.chargedUSD = "0"
+                cached.reservedUSD = nil
+                return cached
+            }
+            return try await sendOnce(options, text: text, request: request, requestSHA: requestSHA, cache: cache, output: output)
         }
+    }
+
+    static func sendOnce(_ options: Options, text: String, request: OpenRouterPastedLabelAITextRequest, requestSHA: String,
+                         cache: ResponseCache, output start: Output) async throws -> Output {
+        var output = start
         let transport = DirectoryFakeTransport(directory: options.fakeTransportDirectory, labelID: options.labelID)
         let checker = OpenRouterPastedLabelAITextRouteChecker(transport: transport, clock: SystemLedgerClock(),
                                                               reasoningBilledSeparately: options.reasoningBilledSeparately)
@@ -194,6 +215,22 @@ public struct ResponseCache: Sendable {
     public init(directory: URL) { self.directory = directory }
 
     func file(_ sha: String) -> URL { directory.appendingPathComponent("\(sha).json") }
+
+    /// Runs `body` holding an exclusive `flock` on `<directory>/<sha>.lock`, polled without blocking
+    /// a thread, so another process or task with the same request waits its turn.
+    static func withRequestLock<T>(_ directory: URL, _ sha: String, _ body: () async throws -> T) async throws -> T {
+        guard EvalCase.isSHA256Hex(sha) else { throw SendCommand.Failure.cache("bad key") }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let descriptor = open(directory.appendingPathComponent("\(sha).lock").path, O_CREAT | O_RDWR, 0o600)
+        guard descriptor >= 0 else { throw SendCommand.Failure.cache("cannot open the request lock") }
+        defer { close(descriptor) }
+        while flock(descriptor, LOCK_EX | LOCK_NB) != 0 {
+            guard errno == EWOULDBLOCK else { throw SendCommand.Failure.cache("cannot take the request lock") }
+            try await Task.sleep(nanoseconds: 20_000_000)
+        }
+        defer { flock(descriptor, LOCK_UN) }
+        return try await body()
+    }
 
     public func load(_ sha: String) throws -> SendCommand.Output? {
         guard EvalCase.isSHA256Hex(sha), let data = FileManager.default.contents(atPath: file(sha).path) else { return nil }

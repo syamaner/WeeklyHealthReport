@@ -62,7 +62,9 @@ final class HarnessTests: XCTestCase {
         // The second send reuses the cached response, pays nothing and keeps its original cost.
         let second = try await SendCommand.run(options())
         XCTAssertTrue(second.cached)
-        XCTAssertEqual(second.costUSD, "0.004")
+        XCTAssertNil(second.costUSD, "no call was made this time")
+        XCTAssertEqual(second.chargedUSD, "0", "a cached tap is not charged again (Qodo finding 7)")
+        XCTAssertEqual(second.cachedCostUSD, "0.004", "the original tap's cost, kept apart")
         XCTAssertEqual(second.response, first.response)
         XCTAssertEqual(try entries().count, 1, "a cached response is not charged again")
         XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("cache/\(first.requestSHA256).json").path))
@@ -210,6 +212,26 @@ final class HarnessTests: XCTestCase {
         let second = try await SendCommand.run(options())
         XCTAssertFalse(second.cached, "a failed reply is sent again, never replayed from the cache")
         XCTAssertEqual(try entries().count, 2)
+    }
+
+    /// Qodo finding 6: concurrent identical sends make one call; the other reads its cache entry.
+    func testConcurrentIdenticalSendsMakeOneCall() async throws {
+        let opts = options()
+        async let first = SendCommand.run(opts)
+        async let second = SendCommand.run(opts)
+        let results = try await [first, second]
+        XCTAssertEqual(results.filter(\.cached).count, 1)
+        XCTAssertEqual(results.map(\.chargedUSD).sorted(), ["0", "0.004"])
+        XCTAssertEqual(try entries().count, 1, "one reservation, one call")
+    }
+
+    func testScoreReportsACachedTapAtItsOriginalCost() async throws {
+        _ = try await SendCommand.run(options())
+        let cached = try await SendCommand.run(options())
+        let output = try ScoreCommand.run(evalCase: Fixtures.ukCase, textData: Data(Fixtures.ukText.utf8), send: cached)
+        XCTAssertEqual(output.costUSD, "0.004")
+        XCTAssertEqual(output.chargedUSD, "0")
+        XCTAssertTrue(output.cached)
     }
 
     func testScoreRefusesASendRecordForAnotherText() async throws {
