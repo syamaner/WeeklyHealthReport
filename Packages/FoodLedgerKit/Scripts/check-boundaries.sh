@@ -438,6 +438,56 @@ if [[ -n "$eval_core_unexpected" ]]; then
   exit 1
 fi
 
+# Pasted label AI text evaluation harness and CLI (#416 A2, docs/pasted-label-ai-text-v1.md 5.2):
+# the shipped application, capture and text reader modules plus the pure core, nothing else; and
+# no live transport anywhere in the tool (A2 runs only over its directory fake transport).
+eval_harness_allowed='^(CryptoKit|Foundation|FoodLedgerApplication|FoodLabelPhotoCapture|FoodLabelTextAIReading|PastedLabelAITextEvalCore|PastedLabelAITextEvalHarness)$'
+live_transport_pattern='OpenRouterTransport\(|URLSession|NSURLConnection|CFNetwork|CFStream'
+tool_live_transport() {
+  local dir="$1"
+  if [[ ! -d "$dir" ]]; then echo "$dir: missing"; return 0; fi
+  grep -rlE --include='*.swift' "$live_transport_pattern" "$dir" || true
+}
+self_test_eval_harness() {
+  local scratch status=0 fixture
+  scratch="$(mktemp -d "${TMPDIR:-/tmp}/check-boundaries-harness.XXXXXX")"
+  mkdir -p "$scratch/base"
+  printf 'import FoodLabelPhotoCapture\nimport FoodLabelTextAIReading\nimport PastedLabelAITextEvalCore\n' > "$scratch/base/Send.swift"
+  if [[ -n "$(tool_import_violations "$scratch/base" "$eval_harness_allowed")" || -n "$(tool_live_transport "$scratch/base")" ]]; then
+    echo "check-boundaries self-test: the eval harness baseline must pass" >&2; status=1
+  fi
+  for fixture in parser photo_reader live_transport url_session; do
+    cp -R "$scratch/base" "$scratch/$fixture"
+    case "$fixture" in
+      parser) echo 'import NutritionLabelParsing' > "$scratch/$fixture/Leak.swift" ;;
+      photo_reader) echo '@testable import FoodLabelPhotoReading' > "$scratch/$fixture/Leak.swift" ;;
+      live_transport) echo 'let transport = OpenRouterTransport()' > "$scratch/$fixture/Leak.swift" ;;
+      url_session) echo 'let session = URLSession.shared' > "$scratch/$fixture/Leak.swift" ;;
+    esac
+    if [[ -z "$(tool_import_violations "$scratch/$fixture" "$eval_harness_allowed")" && -z "$(tool_live_transport "$scratch/$fixture")" ]]; then
+      echo "check-boundaries self-test: the eval harness $fixture fixture must fail" >&2; status=1
+    fi
+  done
+  rm -rf "$scratch"
+  return "$status"
+}
+self_test_eval_harness
+for dir in PastedLabelAITextEvalHarness PastedLabelAITextEval; do
+  harness_dir="$app_root/Tools/PastedLabelAITextEval/Sources/$dir"
+  harness_unexpected="$(tool_import_violations "$harness_dir" "$eval_harness_allowed")"
+  if [[ -n "$harness_unexpected" ]]; then
+    echo "$dir has forbidden imports:" >&2
+    echo "$harness_unexpected" >&2
+    exit 1
+  fi
+done
+live_transport_files="$(tool_live_transport "$app_root/Tools/PastedLabelAITextEval/Sources")"
+if [[ -n "$live_transport_files" ]]; then
+  echo "PastedLabelAITextEval wires a live transport; A2 runs over the fake transport only:" >&2
+  echo "$live_transport_files" >&2
+  exit 1
+fi
+
 if grep -RnsE '^import (GRDB|SwiftUI|UIKit|HealthKit)$' \
   "$package_root/Sources/FoodLedgerDomain" \
   "$package_root/Sources/FoodLedgerApplication"; then

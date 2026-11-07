@@ -65,6 +65,11 @@ public enum PastedLabelAITextEnvelope {
         }
     }
 
+    /// The usage a raw reply reports, whatever else it holds; a missing cost is unknown, never zero.
+    public static func usage(_ body: Data) -> LabelPhotoManifest.Usage? {
+        ((try? JSONSerialization.jsonObject(with: body)) as? [String: Any]).map(OpenRouterLabelPhotoAttempt.usage(in:))
+    }
+
     public static func check(_ response: PastedLabelAITextRawResponse, route: PastedLabelAITextRoute.Route) -> Outcome {
         let retryAfter = response.headers.first { $0.key.caseInsensitiveCompare("Retry-After") == .orderedSame }?.value
         guard !response.exceededLimit, response.body.count <= OpenRouterPastedLabelAITextAttempt.maximumResponseBytes else {
