@@ -1,9 +1,10 @@
 # Personal food database import v1
 
-Status: draft for owner approval, revision 5, 7 November 2026. Revisions 2 to 5 answer five rounds
-of architecture-gate and invariant review (round 5: architecture gate PASS WITH CHANGES, invariant
-review NEEDS WORK, both addressed here) and two Qodo reviews. No production code is authorised until the owner accepts
-this document and its amendments. Issue: [#419](https://github.com/syamaner/WeeklyHealthReport/issues/419).
+Status: accepted by the owner on 7 November 2026 (revision 5, twelve owner decisions in section 2).
+Revisions 2 to 5 answered five rounds of architecture-gate and invariant review and three Qodo local
+reviews. Implementation has not started: it is a separate phase with its own architecture gate, and
+the amendment rows for A1 in `unified-food-search-contract-v1.md` and identity contract section 8 are
+added in that change. Issue: [#419](https://github.com/syamaner/WeeklyHealthReport/issues/419).
 
 ## 1. Purpose and scope
 
