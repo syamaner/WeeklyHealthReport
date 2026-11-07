@@ -76,7 +76,7 @@ final class PastedLabelAITextWireMappingTests: XCTestCase {
         let result = mapped("Per 100g\nFat 5", Self.wire(printed: "5"))
         XCTAssertEqual(result.candidate.cells, [])
         XCTAssertEqual(result.values.map(\.read), [.notRead(.bareNumberWithoutUnit)])
-        XCTAssertEqual(result.values[0].reasons, [], "a not-read cell, not an attention item (F9)")
+        XCTAssertEqual(result.values[0].reasons, [.unitNotStated], "a not-read cell under a blocking item, so the user is prompted (gate 3)")
         XCTAssertEqual(result.values[0].unitCheck, .missing)
         XCTAssertFalse(result.candidate.wouldMarkReady)
     }

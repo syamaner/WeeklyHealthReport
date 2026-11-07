@@ -26,7 +26,8 @@ public struct PastedLabelAITextReadingResult: Equatable, Sendable {
         case unknown
         /// The printed text is not one value of the closed grammar.
         case unreadable
-        /// A bare number with no unit from the model (F9): a not-read cell, never a value.
+        /// A bare number with no unit from the model (F9): a not-read cell, never a value, under a
+        /// blocking `unit_not_stated` item.
         case bareNumberWithoutUnit = "bare_number_without_unit"
         /// A bare number whose model unit is outside the closed unit table.
         case unitOutsideTable = "unit_outside_table"

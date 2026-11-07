@@ -19,8 +19,8 @@ import NutritionLabelParsing
 ///   the column's header (D10). A header's basis quantity never states one (D16). A unit the check
 ///   does not find is still read, under attention (`unit_not_stated`); a unit outside the closed
 ///   table cannot be read, and is a not-read attention item. A printed unit is never overridden.
-/// - **A bare number with no model unit is not read** (F9): a not-read cell, never a value, and not
-///   an attention item. The photo route's amendment M2 (a bare energy number taking the row label's
+/// - **A bare number with no model unit is not read** (F9): a not-read cell, never a value, under
+///   a blocking `unit_not_stated` attention item so the user enters it. The photo route's amendment M2 (a bare energy number taking the row label's
 ///   energy unit) is replaced by the unit check, which needs the model's unit.
 ///
 /// Everything else (headers, M3, row IDs, parents, M1, duplicate cells, ready) is v1's.
@@ -144,10 +144,11 @@ public enum PastedLabelAITextWireMapping {
                 case .notAValue:
                     guard isBareNumber(printed) else { break }
                     guard let modelUnit = value.unit else {
-                        // F9: a bare number with no unit is a not-read cell, never a value.
+                        // F9: a bare number with no unit is a not-read cell, never a value. It is a
+                        // blocking `unit_not_stated` item, so the user is prompted (A2 gate finding 3).
                         warnings.append("value_not_read: \(rowID) \(header.headerID) bare number without unit")
                         if amountColumn { leftOutAmounts += 1 }
-                        notRead(.bareNumberWithoutUnit)
+                        notRead(.bareNumberWithoutUnit, [.unitNotStated])
                         continue
                     }
                     guard PastedLabelAITextValueGrammar.canonicalUnit(modelUnit) != nil,
