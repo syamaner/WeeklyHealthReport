@@ -1,10 +1,10 @@
 # Pasted label AI reading v1: text first (#416)
 
-Status: **draft spec, 7 November 2026. Documents only; no production code and no egress yet.** The owner decided D2 to D6 on 7 November 2026 (section 9), including the evaluation egress terms T1 to T7. The product route's egress terms (T8 to T12) still need line-by-line approval before the route sends anything. The architecture gate has not run.
+Status: **draft spec, revision 2, 7 November 2026. Documents only; no production code and no egress yet.** The owner decided D2 to D15 on 7 November 2026 (section 9), including the evaluation egress terms T1 to T7. The product route's egress terms (T8 to T12) still need line-by-line approval before the route sends anything. The architecture gate returned FAIL on revision 1. This revision applies every required change (section 11) and goes back to the gate.
 
 ## 1. Problem
 
-The deterministic pasted-label reader declines most real UK text. The UK reader v2 release check ([P4 results](pasted-nutrition-label-uk-english-v2-p4.md) section 2) held the bar, with 0 wrong values, but 19 of 24 fresh labels declined. None of the 9 labels from new sites reached Confirm. v1 was 20 of 24. The decline causes are mostly layout (counts that do not line up, values printed without units), which further rules would chase site by site.
+The deterministic pasted-label reader declines most real UK text. The UK reader v2 release check (P4 results, section 2 of `docs/pasted-nutrition-label-uk-english-v2-p4.md` in [syamaner/WeeklyHealthReport#415](https://github.com/syamaner/WeeklyHealthReport/pull/415)) held the bar, with 0 wrong values, but 19 of 24 fresh labels declined. None of the 9 labels from new sites reached Confirm. v1 was 20 of 24. The decline causes are mostly layout (counts that do not line up, values printed without units), which further rules would chase site by site.
 
 The [label photo route](label-photo-ai-prefill-v1.md) already reads Taiwan label photos with a model through OpenRouter, ending on the shared Confirm with attention items. Pasted text is an easier input than a photo: every value the model returns can be checked character by character against the text the user pasted.
 
@@ -43,31 +43,116 @@ No automatic send. A paste never leaves the device unless the user taps Read wit
 
 ## 4. Design
 
-### 4.1 What is reused, unchanged
+### 4.1 Called, not copied
 
-The photo route already has every stage after the model. The text route calls them and copies nothing:
+These existing pieces are type-neutral and are called unchanged. Their files stay byte-identical, and `LabelPhotoFreezeTests` passes with no re-pin:
 
-- the OpenRouter transport, the route checker, the catalogue check, spend and retry policies (photo spec 17.18 and 17.21);
-- the strict wire schema and the wire mapping `label-photo-wire-mapping-v1`. The app, not the model, turns printed text into numbers, units and comparators;
-- decline gate v2, `pasted-label-conversions-v1`, `label-arithmetic-checks-v2`, the basis options and the identity mapping;
-- the attention policy, the Confirm builder, atomic Log and fortification C1 to C12.
+- `LabelPhotoWire` decoding of the strict wire shape;
+- decline gate v2 (with `.uk` for UK candidates), `pasted-label-conversions-v1` and `label-arithmetic-checks-v2`;
+- `LabelPhotoAttention.items`, which takes abstract cells;
+- the retry and spend policies, the catalogue-check parsing and the provider-identity rules (photo spec 17.18 and 17.21);
+- the shared Confirm sections protocol, atomic Log and fortification C1 to C12.
 
-### 4.2 What is new
+### 4.2 New, owned by the text route
 
-- **A text locator in place of the photo locator.** Each printed value the model returns must occur verbatim in the pasted text, on the line of its row label, in its header's column order. Exactly one match counts as found. Zero or several matches is an attention item. This is a check of the model's answer against the text, not a reader. It never produces a value. **Allowed by the owner (D3).**
-- **Route versions:** `pasted-label-ai-text-v1`, and a manifest `pasted-label-ai-text-v1` recording:
-  - the model, provider, endpoint, route, instruction, schema, mapping, gate, checks and locator versions;
-  - the text hash and length, the raw response, usage and cost;
-  - every per-value state and user action.
-- **The text's provenance.** Unchanged values reuse `user_verified_panel`, with a new source ID `pasted-label-ai`. Corrected values carry `manual_declaration`, as on both existing routes.
-- **Admission.** Through the composite `LabelSourceAdmission` (photo decision P19), extended by one verifier, so no freeze re-pin.
+The photo pieces below are image-typed or Taiwan-only, so the text route has its own:
 
-### 4.3 Formats
+| Piece | Why it is new | Text route |
+|---|---|---|
+| Reader adapter | `LabelPhotoReader` admits Taiwan only | A text reader adapter calling the gate with Taiwan or `.uk` |
+| Request and attempt port | The photo body is an image data URI with schema `label_image_extraction_v1`, and `LabelPhotoAttempting` takes a `PreparedLabelImage` | A text-only request builder (instruction and schema pinned by SHA) and a `PastedLabelAITextAttempting` port |
+| Route set | `LabelPhotoRoute` is a closed set of photo routes | `PastedLabelAITextRoute`, its own closed set |
+| Mapping | `label-photo-wire-mapping-v1` takes units from row labels for energy only | `pasted-label-ai-text-mapping-v1`: as v1, except the model's unit is accepted only when that unit token occurs in the same row's label or the column's header in the sent text, otherwise an attention item (D10). Parity with v1 on every v1 vector where a unit is printed |
+| Locator | The Vision locator needs an image | `pasted-label-text-locate-v1` (4.3) |
+| Assignment check | None exists | `pasted-label-ai-text-vocabulary-v1` (4.4, D11) |
+| Scope and identity | `.ukDevelopment` is a harness policy, and confirmation refuses any identity but v1 | A text-route scope type in a new file (D8), and a new recorded identity contract `pasted-label-ai-text-identity-v1` that writes the UK as-sold rules into each manifest (D9) |
+| Manifest, source and verifier | Photo evidence requires `.packageImage`, JPEG, an image hash and route `"C"` | `PastedLabelAITextManifest`, `PastedLabelAITextSource` and its verifier (4.5) |
 
-The photo route admits Taiwan only. The text route must admit UK declarations for the change to matter.
+### 4.3 Text locator `pasted-label-text-locate-v1`
 
-- **The UK rules already exist and are frozen:** the gate, conversions and identity v3 behind `.ukDevelopment`. Reusing them on a model's candidate is reuse, not new parsing.
-- **Other English panels** (US with per 100, Australian, New Zealand, EU English) were settled as allowed in UK v1 decision 11. They reach Confirm with flags. **Decided by the owner (D2):** UK, those English panels and Taiwan declines are admitted, and everything else declines.
+A pure, deterministic check of the model's answer against the text. It never produces a value (D3).
+
+1. **Input:** the sent text, byte-identical to what was hashed and stored. Offsets are counted in Unicode scalars.
+2. **Tokens:** a value matches only as a whole token. `1g` does not match inside `11g` or `0.1g`, and comparators and units are part of the token as printed.
+3. **Row labels:** located as unique whole words. A label that occurs more than once (for example `fat` inside `saturated fat`) is resolved by the longest match first. A label left ambiguous puts the row's values under attention.
+4. **Row blocks:** a row's block runs from its label to the next located row label. This covers one value per line as well as one row per line.
+5. **Columns:** values in a block are matched to amount headers in printed order. When a block has fewer values than headers, only a block where the model's assignment is the unique order-preserving fit is found. Any other is attention.
+6. **Energy pairs:** a kJ and kcal pair in one cell or line counts as two values in the same column.
+7. **Repeats:** equal values in one block (`0g 0g`) are matched by ordinal.
+8. **Result:** exactly one match is found. Zero or several matches is an attention item.
+
+A vector is committed for each shape the gate listed: one value per line, misaligned columns, a kJ and kcal cell, repeated values, substrings, recurring row labels, not found and several matches.
+
+### 4.4 Assignment check `pasted-label-ai-text-vocabulary-v1`
+
+A closed, versioned vocabulary of row-label words (for example salt, sodium, sugars, of which saturates, and the Taiwan equivalents) and header words (per 100 g, per 100 ml, per serving, reference intake). When the model's nutrient or basis disagrees with the vocabulary entry for the located row label or header, that value is an attention item. A label or header the vocabulary does not know is attention too. The check never assigns anything (D11).
+
+### 4.5 Manifest, versions and records
+
+- **Distinct versions:**
+  - route `pasted-label-ai-text-route-v1`;
+  - manifest `pasted-label-ai-text-v1`;
+  - mapping, locator, vocabulary and identity versions as above;
+  - attention policy version recorded;
+  - evidence kind `.labelText`;
+  - `SourceRelease.schemaVersion` `<manifest>:<format>`;
+  - an append-only list of admitted pipelines.
+
+  No text-route version is added to the pinned `PastedLabelEvidenceManifest.versions`.
+- **What the manifest stores:**
+  - the sent text verbatim (at most 8,000 scalars);
+  - the model, provider, endpoint and route;
+  - the instruction and schema SHA;
+  - the raw response, usage and cost;
+  - every per-value state, location and user action.
+- **Verification:** the verifier re-runs the locator and the vocabulary check on the stored text and requires identical results. This is stronger than the photo route, which cannot replay Vision.
+- **Provenance:** unchanged values reuse `user_verified_panel` with release ID `pasted-label-ai:`. Corrected or entered values carry `manual_declaration`, and export gives `label_checked_by_you` and `entered_by_you`, with no new export key.
+- **Archive:** a new food contract number, chosen in A1 as the next unused one after reading `CanonicalFoodArchive`. Older readers decline it cleanly, and every existing record decodes, verifies and re-encodes unchanged. A1 also checks that photo evidence is covered by its contract, which the gate found unverified.
+- **Admission:** `LabelSourceAdmission` becomes three-way (pasted, photo, text), and a candidate naming two sources is refused.
+- **Manifest-keyed sites:** each gets a stated answer for text evidence, in a table in section 11:
+  - `PastedLabelSource` (two sites);
+  - `PastedLabelServingPolicy`;
+  - `NutrientValueOrigin`;
+  - `CanonicalFoodArchive`;
+  - `ReviewedFoodProposalConfirmation`;
+  - `LabelSourceAdmission`.
+
+### 4.6 When Read with AI is offered
+
+Only for a closed set of the frozen reader's decline codes: layout and format declines, and every UK paste under the product scope. These are fixed in A1 from `LabelReading`'s codes. Read with AI is never offered for:
+- identity declines such as `basis_state_not_supported`;
+- `text_too_long`;
+- empty pastes and hash failures;
+- G1 simplified Chinese (D15).
+
+### 4.7 Formats
+
+v1 admits UK declarations and the Taiwan pastes the reader declines (D2 as amended). Other English panels (US with per 100, Australian, New Zealand, EU English) are declined in v1 (D13), because no evaluation label measures them.
+
+### 4.8 Flags and attention
+
+Attention items block Log, as photo decision P12. On the text route these are attention items:
+- not-found values;
+- unit checks that fail;
+- vocabulary mismatches;
+- arithmetic implications;
+- G3 and G4 flags on the affected nutrients.
+
+G5 and G6, and G3 for a missing optional row, inform without blocking. The attention version is recorded.
+
+### 4.9 Prompt injection and privacy
+
+- **The instruction** treats the pasted text as data only: no tools and a strict schema, with the response limits of photo E12.
+- **The copy** asks the user to paste only the nutrition table.
+- **Adversarial fixtures:**
+  - injected instructions;
+  - fabricated values that do occur in the text;
+  - nutrient and basis reassignment;
+  - two panels;
+  - a truncated table;
+  - a non-label paste.
+
+  Each must end as a decline or an attention item, never a silent value.
 
 ## 5. Evaluation programme
 
@@ -75,43 +160,61 @@ The photo route admits Taiwan only. The text route must admit UK declarations fo
 
 Every set below is real public label text with a blind, owner-verified transcription, held in `~/WHR-label-eval-private/` and never in git.
 
-| Set | Labels | Role proposed |
+| Set | Labels | Role |
 |---|---:|---|
 | Taiwan reader v3 development set | 24 | Tuning |
 | Taiwan reader v3 fresh set | 24 | Tuning (spent by its release check) |
 | UK v1 development set | 24 | Tuning |
 | UK v1 fresh set | 24 | Tuning (spent by the v1 probe) |
-| UK v2 fresh set | 24 | **Held out.** Sealed, run once by the frozen reader, never probed |
+| UK v2 fresh set | 24 | **Held out (D4).** Sealed, run once by the frozen reader, never probed |
 
 - **Tuning:** about 96 labels. Prompt and model versions are compared on these as often as needed.
-- **Held out:** the 24 UK v2 labels, run **once**, after the prompt, model and checks are frozen, against a bar fixed in advance (5.3). No Taiwan label is held out today, so Taiwan would need a new fresh collection under the existing protocol if it is to be measured on untouched text. **Decided by the owner (D4):** the UK v2 fresh set only, so Taiwan is not measured on untouched text in v1.
-- **Synthetic adversarial texts** (committed, no real text): truncated tables, two panels, values without units, injected instructions in the pasted text, and a non-label paste. Every version must pass these before any real-text run.
+- **Held out:** the 24 UK v2 labels, run **once**, after the prompt, model and checks are frozen, against the bar in 5.3. Taiwan is not measured on untouched text in v1 (D4).
+- **Independence:**
+  - 15 of the held-out labels (tier B) share sites with the UK v1 tuning sets, so tier A (9 labels) is reported on its own as the independent figure;
+  - the held-out decline reasons are already published as counts in P4, but no label's text or values have been seen.
+- **Synthetic adversarial texts** (committed, no real text) per 4.3 and 4.9. Every version must pass these before any real-text run.
 
-One evaluation format replaces the per-programme schemas. A small converter maps the Taiwan and UK transcription schemas into it, proven by round-trip tests on synthetic fixtures. The existing data is not edited.
+One evaluation format replaces the per-programme schemas. A converter maps the Taiwan and UK transcription schemas into it, proven by round-trip tests on synthetic fixtures. The existing data is not edited.
 
 ### 5.2 Harness
 
-- **An offline tool** in `Tools/` beside the photo evaluation, reusing its budget, consent and spend-ledger code.
-- **Output** in the release run format, so scorer v2's per-value rules decide wrong values. A small text-route scorer adds the AI-specific counts.
+- **Driven through the shipped Swift code:** the request builder, mapping, gate, locator, vocabulary check and attention, like `Tools/LabelPhotoE13`, not a Python lookalike. The photo evaluation's budget, consent and spend-ledger code is reused.
+- **Output** in the release run format, so scorer v2's per-value rules decide wrong values. A text-route scorer adds the AI-specific counts.
 - **Each run** records the prompt version, model, endpoint, the text's hash and the raw response, privately. The repo gets counts only.
-- **A run matrix:** prompt versions by models. Each cell runs on all tuning labels, with a spend stop per cell and per programme.
+- **A run matrix:** prompt versions by models. Each cell runs on all tuning labels, with spend stops of $5 per cell and $25 for the programme (T5).
+- **Pinned before A4:** the scorer, the converter and the frozen version, by SHA.
 
 **Metrics per cell:**
 - tables reaching Confirm;
 - wrong values;
-- **silent-error tables** (a wrong value with no attention item);
+- silent-error tables;
 - no-edit tables;
 - attention items per table;
-- failed reads;
+- failed and declined reads;
 - median and p90 cost and latency.
 
-### 5.3 Bar for the held-out run (accepted by the owner, 7 November 2026, D5)
+### 5.3 Bar for the held-out run (accepted by the owner, 7 November 2026, D5 and D12)
 
-1. **Zero silent-error tables.** Every wrong value must carry an attention item. The text locator makes this reachable, which it was not for photos.
+**Definitions:**
+- A **wrong value** is a value at Confirm that differs from the transcription under scorer v2.
+- A **silent-error table** has a wrong value that carries no attention item.
+- A printed row the model omits is a **not-read row**. It is shown as missing, never as zero, and is not a wrong value. It does make the table need an edit.
+- **No edit** means no correction and no entry. "Matches the text" taps on attention items are allowed and counted.
+- **Cost** is the reported cost, with an unknown cost counted at the per-read cap.
+- **Latency** is per tap, from the tap to Confirm or failure, including retries.
+
+**Bar:**
+1. **Zero silent-error tables.** The locator, the unit check and the vocabulary check together make this reachable.
 2. **Tables needing no edit:** at least 80% of the tables that reach Confirm.
-3. **AI reads that fail or decline:** at most 25% of the labels the frozen reader declines.
+3. **AI reads that fail or decline:** at most 25% of all 24 held-out labels, since the shipped reader declines every UK paste (D12). That is at most 6.
 4. **Median cost** at most $0.01 per read; **p90 latency** at most 15 s.
-5. **Reported, not gating:** wrong values that were flagged, attention items per table, and the results by tier and by copy method.
+
+**Reported, not gating:**
+- wrong values that were flagged;
+- attention items per table;
+- the results by tier (tier A on its own) and by copy method;
+- rule-of-three upper limits with the real counts, as in P4.
 
 A miss stops release. The held-out set is then spent and becomes tuning data.
 
@@ -150,7 +253,7 @@ Two separate approvals: the evaluation runs (T1 to T7), then the product route (
 - [ ] **T8 When.** Only on the explicit Read with AI tap after a decline, with the egress statement and a first-use sheet. No background, prefetch or automatic re-read.
 - [ ] **T9 Payload.** The pasted text as pasted, after the app's existing normalisation, at most 8,000 characters, with the fixed instruction and schema. Nothing else.
 - [ ] **T10 Routing and key.** As photo E5, E7 and E8, with the one pinned text route.
-- [ ] **T11 Caps.** Per read and per day, shared with the photo route's daily cap so the two routes cannot double the spend. Figures are set from the evaluation's measured costs.
+- [ ] **T11 Caps.** One day record shared with the photo route (D14): at most 30 reads and $0.50 a day across both, with each route keeping its own per-read cap. The text route's worst-case cost W and prompt-token ceiling are sized for 8,000 scalars of Traditional Chinese, from the evaluation's measured costs. The photo row in `privacy-and-egress.md` and E10's wording are amended in the same PR.
 - [ ] **T12 Records.** A `privacy-and-egress.md` row and the privacy policy text take effect in the PR that wires the live text route.
 
 ## 8. Phasing (one PR per phase)
@@ -170,12 +273,20 @@ Two separate approvals: the evaluation runs (T1 to T7), then the product route (
 | ID | Question | Recommendation |
 |---|---|---|
 | D1 | Should Read with AI appear only after the frozen reader declines, never in place of a successful read? | Yes, as decided ("AI for the rest") |
-| D2 | Which panels does the text route admit? | **Decided (owner, 7 November 2026):** UK declarations and the other English panels settled in UK v1 decision 11, plus Taiwan pastes the reader declines; everything else declines |
+| D2 | Which panels does the text route admit? | **Decided (owner, 7 November 2026), amended by D13:** UK declarations plus Taiwan pastes the reader declines; everything else declines |
 | D3 | Is the text locator allowed, given parsing is parked? | **Decided (owner, 7 November 2026): allowed.** It checks the model's answer and never produces a value |
 | D4 | Held-out data: the UK v2 fresh set only, or also a new Taiwan fresh set? | **Decided (owner, 7 November 2026): the UK v2 fresh set only.** A Taiwan fresh set only if Taiwan declines turn out to matter |
 | D5 | The held-out bar in 5.3 | **Decided (owner, 7 November 2026): as proposed.** Committed in A1, before any tuning run |
 | D6 | The evaluation egress terms T1 to T7 | **Decided (owner, 7 November 2026): approved as written.** The product route's T8 to T12 come separately |
-| D7 | A GitHub issue for this programme, with one PR per phase | Yes |
+| D7 | A GitHub issue for this programme, with one PR per phase | **Decided (owner, 7 November 2026): yes,** #416 |
+| D8 | UK product scope: re-pin `PastedLabelLaunchScope.swift`, or give the text route its own scope? | **Decided (owner, 7 November 2026): the text route owns its scope in new files, with no re-pin.** The frozen reader, its policy members and every pin stay unchanged |
+| D9 | UK identity: record identity v1 facets with a v3 as-sold check, or a new recorded identity? | **Decided (owner, 7 November 2026): a new versioned identity contract owned by the text route.** Each manifest records the UK as-sold rules explicitly, with goldens and round-trip tests, written in A1 |
+| D10 | Values printed without units | **Decided (owner, 7 November 2026): the model returns the unit, and the app accepts it only when that unit token appears in the same row's label or the column's header in the pasted text; otherwise it is an attention item.** A versioned text-route mapping, which verifies and never produces a value |
+| D11 | Check the model's nutrient and basis assignments? | **Decided (owner, 7 November 2026): yes.** A closed, versioned vocabulary of row-label and header words (English and Taiwan) checks each assignment, and any mismatch is an attention item. It never assigns anything itself |
+| D12 | Bar 3's denominator | **Decided (owner, 7 November 2026): all 24 held-out labels,** since the shipped reader declines every UK paste. At most 6 of 24 may fail or decline |
+| D13 | Other English panels (US per 100, Australian, New Zealand, EU English), which no evaluation label measures | **Decided (owner, 7 November 2026): declined in v1, amending D2.** v1 admits UK declarations and Taiwan declines only. The others are added later, with their own labels in the tuning and held-out sets |
+| D14 | Daily spend across the text and photo routes | **Decided (owner, 7 November 2026): one shared cap.** One day record counts both routes, at most 30 reads and $0.50 a day in total, and each route keeps its own per-read cap. The photo row in `privacy-and-egress.md` and E10's wording are amended in the same PR |
+| D15 | Offer Read with AI after identity declines? | **Decided (owner, 7 November 2026): no.** It is offered only for a closed set of layout and format decline codes. Identity declines, `text_too_long`, empty pastes and hash failures keep today's message |
 
 ## 10. Not changing
 
@@ -183,3 +294,67 @@ Two separate approvals: the evaluation runs (T1 to T7), then the product route (
 - the photo route's Taiwan scope;
 - the shared Confirm rules;
 - the egress list, until T8 to T12 are approved and wired.
+
+## 11. Architecture gate
+
+Revision 1 returned **FAIL** (7 November 2026; handover on #416). Every required change is applied in sections 4 and 5. This section holds what the gate needs before any A1 code.
+
+### 11.1 Responsibilities and dependency direction
+
+- **Domain:** unchanged.
+- **Application** (`FoodLedgerApplication`, Foundation only, no parser import, already enforced by `check_imports`):
+  - the text locator, the vocabulary check, the text-route mapping, the scope and identity types;
+  - the manifest codec, source, verifier and three-way admission;
+  - the attempt port and the orchestrator.
+- **Infrastructure:**
+  - the text request builder in `FoodLabelPhotoCapture`, beside the existing OpenRouter transport;
+  - the text reader adapter in a new target that may import the frozen parsers.
+
+  Concrete adapters are wired only at the composition root.
+- **Presentation:** Read with AI on the decline state, the reading state, and the text pane and highlights on the shared Confirm.
+- **Boundaries:** `check-boundaries.sh` gains the new target in its importer, package and link rules, each with a negative self-test fixture.
+
+### 11.2 Invariants
+
+- HealthKit untouched. No send without the explicit tap.
+- Unknown is never zero, and omitted rows are not-read.
+- Model output never authorises a value: the locator, the unit check and the vocabulary check verify, and the user confirms.
+- No frozen file changes: `ReaderV3FreezeTests`, `UKReaderFreezeTests` and `LabelPhotoFreezeTests` pass with no re-pin (D8).
+- Every stored record, archive and export decodes and re-encodes unchanged.
+
+### 11.3 Extension axes
+
+- new text routes (models) through a route version bump;
+- new admitted formats through D13's later addition with their own data;
+- new vocabulary entries through a vocabulary version.
+
+Nothing else is open.
+
+### 11.4 Manifest-keyed sites (filled in A1 with the code's line numbers)
+
+| Site | Answer for text evidence |
+|---|---|
+| `PastedLabelSource` (two sites) | Not a pasted manifest: refused, routed by admission |
+| `PastedLabelServingPolicy` | The text route's own serving policy, with the same rules and a parity test |
+| `NutrientValueOrigin` | `label_checked_by_you` and `entered_by_you` |
+| `CanonicalFoodArchive` | The new contract number (4.5) |
+| `ReviewedFoodProposalConfirmation` | `.labelText` evidence of the text manifest version only |
+| `LabelSourceAdmission` | Three-way, mixed sources refused |
+
+### 11.5 Contract tests (written first)
+
+1. Locator vectors for every shape in 4.3, plus whole-token boundaries and scalar offsets, with byte-identical output on repeated runs.
+2. Verifier replay of the locator and the vocabulary check. Tampered text, or an added, removed or moved location, is rejected at save and at reopen.
+3. Manifest strict-codec goldens: canonical bytes, unknown or missing keys throw, versions distinct, stored text round-trips.
+4. Three-way admission, including relabelled and mixed evidence.
+5. Every manifest-keyed site in 11.4, and the export golden.
+6. Archive goldens unchanged byte for byte. The new contract exports, an older reader declines it, and every existing record re-encodes unchanged.
+7. The three freeze suites pass with no re-pin.
+8. The UK path calls the gate with `.uk`, the conversions and the checks (a recording fake), and the identity contract's goldens.
+9. Mapping parity with `label-photo-wire-mapping-v1` where a unit is printed, plus unit-check vectors.
+10. Request golden: text only, an 8,000-scalar cap, instruction and schema SHA, the provider block as E5, and no key, name or brand in the body.
+11. Shared spend across routes: unknown cost counted at the cap, and a corrupt ledger fails closed.
+12. Decline eligibility: only the closed set in 4.6 offers Read with AI.
+13. The adversarial fixtures in 4.9.
+14. Boundary self-tests.
+15. Converter round-trips. The scorer and converter are pinned by SHA before A4.
