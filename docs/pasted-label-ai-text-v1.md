@@ -270,7 +270,9 @@ One evaluation format replaces the per-programme schemas. A converter maps the T
 
 ### 5.2.1 Metrics (standard, D22)
 
-Each metric is computed per cell on the tuning set, and once on the held-out set. Every rate comes with a 95% interval: Wilson for proportions, and Clopper-Pearson (exact) when the count is 0 or equals the total.
+Each metric is computed per cell on the tuning set, and once on the held-out set. Every metric comes with a 95% interval, chosen by what it is:
+- **Label-level proportions** (exact match, no edit, coverage, failed reads, silent-error tables): Wilson, or Clopper-Pearson (exact) when the count is 0 or equals the total.
+- **Field-level metrics** (precision, recall and F1, micro and macro), error-detection precision and recall, and attention items per table: a percentile bootstrap that resamples **labels**, 10,000 times. Fields within one label are not independent, so no binomial interval is used for them.
 
 - **Field level** (key information extraction, as in the SROIE and CORD benchmarks):
   - A field is one printed value: one nutrient under one basis.
