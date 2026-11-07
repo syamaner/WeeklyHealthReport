@@ -3806,3 +3806,16 @@ Excluded:
 - this ledger edit, the commit, the push and the PR after the window.
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a charge. Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-419-2026-11-07: Claude Code personal food database import contract and build skill (#419)
+
+The coordinator session (`claude-opus-5-5`, session `93e9e82e-ef3d-4d2f-9186-58c67056c1ca`) built the owner's private nutrition database outside the repository (receipt extraction, enrichment, owner notes), then wrote the import contract (five revisions), the `personal-food-catalogue` skill and its synthetic fixtures, and ran `architecture-gate` and `invariant-reviewer` subagents for five rounds, mapping subagents, and three Qodo local reviews (one failed in transport and was retried once). No phase boundary was captured at the start, so this row is the **whole session** up to `2026-11-07T19:10:52Z`, and it includes the private database build, which produced no repository files. Of the cache writes, 1,789,290 tokens were 5-minute writes and the rest 1-hour.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Personal food database contract and skill (#419), whole session with subagents | 183,648,308 (181,086,427) | 2,560,439 | 809,681 | 184,457,989 | $67.53 |
+| **Subtotal** | 183,648,308 (181,086,427) | 2,560,439 | 809,681 | 184,457,989 | $67.53 |
+
+Method: `phase_usage.py --format claude --include-subagents` (no `--since`, so whole-session) on the session transcript; exact USD 67.5323154. Excluded: this ledger edit, the commit, the push and the PR after `2026-11-07T19:10:52Z`, and Qodo's own review compute, which is not in the transcript.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a charge. Local builds and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.

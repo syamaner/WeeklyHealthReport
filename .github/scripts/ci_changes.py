@@ -90,6 +90,8 @@ CODE_READ_DOCS = {
     "docs/label-estimate-merge-v1.md",
     # Cited by the Ciqual projector, audit and tests and, from C2, the Ciqual searcher (#384).
     "docs/ciqual-2025-admission-v1.md",
+    # Cited by the personal-food-catalogue skill's export and fixtures, and later the importer (#419).
+    "docs/personal-food-catalogue-import-v1.md",
 }
 CODE_READ_DOC_PREFIXES = ("docs/fixtures/",)
 # Never documentation, whatever the lists above say: CI, its scripts and this

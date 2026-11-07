@@ -36,6 +36,7 @@ Start with [`../AGENTS.md`](../AGENTS.md) for working rules and [privacy and egr
 - [Food list lexical v4](food-list-lexical-v4.md) (locale-aware list amount grammar), [v5](food-list-lexical-v5.md) (vague portions such as "a handful" need an amount) [v6](food-list-lexical-v6.md) (household containers such as "2 mugs of tea" leave the food name, as in search) and [v7](food-list-lexical-v7.md) (the other containers and household measures, such as "2 slices of bread" and "a bottle of water", leave the food name and give no amount)
 - [Food query interpretation v4](food-query-interpretation-v4.md) (a household unit with no amount before it, as in "mugs of tea" or "250 ml mug of milk", leaves the search text); current version v5 is recorded in [unified food search contract v73](unified-food-search-contract-v1.md) (#370, a named dish's exact amount)
 - [Local inventory contract](local-inventory-contract.md)
+- [Personal food database import v1](personal-food-catalogue-import-v1.md) (#419): local import of the owner's private nutrition database built with the [`personal-food-catalogue`](../.agents/skills/personal-food-catalogue/SKILL.md) skill; accepted by the owner on 7 November 2026 (revision 5, twelve owner decisions); implementation not started, it is a separate phase with its own architecture gate; synthetic [fixtures](fixtures/personal-food-database-v1/)
 - [Storage and backup decision](food-library-storage-and-backup-decision.md)
 - [HealthKit food write plan](food-healthkit-write-plan.md) (planning; HealthKit stays read-only)
 
