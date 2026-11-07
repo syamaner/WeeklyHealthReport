@@ -27,15 +27,37 @@
   "cases": [
     {
       "case_id": "multivitamin-tablet-01",
-      "item_class_candidate": "supplement"
+      "item_class_candidate": "supplement",
+      "evidence": {
+        "evidence_bundle_sha256": "aa65ae927aca5cef083abd2833ec300e6e18c8f5a6d5e54dc55ef547d0e1e7fc",
+        "image_evidence_sha256": [
+          "9b49773ded001bf87802c1b6830c166b16a7ef6b81a3d5e74b177e548114a709",
+          "ebca95474f18a2b6c029fa0d9705e81d5f028ae56e6927d78cbb164ed08678fb",
+          "dedbd9c9e1b939247fec263f41c8d31b6cb431d6d16fa0e6a5682a2550ddaf60"
+        ]
+      }
     },
     {
       "case_id": "fish-oil-softgel-01",
-      "item_class_candidate": "supplement"
+      "item_class_candidate": "supplement",
+      "evidence": {
+        "evidence_bundle_sha256": "ae5d165a4d1f65e79d3ed68b420ecec23ae9d2480056d249fd3173fb4a212a73",
+        "image_evidence_sha256": [
+          "636a9f368d94c1014c7929f589df6497fe958ec76e15828325019bd67d955410",
+          "3a7083c41c3bef37b2317e47a987c09a28a46b0fd257fa475e20fda12a9edbc1"
+        ]
+      }
     },
     {
       "case_id": "zinc-capsule-01",
-      "item_class_candidate": "supplement"
+      "item_class_candidate": "supplement",
+      "evidence": {
+        "evidence_bundle_sha256": "0847dd4aba5def1e1279d9cfdb68e14f4d7a6817e92b9baaa147c2d2f20927b7",
+        "image_evidence_sha256": [
+          "bc3d74a769cb1a27c6830190654b1b5873607b7ddd194f2d9f3c0862d46b3ce1",
+          "076b7db02d5520ef35fbad684bfe1a37a2fb5dd762e3b18bc9456aeb62f17d08"
+        ]
+      }
     },
     {
       "case_id": "psyllium-powder-01",
@@ -43,11 +65,17 @@
     },
     {
       "case_id": "d3-k2-drop-01",
-      "item_class_candidate": "supplement"
+      "item_class_candidate": "supplement",
+      "evidence": {
+        "evidence_sha256": "740814dd98db4df47405ed8cbfc8d3a54882ee47fc8e4ed34c2605cd68ab257d"
+      }
     },
     {
       "case_id": "psyllium-powder-02",
-      "item_class_candidate": "supplement"
+      "item_class_candidate": "supplement",
+      "evidence": {
+        "evidence_sha256": "1e1eb58b896db5ba15a9a488200cfa1441b09e22c239959705352fc41b7a317f"
+      }
     }
   ],
   "interpretation": "The cohort validates supplement-specific identity, compound, dose-form and serving-basis requirements but does not create intake events or a supplement catalogue. No observed page supplies an immutable release or formulation-effective date. The five user-supplied labels (a multivitamin tablet, a fish-oil softgel, a zinc capsule, a vitamin drop product and a psyllium powder) are evidence-scoped package authority: the multivitamin directly measures 24 canonical micronutrients per tablet, the fish oil measures fish-oil concentrate, EPA and DHA per two softgels and supports an exact one-softgel projection, the zinc product measures 15 mg elemental zinc per capsule while retaining its compound provenance, the drop product measures its printed six-drop values and supports an exact one-drop projection, and the psyllium powder separates component mass from supplied fibre at a direct 3.16 g basis. Their raw images remain local-only. Public pages may corroborate candidates, but malformed retailer rows, source-specific RI/Daily Value percentages, a 1.7-versus-1.65 mg thiamin difference, image-only labels, removed pages and a public psyllium mass-versus-fibre conflict demonstrate why current package evidence remains authoritative."

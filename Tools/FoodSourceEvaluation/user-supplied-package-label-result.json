@@ -3,7 +3,7 @@
   "cohort": "User-supplied food package labels provided incrementally for contract validation",
   "method": {
     "observation": "Manual inspection of user-supplied package images plus read-only public manufacturer and retailer corroboration",
-    "privacy": "Raw images remain local-only and are not committed. The repository retains only evidence hashes and product facts needed for contract validation.",
+    "privacy": "Raw images remain local-only and are not committed. The repository retains only evidence hashes, counts and the conclusions needed for contract validation.",
     "promotion_rule": "Package facts visible in the supplied image may be measured for that evidence-scoped product version. Public nutrition remains a candidate until the exact package nutrition panel is verified.",
     "mutations": "None; public pages were read without login, basket, order, review or account action"
   },
@@ -25,79 +25,194 @@
   "cases": [
     {
       "case_id": "yoghurt-01",
-      "item_class_candidate": "food"
+      "item_class_candidate": "food",
+      "evidence": {
+        "evidence_sha256": "0c90f7b130a55bcc27182bfe4a3b06a98d2c7cf441333e7d244603b197ce2b9d"
+      }
     },
     {
       "case_id": "cottage-cheese-01",
-      "item_class_candidate": "food"
+      "item_class_candidate": "food",
+      "evidence": {
+        "evidence_bundle_sha256": "a4646e67bfb90f329227141faae0a062ec3aa40e97217ab97aa25aa38088831f",
+        "image_evidence_sha256": [
+          "58eaa4f44a44dc53cf7804e4978e2521ae0c2027f8083034e73246d9c0fb4097",
+          "7f1de63b8ef7318bfa17ab06fc4cdb65d98407f18536407586e1580ce54d98aa"
+        ]
+      }
     },
     {
       "case_id": "greek-style-yoghurt-01",
-      "item_class_candidate": "food"
+      "item_class_candidate": "food",
+      "evidence": {
+        "evidence_sha256": "ef0ef8d0573ca622219b06fd1b3a5d8a10c945f477375e992159decfd1021e4e"
+      }
     },
     {
       "case_id": "cheese-slices-01",
-      "item_class_candidate": "food"
+      "item_class_candidate": "food",
+      "evidence": {
+        "evidence_sha256": "0e3daba6e9741238b88880b730a430f0336000991c705a210e939d776ad58976"
+      }
     },
     {
       "case_id": "avocado-01",
-      "item_class_candidate": "food"
+      "item_class_candidate": "food",
+      "evidence": {
+        "evidence_sha256": "b45e4efca3e3e050ccf7eb5963ef1c5c9a44447f35710ca0618c152fd7ca2cb3"
+      }
     },
     {
       "case_id": "raspberries-01",
-      "item_class_candidate": "food"
+      "item_class_candidate": "food",
+      "evidence": {
+        "evidence_sha256": "8f5789a8c00ee35f83480c54055363590c54a178fc0282f6b2798dc18471af29"
+      }
     },
     {
       "case_id": "turkey-01",
-      "item_class_candidate": "food"
+      "item_class_candidate": "food",
+      "evidence": {
+        "evidence_bundle_sha256": "46a7a9433987d9bb9c19f9b2c6ebd6d5292cb91cdac9b7729281b2cfb72484a8",
+        "image_evidence_sha256": [
+          "dd599b28104b1cd58dfa3566bd7480d20e65a2fa65c81bf4fc9444c1f76636dd",
+          "07a5444010b71daad0af6c0caa9117608d3a91e4b1d03f68c37e65430f07ef5c"
+        ]
+      }
     },
     {
       "case_id": "asparagus-01",
-      "item_class_candidate": "food"
+      "item_class_candidate": "food",
+      "evidence": {
+        "evidence_bundle_sha256": "f5c6027cecf5860587b0983f529e07a4f9042fb71a7914d285843f16934b3b93",
+        "image_evidence_sha256": [
+          "d27f08569e68c1c5a8a6a32725407b631ad4779fcaba325a000bf4edb44b9ce9",
+          "e6917f230c81f7e9cd4ca6c0f91e13c4811449efc160329103b2b90c0f9a73df"
+        ]
+      }
     },
     {
       "case_id": "baby-spinach-01",
-      "item_class_candidate": "food"
+      "item_class_candidate": "food",
+      "evidence": {
+        "evidence_bundle_sha256": "304838b2b1ff2a069c1a466d0197e098e385ac5c04dbd527b5d2fa7214c30c7b",
+        "image_evidence_sha256": [
+          "0645b22bcb6c6c01450014a22f404e39c53e1c017e611175c80e97e1cd5a19ee",
+          "dad682532f6b8402188b4b7e0df7972206c136d1febe498046f7a9b87a6aa1bc"
+        ]
+      }
     },
     {
       "case_id": "lemons-01",
-      "item_class_candidate": "food"
+      "item_class_candidate": "food",
+      "evidence": {
+        "evidence_bundle_sha256": "9fb68fa76b937f8d12790cc02bdd485ce9f1a657758563f4880c55f94a42ec59",
+        "image_evidence_sha256": [
+          "ec20f28609cbcd70f06653f081b965d356957dc486fa25cbc1b80324b838996f",
+          "a422aa04f2e2619e0430013f7310f92b3ced9db776c545ee32ab6516b2e9d3f4"
+        ]
+      }
     },
     {
       "case_id": "tomatoes-01",
-      "item_class_candidate": "food"
+      "item_class_candidate": "food",
+      "evidence": {
+        "evidence_bundle_sha256": "5a378c8992b7be4250d528dc12103e1c4f9ed0004b9180714c1e9719a546660d",
+        "image_evidence_sha256": [
+          "8a3c352454d2f765764783c57ccb51910a927f50932d3049be8ffe99a95702b0",
+          "3cce294caa805478517c0258cf53e38f6b1966f6b631ca31b065da55681793b0"
+        ]
+      }
     },
     {
       "case_id": "whole-milk-01",
-      "item_class_candidate": "drink"
+      "item_class_candidate": "drink",
+      "evidence": {
+        "evidence_bundle_sha256": "fd610cfa9d9ad780b65a4bc6ffedb6281b54169d33449ece0f639d9ac57f8477",
+        "image_evidence_sha256": [
+          "d5435e7e7527a11204a56213dbf62de36e71693625719cb7942cb7bf5424871d",
+          "6ef2e7c8d75f365b15a68c6731982052b3e159df782f5e569110eda5d5c98669"
+        ]
+      }
     },
     {
       "case_id": "sourdough-01",
-      "item_class_candidate": "food"
+      "item_class_candidate": "food",
+      "evidence": {
+        "evidence_bundle_sha256": "d4334df2d41f4c77f6026f65254f5ce1bb9304a258170c4269b87ef2fa0c7253",
+        "image_evidence_sha256": [
+          "0954621744140f7d504fcc2beeb311f4777a2c5ffe7fcb6735504d549a21e142",
+          "925f7ecddc28f510f4b46cf2984be442ca598b0c46de8ed811abec8d95cadbfb"
+        ]
+      }
     },
     {
       "case_id": "mackerel-01",
-      "item_class_candidate": "food"
+      "item_class_candidate": "food",
+      "evidence": {
+        "evidence_bundle_sha256": "b41571e6ec32f059a72b5e5513a767fbc72a13440489572ac2ba6ffc4417d628",
+        "image_evidence_sha256": [
+          "a493a43f269b9f2f654f171657080e6de8ea7842c85a374ccd0bf73e46a24ab6",
+          "7d5e02a18f2e085b2c907f25a87b4b61efff7f1fc91fd9316b0cbb05ee443702"
+        ]
+      }
     },
     {
       "case_id": "sardines-01",
-      "item_class_candidate": "food"
+      "item_class_candidate": "food",
+      "evidence": {
+        "evidence_bundle_sha256": "658052ff372975962e04c201206a04d36a99112b50defddeaf3a060927f45d0f",
+        "image_evidence_sha256": [
+          "cbae4f561382abc68bed11ada23dd42f7d61d7cb553ebd628c7f02224544a9eb",
+          "6f5a9d0731a0b391ac9de21a75bbe7530551ee54c9f905cccbbfd3e98f190efc"
+        ]
+      }
     },
     {
       "case_id": "chopped-tomatoes-01",
-      "item_class_candidate": "food"
+      "item_class_candidate": "food",
+      "evidence": {
+        "evidence_bundle_sha256": "171c6f3b4d4ab3e42790233a43f2001839783465cadafea7b5787557774e8e2e",
+        "image_evidence_sha256": [
+          "a29b99501541ff5042fe5427501dad043e89e429300afdc4ee4f6d7a1525a516",
+          "ed8cc22e93114dca75ccae8d4ef01f8f558206d70870a2a45df87a64921524b2"
+        ]
+      }
     },
     {
       "case_id": "black-beans-01",
-      "item_class_candidate": "food"
+      "item_class_candidate": "food",
+      "evidence": {
+        "evidence_bundle_sha256": "dffca69939cce3b0a1df2a1ffbf2b0d1603ccf8e261cd8bcf894db1465b147a9",
+        "image_evidence_sha256": [
+          "64f52bee97d99cd6999a1d5176787efbb1df69015bad106350615203922894f3",
+          "655125a51aaec5d5c022cc1dd2f9cd6191ff52b16caaf4ce184dcef7c0239328"
+        ]
+      }
     },
     {
       "case_id": "whey-protein-01",
-      "item_class_candidate": "food"
+      "item_class_candidate": "food",
+      "evidence": {
+        "evidence_bundle_sha256": "9c5e4c3118c2d462fd60146d8129bc2d562841cb2519ef6f109be4b0b23e52b2",
+        "image_evidence_sha256": [
+          "45cb03cf13e785abf77d37e82808ac4915d82d50a8d58919a79587cfc2c9b367",
+          "515c3edb4bca34790ee16232e315d63e9c6c11f513e904a1d7774c9fd5366961",
+          "abc0a39e618976e8856de9e6ba0128ff75add387c95443d17c223bc160d1e209"
+        ]
+      }
     },
     {
       "case_id": "honey-01",
-      "item_class_candidate": "food"
+      "item_class_candidate": "food",
+      "evidence": {
+        "evidence_bundle_sha256": "b7b200baf02b4bd546a89e9391e77a46d9fb6d3f55f7f00472417e04d522c3a8",
+        "image_evidence_sha256": [
+          "aea19a9deb781218d5ed7a9b5a79b01c4ac2dbbeddd4499add9ccad48cc66767",
+          "8a6e58e47576d3373a6a7af8bb4c20222b13a188d6870a686adc8928b259bab7",
+          "f8e85ef46777b7db0e3fa78dd0fee7784758a27479115cc64fb432b09ced3f0a"
+        ]
+      }
     }
   ],
   "interpretation": "These cases demonstrate that barcode identity, manual declarations, physical-package nutrition and mutable public sources require separate provenance. User confirmation can select a manual declaration without converting it into a physical panel. The cottage-cheese package/public conflict demonstrates why product versions and capture evidence must survive retailer staleness or reformulation instead of being silently overwritten. The Greek-style yoghurt case shows that multi-source public agreement can strengthen a candidate without promoting it to package-measured truth. The cheese-slices case separates a personal alias from canonical product identity and retains both direct per-slice declarations and deterministic projections when retailer rounding differs. The avocado case shows that exact GTIN does not override seasonal origin or supply missing edible quantity. The raspberry case shows that even one exact-GTIN retailer page may contain incompatible nutrition profiles, which must remain separate instead of being merged field by field. The turkey case supplies a direct reformulation test: exact-GTIN mutable public nutrition cannot replace a conflicting measured package panel, and later re-resolution cannot rewrite the evidence or resolution attached to an earlier log occurrence. The asparagus case shows how reference-intake context can resolve an ambiguous printed unit while retaining the original evidence and the explicit reasoning, and how product-family corroboration remains weaker than an exact public GTIN match. The spinach case preserves two source serving bases and decisive unknown preparation attributes while preventing compatible non-GTIN secondary entries from becoming canonical identity or nutrition. The lemon case requires a namespaced retailer code rather than a false GTIN, rejects an impossible public sodium field and keeps whole-pack, edible-part and per-fruit quantities unresolved. The tomato case demonstrates that generic nutrition similarity cannot resolve variety or product identity and that a different-GTIN near match must be rejected even when several macro values coincide. The milk case preserves an unusual mass basis for a liquid and prevents a serving count or generic category match from inventing volume, density, processing, fortification or absent micronutrients. The sourdough case preserves a direct approximate-slice column alongside a deterministic projection, records their rounding difference and prevents a same-name different-retailer loaf from supplying ingredients, fortification, quantity or nutrients. The canned-mackerel case separates gross can weight, drained nutrition, olive-oil packing medium, possible bones and consumed edible quantity; it also preserves an exact-code retailer salt conflict and retains omega 3 outside the frozen catalogue rather than aliasing it to total polyunsaturated fat. The sardine case supplies the opposite nutrition basis: product as sold rather than drained. It prevents that oil-inclusive profile from being applied to the drained weight, keeps an unlinked boneless product-family claim from resolving bone state and preserves a package-versus-retailer saturates conflict. The chopped-tomato case resolves an otherwise anonymous package from a namespaced retailer code, supports a product-basis whole-can projection without assuming consumption and preserves an exact-code cross-market nutrition conflict as separate version evidence. The black-bean case preserves an explicit drained basis, keeps an unresolved exact UPC separate from same-name public candidates, retains a material public nutrition collision and refuses to infer drained weight from gross pack size or ingredient percentage. The whey-protein case resolves an exact GTIN while preserving direct 100 g and 25 g declarations, amino acids outside the frozen catalogue, a package-versus-current calcium change and contradictory mutable manufacturer Q&A."
