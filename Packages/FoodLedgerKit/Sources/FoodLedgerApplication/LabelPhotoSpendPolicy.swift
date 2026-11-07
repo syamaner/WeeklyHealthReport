@@ -19,6 +19,12 @@ import Foundation
 ///   reading for the rest of that day.
 /// - A day record that cannot be read fails closed: reading is unavailable, as if the limit were
 ///   reached.
+/// - The day record is shared with the pasted label AI text route (docs/pasted-label-ai-text-v1.md
+///   D14, D17, #416 A2), version `label-ai-spend-day-v1`: `reads` and `cost` count both routes
+///   against the one daily cap, `paused` and `openTaps` stay the photo route's own, and `text`
+///   holds the text route's share and its own pause. Every photo write carries `text` through
+///   unchanged, so a photo tap never erases a text read. A record written before the text route
+///   (no version) decodes as photo-only.
 public enum LabelPhotoSpendPolicy {
     public static let perTapLimit = Decimal(string: "0.05")!
     public static let dailyCostLimit = Decimal(string: "0.50")!
@@ -65,27 +71,61 @@ public enum LabelPhotoSpendPolicy {
         charged(attempts, prices: prices) + worstCase(prices) <= perTapLimit
     }
 
-    /// One local day's counts, as the spend ledger stores them.
+    /// One local day's counts, as the spend ledger stores them: the shared day record.
     public struct Day: Equatable, Sendable, Codable {
+        /// The shared record's version, written on every encode (D14).
+        public static let recordVersion = "label-ai-spend-day-v1"
+
         public let day: String
+        /// Reads today across both routes (the shared cap).
         public let reads: Int
+        /// Cost today across both routes (the shared cap).
         public let cost: Decimal
+        /// The photo route's pause (D17: each route pauses only itself).
         public let paused: Bool
-        /// Taps reserved and not yet settled (#326 re-check): a settle acts only on its own open
-        /// tap, so a retried settle never applies twice.
+        /// Photo taps reserved and not yet settled (#326 re-check): a settle acts only on its own
+        /// open tap, so a retried settle never applies twice.
         public let openTaps: [String]
-        public init(day: String, reads: Int, cost: Decimal, paused: Bool, openTaps: [String] = []) {
-            self.day = day; self.reads = reads; self.cost = cost; self.paused = paused; self.openTaps = openTaps
+        /// The text route's share of `reads` and `cost`, its pause and its open taps.
+        public let text: LabelAISpendRouteShare
+        public init(day: String, reads: Int, cost: Decimal, paused: Bool, openTaps: [String] = [], text: LabelAISpendRouteShare = .none) {
+            self.day = day; self.reads = reads; self.cost = cost; self.paused = paused; self.openTaps = openTaps; self.text = text
         }
 
-        enum CodingKeys: String, CodingKey { case day, reads, cost, paused, openTaps }
+        enum CodingKeys: String, CodingKey { case day, reads, cost, paused, openTaps, version, text }
 
+        /// A record with no version is a photo-only record from before the text route. A record
+        /// with a version must name this one and hold the text share; a text share without a
+        /// version, negative counts, or a text share larger than the totals is corrupt, and throws,
+        /// so the ledger reads it as unreadable and both routes fail closed.
         public init(from decoder: any Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             day = try c.decode(String.self, forKey: .day); reads = try c.decode(Int.self, forKey: .reads)
             cost = try c.decode(Decimal.self, forKey: .cost); paused = try c.decode(Bool.self, forKey: .paused)
             openTaps = try c.decodeIfPresent([String].self, forKey: .openTaps) ?? []
+            switch try c.decodeIfPresent(String.self, forKey: .version) {
+            case nil:
+                guard !c.contains(.text) else {
+                    throw DecodingError.dataCorruptedError(forKey: .text, in: c, debugDescription: "a text share without a record version")
+                }
+                text = .none
+            case Self.recordVersion?:
+                text = try c.decode(LabelAISpendRouteShare.self, forKey: .text)
+            case let other?:
+                throw DecodingError.dataCorruptedError(forKey: .version, in: c, debugDescription: "unknown day record version \(other)")
+            }
+            guard reads >= 0, cost >= 0, text.reads >= 0, text.cost >= 0, text.reads <= reads, text.cost <= cost else {
+                throw DecodingError.dataCorruptedError(forKey: .reads, in: c, debugDescription: "inconsistent day counts")
+            }
         }
+
+        public func encode(to encoder: any Encoder) throws {
+            var c = encoder.container(keyedBy: CodingKeys.self)
+            try c.encode(day, forKey: .day); try c.encode(reads, forKey: .reads); try c.encode(cost, forKey: .cost)
+            try c.encode(paused, forKey: .paused); try c.encode(openTaps, forKey: .openTaps)
+            try c.encode(Self.recordVersion, forKey: .version); try c.encode(text, forKey: .text)
+        }
+
         public static func empty(_ day: String) -> Day { Day(day: day, reads: 0, cost: 0, paused: false) }
     }
 
@@ -137,7 +177,7 @@ public enum LabelPhotoSpendPolicy {
     public static func reservation(today: String, stored: Day?, tap: String = "") -> Day {
         let base = current(today: today, stored: stored)
         return Day(day: base.day, reads: base.reads + 1, cost: base.cost + perTapLimit, paused: base.paused,
-                   openTaps: tap.isEmpty ? base.openTaps : base.openTaps + [tap])
+                   openTaps: tap.isEmpty ? base.openTaps : base.openTaps + [tap], text: base.text)
     }
 
     /// The reconcile of an open tap on the day its reservation was written (the day the
@@ -145,10 +185,10 @@ public enum LabelPhotoSpendPolicy {
     /// Nil when the tap is no longer open on that day: nothing to do, so a retry never applies twice.
     public static func reconciled(_ now: Day, reservedOn: String, tap: String, attempts: [Attempt], prices: Prices) -> Day? {
         guard now.day == reservedOn, now.openTaps.contains(tap) else { return nil }
-        let settled = reconciled(Day(day: now.day, reads: now.reads, cost: now.cost, paused: now.paused), today: reservedOn,
+        let settled = reconciled(Day(day: now.day, reads: now.reads, cost: now.cost, paused: now.paused, text: now.text), today: reservedOn,
                                  attempts: attempts, prices: prices)
         return Day(day: settled.day, reads: settled.reads, cost: settled.cost, paused: settled.paused,
-                   openTaps: now.openTaps.filter { $0 != tap })
+                   openTaps: now.openTaps.filter { $0 != tap }, text: settled.text)
     }
 
     /// The release of an open tap that sent nothing, on the day its reservation was written.
@@ -156,7 +196,7 @@ public enum LabelPhotoSpendPolicy {
         guard now.day == reservedOn, now.openTaps.contains(tap) else { return nil }
         let settled = released(now, today: reservedOn)
         return Day(day: settled.day, reads: settled.reads, cost: settled.cost, paused: settled.paused,
-                   openTaps: now.openTaps.filter { $0 != tap })
+                   openTaps: now.openTaps.filter { $0 != tap }, text: settled.text)
     }
 
     /// The reservation turned into the tap's cost, as a delta on the day as it is now (#326
@@ -169,14 +209,15 @@ public enum LabelPhotoSpendPolicy {
         let reported = attempts.reduce(Decimal(0)) { $0 + ($1.reportedCost ?? 0) }
         let overCap = reported > perTapLimit
         let overInput = attempts.contains { ($0.promptTokens ?? 0) > promptTokenCeiling }
-        return Day(day: now.day, reads: now.reads, cost: max(0, now.cost - perTapLimit + tapCost(attempts, prices: prices)),
-                   paused: now.paused || overCap || overInput)
+        return Day(day: now.day, reads: now.reads, cost: max(now.text.cost, now.cost - perTapLimit + tapCost(attempts, prices: prices)),
+                   paused: now.paused || overCap || overInput, text: now.text)
     }
 
     /// A reservation released by a tap that sent nothing: one read and $0.05 fewer, as a delta.
     public static func released(_ now: Day, today: String) -> Day {
         guard now.day == today else { return now }
-        return Day(day: now.day, reads: max(0, now.reads - 1), cost: max(0, now.cost - perTapLimit), paused: now.paused)
+        return Day(day: now.day, reads: max(now.text.reads, now.reads - 1), cost: max(now.text.cost, now.cost - perTapLimit), paused: now.paused,
+                   text: now.text)
     }
 
     /// The day after a finished tap (success, failure or Cancel) that sent at least one attempt.
@@ -187,6 +228,6 @@ public enum LabelPhotoSpendPolicy {
         let overCap = reported > perTapLimit
         let overInput = attempts.contains { ($0.promptTokens ?? 0) > promptTokenCeiling }
         return Day(day: base.day, reads: base.reads + 1, cost: base.cost + tapCost(attempts, prices: prices),
-                   paused: base.paused || overCap || overInput)
+                   paused: base.paused || overCap || overInput, text: base.text)
     }
 }
