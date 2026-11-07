@@ -464,7 +464,7 @@ Nothing else is open.
 21. The text route checker refuses photo routes, and the photo checker refuses text routes.
 22. The `FoodConfirmation` and `LabelEstimateConfirm` sites in 11.4.
 23. Relabelled `.labelText` evidence is refused in both directions.
-24. The detector declines US per 100, Australian and New Zealand panels after the model, and reads an EU English panel as UK-format.
+24. The detector declines US per 100, Australian and New Zealand panels before any request is built, and again on the model's candidate. It reads an EU English panel as UK-format.
 25. Verifier replay of the unit check and the attention set, rejecting tampered stored gate flags or failed checks.
 26. Parity between the text target's copy of `parseValue` (with its unit table and comparators) and `LabelPhotoWireMapping.parseValue`.
 27. The locator vectors added in 4.3 for revision 4.
