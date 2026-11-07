@@ -50,7 +50,7 @@ If every change works as planned, up to 17 of the 24 v1 fresh labels might reach
 1. **P1, specification and gate.** Map the P1 set's declines to the causes, write the v2 rule spec, and pass the architecture gate.
 2. **P2, rules.** Implement changes 1 to 5 (and 6 if decision 4 says so), with synthetic tests. Re-run both development sets, reporting counts only.
 3. **P3, freeze.** Freeze UK reader v2 and commit the fresh-set protocol, with the copy method settled by decision 4.
-4. **P4, release check.** Collect, transcribe, verify and seal a new fresh set of 24, then do one run and the device step.
+4. **P4, release check.** Collect, transcribe, verify and seal a new fresh set of 24, then do one run and the device step. ([results](pasted-nutrition-label-uk-english-v2-p4.md): the harness step held the bar on 7 November 2026, with 5 of 24 labels reaching Confirm and none of the 9 tier A labels. The owner decided on 7 November 2026 not to ship v2; the device step and P5 are not run.)
 5. **P5, enable UK.** Only after P4 passes and the owner decides to ship, including the v1 P3 spec section 6 question.
 
 ## 6. Owner decisions
