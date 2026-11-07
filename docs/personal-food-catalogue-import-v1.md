@@ -42,6 +42,10 @@ change to HealthKit, Drive or the exports beyond what an ordinary saved log alre
 11. **Owner label values stay measured.** Values the owner typed or confirmed from a pack are
     `manual_declaration` and `measured` for the nutrients printed, as when a label is typed into the
     app today; Open Food Facts and generic values are `augmented`.
+12. **Existing log rule for identity facts.** An entry carrying label values may ask for unknown
+    preparation, packing medium, fortification and the other identity facts on Confirm before Log,
+    as Open Food Facts products already do; pure generic matches keep the estimate allowance (section
+    7). No log policy changes.
 
 ## 3. Architecture gate
 
@@ -286,7 +290,7 @@ contract section 8, in the same change that implements this document. Its method
   `generic_composition_dataset` provenance). An entry carrying label values is treated like an Open
   Food Facts product today: Confirm asks for any unknown preparation, bone, skin, drained state,
   packing medium or fortification through the existing correction flow before Log is enabled. No log
-  policy changes.
+  policy changes (decision 12).
 - On save, the ledger stores the resolution as today with only existing `ProvenanceSourceKind`
   cases, and persists `SourceRelease` records for the database release (section 4), for each cited
   label release (from `sources`) and for the merged generic record (the adapter's own release). The
