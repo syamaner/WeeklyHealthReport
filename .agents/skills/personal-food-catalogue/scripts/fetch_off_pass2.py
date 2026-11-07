@@ -19,6 +19,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from workspace_guard import check_output  # noqa: E402
+from private_config import CONFIG, require  # noqa: E402
 from http_client import CircuitOpen, Client, load_food_words, owner_approval, safe_query  # noqa: E402
 
 FIELDS = "code,product_name,brands,quantity,countries_tags,nutriments,serving_size,categories_tags"
@@ -26,7 +27,9 @@ PACK = re.compile(r"\s*(\d+\s*[xX×]\s*)?\d+(\.\d+)?\s*(kg|g|ml|cl|l)\b.*$|\s*\d
 MARKETING = re.compile(r"\b(organic|fairtrade|british|collection|our best ever|perfectly ripe|washed & ready to eat|"
                        r"washed and ready to eat|ready to eat|multipack|sharing bag|family pack|rainforest alliance|"
                        r"&\s*fairtrade)\b", re.I)
-BRAND_PREFIX = re.compile(r"^(m&s collection|m&s|ocado|marks & spencer)\s+", re.I)
+# Shop and brand prefixes to strip for query c (private config), longest first.
+BRAND_PREFIX = re.compile(r"^(" + "|".join(re.escape(p) for p in sorted(CONFIG["brand_prefixes"], key=len, reverse=True))
+                          + r")\s+", re.I) if CONFIG["brand_prefixes"] else re.compile(r"(?!)")
 
 
 def clean(s):
@@ -109,4 +112,5 @@ def main(work: Path, catalogue: Path):
 
 
 if __name__ == "__main__":
+    require()
     main(check_output(sys.argv[1]), Path(sys.argv[2]))

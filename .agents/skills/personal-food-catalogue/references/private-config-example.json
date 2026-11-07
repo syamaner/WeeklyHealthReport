@@ -1,0 +1,23 @@
+{
+  "schema": "pfc-private-config-v1",
+  "layouts": [
+    {"id": "example_grocer_receipt", "retailer": "Example Grocer", "parser": "itemised_receipt",
+     "match": {"text_contains_all": ["Your Example Grocer receipt"]}},
+    {"id": "example_grocer_order_page", "retailer": "Example Grocer", "parser": "order_page",
+     "match": {"text_contains_all": ["Order reference:", "Example Grocer"]}},
+    {"id": "example_health_invoice", "retailer": "Example Health Shop", "parser": "invoice_table",
+     "match": {"text_contains_any_casefold": ["examplehealth.test", "Example Health Shop"]}},
+    {"id": "example_online_order", "retailer": "Example Online Shop", "parser": "order_summary",
+     "match": {"file_name_contains": "Example Online"}},
+    {"id": "example_chemist_product_page", "retailer": "Example Chemist", "parser": "product_page_title",
+     "match": {"file_name_suffix": "- Example Chemist.pdf"}}
+  ],
+  "receipt_noise_prefixes": ["Example Weekly Deals"],
+  "site_chrome_prefixes": ["Favourites"],
+  "brand_honorifics": ["Mr Sample"],
+  "brand_aliases": {"a&b": ["a & b", "alpha & beta", "alpha beta"]},
+  "brand_prefixes": ["a&b", "example grocer"],
+  "title_stopwords": ["examplegrocer"],
+  "supplement_words": ["examplecaps"],
+  "supplement_retailers": ["Example Health Shop", "Example Chemist"]
+}

@@ -5,6 +5,9 @@ Allow-list: only item-line fields are ever written. Raw receipt text is held in
 memory only. A deny-list gate scans every output field and aborts without
 writing anything if a personal-data pattern or a header fragment appears.
 
+Shop layouts (marker strings, parser and shop name) come from the owner's private config
+(PFC_CONFIG, see private_config.py); with none set every document is reported as unknown.
+
 Usage: python3 -I extract_items.py <receipts_dir> <out_dir>
 """
 import hashlib
@@ -16,15 +19,17 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from workspace_guard import check_output  # noqa: E402
+from private_config import CONFIG, require  # noqa: E402
 
 ITEM_RECEIPT = re.compile(r"^\s{3,}(?P<name>\S.*?)\s{2,}(?P<d>\d+)/(?P<o>\d+)\s+£?\s*(?P<price>-?[\d.]+)\s*$")
 ITEM_ORDERPAGE = re.compile(r"^\s+(?P<q>\d+)\s*[хxX×]\s+(?P<rest>\S.*)$")  # Cyrillic х is real
 PER_UNIT = re.compile(r"^\s*\((?:£|)[\d.]+p?\s+per\s+(?P<unit>[a-z0-9 ]+)\)", re.I)
 RECEIPT_NOISE = re.compile(
-    r"^\s*(Fridge|Cupboard|Freezer|Use by end of|Products with|Now |Buy |Price Lock|New Low Price|"
-    r"Flash Sales|Seasonal Stars|Best of British|Save |Fill your|£\d+ .*Meal Deal|Delivered /|Ordered|"
-    r"Price to pay|You've saved|Page \d|Offers|Total|Cost of goods|Delivery charge|Carrier bag|Bag Recycle|"
-    r"Small order|Payment details|\*You have paid|Multi-buy|Was |Half price)", re.I)
+    r"^\s*(Fridge|Cupboard|Freezer|Use by end of|Products with|Now |Buy |"
+    r"Save |£\d+ .*Meal Deal|Delivered /|Ordered|"
+    r"Price to pay|You've saved|Page \d|Offers|Total|Cost of goods|Delivery charge|Carrier bag|"
+    r"Payment details|\*You have paid|Multi-buy|Was |Half price"
+    + "".join("|" + re.escape(p) for p in CONFIG["receipt_noise_prefixes"]) + ")", re.I)  # shop-specific words are private
 
 # Deny-list gate (applies to every string written).
 DENY = [
@@ -125,7 +130,7 @@ def parse_orderpage(lines):
     return meta, items, unclaimed, first or 0
 
 
-def parse_healf(lines):
+def parse_invoice_table(lines):
     items, start = [], None
     for i, ln in enumerate(lines):
         if ln.strip().startswith("Description"):
@@ -154,24 +159,34 @@ def parse_shopify_order(lines):
     return {"month": None}, items, [], first or 0
 
 
-def classify(path: Path, text: str):
-    if "Your Ocado receipt" in text:
-        return "ocado_receipt", "Ocado", parse_receipt
-    if "Order reference:" in text and "Ocado" in text:
-        return "ocado_orderpage", "Ocado", parse_orderpage
-    if "healf.com" in text.lower() or "Healthy Living Store" in text:
-        return "healf_invoice", "Healf", parse_healf
-    if "Organic Protein" in path.name:
-        return "shopify_order", "The Organic Protein Company", parse_shopify_order
-    if path.name.endswith("- Boots.pdf"):
-        return "boots_product_page", "Boots", None
+PARSERS = {"itemised_receipt": parse_receipt, "order_page": parse_orderpage,
+           "invoice_table": parse_invoice_table, "order_summary": parse_shopify_order,
+           "product_page_title": None}
+
+
+def matches(match, path: Path, text: str) -> bool:
+    """Every condition a layout names must hold."""
+    low = text.casefold()
+    return all([
+        all(m in text for m in match.get("text_contains_all", [])),
+        any(m.casefold() in low for m in match["text_contains_any_casefold"]) if "text_contains_any_casefold" in match else True,
+        match["file_name_contains"] in path.name if "file_name_contains" in match else True,
+        path.name.endswith(match["file_name_suffix"]) if "file_name_suffix" in match else True,
+    ])
+
+
+def classify(path: Path, text: str, layouts=None):
+    """First private layout whose markers all match: (layout id, shop, parser kind)."""
+    for lay in CONFIG["layouts"] if layouts is None else layouts:
+        if matches(lay["match"], path, text):
+            return lay["id"], lay["retailer"], lay["parser"]
     return "unknown", None, None
 
 
-# Exact, reviewed exceptions: brand names that look like honorifics, and
-# Ocado site-navigation words that also occur in product titles.
-BRAND_HONORIFICS = {"Mr Organic", "Mr Filberts", "Mr Kipling"}
-SITE_CHROME_PREFIXES = ("Favourites", "Christmas")
+# Exact, reviewed exceptions, kept in the private config: brand names that look like
+# honorifics, and site-navigation words that also occur in product titles.
+BRAND_HONORIFICS = set(CONFIG["brand_honorifics"])
+SITE_CHROME_PREFIXES = tuple(CONFIG["site_chrome_prefixes"])
 
 
 def gate(records, chunks_by_doc):
@@ -196,16 +211,18 @@ def main(src: Path, out: Path):
         raw = path.read_bytes()
         doc_id = hashlib.sha256(raw).hexdigest()[:16]
         text = pdf_text(path)
-        layout, retailer, parser = classify(path, text)
+        layout, retailer, kind = classify(path, text)
         lines = text.splitlines()
+        parser = PARSERS.get(kind)
         if parser is None:
             items, meta, unclaimed, first = [], {"month": None}, [], 0
-            if layout == "boots_product_page":
-                title = path.name.rsplit(" - Boots.pdf", 1)[0]
+            if kind == "product_page_title":
+                suffix = next(l["match"]["file_name_suffix"] for l in CONFIG["layouts"] if l["id"] == layout)
+                title = path.name[:-len(suffix)].rstrip(" -")
                 items = [{"line_no": 0, "name": title, "reference_only": True}]
         else:
             meta, items, unclaimed, first = parser(lines)
-        chunks_by_doc[doc_id] = header_chunks(lines, first) if layout != "boots_product_page" else set()
+        chunks_by_doc[doc_id] = header_chunks(lines, first) if kind != "product_page_title" else set()
         for it in items:
             records.append({"doc_id": doc_id, "layout": layout, "retailer": retailer, **meta, **it})
         coverage.append({"doc_id": doc_id, "layout": layout, "items": len(items),
@@ -232,4 +249,5 @@ def main(src: Path, out: Path):
 
 
 if __name__ == "__main__":
+    require()
     main(Path(sys.argv[1]), check_output(sys.argv[2]))

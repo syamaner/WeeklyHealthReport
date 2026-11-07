@@ -16,6 +16,16 @@ derived value live only in the private workspace.
    git checkout). Scripts refuse a workspace inside a git tree or readable by others. Never copy
    inputs, intake files, caches or catalogue output into this repository, an issue, a PR or a
    commit. Repository tests use synthetic fixtures only.
+   **Names that identify the owner stay private too:** the shops they buy from, their receipt
+   layouts and markers, brand exceptions and aliases, and supplement names live in
+   `<workspace>/private-config.json` (format `pfc-private-config-v1`, see `scripts/private_config.py`
+   and the synthetic `references/private-config-example.json`). Run every script with
+   `PFC_CONFIG=<workspace>/private-config.json` set; with it unset the gates allow no brand
+   exceptions, the extractor recognises no layout, and every script that writes catalogue output
+   refuses to run. A brand exception must be exactly one title and one capitalised word, and a
+   site-chrome prefix one capitalised word of four or more letters, so the file can never loosen a gate
+   beyond an exact name. Never copy the owner's shop or brand names into scripts, tests or docs: add
+   them to that file.
 2. **Sanitise before anything else.** Extract by allow-list: food titles, brand, pack size, label
    values. Never keep names, addresses, postcodes, emails, card or payment details, order or
    invoice numbers, prices or amounts eaten. `intake.py add` rejects files with personal-data
@@ -108,7 +118,8 @@ Facts, OpenRouter label reading) run is unchanged and decided by the existing es
 
 | Script | Purpose |
 |---|---|
-| `extract_items.py` | Sanitising receipt extractor (Ocado receipts and order pages, Healf, Shopify order pages, Boots product pages) with deny-list gate |
+| `extract_items.py` | Sanitising receipt extractor with deny-list gate; shop layouts come from the private config (itemised receipts, order pages, invoice tables, order summaries, product page titles) |
+| `private_config.py` | Loads and validates the private config that `PFC_CONFIG` names; empty and strictest when unset |
 | `build_unique.py`, `prepare_families.py` | First-time receipt grouping (do not re-run on an existing catalogue: use `receipts_to_intake.py`) |
 | `receipts_to_intake.py` | New receipts later: new titles only, as an intake file |
 | `extract_exports.py`, `match_inputs.py` | App daily exports: entry names and notes text, and matching against the catalogue |
@@ -128,8 +139,8 @@ Keep it compatible with Codex and Claude Code: canonical files here, relative sy
 `.claude/skills/personal-food-catalogue`. Documentation-only changes need `git diff --check`.
 After touching scripts, run `python3 -I scripts/test_http_client.py scripts`,
 `python3 -I scripts/test_off_rules.py scripts`, `python3 -I scripts/test_outbound_gate.py scripts`,
-`python3 -I scripts/test_owner_approval.py scripts`, `python3 -I scripts/test_compile_all.py scripts`, `python3 -I scripts/test_guards_and_edges.py scripts` and
+`python3 -I scripts/test_owner_approval.py scripts`, `python3 -I scripts/test_private_config.py scripts`, `python3 -I scripts/test_compile_all.py scripts`, `python3 -I scripts/test_guards_and_edges.py scripts` and
 `python3 -I scripts/test_export_check.py scripts docs/fixtures/personal-food-database-v1` (from the
-repository root). When a rejection rule changes, regenerate the shared fixtures with `--write
+repository root). These tests run locally only; CI does not run them. When a rejection rule changes, regenerate the shared fixtures with `--write
 docs/fixtures/personal-food-database-v1` and review the diff: the Swift importer tests read them too.
 When `OpenFoodFactsLookup.swift` changes, update `off_rules.py` and its tests in the same change.

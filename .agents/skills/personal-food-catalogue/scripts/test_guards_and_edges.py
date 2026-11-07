@@ -10,6 +10,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+os.environ.pop("PFC_CONFIG", None)  # synthetic only: never the owner's private config
 S = Path(sys.argv[1]).resolve()
 sys.path.insert(0, str(S))
 import export_v1 as E  # noqa: E402
@@ -34,12 +35,15 @@ with tempfile.TemporaryDirectory() as tmp:
 
     empty = ws / "work" / "empty.jsonl"
     empty.write_text("")
+    cfg = ws / "private-config.json"  # synthetic example, copied into the private folder
+    cfg.write_text((S.parent / "references" / "private-config-example.json").read_text(encoding="utf-8"), encoding="utf-8")
+    os.chmod(cfg, 0o600)
     r = subprocess.run([sys.executable, "-I", str(S / "build_unique.py"), str(empty), str(ws / "work" / "out")],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, env={**os.environ, "PFC_CONFIG": str(cfg)})
     results.append(("empty purchase lines give a controlled result", r.returncode == 0 and "no products" in r.stdout))
 
-results.append(("M&S survives tokenising", "m&s" in M.toks("M&S Greek Yogurt")))
-results.append(("another brand is not a product match", not (M.toks("M&S") <= M.toks("Tesco Greek Yogurt"))))
+results.append(("an ampersand brand survives tokenising", "a&b" in M.toks("A&B Greek Yogurt")))
+results.append(("another brand is not a product match", not (M.toks("A&B") <= M.toks("Other Greek Yogurt"))))
 
 cat = {"items": [{"kind": "food", "title": "Synthetic Oats", "brand": None, "category": ["x"], "product_type": {"a": 1},
                   "state": None, "nutrients": {}, "label_tiers": {}}], "off_releases": {}}
