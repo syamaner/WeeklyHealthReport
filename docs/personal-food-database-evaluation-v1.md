@@ -8,7 +8,7 @@ with the mechanics they asked for (sections 2, 4, 5 and 8) and closes judging ga
 (decisions 5 to 7). Phase E0 of the personal food database work, after the accepted [import
 contract](personal-food-catalogue-import-v1.md) (#419). It defines how the database and its search are
 measured **before any importer code is written**. It adds no product code and changes no shipped
-behaviour. Issue: to be opened.
+behaviour. Issue: #424.
 
 In this file, "decision N" means section 9, decision N of this file; contract decisions are written
 "contract decision N".

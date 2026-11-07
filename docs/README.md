@@ -37,7 +37,7 @@ Start with [`../AGENTS.md`](../AGENTS.md) for working rules and [privacy and egr
 - [Food query interpretation v4](food-query-interpretation-v4.md) (a household unit with no amount before it, as in "mugs of tea" or "250 ml mug of milk", leaves the search text); current version v5 is recorded in [unified food search contract v73](unified-food-search-contract-v1.md) (#370, a named dish's exact amount)
 - [Local inventory contract](local-inventory-contract.md)
 - [Personal food database import v1](personal-food-catalogue-import-v1.md) (#419): local import of the owner's private nutrition database built with the [`personal-food-catalogue`](../.agents/skills/personal-food-catalogue/SKILL.md) skill; accepted by the owner on 7 November 2026 (revision 5, twelve owner decisions); implementation not started, it is a separate phase with its own architecture gate; synthetic [fixtures](fixtures/personal-food-database-v1/)
-- [Personal food database evaluation v1](personal-food-database-evaluation-v1.md): phase E0 plan for measuring the private database and its search before the importer is built; owner-set acceptance bars, a sealed held-out query set and counts-only results; draft, revision 3
+- [Personal food database evaluation v1](personal-food-database-evaluation-v1.md) (#424): phase E0 plan for measuring the private database and its search before the importer is built; owner-set acceptance bars, a sealed held-out query set and counts-only results; draft, revision 3
 - [Storage and backup decision](food-library-storage-and-backup-decision.md)
 - [HealthKit food write plan](food-healthkit-write-plan.md) (planning; HealthKit stays read-only)
 
