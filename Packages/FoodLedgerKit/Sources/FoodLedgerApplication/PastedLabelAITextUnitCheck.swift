@@ -68,7 +68,11 @@ public enum PastedLabelAITextUnitCheck {
     /// and `每100 公克` are basis quantities even where the number is not a value token.
     static func digitBefore(_ scan: PastedLabelTextScan, _ index: Int, line: PastedLabelTextScan.Line) -> Bool {
         var position = index - 1
-        while position >= line.start, scan.scalars[position].properties.isWhitespace { position -= 1 }
+        // Spaces and opening brackets are skipped, so `per 100 g`, `per100 g` and `Per 100 (g)` all read
+        // the `g` as the basis quantity's unit, never as a unit stated for the values (D16).
+        let openers: Set<Unicode.Scalar> = ["(", "[", "\u{FF08}", "\u{FF3B}"]
+        while position >= line.start,
+              scan.scalars[position].properties.isWhitespace || openers.contains(scan.scalars[position]) { position -= 1 }
         return position >= line.start && PastedLabelAITextValueGrammar.isDigit(scan.scalars[position])
     }
 

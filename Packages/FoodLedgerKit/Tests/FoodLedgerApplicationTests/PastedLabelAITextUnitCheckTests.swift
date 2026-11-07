@@ -45,6 +45,14 @@ final class PastedLabelAITextUnitCheckTests: XCTestCase {
         XCTAssertEqual(outcome("每100 公克\n鈉 400", header: "每100 公克", label: "鈉", printed: "400", unit: "公克"), .notStated)
     }
 
+    func testBracketedUnitAfterADigitIsTheBasisQuantity() {
+        XCTAssertEqual(outcome("Per 100 (g)\nFat 5", header: "Per 100 (g)", label: "Fat", printed: "5", unit: "g"), .notStated)
+        XCTAssertEqual(outcome("每100（公克）\n脂肪 5", header: "每100（公克）", label: "脂肪", printed: "5", unit: "公克"), .notStated)
+        XCTAssertEqual(outcome("Per 100 [g]\nFat 5", header: "Per 100 [g]", label: "Fat", printed: "5", unit: "g"), .notStated)
+        XCTAssertEqual(outcome("Per 100 g (g)\nFat 5", header: "Per 100 g (g)", label: "Fat", printed: "5", unit: "g"), .statedInHeader,
+                       "a bracketed unit after a word still states the unit")
+    }
+
     func testBareNumberWithoutAUnitIsMissingAndNeverAValue() {
         // Review F9: `.missing` is not an attention item only because the mapping leaves the value
         // unread (a not-read cell, never zero); A2's text mapping enforces that.
