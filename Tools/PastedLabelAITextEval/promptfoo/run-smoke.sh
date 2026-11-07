@@ -16,16 +16,19 @@
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 scratch="${1:?usage: run-smoke.sh SCRATCH_DIR}"
-mkdir -p "$scratch"
-scratch="$(cd "$scratch" && pwd)"
+# Resolve the path through its (existing) parent before creating anything, so a refused path is
+# never created.
+parent="$(cd "$(dirname "$scratch")" 2>/dev/null && pwd -P)" || { echo "the scratch directory's parent must exist" >&2; exit 2; }
+scratch="$parent/$(basename "$scratch")"
 # Never inside the repository (any path under its top level) or promptfoo's home default.
 repo="$(git -C "$here" rev-parse --show-toplevel)"
 repo="$(cd "$repo" && pwd -P)"
-scratch_real="$(cd "$scratch" && pwd -P)"
+scratch_real="$scratch"
 case "$scratch_real/" in
   "$repo"/*) echo "the scratch directory must be outside the repository ($repo)" >&2; exit 2 ;;
 esac
 case "$scratch_real" in "$HOME"/.promptfoo*) echo "the scratch directory must not be promptfoo's home default" >&2; exit 2 ;; esac
+mkdir -p "$scratch"
 swift build --package-path "$here/.." -c debug --product PastedLabelAITextEval >&2
 bin="$(swift build --package-path "$here/.." -c debug --show-bin-path)/PastedLabelAITextEval"
 run="$scratch/run"
