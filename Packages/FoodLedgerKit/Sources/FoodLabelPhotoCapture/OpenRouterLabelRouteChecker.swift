@@ -39,7 +39,8 @@ public struct OpenRouterLabelRouteChecker: LabelPhotoRouteChecking {
     }
 
     public func check(_ route: LabelPhotoRoute.Route) async throws -> LabelPhotoManifest.CatalogueCheck {
-        guard let url = Self.endpointsURL(route) else { throw CheckError.malformed }
+        // A text route is never checked as a photo route (docs/pasted-label-ai-text-v1.md 4.2, test 21).
+        guard route.version != PastedLabelAITextRoute.version, let url = Self.endpointsURL(route) else { throw CheckError.malformed }
         let listing = try await fetch(url)
         let zeroDataRetention = try await fetch(Self.zeroDataRetentionURL)
         return try Self.parse(listing: listing, zeroDataRetention: zeroDataRetention, route: route,
