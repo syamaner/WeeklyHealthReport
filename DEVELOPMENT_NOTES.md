@@ -3782,3 +3782,27 @@ Excluded:
 - this ledger edit, the commit, the push and the PR after the window.
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a charge. Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-416-2026-11-07b: Claude Code AI text evaluation framework and metrics, A0 amendment (#416)
+
+The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) did four things:
+- compared evaluation frameworks;
+- checked promptfoo's documentation;
+- amended spec sections 5.2 and 5.2.1 with decisions D21 and D22;
+- ran two local Qodo reviews.
+
+The window runs from the owner's question at `2026-11-07T18:19:01Z` to `2026-11-07T18:35:10Z`. No subagent ran, and all cache writes were 1-hour.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| AI text evaluation framework and metrics (#416), coordinator session | 6,260,735 (6,236,847) | 23,844 | 17,421 | 6,278,156 | $1.79 |
+| **Subtotal** | 6,260,735 (6,236,847) | 23,844 | 17,421 | 6,278,156 | $1.79 |
+
+Method: `phase_usage.py --format claude --since 2026-11-07T18:19:01Z --until 2026-11-07T18:35:10Z --include-subagents` on the session transcript; exact USD 1.7867174.
+
+Excluded:
+- the Qodo review runs;
+- the merges of #415 and #417 between `2026-11-07T18:13:39Z` and this window, which are unmeasured;
+- this ledger edit, the commit, the push and the PR after the window.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a charge. Token totals are not evidence of productivity, quality or provider efficiency.

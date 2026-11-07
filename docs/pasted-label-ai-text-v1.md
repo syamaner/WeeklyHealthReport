@@ -1,6 +1,6 @@
 # Pasted label AI reading v1: text first (#416)
 
-Status: **draft spec, revision 5, 7 November 2026. Documents only; no production code and no egress yet.** The owner decided D2 to D20 on 7 November 2026 (section 9), including the evaluation egress terms T1 to T7. The product route's egress terms (T8 to T12) still need line-by-line approval before the route sends anything. The architecture gate returned FAIL on revision 1 and PASS WITH CHANGES on revision 2. Revision 3 applied N1 to N16, and its re-check returned PASS WITH CHANGES. Revision 4 applied R1 to R6 and was confirmed PASS WITH CHANGES, with five wording gaps that were not blocking. Revision 5 closes those gaps and the six findings from a local Qodo review. Revision 5 itself has not been re-gated. The A1 PR opens with a gate pass on its own diff.
+Status: **draft spec, revision 5, 7 November 2026. Documents only; no production code and no egress yet.** The owner decided D2 to D22 on 7 November 2026 (section 9), including the evaluation egress terms T1 to T7. The product route's egress terms (T8 to T12) still need line-by-line approval before the route sends anything. The architecture gate returned FAIL on revision 1 and PASS WITH CHANGES on revision 2. Revision 3 applied N1 to N16, and its re-check returned PASS WITH CHANGES. Revision 4 applied R1 to R6 and was confirmed PASS WITH CHANGES, with five wording gaps that were not blocking. Revision 5 closes those gaps and the six findings from a local Qodo review. Revision 5 itself has not been re-gated. The A1 PR opens with a gate pass on its own diff.
 
 ## 1. Problem
 
@@ -238,22 +238,66 @@ Every set below is real public label text with a blind, owner-verified transcrip
 
 One evaluation format replaces the per-programme schemas. A converter maps the Taiwan and UK transcription schemas into it, proven by round-trip tests on synthetic fixtures. The existing data is not edited.
 
-### 5.2 Harness
+### 5.2 Harness (amended 7 November 2026, D21 and D22)
 
-- **Driven through the shipped Swift code:** the request builder, mapping, gate, locator, vocabulary check and attention, like `Tools/LabelPhotoE13`, not a Python lookalike. The photo evaluation's budget, consent and spend-ledger code is reused.
-- **Output** in the release run format, so scorer v2's per-value rules decide wrong values. A text-route scorer adds the AI-specific counts.
-- **Each run** records the prompt version, model, endpoint, the text's hash and the raw response, privately. The repo gets counts only.
-- **A run matrix:** prompt versions by models. Each cell runs on all tuning labels, with spend stops of $5 per cell and $25 for the programme (T5).
-- **Pinned before A4:** the scorer, the converter and the frozen version, by SHA.
+**Framework: promptfoo (D21), run locally.** It runs the matrix of prompt versions by models, caches responses so that re-scoring never pays again, records cost and latency per call, and shows results in a local viewer. Scoring stays in the shipped Swift code (architecture gate finding M5), so promptfoo orchestrates and never decides a value.
 
-**Metrics per cell:**
-- tables reaching Confirm;
-- wrong values;
-- silent-error tables;
-- no-edit tables;
-- attention items per table;
-- failed and declined reads;
-- median and p90 cost and latency.
+1. **Sending, with spend enforced.** promptfoo calls a custom JavaScript provider (`file://`), which runs `PastedLabelAITextEval send` for each label. That Swift tool:
+   - builds the request with the shipped text request builder, so the evaluated request is the product's (instruction and schema SHA, and the provider block with `only` and `order` pinned to one ZDR endpoint, `allow_fallbacks: false`, `data_collection: "deny"` and `zdr: true`, as T3 requires);
+   - before every call, reserves the call's worst-case cost W in the photo evaluation's existing spend ledger (T5), and refuses to send when the reservation would pass the $5 cell stop or the $25 programme stop;
+   - sends through the shipped OpenRouter transport to `https://openrouter.ai/api/v1/chat/completions` (T1), with the key from the environment only (T4);
+   - settles the reservation to the reported cost. A call with no reported cost stays recorded in the ledger as **unknown cost**, charged at W towards the stops, so the ledger's existing stop on unknown-cost calls still applies;
+   - returns the raw response, token usage, cost and latency to promptfoo.
+
+   A refused call counts as failed, and the stop ends the cell. promptfoo's HTTP and OpenRouter providers are not used: the first would send outside the spend ledger, and the second documents no way to pass the provider routing block. The product's shared daily cap (D14) applies to the app, not to evaluation runs, which T5 governs.
+2. **Scoring.** A `file://` JavaScript assertion passes each raw response to `PastedLabelAITextEval score`, which runs the shipped steps in product order:
+   - the text mapping;
+   - **decline gate v2** (with `.uk` for UK candidates), the conversions and the arithmetic checks;
+   - the panel detector;
+   - the locator, unit and vocabulary checks;
+   - attention;
+   - scorer v2, against the label's transcription.
+
+   A table counts as reaching Confirm only when the product would show it. Only a **hard decline** counts as declined (D19): gate G1 or G2, a detector decline, or a mapping that leaves no usable table. Gate findings G3 to G6 travel to Confirm as flags or attention items, exactly as in the product. The assertion returns `pass`, `score` and `namedScores` for every per-label count in 5.2.1, and the response's model and provider must match the pinned route, or the label counts as failed (T3).
+3. **Caching.** `PastedLabelAITextEval send` keeps its own response cache in the private folder, keyed by the SHA-256 of the request body, so re-scoring a cell reuses its responses and never pays again. promptfoo's cache is not relied on, because it is not documented for custom providers. A cached response keeps its original recorded cost, and is not charged again in the ledger.
+4. **Statistics.** A small script of our own reads promptfoo's exported results and computes the metrics and tests in 5.2.1. promptfoo's own pass rates are not used as results.
+5. **Local only:**
+   - telemetry, update checks and sharing are switched off by environment variable, checked against promptfoo's current documentation in A2;
+   - its cache, database and exports are kept in the private folder, never in the repo or the home directory default;
+   - promptfoo is pinned to an exact version, chosen in A2 and at least two weeks old;
+   - A3's developer-tooling note in `privacy-and-egress.md` names it as local tooling that adds no destination.
+6. **Runs.** Each run records the prompt version, model, endpoint, the text's hash and the raw response, privately. The repo gets counts only. Spend stops are $5 per cell and $25 for the programme (T5). The scorer, converter, statistics script, promptfoo version and frozen route are pinned by SHA before A4.
+
+### 5.2.1 Metrics (standard, D22)
+
+Each metric is computed per cell on the tuning set, and once on the held-out set. Every metric comes with a 95% interval, chosen by what it is:
+- **Label-level proportions** (exact match, no edit, coverage, failed reads, silent-error tables): Wilson, or Clopper-Pearson (exact) when the count is 0 or equals the total.
+- **Field-level metrics** (precision, recall and F1, micro and macro), error-detection precision and recall, and attention items per table: a percentile bootstrap that resamples **labels**, 10,000 times. Fields within one label are not independent, so no binomial interval is used for them.
+
+- **Field level** (key information extraction, as in the SROIE and CORD benchmarks):
+  - A field is one printed value: one nutrient under one basis.
+  - It is correct only on an exact match with the transcription after unit normalisation, under scorer v2.
+  - **Precision** is correct fields over fields shown at Confirm. **Recall** is correct fields over printed fields. **F1** combines the two. All three are reported micro (pooled over values) and macro (averaged per label).
+  - **Macro averages:** macro precision averages over the labels that reach Confirm, and the count of labels excluded is reported beside it. Macro recall and F1 average over all labels. A failed or declined label scores 0 on both, since none of its printed fields was read.
+- **Document level:**
+  - **exact match:** every field of the table correct, and nothing missing;
+  - **no edit,** as defined in 5.3.
+- **Selective prediction:**
+  - **coverage:** tables reaching Confirm over labels;
+  - **risk:** tables with any wrong value over tables reaching Confirm.
+- **Error detection** (attention items as a classifier of wrong values):
+  - **recall:** wrong values with an attention item over wrong values. A silent error is a miss;
+  - **precision:** attention items on wrong values over all attention items. The rest are false alarms, and they are the burden on the user;
+  - attention items per table.
+- **Operational:** failed and declined reads, plus cost and latency at p50 and p90.
+- **Breakdowns:** by nutrient, by layout shape (one row per line, one value per line, misaligned, unitless), by tier and by copy method.
+- **Comparing versions** (tuning set only):
+  - prompt and model versions are compared on the same labels;
+  - a **McNemar test** for table-level exact match;
+  - a **paired bootstrap** (10,000 resamples over labels) for field F1;
+  - the number of versions compared is reported with the winner, and no held-out label informs the choice.
+- **Ground-truth reliability:** for a sample of at least 12 tuning labels, a second independent blind transcription. Field-level exact agreement is reported. A disagreement is resolved against the source before scoring, and the rate is published.
+- **The 5.3 bar** is unchanged and still gates release. It is reported beside these metrics. The held-out set is small: zero silent errors in 24 tables still allows a true rate of up to about 14% (two-sided 95%), and the result states this.
 
 ### 5.3 Bar for the held-out run (accepted by the owner, 7 November 2026, D5 and D12)
 
@@ -325,7 +369,7 @@ Two separate approvals: the evaluation runs (T1 to T7), then the product route (
 |---|---|---|
 | A0 | This spec, the owner decisions, the architecture gate | None |
 | A1 | The evaluation format, converters, the text locator as pure code, synthetic adversarial fixtures, and the bar committed | None |
-| A2 | The text harness over a fake transport; scorer parity on synthetic runs | None |
+| A2 | The harness: `PastedLabelAITextEval` (request builder and scorer CLI), the promptfoo configuration with its custom `file://` provider and assertion, the spend reservation and the response cache, the statistics script, and promptfoo pinned with telemetry, updates and sharing off. All run over a fake transport, with scorer parity on synthetic runs | None |
 | A3 | Tuning runs: the matrix, results as counts, and prompt and model frozen. Before the first run, a developer-tooling note for these runs is added to `privacy-and-egress.md` | T1 to T6 |
 | A4 | The held-out run and its result | T7 |
 | A5 | The product route behind a launch argument: Read with AI, Confirm with the text pane, manifest and admission | None until T8 to T12 |
@@ -355,6 +399,8 @@ Two separate approvals: the evaluation runs (T1 to T7), then the product route (
 | D18 | EU English panels | **Decided (owner, 7 November 2026): read as UK-format declarations,** under the UK rules and bar. US per 100, Australian and New Zealand panels decline after the model on a detector |
 | D19 | Does a gate decline after a valid model reply count against bar 3? | **Decided (owner, 7 November 2026): yes.** Every held-out label ends as exactly one of reached Confirm, failed or declined |
 | D20 | Is the stored text in the Drive export and archives? | **Decided (owner, 7 November 2026): as the pasted route does today,** with no new export key |
+| D21 | Evaluation framework | **Decided (owner, 7 November 2026): promptfoo, run locally,** driving the shipped Swift request builder and scorer (5.2). Ragas and other LLM-judge tools were rejected, because the labels have exact ground truth. Hosted platforms were rejected because they would be a new egress destination |
+| D22 | Metrics | **Decided (owner, 7 November 2026): standard metrics** (5.2.1), each with a 95% interval: field precision, recall and F1, exact match, coverage and risk, error-detection precision and recall, paired tests between versions, and ground-truth agreement |
 
 ## 10. Not changing
 
