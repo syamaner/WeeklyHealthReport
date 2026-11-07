@@ -224,10 +224,12 @@ public struct PastedLabelTextScan: Sendable {
     /// (Unicode Sm: `≦`, `~`, `=` and the like), or a bound word of `leftBoundWords`; or has, as
     /// its right neighbour past spaces and punctuation on its line, a bound word of
     /// `rightBoundWords` (Qodo findings on #421 at 21e2d76). The token then may have lost its
-    /// bound. The closed comparator lists of the grammar are unchanged.
+    /// bound. The closed comparator lists of the grammar are unchanged. A token that prints its own
+    /// comparator (`<= 0.5g or less`, `少於5毫克以下`) already carries its bound, so a redundant bound
+    /// word on either side adds no attention (A1 finding carried to A2 of #416).
     public func comparatorOutside(_ token: Token) -> Bool {
-        if boundWordAfter(token) { return true }
         guard token.comparator == "=" else { return false }
+        if boundWordAfter(token) { return true }
         var index = token.start - 1
         while index >= 0, scalars[index].properties.isWhitespace || Self.isLineBreak(scalars[index]) || Self.isPunctuation(scalars[index]) {
             index -= 1
