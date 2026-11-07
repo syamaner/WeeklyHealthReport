@@ -246,7 +246,7 @@ One evaluation format replaces the per-programme schemas. A converter maps the T
    - builds the request with the shipped text request builder, so the evaluated request is the product's (instruction and schema SHA, and the provider block with `only` and `order` pinned to one ZDR endpoint, `allow_fallbacks: false`, `data_collection: "deny"` and `zdr: true`, as T3 requires);
    - before every call, reserves the call's worst-case cost W in the photo evaluation's existing spend ledger (T5), and refuses to send when the reservation would pass the $5 cell stop or the $25 programme stop;
    - sends through the shipped OpenRouter transport to `https://openrouter.ai/api/v1/chat/completions` (T1), with the key from the environment only (T4);
-   - settles the reservation to the reported cost, or to W when no cost is reported;
+   - settles the reservation to the reported cost. A call with no reported cost stays recorded in the ledger as **unknown cost**, charged at W towards the stops, so the ledger's existing stop on unknown-cost calls still applies;
    - returns the raw response, token usage, cost and latency to promptfoo.
 
    A refused call counts as failed, and the stop ends the cell. promptfoo's HTTP and OpenRouter providers are not used: the first would send outside the spend ledger, and the second documents no way to pass the provider routing block. The product's shared daily cap (D14) applies to the app, not to evaluation runs, which T5 governs.
@@ -258,7 +258,7 @@ One evaluation format replaces the per-programme schemas. A converter maps the T
    - attention;
    - scorer v2, against the label's transcription.
 
-   A table counts as reaching Confirm only when the product would show it. A gate or detector decline is scored as declined (D19). The assertion returns `pass`, `score` and `namedScores` for every per-label count in 5.2.1, and the response's model and provider must match the pinned route, or the label counts as failed (T3).
+   A table counts as reaching Confirm only when the product would show it. Only a **hard decline** counts as declined (D19): gate G1 or G2, a detector decline, or a mapping that leaves no usable table. Gate findings G3 to G6 travel to Confirm as flags or attention items, exactly as in the product. The assertion returns `pass`, `score` and `namedScores` for every per-label count in 5.2.1, and the response's model and provider must match the pinned route, or the label counts as failed (T3).
 3. **Caching.** `PastedLabelAITextEval send` keeps its own response cache in the private folder, keyed by the SHA-256 of the request body, so re-scoring a cell reuses its responses and never pays again. promptfoo's cache is not relied on, because it is not documented for custom providers. A cached response keeps its original recorded cost, and is not charged again in the ledger.
 4. **Statistics.** A small script of our own reads promptfoo's exported results and computes the metrics and tests in 5.2.1. promptfoo's own pass rates are not used as results.
 5. **Local only:**
@@ -278,6 +278,7 @@ Each metric is computed per cell on the tuning set, and once on the held-out set
   - A field is one printed value: one nutrient under one basis.
   - It is correct only on an exact match with the transcription after unit normalisation, under scorer v2.
   - **Precision** is correct fields over fields shown at Confirm. **Recall** is correct fields over printed fields. **F1** combines the two. All three are reported micro (pooled over values) and macro (averaged per label).
+  - **Macro averages:** macro precision averages over the labels that reach Confirm, and the count of labels excluded is reported beside it. Macro recall and F1 average over all labels. A failed or declined label scores 0 on both, since none of its printed fields was read.
 - **Document level:**
   - **exact match:** every field of the table correct, and nothing missing;
   - **no edit,** as defined in 5.3.
