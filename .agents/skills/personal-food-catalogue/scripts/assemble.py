@@ -105,7 +105,7 @@ def score_off(title, brand_guess, hit):
         rest = toks(name) - toks(lead)
         if len(lead) > 2 and lead in name_words and rest and name_coverage(title, hit) >= 0.75:
             brand_ok = True
-    brand_toks = {t for b in nb for t in toks(b)} | alias_words(nb | {lead})
+    brand_toks = {t for b in nb for t in toks(b)} | alias_words(nb)  # only the candidate's own brands
     tt = toks(re.sub(r"\d+(\.\d+)?\s*(kg|g|ml|cl|l)\b", "", title, flags=re.I)) - brand_toks
     ht = toks(name) - brand_toks
     if not tt or not ht:

@@ -72,6 +72,11 @@ with tempfile.TemporaryDirectory() as tmp:
                     "{'product_name': 'Greek Yogurt', 'brands': ['Alpha and Beta']})[1])", good)
     results.append(("config: a spaced spelling at the start of a title is that brand", rc == 0 and out == "True"))
 
+    rc, out = probe("import assemble as A; print(A.score_off('Alpha and Beta Oats', None, {'product_name': 'Oats', 'brands': ['Other']})[0], "
+                    "A.score_off('Example Oats', None, {'product_name': 'Oats', 'brands': ['Other']})[0])", good)
+    results.append(("config: a configured title brand gains no score against an unrelated candidate",
+                    rc == 0 and out == "0.533 0.65"))
+
     rc, out = probe("import assemble as A; print(A.norm_brand('ALPHA & BETA'))", good)
     results.append(("config: spellings are normalised like brands ('and' and '&')", rc == 0 and out == "a&b"))
 
