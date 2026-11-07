@@ -38,6 +38,50 @@ From this commit:
 3. **The block rule is unchanged.** On a CAPTCHA, bot check or traffic-verification page the agent stops, logs `blocked` (collector `agent`) and never clears it. The owner becomes that site's collector for the rest of collection.
 4. **Reported.** The results count labels by browser beside the copy-method counts.
 
+### Amendment 4 (owner, 7 November 2026, after collection, before the text seal and before any reader run on fresh text)
+
+Collection filled all 24 slots. An independent read-only review of the private records (no browsing, no reader, parser or test run) found every saved text matching its recorded hash, none matching the excluded set, and the site cap held. It also found owner rulings made in chat that were never committed, and four slots whose first-eligible order is not shown by the records:
+
+- slot 19: the walk resumed at result 21 of a list whose results 10 to 20 the skip log never records;
+- slot 22: the 30-result window counted two video entries, which are not results;
+- slots 21 to 23: results were judged from Google's results page without being opened, and one `non_uk` skip rests on the site's domain alone.
+
+Nothing about any label's reader output is known: no reader or parser has run on a fresh text. From this commit:
+
+1. **Rulings made during collection, recorded.**
+   1. *Paid tiles.* Ocado tiles labelled "Featured" are paid placements and not results, like "Sponsored" (6 November, slot 13, before any Ocado result was opened).
+   2. *Google retry.* About 12 hours after the slot 20 block, Google returned to the agent in the built-in browser (signed out, `hl=en`, `gl=uk`), paced to one results page per navigation, with the block rule unchanged (7 November, 07:39 UTC). Google blocked the agent again on slot 24's first page and went back to the owner.
+   3. *Holland & Barrett.* The owner returned the site to the agent in Claude in Chrome, one page per navigation and no parallel fetches (7 November, 07:55 UTC). The parallel checks made just before the slot 14 block are void: no position or skip rests on them.
+   4. *Slot 24's search.* At the owner's instruction, the agent ran slot 24's search in Claude in Chrome in the owner's own profile, which may be signed in to Google (7 November, 08:00 UTC). This departs from Amendment 2 item 1 for that one search, and the results say so.
+   5. *Slot 24's PDF.* The owner approved the download from its file name and site; no size was shown before the download, and the size is recorded after it. The owner copied the nutrition section in Preview with a rectangular selection of the title and table. A plain range in reading order took allergen captions from outside the section, so the rectangle is the section as 12.2.4 item 2 defines it. The copy method is recorded as an owner's rectangular Preview selection.
+2. **Category boundaries (owner).** These are fixed before any recheck page is opened. Each affected skip-log row gains a `ruled_reason` field, and its original reason stays.
+   1. *Formula.* Toddler milk formula and follow-on formula are outside every category, with infant formula (`supplement`).
+   2. *Drinks for young children.* Plant-based growing-up drinks are not milk and yoghurt (`wrong_category`).
+   3. *Complete-meal drinks* are neither ready meals nor soft drinks (`wrong_category`).
+   4. *Soup* is not a ready meal (`wrong_category`).
+   5. *Prose nutrition.* Nutrition given only as prose is `no_nutrition_table`.
+   6. *Policy documents.* A bottler's policy document is `not_source_kind`.
+
+   No saved label changes under these rulings.
+3. **Collection practices that stand as recorded:**
+   - a retailer with no site search is exhausted;
+   - a search that redirects to a category page uses that page's order;
+   - a retailer exhausted for a category stays exhausted for later slots of that category;
+   - Booths' product search is its online ordering site;
+   - each tier's rotation pointer restarts after that tier's last supplier;
+   - viewport screenshots are the evidence kept.
+4. **Recheck, in slot order, by the agent in Claude in Chrome, one page per navigation.**
+   1. *Slot 19.* Run Planet Organic's search again for the slot's term with its default sort, and open results 10 to 20 in order. Record whether results 1 to 9 and 21 match the logged order. The first eligible result among 10 to 20 fills the slot. If there is none, V19 stands.
+   2. *Slot 21.* Open each logged result in order, one per navigation. A candidate PDF is listed to the owner before it is downloaded, as before. A `non_uk` skip needs evidence on the page or in the PDF itself, such as a stated market, a label format for another country, or only non-UK addresses with no UK distributor. The domain alone is not that evidence.
+   3. *Slot 22.* The owner runs the query again in a Safari private window and saves the first 30 organic results in order, with video, image, shopping and "People also ask" blocks left out. The agent then opens that list as for slot 21.
+   4. *Slot 23* is rechecked as slot 21, over its logged list.
+5. **When a recheck changes a label.**
+   - The slot's previous label is withdrawn. Its text and records move to `withdrawn/` in the private folder before the seal, and its ID is never reused.
+   - The new label takes the next unused ID, V25 onwards.
+   - Every later slot is then walked again from its first step under the same rules. Saved orders are reused where they exist, and a slot keeps its label when the walk reaches the same result.
+   - Every recheck visit is logged with `recheck: "amendment 4"`.
+   - Any Google search a recheck needs is the owner's, in a Safari private window.
+
 ## 2. Results
 
 Not yet run.
