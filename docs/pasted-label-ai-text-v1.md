@@ -1,6 +1,6 @@
 # Pasted label AI reading v1: text first (#416)
 
-Status: **draft spec, revision 7, 7 November 2026.** The owner decided D2 to D23 on 7 November 2026 (section 9), including the evaluation egress terms T1 to T7. The product route's egress terms (T8 to T12) still need line-by-line approval before the route sends anything. The gate history is: revision 1 FAIL, then PASS WITH CHANGES on revisions 2, 3 and 4, with revision 5 closing the last wording gaps and the local Qodo findings. Revision 6 records A1's implementation amendments: the full-width boundaries and the attention rules for hidden cells, comparator words, glued basis quantities and nested labels (4.3), the unit and vocabulary details (4.2, 4.4), the offer and detector details (4.6, 4.7), D23, and the items moved to A5. A1's pure checks exist as code. Revision 7 records A2's implementation amendments: bound words and their direction (4.3), bare numbers as attention (4.2), the envelope check's home (11.1), W and the cache (5.2), the scorer's name and the day record (4.2). Nothing sends.
+Status: **draft spec, revision 7, 7 November 2026.** The owner decided D2 to D25 on 7 November 2026 (section 9), including the evaluation egress terms T1 to T7. The product route's egress terms (T8 to T12) still need line-by-line approval before the route sends anything. The gate history is: revision 1 FAIL, then PASS WITH CHANGES on revisions 2, 3 and 4, with revision 5 closing the last wording gaps and the local Qodo findings. Revision 6 records A1's implementation amendments: the full-width boundaries and the attention rules for hidden cells, comparator words, glued basis quantities and nested labels (4.3), the unit and vocabulary details (4.2, 4.4), the offer and detector details (4.6, 4.7), D23, and the items moved to A5. A1's pure checks exist as code. Revision 7 records A2's implementation amendments: bound words and their direction (4.3), bare numbers as attention (4.2), the envelope check's home (11.1), W and the cache (5.2), the scorer's name and the day record (4.2). Nothing sends.
 
 ## 1. Problem
 
@@ -358,7 +358,7 @@ Two separate approvals: the evaluation runs (T1 to T7), then the product route (
 - [x] **T2 Payload.** One label's pasted text exactly as saved, the fixed instruction and the fixed schema. No name, owner data, health data or identifiers. The texts are public pages' nutrition sections.
 - [x] **T3 Routing.** ZDR endpoints only, `data_collection: "deny"`, `allow_fallbacks: false`, one endpoint pinned per cell. The response's model and provider must match the request.
 - [x] **T4 Key.** The OpenRouter key already approved for the photo evaluation, loaded into the environment only and never printed.
-- [x] **T5 Spend.** A stop of $5 per matrix cell and $25 for the programme, recorded in the existing spend ledger.
+- [x] **T5 Spend.** A stop of $5 per matrix cell and $25 for the programme, recorded in the existing spend ledger. A fresh text evaluation ledger caps a single call at $0.20 (D25).
 - [x] **T6 Records.** Raw responses stay in the private folder. The repo gets counts, versions and hashes of committed synthetic fixtures only.
 - [x] **T7 Held-out run.** One run, by the frozen version, after the bar is committed.
 
@@ -408,6 +408,8 @@ Two separate approvals: the evaluation runs (T1 to T7), then the product route (
 | D21 | Evaluation framework | **Decided (owner, 7 November 2026): promptfoo, run locally,** driving the shipped Swift request builder and scorer (5.2). Ragas and other LLM-judge tools were rejected, because the labels have exact ground truth. Hosted platforms were rejected because they would be a new egress destination |
 | D22 | Metrics | **Decided (owner, 7 November 2026): standard metrics** (5.2.1), each with a 95% interval: field precision, recall and F1, exact match, coverage and risk, error-detection precision and recall, paired tests between versions, and ground-truth agreement |
 | D23 | The median for bar 4 over an even count | **Decided (owner, 7 November 2026): the upper median,** the 13th of 24 sorted costs, which is the stricter reading and always an observed cost |
+| D24 | promptfoo's transitive `npm audit` findings (5 high and 3 moderate, all denial-of-service class: `basic-ftp`, `glob`, `minimatch`, `@modelcontextprotocol/server-filesystem`) | **Decided (owner, 7 November 2026): accepted risk** for local developer tooling that runs synthetic or private evaluation data over a fake transport, or over OpenRouter under T1 to T7. None of the affected FTP, PAC or MCP filesystem paths is used. They are reviewed again whenever the pin moves |
+| D25 | The evaluation ledger's per-call cap | **Decided (owner, 7 November 2026): $0.20 per call** for a fresh text evaluation ledger, because W is now bounded from the request. The $5 cell and $25 programme stops (T5) are unchanged. An existing ledger keeps its own value |
 
 ## 10. Not changing
 
