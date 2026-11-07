@@ -3728,3 +3728,28 @@ The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13
 Method: `phase_usage.py --format claude --since 2026-11-06T13:03:06Z --until 2026-11-06T13:44:27Z --include-subagents` on the session transcript; exact USD 8.3693438. Excluded: this ledger edit, the commit, the push and the PR after that time.
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a charge. Local builds and test loops use no API tokens and are not priced. Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-416-2026-11-07: Claude Code pasted label AI text route spec, A0 (#416)
+
+The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`):
+
+- drafted `docs/pasted-label-ai-text-v1.md` and revised it five times;
+- put the owner's decisions D2 to D20 to the owner one at a time;
+- opened #416 and posted each gate handover there;
+- ran two local Qodo reviews (Qodo usage is not in these figures).
+
+Four `architecture-gate` subagent passes, all `claude-opus-5-5`, ran in the window. The window runs from the owner's go-ahead at `2026-11-07T16:58:25Z` to the request for this PR at `2026-11-07T18:08:34Z`. Of the cache writes, 308,493 tokens were 5-minute writes (the subagents) and the rest 1-hour.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| AI text route spec A0 (#416), coordinator and gate subagents | 29,241,117 (28,790,939) | 449,814 | 149,331 | 29,390,448 | $11.42 |
+| **Subtotal** | 29,241,117 (28,790,939) | 449,814 | 149,331 | 29,390,448 | $11.42 |
+
+Method: `phase_usage.py --format claude --since 2026-11-07T16:58:25Z --until 2026-11-07T18:08:34Z --include-subagents` on the session transcript. Exact USD 11.4192968, of which 7.1984074 was the coordinator alone.
+
+Excluded:
+- the Qodo review runs, which are billed by Qodo and unmeasured here;
+- the #415 PR opening between the P4 window's end (`2026-11-07T16:56:35Z`, WHR-371-2026-11-07) and this window, which is unmeasured;
+- this ledger edit, the commit, the push and the PR after the window.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a charge. Token totals are not evidence of productivity, quality or provider efficiency.
