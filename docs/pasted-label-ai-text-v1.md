@@ -1,6 +1,6 @@
 # Pasted label AI reading v1: text first (#416)
 
-Status: **draft spec, revision 5, 7 November 2026. Documents only; no production code and no egress yet.** The owner decided D2 to D20 on 7 November 2026 (section 9), including the evaluation egress terms T1 to T7. The product route's egress terms (T8 to T12) still need line-by-line approval before the route sends anything. The architecture gate returned FAIL on revision 1 and PASS WITH CHANGES on revision 2. Revision 3 applied N1 to N16, and its re-check returned PASS WITH CHANGES. Revision 4 applied R1 to R6 and was confirmed PASS WITH CHANGES, with five wording gaps that were not blocking. Revision 5 closes those gaps and the six findings from a local Qodo review. Revision 5 itself has not been re-gated. The A1 PR opens with a gate pass on its own diff.
+Status: **draft spec, revision 5, 7 November 2026. Documents only; no production code and no egress yet.** The owner decided D2 to D22 on 7 November 2026 (section 9), including the evaluation egress terms T1 to T7. The product route's egress terms (T8 to T12) still need line-by-line approval before the route sends anything. The architecture gate returned FAIL on revision 1 and PASS WITH CHANGES on revision 2. Revision 3 applied N1 to N16, and its re-check returned PASS WITH CHANGES. Revision 4 applied R1 to R6 and was confirmed PASS WITH CHANGES, with five wording gaps that were not blocking. Revision 5 closes those gaps and the six findings from a local Qodo review. Revision 5 itself has not been re-gated. The A1 PR opens with a gate pass on its own diff.
 
 ## 1. Problem
 
@@ -242,13 +242,24 @@ One evaluation format replaces the per-programme schemas. A converter maps the T
 
 **Framework: promptfoo (D21), run locally.** It runs the matrix of prompt versions by models, caches responses so that re-scoring never pays again, records cost and latency per call, and shows results in a local viewer. Scoring stays in the shipped Swift code (architecture gate finding M5), so promptfoo orchestrates and never decides a value.
 
-1. **Requests.** A Swift command-line tool, `PastedLabelAITextEval`, builds each request body with the shipped text request builder, so the evaluated request is the product's request:
-   - the instruction and schema SHA;
-   - the provider block with `only` and `order` pinned to one ZDR endpoint, `allow_fallbacks: false`, `data_collection: "deny"` and `zdr: true` (T3).
+1. **Sending, with spend enforced.** promptfoo calls a custom JavaScript provider (`file://`), which runs `PastedLabelAITextEval send` for each label. That Swift tool:
+   - builds the request with the shipped text request builder, so the evaluated request is the product's (instruction and schema SHA, and the provider block with `only` and `order` pinned to one ZDR endpoint, `allow_fallbacks: false`, `data_collection: "deny"` and `zdr: true`, as T3 requires);
+   - before every call, reserves the call's worst-case cost W in the photo evaluation's existing spend ledger (T5), and refuses to send when the reservation would pass the $5 cell stop or the $25 programme stop;
+   - sends through the shipped OpenRouter transport to `https://openrouter.ai/api/v1/chat/completions` (T1), with the key from the environment only (T4);
+   - settles the reservation to the reported cost, or to W when no cost is reported;
+   - returns the raw response, token usage, cost and latency to promptfoo.
 
-   The built body goes into the private folder.
-2. **Sending.** promptfoo's generic HTTP provider sends that body unchanged to `https://openrouter.ai/api/v1/chat/completions` (T1), with the key from the environment only (T4). Its OpenRouter provider is not used, because its documentation shows no way to pass the provider routing block. `transformResponse` returns the raw response as the output, plus the reported token usage and cost.
-3. **Scoring.** A `file://` JavaScript assertion passes each raw response to `PastedLabelAITextEval score`. That runs the shipped mapping, locator, unit, vocabulary and detector checks, attention and scorer v2 against the label's transcription. The assertion returns `pass`, `score` and `namedScores` for every per-label count in 5.2.1, and the response's model and provider must match the pinned route, or the label counts as failed (T3).
+   A refused call counts as failed, and the stop ends the cell. promptfoo's HTTP and OpenRouter providers are not used: the first would send outside the spend ledger, and the second documents no way to pass the provider routing block. The product's shared daily cap (D14) applies to the app, not to evaluation runs, which T5 governs.
+2. **Scoring.** A `file://` JavaScript assertion passes each raw response to `PastedLabelAITextEval score`, which runs the shipped steps in product order:
+   - the text mapping;
+   - **decline gate v2** (with `.uk` for UK candidates), the conversions and the arithmetic checks;
+   - the panel detector;
+   - the locator, unit and vocabulary checks;
+   - attention;
+   - scorer v2, against the label's transcription.
+
+   A table counts as reaching Confirm only when the product would show it. A gate or detector decline is scored as declined (D19). The assertion returns `pass`, `score` and `namedScores` for every per-label count in 5.2.1, and the response's model and provider must match the pinned route, or the label counts as failed (T3).
+3. **Caching.** `PastedLabelAITextEval send` keeps its own response cache in the private folder, keyed by the SHA-256 of the request body, so re-scoring a cell reuses its responses and never pays again. promptfoo's cache is not relied on, because it is not documented for custom providers. A cached response keeps its original recorded cost, and is not charged again in the ledger.
 4. **Statistics.** A small script of our own reads promptfoo's exported results and computes the metrics and tests in 5.2.1. promptfoo's own pass rates are not used as results.
 5. **Local only:**
    - telemetry, update checks and sharing are switched off by environment variable, checked against promptfoo's current documentation in A2;
@@ -355,7 +366,7 @@ Two separate approvals: the evaluation runs (T1 to T7), then the product route (
 |---|---|---|
 | A0 | This spec, the owner decisions, the architecture gate | None |
 | A1 | The evaluation format, converters, the text locator as pure code, synthetic adversarial fixtures, and the bar committed | None |
-| A2 | The harness: `PastedLabelAITextEval` (request builder and scorer CLI), the promptfoo configuration with its HTTP provider and `file://` assertion, the statistics script, and promptfoo pinned with telemetry, updates and sharing off. All run over a fake transport, with scorer parity on synthetic runs | None |
+| A2 | The harness: `PastedLabelAITextEval` (request builder and scorer CLI), the promptfoo configuration with its custom `file://` provider and assertion, the spend reservation and the response cache, the statistics script, and promptfoo pinned with telemetry, updates and sharing off. All run over a fake transport, with scorer parity on synthetic runs | None |
 | A3 | Tuning runs: the matrix, results as counts, and prompt and model frozen. Before the first run, a developer-tooling note for these runs is added to `privacy-and-egress.md` | T1 to T6 |
 | A4 | The held-out run and its result | T7 |
 | A5 | The product route behind a launch argument: Read with AI, Confirm with the text pane, manifest and admission | None until T8 to T12 |
