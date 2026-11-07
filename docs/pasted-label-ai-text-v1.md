@@ -1,6 +1,6 @@
 # Pasted label AI reading v1: text first (#416)
 
-Status: **draft spec, revision 5, 7 November 2026. Documents only; no production code and no egress yet.** The owner decided D2 to D20 on 7 November 2026 (section 9), including the evaluation egress terms T1 to T7. The product route's egress terms (T8 to T12) still need line-by-line approval before the route sends anything. The architecture gate returned FAIL on revision 1 and PASS WITH CHANGES on revision 2. Revision 3 applied N1 to N16, and its re-check returned PASS WITH CHANGES. Revision 4 applied R1 to R6, confirmed PASS WITH CHANGES, and this revision 5 closes that pass's five wording gaps in 4.3 and 11.1. The gate cleared A1.
+Status: **draft spec, revision 5, 7 November 2026. Documents only; no production code and no egress yet.** The owner decided D2 to D20 on 7 November 2026 (section 9), including the evaluation egress terms T1 to T7. The product route's egress terms (T8 to T12) still need line-by-line approval before the route sends anything. The architecture gate returned FAIL on revision 1 and PASS WITH CHANGES on revision 2. Revision 3 applied N1 to N16, and its re-check returned PASS WITH CHANGES. Revision 4 applied R1 to R6 and was confirmed PASS WITH CHANGES, with five wording gaps that were not blocking. Revision 5 closes those gaps and the six findings from a local Qodo review. Revision 5 itself has not been re-gated. The A1 PR opens with a gate pass on its own diff.
 
 ## 1. Problem
 
@@ -62,9 +62,9 @@ The photo pieces below are image-typed or Taiwan-only, so the text route has its
 | Request and attempt port | The photo body is an image data URI with schema `label_image_extraction_v1`, and `LabelPhotoAttempting` takes a `PreparedLabelImage` | A text-only request builder (instruction and schema pinned by SHA) and a `PastedLabelAITextAttempting` port |
 | Route set | `LabelPhotoRoute` is a closed set of photo routes | `PastedLabelAITextRoute`, its own closed set |
 | Wire schema | `label-photo-wire-schema-v1` has no unit member (`LabelPhotoWire.Value` holds a header ID and printed text only) | `pasted-label-ai-text-wire-schema-v1`: printed text as printed, plus an optional `unit` member the model fills only for a bare number, with its own strict decoder and goldens |
-| Mapping | `label-photo-wire-mapping-v1` takes units from row labels for energy only | `pasted-label-ai-text-mapping-v1`, in a new file with its own copy of `parseValue`, its unit table and its comparators, because the photo copy is internal to a pinned file. Parity with the photo copy is tested. Otherwise as v1, except the model's unit is accepted only when that unit token occurs in the same row's label or the column's header in the sent text, otherwise an attention item (D10). Only a unit stated for the values counts, never the basis quantity in a header such as `per 100 g` (D16). Parity with v1 on every v1 vector where a unit is printed |
+| Mapping | `label-photo-wire-mapping-v1` takes units from row labels for energy only | `pasted-label-ai-text-mapping-v1`, in a new file with its own copy of `parseValue`. Its unit table and comparators are the closed lists in the application layer (11.1), because the photo copy is internal to a pinned file. Parity with the photo copy is tested, except for the thousands rule in 4.3. Otherwise as v1, except that the model's unit for a bare number is accepted only when the sent text states that unit for the values (D10), and otherwise is an attention item. A unit is stated for the values when it is:<br>- a unit-only token in the column's header, such as `(g)`, `g` or `mg`; or<br>- a unit-only token in the row's label, such as `Fat (g)`.<br>A number followed by a unit in a header (`per 100 g`, `100g`, `per 30 g serving`) is the basis quantity and never states a unit (D16). Parity with v1 on every v1 vector where a unit is printed |
 | Attention | The `label-photo-attention-v1` reasons are a closed, pinned set | `pasted-label-ai-text-attention-v1` in a new file: composes v1 and adds the reasons `unit_not_stated`, `vocabulary_mismatch` and `label_unknown`, with goldens |
-| Spend | `LabelPhotoSpendPolicy` has a fixed 6,000-token ceiling and per-tap limit, and an unversioned day record | A per-route spend policy over one versioned shared day record (D14). An over-ceiling text read pauses only the text route (D17). Existing day records are read as photo-only, and a corrupt record fails closed |
+| Spend | `LabelPhotoSpendPolicy` has a fixed 6,000-token ceiling and per-tap limit, and an unversioned day record | A per-route spend policy over one versioned shared day record (D14). It replaces `LabelPhotoSpendPolicy`'s day record (not pinned), so the photo route's read and write paths change in the same PR and count against the shared record. An over-ceiling text read pauses only the text route (D17). Existing day records are read as photo-only, and a corrupt record fails closed |
 | Route checker | `OpenRouterLabelRouteChecker` accepts photo routes only | A text route checker with a parity test against the photo checker's rules |
 | Locator | The Vision locator needs an image | `pasted-label-text-locate-v1` (4.3) |
 | Assignment check | None exists | `pasted-label-ai-text-vocabulary-v1` (4.4, D11) |
@@ -82,9 +82,10 @@ A pure, deterministic check of the model's answer against the text. It never pro
      - a number in Unicode decimal digits (general category Nd, as the copied `parseValue` accepts), with at most one decimal mark;
      - an optional unit or `%`.
 
-     Comparators and units come from closed lists. They are the same lists as the text target's copy of `parseValue` (4.2), including `＜` and `少於` and the Taiwan units such as `公克`, `毫克` and `大卡`. Inside a token, only spaces, tabs, U+00A0 or U+202F may sit between the parts.
+     Comparators and units come from closed lists held in the application layer (11.1). The text target's copy of `parseValue` uses the same lists (4.2), including `＜` and `少於` and the Taiwan units such as `公克`, `毫克` and `大卡`. Inside a token, only spaces, tabs, U+00A0 or U+202F may sit between the parts.
    - **A token is the longest grammar match** that starts and ends at a boundary. Spaces inside it do not split it, so `5 g` and `less than 0.5 g` are each one token.
    - **Decimal mark:** a `.`, or a `,` that sits between two digits. Any other `,` is a boundary, so `0,5g` is one token and `5g, 2g` is two.
+   - **Thousands separator:** a `,` followed by exactly three digits and then a non-digit is a thousands separator, so `1,046kJ` is 1046 and `0,5g` is 0.5. A token with both a thousands `,` and a decimal mark (`1,046.5`) is read the same way. The photo copy reads every `,` as a decimal mark, so parity excludes this rule, and a vector covers it.
    - **Token boundaries:** start or end of line, whitespace (U+00A0 and U+202F included) outside a token, or one of `( ) [ ] ; : /`, `|` and a boundary `,`. So `1g` never matches inside `11g` or `0.1g`.
    - Trailing `*` and `†` footnote marks are kept as printed and ignored for matching.
    - The model's printed text must equal one token exactly, after that normalisation. Nothing else is normalised.
@@ -183,7 +184,7 @@ Only for a closed set of the frozen reader's decline codes, fixed in A1 from `La
 v1 admits UK-format declarations and the Taiwan pastes the reader declines (D2 as amended).
 
 - **EU English panels** follow the same rules and cannot be told apart reliably, so they are read as UK-format declarations under the UK rules and the UK bar (D18).
-- **US per 100, Australian and New Zealand panels** stay declined in v1 (D13). After the model, a closed detector declines them on their distinct rows, for example sodium in mg with no salt row, or an Australian per-serve column with average quantity wording. Each detector rule gets a vector.
+- **US per 100, Australian and New Zealand panels** stay declined in v1 (D13). A closed, pure detector on the pasted text runs **before anything is sent**. It declines them on their distinct rows, for example sodium in mg with no salt row, or an Australian per-serve column with average quantity wording, so the text is never sent and no read is spent. The same detector runs again on the model's candidate, as a second check. Each detector rule gets a vector, including one that proves no request is built for a detected panel.
 
 ### 4.8 Flags and attention
 
@@ -222,13 +223,17 @@ Every set below is real public label text with a blind, owner-verified transcrip
 | Taiwan reader v3 fresh set | 24 | Tuning (spent by its release check) |
 | UK v1 development set | 24 | Tuning |
 | UK v1 fresh set | 24 | Tuning (spent by the v1 probe) |
-| UK v2 fresh set | 24 | **Held out (D4).** Sealed, run once by the frozen reader, never probed |
+| UK v2 fresh set | 24 | **Held out (D4).** Sealed, run once by the frozen reader, not probed for decline causes |
 
 - **Tuning:** about 96 labels. Prompt and model versions are compared on these as often as needed.
 - **Held out:** the 24 UK v2 labels, run **once**, after the prompt, model and checks are frozen, against the bar in 5.3. Taiwan is not measured on untouched text in v1 (D4).
 - **Independence:**
   - 15 of the held-out labels (tier B) share sites with the UK v1 tuning sets, so tier A (9 labels) is reported on its own as the independent figure;
-  - the held-out decline reasons are already published as counts in P4, but no label's text or values have been seen.
+  - **what is already known about the held-out set:**
+    - the frozen reader's P4 counts, published in P4 section 2 (19 of 24 declined, reasons by tier, 0 wrong values in 87);
+    - the coordinator saw one label's column heading and transcription notes while recording Amendment 6;
+    - no prompt or rule in this programme has been run on, or tuned against, any held-out text.
+  - **Rule:** prompt authors and harness operators never read the held-out texts, transcriptions or P4 per-label results until A4 is scored. The A4 result states this exposure beside the counts.
 - **Synthetic adversarial texts** (committed, no real text) per 4.3 and 4.9. Every version must pass these before any real-text run.
 
 One evaluation format replaces the per-programme schemas. A converter maps the Taiwan and UK transcription schemas into it, proven by round-trip tests on synthetic fixtures. The existing data is not edited.
@@ -366,7 +371,8 @@ The gate returned **FAIL** on revision 1, **PASS WITH CHANGES** on revision 2 an
 
 - **Domain:** unchanged.
 - **Application** (`FoodLedgerApplication`, imports only `Foundation`, `CryptoKit` and `FoodLedgerDomain`, as `check_imports` already enforces):
-  - the checks that read the text: the locator, the unit check, the vocabulary check and the text attention version. All are pure Foundation, so the verifier can replay them;
+  - the checks that read the text: the locator, the unit check, the vocabulary check, the pre-send panel detector and the text attention version. All are pure Foundation, so the verifier can replay them;
+  - the closed comparator and unit lists those checks use. The adapter target's copy of `parseValue` imports them from here, so there is one list and no application-to-adapter edge;
   - the scope and identity types;
   - the manifest codec, source, verifier and three-way admission;
   - the per-route spend policy over the shared day record;
@@ -379,8 +385,7 @@ The gate returned **FAIL** on revision 1, **PASS WITH CHANGES** on revision 2 an
   - the text wire schema decoder;
   - the text mapping, with its own copy of `parseValue`, calling the frozen gate, conversions and checks;
   - the implementation of `PastedLabelAITextReading`;
-  - the text reader adapter (Taiwan or `.uk`);
-  - the post-model format detector (4.7).
+  - the text reader adapter (Taiwan or `.uk`), which calls the application's panel detector on the candidate.
 
   It may import `Foundation`, `FoodLedgerDomain`, `FoodLedgerApplication` and `NutritionLabelParsing`, and nothing else. It does not import `FoodLabelPhotoReading`. Mapping parity with v1 is shown by a test target, `FoodLabelTextAIReadingTests`, that imports both.
 - **Infrastructure:**
