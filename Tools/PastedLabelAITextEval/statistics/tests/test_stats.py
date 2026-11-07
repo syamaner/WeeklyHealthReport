@@ -32,8 +32,12 @@ def scores(*, outcome="reached_confirm", printed=10, shown=10, correct=10, wrong
     return out
 
 
-def result(label, named, *, cost: str | None = "0.004", latency: float | None = 2.0, provider="model-a", prompt="prompt-v1", attempt="responded"):
-    send = {"attempt": attempt, "cost_usd": cost, "latency_seconds": latency}
+def result(label, named, *, cost: str | None = "0.004", latency: float | None = 2.0, provider="model-a", prompt="prompt-v1", attempt="responded",
+           reserved_w: str | None = "0.03"):
+    send = {"attempt": attempt, "cost_usd": cost, "latency_seconds": 0.5, "reserved_w_usd": reserved_w}
+    named = dict(named)
+    if latency is not None:
+        named["tap_latency_seconds"] = latency
     return {"vars": {"label_id": label}, "provider": {"id": "file://provider.js", "label": provider}, "prompt": {"label": prompt},
             "gradingResult": {"namedScores": named}, "response": {"output": json.dumps(send)}}
 
@@ -140,7 +144,7 @@ class MetricTests(unittest.TestCase):
 
     def test_unknown_cost_is_counted_at_the_cap_and_a_refusal_at_nothing(self):
         labels = self.labels()
-        self.assertEqual([label.cost_usd for label in labels], [0.004, 0.004, 0.004, 0.05])
+        self.assertEqual([label.cost_usd for label in labels], [0.004, 0.004, 0.004, 0.03], "an unknown cost at the tap's own W")
         self.assertEqual(stats.tap_cost({"attempt": "refused:the $5 cell stop would be passed", "cost_usd": None}, 0.05), (0.0, True))
         self.assertEqual(stats.operational(labels)["cost_usd"]["unknown_counted_at_cap"], 1)
 
@@ -202,7 +206,9 @@ class QodoFindingTests(unittest.TestCase):
     def test_a_cached_tap_counts_once_at_its_original_cost(self):
         self.assertEqual(stats.tap_cost({"attempt": "responded", "cached": True, "cost_usd": None, "cached_cost_usd": "0.004",
                                          "charged_usd": "0"}, 0.05), (0.004, True))
-        self.assertEqual(stats.tap_cost({"attempt": "responded", "cached": True, "cost_usd": None, "cached_cost_usd": None}, 0.05), (0.05, False))
+        self.assertEqual(stats.tap_cost({"attempt": "responded", "cached": True, "cost_usd": None, "cached_cost_usd": None}, 0.2), (0.2, False))
+        self.assertEqual(stats.tap_cost({"attempt": "responded", "cached": True, "cost_usd": None, "cached_cost_usd": None, "reserved_w_usd": "0.04"}, 0.2),
+                         (0.04, False))
         rows = [result("a", scores()), result("b", scores())]
         rows[1]["response"]["output"] = json.dumps({"attempt": "responded", "cached": True, "cost_usd": None, "cached_cost_usd": "0.004",
                                                     "charged_usd": "0", "latency_seconds": 2.0})
@@ -237,6 +243,29 @@ class QodoFindingTests(unittest.TestCase):
         self.assertEqual(out["cells"]["m|p"]["field_level"]["field_precision_macro"]["exclusions"]["excluded_not_reaching_confirm"], 1)
 
 
+class ReReviewTests(unittest.TestCase):
+    def test_an_unknown_cost_is_charged_at_its_own_w_or_the_ledger_cap(self):
+        self.assertEqual(stats.tap_cost({"attempt": "transport_failed:timed_out", "cost_usd": None, "reserved_w_usd": "0.0426"}, 0.2), (0.0426, False))
+        self.assertEqual(stats.tap_cost({"attempt": "transport_failed:timed_out", "cost_usd": None}, stats.PER_TAP_CAP_USD), (0.2, False))
+        self.assertEqual(stats.PER_TAP_CAP_USD, 0.20, "D25: the ledger's per-call cap, never $0.05")
+
+    def test_a_tap_that_reserved_nothing_costs_nothing(self):
+        for send in ({}, {"attempt": "catalogue_failed:unavailable"}, {"attempt": "refused:the $5 cell stop would be passed"},
+                     {"attempt": "not_sent:text_empty"}):
+            self.assertEqual(stats.tap_cost(send, 0.2), (0.0, True), str(send))
+
+    def test_tap_latency_runs_from_the_providers_start_to_the_assertions_end(self):
+        self.assertEqual(stats.tap_latency({"tap_latency_seconds": 3.5}, {"latency_seconds": 2.0}), 3.5)
+        self.assertEqual(stats.tap_latency({"tap_latency_seconds": 0.1}, {"latency_seconds": 2.0, "cached": True}), 2.1,
+                         "a cached tap adds its original attempt time")
+        self.assertIsNone(stats.tap_latency({}, {"latency_seconds": 2.0}), "the attempt-only time is not the tap latency")
+        labels = stats.load_results(write([result("a", scores(), latency=4.0)]))["model-a|prompt-v1"]
+        self.assertEqual((labels[0].latency_seconds, labels[0].attempt_latency), (4.0, 0.5))
+        op = stats.operational(labels)
+        self.assertEqual(op["latency_seconds"]["p90_nearest_rank"], 4.0)
+        self.assertEqual(op["attempt_latency_seconds_diagnostic"]["p90_nearest_rank"], 0.5)
+
+
 class CompareTests(unittest.TestCase):
     def test_mcnemar_exact_by_hand(self):
         # b = 1, c = 6: 2 * (C(7,0) + C(7,1)) / 2^7 = 0.125.
@@ -263,7 +292,7 @@ class CompareTests(unittest.TestCase):
         rows = [{"vars": {"label_id": "x"}, "provider": {"label": "m"}, "prompt": {"label": "p"}, "gradingResult": {}, "response": {}}]
         labels = stats.load_results(write(rows))["m|p"]
         self.assertEqual(labels[0].outcome, "failed")
-        self.assertEqual(labels[0].cost_usd, 0.05)
+        self.assertEqual((labels[0].cost_usd, labels[0].cost_known), (0.0, True), "no send record: a failed tap that cost nothing")
 
     def test_a_label_twice_in_one_cell_is_refused(self):
         with self.assertRaises(ValueError):

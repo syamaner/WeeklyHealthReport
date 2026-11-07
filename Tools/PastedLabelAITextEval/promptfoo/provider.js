@@ -38,6 +38,9 @@ class PastedLabelAITextSendProvider {
       '--ledger', path.join(run, 'spend-ledger.json'), '--cache', path.join(run, 'response-cache'),
       '--fake-transport', fake,
     ];
+    // The tap starts here (5.3: latency per tap, from the tap to Confirm or failure, including
+    // retries): before the catalogue check, the reservation, the send and the settle. assert.js
+    // records the end after scoring, and the statistics report end minus start.
     const started = Date.now();
     const result = await new Promise((resolve) => {
       execFile(bin, args, { maxBuffer: 4 * 1024 * 1024, env: { PATH: process.env.PATH } }, (error, stdout, stderr) => {
@@ -51,12 +54,14 @@ class PastedLabelAITextSendProvider {
     } catch (e) {
       return { error: `send printed no JSON: ${e.message}` };
     }
+    // The send record, with the tap's start added; `score` ignores the extra member.
+    send.tap_started_at_ms = started;
     return {
-      // The whole send record; the assertion passes it to `score` unchanged.
-      output: result.stdout.trim(),
+      output: JSON.stringify(send),
       cost: Number(send.charged_usd),
       cached: Boolean(send.cached),
-      latencyMs: send.latency_seconds != null ? Math.round(send.latency_seconds * 1000) : Date.now() - started,
+      // promptfoo's latency field holds the send process's wall time; the tap latency comes from assert.js.
+      latencyMs: Date.now() - started,
       tokenUsage: {
         prompt: send.prompt_tokens || 0,
         completion: send.completion_tokens || 0,

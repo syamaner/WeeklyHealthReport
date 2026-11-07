@@ -234,6 +234,29 @@ final class HarnessTests: XCTestCase {
         XCTAssertTrue(output.cached)
     }
 
+    /// Qodo re-review findings 1 and 3: a tap records the W it reserved (kept on a cache hit), and a
+    /// catalogue failure is a structured record that reserved and sent nothing.
+    func testTheReservedWIsRecordedAndACatalogueFailureIsStructured() async throws {
+        let first = try await SendCommand.run(options())
+        XCTAssertEqual(first.reservedWUSD, "\(Self.ukW)")
+        let cached = try await SendCommand.run(options())
+        XCTAssertTrue(cached.cached)
+        XCTAssertEqual(cached.reservedWUSD, "\(Self.ukW)", "the original tap's W")
+        let refused = try await SendCommand.run(options(label: "uk-no-cost", cellStop: Decimal(string: "0.001")!))
+        XCTAssertTrue(refused.attempt.hasPrefix("refused:"))
+        XCTAssertNil(refused.reservedWUSD, "a refused tap reserved nothing")
+        try FileManager.default.removeItem(at: root.appendingPathComponent("fake/catalogue/listing.json"))
+        try FileManager.default.removeItem(at: root.appendingPathComponent("ledger.json"))
+        let failed = try await SendCommand.run(options(label: "uk-no-cost"))
+        XCTAssertTrue(failed.attempt.hasPrefix("catalogue_failed:"), failed.attempt)
+        XCTAssertEqual(failed.chargedUSD, "0")
+        XCTAssertNil(failed.reservedWUSD)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("ledger.json").path), "nothing reserved")
+        let scored = try ScoreCommand.run(evalCase: Fixtures.ukCase, textData: Data(Fixtures.ukText.utf8),
+                                          send: try await SendCommand.run(options()))
+        XCTAssertEqual(scored.score.outcome, "reached_confirm", "the cached answer still scores")
+    }
+
     func testScoreRefusesASendRecordForAnotherText() async throws {
         var send = try await SendCommand.run(options())
         send.textSHA256 = String(repeating: "0", count: 64)

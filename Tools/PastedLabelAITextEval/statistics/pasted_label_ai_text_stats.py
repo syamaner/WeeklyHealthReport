@@ -24,7 +24,9 @@ exact match, and a paired bootstrap (same resampling of labels) for micro field 
 
 Bar 4 (5.3, D23): the median cost is the upper median (rank n // 2 + 1 of n sorted costs, the
 13th of 24) and p90 latency is the nearest-rank 90th percentile (rank ceil(0.9 n), the 22nd of
-24). An unknown cost is counted at the per-tap cap; a call that sent nothing costs nothing.
+24). Latency per tap runs from the provider's start to the assertion's end. An unknown cost is
+counted at the tap's own reserved W (the ledger's $0.20 per-call cap when none is recorded); a
+tap that reserved nothing (including a catalogue failure) costs nothing.
 
 A tap served from the response cache is counted once, at its original tap's recorded cost
 (``cached_cost_usd``), because the cost a tap has is what it cost when it ran; the money this
@@ -45,7 +47,9 @@ from pathlib import Path
 SCHEMA = "pasted-label-ai-text-stats-v1"
 Z95 = 1.959963984540054
 ALPHA = 0.05
-PER_TAP_CAP_USD = 0.05
+# The fallback charge for an unknown cost when a send record names no W: the ledger's per-call
+# cap (D25). A record that reserved W is charged at its own W (Qodo re-review finding 1).
+PER_TAP_CAP_USD = 0.20
 DEFAULT_RESAMPLES = 10_000
 DEFAULT_SEED = 416
 
@@ -143,6 +147,8 @@ class Label:
     attempt: str = ""
     meta: dict = field(default_factory=dict)
     charged: float = 0.0
+    # The attempt-only time from `send` (a diagnostic; bar 4 uses the tap latency).
+    attempt_latency: float | None = None
 
     def get(self, name: str) -> float:
         return float(self.scores.get(name, 0))
@@ -160,19 +166,42 @@ NOT_ASSIGNED = "not assigned"
 LAYOUT_SHAPES = ("one_row_per_line", "one_value_per_line", "misaligned", "unitless", "other")
 
 
+NOTHING_RESERVED = ("refused:", "not_sent:", "declined_before_send:", "catalogue_failed:")
+
+
 def tap_cost(send: dict, cap: float) -> tuple[float, bool]:
-    """A tap's cost: the reported cost; for a cached tap, its original tap's cost; nothing when
-    nothing was sent; otherwise (unknown) the per-tap cap."""
+    """A tap's cost, and whether it is known.
+
+    - No send record, or one that reserved and sent nothing (a refusal, a pre-send decline, a
+      catalogue failure): 0, known (Qodo re-review finding 3).
+    - A cached tap: its original tap's cost.
+    - A reported cost: that cost.
+    - Otherwise the tap reserved W and got no reported cost: its own W (`reserved_w_usd`), or the
+      fallback `cap` when the record names none; unknown, never zero."""
     attempt = str(send.get("attempt", ""))
+    if not attempt or attempt.startswith(NOTHING_RESERVED):
+        return 0.0, True
+    w = float(send["reserved_w_usd"]) if send.get("reserved_w_usd") is not None else cap
     if send.get("cached"):
         if send.get("cached_cost_usd") is not None:
             return float(send["cached_cost_usd"]), True
-        return cap, False
+        return w, False
     if send.get("cost_usd") is not None:
         return float(send["cost_usd"]), True
-    if attempt.startswith(("refused:", "not_sent:", "declined_before_send:")):
-        return 0.0, True
-    return cap, False
+    return w, False
+
+
+def tap_latency(scores: dict, send: dict) -> float | None:
+    """The tap's latency (5.3): from the provider's start to the assertion's end, as assert.js
+    records it (`tap_latency_seconds`), covering the catalogue check, reservation, send, settle and
+    scoring. A cached tap adds its original attempt time, since this run's tap did not wait for the
+    model. Nil when not recorded, which fails bar 4."""
+    measured = scores.get("tap_latency_seconds")
+    if measured is None:
+        return None
+    if send.get("cached") and send.get("latency_seconds") is not None:
+        return float(measured) + float(send["latency_seconds"])
+    return float(measured)
 
 
 def load_results(path: Path, cases: Path | None = None, cap: float = PER_TAP_CAP_USD) -> dict[str, list[Label]]:
@@ -210,8 +239,8 @@ def load_results(path: Path, cases: Path | None = None, cap: float = PER_TAP_CAP
                         "layout_shape": case.get("layout_shape") or NOT_ASSIGNED}
         if meta and meta["layout_shape"] not in LAYOUT_SHAPES + (NOT_ASSIGNED,):
             raise ValueError(f"{label_id}: unknown layout_shape {meta['layout_shape']}")
-        cells.setdefault(cell, []).append(Label(label_id, cell, scores, cost, known, send.get("latency_seconds"), str(send.get("attempt", "")), meta,
-                                                charged=float(send.get("charged_usd") or 0)))
+        cells.setdefault(cell, []).append(Label(label_id, cell, scores, cost, known, tap_latency(scores, send), str(send.get("attempt", "")), meta,
+                                                charged=float(send.get("charged_usd") or 0), attempt_latency=send.get("latency_seconds")))
     for cell, labels in cells.items():
         ids = [label.label_id for label in labels]
         if len(ids) != len(set(ids)):
@@ -321,12 +350,15 @@ def label_proportions(labels: list[Label]) -> dict[str, dict]:
 def operational(labels: list[Label]) -> dict:
     costs = [label.cost_usd for label in labels if label.cost_usd is not None]
     latencies = [float(label.latency_seconds) for label in labels if label.latency_seconds is not None]
+    attempts = [float(label.attempt_latency) for label in labels if label.attempt_latency is not None]
     return {
         "outcomes": {name: sum(1 for label in labels if label.outcome == name) for name in ("reached_confirm", "declined", "failed")},
         "cost_usd": {"p50_upper_median": upper_median(costs), "p90_nearest_rank": nearest_rank(costs, 90), "count": len(costs),
                      "unknown_counted_at_cap": sum(1 for label in labels if not label.cost_known),
                      "charged_this_run": sum(label.charged for label in labels)},
         "latency_seconds": {"p50_upper_median": upper_median(latencies), "p90_nearest_rank": nearest_rank(latencies, 90), "count": len(latencies)},
+        "attempt_latency_seconds_diagnostic": {"p50_upper_median": upper_median(attempts), "p90_nearest_rank": nearest_rank(attempts, 90),
+                                               "count": len(attempts)},
     }
 
 

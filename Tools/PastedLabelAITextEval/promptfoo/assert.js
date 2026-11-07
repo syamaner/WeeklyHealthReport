@@ -21,6 +21,18 @@ module.exports = (output, context) => {
   } catch (e) {
     return { pass: false, score: 0, reason: `score failed: ${String(e.stderr || e.message).trim()}` };
   }
+  // The tap ends after scoring (5.3): the tap latency is end minus the provider's start. The
+  // attempt-only time from `send` is kept apart as a diagnostic.
+  const ended = Date.now();
+  let started = null;
+  try {
+    started = JSON.parse(String(output)).tap_started_at_ms;
+  } catch (e) {
+    started = null;
+  }
+  const named = Object.assign({}, scored.named_scores);
+  if (typeof started === 'number' && ended >= started) named.tap_latency_seconds = (ended - started) / 1000;
+  if (typeof scored.latency_seconds === 'number') named.attempt_latency_seconds = scored.latency_seconds;
   const s = scored.score;
   return {
     pass: scored.pass,
@@ -28,6 +40,6 @@ module.exports = (output, context) => {
     reason: `${s.outcome}${s.decline_reasons.length ? ' ' + s.decline_reasons.join(',') : ''}${s.failure ? ' ' + s.failure : ''}: `
       + `${s.fields_correct}/${s.fields_printed} printed fields correct, ${s.fields_wrong} wrong (${s.wrong_silent} silent), `
       + `${s.attention_items} attention items`,
-    namedScores: scored.named_scores,
+    namedScores: named,
   };
 };

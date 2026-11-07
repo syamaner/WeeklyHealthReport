@@ -52,7 +52,8 @@ public enum SendCommand {
         public var textSHA256: String
         public var requestSHA256: String
         public var cached: Bool
-        /// `responded`, `transport_failed:<reason>`, `not_sent:<reason>`, `refused:<stop>`, or
+        /// `responded`, `transport_failed:<reason>`, `not_sent:<reason>`, `refused:<stop>`,
+        /// `catalogue_failed:<reason>` (nothing reserved or sent), or
         /// `declined_before_send:<markers>` when the pre-send panel detector declined the text.
         public var attempt: String
         public var status: Int?
@@ -69,13 +70,16 @@ public enum SendCommand {
         public var latencySeconds: Double?
         public var promptTokens: Int?
         public var completionTokens: Int?
+        /// The W this tap reserved (on a cache hit, the original tap's), nil when it reserved nothing.
+        /// The statistics charge an unknown cost at this W (Qodo re-review finding 1).
+        public var reservedWUSD: String? = nil
 
         enum CodingKeys: String, CodingKey {
             case cell, model, endpoint, cached, attempt, status, response
             case labelID = "label_id", routeCandidate = "route_candidate", promptVersion = "prompt_version"
             case instructionSHA256 = "instruction_sha256", schemaSHA256 = "schema_sha256", textSHA256 = "text_sha256"
             case requestSHA256 = "request_sha256", costUSD = "cost_usd", chargedUSD = "charged_usd", reservedUSD = "reserved_usd"
-            case cachedCostUSD = "cached_cost_usd"
+            case cachedCostUSD = "cached_cost_usd", reservedWUSD = "reserved_w_usd"
             case latencySeconds = "latency_seconds", promptTokens = "prompt_tokens", completionTokens = "completion_tokens"
         }
     }
@@ -132,6 +136,7 @@ public enum SendCommand {
                 cached.cachedCostUSD = cached.costUSD
                 cached.costUSD = nil
                 cached.chargedUSD = "0"
+                cached.reservedWUSD = cached.reservedWUSD ?? cached.reservedUSD
                 cached.reservedUSD = nil
                 return cached
             }
@@ -146,10 +151,16 @@ public enum SendCommand {
         let checker = OpenRouterPastedLabelAITextRouteChecker(transport: transport, clock: SystemLedgerClock(),
                                                               reasoningBilledSeparately: options.reasoningBilledSeparately)
         let check: LabelPhotoManifest.CatalogueCheck
-        do { check = try await checker.check(options.route) } catch { throw Failure.catalogue("\(error)") }
+        // A catalogue failure is a structured record, not an error exit, so it is told apart from a
+        // tap that reserved W (Qodo re-review finding 3): nothing was reserved or sent, so it costs 0.
+        do { check = try await checker.check(options.route) } catch {
+            output.attempt = "catalogue_failed:\(error)"
+            return output
+        }
         guard let prompt = Decimal(string: check.promptPrice, locale: Locale(identifier: "en_US_POSIX")),
               let completion = Decimal(string: check.completionPrice, locale: Locale(identifier: "en_US_POSIX")) else {
-            throw Failure.catalogue("unreadable prices")
+            output.attempt = "catalogue_failed:unreadable prices"
+            return output
         }
         let prices = LabelPhotoSpendPolicy.Prices(promptPerToken: prompt, completionPerToken: completion,
                                                   reasoningBilledSeparately: options.reasoningBilledSeparately,
@@ -171,6 +182,7 @@ public enum SendCommand {
             output.attempt = "refused:\(refusal)"
             return output
         }
+        output.reservedWUSD = "\(worstCase)"
         let attempt = OpenRouterPastedLabelAITextAttempt(transport: transport, keys: FakeTransportKey(), request: request)
         let started = Date()
         let result = await attempt.attempt(text: text, timeout: options.timeout)
