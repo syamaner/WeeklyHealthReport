@@ -25,6 +25,11 @@ exact match, and a paired bootstrap (same resampling of labels) for micro field 
 Bar 4 (5.3, D23): the median cost is the upper median (rank n // 2 + 1 of n sorted costs, the
 13th of 24) and p90 latency is the nearest-rank 90th percentile (rank ceil(0.9 n), the 22nd of
 24). An unknown cost is counted at the per-tap cap; a call that sent nothing costs nothing.
+
+A tap served from the response cache is counted once, at its original tap's recorded cost
+(``cached_cost_usd``), because the cost a tap has is what it cost when it ran; the money this
+invocation spent (``charged_usd``, 0 for a cached tap) is reported apart as ``charged_this_run``,
+so a rerun never counts a cost twice.
 """
 
 from __future__ import annotations
@@ -137,21 +142,32 @@ class Label:
     latency_seconds: float | None = None
     attempt: str = ""
     meta: dict = field(default_factory=dict)
+    charged: float = 0.0
 
     def get(self, name: str) -> float:
         return float(self.scores.get(name, 0))
 
     @property
     def outcome(self) -> str:
-        for name in ("reached_confirm", "declined", "failed"):
+        for name in OUTCOMES:
             if self.get(name) == 1:
                 return name
         return "failed"
 
 
+OUTCOMES = ("reached_confirm", "declined", "failed")
+NOT_ASSIGNED = "not assigned"
+LAYOUT_SHAPES = ("one_row_per_line", "one_value_per_line", "misaligned", "unitless", "other")
+
+
 def tap_cost(send: dict, cap: float) -> tuple[float, bool]:
-    """A tap's cost: the reported cost; nothing when nothing was sent; otherwise the per-tap cap."""
+    """A tap's cost: the reported cost; for a cached tap, its original tap's cost; nothing when
+    nothing was sent; otherwise (unknown) the per-tap cap."""
     attempt = str(send.get("attempt", ""))
+    if send.get("cached"):
+        if send.get("cached_cost_usd") is not None:
+            return float(send["cached_cost_usd"]), True
+        return cap, False
     if send.get("cost_usd") is not None:
         return float(send["cost_usd"]), True
     if attempt.startswith(("refused:", "not_sent:", "declined_before_send:")):
@@ -176,6 +192,10 @@ def load_results(path: Path, cases: Path | None = None, cap: float = PER_TAP_CAP
         scores = (row.get("gradingResult") or {}).get("namedScores") or row.get("namedScores") or {}
         if not scores:
             scores = {"failed": 1}
+        # Exactly one valid outcome per result (Qodo finding 8 on A2).
+        marks = [scores.get(name, 0) for name in OUTCOMES]
+        if any(mark not in (0, 1) for mark in marks) or sum(marks) != 1:
+            raise ValueError(f"{label_id}: the result does not mark exactly one outcome of {OUTCOMES}")
         try:
             send = json.loads((row.get("response") or {}).get("output") or "{}")
         except (TypeError, json.JSONDecodeError):
@@ -186,8 +206,12 @@ def load_results(path: Path, cases: Path | None = None, cap: float = PER_TAP_CAP
             case_path = cases / f"{label_id}.json"
             if case_path.exists():
                 case = json.loads(case_path.read_text(encoding="utf-8"))
-                meta = {"tier": case.get("tier"), "copy_method": case.get("copy_method"), "set": case.get("set"), "format": case.get("format")}
-        cells.setdefault(cell, []).append(Label(label_id, cell, scores, cost, known, send.get("latency_seconds"), str(send.get("attempt", "")), meta))
+                meta = {"tier": case.get("tier"), "copy_method": case.get("copy_method"), "set": case.get("set"), "format": case.get("format"),
+                        "layout_shape": case.get("layout_shape") or NOT_ASSIGNED}
+        if meta and meta["layout_shape"] not in LAYOUT_SHAPES + (NOT_ASSIGNED,):
+            raise ValueError(f"{label_id}: unknown layout_shape {meta['layout_shape']}")
+        cells.setdefault(cell, []).append(Label(label_id, cell, scores, cost, known, send.get("latency_seconds"), str(send.get("attempt", "")), meta,
+                                                charged=float(send.get("charged_usd") or 0)))
     for cell, labels in cells.items():
         ids = [label.label_id for label in labels]
         if len(ids) != len(set(ids)):
@@ -300,7 +324,8 @@ def operational(labels: list[Label]) -> dict:
     return {
         "outcomes": {name: sum(1 for label in labels if label.outcome == name) for name in ("reached_confirm", "declined", "failed")},
         "cost_usd": {"p50_upper_median": upper_median(costs), "p90_nearest_rank": nearest_rank(costs, 90), "count": len(costs),
-                     "unknown_counted_at_cap": sum(1 for label in labels if not label.cost_known)},
+                     "unknown_counted_at_cap": sum(1 for label in labels if not label.cost_known),
+                     "charged_this_run": sum(label.charged for label in labels)},
         "latency_seconds": {"p50_upper_median": upper_median(latencies), "p90_nearest_rank": nearest_rank(latencies, 90), "count": len(latencies)},
     }
 
@@ -317,7 +342,7 @@ def by_nutrient(labels: list[Label]) -> dict[str, dict]:
 
 def breakdowns(labels: list[Label]) -> dict[str, dict]:
     out: dict[str, dict] = {"nutrient": by_nutrient(labels)}
-    for key in ("tier", "copy_method", "set", "format"):
+    for key in ("tier", "copy_method", "set", "format", "layout_shape"):
         groups: dict[str, list[Label]] = {}
         for label in labels:
             groups.setdefault(str(label.meta.get(key)), []).append(label)
@@ -351,10 +376,20 @@ def bar(labels: list[Label], bar_path: Path) -> dict:
     }
 
 
+def macro_precision_exclusions(labels: list[Label]) -> dict[str, int]:
+    """The labels left out of macro precision, reported beside it (Qodo finding 10 on A2)."""
+    reached = [label for label in labels if label.outcome == "reached_confirm"]
+    return {"averaged_over": sum(1 for label in reached if label.get("fields_shown")),
+            "excluded_not_reaching_confirm": len(labels) - len(reached),
+            "excluded_confirm_without_fields": sum(1 for label in reached if not label.get("fields_shown"))}
+
+
 def summary(cells: dict[str, list[Label]], resamples: int, seed: int, bar_path: Path | None) -> dict:
     out = {"schema": SCHEMA, "seed": seed, "resamples": resamples, "cells": {}}
     for cell, labels in sorted(cells.items()):
-        entry = {"labels": len(labels), "label_level": label_proportions(labels), "field_level": bootstrap(labels, resamples, seed),
+        field_level = bootstrap(labels, resamples, seed)
+        field_level["field_precision_macro"]["exclusions"] = macro_precision_exclusions(labels)
+        entry = {"labels": len(labels), "label_level": label_proportions(labels), "field_level": field_level,
                  "operational": operational(labels), "breakdowns": breakdowns(labels)}
         if bar_path is not None:
             entry["bar"] = bar(labels, bar_path)

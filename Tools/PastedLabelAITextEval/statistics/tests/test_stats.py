@@ -198,6 +198,45 @@ class GateFiveTests(unittest.TestCase):
                 stats.load_results(write([result("a", scores()), result("b", scores()), result("c", scores())]), cases)
 
 
+class QodoFindingTests(unittest.TestCase):
+    def test_a_cached_tap_counts_once_at_its_original_cost(self):
+        self.assertEqual(stats.tap_cost({"attempt": "responded", "cached": True, "cost_usd": None, "cached_cost_usd": "0.004",
+                                         "charged_usd": "0"}, 0.05), (0.004, True))
+        self.assertEqual(stats.tap_cost({"attempt": "responded", "cached": True, "cost_usd": None, "cached_cost_usd": None}, 0.05), (0.05, False))
+        rows = [result("a", scores()), result("b", scores())]
+        rows[1]["response"]["output"] = json.dumps({"attempt": "responded", "cached": True, "cost_usd": None, "cached_cost_usd": "0.004",
+                                                    "charged_usd": "0", "latency_seconds": 2.0})
+        labels = stats.load_results(write(rows))["model-a|prompt-v1"]
+        self.assertEqual([label.cost_usd for label in labels], [0.004, 0.004])
+        self.assertEqual(stats.operational(labels)["cost_usd"]["charged_this_run"], 0.0, "the first row's send record has no charged_usd")
+
+    def test_each_result_marks_exactly_one_outcome(self):
+        for named in ({"reached_confirm": 1, "declined": 1}, {"reached_confirm": 0}, {"failed": 2}, {"declined": 0.5, "failed": 0.5}):
+            with self.assertRaises(ValueError, msg=str(named)):
+                stats.load_results(write([result("a", named)]))
+
+    def test_layout_shape_breakdown_reports_not_assigned(self):
+        with tempfile.TemporaryDirectory() as directory:
+            cases = Path(directory)
+            (cases / "a.json").write_text(json.dumps({"layout_shape": "misaligned", "tier": "A"}), encoding="utf-8")
+            (cases / "b.json").write_text(json.dumps({"tier": "B"}), encoding="utf-8")
+            labels = stats.load_results(write([result("a", scores()), result("b", scores())]), cases)["model-a|prompt-v1"]
+            shapes = stats.breakdowns(labels)["layout_shape"]
+            self.assertEqual(sorted(shapes), ["misaligned", "not assigned"])
+            self.assertEqual(shapes["misaligned"]["labels"], 1)
+            (cases / "b.json").write_text(json.dumps({"layout_shape": "zigzag"}), encoding="utf-8")
+            with self.assertRaises(ValueError):
+                stats.load_results(write([result("a", scores()), result("b", scores())]), cases)
+
+    def test_macro_precision_reports_its_exclusions(self):
+        rows = [result("a", scores()), result("b", scores(outcome="declined")), result("c", scores(shown=0, correct=0))]
+        labels = stats.load_results(write(rows))["model-a|prompt-v1"]
+        self.assertEqual(stats.macro_precision_exclusions(labels),
+                         {"averaged_over": 1, "excluded_not_reaching_confirm": 1, "excluded_confirm_without_fields": 1})
+        out = stats.summary({"m|p": labels}, 50, 1, None)
+        self.assertEqual(out["cells"]["m|p"]["field_level"]["field_precision_macro"]["exclusions"]["excluded_not_reaching_confirm"], 1)
+
+
 class CompareTests(unittest.TestCase):
     def test_mcnemar_exact_by_hand(self):
         # b = 1, c = 6: 2 * (C(7,0) + C(7,1)) / 2^7 = 0.125.
