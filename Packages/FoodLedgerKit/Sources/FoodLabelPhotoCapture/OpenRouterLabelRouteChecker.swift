@@ -39,8 +39,9 @@ public struct OpenRouterLabelRouteChecker: LabelPhotoRouteChecking {
     }
 
     public func check(_ route: LabelPhotoRoute.Route) async throws -> LabelPhotoManifest.CatalogueCheck {
-        // A text route is never checked as a photo route (docs/pasted-label-ai-text-v1.md 4.2, test 21).
-        guard route.version != PastedLabelAITextRoute.version, let url = Self.endpointsURL(route) else { throw CheckError.malformed }
+        // Only the closed photo route set is checked, so a text route never is (docs/pasted-label-ai-text-v1.md
+        // 4.2, test 21; A2 gate finding 13).
+        guard LabelPhotoRoute.admitted.contains(route), let url = Self.endpointsURL(route) else { throw CheckError.malformed }
         let listing = try await fetch(url)
         let zeroDataRetention = try await fetch(Self.zeroDataRetentionURL)
         return try Self.parse(listing: listing, zeroDataRetention: zeroDataRetention, route: route,
@@ -69,11 +70,20 @@ public struct OpenRouterLabelRouteChecker: LabelPhotoRouteChecking {
     public static func parse(listing: Data, zeroDataRetention: Data, route: LabelPhotoRoute.Route, at: Int64,
                              reasoningBilledSeparately: Bool = false) throws
         -> LabelPhotoManifest.CatalogueCheck {
+        guard LabelPhotoRoute.admitted.contains(route) else { throw CheckError.malformed }
+        return try parseListings(listing: listing, zeroDataRetention: zeroDataRetention, model: route.model, endpoint: route.endpoint, at: at,
+                                 reasoningBilledSeparately: reasoningBilledSeparately)
+    }
+
+    /// The listing and pricing rules for one model and endpoint, shared with the text route
+    /// checker, which admits its own closed set before calling them.
+    static func parseListings(listing: Data, zeroDataRetention: Data, model routeModel: String, endpoint routeEndpoint: String, at: Int64,
+                              reasoningBilledSeparately: Bool) throws -> LabelPhotoManifest.CatalogueCheck {
         guard let root = (try? JSONSerialization.jsonObject(with: listing)) as? [String: Any],
               let model = root["data"] as? [String: Any], let slug = model["id"] as? String,
               let endpoints = model["endpoints"] as? [[String: Any]] else { throw CheckError.malformed }
         let modalities = ((model["architecture"] as? [String: Any])?["input_modalities"] as? [String]) ?? []
-        let matches = endpoints.filter { $0["tag"] as? String == route.endpoint }
+        let matches = endpoints.filter { $0["tag"] as? String == routeEndpoint }
         guard matches.count == 1, let pricing = matches[0]["pricing"] as? [String: Any],
               let prompt = (pricing["prompt"] as? String).flatMap(decimalText),
               let completion = (pricing["completion"] as? String).flatMap(decimalText) else { throw CheckError.malformed }
@@ -83,9 +93,9 @@ public struct OpenRouterLabelRouteChecker: LabelPhotoRouteChecking {
         guard let zdrRoot = (try? JSONSerialization.jsonObject(with: zeroDataRetention)) as? [String: Any],
               let zdrEntries = zdrRoot["data"] as? [[String: Any]] else { throw CheckError.malformed }
         let listed = zdrEntries.contains { entry in
-            entry["model_id"] as? String == route.model && entry["tag"] as? String == route.endpoint
+            entry["model_id"] as? String == routeModel && entry["tag"] as? String == routeEndpoint
         }
-        return LabelPhotoManifest.CatalogueCheck(at: at, slug: slug, endpoint: route.endpoint, inputModalities: modalities,
+        return LabelPhotoManifest.CatalogueCheck(at: at, slug: slug, endpoint: routeEndpoint, inputModalities: modalities,
                                                  zeroDataRetention: listed, promptPrice: prompt, completionPrice: completion)
     }
 

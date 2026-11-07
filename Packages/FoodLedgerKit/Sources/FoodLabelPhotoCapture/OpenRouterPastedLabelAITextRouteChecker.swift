@@ -45,8 +45,8 @@ public struct OpenRouterPastedLabelAITextRouteChecker: Sendable {
     public static func parse(listing: Data, zeroDataRetention: Data, route: PastedLabelAITextRoute.Route, at: Int64,
                              reasoningBilledSeparately: Bool = false) throws -> LabelPhotoManifest.CatalogueCheck {
         guard PastedLabelAITextRoute.isAdmitted(route) else { throw CheckError.notATextRoute }
-        let check = try OpenRouterLabelRouteChecker.parse(listing: listing, zeroDataRetention: zeroDataRetention, route: listingShape(route), at: at,
-                                                          reasoningBilledSeparately: reasoningBilledSeparately)
+        let check = try OpenRouterLabelRouteChecker.parseListings(listing: listing, zeroDataRetention: zeroDataRetention, model: route.model,
+                                                                  endpoint: route.endpoint, at: at, reasoningBilledSeparately: reasoningBilledSeparately)
         guard check.zeroDataRetention, check.inputModalities.contains("text"), check.endpoint == route.endpoint else {
             throw CheckError.unavailable
         }
