@@ -29,9 +29,21 @@ def main(work: Path, catalogue: Path):
             lab = i.get(key) or {}
             if lab.get("status") in ("probable", "other_brand_used") and re.fullmatch(r"[0-9]{8}|[0-9]{12,14}", str(lab.get("code") or "")):  # the lengths the app admits
                 codes.add(lab["code"])
-    out = work / "off-products-v3"  # API v3.6, as OpenFoodFactsLookup reads it
+    # Barcodes need no separate approval only because they come from Open Food Facts' own results:
+    # a code is fetched only if it appears in a cached search hit, never on the working catalogue's word.
+    seen = set()
+    for d in ("off-cache", "off-cache2"):
+        for p in (work / d).glob("*.json"):
+            for h in json.load(open(p)).get("hits", []):
+                if isinstance(h, dict) and isinstance(h.get("code"), str):
+                    seen.add(h["code"])
+    unverified = sorted(codes - seen)
+    codes &= seen
+    out = check_output(work / "off-products-v3")  # API v3.6, as OpenFoodFactsLookup reads it
     out.mkdir(exist_ok=True)
     todo = sorted(c for c in codes if not (out / f"{c}.json").exists())
+    if unverified:
+        print(f"skipped {len(unverified)} codes not found in any cached Open Food Facts search hit", flush=True)
     print(f"chosen products: {len(codes)}, to fetch: {len(todo)}", flush=True)
     client = Client(log=lambda m: print(m, flush=True))
     done = errors = 0
@@ -40,7 +52,7 @@ def main(work: Path, catalogue: Path):
             url = f"https://world.openfoodfacts.org/api/v3.6/product/{code}.json"  # the app's endpoint
             try:
                 d = client.get_json(url)
-                (out / f"{code}.json").write_text(json.dumps(
+                check_output(out / f"{code}.json").write_text(json.dumps(
                     {"retrieved": time.strftime("%Y-%m-%d", time.gmtime()), "requested": code, "api": "v3.6",
                      "status": d.get("status"), "warnings": d.get("warnings"), "product": d.get("product")},
                     ensure_ascii=False))
@@ -48,7 +60,7 @@ def main(work: Path, catalogue: Path):
             except CircuitOpen:
                 raise
             except Exception as e:  # recorded; that product contributes no label values
-                (out / f"{code}.error").write_text(f"{type(e).__name__}: {e}")
+                check_output(out / f"{code}.error").write_text(f"{type(e).__name__}: {e}")
                 errors += 1
             if (done + errors) % 25 == 0:
                 print(f"progress done={done} errors={errors}", flush=True)

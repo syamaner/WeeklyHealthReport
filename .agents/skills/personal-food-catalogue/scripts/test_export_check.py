@@ -53,7 +53,8 @@ def golden():
     tofu = entry(None, "合成豆腐", concept="tofu", fallback_chain=["tofu"], category="legume", state="unknown",
                  generic_reference={"source": "tfda", "corpus_sha256": PIN, "record_id": "tfda:X0001",
                                     "match": "close", "role": "candidate"})
-    salted = entry(None, "Synthetic Crème Spread", concept="spread", category="other", label_nutrients={
+    salted = entry(None, "Synthetic Crème Spread", concept="spread", fallback_chain=["spread"], category="other",
+                   label_nutrients={
         "sodium": {"value": 200.0, "unit": "mg", "source_kind": "manual_declaration", "source_release": OWNER_ID,
                    "record_id": None, "match": "owner",
                    "transforms": [{"transform_id": "salt_to_sodium_v1", "version": "pasted-label-conversions-v1"}],

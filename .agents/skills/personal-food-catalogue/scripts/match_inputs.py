@@ -22,7 +22,9 @@ STOP = set("the and with of in a raw cooked boiled fried roast roasted steamed b
 
 
 def toks(s):
-    return {t.rstrip("s") for t in re.findall(r"[a-z0-9%]+", s.casefold()) if t not in STOP and len(t) > 1}
+    # "&" stays inside a token so short brands such as "m&s" survive tokenising
+    return {t.rstrip("s") if t != "m&s" else t for t in re.findall(r"[a-z0-9%&]+", s.casefold())
+            if t not in STOP and (len(t) > 1 or "&" in t)}
 
 
 def main(work: Path, cat_path: Path):
@@ -55,7 +57,7 @@ def main(work: Path, cat_path: Path):
         if it["brand"]:
             bt = toks(it["brand"])
             for i, names, tt in keys:
-                if bt <= tt and (toks(it["term"]) - bt) <= tt | toks(" ".join(names)):
+                if bt and bt <= tt and (toks(it["term"]) - bt) <= tt | toks(" ".join(names)):
                     best.append(("product", i["title"]))
         if not best:
             for i, names, tt in keys:

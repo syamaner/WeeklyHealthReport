@@ -106,7 +106,11 @@ def main(src: Path, out: Path):
         families[key_of(p["base"])].append(k)
     rows.sort(key=lambda r: (r["kind_proposal"], -r["purchase_lines"], r["title"]))
     out.mkdir(parents=True, exist_ok=True)
-    fields = list(rows[0].keys())
+    fields = ["product_key", "title", "kind_proposal", "base_name", "pack_text", "pack_g", "pack_ml", "pack_count",
+              "typical_weight", "purchase_lines", "units", "first_month", "last_month", "retailers", "vat_marker"]
+    if not rows:
+        print("no products found in the purchase lines; nothing written")
+        return
     for kind in ("food", "supplement", "non_food"):
         with open(out / f"unique-{kind}.csv", "w", newline="") as fh:
             w = csv.DictWriter(fh, fieldnames=fields)

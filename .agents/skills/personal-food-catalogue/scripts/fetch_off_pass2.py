@@ -67,7 +67,7 @@ def main(work: Path, catalogue: Path):
             # privacy-and-egress.md: receipt titles, and note-derived items only when they name a brand
             and ((i.get("origin") == "receipts" and not i["nutrient_sources"])
                  or (str(i.get("origin", "")).startswith("intake:") and i.get("brand")))]
-    out = work / "off-cache2"
+    out = check_output(work / "off-cache2")  # a linked cache folder must not lead into a git tree
     out.mkdir(exist_ok=True)
     load_food_words(work)  # the outbound gate needs it
     planned = [q for item in todo for tag, q in queries(item, known)
@@ -94,10 +94,10 @@ def main(work: Path, catalogue: Path):
                     except CircuitOpen:
                         raise
                     except Exception as e:  # recorded, not treated as "no match"
-                        (out / f"{n}-{tag}.error").write_text(f"{type(e).__name__}: {e}")
+                        check_output(out / f"{n}-{tag}.error").write_text(f"{type(e).__name__}: {e}")
                         errors += 1
                         continue
-                    p.write_text(json.dumps({"query": q, "pass": tag, "retrieved": time.strftime("%Y-%m-%d"),
+                    check_output(p).write_text(json.dumps({"query": q, "pass": tag, "retrieved": time.strftime("%Y-%m-%d"),
                                              "hits": hits}, ensure_ascii=False))
                 if any((h.get("nutriments") or {}).get("energy-kcal_100g") for h in hits):
                     break  # stop at the most specific query that found something usable

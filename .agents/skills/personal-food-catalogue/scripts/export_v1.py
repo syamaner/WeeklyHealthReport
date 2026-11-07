@@ -187,8 +187,9 @@ def build(cat, pins, generated):
         for f, allowed, fallback in (("category", CATEGORIES, "other"), ("product_type", PRODUCT_TYPES, "unknown"),
                                      ("state", STATES, "unknown")):
             v = i.get(f)
-            fixed[f] = v if v in allowed else fallback
-            if v is not None and v not in allowed:
+            ok = isinstance(v, str) and v in allowed  # a list or dict from a mapping is never hashed
+            fixed[f] = v if ok else fallback
+            if v is not None and not ok:
                 REPLACED[f] += 1  # model output outside the closed list: never passed through
         basis = i.get("basis", "per_100_g")
         if not norm(i["title"]):

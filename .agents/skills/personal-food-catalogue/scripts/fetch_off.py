@@ -30,7 +30,7 @@ def query_of(title: str) -> str:
 
 
 def main(work: Path):
-    cache = work / "off-cache"
+    cache = check_output(work / "off-cache")  # a linked cache folder must not lead into a git tree
     cache.mkdir(exist_ok=True)
     fams = json.load(open(work / "families.json"))
     done = failed = 0
@@ -47,14 +47,14 @@ def main(work: Path):
         try:
             d = client.get_json(url)
             hits = d.get("hits", [])
-            p.write_text(json.dumps({"query": q, "retrieved": time.strftime("%Y-%m-%d"),
+            check_output(p).write_text(json.dumps({"query": q, "retrieved": time.strftime("%Y-%m-%d"),
                                      "hits": hits}, ensure_ascii=False))
             done += 1
         except CircuitOpen as e:
             print(f"stopped: {e}", flush=True)
             break
         except Exception as e:  # recorded, never silently treated as no match
-            (cache / f"{f['n']}.error").write_text(f"{type(e).__name__}: {e}")
+            check_output(cache / f"{f['n']}.error").write_text(f"{type(e).__name__}: {e}")
             failed += 1
         if (done + failed) % 50 == 0:
             print(f"progress done={done} failed={failed}", flush=True)
