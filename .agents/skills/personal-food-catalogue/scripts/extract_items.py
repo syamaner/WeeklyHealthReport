@@ -186,7 +186,7 @@ def classify(path: Path, text: str, layouts=None):
 # Exact, reviewed exceptions, kept in the private config: brand names that look like
 # honorifics, and site-navigation words that also occur in product titles.
 BRAND_HONORIFICS = set(CONFIG["brand_honorifics"])
-SITE_CHROME_PREFIXES = tuple(CONFIG["site_chrome_prefixes"])
+SITE_CHROME_WORDS = set(CONFIG["site_chrome_prefixes"])  # a header fragment exempt only when it is exactly one of these
 
 
 def gate(records, chunks_by_doc):
@@ -200,7 +200,7 @@ def gate(records, chunks_by_doc):
                 if hit and not (label == "honorific" and hit.group(0) in BRAND_HONORIFICS):
                     failures.append((r["doc_id"], r["line_no"], field, label))
             for c in chunks_by_doc.get(r["doc_id"], ()):
-                if c in v and not c.startswith(SITE_CHROME_PREFIXES):
+                if c in v and c not in SITE_CHROME_WORDS:
                     failures.append((r["doc_id"], r["line_no"], field, "header_fragment"))
     return failures
 

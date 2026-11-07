@@ -15,7 +15,7 @@
   "receipt_noise_prefixes": ["Example Weekly Deals"],
   "site_chrome_prefixes": ["Favourites"],
   "brand_honorifics": ["Mr Sample"],
-  "brand_aliases": {"a&b": ["a & b", "alpha & beta", "alpha beta"]},
+  "brand_aliases": {"a&b": ["a & b", "Alpha and Beta", "alpha beta"]},
   "brand_prefixes": ["a&b", "example grocer"],
   "title_stopwords": ["examplegrocer"],
   "supplement_words": ["examplecaps"],

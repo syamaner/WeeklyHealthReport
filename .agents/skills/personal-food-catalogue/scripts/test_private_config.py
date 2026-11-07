@@ -60,6 +60,23 @@ with tempfile.TemporaryDirectory() as tmp:
                     "A.score_off('A&B Greek Yogurt', None, {'product_name': 'Greek Yogurt', 'brands': ['Alpha & Beta']})[1])", good)
     results.append(("config: brand aliases normalise and match", rc == 0 and out == "a&b other brand True"))
 
+    rc, out = probe("import assemble as A; print(A.norm_brand('Not Alpha Beta'), '|', A.score_off('A&B Greek Yogurt', None, "
+                    "{'product_name': 'Greek Yogurt', 'brands': ['Not Alpha Beta']})[1])", good)
+    results.append(("config: a spelling inside another brand is not that brand", rc == 0 and out == "not alpha beta | False"))
+
+    rc, out = probe("import assemble as A; print(A.score_off('Oats', None, {'product_name': 'Alpha Beta Oats', 'brands': ['Other']})[0], "
+                    "A.name_coverage('Oats', {'product_name': 'Alpha Beta Oats', 'brands': ['Other']}))", good)
+    results.append(("config: alias words are kept for an unrelated brand", rc == 0 and out == "0.8 0.3333333333333333"))
+
+    rc, out = probe("import assemble as A; print(A.norm_brand('ALPHA & BETA'))", good)
+    results.append(("config: spellings are normalised like brands ('and' and '&')", rc == 0 and out == "a&b"))
+
+    rc, out = probe("import extract_items as X; "
+                    "r = [{'doc_id': 'd', 'line_no': 1, 'name': 'Favourites Oat Bar'}, {'doc_id': 'd', 'line_no': 2, 'name': 'Favourites Jones note'}]; "
+                    "print(X.gate(r, {'d': {'Favourites', 'Favourites Jones note'}}))", good)
+    results.append(("config: a chrome word exempts only itself, never a longer header fragment",
+                    rc == 0 and out == "[('d', 2, 'name', 'header_fragment')]"))
+
     rc, out = probe("import assemble as A; print(A.score_off('A&B Greek Yogurt', None, "
                     "{'product_name': 'Greek Yogurt', 'brands': ['Alpha & Beta']})[1])")
     results.append(("no config: an unlisted spelling is not the same brand", rc == 0 and out == "False"))

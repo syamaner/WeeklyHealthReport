@@ -23,8 +23,9 @@ derived value live only in the private workspace.
    `PFC_CONFIG=<workspace>/private-config.json` set; with it unset the gates allow no brand
    exceptions, the extractor recognises no layout, and every script that writes catalogue output
    refuses to run. A brand exception must be exactly one title and one capitalised word, and a
-   site-chrome prefix one capitalised word of four or more letters, so the file can never loosen a gate
-   beyond an exact name. Never copy the owner's shop or brand names into scripts, tests or docs: add
+   site-chrome word one capitalised word of four or more letters that exempts only a header fragment
+   equal to it, so the file can never loosen a gate beyond an exact name. A brand spelling matches only
+   a brand that is that spelling or starts with it as whole words: add every spelling a source uses. Never copy the owner's shop or brand names into scripts, tests or docs: add
    them to that file.
 2. **Sanitise before anything else.** Extract by allow-list: food titles, brand, pack size, label
    values. Never keep names, addresses, postcodes, emails, card or payment details, order or
