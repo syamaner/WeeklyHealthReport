@@ -14,6 +14,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from workspace_guard import check  # noqa: E402
+from private_config import require  # noqa: E402
 
 
 def run(*args):
@@ -25,6 +26,7 @@ def run(*args):
 
 
 def main(ws: Path, repo: Path):
+    require()
     res = repo / "Packages/FoodLedgerKit/Sources/FoodGenericSearch/Resources"
     work, out = ws / "work", ws / "out"
     if (work / "mapping-batch-1.txt").exists():

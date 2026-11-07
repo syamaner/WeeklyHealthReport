@@ -14,6 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from workspace_guard import check_output  # noqa: E402
+from private_config import require  # noqa: E402
 import assemble as A  # noqa: E402
 import intake as I  # noqa: E402
 
@@ -196,4 +197,5 @@ def main(work: Path, cat_path: Path, res: Path):
 
 
 if __name__ == "__main__":
+    require()
     main(check_output(sys.argv[1]), check_output(sys.argv[2]), Path(sys.argv[3]))

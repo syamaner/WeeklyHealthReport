@@ -13,6 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from workspace_guard import check_output  # noqa: E402
+from private_config import CONFIG, require  # noqa: E402
 
 PACK = re.compile(
     r"(?P<multi>(?P<n>\d+)\s*[xX×]\s*)?(?P<amt>\d+(?:\.\d+)?)\s*(?P<unit>kg|g|ml|cl|l|litres?|L)\b\*?\s*$", re.I)
@@ -26,8 +27,10 @@ NON_FOOD = re.compile(
     r"surface spray|antibacterial|freezer bags|sandwich bags|food bags|lightbulb|scoop|handbook|kitchen towel|soda crystals|shave|shaving|shower cream|hand cream|lip balm|"
     r"tampons?|sanitary|panty|wet wipes|air freshener|matches|lighter|charcoal|firelighters?)\b",
     re.I)
-SUPPLEMENT = re.compile(r"\b(vitamin|multivitamin|tablets|capsules|caps|omega-3|zinc|magnesium|TUDCA|probiotic|"
-                        r"collagen|whey|psyllium|creatine|electrolyte)\b", re.I)
+SUPPLEMENT = re.compile(r"\b(vitamin|multivitamin|tablets|capsules|caps|omega-3|zinc|magnesium|probiotic|"
+                        r"collagen|whey|psyllium|creatine|electrolyte"
+                        + "".join("|" + re.escape(w) for w in CONFIG["supplement_words"]) + r")\b", re.I)
+SUPPLEMENT_RETAILERS = set(CONFIG["supplement_retailers"])  # shops that sell only supplements (private)
 
 
 def clean(name: str) -> str:
@@ -90,7 +93,7 @@ def main(src: Path, out: Path):
         title = sorted(p["titles"], key=len)[-1]
         if NON_FOOD.search(title):
             kind = "non_food"
-        elif SUPPLEMENT.search(title) or p["retailers"] & {"Healf", "Boots"}:
+        elif SUPPLEMENT.search(title) or p["retailers"] & SUPPLEMENT_RETAILERS:
             kind = "supplement"
         else:
             kind = "food"
@@ -126,4 +129,5 @@ def main(src: Path, out: Path):
 
 
 if __name__ == "__main__":
+    require()
     main(Path(sys.argv[1]), check_output(sys.argv[2]))

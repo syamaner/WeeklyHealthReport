@@ -27,10 +27,12 @@ Later receipts never re-run steps 1 to 3 (that would renumber families): use the
 
 1. Run `extract_items.py <folder of PDFs> <workspace>/work/new-<date>`. It reads text in memory
    and writes only item fields. If the gate fails, read only the reported rule and line numbers,
-   decide whether it is a false positive (a brand such as "Mr Kipling"), and add an exact
-   exception; never loosen a rule.
-2. A layout it does not recognise is reported as `unknown`. Add a parser branch for it, keyed by a
-   marker string, and re-run; never guess at an unrecognised layout.
+   decide whether it is a false positive (a brand name that looks like a title and surname), and
+   add the exact brand to `brand_honorifics` in the private config; never loosen a rule.
+2. A layout it does not recognise is reported as `unknown`. Add it to `layouts` in the private
+   config (its marker strings, shop name and an existing parser kind) and re-run. Only a layout
+   none of the parser kinds can read needs a new parser in `extract_items.py`, keyed by kind, never
+   by shop name. Never guess at an unrecognised layout.
 3. Check `coverage.json`: every document accounted for, wrapped names rejoined, nothing unclaimed.
 4. `receipts_to_intake.py <workspace> <new>/purchase-lines.jsonl receipts-<date> <workspace>/inbox/receipts-<date>.json`.
    Read the resulting titles once for non-food that slipped through.
@@ -44,15 +46,16 @@ Scanned or image-only PDFs have no text: treat their pages as receipt photos.
    model provider.
 2. Extract only those columns with a short inline script into the intake file, dedupe titles, and
    run `intake.py add`, whose deny-list gate checks the result.
-3. A stock sheet like the owner's "how much is left" file contributes titles and brands only.
+3. A stock or pantry sheet contributes titles and brands only.
 
 ## Free text (notes, pasted lists, chat)
 
 1. Read the text and list each distinct food with any brand, variety, state and region it states.
-   Do not copy amounts or times. Keep the owner's spelling in `aliases` when it differs ("haas
-   avacado").
-2. When the text names a food ambiguously (橄欖菜 written as "fresh leafy green"), keep it, put
-   the doubt in `note`, and ask the owner rather than choosing.
+   Do not copy amounts or times. Keep the owner's spelling in `aliases` when it differs (a synthetic
+   example: "yougurt" for yoghurt).
+2. When the text names a food ambiguously (a synthetic example: a local name that can mean either a
+   fresh or a preserved vegetable), keep it, put the doubt in `note`, and ask the owner rather than
+   choosing. Never copy the owner's own wording into this file or any other repository file.
 3. Typed label numbers in the text become `label.origin = owner_typed` with their stated basis.
 
 ## App daily exports (food-daily, health-daily JSON)

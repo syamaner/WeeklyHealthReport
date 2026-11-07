@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import build_unique as B  # noqa: E402
 import intake as I  # noqa: E402
 from workspace_guard import check, check_output  # noqa: E402
+from private_config import require  # noqa: E402
 
 
 def main(ws, lines_path, source_id, out_path):
@@ -48,4 +49,5 @@ def main(ws, lines_path, source_id, out_path):
 
 
 if __name__ == "__main__":
+    require()
     main(*sys.argv[1:5])

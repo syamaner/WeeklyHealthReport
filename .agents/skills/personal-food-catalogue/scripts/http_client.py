@@ -17,6 +17,11 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from private_config import CONFIG  # noqa: E402
 
 UA = "PersonalFoodCatalogue/0.2 (private, non-commercial)"
 
@@ -43,7 +48,7 @@ _DENY = [re.compile(x, re.I) for x in (
     r"\b\d+\s+(\w+\s+){1,3}(road|street|lane|avenue|close|gardens|drive|way)\b",
     r"\b(order|invoice|payment|card|account|delivery|customer)\b",
 )]
-_BRAND_HONORIFICS = ("Mr Organic", "Mr Filberts", "Mr Kipling")
+_BRAND_HONORIFICS = tuple(CONFIG["brand_honorifics"])  # exact brand exceptions, kept private
 
 
 CJK_FOOD_BIGRAMS = set()  # two-character Chinese fragments from TFDA food names
