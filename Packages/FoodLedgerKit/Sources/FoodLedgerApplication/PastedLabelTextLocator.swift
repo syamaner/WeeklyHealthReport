@@ -37,7 +37,11 @@ import Foundation
 ///    or a math symbol (Unicode Sm, such as `≦` or `~`), is under attention, since the printed
 ///    bound may be lost. The closed comparator lists are unchanged.
 /// 8. **Two or more reference-intake headers** put every reference-intake value under attention
-///    (review F7), since `%` cells are not positioned between them.
+///    (review F7), since `%` cells are not positioned between them; `%` tokens in a block with no
+///    reference-intake header put the block under attention.
+/// 9. **Shared header spans**: two header IDs located on one printed span put their values under
+///    attention. **Omitted rows**: a vocabulary row label no model row claimed, starting its line
+///    or following a value, ends the block before it.
 public enum PastedLabelTextLocator {
     public static let version = "pasted-label-text-locate-v1"
     public static let referenceIntakeBasis = "reference_intake"
@@ -105,7 +109,9 @@ public enum PastedLabelTextLocator {
         case rowLabelAmbiguous = "row_label_ambiguous"
         case headerUnknown = "header_unknown"
         case headerNotLocated = "header_not_located"
+        case headerSpanShared = "header_span_shared"
         case multipleReferenceIntakeHeaders = "multiple_reference_intake_headers"
+        case percentWithoutReferenceIntakeHeader = "percent_without_reference_intake_header"
         case headerInsideBlock = "header_inside_block"
         case fewerCellsThanHeaders = "fewer_cells_than_headers"
         case moreCellsThanHeaders = "more_cells_than_headers"
@@ -176,12 +182,15 @@ public enum PastedLabelTextLocator {
         }
         let headerByID = Dictionary(headers.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         let duplicateIDs = Set(headers.map(\.id).filter { id in headers.filter { $0.id == id }.count > 1 })
+        // Qodo finding 1 on #421: distinct IDs located on one printed span are not distinct columns.
+        let sharedSpanIDs = Set(headerSpans.filter { id, span in headerSpans.contains { $0.key != id && $0.value.overlaps(span) } }.keys)
         let locatedSpans = headerSpans.values.sorted { $0.lowerBound < $1.lowerBound }
         // Only a header the vocabulary agrees with may take its tokens out of the cells (F1).
         let hidingSpans = headers.filter { header in
             headerSpans[header.id] != nil && PastedLabelAITextVocabulary.checkHeader(printedText: header.printedText, basis: header.basis) == .agrees
         }.compactMap { headerSpans[$0.id] }
         let referenceHeaderCount = headers.filter { $0.basis == referenceIntakeBasis }.count
+        let anyReferenceHeader = referenceHeaderCount > 0
         let amountHeaders = headers.filter { headerSpans[$0.id] != nil && !duplicateIDs.contains($0.id) && $0.basis != referenceIntakeBasis }
             .sorted { headerSpans[$0.id]!.lowerBound < headerSpans[$1.id]!.lowerBound }
         let columnOfHeader = Dictionary(uniqueKeysWithValues: amountHeaders.enumerated().map { ($0.element.id, $0.offset) })
@@ -209,11 +218,17 @@ public enum PastedLabelTextLocator {
             claimed.append(contentsOf: occurrences)
         }
 
-        // 3. Blocks.
+        // 3. Blocks. A vocabulary row label the model did not return also ends a block when it
+        // starts its line or follows a value (Qodo finding 2 on #421), so an omitted printed
+        // row's values belong to no model row.
         let located = labels.compactMap { label in labelStatus[label]?.range.map { (label, $0) } }.sorted { $0.1.lowerBound < $1.1.lowerBound }
+        let omittedRowStarts = vocabulary.filter { phrase in
+            !claimed.contains { $0.overlaps(phrase) } && !locatedSpans.contains { $0.overlaps(phrase) } && startsARow(scan, phrase)
+        }.map(\.lowerBound).sorted()
         var blocks: [String: Range<Int>] = [:]
         for (index, (label, span)) in located.enumerated() {
-            let end = index + 1 < located.count ? located[index + 1].1.lowerBound : lastBlockEnd(scan, after: span)
+            var end = index + 1 < located.count ? located[index + 1].1.lowerBound : lastBlockEnd(scan, after: span)
+            if let omitted = omittedRowStarts.first(where: { $0 >= span.upperBound }) { end = min(end, omitted) }
             blocks[label] = span.upperBound..<max(span.upperBound, end)
         }
 
@@ -233,6 +248,8 @@ public enum PastedLabelTextLocator {
             let cells = pairCells(tokens.filter { $0.canonicalUnit != "%" }, scan: scan)
             var attention: [Attention] = []
             if locatedSpans.contains(where: { $0.overlaps(block) }) { attention.append(.headerInsideBlock) }
+            // Qodo finding 7 on #421: `%` cells are set aside only for a returned reference-intake header.
+            if !anyReferenceHeader, !percent.isEmpty { attention.append(.percentWithoutReferenceIntakeHeader) }
             if cells.count < amountHeaders.count { attention.append(.fewerCellsThanHeaders) }
             if cells.count > amountHeaders.count { attention.append(.moreCellsThanHeaders) }
             groupAttention[label] = attention
@@ -275,6 +292,7 @@ public enum PastedLabelTextLocator {
                 var reasons = attention
                 if let header = headerByID[value.headerID] {
                     if headerSpans[header.id] == nil || duplicateIDs.contains(header.id) { reasons.append(.headerNotLocated) }
+                    if sharedSpanIDs.contains(header.id) { reasons.append(.headerSpanShared) }
                 } else {
                     reasons.append(.headerUnknown)
                 }
@@ -292,6 +310,24 @@ public enum PastedLabelTextLocator {
             }
         }
         return Result(version: version, headers: headerResults, rows: rowResults, values: valueResults)
+    }
+
+    /// Whether a vocabulary label occurrence starts a printed row: on its line, only whitespace,
+    /// punctuation, leading marks and the words `of which` (any case) come before it, or the last
+    /// thing before it (past whitespace and punctuation) ends a value token.
+    static func startsARow(_ scan: PastedLabelTextScan, _ phrase: Range<Int>) -> Bool {
+        guard let line = scan.line(containing: phrase.lowerBound) else { return false }
+        var index = phrase.lowerBound - 1
+        while index >= line.start, scan.scalars[index].properties.isWhitespace || PastedLabelTextScan.isPunctuation(scan.scalars[index])
+                || scan.scalars[index] == "•" || scan.scalars[index] == "*" {
+            index -= 1
+        }
+        if index < line.start { return true }
+        if scan.tokens.contains(where: { $0.end == index + 1 || $0.coreEnd == index + 1 }) { return true }
+        let before = scan.text(line.start..<(index + 1)).lowercased()
+        let stripped = String(before.unicodeScalars.filter { !$0.properties.isWhitespace && !PastedLabelTextScan.isPunctuation($0) && $0 != "•" && $0 != "*" }
+            .map(Character.init))
+        return stripped == "ofwhich"
     }
 
     /// Case-insensitive whole-word occurrences of every vocabulary row label (F4). Lower-casing is

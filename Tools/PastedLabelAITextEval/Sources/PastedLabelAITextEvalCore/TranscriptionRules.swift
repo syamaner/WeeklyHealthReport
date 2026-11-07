@@ -75,11 +75,18 @@ enum TranscriptionRules {
 
     static func decimal(_ text: String) -> Bool { text.range(of: #"^[0-9]+(\.[0-9]+)?$"#, options: .regularExpression) != nil }
 
-    static func rowNumber(_ text: String, _ schema: Schema) -> Bool {
+    /// A comma number on a row whose label holds CJK script needs `outside_table` in either
+    /// schema: the frozen alias check (`RowClassifierV3.isTaiwanAlias`) is not copied, and it would
+    /// refuse a comma on a Taiwan alias row (Qodo finding 5 on #421).
+    static func rowNumber(_ text: String, _ schema: Schema, label: String) -> Bool {
         guard text.contains(",") else { return decimal(text) }
-        guard schema == .uk, text.range(of: #"^[0-9]+,[0-9]+$"#, options: .regularExpression) != nil,
+        guard schema == .uk, !hasCJK(label), text.range(of: #"^[0-9]+,[0-9]+$"#, options: .regularExpression) != nil,
               let comma = text.firstIndex(of: ",") else { return false }
         return text[text.index(after: comma)...].count != 3
+    }
+
+    static func hasCJK(_ text: String) -> Bool {
+        text.range(of: #"[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]"#, options: .regularExpression) != nil
     }
 
     static func isClassMarker(_ value: TranscriptionShapes.Value) -> Bool {
@@ -102,7 +109,7 @@ enum TranscriptionRules {
                 }
                 guard value.outsideTable != true else { continue }
                 if comparator(value.comparator, schema) == nil { out.append("\(row.label): comparator \(value.comparator) without outside_table") }
-                if !rowNumber(value.number, schema) { out.append("\(row.label): number \(value.number) without outside_table") }
+                if !rowNumber(value.number, schema, label: row.label) { out.append("\(row.label): number \(value.number) without outside_table") }
                 if unit(value.unit, schema) == nil { out.append("\(row.label): unit \(value.unit) without outside_table") }
             }
         }

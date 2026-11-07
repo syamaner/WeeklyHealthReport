@@ -131,6 +131,30 @@ final class EvalCaseConverterTests: XCTestCase {
                                                                          #""columns": []"#), metadata: uk), "no columns")
     }
 
+    func testUKCommaOnACJKLabelNeedsOutsideTable() {
+        let uk = metadata(.ukV1Fresh)
+        let salt = #""label": "Salt", "nutrient": "salt", "values": [{"comparator": "<", "number": "0.01""#
+        XCTAssertNoThrow(try EvalCaseConverter.fromUK(Self.replacing(Self.uk, salt,
+            #""label": "Salt", "nutrient": "salt", "values": [{"comparator": "<", "number": "0,5""#), metadata: uk))
+        XCTAssertThrowsError(try EvalCaseConverter.fromUK(Self.replacing(Self.uk, salt,
+            #""label": "Salt 鹽", "nutrient": "salt", "values": [{"comparator": "<", "number": "0,5""#), metadata: uk))
+        XCTAssertNoThrow(try EvalCaseConverter.fromUK(Self.replacing(Self.uk, salt,
+            #""label": "Salt 鹽", "nutrient": "salt", "values": [{"comparator": "<", "number": "0,5", "outside_table": true"#), metadata: uk))
+    }
+
+    func testSetAndSchemaPairingIsClosed() {
+        XCTAssertThrowsError(try EvalCaseConverter.fromTaiwan(Self.taiwan, metadata: metadata(.taiwanV3Development)),
+                             "no committed harness records the Taiwan v3 development schema")
+        XCTAssertThrowsError(try EvalCaseConverter.fromTaiwan(Self.taiwan, metadata: metadata(.ukV1Fresh, tier: "A")))
+        XCTAssertThrowsError(try EvalCaseConverter.fromTaiwan(Self.taiwan, metadata: metadata(.ukV2Fresh, tier: "A")))
+        XCTAssertThrowsError(try EvalCaseConverter.fromUK(Self.uk, metadata: metadata(.taiwanV3Development)))
+        XCTAssertThrowsError(try EvalCaseConverter.fromUK(Self.uk, metadata: metadata(.taiwanV3Fresh)))
+        XCTAssertNoThrow(try EvalCaseConverter.fromUK(Self.uk, metadata: metadata(.ukV1Development, tier: "A")))
+        XCTAssertNoThrow(try EvalCaseConverter.fromTaiwan(Self.taiwan, metadata: metadata(.ukV1Development, tier: "A")))
+        XCTAssertNoThrow(try EvalCaseConverter.fromTaiwan(Self.taiwan, metadata: metadata(.taiwanV3Fresh)))
+        XCTAssertEqual(Set(EvalCase.schemas.keys), Set(EvalCase.EvalSet.allCases))
+    }
+
     func testDecodingIsStrictAndChecksTheRole() throws {
         let evalCase = try EvalCaseConverter.fromUK(Self.uk, metadata: metadata(.ukV1Fresh, tier: "B"))
         var object = try XCTUnwrap(JSONSerialization.jsonObject(with: try evalCase.canonicalJSON()) as? [String: Any])

@@ -22,6 +22,14 @@ final class PastedLabelAITextVocabularyTests: XCTestCase {
         }
     }
 
+    func testTrailingPunctuationBeforeAUnitGroupIsDropped() {
+        for (label, nutrient) in [("Fat: (g)", "fat"), ("Fat:", "fat"), ("Fat - (g)", "fat"), ("脂肪：", "fat"), ("脂肪：（公克）", "fat"),
+                                  ("Salt -", "salt"), ("Protein (g):", "protein")] {
+            XCTAssertEqual(Vocabulary.checkRow(printedLabel: label, nutrient: nutrient), .agrees, label)
+        }
+        XCTAssertEqual(Vocabulary.checkRow(printedLabel: "Fat (total)", nutrient: "fat"), .unknown, "a bracket that is not a unit group stays")
+    }
+
     func testRowLabelMismatchIsAttention() {
         XCTAssertEqual(Vocabulary.checkRow(printedLabel: "Salt", nutrient: "sodium"), .mismatch)
         XCTAssertEqual(Vocabulary.checkRow(printedLabel: "of which sugars", nutrient: "fibre"), .mismatch)

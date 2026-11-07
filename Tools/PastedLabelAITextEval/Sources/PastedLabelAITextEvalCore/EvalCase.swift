@@ -141,6 +141,26 @@ public struct EvalCase: Codable, Equatable, Sendable {
                                          "added_sugars", "fibre", "sodium", "salt", "other"]
     static let bases: Set<String> = ["per_serving", "per_100g", "per_100ml", "reference_intake"]
 
+    /// The closed set and schema pairing (Qodo finding 6 on #421), as the frozen harnesses in
+    /// `Packages/FoodLedgerKit/Tests/FoodLabelTextCaptureTests/` read each set:
+    /// - `taiwan_v3_fresh`: `FreshSet.transcription` and `FreshSet.problems`
+    ///   (`FreshSet/FreshSetProtocol.swift`), the Taiwan schema only;
+    /// - `uk_v1_fresh` and `uk_v2_fresh`: `UKFreshSet.transcription` (`UKFreshSet/UKFreshSetProtocol.swift`),
+    ///   which refuses any schema but the UK one;
+    /// - `uk_v1_development`: `UKFreshSet.developmentTranscription`, called by
+    ///   `UKDevelopment/UKDevelopmentSet.swift`, which reads the P1 Taiwan-schema files and returns a
+    ///   UK-schema file as it is;
+    /// - `taiwan_v3_development`: no committed harness reads it (reader v3 section 1.1 kept its
+    ///   transcriptions outside the repository with no recorded schema), so no pairing is admitted
+    ///   until one is evidenced.
+    static let schemas: [EvalSet: Set<String>] = [
+        .taiwanV3Development: [],
+        .taiwanV3Fresh: [TranscriptionShapes.TaiwanTranscription.schema],
+        .ukV1Development: [TranscriptionShapes.TaiwanTranscription.schema, TranscriptionShapes.UKTranscription.schema],
+        .ukV1Fresh: [TranscriptionShapes.UKTranscription.schema],
+        .ukV2Fresh: [TranscriptionShapes.UKTranscription.schema],
+    ]
+
     static func isSHA256(_ text: String) -> Bool {
         text.count == 64 && text.allSatisfy { ("0"..."9").contains($0) || ("a"..."f").contains($0) }
     }
@@ -156,19 +176,16 @@ public struct EvalCase: Codable, Equatable, Sendable {
         guard !copyMethod.isEmpty else { throw Invalid("\(labelID): empty copy_method") }
         guard Self.isSHA256(textSHA256) else { throw Invalid("\(labelID): text_sha256 is not lowercase SHA-256 hex") }
         guard Self.isSHA256(source.sha256) else { throw Invalid("\(labelID): source sha256 is not lowercase SHA-256 hex") }
+        guard Self.schemas[set, default: []].contains(source.schema) else {
+            throw Invalid("\(labelID): set \(set.rawValue) is not transcribed in schema \(source.schema)")
+        }
         switch source.schema {
         case TranscriptionShapes.TaiwanTranscription.schema:
             guard expected.panel == nil else { throw Invalid("\(labelID): a Taiwan-schema transcription has no panel") }
-            guard [.taiwanV3Development, .taiwanV3Fresh, .ukV1Development].contains(set) else {
-                throw Invalid("\(labelID): set \(set.rawValue) is not transcribed in the Taiwan schema")
-            }
-        case TranscriptionShapes.UKTranscription.schema:
+        default:
             guard let panel = expected.panel, TranscriptionShapes.UKTranscription.panels.contains(panel) else {
                 throw Invalid("\(labelID): a UK-schema transcription needs a known panel")
             }
-            guard set.format == .uk else { throw Invalid("\(labelID): set \(set.rawValue) is not a UK set") }
-        default:
-            throw Invalid("\(labelID): source schema \(source.schema) is not converted")
         }
         for column in expected.columns {
             if let basis = column.basis, !Self.bases.contains(basis) { throw Invalid("\(labelID): unknown basis \(basis)") }

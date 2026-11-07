@@ -218,13 +218,16 @@ public struct PastedLabelTextScan: Sendable {
 
     // MARK: Bounds outside a token (review F2)
 
-    /// Whether a token that printed no comparator has, as its left neighbour past whitespace, a
+    /// Whether a token that printed no comparator has, as its left neighbour past whitespace and
+    /// punctuation (P*, `:` and `：` included; Qodo finding 3 on #421), a
     /// comparator word of the closed list in any case (`Less than`, `LESS THAN`) or a math symbol
     /// (Unicode Sm: `≦`, `~`, `=` and the like). The token then may have lost its bound.
     public func comparatorOutside(_ token: Token) -> Bool {
         guard token.comparator == "=" else { return false }
         var index = token.start - 1
-        while index >= 0, scalars[index].properties.isWhitespace || Self.isLineBreak(scalars[index]) { index -= 1 }
+        while index >= 0, scalars[index].properties.isWhitespace || Self.isLineBreak(scalars[index]) || Self.isPunctuation(scalars[index]) {
+            index -= 1
+        }
         guard index >= 0 else { return false }
         if scalars[index].properties.generalCategory == .mathSymbol { return true }
         let start = max(0, index - 15)

@@ -46,7 +46,7 @@ public enum PastedLabelAITextVocabulary {
     static let leadingMarks: Set<Unicode.Scalar> = ["-", "\u{2013}", "\u{2014}", "\u{2022}", "\u{00B7}", "\u{2027}", "\u{FF0E}", "*"]
 
     /// The closed normalisation of a printed row label: separators to spaces, trailing footnote
-    /// marks dropped, trailing unit-only groups (`(g)`, `kJ/kcal`, `（公克）`) dropped, Latin
+    /// marks and punctuation dropped, trailing unit-only groups (`(g)`, `kJ/kcal`, `（公克）`) dropped, Latin
     /// letters lower-cased, leading dashes and bullets dropped, a leading `of which` dropped, and
     /// spaces collapsed.
     public static func normalisedRowLabel(_ printed: String) -> String {
@@ -64,7 +64,10 @@ public enum PastedLabelAITextVocabulary {
         while changed {
             changed = false
             text = collapse(text)
-            while let last = text.unicodeScalars.last, last == "*" || last == "†" || last == ":" || last == "：" {
+            // Trailing footnote marks and punctuation (`:`, `：`, `-`), but not a closing bracket,
+            // which may end a unit group (Qodo finding 4 on #421).
+            while let last = text.unicodeScalars.last, last == "*" || last == "†"
+                    || (PastedLabelTextScan.isPunctuation(last) && last != ")" && last != "）") {
                 text.unicodeScalars.removeLast(); changed = true
             }
             text = collapse(text)

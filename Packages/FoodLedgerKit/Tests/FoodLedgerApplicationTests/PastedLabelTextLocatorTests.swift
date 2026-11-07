@@ -270,6 +270,50 @@ final class PastedLabelTextLocatorTests: XCTestCase {
         XCTAssertEqual(token.canonicalUnit, "g")
     }
 
+    // MARK: Qodo findings on #421
+
+    func testTwoHeaderIDsOnOneSpanAreAttention() {
+        let a = Locator.Header(id: "h1", printedText: "Per 100g", basis: "per_100g")
+        let b = Locator.Header(id: "h2", printedText: "Per 100g", basis: "per_serving")
+        let result = Locator.locate(text: "Per 100g\nFat 5g 2g", headers: [a, b], rows: [Self.row("Fat", [("h1", "5g"), ("h2", "2g")])])
+        XCTAssertTrue(result.values.allSatisfy { $0.attention.contains(.headerSpanShared) })
+    }
+
+    func testOmittedPrintedRowEndsTheBlockAbove() {
+        let text = "Per 100g Per serving\nFat 1g\nSalt 2g"
+        let result = Locator.locate(text: text, headers: [Self.per100, Self.perServing], rows: [Self.row("Fat", [("h1", "1g"), ("h2", "2g")])])
+        XCTAssertEqual(result.rows[0].block, Self.scalars("Fat", in: text).upperBound..<Self.scalars("Salt", in: text).lowerBound)
+        XCTAssertEqual(result.rows[0].attention, [.fewerCellsThanHeaders])
+        XCTAssertEqual(result.values[1].status, .notFound, "Salt's 2g belongs to no model row")
+        XCTAssertTrue(result.values[1].needsAttention)
+        // `of which` before an omitted label still starts a row; a label inside a word run does not.
+        let ofWhich = Locator.locate(text: "Per 100g\nFat 5g\n- of which saturates 1g", headers: [Self.per100], rows: [Self.row("Fat", [("h1", "5g")])])
+        XCTAssertFalse(ofWhich.values[0].needsAttention)
+        XCTAssertEqual(ofWhich.rows[0].attention, [])
+    }
+
+    func testComparatorPastPunctuationIsAttention() {
+        let english = "Per 100g\nSalt less than: 0.5g"
+        let en = Locator.locate(text: english, headers: [Self.per100], rows: [Self.row("Salt", [("h1", "0.5g")])])
+        XCTAssertEqual(en.values[0].status, .found(Self.scalars("0.5g", in: english)))
+        XCTAssertEqual(en.values[0].attention, [.comparatorOutsideToken])
+        let taiwan = "每份\n鈉 少於：5毫克"
+        let tw = Locator.locate(text: taiwan, headers: [Locator.Header(id: "h1", printedText: "每份", basis: "per_serving")],
+                                rows: [Self.row("鈉", [("h1", "5毫克")])])
+        XCTAssertEqual(tw.values[0].status, .found(Self.scalars("5毫克", in: taiwan)))
+        XCTAssertEqual(tw.values[0].attention, [.comparatorOutsideToken])
+        let plain = Locator.locate(text: "Per 100g\nSalt: 0.5g", headers: [Self.per100], rows: [Self.row("Salt", [("h1", "0.5g")])])
+        XCTAssertFalse(plain.values[0].needsAttention, "a label's colon is not a bound")
+    }
+
+    func testPercentWithoutAReferenceIntakeHeaderIsAttention() {
+        let text = "Per 100g %RI\nFat 1g 5%"
+        let result = Locator.locate(text: text, headers: [Self.per100], rows: [Self.row("Fat", [("h1", "1g")])])
+        XCTAssertEqual(result.values[0].status, .found(Self.scalars("1g", in: text)))
+        XCTAssertEqual(result.rows[0].attention, [.percentWithoutReferenceIntakeHeader])
+        XCTAssertTrue(result.values[0].needsAttention)
+    }
+
     func testSpacedTokensAreOneTokenEach() {
         let text = "Per 100g Per serving\nSalt less than 0.5 g 5\u{00A0}g"
         let result = Locator.locate(text: text, headers: [Self.per100, Self.perServing],
