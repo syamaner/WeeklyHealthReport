@@ -82,6 +82,17 @@ Nothing about any label's reader output is known: no reader or parser has run on
    - Every recheck visit is logged with `recheck: "amendment 4"`.
    - Any Google search a recheck needs is the owner's, in a Safari private window.
 
+### Amendment 5 (owner, 7 November 2026, after the Amendment 4 recheck, before the text seal and before any reader run on fresh text)
+
+The owner made four rulings in chat during the Amendment 4 recheck. No reader or parser had run on any fresh text when they were made. This commit records them:
+
+1. **Where the recheck searched.** The agent ran the recheck searches for slots 21 to 23 in Claude in Chrome, in the owner's own profile (which may be signed in to Google), one results page per navigation. This replaces the owner's Safari search in Amendment 4 items 4.3 and 5 for those slots, and the results say so.
+2. **Slot 21, positions 8 and 25.** Both showed the agent a block page. Neither was cleared, and both sites moved to the owner. The owner had no time to open them, so both were judged from their result titles, and V21 stands. This is the one place where the recheck judged a result without opening it.
+3. **Slot 22, position 9.** The result failed to load twice (a timeout). It was judged from its title, as the nutrition index of an ice-cream parlour chain: a foodservice outlet, like the restaurant guides (`not_source_kind`).
+4. **Slot 22, position 17.** The server sent this result as a download, so Chrome saved the PDF without it first being listed to the owner. The owner approved it afterwards from its name, site and size, and it was moved unopened into the private folder with its hash recorded. Opened in Preview, it shows a product for the school-meals market of another country with that country's panel, so it is skipped `non_uk` on the PDF's own evidence. V22 stands.
+
+The recheck changed no label: 24 labels stand, with none withdrawn and no new IDs.
+
 ## 2. Results
 
 Not yet run.
