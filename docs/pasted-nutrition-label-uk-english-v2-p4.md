@@ -154,4 +154,8 @@ Every rate here carries the copy-check caveat of P3 section 4.4: scripted copies
 
 ### 2.6 Device step
 
-Not yet run.
+Not run. The app has no `#if DEBUG` switch for the UK reading policy yet, and building one needs its own PR. The owner decided on shipping first (section 3), so the device step is not run.
+
+## 3. Decision
+
+**Owner, 7 November 2026: do not ship UK reader v2.** The bar held in the harness, but 19 of 24 fresh labels declined, against 20 of 24 for v1. None of the 9 tier A labels reached Confirm. UK support would rarely be useful at that rate. The device step and P5 are not run. The shipped reading policy stays `.product` (Taiwan only), and nothing in the product changes. If the fresh set is probed for its decline causes, it becomes development data like v1's. Whether to plan a v3 of the reader is a separate decision, not taken here.
