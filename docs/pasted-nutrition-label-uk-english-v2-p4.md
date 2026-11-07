@@ -158,4 +158,12 @@ Not run. The app has no `#if DEBUG` switch for the UK reading policy yet, and bu
 
 ## 3. Decision
 
-**Owner, 7 November 2026: do not ship UK reader v2.** The bar held in the harness, but 19 of 24 fresh labels declined, against 20 of 24 for v1. None of the 9 tier A labels reached Confirm. UK support would rarely be useful at that rate. The device step and P5 are not run. The shipped reading policy stays `.product` (Taiwan only), and nothing in the product changes. If the fresh set is probed for its decline causes, it becomes development data like v1's. Whether to plan a v3 of the reader is a separate decision, not taken here.
+**Owner, 7 November 2026: do not ship UK reader v2.** The bar held in the harness, but 19 of 24 fresh labels declined, against 20 of 24 for v1. None of the 9 tier A labels reached Confirm. UK support would rarely be useful at that rate. The device step and P5 are not run. The shipped reading policy stays `.product` (Taiwan only), and nothing in the product changes. If the fresh set is probed for its decline causes, it becomes development data like v1's.
+
+**Owner, 7 November 2026: deterministic parsing is parked.** There is no UK reader v3 and no further parser work of any kind. The shipped Taiwan reader stays frozen as it is. Pasted text it declines, every UK paste included, is to go to OpenRouter on an explicit user action and end on the shared Confirm screen. That route needs:
+
+- its own versioned contract, egress terms approved by the owner, and policy updates;
+- an evaluation set, with prompt and model versions compared on it;
+- a pre-registered bar, checked on labels kept back from tuning.
+
+Label photos follow once the text route works. The unprobed v2 fresh set stays sealed until that route's protocol says how it is used.
