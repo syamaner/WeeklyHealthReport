@@ -90,6 +90,8 @@ CODE_READ_DOCS = {
     "docs/label-estimate-merge-v1.md",
     # Cited by the Ciqual projector, audit and tests and, from C2, the Ciqual searcher (#384).
     "docs/ciqual-2025-admission-v1.md",
+    # Cited by the pasted label AI text checks, the evaluation tool, its bar and their tests (#416).
+    "docs/pasted-label-ai-text-v1.md",
     # Cited by the personal-food-catalogue skill's export and fixtures, and later the importer (#419).
     "docs/personal-food-catalogue-import-v1.md",
 }
