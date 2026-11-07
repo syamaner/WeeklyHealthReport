@@ -126,6 +126,17 @@ final class HarnessTests: XCTestCase {
         XCTAssertEqual(try entries().first?["kind"] as? String, EvalSpendLedger.unknownKind)
     }
 
+    func testAPanelTheDetectorDeclinesIsNeverSent() async throws {
+        try Data("Nutrition Facts\nPer 100g\nSodium 100mg".utf8).write(to: root.appendingPathComponent("texts/us-synthetic.txt"))
+        let send = try await SendCommand.run(options(label: "us-synthetic"))
+        XCTAssertEqual(send.attempt, "declined_before_send:nutrition_facts_title,sodium_without_salt")
+        XCTAssertEqual(send.chargedUSD, "0")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("ledger.json").path), "nothing reserved")
+        let output = try ScoreCommand.run(evalCase: Fixtures.ukCase, textData: Data(Fixtures.ukText.utf8), send: send)
+        XCTAssertEqual(output.score.outcome, "declined")
+        XCTAssertEqual(output.score.declineReasons, ["detector:nutrition_facts_title", "detector:sodium_without_salt"])
+    }
+
     // MARK: score
 
     func testScoreRunsTheShippedStepsAndCountsTheFields() async throws {

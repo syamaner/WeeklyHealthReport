@@ -7,6 +7,8 @@ import PastedLabelAITextEvalCore
 /// call, built with the shipped text request builder, with the spend reservation and the response
 /// cache. In A2 the only transport is `DirectoryFakeTransport`.
 ///
+/// 0. The pre-send panel detector runs on the text, as in the product (4.7): a detected US,
+///    Australian or New Zealand panel is declined before any request is built, and nothing is spent.
 /// 1. The request body is built by `OpenRouterPastedLabelAITextRequest`; its SHA-256 keys the cache.
 /// 2. A cached response is returned as it was recorded, with its original cost, and charges nothing.
 /// 3. Otherwise the text route checker runs over the same transport, W is priced from the
@@ -50,7 +52,8 @@ public enum SendCommand {
         public var textSHA256: String
         public var requestSHA256: String
         public var cached: Bool
-        /// `responded`, `transport_failed:<reason>`, `not_sent:<reason>` or `refused:<stop>`.
+        /// `responded`, `transport_failed:<reason>`, `not_sent:<reason>`, `refused:<stop>`, or
+        /// `declined_before_send:<markers>` when the pre-send panel detector declined the text.
         public var attempt: String
         public var status: Int?
         /// The raw reply body, verbatim (UTF-8).
@@ -92,6 +95,16 @@ public enum SendCommand {
             throw Failure.unreadableText
         }
         let request = try OpenRouterPastedLabelAITextRequest(route: options.route)
+        let detector = PastedLabelAITextPanelDetector.detect(text: text)
+        if detector.declines {
+            return Output(labelID: options.labelID, cell: options.cell, routeCandidate: options.route.candidateID, model: options.route.model,
+                          endpoint: options.route.endpoint, promptVersion: OpenRouterPastedLabelAITextRequest.promptVersion,
+                          instructionSHA256: OpenRouterPastedLabelAITextRequest.instructionSHA256,
+                          schemaSHA256: OpenRouterPastedLabelAITextRequest.wireSchemaSHA256, textSHA256: EvalCase.sha256(textData),
+                          requestSHA256: "", cached: false,
+                          attempt: "declined_before_send:" + detector.markers.map(\.rawValue).joined(separator: ","), status: nil, response: nil,
+                          costUSD: nil, chargedUSD: "0", reservedUSD: nil, latencySeconds: 0, promptTokens: nil, completionTokens: nil)
+        }
         let body: Data
         do { body = try request.body(text) } catch { throw Failure.textRefused("\(error)") }
         let requestSHA = EvalCase.sha256(body)

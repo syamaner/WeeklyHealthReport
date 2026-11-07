@@ -64,6 +64,11 @@ public enum ScoreCommand {
         func failed(_ reason: String) -> Output {
             output(PastedLabelAITextScorer.score(evalCase, outcome: "failed", declineReasons: [], failure: reason, table: nil))
         }
+        // D19: a detector decline before sending is a hard decline, not a failure.
+        if send.attempt.hasPrefix("declined_before_send:") {
+            let markers = send.attempt.dropFirst("declined_before_send:".count).split(separator: ",").map { "detector:" + $0 }
+            return output(PastedLabelAITextScorer.score(evalCase, outcome: "declined", declineReasons: markers, failure: nil, table: nil))
+        }
         guard send.attempt == "responded", let status = send.status, let body = send.response else { return failed(send.attempt) }
         let raw = PastedLabelAITextRawResponse(status: status, headers: [:], body: Data(body.utf8), exceededLimit: false)
         guard case let .answered(content, _, _, _, _) = PastedLabelAITextEnvelope.check(raw, route: route) else {
