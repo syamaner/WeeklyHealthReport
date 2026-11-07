@@ -157,6 +157,30 @@ final class OpenRouterPastedLabelAITextRouteTests: XCTestCase {
         XCTAssertNil(unknown.reportedCost)
     }
 
+    /// The application-layer envelope reads usage, numbers and providers as the photo attempt does.
+    func testTheEnvelopesReadingsMatchThePhotoAttempt() {
+        let objects: [[String: Any]] = [
+            OpenRouterLabelPhotoRouteTests.answer(), OpenRouterLabelPhotoRouteTests.answer(cost: "n/a"), OpenRouterLabelPhotoRouteTests.answer(cost: -1),
+            OpenRouterLabelPhotoRouteTests.answer(cost: true), ["usage": ["prompt_tokens": 1.5, "completion_tokens": "3"]], [:],
+        ]
+        for object in objects {
+            XCTAssertEqual(PastedLabelAITextEnvelope.usage(in: object), OpenRouterLabelPhotoAttempt.usage(in: object))
+        }
+        for name in ["Google", " Google Vertex ", "google-vertex", "Google AI Studio"] {
+            XCTAssertEqual(PastedLabelAITextEnvelope.normalisedProvider(name), OpenRouterLabelPhotoAttempt.normalisedProvider(name))
+        }
+        XCTAssertEqual(PastedLabelAITextEnvelope.maximumResponseBytes, OpenRouterLabelPhotoAttempt.maximumResponseBytes)
+    }
+
+    /// A2 gate finding 2: the prompt bound counts the instruction, schema and text bytes.
+    func testThePromptBoundOfAFullTraditionalChineseText() throws {
+        let request = try request()
+        let text = String(repeating: "鈉", count: 8_000)
+        let bound = request.promptTokenBound(text)
+        XCTAssertEqual(bound, request.instruction.utf8.count + request.wireSchema.count + 24_000 + PastedLabelAITextSpendPolicy.framingTokens)
+        XCTAssertLessThanOrEqual(bound, PastedLabelAITextSpendPolicy.promptTokenCeiling, "a full 8,000-scalar CJK text fits the ceiling")
+    }
+
     // MARK: Test 21: the text route checker
 
     func catalogue(modalities: [String] = ["text", "image"], zdr: [String: Any] = OpenRouterLabelPhotoRouteTests.zdr) -> (Data, Data) {
@@ -172,6 +196,10 @@ final class OpenRouterPastedLabelAITextRouteTests: XCTestCase {
         let text = try OpenRouterPastedLabelAITextRouteChecker.parse(listing: listing, zeroDataRetention: zdr, route: Self.route, at: 1, reasoningBilledSeparately: true)
         let photo = try OpenRouterLabelRouteChecker.parse(listing: listing, zeroDataRetention: zdr, route: LabelPhotoRoute.current, at: 1, reasoningBilledSeparately: true)
         XCTAssertEqual(text, photo, "the same listing gives the same check under both checkers")
+        // The photo parse admits only the closed photo route set (gate finding 13).
+        XCTAssertThrowsError(try OpenRouterLabelRouteChecker.parse(listing: listing, zeroDataRetention: zdr,
+                                                                   route: OpenRouterPastedLabelAITextRouteChecker.listingShape(Self.route), at: 1,
+                                                                   reasoningBilledSeparately: true))
         XCTAssertThrowsError(try OpenRouterPastedLabelAITextRouteChecker.parse(listing: catalogue(modalities: ["image"]).0, zeroDataRetention: zdr,
                                                                                 route: Self.route, at: 1, reasoningBilledSeparately: true))
         XCTAssertThrowsError(try OpenRouterPastedLabelAITextRouteChecker.parse(listing: listing, zeroDataRetention: catalogue(zdr: ["data": []]).1,

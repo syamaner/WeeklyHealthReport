@@ -13,11 +13,51 @@ final class PastedLabelAITextSpendPolicyTests: XCTestCase {
     var w: Decimal { Text.worstCase(prices, reasoningLimit: 500) }
 
     func testWorstCasePricesTheTextCeiling() {
-        // 12,000 prompt tokens at 0.000001 plus 2,400 completion tokens at 0.000004.
-        XCTAssertEqual(w, Decimal(string: "0.0216"))
+        // 32,000 prompt tokens at 0.000001 plus 2,400 completion tokens at 0.000004.
+        XCTAssertEqual(w, Decimal(string: "0.0416"))
         let separate = LabelPhotoSpendPolicy.Prices(promptPerToken: prices.promptPerToken, completionPerToken: prices.completionPerToken,
                                                     reasoningBilledSeparately: true, maxOutputTokens: 2_400)
-        XCTAssertEqual(Text.worstCase(separate, reasoningLimit: 500), Decimal(string: "0.0236"))
+        XCTAssertEqual(Text.worstCase(separate, reasoningLimit: 500), Decimal(string: "0.0436"))
+    }
+
+    /// A2 gate finding 2: W prices the request's own prompt bound, and a bound past the ceiling is refused.
+    func testWPricesTheRequestsPromptBound() {
+        // A full 8,000-scalar Traditional Chinese text (24,000 UTF-8 bytes) with a 3,000-byte
+        // instruction and a 2,500-byte schema: 29,756 tokens at most, under the ceiling.
+        let bound = Text.promptTokenBound(instructionBytes: 3_000, schemaBytes: 2_500, textBytes: String(repeating: "鈉", count: 8_000).utf8.count)
+        XCTAssertEqual(bound, 29_756)
+        XCTAssertEqual(Text.worstCase(prices, reasoningLimit: 500, promptTokenBound: bound), Decimal(string: "0.039356"))
+        XCTAssertNil(Text.worstCase(prices, reasoningLimit: 500, promptTokenBound: Text.promptTokenCeiling + 1), "refused, never priced")
+        XCTAssertNotNil(Text.worstCase(prices, reasoningLimit: 500, promptTokenBound: Text.promptTokenCeiling))
+    }
+
+    /// A2 invariant finding 4: a tap with no attempts is released, never reconciled.
+    func testReconcilingNoAttemptsIsARelease() throws {
+        let reserved = Text.reservation(today: today, stored: nil, tap: "t1")
+        XCTAssertEqual(Text.reconciled(reserved, reservedOn: today, tap: "t1", attempts: [], worstCase: w),
+                       Text.released(reserved, reservedOn: today, tap: "t1"))
+        XCTAssertEqual(try XCTUnwrap(Text.reconciled(reserved, reservedOn: today, tap: "t1", attempts: [], worstCase: w)).reads, 0)
+    }
+
+    /// A2 gate finding 12: an unversioned photo record re-encodes with every value kept, the
+    /// version and an empty text share added, and decodes back to the same day.
+    func testAnUnversionedPhotoRecordRoundTripsWithNothingLost() throws {
+        let old = #"{"cost":0.15,"day":"2026-11-07","openTaps":["p1","p2"],"paused":true,"reads":3}"#
+        let day = try JSONDecoder().decode(Photo.Day.self, from: Data(old.utf8))
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let encoded = try encoder.encode(day)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        let original = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(old.utf8)) as? [String: Any])
+        for (key, value) in original { XCTAssertEqual("\(object[key] ?? "missing")", "\(value)", key) }
+        XCTAssertEqual(object["version"] as? String, "label-ai-spend-day-v1")
+        XCTAssertEqual(Set(object.keys), Set(original.keys).union(["version", "text"]))
+        let again = try JSONDecoder().decode(Photo.Day.self, from: encoded)
+        XCTAssertEqual(again, day)
+        XCTAssertEqual([again.reads, again.openTaps.count], [3, 2])
+        XCTAssertEqual(again.cost, Decimal(string: "0.15"))
+        XCTAssertTrue(again.paused)
+        XCTAssertEqual(again.text, .none)
     }
 
     // MARK: Test 20: existing records, corrupt records, pauses
@@ -65,7 +105,7 @@ final class PastedLabelAITextSpendPolicyTests: XCTestCase {
     func testAnOverCeilingTextReadPausesOnlyTheTextRoute() throws {
         let reserved = Text.reservation(today: today, stored: nil, tap: "t1")
         let settled = try XCTUnwrap(Text.reconciled(reserved, reservedOn: today, tap: "t1",
-                                                    attempts: [.init(reportedCost: Decimal(string: "0.01"), promptTokens: 12_001)], worstCase: w))
+                                                    attempts: [.init(reportedCost: Decimal(string: "0.01"), promptTokens: 32_001)], worstCase: w))
         XCTAssertTrue(settled.text.paused)
         XCTAssertFalse(settled.paused, "the photo route is not paused")
         XCTAssertEqual(Text.admission(today: today, stored: .day(settled)), .paused)

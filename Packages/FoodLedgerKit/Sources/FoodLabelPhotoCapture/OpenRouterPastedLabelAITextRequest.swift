@@ -61,6 +61,13 @@ public struct OpenRouterPastedLabelAITextRequest: Sendable {
         if text.unicodeScalars.count > maximumTextScalars { throw BuildError.textTooLong }
     }
 
+    /// An upper bound on the request's prompt tokens (A2 gate finding 2): the instruction's, the
+    /// schema's and the text's UTF-8 bytes, each at most one token, plus the framing allowance.
+    public func promptTokenBound(_ text: String) -> Int {
+        PastedLabelAITextSpendPolicy.promptTokenBound(instructionBytes: instruction.utf8.count, schemaBytes: wireSchema.count,
+                                                      textBytes: text.utf8.count)
+    }
+
     /// The exact request body, serialised with sorted keys so the bytes are reproducible.
     public func body(_ text: String) throws -> Data {
         try Self.admit(text)

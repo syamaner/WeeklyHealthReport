@@ -34,6 +34,10 @@ public struct LabelAISpendRouteShare: Equatable, Sendable, Codable {
 /// - **Its own per-read cap:** `perTapLimit`, and its own prompt-token ceiling, sized for 8,000
 ///   scalars of Traditional Chinese. Both are provisional until A3 measures the evaluation's costs
 ///   (T11); a change is reviewed with the route.
+/// - **W from the actual request** (A2 gate finding 2): a request's prompt is bounded by its
+///   `promptTokenBound` (the instruction's and schema's UTF-8 bytes plus the sent text's, each
+///   byte at most one token, plus the message framing). A text whose bound passes the ceiling is
+///   refused; otherwise W prices the bound, not the ceiling.
 /// - **Its own pause (D17):** a text read whose reported cost passes its cap, or whose prompt
 ///   tokens pass its ceiling, pauses only the text route for the day. The photo pause never stops
 ///   a text read, and the text pause never stops a photo read.
@@ -50,9 +54,25 @@ public enum PastedLabelAITextSpendPolicy {
 
     /// The text route's per-read cap (provisional, T11).
     public static let perTapLimit = Decimal(string: "0.05")!
-    /// The prompt-token ceiling W prices: 8,000 scalars of Traditional Chinese, about one token per
-    /// scalar, plus the instruction and schema (provisional, T11).
-    public static let promptTokenCeiling = 12_000
+    /// The prompt-token ceiling: 8,000 scalars of Traditional Chinese at three UTF-8 bytes each
+    /// (24,000), plus the instruction, the schema and the framing, rounded up (provisional, T11).
+    public static let promptTokenCeiling = 32_000
+    /// The message framing allowance of a prompt bound (roles, separators, the schema wrapper).
+    public static let framingTokens = 256
+
+    /// An upper bound on a request's prompt tokens: every UTF-8 byte of the instruction, the schema
+    /// and the text counted as one token, plus the framing.
+    public static func promptTokenBound(instructionBytes: Int, schemaBytes: Int, textBytes: Int) -> Int {
+        instructionBytes + schemaBytes + textBytes + framingTokens
+    }
+
+    /// W for one request: its prompt bound at the prompt price, plus the completion (and the
+    /// reasoning limit when billed separately). Nil when the bound passes the ceiling: refused.
+    public static func worstCase(_ prices: Prices, reasoningLimit: Int, promptTokenBound: Int) -> Decimal? {
+        guard promptTokenBound <= promptTokenCeiling else { return nil }
+        let completion = prices.maxOutputTokens + (prices.reasoningBilledSeparately ? reasoningLimit : 0)
+        return Decimal(promptTokenBound) * prices.promptPerToken + Decimal(completion) * prices.completionPerToken
+    }
 
     public static func worstCase(_ prices: Prices, reasoningLimit: Int) -> Decimal {
         let completion = prices.maxOutputTokens + (prices.reasoningBilledSeparately ? reasoningLimit : 0)
@@ -107,12 +127,14 @@ public enum PastedLabelAITextSpendPolicy {
     /// The reservation of an open text tap turned into its cost, as a delta on the day as it is now
     /// (other taps since the reservation are kept). Nil when the tap is not open on that day, so a
     /// retried settle never applies twice. An over-cap or over-ceiling read pauses only the text route.
+    /// A tap that sent nothing (no attempts) is released, never reconciled (A2 invariant finding 4).
     public static func reconciled(_ now: Day, reservedOn: String, tap: String, attempts: [Attempt], worstCase: Decimal) -> Day? {
+        if attempts.isEmpty { return released(now, reservedOn: reservedOn, tap: tap) }
         guard now.day == reservedOn, now.text.openTaps.contains(tap) else { return nil }
         let reported = attempts.reduce(Decimal(0)) { $0 + ($1.reportedCost ?? 0) }
         let overCap = reported > perTapLimit
         let overInput = attempts.contains { ($0.promptTokens ?? 0) > promptTokenCeiling }
-        let delta = (attempts.isEmpty ? 0 : tapCost(attempts, worstCase: worstCase)) - perTapLimit
+        let delta = tapCost(attempts, worstCase: worstCase) - perTapLimit
         let textCost = max(0, now.text.cost + delta)
         let text = LabelAISpendRouteShare(reads: now.text.reads, cost: textCost, paused: now.text.paused || overCap || overInput,
                                           openTaps: now.text.openTaps.filter { $0 != tap })
