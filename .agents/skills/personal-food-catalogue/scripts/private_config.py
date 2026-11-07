@@ -78,8 +78,8 @@ def parse(doc) -> dict:
         if not isinstance(match, dict) or not match or set(match) - MATCH_KEYS:
             raise ValueError(f"layouts[{i}].match needs one or more of {sorted(MATCH_KEYS)}")
         for k in ("text_contains_all", "text_contains_any_casefold"):
-            if k in match:
-                _strings(match[k], f"layouts[{i}].match.{k}")
+            if k in match and not _strings(match[k], f"layouts[{i}].match.{k}"):
+                raise ValueError(f"layouts[{i}].match.{k} must name at least one marker")
         for k in ("file_name_contains", "file_name_suffix"):
             if k in match and not (isinstance(match[k], str) and match[k]):
                 raise ValueError(f"layouts[{i}].match.{k} must be a non-empty string")

@@ -97,6 +97,8 @@ with tempfile.TemporaryDirectory() as tmp:
                       ("product page without a suffix", {"schema": "pfc-private-config-v1", "layouts": [
                           {"id": "a", "retailer": "b", "parser": "product_page_title", "match": {"file_name_contains": "x"}}]}),
                       ("non-string list entry", {"schema": "pfc-private-config-v1", "brand_honorifics": [3]}),
+                      ("a layout with an empty marker list", {"schema": "pfc-private-config-v1", "layouts": [
+                          {"id": "a", "retailer": "b", "parser": "order_page", "match": {"text_contains_all": []}}]}),
                       ("a bare title as a brand exception", {"schema": "pfc-private-config-v1", "brand_honorifics": ["Mr"]}),
                       ("a full name as a brand exception", {"schema": "pfc-private-config-v1", "brand_honorifics": ["Mrs Sample Jones"]}),
                       ("a one-letter chrome prefix", {"schema": "pfc-private-config-v1", "site_chrome_prefixes": ["D"]}),
@@ -129,7 +131,9 @@ with tempfile.TemporaryDirectory() as tmp:
 
     for script, args in [("assemble.py", [tmp, tmp, tmp, tmp]), ("build_unique.py", [tmp / "x.jsonl", tmp]),
                          ("fetch_off.py", [tmp]), ("fetch_off_pass2.py", [tmp, tmp]),
-                         ("fetch_off_products.py", [tmp, tmp]), ("intake.py", [tmp, "status"])]:
+                         ("fetch_off_products.py", [tmp, tmp]), ("intake.py", [tmp, "status"]),
+                         ("receipts_to_intake.py", [tmp, tmp / "x.jsonl", "receipts-x", tmp / "o.json"]),
+                         ("assemble_extras.py", [tmp, tmp, tmp])]:
         r = subprocess.run([sys.executable, "-I", str(S / script), *map(str, args)], capture_output=True, text=True,
                            env={k: v for k, v in os.environ.items() if k != "PFC_CONFIG"})
         results.append((f"{script} refuses to run without PFC_CONFIG", r.returncode != 0 and "PFC_CONFIG" in r.stderr))
