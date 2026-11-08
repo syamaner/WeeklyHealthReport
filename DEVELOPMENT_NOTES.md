@@ -3937,3 +3937,21 @@ Excluded:
 - this ledger edit, the commit, the push and the PR after the window.
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
+## WHR-431-2026-11-08: Claude Code personal food database evaluation release pin (phase E1b, #431)
+
+The coordinator session (`claude-opus-5-5`, session `93e9e82e-ef3d-4d2f-9186-58c67056c1ca`) pinned the release on the owner's approval. It checked the private release with the evaluation tool's own parser, rebuilt a private copy offline with the committed skill to confirm the entries were reproduced, recorded the release ID in the freeze record and the skill commit and mapping-file hashes in the plan, and ran the evaluation tests. No subagents. The window runs from the owner's approval at `2026-11-08T13:58:52Z` to `2026-11-08T14:50:00Z`.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Evaluation release pin E1b (#431), coordinator | 4,501,141 (4,466,896) | 34,177 | 17,734 | 4,518,875 | $1.52 |
+| **Subtotal** | 4,501,141 (4,466,896) | 34,177 | 17,734 | 4,518,875 | $1.52 |
+
+Method: `phase_usage.py --format claude --since 2026-11-08T13:58:52Z --until 2026-11-08T14:50:00Z --include-subagents` on the session transcript, with the rates below. Exact USD 1.5217472.
+
+Excluded:
+- the Qodo review runs;
+- local test loops and the offline rebuild, which use no API tokens;
+- this ledger edit, the push and the PR after the window.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
