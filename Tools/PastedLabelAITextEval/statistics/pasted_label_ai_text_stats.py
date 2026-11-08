@@ -25,7 +25,8 @@ edit-free table), and a paired bootstrap (same resampling of labels) for micro f
 
 Scorer v3 (D28): values in reference-intake amount columns are not printed fields; each cell's
 summary reports their sum as ``fields_reference_amounts``, so the printed fields plus that sum is
-every transcribed value.
+every transcribed value. Scorer v4 (D29) likewise reports values on unrecognised rows (nutrient
+``other``) as ``fields_unrecognised_rows``.
 
 Bar 4 (5.3, D23): the median cost is the upper median (rank n // 2 + 1 of n sorted costs, the
 13th of 24) and p90 latency is the nearest-rank 90th percentile (rank ceil(0.9 n), the 22nd of
@@ -427,6 +428,7 @@ def summary(cells: dict[str, list[Label]], resamples: int, seed: int, bar_path: 
         field_level = bootstrap(labels, resamples, seed)
         field_level["field_precision_macro"]["exclusions"] = macro_precision_exclusions(labels)
         entry = {"labels": len(labels), "fields_reference_amounts": int(sum(label.get("fields_reference_amounts") for label in labels)),
+                 "fields_unrecognised_rows": int(sum(label.get("fields_unrecognised_rows") for label in labels)),
                  "label_level": label_proportions(labels), "field_level": field_level,
                  "operational": operational(labels), "breakdowns": breakdowns(labels)}
         if bar_path is not None:

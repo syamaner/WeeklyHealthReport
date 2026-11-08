@@ -65,6 +65,10 @@ public struct LabelScore: Codable, Equatable, Sendable {
     /// Transcribed values in reference-intake amount columns, which are not printed fields (D28):
     /// `fieldsPrinted + fieldsReferenceAmounts` is every transcribed value.
     public let fieldsReferenceAmounts: Int
+    /// Values on rows the transcription records as `other` (v4, D29), outside reference-intake
+    /// amount columns: rows the app keeps as unrecognised and never logs, so not printed fields.
+    /// `fieldsPrinted + fieldsReferenceAmounts + fieldsUnrecognisedRows` is every transcribed value.
+    public let fieldsUnrecognisedRows: Int
     /// Fields shown at Confirm (cells), correct and wrong under the scorer.
     public let fieldsShown: Int
     public let fieldsCorrect: Int
@@ -84,7 +88,7 @@ public struct LabelScore: Codable, Equatable, Sendable {
     enum CodingKeys: String, CodingKey {
         case scorer, set, tier, format, outcome, failure, wrong
         case labelID = "label_id", copyMethod = "copy_method", declineReasons = "decline_reasons", fieldsPrinted = "fields_printed"
-        case fieldsReferenceAmounts = "fields_reference_amounts"
+        case fieldsReferenceAmounts = "fields_reference_amounts", fieldsUnrecognisedRows = "fields_unrecognised_rows"
         case fieldsShown = "fields_shown", fieldsCorrect = "fields_correct", fieldsWrong = "fields_wrong", wrongFlagged = "wrong_flagged"
         case wrongSilent = "wrong_silent", attentionItems = "attention_items", printedNotCorrect = "printed_not_correct"
         case exactMatch = "exact_match", noEdit = "no_edit", silentErrorTable = "silent_error_table", byNutrient = "by_nutrient"
@@ -102,7 +106,7 @@ public struct LabelScore: Codable, Equatable, Sendable {
         }
         return byNutrientScores.merging([
             "reached_confirm": b(outcome == "reached_confirm"), "declined": b(outcome == "declined"), "failed": b(outcome == "failed"),
-            "fields_printed": Double(fieldsPrinted), "fields_reference_amounts": Double(fieldsReferenceAmounts), "fields_shown": Double(fieldsShown), "fields_correct": Double(fieldsCorrect),
+            "fields_printed": Double(fieldsPrinted), "fields_reference_amounts": Double(fieldsReferenceAmounts), "fields_unrecognised_rows": Double(fieldsUnrecognisedRows), "fields_shown": Double(fieldsShown), "fields_correct": Double(fieldsCorrect),
             "fields_wrong": Double(fieldsWrong), "wrong_flagged": Double(wrongFlagged), "wrong_silent": Double(wrongSilent),
             "attention_items": Double(attentionItems), "printed_not_correct": Double(printedNotCorrect), "exact_match": b(exactMatch),
             "no_edit": b(noEdit), "silent_error_table": b(silentErrorTable),
@@ -117,7 +121,7 @@ public struct LabelScore: Codable, Equatable, Sendable {
     }
 }
 
-/// `pasted-label-ai-text-scorer-v3 (rules of uk-fresh-scorer-v2; RI amount columns not printed fields)`:
+/// `pasted-label-ai-text-scorer-v4 (rules of uk-fresh-scorer-v2; RI amount columns and unrecognised rows not printed fields)`:
 /// the frozen fresh-set scorer's comparison
 /// (`UKFreshSet.score` and `FreshSet`, `uk-fresh-scorer-v2` rules R1 to R3, in
 /// `Packages/FoodLedgerKit/Tests/FoodLabelTextCaptureTests/`), copied because this tool never
@@ -151,8 +155,17 @@ public struct LabelScore: Codable, Equatable, Sendable {
 /// transcription records as amounts stays wrong, never "read, but not printed". The excluded count is
 /// `fieldsReferenceAmounts`. This scorer has no v2: the number is skipped so that its version never
 /// reads as `uk-fresh-scorer-v2`, whose rules it applies.
+///
+/// Changed in v4 (D29): values on a row the transcription records as nutrient `other` are not
+/// printed fields either (a value already in a reference-intake amount column is counted there).
+/// The app keeps such a row as unrecognised and never logs it, so the user never enters it. As in
+/// v3, only the printed-field count changes: every cell shown at Confirm, an unrecognised cell
+/// included, is still scored by the same rules, and silent-error scoring is unchanged. The
+/// excluded count is `fieldsUnrecognisedRows`.
 public enum PastedLabelAITextScorer {
-    public static let version = "pasted-label-ai-text-scorer-v3 (rules of uk-fresh-scorer-v2; RI amount columns not printed fields)"
+    public static let version = "pasted-label-ai-text-scorer-v4 (rules of uk-fresh-scorer-v2; RI amount columns and unrecognised rows not printed fields)"
+    /// The transcription's nutrient for a printed row the app keeps as unrecognised.
+    static let unrecognisedNutrient = "other"
 
     enum Expected: Equatable { case value(TranscriptionShapes.Value, rowLabel: String), notPrinted, ambiguous }
     enum ColumnMatch: Equatable { case index(Int), notPrinted, ambiguous }
@@ -163,14 +176,16 @@ public enum PastedLabelAITextScorer {
         // harness does (Qodo finding 3 on A2).
         let schema: TranscriptionRules.Schema = evalCase.format == .uk ? .uk : .taiwan
         let amountColumns = referenceAmountColumns(evalCase.expected)
-        let fields = evalCase.fields.filter { !amountColumns.contains($0.columnIndex) }
-        let referenceAmounts = evalCase.fields.count - fields.count
+        let outsideAmountColumns = evalCase.fields.filter { !amountColumns.contains($0.columnIndex) }
+        let referenceAmounts = evalCase.fields.count - outsideAmountColumns.count
+        let fields = outsideAmountColumns.filter { $0.nutrient != unrecognisedNutrient }
+        let unrecognisedRows = outsideAmountColumns.count - fields.count
         var byNutrient: [String: LabelScore.Counts] = [:]
         for field in fields { byNutrient[field.nutrient, default: .init()].printed += 1 }
         func ended() -> LabelScore {
             LabelScore(scorer: version, labelID: evalCase.labelID, set: evalCase.set.rawValue, tier: evalCase.tier, copyMethod: evalCase.copyMethod,
                        format: evalCase.format.rawValue, outcome: outcome, declineReasons: declineReasons, failure: failure,
-                       fieldsPrinted: fields.count, fieldsReferenceAmounts: referenceAmounts, fieldsShown: 0, fieldsCorrect: 0, fieldsWrong: 0, wrongFlagged: 0, wrongSilent: 0,
+                       fieldsPrinted: fields.count, fieldsReferenceAmounts: referenceAmounts, fieldsUnrecognisedRows: unrecognisedRows, fieldsShown: 0, fieldsCorrect: 0, fieldsWrong: 0, wrongFlagged: 0, wrongSilent: 0,
                        attentionItems: 0, printedNotCorrect: fields.count, exactMatch: false, noEdit: false, silentErrorTable: false,
                        byNutrient: byNutrient, wrong: [])
         }
@@ -221,7 +236,7 @@ public enum PastedLabelAITextScorer {
         let exact = wrongCount == 0 && printedNotCorrect == 0
         return LabelScore(scorer: version, labelID: evalCase.labelID, set: evalCase.set.rawValue, tier: evalCase.tier, copyMethod: evalCase.copyMethod,
                           format: evalCase.format.rawValue, outcome: outcome, declineReasons: declineReasons, failure: failure,
-                          fieldsPrinted: fields.count, fieldsReferenceAmounts: referenceAmounts, fieldsShown: table.cells.count, fieldsCorrect: correct, fieldsWrong: wrongCount,
+                          fieldsPrinted: fields.count, fieldsReferenceAmounts: referenceAmounts, fieldsUnrecognisedRows: unrecognisedRows, fieldsShown: table.cells.count, fieldsCorrect: correct, fieldsWrong: wrongCount,
                           wrongFlagged: wrongFlagged, wrongSilent: wrongSilent, attentionItems: table.attentionItems,
                           printedNotCorrect: printedNotCorrect, exactMatch: exact, noEdit: exact && servingEdits == 0,
                           silentErrorTable: wrongSilent > 0, byNutrient: byNutrient, wrong: wrong)

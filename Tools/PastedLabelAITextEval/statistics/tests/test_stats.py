@@ -19,13 +19,13 @@ BAR = Path(__file__).resolve().parents[2] / "bar-v1.json"
 
 
 def scores(*, outcome="reached_confirm", printed=10, shown=10, correct=10, wrong=0, flagged=0, silent=0, attention=0, exact=None, no_edit=None,
-           nutrients=None, reference_amounts=0):
+           nutrients=None, reference_amounts=0, unrecognised_rows=0):
     exact = (outcome == "reached_confirm" and wrong == 0 and correct == printed) if exact is None else exact
     out = {"reached_confirm": int(outcome == "reached_confirm"), "declined": int(outcome == "declined"), "failed": int(outcome == "failed"),
            "fields_printed": printed, "fields_shown": shown if outcome == "reached_confirm" else 0,
            "fields_correct": correct if outcome == "reached_confirm" else 0, "fields_wrong": wrong, "wrong_flagged": flagged, "wrong_silent": silent,
            "attention_items": attention, "exact_match": int(exact), "no_edit": int(exact if no_edit is None else no_edit),
-           "silent_error_table": int(silent > 0), "fields_reference_amounts": reference_amounts}
+           "silent_error_table": int(silent > 0), "fields_reference_amounts": reference_amounts, "fields_unrecognised_rows": unrecognised_rows}
     for nutrient, counts in (nutrients or {}).items():
         for name, value in counts.items():
             out[f"nutrient.{nutrient}.{name}"] = value
@@ -167,6 +167,14 @@ class MetricTests(unittest.TestCase):
         self.assertEqual(out["fields_reference_amounts"], 6)
         legacy = [{"vars": {"label_id": "x"}, "provider": {"label": "m"}, "prompt": {"label": "p"}, "gradingResult": {}, "response": {}}]
         self.assertEqual(stats.summary(stats.load_results(write(legacy)), 10, 1, None)["cells"]["m|p"]["fields_reference_amounts"], 0)
+
+    def test_summary_sums_the_unrecognised_rows(self):
+        # Scorer v4 (D29): unrecognised-row values are counted beside the printed fields, never in them.
+        rows = [result("a", scores(printed=7, unrecognised_rows=3)), result("b", scores(outcome="failed", printed=5, unrecognised_rows=1))]
+        out = stats.summary(stats.load_results(write(rows)), 50, 1, None)["cells"]["model-a|prompt-v1"]
+        self.assertEqual(out["fields_unrecognised_rows"], 4)
+        legacy = [{"vars": {"label_id": "x"}, "provider": {"label": "m"}, "prompt": {"label": "p"}, "gradingResult": {}, "response": {}}]
+        self.assertEqual(stats.summary(stats.load_results(write(legacy)), 10, 1, None)["cells"]["m|p"]["fields_unrecognised_rows"], 0)
 
     def test_breakdown_by_nutrient(self):
         rows = [result("a", scores(nutrients={"fat": {"printed": 1, "shown": 1, "correct": 1, "wrong": 0}})),
