@@ -18,6 +18,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from workspace_guard import check_output  # noqa: E402
+from private_config import require  # noqa: E402
 from http_client import CircuitOpen, Client, load_food_words, owner_approval, safe_query  # noqa: E402
 
 FIELDS = "code,product_name,brands,quantity,countries_tags,nutriments,serving_size,categories_tags"
@@ -62,4 +63,5 @@ def main(work: Path):
 
 
 if __name__ == "__main__":
+    require()
     main(check_output(sys.argv[1]))

@@ -29,6 +29,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from workspace_guard import check, check_output  # noqa: E402
+from private_config import CONFIG, require  # noqa: E402
 
 TRANSFORMS = {("salt_to_sodium_v1", "pasted-label-conversions-v1"): ("sodium", "g"),
               ("kj_to_kcal_v1", "pasted-label-conversions-v1"): ("energy_consumed", "kJ")}
@@ -50,7 +51,7 @@ DENY = [re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+"), re.compile(r"\b[A-Z]{1,2}\d[A-Z\
         re.compile(r"\b(Mr|Mrs|Miss|Ms|Mx|Dr)\.?\s+[A-Z][a-z]+"),
         re.compile(r"\b\d+\s+(\w+\s+){1,3}(Road|Street|Lane|Avenue|Close|Gardens|Drive|Way)\b", re.I),
         re.compile(r"£\s?\d"), re.compile(r"(\+44|\b0)\s?\d{3,4}\s?\d{3}\s?\d{3,4}\b")]
-BRAND_HONORIFICS = {"Mr Organic", "Mr Filberts", "Mr Kipling"}  # same exact exceptions as extract_items
+BRAND_HONORIFICS = set(CONFIG["brand_honorifics"])  # same exact private exceptions as extract_items
 
 
 def norm(s):
@@ -225,5 +226,6 @@ def status(ws):
 
 
 if __name__ == "__main__":
+    require()
     ws, cmd = check(Path(sys.argv[1])), sys.argv[2]
     {"add": lambda: add(ws, Path(sys.argv[3])), "pending": lambda: pending(ws), "status": lambda: status(ws)}[cmd]()

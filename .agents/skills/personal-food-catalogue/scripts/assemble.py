@@ -22,6 +22,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from workspace_guard import check_output  # noqa: E402
+from private_config import CONFIG, require  # noqa: E402
 
 CANON = {  # Open Food Facts key -> (canonical key, canonical unit, factor from OFF grams)
     "energy-kcal": ("energy_consumed", "kcal", 1), "fat": ("fat_total", "g", 1),
@@ -44,9 +45,23 @@ CANON = {  # Open Food Facts key -> (canonical key, canonical unit, factor from 
     "caffeine": ("caffeine", "mg", 1e3),
 }
 LABEL_CORE = {"energy_consumed", "fat_total", "fat_saturated", "carbohydrates", "sugar", "fiber", "protein", "sodium"}
-STOP = set("the and with of in a & organic british collection m&s ocado per pack x rainforest alliance "
-           "perfectly ripe family large small medium free range".split())
-BRAND_ALIASES = {"m&s": {"m&s", "marks & spencer", "marks and spencer", "marks & spencer food"}}
+STOP = set("the and with of in a & organic british collection per pack x rainforest alliance "
+           "perfectly ripe family large small medium free range".split()) | {w.casefold() for w in CONFIG["title_stopwords"]}
+def _norm(b):
+    b = re.sub(r"[^a-z0-9& ]", " ", b.casefold().replace(" and ", " & "))
+    return re.sub(r"\s+", " ", b).strip()
+
+
+# Brands written several ways (private config): canonical name -> spellings, normalised like any
+# brand. A brand matches a spelling only when it is that spelling or starts with it as whole words,
+# and a canonical brand's words are removed from product names only when that brand is in play.
+BRAND_ALIASES = {_norm(c): sorted({_norm(c), *(_norm(s) for s in v)}, key=len, reverse=True)
+                 for c, v in CONFIG["brand_aliases"].items()}
+ALIAS_WORDS = {c: {t for sp in v for t in re.findall(r"[a-z0-9%]+", sp.replace("&", " "))} for c, v in BRAND_ALIASES.items()}
+
+
+def alias_words(canonical_brands):
+    return {t for c in canonical_brands if c in ALIAS_WORDS for t in ALIAS_WORDS[c]}
 
 
 def toks(s):
@@ -54,11 +69,17 @@ def toks(s):
 
 
 def norm_brand(b):
-    b = re.sub(r"[^a-z0-9& ]", " ", b.casefold().replace(" and ", " & "))
-    b = re.sub(r"\s+", " ", b).strip()
-    if "m&s" in b or "m & s" in b or ("marks" in b and "spencer" in b):
-        return "m&s"
+    b = _norm(b)
+    for canon, spellings in BRAND_ALIASES.items():
+        if any(b == sp or b.startswith(sp + " ") for sp in spellings):
+            return canon
     return b
+
+
+def alias_lead(title):
+    """The canonical brand when the normalised title starts with one of its spellings, else None."""
+    nt = norm_brand(title)
+    return nt if nt in BRAND_ALIASES else None
 
 
 def score_off(title, brand_guess, hit):
@@ -66,26 +87,25 @@ def score_off(title, brand_guess, hit):
 
     Brand words are removed from both sides so a brand field (e.g. "Cucumber")
     can never stand in for the product name. brand_ok means the title starts
-    with one of the hit's brands, after normalising punctuation and M&S names.
+    with one of the hit's brands, after normalising punctuation and private brand aliases.
     """
     name = f"{hit.get('product_name') or ''}"
     brands = hit.get("brands") or []
     brands = brands if isinstance(brands, list) else [brands]
     nb = {norm_brand(b) for b in brands if b and b.strip()}
-    nt = norm_brand(title) if norm_brand(title) == "m&s" and title.casefold().startswith(("m&s", "marks")) \
-        else re.sub(r"\s+", " ", re.sub(r"[^a-z0-9& ]", " ", title.casefold())).strip()
-    brand_ok = any(b and (nt == b or nt.startswith(b + " ")) for b in nb) or \
-        ("m&s" in nb and title.casefold().startswith(("m&s", "marks")))
+    lead = alias_lead(title)
+    nt = lead or re.sub(r"\s+", " ", re.sub(r"[^a-z0-9& ]", " ", title.casefold())).strip()
+    brand_ok = any(b and (nt == b or nt.startswith(b + " ")) for b in nb) or (lead is not None and lead in nb)
     if not nb and not brand_ok:
         # No brand field: accept the title's leading word appearing in the product name as the
-        # brand, but only when nearly all of the name's words are in the title (Loch Fyne
-        # salmon must not pass for Loch Fyne kippers).
+        # brand, but only when nearly all of the name's words are in the title (an "Example
+        # Smokery salmon" title must not pass for "Example Smokery kippers").
         lead = title.split()[0].casefold() if title.split() else ""
         name_words = re.findall(r"[a-z0-9']+", name.casefold())
         rest = toks(name) - toks(lead)
         if len(lead) > 2 and lead in name_words and rest and name_coverage(title, hit) >= 0.75:
             brand_ok = True
-    brand_toks = {t for b in nb for t in toks(b)} | {"m", "s", "spencer", "marks", "food"}
+    brand_toks = {t for b in nb for t in toks(b)} | alias_words(nb)  # only the candidate's own brands
     tt = toks(re.sub(r"\d+(\.\d+)?\s*(kg|g|ml|cl|l)\b", "", title, flags=re.I)) - brand_toks
     ht = toks(name) - brand_toks
     if not tt or not ht:
@@ -101,7 +121,8 @@ def name_coverage(title, hit):
     """Share of the candidate's own name words that also appear in the title."""
     brands = hit.get("brands") or []
     brands = brands if isinstance(brands, list) else [brands]
-    bt = {t for b in brands if b for t in toks(norm_brand(b))} | {"m", "s", "spencer", "marks", "food"}
+    nb = {norm_brand(b) for b in brands if b}
+    bt = {t for b in nb for t in toks(b)} | alias_words(nb)
     ht = toks(hit.get("product_name") or "") - bt
     tt = toks(title) - bt
     return len(ht & tt) / len(ht) if ht else 0.0
@@ -335,4 +356,5 @@ def main(work: Path, cofid_path: Path, out: Path, usda_path: Path):
 
 
 if __name__ == "__main__":
+    require()
     main(check_output(sys.argv[1]), Path(sys.argv[2]), check_output(sys.argv[3]), Path(sys.argv[4]))

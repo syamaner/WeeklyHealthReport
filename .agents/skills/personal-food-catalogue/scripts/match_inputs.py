@@ -22,8 +22,8 @@ STOP = set("the and with of in a raw cooked boiled fried roast roasted steamed b
 
 
 def toks(s):
-    # "&" stays inside a token so short brands such as "m&s" survive tokenising
-    return {t.rstrip("s") if t != "m&s" else t for t in re.findall(r"[a-z0-9%&]+", s.casefold())
+    # "&" stays inside a token, unstemmed, so short ampersand brands survive tokenising
+    return {t.rstrip("s") if "&" not in t else t for t in re.findall(r"[a-z0-9%&]+", s.casefold())
             if t not in STOP and (len(t) > 1 or "&" in t)}
 
 
