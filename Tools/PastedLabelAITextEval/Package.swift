@@ -8,8 +8,9 @@ import PackageDescription
 // (`send` and `score`) over the shipped request builder, reader and checks, the spend reservation,
 // the response cache and the legacy converter, over a directory fake transport. A3: `send --live`,
 // the shipped live transport (named only in `LiveTransport.swift`, check-boundaries.sh) with the key
-// from the environment only and retries under the spend ledger, for the tuning runs. Every real file
-// stays in the private folder outside the repository.
+// from the environment only and retries under the spend ledger, for the tuning runs. A3 also commits
+// `bar-v2.json` (D34; `bar-v1.json` stays as history) and the freeze pins (D35, FreezePinTests). Every
+// real file stays in the private folder outside the repository.
 let package = Package(
     name: "PastedLabelAITextEval",
     platforms: [.macOS(.v14)],
