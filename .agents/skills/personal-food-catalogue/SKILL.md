@@ -74,10 +74,10 @@ below serves that, and enrichment work is judged by it:
    (step 5). Barcode lookups send only digits from Open Food Facts' own results and need no separate
    approval. A product page the owner names is read once with the WebFetch tool. Web search runs
   only when the owner has asked for it in the current session, as recorded in
-  `docs/privacy-and-egress.md`, and each query is approved like an Open Food Facts query, because a
-  word list cannot recognise every personal name: it is a query the owner has already approved
-  (`work/outbound-approved.txt`), a generic food name with no brand, or a query the owner approves
-  exactly before it is sent. Never search with text from receipts, notes or photos. What you
+  `docs/privacy-and-egress.md`, and because a word list cannot recognise every personal name, each
+  query is either a generic food name with no brand or a query the owner has approved exactly, for
+  web search, before it is sent. Approval of an Open Food Facts query (`work/outbound-approved.txt`)
+  does not extend to web search. Never search with text from receipts, notes or photos. What you
    read reaches your model provider: the owner's notes, label and receipt photos, CSV header rows,
    product pages the owner names, and the food titles you map or show the owner for approval; read
    them only when the owner asks.
