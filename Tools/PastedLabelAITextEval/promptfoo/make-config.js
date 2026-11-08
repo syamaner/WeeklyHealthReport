@@ -1,0 +1,114 @@
+#!/usr/bin/env node
+// Writes the promptfoo config of one A3 matrix suite (docs/pasted-label-ai-text-v1.md 5.2, #416 A3b):
+// one provider per route candidate and one test per case in DATA/cases. The config names no data
+// path: run-live.sh and run-adversarial-fake.sh pass the data directory to provider.js and assert.js
+// by environment, so the same config runs over any copy of the suite.
+//
+// Usage: node make-config.js --data DIR --candidates ID[,ID...] --prompt-version V --suite NAME --out FILE
+//
+// - DATA holds texts/ and cases/. A path holding `uk-english-v2` (the sealed held-out set, T7) is
+//   refused, before and after resolving symbolic links, and nothing in it is opened.
+// - Each provider's cell is `<prompt-version>__<candidate-id>__<suite>`, the key of its $5 stop in
+//   the spend ledger. The candidate IDs are checked by `send` against the closed route set.
+// - The prompt version is the one the shipped request builder sends: `send` has no way to select
+//   another instruction yet, so only `v1` (`prompt-v1`) is accepted, and provider.js refuses a send
+//   record whose prompt version is not the cell's.
+// - FILE must be outside the repository; this script writes nothing else.
+'use strict';
+
+const fs = require('node:fs');
+const path = require('node:path');
+const { execFileSync } = require('node:child_process');
+
+const PROMPT_VERSIONS = { v1: 'prompt-v1' };
+const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+function fail(message) {
+  process.stderr.write(`make-config: ${message}\n`);
+  process.exit(2);
+}
+
+function parse(argv) {
+  const out = {};
+  for (let i = 0; i < argv.length; i += 2) {
+    const name = argv[i];
+    const value = argv[i + 1];
+    if (!['--data', '--candidates', '--prompt-version', '--suite', '--out'].includes(name)) fail(`unknown option ${name}`);
+    if (value === undefined || value.startsWith('--')) fail(`${name} needs a value`);
+    if (out[name] !== undefined) fail(`${name} given twice`);
+    out[name] = value;
+  }
+  for (const name of ['--data', '--candidates', '--prompt-version', '--suite', '--out']) if (out[name] === undefined) fail(`${name} is required`);
+  return out;
+}
+
+const SEALED = 'uk-english-v2';
+
+function main() {
+  const options = parse(process.argv.slice(2));
+  const here = __dirname;
+  // The held-out refusal comes first, on the path as given, so a refused path is never resolved or read.
+  if (options['--data'].includes(SEALED)) fail('the sealed held-out set (uk-english-v2) is never used by a tuning run (T7)');
+  let data;
+  try {
+    data = fs.realpathSync(options['--data']);
+  } catch (e) {
+    fail('the data directory must exist');
+  }
+  if (data.includes(SEALED)) fail('the sealed held-out set (uk-english-v2) is never used by a tuning run (T7)');
+  for (const sub of ['texts', 'cases']) {
+    if (!fs.statSync(path.join(data, sub), { throwIfNoEntry: false })?.isDirectory()) fail(`the data directory must hold ${sub}/`);
+  }
+  const candidates = options['--candidates'].split(',').map((id) => id.trim()).filter(Boolean);
+  if (candidates.length === 0) fail('--candidates needs at least one route candidate ID');
+  if (new Set(candidates).size !== candidates.length) fail('a route candidate is named twice');
+  for (const id of candidates) if (!NAME.test(id)) fail(`bad route candidate ID ${id}`);
+  const version = options['--prompt-version'];
+  if (!PROMPT_VERSIONS[version]) {
+    fail(`prompt version ${version} cannot be sent: the shipped request builder sends only ${Object.keys(PROMPT_VERSIONS).join(', ')}`);
+  }
+  const suite = options['--suite'];
+  if (!NAME.test(suite) || suite.includes('__')) fail(`bad suite name ${suite}`);
+
+  const repo = fs.realpathSync(execFileSync('git', ['-C', here, 'rev-parse', '--show-toplevel']).toString().trim());
+  const outPath = path.resolve(options['--out']);
+  let outDir;
+  try {
+    outDir = fs.realpathSync(path.dirname(outPath));
+  } catch (e) {
+    fail("the output file's directory must exist");
+  }
+  if ((outDir + path.sep).startsWith(repo + path.sep)) fail(`the config must be written outside the repository (${repo})`);
+
+  const labels = fs.readdirSync(path.join(data, 'cases')).filter((name) => name.endsWith('.json')).map((name) => name.slice(0, -5)).sort();
+  if (labels.length === 0) fail('cases/ holds no case');
+  for (const label of labels) {
+    if (!NAME.test(label)) fail(`bad case file name ${label}.json`);
+    if (!fs.statSync(path.join(data, 'texts', `${label}.txt`), { throwIfNoEntry: false })?.isFile()) fail(`texts/${label}.txt is missing`);
+  }
+
+  const promptVersion = PROMPT_VERSIONS[version];
+  const config = {
+    description: `pasted-label-ai-text A3 ${suite}: ${version} x ${candidates.length} route candidates x ${labels.length} cases`,
+    sharing: false,
+    prompts: [{ id: promptVersion, label: promptVersion, raw: '{{label_id}}' }],
+    providers: candidates.map((id) => ({
+      id: `file://${path.join(here, 'provider.js')}`,
+      label: id,
+      config: { route: id, cell: `${version}__${id}__${suite}`, promptVersion },
+    })),
+    defaultTest: { assert: [{ type: 'javascript', value: `file://${path.join(here, 'assert.js')}` }] },
+    tests: labels.map((label) => ({ vars: { label_id: label } })),
+  };
+  const header = [
+    `# Generated by make-config.js (#416 A3b); do not edit by hand.`,
+    `# suite ${suite}, prompt ${version} (${promptVersion}), ${candidates.length} candidates, ${labels.length} cases.`,
+    `# Cells: ${candidates.map((id) => `${version}__${id}__${suite}`).join(', ')}`,
+    '',
+  ].join('\n');
+  // JSON is YAML: promptfoo reads the file as YAML, and the comments above stay readable.
+  fs.writeFileSync(outPath, header + JSON.stringify(config, null, 2) + '\n');
+  process.stdout.write(`${outPath}: ${candidates.length} providers x ${labels.length} tests\n`);
+}
+
+main();

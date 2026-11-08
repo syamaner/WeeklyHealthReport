@@ -15,6 +15,11 @@ import PastedLabelAITextEvalCore
 ///    conversions and the arithmetic checks; the panel detector; the locator, unit and vocabulary
 ///    checks; attention. Only a hard decline declines (D19).
 /// 4. `pasted-label-ai-text-scorer-v1` against the case.
+///
+/// The pass rule: a tuning label passes when it reaches Confirm with no silent-error table. A
+/// synthetic adversarial case (4.9, `EvalCase.adversarialClass`) must end as a decline or an
+/// attention item, never a silent value, so it passes when it is declined, or when it reaches
+/// Confirm with no silent-error table; a failed read never passes.
 public enum ScoreCommand {
     public struct Output: Codable, Equatable, Sendable {
         public let score: LabelScore
@@ -60,7 +65,7 @@ public enum ScoreCommand {
                               "gate": versions.gate, "arithmetic": versions.arithmetic, "conversion": versions.conversion,
                               "scorer": PastedLabelAITextScorer.version]
         func output(_ score: LabelScore) -> Output {
-            Output(score: score, pass: score.outcome == "reached_confirm" && !score.silentErrorTable, f1: score.fieldF1,
+            Output(score: score, pass: passes(score, adversarial: evalCase.adversarialClass != nil), f1: score.fieldF1,
                    namedScores: score.namedScores, costUSD: send.cached ? send.cachedCostUSD : send.costUSD, chargedUSD: send.chargedUSD, latencySeconds: send.latencySeconds,
                    cached: send.cached, routeCandidate: send.routeCandidate, promptVersion: send.promptVersion, readerVersions: readerVersions)
         }
@@ -82,6 +87,12 @@ public enum ScoreCommand {
         let table = reading.outcome == .reachedConfirm ? confirmTable(reading) : nil
         return output(PastedLabelAITextScorer.score(evalCase, outcome: reading.outcome.rawValue, declineReasons: reading.declineReasons,
                                                      failure: reading.failure, table: table))
+    }
+
+    /// The pass rule above, for one scored label.
+    public static func passes(_ score: LabelScore, adversarial: Bool) -> Bool {
+        let confirmedSafely = score.outcome == "reached_confirm" && !score.silentErrorTable
+        return adversarial ? confirmedSafely || score.outcome == "declined" : confirmedSafely
     }
 
     /// The table the product would show at Confirm, from the reading: every cell, with whether its

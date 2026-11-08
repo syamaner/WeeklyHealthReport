@@ -1,4 +1,4 @@
-# Shared by run-smoke.sh and run-live.sh (sourced, not run): the scratch path checks (Qodo finding 5
+# Shared by run-smoke.sh, run-live.sh and run-adversarial-fake.sh (sourced, not run): the scratch path checks (Qodo finding 5
 # on A2). `resolve_scratch PATH HERE` prints the fully resolved scratch path, or prints the reason to
 # stderr and returns 2. It creates nothing, so a refused path is never created.
 #

@@ -55,6 +55,10 @@ class PastedLabelAITextSendProvider {
     const vars = (context && context.vars) || {};
     const label = String(vars.label_id || '');
     if (!/^[A-Za-z0-9._-]+$/.test(label) || label.startsWith('.')) return { error: `bad label_id ${label}` };
+    // The route and the cell come from the provider's config (make-config.js writes one provider per
+    // route candidate, cell `<prompt-version>__<candidate>__<suite>`); neither is ever guessed.
+    const { route, cell, promptVersion } = this.config;
+    if (typeof route !== 'string' || !route || typeof cell !== 'string' || !cell) return { error: 'the provider config needs route and cell' };
     const bin = required('PASTED_LABEL_AI_TEXT_EVAL_BIN');
     const data = required('PASTED_LABEL_AI_TEXT_EVAL_DATA');
     const run = required('PASTED_LABEL_AI_TEXT_EVAL_RUN');
@@ -66,7 +70,7 @@ class PastedLabelAITextSendProvider {
     }
     const args = [
       'send', '--label-id', label, '--text', path.join(data, 'texts', `${label}.txt`),
-      '--route', String(this.config.route), '--cell', String(this.config.cell),
+      '--route', route, '--cell', cell,
       '--ledger', path.join(run, 'spend-ledger.json'), '--cache', path.join(run, 'response-cache'),
       ...link.args,
     ];
@@ -85,6 +89,10 @@ class PastedLabelAITextSendProvider {
       send = JSON.parse(result.stdout);
     } catch (e) {
       return { error: `send printed no JSON: ${e.message}` };
+    }
+    // The cell names a prompt version; a record sent under another one is refused, not scored (A3b).
+    if (promptVersion !== undefined && send.prompt_version !== undefined && send.prompt_version !== promptVersion) {
+      return { error: `send used prompt ${send.prompt_version}, but the cell is for ${promptVersion}` };
     }
     // The send record, with the tap's start added; `score` ignores the extra member.
     send.tap_started_at_ms = started;

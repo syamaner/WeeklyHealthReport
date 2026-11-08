@@ -40,8 +40,26 @@ public enum PastedLabelAITextRoute {
                                                    endpoint: "google-vertex/us", providerName: "Google", maxOutputTokens: 2_400,
                                                    reasoningLimit: 500)
 
+    // The A3 tuning matrix (owner, 8 November 2026). Each endpoint was listed as
+    // zero-data-retention with structured outputs and the reasoning parameter on that day; the
+    // route checker re-confirms it before every call. Anthropic's minimum reasoning budget is
+    // 1,024 tokens, so Haiku's limit is 1,024.
+    public static let gemini38FlashVertexUS = Route(version: version, candidateID: "gemini-3.8-flash-vertex-us", model: "google/gemini-3.8-flash",
+                                                    endpoint: "google-vertex/us", providerName: "Google", maxOutputTokens: 2_400,
+                                                    reasoningLimit: 500)
+    public static let mistralLarge4ZDR = Route(version: version, candidateID: "mistral-large-4-zdr", model: "mistralai/mistral-large-4-0",
+                                               endpoint: "mistral/zdr", providerName: "Mistral", maxOutputTokens: 2_400, reasoningLimit: 500)
+    public static let gpt6LunaAzure = Route(version: version, candidateID: "gpt-6-luna-azure", model: "openai/gpt-6-luna", endpoint: "azure",
+                                            providerName: "Azure", maxOutputTokens: 2_400, reasoningLimit: 500)
+    public static let gpt61SolAzure = Route(version: version, candidateID: "gpt-6.1-sol-azure", model: "openai/gpt-6.1-sol", endpoint: "azure",
+                                            providerName: "Azure", maxOutputTokens: 2_400, reasoningLimit: 500)
+    public static let claudeHaiku55VertexGlobal = Route(version: version, candidateID: "claude-haiku-5.5-vertex-global",
+                                                        model: "anthropic/claude-haiku-5.5", endpoint: "google-vertex/global",
+                                                        providerName: "Google", maxOutputTokens: 3_000, reasoningLimit: 1_024)
+
     /// Closed and append-only: the candidates an evaluation cell may name.
-    public static let candidates: [Route] = [gemini4ArgonVertexUS]
+    public static let candidates: [Route] = [gemini4ArgonVertexUS, gemini38FlashVertexUS, mistralLarge4ZDR, gpt6LunaAzure, gpt61SolAzure,
+                                             claudeHaiku55VertexGlobal]
 
     /// The one shipped route; nil until A3 freezes one.
     public static let current: Route? = nil

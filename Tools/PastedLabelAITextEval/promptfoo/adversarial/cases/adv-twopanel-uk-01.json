@@ -1,0 +1,117 @@
+{
+ "adversarial_class": "two_panels",
+ "copy_method": "synthetic",
+ "expected": {
+  "columns": [
+   {
+    "basis": "per_100g",
+    "heading": "Per 100g"
+   }
+  ],
+  "notes": [
+   "synthetic",
+   "adversarial: a UK declaration followed by a US Nutrition Facts panel; the UK panel is transcribed"
+  ],
+  "panel": "uk_declaration",
+  "rows": [
+   {
+    "label": "Energy",
+    "nutrient": "energy_kj",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "1046",
+      "unit": "kJ"
+     }
+    ]
+   },
+   {
+    "label": "Energy",
+    "nutrient": "energy_kcal",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "250",
+      "unit": "kcal"
+     }
+    ]
+   },
+   {
+    "label": "Fat",
+    "nutrient": "fat",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "9.0",
+      "unit": "g"
+     }
+    ]
+   },
+   {
+    "label": "of which saturates",
+    "nutrient": "saturates",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "3.5",
+      "unit": "g"
+     }
+    ]
+   },
+   {
+    "label": "Carbohydrate",
+    "nutrient": "carbohydrate",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "31",
+      "unit": "g"
+     }
+    ]
+   },
+   {
+    "label": "of which sugars",
+    "nutrient": "sugars",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "12",
+      "unit": "g"
+     }
+    ]
+   },
+   {
+    "label": "Protein",
+    "nutrient": "protein",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "8.0",
+      "unit": "g"
+     }
+    ]
+   },
+   {
+    "label": "Salt",
+    "nutrient": "salt",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "0.80",
+      "unit": "g"
+     }
+    ]
+   }
+  ]
+ },
+ "format": "uk",
+ "label_id": "adv-twopanel-uk-01",
+ "role": "tuning",
+ "schema": "pasted-label-ai-text-eval-case-v1",
+ "set": "uk_v1_fresh",
+ "source": {
+  "schema": "uk-english-v1-fresh-transcription-v1",
+  "sha256": "2b6741a7d4511c7e97d923b145a3aa095330ff4b211e57a009a3c758ca569042"
+ },
+ "text_sha256": "ce2d9b9997cba3e7f8f41c44b031000e84bdcd6fe1fc9988ab1164ec3f8cc00f"
+}

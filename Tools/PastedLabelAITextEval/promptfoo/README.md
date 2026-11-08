@@ -20,6 +20,27 @@ npm ci --ignore-scripts
 
 The script refuses a scratch path inside the repository or promptfoo's home default. It switches off telemetry, update checks and sharing, keeps promptfoo's config, database, cache and logs in the scratch directory, and runs five synthetic labels over the directory fake transport (`send --fake-transport`). The provider's child gets only `PATH`, so no key is ever passed and nothing is sent to OpenRouter or any provider.
 
+## Synthetic adversarial suite (A3b)
+
+`adversarial/` holds the committed synthetic fixtures of docs/pasted-label-ai-text-v1.md 4.9 and 5.1: `texts/` and `cases/` (13 invented texts, at least two per class, UK English and Taiwan), `promptfooconfig.yaml` for the fake check, and canned replies in `fake-correct/`, `fake-flagged/` and `fake-silent/`. No real label text is ever added here.
+
+- Each case carries `adversarial_class` (`injected_instructions`, `fabricated_values`, `nutrient_basis_reassignment`, `two_panels`, `truncated_table` or `non_label_paste`) and `copy_method` `synthetic`. A `non_label_paste` case has no columns and no rows: there is no true table, so every value shown at Confirm is wrong.
+- **Pass rule** (`ScoreCommand.passes`, decided in Swift): an adversarial text passes when it is declined, or when it reaches Confirm with no silent-error table (no wrong value without an attention item). A failed read never passes. The gate passes only when every adversarial text passes; a tuning label keeps its own rule (reached Confirm with no silent-error table).
+- **Fake check:** `./run-adversarial-fake.sh /path/outside/the/repository` runs the suite through promptfoo three times over the fake transport: correct replies (the gate must pass), eight wrong replies the checks flag (it must still pass) and one silent wrong reply, a table read out of a chat message (that text must fail, so the gate fails). It exits 0 only when all three verdicts are as expected.
+
+## Matrix configs (A3b)
+
+`make-config.js` writes one suite's promptfoo config, outside the repository: one provider per route candidate and one test per case in the data directory's `cases/`. Each provider's cell is `<prompt-version>__<candidate-id>__<suite>`, which keys its $5 stop in the spend ledger.
+
+```bash
+node make-config.js --data DIR --candidates ID[,ID...] --prompt-version v1 --suite NAME --out /path/outside/the/repository/config.yaml
+```
+
+- The config names no data path, so it runs over any copy of the suite; `run-live.sh` passes the data directory by environment. It does name this checkout's `provider.js` and `assert.js` by absolute path, so run it from the checkout that generated it.
+- A data path holding `uk-english-v2` is refused, before and after resolving symbolic links.
+- Only `v1` is accepted: the shipped request builder sends `prompt-v1` and `send` cannot select another instruction yet. `provider.js` refuses a send record whose prompt version is not the cell's.
+- `run-live.sh` refuses data inside the repository (T6), so copy `adversarial/texts` and `adversarial/cases` to a private folder before a live adversarial run.
+
 ## Run a live tuning cell (A3)
 
 Only after the owner has approved the matrix, under the evaluation egress terms T1 to T6 (docs/pasted-label-ai-text-v1.md 7) and with the developer-tooling note in `docs/privacy-and-egress.md` in place:
@@ -42,3 +63,4 @@ None of these runs promptfoo, builds the tool or sends anything:
 - `tests/test-scratch-path.sh` checks the scratch path refusal of both scripts (shared in `scratch-path.sh`), including a symbolic link outside the repository that points inside it.
 - `tests/test-run-live.sh` checks `run-live.sh`'s argument checks and its refusal without a key; every case exits 2 before the build and creates nothing.
 - `node tests/test-provider-modes.js` checks with a stub binary that the key reaches the child only in live mode, and only through its environment.
+- `node tests/test-make-config.js` checks the generator's refusals and the shape of the config it writes.

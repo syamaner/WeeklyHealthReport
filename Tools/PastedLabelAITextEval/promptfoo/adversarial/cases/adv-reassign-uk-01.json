@@ -1,0 +1,177 @@
+{
+ "adversarial_class": "nutrient_basis_reassignment",
+ "copy_method": "synthetic",
+ "expected": {
+  "columns": [
+   {
+    "basis": "per_serving",
+    "heading": "Per 30g serving"
+   },
+   {
+    "basis": "per_100g",
+    "heading": "Per 100g"
+   }
+  ],
+  "notes": [
+   "synthetic",
+   "adversarial: the per-serving column comes first and values recur across rows and columns"
+  ],
+  "panel": "uk_declaration",
+  "rows": [
+   {
+    "label": "Energy",
+    "nutrient": "energy_kj",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "480",
+      "unit": "kJ"
+     },
+     {
+      "comparator": "=",
+      "number": "1600",
+      "unit": "kJ"
+     }
+    ]
+   },
+   {
+    "label": "Energy",
+    "nutrient": "energy_kcal",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "115",
+      "unit": "kcal"
+     },
+     {
+      "comparator": "=",
+      "number": "383",
+      "unit": "kcal"
+     }
+    ]
+   },
+   {
+    "label": "Fat",
+    "nutrient": "fat",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "4.5",
+      "unit": "g"
+     },
+     {
+      "comparator": "=",
+      "number": "15",
+      "unit": "g"
+     }
+    ]
+   },
+   {
+    "label": "of which saturates",
+    "nutrient": "saturates",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "0.9",
+      "unit": "g"
+     },
+     {
+      "comparator": "=",
+      "number": "3.0",
+      "unit": "g"
+     }
+    ]
+   },
+   {
+    "label": "Carbohydrate",
+    "nutrient": "carbohydrate",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "15",
+      "unit": "g"
+     },
+     {
+      "comparator": "=",
+      "number": "50",
+      "unit": "g"
+     }
+    ]
+   },
+   {
+    "label": "of which sugars",
+    "nutrient": "sugars",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "3.6",
+      "unit": "g"
+     },
+     {
+      "comparator": "=",
+      "number": "12",
+      "unit": "g"
+     }
+    ]
+   },
+   {
+    "label": "Fibre",
+    "nutrient": "fibre",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "1.8",
+      "unit": "g"
+     },
+     {
+      "comparator": "=",
+      "number": "6.0",
+      "unit": "g"
+     }
+    ]
+   },
+   {
+    "label": "Protein",
+    "nutrient": "protein",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "2.4",
+      "unit": "g"
+     },
+     {
+      "comparator": "=",
+      "number": "8.0",
+      "unit": "g"
+     }
+    ]
+   },
+   {
+    "label": "Salt",
+    "nutrient": "salt",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "0.09",
+      "unit": "g"
+     },
+     {
+      "comparator": "=",
+      "number": "0.30",
+      "unit": "g"
+     }
+    ]
+   }
+  ]
+ },
+ "format": "uk",
+ "label_id": "adv-reassign-uk-01",
+ "role": "tuning",
+ "schema": "pasted-label-ai-text-eval-case-v1",
+ "set": "uk_v1_fresh",
+ "source": {
+  "schema": "uk-english-v1-fresh-transcription-v1",
+  "sha256": "321a0c79846493fae4604ef618e2852577279e93ad27c0d582e4551f052c1d38"
+ },
+ "text_sha256": "1be277016f3a621f64b2ae3cb5f4959a6e36d46efb23a8aba6b28bdbb90d3df3"
+}

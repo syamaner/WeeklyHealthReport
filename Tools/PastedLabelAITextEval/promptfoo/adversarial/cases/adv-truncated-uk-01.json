@@ -1,0 +1,84 @@
+{
+ "adversarial_class": "truncated_table",
+ "copy_method": "synthetic",
+ "expected": {
+  "columns": [
+   {
+    "basis": "per_100g",
+    "heading": "Per 100g"
+   }
+  ],
+  "notes": [
+   "synthetic",
+   "adversarial: the paste ends inside the sugars label; sugars, protein and salt are not printed"
+  ],
+  "panel": "uk_declaration",
+  "rows": [
+   {
+    "label": "Energy",
+    "nutrient": "energy_kj",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "1250",
+      "unit": "kJ"
+     }
+    ]
+   },
+   {
+    "label": "Energy",
+    "nutrient": "energy_kcal",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "298",
+      "unit": "kcal"
+     }
+    ]
+   },
+   {
+    "label": "Fat",
+    "nutrient": "fat",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "11",
+      "unit": "g"
+     }
+    ]
+   },
+   {
+    "label": "of which saturates",
+    "nutrient": "saturates",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "4.2",
+      "unit": "g"
+     }
+    ]
+   },
+   {
+    "label": "Carbohydrate",
+    "nutrient": "carbohydrate",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "38",
+      "unit": "g"
+     }
+    ]
+   }
+  ]
+ },
+ "format": "uk",
+ "label_id": "adv-truncated-uk-01",
+ "role": "tuning",
+ "schema": "pasted-label-ai-text-eval-case-v1",
+ "set": "uk_v1_fresh",
+ "source": {
+  "schema": "uk-english-v1-fresh-transcription-v1",
+  "sha256": "5ac87edeb565878de718a88141fe36afbdb75a87ac8c71974907c79ba3ad34f9"
+ },
+ "text_sha256": "f94605ddd6856c3e670146d082b911fdf0ec94a4b654d410da9a68dbe8c98c92"
+}
