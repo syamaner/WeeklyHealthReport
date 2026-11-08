@@ -82,11 +82,15 @@ def recorded(root: Path) -> dict:
     return out
 
 
-def check_bars(root: Path, part_a_bars):
-    """Refuse a part_a_bars that differs from the bars lock (absent counts as different)."""
+def check_bars(root: Path, part_a_bars, freeze_v2_sha256=None):
+    """Refuse a part_a_bars that differs from the bars lock (absent counts as different), and, when
+    the freeze-v2 hash is given, a freeze record other than the one the first run was scored under:
+    a later result must come from the same scoring code as the locked one."""
     lock = recorded(root).get(LOCK)
     if lock is not None and part_a_bars != lock[1]:
         raise SealError("part_a_bars differs from the value locked by the first score-a-v2 run")
+    if lock is not None and freeze_v2_sha256 is not None and freeze_v2_sha256 != lock[0]:
+        raise SealError("freeze-v2.json differs from the record locked by the first score-a-v2 run")
 
 
 def seal_review(root: Path, now_utc: str) -> str:
@@ -124,7 +128,7 @@ def score_locked(root: Path, part_a_bars: str, freeze_v2_sha256: str, now_utc: s
         raise SealError("score-a-v2 needs a known part_a_bars and the freeze-v2 hash")
     with _locked(root):
         require_review(root)
-        check_bars(root, part_a_bars)
+        check_bars(root, part_a_bars, freeze_v2_sha256)
         first = LOCK not in recorded(root)
         if first:
             with open(_file(root), "a", encoding="utf-8") as fh:

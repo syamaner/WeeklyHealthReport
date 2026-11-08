@@ -193,7 +193,9 @@ class SealsV2(unittest.TestCase):
                     seals_v2.check_bars(root, other)
             with self.assertRaises(seals_v2.SealError):
                 seals_v2.score_locked(root, "v1_accepted", "b" * 64, T, lambda: [])
-            self.assertFalse(seals_v2.score_locked(root, "v2_proposed", "b" * 64, T, lambda: []))
+            with self.assertRaises(seals_v2.SealError):  # a rerun under different scoring code
+                seals_v2.score_locked(root, "v2_proposed", "b" * 64, T, lambda: [])
+            self.assertFalse(seals_v2.score_locked(root, "v2_proposed", "a" * 64, T, lambda: []))
             self.assertEqual(len((root / "seals-v2.txt").read_text().splitlines()), 2)
 
     def test_lock_is_recorded_before_any_count(self):

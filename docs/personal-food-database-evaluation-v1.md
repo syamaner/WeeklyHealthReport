@@ -314,7 +314,7 @@ on the new rubric.
 **Part A bars of record (accepted 8 November 2026, decision 9).** For the section 3 rubric, accepted
 by the owner before any Part A result was scored; the tool records the choice as `part_a_bars`
 `v2_proposed` in `freeze-v2.json` and locks it on the first scoring run (review v2 design, section
-4). Part A stays blocked until that versioned tool exists. Earlier preliminary reviews of the
+4). The tool exists (#443); Part A scoring waits for the owner's completed v2 sheet and sidecar. Earlier preliminary reviews of the
 proposals have occurred; this is not a claim of preregistration before all evidence.
 
 | Measure | Bar | If it fails |

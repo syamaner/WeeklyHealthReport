@@ -158,6 +158,7 @@ class Sheet(unittest.TestCase):
             ("A3", ("same_food", "unresolved", "same_or_immaterial", "sensible")),
             ("A3", ("same_food", "same_state", "same_or_immaterial", "unresolved")),
             ("A3", ("different_food", "unresolved", "same_or_immaterial", "unresolved")),  # misleading whatever is open
+            ("A3", ("same_food", "same_state", "same_or_immaterial", "misleading_close")),  # nothing misleading
             ("A4", ("same_food", "unresolved", "same_or_immaterial", "match_missed")),
             ("A4", ("same_food", "unresolved", "unresolved", "nothing_suitable")),
             ("A4", ("unresolved", "unresolved", "unresolved", "sensible")),
@@ -175,7 +176,7 @@ class Sheet(unittest.TestCase):
             ("A3", ("same_food", "different_state", "same_or_immaterial", "sensible")),  # a labelled alternative state
             ("A3", ("same_food", "same_state", "material_difference", "sensible")),
             ("A3", ("same_food", "different_state", "unresolved", "misleading_other_state")),
-            ("A3", ("unresolved", "same_state", "same_or_immaterial", "misleading_close")),
+            ("A3", ("same_food", "same_state", "material_difference", "misleading_close")),
             ("A3", ("unresolved", "same_state", "same_or_immaterial", "unresolved")),
             ("A4", ("same_food", "same_state", "same_or_immaterial", "unresolved")),
         ]
@@ -229,6 +230,13 @@ class Sidecar(unittest.TestCase):
             self.bundle(self.recs[1:])
         with self.assertRaises(formats.FormatError):
             evidence(self.recs + [self.recs[0]])
+
+    def test_duplicate_json_keys_refused(self):
+        good = json.dumps(self.recs[0])
+        doubled = good[:-1] + ', "assessment": "correct"}'  # an earlier value hidden behind a later valid one
+        with self.assertRaises(formats.FormatError) as cm:
+            F2.parse_evidence((doubled + "\n").encode("utf-8"), INV)
+        self.assertNotIn("correct", str(cm.exception))
 
     def test_records_outside_the_coverage_rule_refused(self):
         a3, a4, a1 = row_of(self.sample, "A3"), row_of(self.sample, "A4"), row_of(self.sample, "A1")
@@ -482,7 +490,7 @@ class Exclusions(unittest.TestCase):
             a2: ("same_food", "different_state", "same_or_immaterial", "merge_failed"),
             a2u: ("unresolved", "same_state", "same_or_immaterial", "unresolved"),
             a3: ("same_food", "different_state", "same_or_immaterial", "misleading_other_state"),
-            a3d: ("different_food", "unresolved", "same_or_immaterial", "unresolved"),
+            a3d: ("different_food", "unresolved", "same_or_immaterial", "misleading_close"),
             a3u: ("unresolved", "same_state", "same_or_immaterial", "unresolved"),
             a4: ("same_food", "same_state", "same_or_immaterial", "match_missed"),
         })

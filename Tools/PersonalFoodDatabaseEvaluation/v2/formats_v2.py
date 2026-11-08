@@ -108,6 +108,17 @@ def write_sheet(rows) -> bytes:
     return buf.getvalue().encode("utf-8")
 
 
+class _DuplicateKey(json.JSONDecodeError):
+    pass
+
+
+def _no_duplicate_keys(pairs):
+    keys = [k for k, _ in pairs]
+    if len(set(keys)) != len(keys):
+        raise _DuplicateKey("duplicate key", "", 0)  # caught as invalid JSON; the value is never shown
+    return dict(pairs)
+
+
 def _combination(r: dict, where: str):
     """The section 2.2 table. Checks that need the sidecar are in check_bundle."""
     s, outcome = r["stratum"], r["outcome"]
@@ -132,6 +143,8 @@ def _combination(r: dict, where: str):
             raise FormatError(f"{where}: sensible is refused while a check is unresolved")
         if outcome == "unresolved" and not unresolved:
             raise FormatError(f"{where}: unresolved needs at least one unresolved check")
+        if outcome == "misleading_close" and r["identity"] != "different_food" and r["variety"] != "material_difference":
+            raise FormatError(f"{where}: misleading_close needs identity different_food or variety material_difference")
         if outcome == "unresolved" and r["identity"] == "different_food":
             # a candidate for a different food is misleading whatever else is open
             raise FormatError(f"{where}: unresolved is refused with identity different_food")
@@ -221,7 +234,7 @@ def parse_evidence(data: bytes, inventory: dict):
         if not line.strip():
             raise FormatError(f"{where}: blank line")
         try:
-            rec = json.loads(line)
+            rec = json.loads(line, object_pairs_hook=_no_duplicate_keys)
         except json.JSONDecodeError:
             raise FormatError(f"{where}: not valid JSON") from None
         if not isinstance(rec, dict):
