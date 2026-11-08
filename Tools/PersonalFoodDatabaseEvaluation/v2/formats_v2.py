@@ -143,6 +143,8 @@ def _combination(r: dict, where: str):
             raise FormatError(f"{where}: sensible is refused while a check is unresolved")
         if outcome == "unresolved" and not unresolved:
             raise FormatError(f"{where}: unresolved needs at least one unresolved check")
+        if outcome == "misleading_close" and r["state"] == "different_state":
+            raise FormatError(f"{where}: misleading_other_state takes precedence when state is different_state")
         if outcome == "misleading_close" and r["identity"] != "different_food" and r["variety"] != "material_difference":
             raise FormatError(f"{where}: misleading_close needs identity different_food or variety material_difference")
         if outcome == "unresolved" and r["identity"] == "different_food":
@@ -298,6 +300,8 @@ def check_bundle(rows, records, inventory):
             if r["outcome"] == "match_missed":
                 if len(recs) != 1 or recs[0]["nutrient"] != A4_KEY or recs[0]["assessment"] != "match_available":
                     raise FormatError(f"{where}: match_missed needs exactly one {A4_KEY} record of assessment match_available")
+                if recs[0]["state_basis"] == "unknown":
+                    raise FormatError(f"{where}: match_missed needs a record whose state is known, not unknown")
             elif recs:
                 raise FormatError(f"{where}: an A4 row carries a record only when its outcome is match_missed")
         if r["state"] == "compatible_with_stated_assumption":

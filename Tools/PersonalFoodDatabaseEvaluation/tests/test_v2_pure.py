@@ -159,6 +159,7 @@ class Sheet(unittest.TestCase):
             ("A3", ("same_food", "same_state", "same_or_immaterial", "unresolved")),
             ("A3", ("different_food", "unresolved", "same_or_immaterial", "unresolved")),  # misleading whatever is open
             ("A3", ("same_food", "same_state", "same_or_immaterial", "misleading_close")),  # nothing misleading
+            ("A3", ("different_food", "different_state", "same_or_immaterial", "misleading_close")),  # other-state first
             ("A4", ("same_food", "unresolved", "same_or_immaterial", "match_missed")),
             ("A4", ("same_food", "unresolved", "unresolved", "nothing_suitable")),
             ("A4", ("unresolved", "unresolved", "unresolved", "sensible")),
@@ -209,6 +210,9 @@ class Sheet(unittest.TestCase):
         with self.assertRaises(formats.FormatError):
             F2.check_bundle(rows, evidence([r if r["row"] != str(n) else rec(n, "protein", "match_available") for r in recs]),
                             INV)
+        with self.assertRaises(formats.FormatError):  # a missed match must rest on a known source state
+            F2.check_bundle(rows, evidence([r if r["row"] != str(n) else rec(n, "energy_consumed", "match_available", "unknown")
+                                            for r in recs]), INV)
 
 
 class Sidecar(unittest.TestCase):

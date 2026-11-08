@@ -84,7 +84,8 @@ class FreezeV2(unittest.TestCase):
             doc = {"schema": "pfd-freeze-v2", "files": {freeze_v2.INVENTORY: sha(INVENTORY_BYTES)},
                    "freeze_v1_sha256": sha(b"{}\n"), "part_a_bars": "v2_proposed"}
             freeze_v2.check(freeze_v2.parse(formats.dumps(doc)), repo, v1)
-            for bad in ({**doc, "part_a_bars": "v3"}, {**doc, "part_a_bars": None}, {**doc, "extra": 1},
+            for bad in ({**doc, "part_a_bars": "v3"}, {**doc, "part_a_bars": None},
+                        {**doc, "part_a_bars": ["v2_proposed"]}, {**doc, "part_a_bars": {}}, {**doc, "extra": 1},
                         {**doc, "schema": "pfd-freeze-v1"}, {**doc, "freeze_v1_sha256": "x"},
                         {k: v for k, v in doc.items() if k != "freeze_v1_sha256"}, {**doc, "files": {}}):
                 with self.assertRaises(freeze_v2.FreezeError):

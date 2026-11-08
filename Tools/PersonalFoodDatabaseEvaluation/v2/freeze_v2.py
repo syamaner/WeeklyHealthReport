@@ -48,7 +48,7 @@ def parse(data: bytes) -> dict:
         raise FreezeError("freeze-v2 record: files must map paths to SHA-256 hashes")
     if not isinstance(doc["freeze_v1_sha256"], str) or not HEX64.fullmatch(doc["freeze_v1_sha256"]):
         raise FreezeError("freeze-v2 record: freeze_v1_sha256 must be a SHA-256 hash")
-    if "part_a_bars" in doc and doc["part_a_bars"] not in BAR_SETS:
+    if "part_a_bars" in doc and not (isinstance(doc["part_a_bars"], str) and doc["part_a_bars"] in BAR_SETS):
         raise FreezeError("freeze-v2 record: part_a_bars must be v1_accepted or v2_proposed")
     return doc
 
