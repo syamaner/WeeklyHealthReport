@@ -35,7 +35,7 @@ printf 'description: test\nproviders:\n  - file:///tmp/elsewhere/provider.js\n' 
 mkdir -p "$outside/shims"
 real_node="$(command -v node)"
 printf '#!/bin/sh\nif [ -n "${OPENROUTER_API_KEY+x}" ]; then echo key >> "%s/node-saw-key"; fi\nexec "%s" "$@"\n' "$outside" "$real_node" > "$outside/shims/node"
-printf '#!/bin/sh\necho build >> "%s/swift-ran"\nexit 1\n' "$outside" > "$outside/shims/swift"
+printf '#!/bin/sh\nif [ -n "${OPENROUTER_API_KEY+x}" ]; then echo key >> "%s/swift-saw-key"; fi\necho build >> "%s/swift-ran"\nexit 1\n' "$outside" "$outside" > "$outside/shims/swift"
 chmod +x "$outside/shims/node" "$outside/shims/swift"
 # Data directories with symbolic links: into the stand-in sealed set (an empty temporary directory
 # named uk-english-v2, never the sealed set) and to a file outside the data directory.
@@ -106,5 +106,13 @@ refused_with_key "a numeric option without a number" "needs a number" "$live" "$
 rm -f "$outside/node-saw-key" "$outside/swift-ran"
 refused "a generated config without a key" "OPENROUTER_API_KEY must be set" env PATH="$outside/shims:$PATH" "$live" "$scratch" "$outside/config.yaml" "$outside/data" --no-cache -j 2 --filter-pattern 'adv-.*'
 if [[ -e "$outside/swift-ran" ]]; then echo "FAIL: the generated config started the build without a key" >&2; status=1; fi
+# With a key and a generated config the run reaches the build: the builds must run without the key
+# (SwiftPM evaluates package manifests), so the swift shim must never see it. The shim fails the build.
+rm -f "$outside/node-saw-key" "$outside/swift-ran" "$outside/swift-saw-key"
+env PATH="$outside/shims:$PATH" OPENROUTER_API_KEY=dummy-not-a-key "$live" "$scratch" "$outside/config.yaml" "$outside/data" >/dev/null 2>&1 || true
+if [[ ! -e "$outside/swift-ran" ]]; then echo "FAIL: a generated config with a key did not reach the build" >&2; status=1
+elif [[ -e "$outside/swift-saw-key" ]]; then echo "FAIL: the build saw the key" >&2; status=1
+else echo "ok: the build runs without the key"; fi
+rm -rf "$scratch"
 if [[ -e "$repo/Tools/never-created" ]]; then echo "FAIL: a refused path was created" >&2; status=1; fi
 exit "$status"

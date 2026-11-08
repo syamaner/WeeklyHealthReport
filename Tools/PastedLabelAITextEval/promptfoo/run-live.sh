@@ -84,8 +84,8 @@ if [[ -z "${OPENROUTER_API_KEY:-}" ]]; then
   echo "OPENROUTER_API_KEY must be set: a live run reads the key from the environment only (T4)" >&2; exit 2
 fi
 mkdir -p "$scratch"
-swift build --package-path "$here/.." -c debug --product PastedLabelAITextEval >&2
-bin="$(swift build --package-path "$here/.." -c debug --show-bin-path)/PastedLabelAITextEval"
+env -u OPENROUTER_API_KEY swift build --package-path "$here/.." -c debug --product PastedLabelAITextEval >&2
+bin="$(env -u OPENROUTER_API_KEY swift build --package-path "$here/.." -c debug --show-bin-path)/PastedLabelAITextEval"
 run="$scratch/run"
 mkdir -p "$run" "$scratch/results" "$scratch/configs"
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
