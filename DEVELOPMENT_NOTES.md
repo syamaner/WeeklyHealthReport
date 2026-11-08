@@ -4034,3 +4034,19 @@ Excluded:
 - this ledger edit, the commit, the push and the handover after the window.
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
+## WHR-440-2026-11-08: Claude Code Part A review v2 design (#440)
+
+The coordinator session (`claude-opus-5-5`, session `93e9e82e-ef3d-4d2f-9186-58c67056c1ca`) drafted the Part A review v2 design under the owner's overnight instruction. One `architecture-gate` subagent reviewed it (NEEDS WORK), and the coordinator revised the design to answer every point. The window runs from the owner's instruction at `2026-11-08T20:34:03Z` to `2026-11-08T20:39:52Z`.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Review v2 design and gate (#440), coordinator and subagent | 5,081,351 (4,999,453) | 81,844 | 32,260 | 5,113,611 | $2.16 |
+
+Method: `phase_usage.py --format claude --since 2026-11-08T20:34:03Z --until 2026-11-08T20:39:52Z --include-subagents` on the session transcript. Exact USD 2.1617856. The cache-write tokens (46,091 of them 5-minute writes) are part of the input figure, so the total is input plus output.
+
+Excluded:
+- the Qodo review runs;
+- this ledger edit, the commit, the push and the PR after the window.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.

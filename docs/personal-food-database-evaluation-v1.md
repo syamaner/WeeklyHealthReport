@@ -115,7 +115,9 @@ sheet row, with identity/state/variety proposals, present and missing macro/micr
 gaps, state-conflict flags and a reason. Store individual values in `nutrient-evidence.jsonl` and
 next-release work in `enrichment-candidates.csv`. These are proposals, not scorer input.
 
-The smallest tool change is a versioned review-v2 row schema plus a nutrient-evidence sidecar, with
+The smallest tool change (proposed in detail in
+[personal-food-database-review-v2-design.md](personal-food-database-review-v2-design.md), awaiting
+owner approval) is a versioned review-v2 row schema plus a nutrient-evidence sidecar, with
 parsing, validation, sealing and Part A result/scorer support for the measures below. It needs
 synthetic contracts for missing versus zero, state conflicts, derived values, incomplete evidence,
 macro/micro coverage and rejection of v1 inputs by the v2 scorer. Existing v1 results remain readable
