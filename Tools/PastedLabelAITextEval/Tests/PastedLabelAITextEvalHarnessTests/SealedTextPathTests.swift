@@ -1,6 +1,7 @@
 import FoodLabelPhotoCapture
 import FoodLedgerApplication
 import Foundation
+import PastedLabelAITextEvalCore
 @testable import PastedLabelAITextEvalHarness
 import XCTest
 
@@ -96,5 +97,58 @@ final class SealedTextPathTests: XCTestCase {
                                                            transport: ScriptedTransport([])))
             XCTAssertEqual(output.attempt, "responded", name)
         }
+    }
+
+    /// The text is opened with O_NOFOLLOW: a symbolic link standing where the checked, resolved path
+    /// was (a swap after the check) is refused, not followed, even when its target is inside the
+    /// data directory. Nothing is read through it.
+    func testASymbolicLinkInPlaceOfTheResolvedPathIsRefusedByONoFollow() throws {
+        for link in ["linked-inside.txt", "linked-sealed.txt", "linked-outside.txt"] {
+            XCTAssertThrowsError(try SendCommand.readCheckedText(atResolvedPath: data.appendingPathComponent("texts/\(link)").path,
+                                                                 dataDirectory: data), link) { error in
+                XCTAssertEqual("\(error)", "the text file could not be read as a regular UTF-8 file", link)
+            }
+        }
+    }
+
+    /// The opened file's own path, from its descriptor, gets the sealed-set and data-directory checks.
+    func testTheOpenedFileIsCheckedThroughItsDescriptor() throws {
+        let resolvedData = try XCTUnwrap(SendCommand.resolved(data.path))
+        let inside = try SendCommand.readCheckedText(atResolvedPath: resolvedData + "/texts/uk-synthetic-01.txt", dataDirectory: data)
+        XCTAssertEqual(inside, Data(Fixtures.ukText.utf8))
+        let resolvedSealed = try XCTUnwrap(SendCommand.resolved(sealed.path))
+        XCTAssertThrowsError(try SendCommand.readCheckedText(atResolvedPath: resolvedSealed + "/texts/held-01.txt", dataDirectory: nil)) {
+            XCTAssertEqual("\($0)".components(separatedBy: ";").first, Self.sealedRefusal)
+        }
+        let resolvedRoot = try XCTUnwrap(SendCommand.resolved(root.path))
+        XCTAssertThrowsError(try SendCommand.readCheckedText(atResolvedPath: resolvedRoot + "/outside/other.txt", dataDirectory: data)) {
+            XCTAssertEqual("\($0)".components(separatedBy: ";").first, Self.outsideRefusal)
+        }
+    }
+
+    /// Only a regular file is read: a directory or a FIFO is refused, and the FIFO does not hang the open.
+    func testOnlyARegularFileIsRead() throws {
+        let resolvedData = try XCTUnwrap(SendCommand.resolved(data.path))
+        XCTAssertThrowsError(try SendCommand.readCheckedText(atResolvedPath: resolvedData + "/texts", dataDirectory: nil))
+        let fifo = resolvedData + "/texts/fifo.txt"
+        XCTAssertEqual(mkfifo(fifo, 0o600), 0)
+        XCTAssertThrowsError(try SendCommand.readCheckedText(atResolvedPath: fifo, dataDirectory: data))
+    }
+
+    /// The bytes sent are the bytes checked: the POST body is the request built from exactly the
+    /// file's bytes, and the record's text SHA-256 is theirs.
+    func testTheBytesSentAreTheBytesChecked() async throws {
+        let bytes = Data("Nutrition per 100g\nEnergy 1046kJ / 250kcal\nFat 9.0g\nof which saturates 3.1g\n".utf8)
+        let file = data.appendingPathComponent("texts/uk-bytes-01.txt")
+        try bytes.write(to: file)
+        let transport = ScriptedTransport([LiveModeTests.answer])
+        let output = try await SendCommand.run(options(file, data: data, mode: .live, transport: transport))
+        let posts = transport.requests.filter { $0.method == "POST" }
+        XCTAssertEqual(posts.count, 1)
+        let sent = try XCTUnwrap(posts.first?.body)
+        let request = try OpenRouterPastedLabelAITextRequest(route: PastedLabelAITextRoute.gemini4ArgonVertexUS, promptVersion: .v1)
+        XCTAssertEqual(sent, try request.body(try XCTUnwrap(String(data: bytes, encoding: .utf8))))
+        XCTAssertEqual(output.requestSHA256, EvalCase.sha256(sent))
+        XCTAssertEqual(output.textSHA256, EvalCase.sha256(bytes))
     }
 }

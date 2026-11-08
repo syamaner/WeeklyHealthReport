@@ -157,7 +157,7 @@ public enum SendCommand {
             case .sealedSet: "the sealed held-out set (uk-english-v2) is never used by a tuning run (T7); nothing was reserved or sent"
             case .outsideData: "the text file resolves outside the data directory; nothing was reserved or sent"
             case let .badFreshRun(name): "bad fresh run name \(name): a lower-case letter, then up to 15 lower-case letters, digits or single hyphens"
-            case .unreadableText: "the text file is not UTF-8"
+            case .unreadableText: "the text file could not be read as a regular UTF-8 file"
             case let .textRefused(reason): "the text was refused before any request: \(reason)"
             case let .catalogue(reason): "the catalogue check failed, nothing sent: \(reason)"
             case let .cache(reason): "the response cache failed: \(reason)"
@@ -186,23 +186,71 @@ public enum SendCommand {
         if given.contains(sealedSetName) { throw Failure.sealedSet }
         if let data = options.dataDirectory, data.path.contains(sealedSetName) { throw Failure.sealedSet }
         guard let file = resolved(given) else { throw Failure.unreadableText }
+        try checkTextLocation(file, dataDirectory: options.dataDirectory)
+        return file
+    }
+
+    /// A resolved text path is refused if it names the sealed set or, when a data directory is
+    /// known, lies outside the resolved data directory.
+    static func checkTextLocation(_ file: String, dataDirectory: URL?) throws {
         if file.contains(sealedSetName) { throw Failure.sealedSet }
-        if let data = options.dataDirectory {
+        if let data = dataDirectory {
             guard let directory = resolved(data.path) else { throw Failure.outsideData }
             if directory.contains(sealedSetName) { throw Failure.sealedSet }
             guard file.hasPrefix(directory.hasSuffix("/") ? directory : directory + "/") else { throw Failure.outsideData }
         }
-        return file
+    }
+
+    /// The text's bytes, read once from one descriptor, so what is checked is what is sent (Qodo,
+    /// A3: checking a pathname and then re-opening it by name left a gap in which the file could be
+    /// swapped). The resolved path is opened with `O_NOFOLLOW` (a symbolic link put in its place
+    /// after the check is refused, not followed), `O_NONBLOCK` (a FIFO cannot hang the open) and
+    /// `O_CLOEXEC`; the opened file's own path, from the descriptor, gets the same sealed-set and
+    /// data-directory checks; `fstat` must show a regular file; and the bytes are read from that same
+    /// descriptor. Where the descriptor's path cannot be read (`F_GETPATH` is Darwin's), it fails closed.
+    static func readCheckedText(atResolvedPath path: String, dataDirectory: URL?) throws -> Data {
+        let descriptor = open(path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK)
+        guard descriptor >= 0 else { throw Failure.unreadableText }
+        defer { close(descriptor) }
+        guard let opened = openedPath(descriptor) else { throw Failure.unreadableText }
+        try checkTextLocation(opened, dataDirectory: dataDirectory)
+        var status = stat()
+        guard fstat(descriptor, &status) == 0, status.st_mode & S_IFMT == S_IFREG else { throw Failure.unreadableText }
+        var bytes = Data()
+        var buffer = [UInt8](repeating: 0, count: 64 * 1024)
+        while true {
+            let count = buffer.withUnsafeMutableBytes { read(descriptor, $0.baseAddress, $0.count) }
+            if count == 0 { break }
+            if count < 0 {
+                if errno == EINTR || errno == EAGAIN { continue }
+                throw Failure.unreadableText
+            }
+            bytes.append(contentsOf: buffer[0 ..< count])
+        }
+        return bytes
+    }
+
+    /// The path of the file an open descriptor refers to, or nil where that cannot be known.
+    static func openedPath(_ descriptor: Int32) -> String? {
+        #if canImport(Darwin)
+        var buffer = [CChar](repeating: 0, count: Int(MAXPATHLEN))
+        let result = buffer.withUnsafeMutableBytes { fcntl(descriptor, F_GETPATH, $0.baseAddress!) }
+        guard result != -1 else { return nil }
+        // Up to the terminating NUL; a path that is not UTF-8 fails closed.
+        return String(bytes: buffer.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }, encoding: .utf8)
+        #else
+        return nil
+        #endif
     }
 
     public static func run(_ options: Options) async throws -> Output {
         // The run name is checked before the text is read or anything is built, reserved or sent.
         if let name = options.freshRun, !isFreshRunName(name) { throw Failure.badFreshRun(name) }
-        // The text path is checked, symbolic links resolved, before it is read (T7).
+        // The text path is checked, symbolic links resolved, before it is opened (T7); the opened file
+        // is checked again through its descriptor, and those bytes alone are sent and hashed.
         let textPath = try checkedTextPath(options)
-        guard let textData = FileManager.default.contents(atPath: textPath), let text = String(data: textData, encoding: .utf8) else {
-            throw Failure.unreadableText
-        }
+        let textData = try readCheckedText(atResolvedPath: textPath, dataDirectory: options.dataDirectory)
+        guard let text = String(data: textData, encoding: .utf8) else { throw Failure.unreadableText }
         let request = try OpenRouterPastedLabelAITextRequest(route: options.route, promptVersion: options.promptVersion)
         let detector = PastedLabelAITextPanelDetector.detect(text: text)
         if detector.declines {
