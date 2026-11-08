@@ -3967,3 +3967,27 @@ Excluded:
 - this ledger edit, the push and the PR after the window.
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
+## WHR-434-2026-11-08: Claude Code personal food database evaluation seed and sample (phase E1c, #434)
+
+The coordinator session (`claude-opus-5-5`, session `93e9e82e-ef3d-4d2f-9186-58c67056c1ca`) ran E1c on the owner's go-ahead. It did four things:
+- wrote the skill's purchase counts script and its synthetic tests;
+- drew the seed, committed and pushed it, then generated the private sample from it;
+- reran the sample to confirm byte-identical output;
+- recorded the hashes and the plan record.
+
+No subagents. The window runs from the owner's go-ahead at `2026-11-08T16:29:03Z` to `2026-11-08T16:32:07Z`.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Evaluation seed and sample E1c (#434), coordinator | 4,164,630 (4,140,587) | 24,005 | 13,992 | 4,178,622 | $1.30 |
+| **Subtotal** | 4,164,630 (4,140,587) | 24,005 | 13,992 | 4,178,622 | $1.30 |
+
+Method: `phase_usage.py --format claude --since 2026-11-08T16:29:03Z --until 2026-11-08T16:32:07Z --include-subagents` on the session transcript, with the rates below. Exact USD 1.3001494. As in earlier rows, the cache-write tokens are part of the input figure, so the total is input plus output.
+
+Excluded:
+- the Qodo review runs;
+- local test loops and the sample runs, which use no API tokens;
+- this ledger edit, the push and the PR after the window.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
