@@ -119,8 +119,9 @@ the owner.
 
 ## Owner validation of drafts (plan revision 5)
 
-Review `review/prefill-proposals.csv` alongside the unchanged `review/review-sheet.csv`. Proposals
-are keyed by sheet row, with reasons, for the initial census, top-30 and drawn rows only. Validate
+Review `review/best-estimate-review.csv` alongside the unchanged `review/review-sheet.csv`;
+`review/prefill-proposals.csv` is a byte-identical copy kept under its earlier name, so validating
+one validates both. Proposals are keyed by sheet row, with reasons, for the initial census, top-30 and drawn rows only. Validate
 or correct every proposal. Pack checks are out of scope since the best-estimate amendment below,
 so no pack verdict exists for anyone to fill. Do not run `seal-review` or `score-a` (see the scoring
 hold below). The private `review/HOW-TO-REVIEW.txt` gives the sequence.

@@ -133,7 +133,10 @@ For the retained generic-match measures, the proposed v2 scorer uses these expli
 
 - **A2:** count one failed entry if a merged reference has a different food identity, an incompatible
   preparation state or a material variety difference. Multiple failures in one entry count once.
-  A missing required judgement is unresolved, never counted as a passing entry.
+  A missing required judgement is unresolved, never counted as a passing entry. The values a merged
+  reference supplies are also assessed for source, basis, state, transcription and derivation errors
+  under the same rule as A1 and reported as A2 assessed value evidence errors (informational, no
+  bar); a correct identity does not excuse a wrong value.
 - **A3:** a separate candidate is sensible only when its food relationship and material differences
   are accurately represented, its source state is explicit and its values are never silently merged.
   Count `misleading_other_state` when a state-incompatible source is represented as equivalent;
@@ -155,12 +158,16 @@ These mappings are part of the proposed v2 design and do not authorise feeding n
 - **Owner validation:** the owner corrects every query and expected answer, confirms twenty frequent
   foods and twenty foods they eat that are absent from the database, and approves every row. For each
   query the owner also confirms it is worded as they would actually type it, or rewrites it in their own
-  words; a catalogue title copied as a query tests indexing, not the owner's search. The private draft
-  records whether each approved query was kept as drafted or reworded by the owner, and the results
-  narrative reports both counts beside Part B, so a reader can see how much of it rests on catalogue
-  wording.
+  words; a catalogue title copied as a query tests indexing, not the owner's search. Before the owner
+  edits anything, the drafted `queries/query-template.csv` is copied to a private archive file whose
+  hash is recorded in the private draft status. Kept-versus-reworded counts come from comparing the
+  approved CSV with that archive row by row, and the results narrative reports both counts beside
+  Part B, so a reader can see how much of it rests on catalogue wording.
 - **Target size:** about 160 queries, 20 negative, with entry, generic and none answers and all three
-  entry steps represented. The existing split, bars and denominators do not change.
+  entry steps represented. The existing split, bars and denominators do not change. Before `split`,
+  the approved set's counts by answer kind and by entry step (counts only) are checked: if any answer
+  kind or entry step is missing, or there are not 20 negatives, the set is corrected and reassembled
+  first, because `assemble-queries` validates rows, not composition.
 - **Who handles it:** Codex runs local scripts to write the private CSV draft and runs
   `assemble-queries` until it validates. Only counts and hashes return to the model.
   The draft remains unapproved. No split or seal runs until the owner approves all rows. `lookup`
@@ -332,8 +339,10 @@ least 55 of 64. The actual denominators are recorded before scoring.
 
 **Per-entry exclusion, independent of bars.** Any identified wrong identity, incompatible merged
 state or material variety mismatch withholds the affected source values and reference, regardless
-of whether the entry was sampled as A1, A2, A3, A4 or A5. A threshold is not permission to retain a
-known error. A reference lacking the required review remains a candidate pending review, never a
+of whether the entry was sampled as A1, A2, A3, A4 or A5. So does any individual value whose own
+evidence shows a wrong basis, state, transcription or derivation: that value is withheld until its
+evidence is corrected and re-checked, even when the stratum's error count is within its bar. A
+threshold is not permission to retain a known error. A reference lacking the required review remains a candidate pending review, never a
 new merge after label values are removed. This includes generic references attached to A1/A5 entries.
 The owner-approved v2 tool phase must implement and test these exclusions alongside stratum-wide
 failure consequences; this documentation revision performs no export changes.
