@@ -12,15 +12,16 @@ any v2 scoring, and the design supports either set.
 
 ## 1. What changes and what does not
 
-| Unchanged | Changed, re-hashed in the implementation commit | Added |
-|---|---|---|
-| `score_a.py`, `bars.py`, `formats.py` v1 parsers, `score_b.py`, `queries.py`, `sample.py`, `split.py`, `stats.py` and every existing test | `freeze.py` (one optional key), `seals.py` (one seal name and exact-file bundles), `pfd_eval.py` (new commands) | `formats_v2.py`, `score_a_v2.py`, `bars_v2.py`, `results_v2.py`, `exclusions.py`, `nutrient-inventory-v1.json` and their tests |
-| `review/review-sheet.csv` byte for byte; the pinned release, seed, sample and purchase counts | | |
-| Part B: query set, split, seals, `pfd-results-v1` for Part B | | |
+| Unchanged, byte for byte | Added |
+|---|---|
+| Every v1 file: `pfd_eval.py`, `formats.py`, `score_a.py`, `bars.py`, `freeze.py`, `seals.py`, `results.py`, `score_b.py`, `queries.py`, `sample.py`, `split.py`, `stats.py` and every existing test | `pfd_eval_v2.py` (the v2 entry point), `formats_v2.py`, `score_a_v2.py`, `bars_v2.py`, `results_v2.py`, `exclusions.py`, `freeze_v2.py`, `seals_v2.py`, `nutrient-inventory-v1.json` and their tests |
+| `freeze-v1.json`, so the pinned v1 record and its hash check are never amended | `freeze-v2.json` (section 4) |
+| The private `seals.txt`, `review/` and `review/review-sheet.csv`; the pinned release, seed, sample and purchase counts | The private `seals-v2.txt`, `review-v2/` and `exclusions-v2/` |
+| Part B: query set, split, seals, `pfd-results-v1` for Part B | |
 
-The claim is that **v1 scoring semantics are unchanged**, shown by every existing v1 test passing
-unmodified; it is not that every file keeps its hash. A v1 sheet given to the v2 scorer, or a v2
-sheet given to the v1 scorer, is refused by schema name. Existing v1 results files stay readable.
+Because no v1 file changes, every v1 hash in `freeze-v1.json` keeps matching and every v1 test
+passes unmodified. A v1 sheet given to the v2 scorer, or a v2 sheet given to the v1 scorer, is
+refused by schema name. Existing v1 results files stay readable.
 
 ## 2. Files
 
@@ -39,7 +40,7 @@ The grouping is explicit in the file, not derived from the app's categories (the
 under minerals). A contract test reads the `.init(key: "…"` lines of `NutritionExport.swift` with a
 fixed pattern and checks the file lists exactly those 39 keys, so the inventory cannot drift. Salt
 is not a key: a salt value is evidence for `sodium` with method `derived`. The file's SHA-256 is in
-the Freeze list `files` (section 4).
+`freeze-v2.json` (section 4).
 
 ### 2.2 Review sheet, `pfd-review-sheet-v2`
 
@@ -102,8 +103,8 @@ Private JSON Lines in `review-v2/`, one record per row and inventory key:
 ## 3. Scoring (`score_a_v2.py`, pure)
 
 Inputs: the sealed sample, the v2 sheet, the sidecar, the inventory and the `part_a_bars` choice.
-**`score-a-v2` refuses to run, and writes nothing, when `part_a_bars` is absent from the Freeze
-list**, so no count is seen before the owner fixes the bars.
+**`score-a-v2` refuses to run, and writes nothing, when `part_a_bars` is absent from
+`freeze-v2.json`**, so no count is seen before the owner fixes the bars.
 
 Counts, each entry counted at most once per measure:
 
@@ -136,7 +137,7 @@ judgement, not the row, is missing.
 | A1 nutrient disagreement, A5 owner label value disagrees with the pack | not assessable under this rubric (no pack); reported as `not_assessable`, never as a pass |
 | A2 different food or other state | `merge_failed`, including `material_difference` |
 | A3 misleading, A4 match missed | unchanged meaning |
-| More than 6 skipped A1 entries fail both A1 bars | replaced by: more than 6 unresolved A1 entries gives `passes: false` for the A1 entry bar (fail closed, as v1) |
+| More than 6 skipped A1 entries fail both A1 bars | no v2 equivalent: v1 skips meant "no pack to hand", which the rubric removes; unresolved A1 entries follow the general rule above (`passes: null`, not final) |
 
 Under `v2_proposed` the plan section 6 proposed table applies directly.
 
@@ -145,17 +146,22 @@ Under `v2_proposed` the plan section 6 proposed table applies directly.
 - **Folders.** `review/` stays as it is. `review-v2/` holds exactly two files, the v2 sheet and the
   sidecar, by exact file name. The exclusion list (section 6) is written to a third folder,
   `exclusions-v2/`, outside both sealed folders.
-- **Seals (`seals.py`).** `FOLDERS` gains an exact file-name list per seal instead of one suffix;
-  `seal-review-v2` bundles exactly the two named files and refuses a third file or a link. `ORDER`
-  becomes `seal-dev`, `seal-heldout`, then **one of** `seal-review` or `seal-review-v2`: the two are
-  mutually exclusive, each needs `seal-heldout` first, and `recorded()` accepts either name, so Part
-  B's `require("seal-heldout")` and the held-out run log keep working with a v2 seal present. A
-  seal is never replaced.
-- **Freeze (`freeze.py`).** `part_a_bars` becomes an **optional** key with the closed values
-  `v1_accepted` and `v2_proposed`; the existing `freeze-v1.json` without it still loads unchanged,
-  and a value outside the set is refused. It is set only in a docs commit recording the owner's
-  choice, before the first `score-a-v2` run (ideally before `seal-review-v2`). The new and changed
-  files are added to `files` in the implementation commit.
+- **Seals (`seals_v2.py`).** v2 seals go to their own private append-only `seals-v2.txt`, in the
+  same line format and never replaced, so the v1 `seals.py` never meets an unknown seal name and
+  Part B's seals and held-out run log are untouched. `seal-review-v2` bundles exactly the two named
+  files of `review-v2/` and refuses a third file or a link. It requires `seal-dev` and
+  `seal-heldout` in `seals.txt` (read through the unchanged v1 `seals.recorded`), keeping the plan's
+  seal order. The v1 `seal-review` is simply never run for this rubric; as of 8 November 2026 no
+  seal of any kind has been recorded, so nothing blocks either path. `pfd_eval_v2.py` refuses to
+  run `seal-review-v2` if `seals.txt` already holds a v1 `seal-review`, and the v1 `score-a` is not
+  used for the v2 review.
+- **Freeze (`freeze_v2.py`, `freeze-v2.json`).** A new record, format `pfd-freeze-v2`, holds the
+  hashes of the v2 files and the inventory, a `freeze_v1_sha256` of the unchanged `freeze-v1.json`
+  (so the v1 record and everything it pins carry forward), and the optional `part_a_bars` with the
+  closed values `v1_accepted` and `v2_proposed`; a value outside the set is refused. The v2 commands
+  check both records and refuse a mismatch in either. `part_a_bars` is set only in a docs commit
+  recording the owner's choice, before the first `score-a-v2` run (ideally before
+  `seal-review-v2`). `freeze-v1.json` is never edited.
 - **Bars (`bars_v2.py`).** Its own table and judge, holding `v1_accepted` and `v2_proposed`; a test
   shows it gives the same allowed counts and verdicts as `bars.judge` for the names both share.
 
@@ -172,9 +178,10 @@ other key or string is refused by the same string scan. It adds the v2 Part A fi
 - **Responsibilities.** `formats_v2` parses and validates bytes (pure); `score_a_v2` counts and
   builds the exclusion list as data (pure); `bars_v2` holds bars as data with its own judge;
   `results_v2` writes the allow-listed results; `exclusions` defines `pfd-exclusions-v1`;
-  `pfd_eval.py` is the only module doing file input and output, private-folder checks and seals.
+  `pfd_eval_v2.py` is the only v2 module doing file input and output, private-folder checks and
+  seals; `pfd_eval.py` is untouched.
 - **Dependency direction.** Unchanged: pure modules import nothing from file or network code;
-  `pfd_eval.py` imports them. Standard library only, run with `python3 -I`; `workspace_guard.py`
+  the entry points import them. Standard library only, run with `python3 -I`; `workspace_guard.py`
   stays the single private-folder guard.
 - **Invariants.** Unknown is never zero; unresolved is never a pass and never a fail; every token is
   closed and versioned; a blank is refused; error messages name rows and columns, never values; the
@@ -192,13 +199,14 @@ other key or string is refused by the same string scan. It adds the v2 Part A fi
 ## 7. Contract tests (synthetic only)
 
 - Every existing v1 test passes unmodified; v1 and v2 sheets are each refused by the other scorer.
-- Freeze: `freeze-v1.json` without `part_a_bars` loads; an unknown value is refused; `score-a-v2`
-  refuses to run, writing nothing, without it.
-- Seals: with `seal-review-v2` recorded, `require("seal-heldout")` and the held-out run log still
-  work; `seal-review` and `seal-review-v2` are mutually exclusive; `seal-review-v2` covers exactly
-  its two files and refuses a third file or a link.
+- Freeze: `freeze-v1.json` and every v1 file hash are unchanged; `freeze-v2.json` refuses a
+  `freeze_v1_sha256` mismatch, an unknown `part_a_bars` value and a changed v2 file; `score-a-v2`
+  refuses to run, writing nothing, without `part_a_bars`.
+- Seals: v2 seals are written only to `seals-v2.txt`; the v1 `seals.py` reads `seals.txt`
+  unchanged afterwards; `seal-review-v2` needs `seal-dev` and `seal-heldout`, refuses when a v1
+  `seal-review` exists, covers exactly its two files and refuses a third file or a link.
 - Bars: `bars_v2` matches `bars.judge` on shared names; under `v1_accepted` the A1 value and A5
-  bars are `not_assessable`; more than 6 unresolved A1 entries fails the A1 entry bar.
+  bars are `not_assessable`; unresolved A1 entries give `passes: null`, never false.
 - Sheet: each refused combination in the section 2.2 table is refused; a blank cell, an unknown
   token, an out-of-order row and a replacement row are refused; precedence (fail over unresolved
   over pass, A3 other-state first, one count per entry).
@@ -227,6 +235,10 @@ means "not final" with closed fields; per-stratum combination tables replace the
 sidecar gains `unresolved`, a full-inventory coverage rule and empty-field rules; `note_ref` is
 removed; the sheet holds initial rows only; the exclusion list is versioned and stored apart;
 results v2 carries the bars choice and not-assessable flags; round-trip tests are listed.
+A local Qodo review of revision 2 then led to three more changes in the same revision: no v1 file
+or `freeze-v1.json` is edited (a separate v2 entry point, `freeze-v2.json` and `seals-v2.txt`
+instead), the A1 unresolved rule is `passes: null` everywhere (no skip-limit equivalent), and the
+seal paths are separate, so a v1 seal can never block the v2 one.
 
 ## 9. For the owner
 
