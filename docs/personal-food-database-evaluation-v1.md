@@ -292,8 +292,9 @@ fresh-set step tests:
 Part B bars remain as accepted on 7 November 2026. These are software-quality thresholds, not
 nutrition targets.
 
-**Part A bars of record.** The Part A bars the owner accepted on 7 November 2026 (decision 2) stay
-the bars of record until the owner accepts a replacement:
+**Superseded Part A bars.** The Part A bars the owner accepted on 7 November 2026 (decision 2) were
+the bars of record until decision 9 replaced them, before any Part A result was scored. They are
+kept here as the record of what was accepted first:
 
 | Measure | Bar | If it fails |
 |---|---|---|
@@ -308,13 +309,13 @@ At the planned sizes these allowed A1 wrong product or variant at most 2, A1 nut
 most 13 of up to 464 checked values, A2 at most 2 of 40, A3 at most 4 of 40, and A5 at most the largest
 whole count within 3 per cent of its checked values (0 below 34 values). The A1 nutrient and A5 bars
 compare values with a pack, which the revision 5 amendment takes out of scope, so they cannot be scored
-on the new rubric. Part A therefore stays blocked: neither set of bars is applied until the owner
-accepts the proposed bars below (or keeps the accepted ones) and the versioned tool of section 3.3
-exists.
+on the new rubric.
 
-**Proposed Part A bars (not accepted).** For the section 3 rubric, awaiting owner acceptance before
-any scoring. No revised Part A result has been scored. Earlier preliminary reviews have occurred;
-this is not a claim of preregistration before all evidence.
+**Part A bars of record (accepted 8 November 2026, decision 9).** For the section 3 rubric, accepted
+by the owner before any Part A result was scored; the tool records the choice as `part_a_bars`
+`v2_proposed` in `freeze-v2.json` and locks it on the first scoring run (review v2 design, section
+4). Part A stays blocked until that versioned tool exists. Earlier preliminary reviews of the
+proposals have occurred; this is not a claim of preregistration before all evidence.
 
 | Measure | Bar | If it fails |
 |---|---|---|
@@ -481,10 +482,16 @@ work may enter model context and is stored privately, with web values marked `pa
 The earlier offline-only and nutrient-context restrictions are superseded for this work alone.
 Query texts and expected answers remain local-script-only. Private configuration and held-out
 contents remain excluded. This supersedes earlier pack-check statements in revision 5, including
-decision 8's owner-only pack checks, which no longer exist. The accepted Part A bars stay on record
-until the owner accepts the proposed ones (section 6); Part B bars and ranking blinding do not change. Approval of this workflow is not approval
+decision 8's owner-only pack checks, which no longer exist. Decision 9 below settles the Part A
+bars; Part B bars and ranking blinding do not change. Approval of this workflow is not approval
 of individual rows, the proposed Part A bars, the tool migration or seals. The alternate private
 format is authorised; the existing sheet, pinned inputs and frozen tools remain untouched.
+
+9. Decided 8 November 2026, before any Part A result was scored: the owner approved the review v2
+   design ([personal-food-database-review-v2-design.md](personal-food-database-review-v2-design.md))
+   and accepted the rubric Part A bars of section 6 (`v2_proposed`) in place of the 7 November bars,
+   whose pack-comparison measures cannot be scored under the rubric. Part B bars are unchanged. The
+   implementation of the v2 tool is its own phase.
 
 ## 10. Review record
 
@@ -510,9 +517,9 @@ bar and changes no decision.
 Revision 5 (8 November 2026) records decision 8 and updates sections 2, 3, 4 and 7 consistently.
 Drafts are not approvals or measured results. The private review guide gives the owner the approval,
 split, seal and scoring sequence; `heldout_sha256` is added in a later docs commit after approval and
-sealing. It changes no tool or schema. Its best-estimate amendment proposes replacement Part A bars
-but does not accept them: the accepted bars stay on record in section 6 and Part A stays blocked
-until the owner decides.
+sealing. It changes no tool or schema. Its best-estimate amendment proposed replacement Part A
+bars, which decision 9 accepted on 8 November 2026 before any Part A result was scored; the
+7 November bars stay in section 6 as the superseded record.
 
 ## 11. Freeze list
 

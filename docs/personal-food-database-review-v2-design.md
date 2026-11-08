@@ -1,7 +1,7 @@
 # Personal food database evaluation: Part A review v2 design
 
-Status: **revision 2, design approved by the owner on 8 November 2026. The Part A bars choice
-(`part_a_bars`) is still open. No tool code, freeze entry, seal or private file changes are made by
+Status: **revision 2, design approved by the owner on 8 November 2026, with the Part A bars
+`v2_proposed` (plan decision 9). No tool code, freeze entry, seal or private file changes are made by
 this document; implementation is its own phase.** Issue #440, programme #424. Revision 2 answers
 an architecture-gate review (section 8).
 
@@ -253,7 +253,7 @@ listed.
 
 1. Approve, amend or reject this design. Approved on 8 November 2026.
 2. Choose the Part A bars (`v1_accepted` or `v2_proposed`), recorded as `part_a_bars` before any
-   v2 scoring.
+   v2 scoring. Chosen on 8 November 2026: `v2_proposed`.
 3. After approval, an implementation phase (its own issue and PR) builds the tool and its tests.
    The owner then fills the v2 sheet and sidecar, using the private proposals as a starting point,
    before `seal-review-v2` and `score-a-v2`.
