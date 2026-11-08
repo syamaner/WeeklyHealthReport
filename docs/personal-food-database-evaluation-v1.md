@@ -18,10 +18,11 @@ In this file, "decision N" means section 9, decision N of this file; contract de
 
 ## 1. What this evaluation answers
 
-1. **Is the database right?** For each kind of entry, how often the match is wrong: a label from a
-   different product or variant, a generic record for a different food or state, or a value that
-   does not agree with the pack. This tests contract decision 9 ("Confirm is enough"): an automatic
-   match is only safe to show unreviewed if it is rarely wrong.
+1. **Is the database right?** For each kind of entry, how often the estimate rests on the wrong
+   basis: a different product, food, preparation state or material variety, or a value whose source,
+   basis or derivation is wrong (section 3; since the revision 5 amendment, agreement with a pack is
+   no longer the test). This tests contract decision 9 ("Confirm is enough"): an automatic match is
+   only safe to show unreviewed if it is rarely wrong.
 2. **Does search find the right thing?** For the way the owner actually names foods, how often the
    right entry, the right generic record or, for a food not in the database, no database entry comes
    first; and how often a wrong database entry comes first instead.
@@ -86,7 +87,18 @@ Every value remains an estimate; no proposal automatically changes the release.
 
 Keep the pinned 158 initial census, top30 and draw rows and their existing A1 to A5 identifiers for
 reproducibility. Those identifiers describe the historical source grouping, not evidence-quality
-or pack tiers. Do not redraw, replace rows, modify the pinned release or regenerate the existing sheet.
+or pack tiers. Each entry sits in exactly one stratum, assigned in this order by `pfd_eval.py
+sample` from the pinned release:
+
+| Stratum | What the entry carries | Sampled | Checked under the section 3.1 standard |
+|---|---|---:|---|
+| A5 | values the owner typed or confirmed | 1 (census) | identity, state, variety and the evidence of each value |
+| A1 | Open Food Facts label values | 57 (census) | the same, for each label value |
+| A2 | a same-food generic record merged in | 40 | whether the merged record is the same food, state and material variety |
+| A3 | a close or other-state generic record offered separately | 40 | whether the separate candidate is represented accurately (section 3.4) |
+| A4 | no values and no reference | 20 | whether a suitable source record was missed |
+
+The draw (section 11.2) also includes the 30 most-bought entries in their own strata. Do not redraw, replace rows, modify the pinned release or regenerate the existing sheet.
 A missing source or unresolved state is recorded as unresolved and is not a passing check.
 
 ### 3.3 Review format and minimal tool change
@@ -141,7 +153,12 @@ These mappings are part of the proposed v2 design and do not authorise feeding n
 - **Draft sources:** Codex directs local offline scripts to draft from the pinned catalogue, including
   its titles, aliases, varieties and concepts. These are proposed searches, not evidence of the owner's actual wording or habits.
 - **Owner validation:** the owner corrects every query and expected answer, confirms twenty frequent
-  foods and twenty foods they eat that are absent from the database, and approves every row.
+  foods and twenty foods they eat that are absent from the database, and approves every row. For each
+  query the owner also confirms it is worded as they would actually type it, or rewrites it in their own
+  words; a catalogue title copied as a query tests indexing, not the owner's search. The private draft
+  records whether each approved query was kept as drafted or reworded by the owner, and the results
+  narrative reports both counts beside Part B, so a reader can see how much of it rests on catalogue
+  wording.
 - **Target size:** about 160 queries, 20 negative, with entry, generic and none answers and all three
   entry steps represented. The existing split, bars and denominators do not change.
 - **Who handles it:** Codex runs local scripts to write the private CSV draft and runs
@@ -258,10 +275,32 @@ fresh-set step tests:
 
 ## 6. Acceptance bars (owner sets these before any result is seen)
 
-Part B bars remain as accepted on 7 November 2026. The revised Part A bars below are proposals
-for the new rubric, requiring owner acceptance before scoring. No revised Part A result has been
-scored. Earlier preliminary reviews have occurred; this is not a claim of preregistration before
-all evidence. These are software-quality thresholds, not nutrition targets.
+Part B bars remain as accepted on 7 November 2026. These are software-quality thresholds, not
+nutrition targets.
+
+**Part A bars of record.** The Part A bars the owner accepted on 7 November 2026 (decision 2) stay
+the bars of record until the owner accepts a replacement:
+
+| Measure | Bar | If it fails |
+|---|---|---|
+| A1 wrong product or wrong variant | at most 2 checked entries, whatever the number of skips | drop Open Food Facts label values from the import (entries keep their generic reference) |
+| A1 nutrient disagreement | at most 3 per cent of checked values | as above |
+| A2 different food or other state | at most 2 of 40 | no merges: every generic reference becomes a separate candidate |
+| A3 misleading | at most 4 of 40 | drop all separate candidates (close and other-state); merges are unaffected |
+| A4 match missed | informational | improve matching before the next release; no bar |
+| A5 owner label value disagrees with the pack | at most 3 per cent of checked values; no A5 entries means "not assessed", not a pass | hold owner label values out of the import until the intake step is fixed and re-checked |
+
+At the planned sizes these allowed A1 wrong product or variant at most 2, A1 nutrient disagreements at
+most 13 of up to 464 checked values, A2 at most 2 of 40, A3 at most 4 of 40, and A5 at most the largest
+whole count within 3 per cent of its checked values (0 below 34 values). The A1 nutrient and A5 bars
+compare values with a pack, which the revision 5 amendment takes out of scope, so they cannot be scored
+on the new rubric. Part A therefore stays blocked: neither set of bars is applied until the owner
+accepts the proposed bars below (or keeps the accepted ones) and the versioned tool of section 3.3
+exists.
+
+**Proposed Part A bars (not accepted).** For the section 3 rubric, awaiting owner acceptance before
+any scoring. No revised Part A result has been scored. Earlier preliminary reviews have occurred;
+this is not a claim of preregistration before all evidence.
 
 | Measure | Bar | If it fails |
 |---|---|---|
@@ -271,6 +310,11 @@ all evidence. These are software-quality thresholds, not nutrition targets.
 | A3 misleading | at most 4 of 40 | drop all separate candidates (close and other-state); merges are unaffected |
 | A4 match missed | informational | improve matching before the next release; no bar |
 | A5 assessed value evidence error | at most 3 per cent of checked values; no A5 entries means "not assessed", not a pass | hold unsupported values out until their evidence is corrected and re-checked |
+
+Part B bars, unchanged:
+
+| Measure | Bar | If it fails |
+|---|---|---|
 | B wrong entry first (held-out) | at most 3 per cent | not released; fix ranking and re-run on a fresh held-out set (section 4.3) |
 | B negative false hits (held-out) | at most 5 per cent | as above |
 | B top-1 acceptable (held-out) | at least 85 per cent | as above |
@@ -325,8 +369,16 @@ fresh sample or a fresh held-out set.
   Provisional semantic decisions are saved privately; user-facing replies, repository files,
   issues, PRs, commits and external code-review payloads contain counts and hashes only.
   See `privacy-and-egress.md` for this explicit, owner-requested exception. It does not approve
-  Open Food Facts or any other external food query. The drafting/reviewing session cannot implement
-  ranking. After splitting, no agent opens the held-out folder or per-query output. The best-estimate amendment below supersedes pack checks; uncertain identity/state cases remain explicit.
+  Open Food Facts queries. The drafting/reviewing session cannot implement ranking. After splitting,
+  no agent opens the held-out folder or per-query output. The best-estimate amendment (section 9)
+  supersedes pack checks, permits nutrient evidence in model context and authorises
+  food-description-only web research; uncertain identity/state cases remain explicit.
+- **How the query boundary is kept:** query text and expected answers are written by local scripts
+  under the drafting agent's direction, and only counts and hashes are printed back. This is a
+  procedural control, not one a script enforces: nothing prevents a session from opening the query
+  files or a whole sheet. That is why any session that drafted or reviewed is treated as exposed and
+  excluded from ranking implementation whether or not it read query text, and why every result states
+  the exposure.
 - **In the repository:** this plan; the scoring tool and its synthetic fixtures; the v11 golden file of
   section 4.5; and the E3 and release-check results files in the versioned format `pfd-results-v1`,
   **counts and intervals only**. That format is an allow-list: closed field names, whole-number counts,
@@ -408,8 +460,9 @@ Requests contain no receipts or personal data; failures use backoff. Nutrient ev
 work may enter model context and is stored privately, with web values marked `page_unconfirmed`.
 The earlier offline-only and nutrient-context restrictions are superseded for this work alone.
 Query texts and expected answers remain local-script-only. Private configuration and held-out
-contents remain excluded. This supersedes earlier pack-check and fixed-Part-A-bar statements in
-revision 5; Part B bars and ranking blinding do not change. Approval of this workflow is not approval
+contents remain excluded. This supersedes earlier pack-check statements in revision 5, including
+decision 8's owner-only pack checks, which no longer exist. The accepted Part A bars stay on record
+until the owner accepts the proposed ones (section 6); Part B bars and ranking blinding do not change. Approval of this workflow is not approval
 of individual rows, the proposed Part A bars, the tool migration or seals. The alternate private
 format is authorised; the existing sheet, pinned inputs and frozen tools remain untouched.
 
@@ -437,7 +490,9 @@ bar and changes no decision.
 Revision 5 (8 November 2026) records decision 8 and updates sections 2, 3, 4 and 7 consistently.
 Drafts are not approvals or measured results. The private review guide gives the owner the approval,
 split, seal and scoring sequence; `heldout_sha256` is added in a later docs commit after approval and
-sealing. This revision changes no tool, schema, existing decision or acceptance bar.
+sealing. It changes no tool or schema. Its best-estimate amendment proposes replacement Part A bars
+but does not accept them: the accepted bars stay on record in section 6 and Part A stays blocked
+until the owner decides.
 
 ## 11. Freeze list
 

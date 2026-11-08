@@ -4012,3 +4012,25 @@ Historical ledger comparison rates: USD 10/M uncached input, 1/M cached input an
 
 No reliable start boundary was captured for this follow-up. The earlier measured row is unchanged;
 no usage or cost is inferred. External research and hosted reviews are also unmeasured.
+
+### WHR-436 lead review (Claude Code)
+
+The coordinator session (`claude-opus-5-5`, session `93e9e82e-ef3d-4d2f-9186-58c67056c1ca`) took over PR #437 on the owner's instruction. It did four things:
+- reviewed the plan and the private proposals;
+- corrected the private state flags, coverage counts and unit transforms;
+- restored the accepted Part A bars and the strata definitions in the plan;
+- aligned the README and privacy policy text with the best-estimate amendment.
+
+No subagents. The window runs from the takeover at `2026-11-08T19:02:27Z` to `2026-11-08T19:08:40Z`.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Lead review of revision 5 (#436), coordinator | 7,568,598 (7,497,468) | 71,058 | 28,916 | 7,597,514 | $2.65 |
+
+Method: `phase_usage.py --format claude --since 2026-11-08T19:02:27Z --until 2026-11-08T19:08:40Z --include-subagents` on the session transcript. Exact USD 2.6465656. The cache-write tokens are part of the input figure, so the total is input plus output.
+
+Excluded:
+- the Qodo review runs;
+- this ledger edit, the commit, the push and the handover after the window.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.

@@ -47,7 +47,7 @@ You can revoke Health, microphone, speech and camera permissions in Apple's sett
 
 Private evaluation tooling outside the app
 
-For the owner's explicitly requested personal food database evaluation review, selected product titles, matched record names and preparation states may be supplied to Codex's model provider to propose identity and food-state judgements. Row keys align those proposals with the private review sheet. This permission is limited to that review: it excludes query sets and expected answers, nutrient values, pack verdicts, private configuration, unrelated notes and held-out contents. Proposals remain private and provisional; the owner validates them and performs every comparison against pack values. The app does not perform this transfer.
+For the owner's explicitly requested personal food database evaluation review, selected product titles, matched record names and preparation states may be supplied to Codex's model provider to propose identity and food-state judgements. Row keys align those proposals with the private review sheet. This permission is limited to that review: it excludes query sets and expected answers, nutrient values, pack verdicts, private configuration, unrelated notes and held-out contents. Proposals remain private and provisional, and the owner validates them; the amendment below adds nutrient evidence and removes pack comparisons from this review. The app does not perform this transfer.
 
 
 Evaluation best-estimate amendment (8 November 2026)

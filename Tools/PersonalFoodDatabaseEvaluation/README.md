@@ -121,9 +121,9 @@ the owner.
 
 Review `review/prefill-proposals.csv` alongside the unchanged `review/review-sheet.csv`. Proposals
 are keyed by sheet row, with reasons, for the initial census, top-30 and drawn rows only. Validate
-or correct every proposal before entering a final verdict. All nutrient value-against-pack verdicts
-remain blank for the owner, and pack-required rows are flagged. Finish every required check before
-`seal-review` and `score-a`. The private `review/HOW-TO-REVIEW.txt` gives the sequence.
+or correct every proposal. Pack checks are out of scope since the best-estimate amendment below,
+so no pack verdict exists for anyone to fill. Do not run `seal-review` or `score-a` (see the scoring
+hold below). The private `review/HOW-TO-REVIEW.txt` gives the sequence.
 
 If queries change after draft assembly, preserve the old unsplit JSON under a private archive name
 and reassemble; the tool never overwrites it. Approve the final CSV and assembled JSON together.
@@ -132,9 +132,9 @@ owner-approved query provenance without changing the closed results JSON schema.
 unexposed session implements ranking and must never read queries or the held-out folder.
 
 The owner-authorised semantic review saves provisional identity/state judgements to the separate
-private proposal file. It leaves uncertain cases and every nutrient value-against-pack verdict blank.
-Model access is limited to the fields listed in plan section 7 and the privacy register, not the
-whole review sheet. The original sheet is completed only through the owner-validation workflow.
+private proposal file and leaves uncertain cases unresolved. Model access is limited to the fields
+listed in plan section 7 and the privacy register (including nutrient evidence under the amendment
+below), not the whole review sheet. The original sheet is completed only through the owner-validation workflow.
 
 ## Revision 5 best-estimate amendment: scoring hold
 
