@@ -153,7 +153,16 @@ def pinned_export(a, root):
     if formats.release_id(export) != fz["release_id"]:
         sys.exit("refused: the import file is not the pinned release")
     entries, pins = formats.export_entries(export)
-    return fz, entries, corpora_records(REPO, pins)
+    return fz, entries, corpora_records(REPO, pins), pins
+
+
+def generic_aliases(repo: Path, pins: dict) -> dict:
+    """The search aliases the bundled corpora carry (only TFDA has them), for the owner's lookup only.
+    Read after corpora_records has checked each pinned corpus against its pin."""
+    if "tfda" not in pins:
+        return {}
+    recs = json.loads((repo / "Packages/FoodLedgerKit/Sources/FoodGenericSearch/Resources" / CORPORA["tfda"]).read_bytes())
+    return {"tfda": {"tfda:" + r["id"]: [a for a in r.get("aliases") or [] if isinstance(a, str)] for r in recs["records"]}}
 
 
 def cmd_query_template(a, root):
@@ -163,7 +172,7 @@ def cmd_query_template(a, root):
 
 
 def cmd_assemble_queries(a, root):
-    fz, entries, corpora = pinned_export(a, root)
+    fz, entries, corpora, _ = pinned_export(a, root)
     doc = queries.assemble(read_private(root, root / "queries" / "query-template.csv"), fz["release_id"],
                            {e["id"] for e in entries}, {src: set(recs) for src, recs in corpora.items()})
     write_new(private(root, root / "queries" / "query-set.json"), formats.dumps(doc))
@@ -181,10 +190,10 @@ def cmd_lookup(a, root):
     on the owner's own account nothing in code can tell the owner from a process acting for them."""
     if not interactive():
         sys.exit("refused: lookup prints catalogue rows, so it runs only in the owner's interactive terminal")
-    _, entries, corpora = pinned_export(a, root)
+    _, entries, corpora, pins = pinned_export(a, root)
     text = " ".join(a.words)
     if a.generic:
-        rows, total = queries.lookup_generic(corpora, text)
+        rows, total = queries.lookup_generic(corpora, text, generic_aliases(REPO, pins))
         for ref, name, prep in rows:
             print(f"{ref}\t{name} ({prep})")
     else:

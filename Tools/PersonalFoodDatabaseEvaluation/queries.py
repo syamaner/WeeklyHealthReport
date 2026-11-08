@@ -157,15 +157,18 @@ def lookup_entries(entries, text: str, limit: int = LOOKUP_LIMIT):
     return out[:limit], len(out)
 
 
-def lookup_generic(records: dict, text: str, limit: int = LOOKUP_LIMIT):
-    """(source=record_id, name, preparation) for every pinned generic record whose name holds every word."""
-    words = _words(text)
+def lookup_generic(records: dict, text: str, aliases=None, limit: int = LOOKUP_LIMIT):
+    """(source=record_id, name, preparation) for every pinned generic record whose name, or one of its
+    search aliases, holds every word; alphabetical by name."""
+    words = set(_words(text))
     if not words:
         return [], 0
+    aliases = aliases or {}
     out = []
     for source, recs in records.items():
         for rid, (name, prep) in recs.items():
-            if set(words) <= set(_words(name)):
+            names = [name, *aliases.get(source, {}).get(rid, ())]
+            if any(words <= set(_words(n)) for n in names):
                 out.append((f"{source}={rid}", name, prep))
     out.sort(key=lambda r: (_norm(r[1]), r[0]))
     return out[:limit], len(out)

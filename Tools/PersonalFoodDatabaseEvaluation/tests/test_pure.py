@@ -376,6 +376,22 @@ class QueryTemplate(unittest.TestCase):
         self.assertEqual((rows, total), ([("cofid=cofid:synthetic:1", "Synthetic oats, raw", "raw")], 1))
 
 
+class GenericAliasLookup(unittest.TestCase):
+    def test_a_record_is_found_by_its_search_alias(self):
+        recs = {"tfda": {"tfda:synthetic-1": ("Synthetic fruit", "raw")}, "cofid": {}}
+        aliases = {"tfda": {"tfda:synthetic-1": ["Synthetic alias word"]}}
+        self.assertEqual(queries.lookup_generic(recs, "alias word", aliases)[1], 1)
+        self.assertEqual(queries.lookup_generic(recs, "alias word")[1], 0)
+        self.assertEqual(queries.lookup_generic(recs, "alias fruit", aliases)[1], 0)  # one name holds every word
+
+    def test_tfda_aliases_come_from_the_bundled_corpus(self):
+        import pfd_eval
+        aliases = pfd_eval.generic_aliases(H.REPO, {"tfda": "pinned"})["tfda"]
+        self.assertTrue(aliases and all(k.startswith("tfda:") for k in aliases))
+        self.assertTrue(any(aliases.values()))
+        self.assertEqual(pfd_eval.generic_aliases(H.REPO, {}), {})
+
+
 class QueryCSVRegression(unittest.TestCase):
     def test_malformed_quoting_is_refused(self):
         with self.assertRaises(queries.QueryTemplateError):
