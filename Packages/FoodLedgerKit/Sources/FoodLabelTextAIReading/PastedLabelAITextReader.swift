@@ -11,7 +11,7 @@ import NutritionLabelParsing
 ///    `label-arithmetic-checks-v2` over the amount bases and the `pasted-label-conversions-v1`
 ///    conversions for the stored column. The frozen rules are called, never copied;
 /// 4. the panel detector, on the text and again on the candidate;
-/// 5. the vocabulary check (`pasted-label-ai-text-vocabulary-v2`) on every value's row label and
+/// 5. the vocabulary check (`pasted-label-ai-text-vocabulary-v3`) on every value's row label and
 ///    header; a header naming two bases declines before the format step (D33);
 /// 6. attention: `label-photo-attention-v1` composed for the gate flags and failed checks, plus the
 ///    text reasons (`pasted-label-ai-text-attention-v1`).
@@ -53,7 +53,16 @@ public struct PastedLabelAITextReader: PastedLabelAITextReading {
         // Revision 15 (D33, vocabulary v2): a header that names two bases (`per 100g/ml`) does not
         // establish the basis from the paste, whatever basis the model gave it, so the reply is
         // declined as a value column with no recognisable basis is (D27).
-        if wire.headers.contains(where: { PastedLabelAITextVocabulary.namesTwoBases(header: $0.printedText, in: text) }) {
+        // Vocabulary v3 (revision 20): the text is read only at the header's own located span (the
+        // locator's single whole-word occurrence; a repeated header ID is not located), so text
+        // elsewhere that repeats the header's words never declines the table.
+        let headerSpans = Dictionary(mapped.located.headers.compactMap { header in header.status.range.map { (header.id, $0) } },
+                                     uniquingKeysWith: { first, _ in first })
+        var seenHeaderIDs: Set<String> = []
+        if wire.headers.contains(where: { header in
+            let span = seenHeaderIDs.insert(header.headerID).inserted ? headerSpans[header.headerID] : nil
+            return PastedLabelAITextVocabulary.namesTwoBases(header: header.printedText, located: span, in: text)
+        }) {
             return ended(.declined, declines: [PastedLabelAITextVocabulary.twoBasisDecline], candidate: projected)
         }
         // The text route's format step (`pasted-label-ai-text-format-v1`): the frozen inference,

@@ -117,7 +117,7 @@ final class FreezePinTests: XCTestCase {
         XCTAssertEqual(versions.wireSchema, "pasted-label-ai-text-wire-schema-v1")
         XCTAssertEqual(versions.mapping, "pasted-label-ai-text-mapping-v4")
         XCTAssertEqual(versions.locator, "pasted-label-text-locate-v4")
-        XCTAssertEqual(versions.vocabulary, "pasted-label-ai-text-vocabulary-v2")
+        XCTAssertEqual(versions.vocabulary, "pasted-label-ai-text-vocabulary-v3")
         XCTAssertEqual(versions.detector, "pasted-label-ai-text-panel-detector-v2")
         XCTAssertEqual(versions.attention, "pasted-label-ai-text-attention-v1")
         XCTAssertEqual(versions.format, "pasted-label-ai-text-format-v1")

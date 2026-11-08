@@ -15,8 +15,13 @@ import Foundation
 /// with no recognisable basis (D27). Under v1 `per 100g/ml` read as per 100 g alone. A
 /// reference-intake word still decides the basis on its own (`%RI per 100g/ml` is reference
 /// intake, not two bases), and every other header reads as under v1.
+///
+/// v3 (revision 20, a bug fix to D33): the check of a shortened header against the sent text reads
+/// only the header's own located occurrence (the locator's single whole-word match), never every
+/// occurrence of its words, so a footnote or row such as `values per 100g/ml` cannot decline a
+/// table whose heading is `per 100g`. A heading cell that itself continues with `/ml` still declines.
 public enum PastedLabelAITextVocabulary {
-    public static let version = "pasted-label-ai-text-vocabulary-v2"
+    public static let version = "pasted-label-ai-text-vocabulary-v3"
     /// The reader's decline reason for a header that names two bases (D33).
     public static let twoBasisDecline = "vocabulary:two_basis_header"
 
@@ -131,34 +136,35 @@ public enum PastedLabelAITextVocabulary {
         return found.isSuperset(of: ["per_100g", "per_100ml"])
     }
 
-    /// v2 (D33): whether a model's header names two bases, as printed or as the sent text prints it
-    /// on: an occurrence of the header's text that the text continues with a slash and the other
-    /// basis unit (`per 100g` printed as `per 100g/ml`) names two bases even when the model left the
-    /// rest out. The printed heading read is the occurrence's whole cell, from the start of its line,
-    /// or the last tab or run of two spaces before it, to the end of the continuation, so a
-    /// reference-intake heading (`%RI per 100g/ml`) still decides its basis on its own. Pure; never
-    /// assigns a basis.
-    public static func namesTwoBases(header printed: String, in text: String) -> Bool {
+    /// v3 (D33, revision 20): whether a model's header names two bases, as printed or as the sent
+    /// text prints it on at the header's own located occurrence: when the text continues the
+    /// located span with a slash and the other basis unit (`per 100g` printed as `per 100g/ml`), the
+    /// header names two bases even when the model left the rest out. `located` is the locator's
+    /// header span (4.3 item 4: the single whole-word occurrence, in Unicode scalar offsets of
+    /// `text`); a header not located exactly once is read from its own printed text alone, since
+    /// its column is already under attention, so a footnote or row that repeats the header's
+    /// words never declines the table. The printed heading read is the occurrence's whole cell,
+    /// from the start of its line, or the last tab or run of two spaces before it, to the end of
+    /// the continuation, so a reference-intake heading (`%RI per 100g/ml`) still decides its basis
+    /// on its own. Pure; never assigns a basis.
+    public static func namesTwoBases(header printed: String, located: Range<Int>?, in text: String) -> Bool {
         if namesTwoBases(header: printed) { return true }
-        let needle = printed.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !needle.isEmpty, let continuation = try? NSRegularExpression(pattern: #"^[ \t\u00A0]*[/／][ \t\u00A0]*(100[ \t\u00A0]*)?(ml|毫升|g|公克|克)"#,
-                                                                             options: [.caseInsensitive]) else { return false }
-        var searchStart = text.startIndex
-        while searchStart < text.endIndex, let found = text.range(of: needle, options: [.caseInsensitive], range: searchStart..<text.endIndex) {
-            searchStart = found.upperBound
-            let rest = String(text[found.upperBound...])
-            guard let match = continuation.firstMatch(in: rest, range: NSRange(rest.startIndex..., in: rest)),
-                  let matched = Range(match.range, in: rest) else { continue }
-            var cellStart = found.lowerBound
-            while cellStart > text.startIndex {
-                let before = text.index(before: cellStart)
-                if text[before] == "\t" || text[before].isNewline { break }
-                if text[before] == " ", before > text.startIndex, text[text.index(before: before)] == " " { break }
-                cellStart = before
-            }
-            if namesTwoBases(header: String(text[cellStart..<found.upperBound]) + rest[matched]) { return true }
+        let scalars = Array(text.unicodeScalars)
+        guard let located, located.lowerBound >= 0, located.lowerBound < located.upperBound, located.upperBound <= scalars.count,
+              let continuation = try? NSRegularExpression(pattern: #"^[ \t\u00A0]*[/／][ \t\u00A0]*(100[ \t\u00A0]*)?(ml|毫升|g|公克|克)"#,
+                                                          options: [.caseInsensitive]) else { return false }
+        func string(_ range: Range<Int>) -> String { String(String.UnicodeScalarView(scalars[range])) }
+        let rest = string(located.upperBound..<scalars.count)
+        guard let match = continuation.firstMatch(in: rest, range: NSRange(rest.startIndex..., in: rest)),
+              let matched = Range(match.range, in: rest) else { return false }
+        var cellStart = located.lowerBound
+        while cellStart > 0 {
+            let before = scalars[cellStart - 1]
+            if before == "\t" || CharacterSet.newlines.contains(before) { break }
+            if before == " ", cellStart - 2 >= 0, scalars[cellStart - 2] == " " { break }
+            cellStart -= 1
         }
-        return false
+        return namesTwoBases(header: string(cellStart..<located.upperBound) + rest[matched])
     }
 
     enum HeaderReading: Equatable { case referenceIntake, quantity, bases(Set<String>) }

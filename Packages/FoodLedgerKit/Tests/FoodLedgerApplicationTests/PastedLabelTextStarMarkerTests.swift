@@ -2,7 +2,7 @@ import FoodLedgerApplication
 import XCTest
 
 /// Star markers in the scan and `pasted-label-text-locate-v4`, and two-basis headers in
-/// `pasted-label-ai-text-vocabulary-v2` (docs/pasted-label-ai-text-v1.md 4.3 item 12 and 4.4,
+/// `pasted-label-ai-text-vocabulary-v2` and v3 (docs/pasted-label-ai-text-v1.md 4.3 item 12 and 4.4,
 /// revision 15, D32 and D33). Synthetic text only.
 final class PastedLabelTextStarMarkerTests: XCTestCase {
     typealias Locator = PastedLabelTextLocator
@@ -93,7 +93,7 @@ final class PastedLabelTextStarMarkerTests: XCTestCase {
             XCTAssertNil(Vocabulary.basis(forHeader: header), header)
             XCTAssertEqual(Vocabulary.checkHeader(printedText: header, basis: "per_100g"), .unknown, header)
         }
-        XCTAssertEqual(Vocabulary.version, "pasted-label-ai-text-vocabulary-v2")
+        XCTAssertEqual(Vocabulary.version, "pasted-label-ai-text-vocabulary-v3")
     }
 
     func testSingleBasisAndReferenceIntakeHeadersAreUnchanged() {
@@ -105,17 +105,51 @@ final class PastedLabelTextStarMarkerTests: XCTestCase {
         }
     }
 
+    /// The locator's span for a header: its single whole-word occurrence, or nil (4.3 item 4).
+    func located(_ header: String, in text: String) -> Range<Int>? {
+        let occurrences = header.isEmpty ? [] : PastedLabelTextScan(text).wholeWordOccurrences(of: header)
+        return occurrences.count == 1 ? occurrences[0] : nil
+    }
+
+    func namesTwoBases(_ header: String, in text: String) -> Bool {
+        Vocabulary.namesTwoBases(header: header, located: located(header, in: text), in: text)
+    }
+
     func testAShortenedHeaderNamesTwoBasesWhereTheTextGoesOn() {
-        XCTAssertTrue(Vocabulary.namesTwoBases(header: "per 100g", in: "Nutrition per 100g/ml\nFat 5g\n"))
-        XCTAssertTrue(Vocabulary.namesTwoBases(header: "per 100g", in: "Typical values per 100g / 100ml\nFat 5g\n"))
-        XCTAssertTrue(Vocabulary.namesTwoBases(header: "per 100 g", in: "PER 100 G/ML\nFat 5g\n"))
+        XCTAssertTrue(namesTwoBases("per 100g", in: "Nutrition per 100g/ml\nFat 5g\n"))
+        XCTAssertTrue(namesTwoBases("per 100g", in: "Typical values per 100g / 100ml\nFat 5g\n"))
+        XCTAssertTrue(namesTwoBases("PER 100 G", in: "PER 100 G/ML\nFat 5g\n"))
+        // A genuine two-basis heading declines on its own printed text, located or not.
+        XCTAssertTrue(namesTwoBases("per 100g/ml", in: "Nutrition per 100g/ml\nFat 5g\n"))
+        XCTAssertTrue(Vocabulary.namesTwoBases(header: "per 100g/ml", located: nil, in: ""))
         // Two printed columns, a slash elsewhere, or the same unit after the slash are not two bases.
-        XCTAssertFalse(Vocabulary.namesTwoBases(header: "per 100g", in: "Typical values\tper 100g\tper 100ml\nFat\t5g\t5g\n"))
-        XCTAssertFalse(Vocabulary.namesTwoBases(header: "per 100g", in: "Typical values per 100g\nEnergy 1046kJ/250kcal\n"))
-        XCTAssertFalse(Vocabulary.namesTwoBases(header: "%RI", in: "Typical values\tper 100g\t%RI per 100g/ml\n"))
+        XCTAssertFalse(namesTwoBases("per 100g", in: "Typical values\tper 100g\tper 100ml\nFat\t5g\t5g\n"))
+        XCTAssertFalse(namesTwoBases("per 100g", in: "Typical values per 100g\nEnergy 1046kJ/250kcal\n"))
+        XCTAssertFalse(namesTwoBases("%RI", in: "Typical values\tper 100g\t%RI per 100g/ml\n"))
         // The same words inside a reference-intake heading are read with that heading.
-        XCTAssertFalse(Vocabulary.namesTwoBases(header: "per 100g", in: "Typical values\tPer 100g\t%RI per 100g/ml\n"))
-        XCTAssertFalse(Vocabulary.namesTwoBases(header: "per 100g", in: "Typical values  Per 100g  %RI per 100g/ml\n"))
-        XCTAssertFalse(Vocabulary.namesTwoBases(header: "", in: "per 100g/ml"))
+        XCTAssertFalse(namesTwoBases("Per 100g", in: "Typical values\tPer 100g\t%RI per 100g/ml\n"))
+        XCTAssertFalse(namesTwoBases("Per 100g", in: "Typical values  Per 100g  %RI per 100g/ml\n"))
+        XCTAssertFalse(namesTwoBases("", in: "per 100g/ml"))
+    }
+
+    // MARK: Vocabulary v3 (revision 20)
+
+    func testOnlyTheLocatedHeadingIsReadAgainstTheText() {
+        // A footnote that prints `per 100g/ml` under a `Per 100g` heading reads normally: the
+        // heading is located once, and its own occurrence does not continue with `/ml`.
+        let footnote = "Typical values\tPer 100g\nFat\t5g\n\n* values per 100g/ml are typical\n"
+        XCTAssertNotNil(located("Per 100g", in: footnote))
+        XCTAssertFalse(namesTwoBases("Per 100g", in: footnote))
+        // The shortened heading the D33 work handled still declines: the located cell goes on with `/ml`.
+        let shortened = "Typical values\tPer 100g/ml\nFat\t5g\n\n* values per 100g are typical\n"
+        XCTAssertTrue(namesTwoBases("Per 100g", in: shortened))
+        // A header that is not located exactly once is read from its own text alone; its column is
+        // already under attention (4.3 item 4), and the other occurrence never declines.
+        let repeated = "Typical values per 100g\nFat 5g\n\nValues per 100g/ml are typical\n"
+        XCTAssertNil(located("per 100g", in: repeated))
+        XCTAssertFalse(namesTwoBases("per 100g", in: repeated))
+        // An out-of-range span reads nothing beyond the header's own text.
+        XCTAssertFalse(Vocabulary.namesTwoBases(header: "per 100g", located: 0..<999, in: "per 100g/ml"))
+        XCTAssertFalse(Vocabulary.namesTwoBases(header: "per 100g", located: nil, in: "per 100g/ml"))
     }
 }

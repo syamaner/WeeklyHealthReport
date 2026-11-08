@@ -4,7 +4,8 @@ import Foundation
 import XCTest
 
 /// Revision 15 on synthetic texts only: a lone `*` in a %RI column is not declared (D32, mapping v4),
-/// and a header naming two bases declines the reply (D33, vocabulary v2).
+/// and a header naming two bases declines the reply (D33, vocabulary v2; v3 reads only the
+/// header's located occurrence, revision 20).
 final class PastedLabelAITextStarAndTwoBasisTests: XCTestCase {
     let reader = PastedLabelAITextReader()
 
@@ -115,7 +116,7 @@ final class PastedLabelAITextStarAndTwoBasisTests: XCTestCase {
             XCTAssertNil(result.gate, "declined before the gate")
         }
         XCTAssertEqual(PastedLabelAITextVocabulary.twoBasisDecline, "vocabulary:two_basis_header")
-        XCTAssertEqual(PastedLabelAITextReader.versions.vocabulary, "pasted-label-ai-text-vocabulary-v2")
+        XCTAssertEqual(PastedLabelAITextReader.versions.vocabulary, "pasted-label-ai-text-vocabulary-v3")
     }
 
     func testASingleBasisHeaderIsUnchanged() {
@@ -132,5 +133,35 @@ final class PastedLabelAITextStarAndTwoBasisTests: XCTestCase {
         let result = read(text, headers: [("h1", "per 100g", "per_100g"), ("h3", "%RI per 100g/ml", "reference_intake")], rows: rows)
         XCTAssertNotEqual(result.declineReasons, [PastedLabelAITextVocabulary.twoBasisDecline])
         XCTAssertEqual(result.outcome, .reachedConfirm, "\(result.declineReasons)")
+    }
+
+    // MARK: Vocabulary v3 (revision 20): only the heading's own located occurrence is read
+
+    func testAFootnoteNamingTwoBasesDoesNotDeclineASingleBasisHeading() {
+        // The heading `Per 100g` is located once (the footnote's lower-case words are not that
+        // occurrence), so the footnote's `/ml` is never read with it.
+        let text = Self.twoBasisText.replacingOccurrences(of: "Nutrition Information per 100g/ml", with: "Nutrition Information Per 100g")
+            + "\n* Typical values per 100g/ml of the made-up drink\n"
+        let result = read(text, headers: [("h1", "Per 100g", "per_100g")], rows: Self.amountRows)
+        XCTAssertEqual(result.outcome, .reachedConfirm, "\(result.declineReasons)")
+        XCTAssertEqual(result.values.first?.reasons, [])
+    }
+
+    func testARepeatedHeadingIsNotDeclinedOnTextElsewhere() {
+        // `per 100g` occurs twice, so the locator does not locate it (its column is under attention,
+        // 4.3 item 4); the other occurrence's `/ml` does not decline the reply.
+        let text = Self.twoBasisText.replacingOccurrences(of: "Nutrition Information per 100g/ml", with: "Nutrition Information per 100g")
+            + "\nServe chilled; values per 100g/ml are typical\n"
+        let result = read(text, headers: [("h1", "per 100g", "per_100g")], rows: Self.amountRows)
+        XCTAssertNotEqual(result.declineReasons, [PastedLabelAITextVocabulary.twoBasisDecline])
+    }
+
+    func testAShortenedHeadingStillDeclinesWithAFootnoteElsewhere() {
+        // The model's `Per 100g` is located once, in a heading cell the text continues with `/ml`.
+        let text = Self.twoBasisText.replacingOccurrences(of: "Nutrition Information per 100g/ml", with: "Nutrition Information Per 100g/ml")
+            + "\n* values per 100g are typical\n"
+        let result = read(text, headers: [("h1", "Per 100g", "per_100g")], rows: Self.amountRows)
+        XCTAssertEqual(result.outcome, .declined)
+        XCTAssertEqual(result.declineReasons, [PastedLabelAITextVocabulary.twoBasisDecline])
     }
 }
