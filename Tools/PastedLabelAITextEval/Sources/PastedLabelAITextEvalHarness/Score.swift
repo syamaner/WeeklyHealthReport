@@ -11,7 +11,8 @@ import PastedLabelAITextEvalCore
 ///    failed).
 /// 2. The envelope check (T3): one choice, `stop`, and the response's model and provider must match
 ///    the pinned route, or the label failed.
-/// 3. `PastedLabelAITextReader`: the text mapping; decline gate v2 (`.uk` for UK candidates), the
+/// 3. `PastedLabelAITextReader`: the text mapping (`pasted-label-ai-text-mapping-v3`, whose not-declared
+///    markers the Confirm table shows as printed, D30); decline gate v2 (`.uk` for UK candidates), the
 ///    conversions and the arithmetic checks; the panel detector; the locator, unit and vocabulary
 ///    checks; attention. Only a hard decline declines (D19).
 /// 4. `pasted-label-ai-text-scorer-v4` (the comparison rules of `uk-fresh-scorer-v2`; reference-intake
@@ -97,7 +98,11 @@ public enum ScoreCommand {
     }
 
     /// The table the product would show at Confirm, from the reading: every cell, with whether its
-    /// value carries an attention item.
+    /// value carries an attention item, then every not-declared marker (mapping v3, D30), shown as
+    /// printed. A marker is never a cell of the candidate and never a number: here it carries the
+    /// printed marker as its text, comparator `=` and no unit, which the scorer's comparison
+    /// matches only against a transcribed class marker (`same`), so a marker against a number, or
+    /// a number against a marker, stays wrong.
     public static func confirmTable(_ reading: PastedLabelAITextReadingResult) -> ConfirmTable? {
         guard let candidate = reading.candidate else { return nil }
         var attention: [String: Bool] = [:]
@@ -109,7 +114,13 @@ public enum ScoreCommand {
                               comparator: cell.comparator, decimalText: cell.decimalText, canonicalUnit: cell.canonicalUnit,
                               needsAttention: attention[cell.rowID + "\u{0}" + cell.headerID] ?? true)
         }
-        return ConfirmTable(headers: candidate.headers.map { .init(id: $0.headerID, basis: $0.basis) }, cells: cells,
+        let markers = reading.values.filter { $0.read == .notRead(.notDeclared) }.compactMap { value -> ConfirmTable.Cell? in
+            guard let marker = PastedLabelAITextValueGrammar.notDeclaredMarker(value.printedText) else { return nil }
+            return ConfirmTable.Cell(rowID: value.nutrient == "unrecognised" ? "row_\(value.rowIndex + 1)" : value.nutrient, nutrient: value.nutrient,
+                                     printedLabel: value.printedLabel, headerID: value.headerID, comparator: "=", decimalText: marker,
+                                     canonicalUnit: "", needsAttention: value.needsAttention)
+        }
+        return ConfirmTable(headers: candidate.headers.map { .init(id: $0.headerID, basis: $0.basis) }, cells: cells + markers,
                             servingSize: candidate.servingSize?.decimalText.map { [$0, candidate.servingSize?.canonicalUnit ?? ""] },
                             servingsPerPack: candidate.servingsPerPack.map { [$0.decimalText, $0.approximate ? "true" : "false"] },
                             attentionItems: reading.attentionItemCount)

@@ -40,6 +40,7 @@ let package = Package(
                 "PastedLabelAITextEvalHarness", "PastedLabelAITextEvalCore",
                 .product(name: "FoodLedgerApplication", package: "FoodLedgerKit"),
                 .product(name: "FoodLabelPhotoCapture", package: "FoodLedgerKit"),
+                .product(name: "FoodLabelTextAIReading", package: "FoodLedgerKit"),
             ]
         ),
     ],
