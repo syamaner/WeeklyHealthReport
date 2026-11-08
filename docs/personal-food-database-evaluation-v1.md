@@ -394,7 +394,9 @@ the skill's first commit. On 8 November 2026 the skill at commit
 `80889c4940d642538f8b656fa4ee63d7b8c724ea` (the latest commit touching
 `.agents/skills/personal-food-catalogue/`) rebuilt it offline with `build.py`, from a copy of the same
 working files, into an empty output folder: every entry was identical, and only the `generated` date
-differed. The pinned release is the original file, and that commit is the skill that reproduces it.
+differed. Because the release ID is the SHA-256 of the file's bytes, the rebuilt file has a different
+ID; the pinned release is the original file, and that commit is the skill that reproduces its entries.
+Every command that reads the release compares its ID with `release_id` and refuses a mismatch.
 
 The working mapping files it used (SHA-256):
 
