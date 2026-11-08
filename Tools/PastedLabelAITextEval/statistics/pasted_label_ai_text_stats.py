@@ -7,7 +7,7 @@ counts come from the shipped Swift scorer through ``assert.js`` (``namedScores``
 cost and latency come from ``PastedLabelAITextEval send`` (the provider's output). promptfoo's own
 pass rates are never used as results. Run with ``python3 -I``; standard library only.
 
-    python3 -I pasted_label_ai_text_stats.py summary RESULTS.json [--cases DIR] [--seed N] [--resamples N]
+    python3 -I pasted_label_ai_text_stats.py summary RESULTS.json [--cases DIR] [--bar BAR.json] [--seed N] [--resamples N]
     python3 -I pasted_label_ai_text_stats.py compare RESULTS.json CELL_A CELL_B [--seed N] [--resamples N]
 
 A cell is one provider label and one prompt label (``<provider>|<prompt>``).
@@ -58,6 +58,9 @@ ALPHA = 0.05
 PER_TAP_CAP_USD = 0.20
 DEFAULT_RESAMPLES = 10_000
 DEFAULT_SEED = 416
+# The bar A4 reads (D34, revision 18): bar-v2, bar-v1 with bar 4 latency at most 20 s. bar-v1.json stays
+# committed as history and can still be passed with --bar.
+DEFAULT_BAR = Path(__file__).resolve().parent.parent / "bar-v2.json"
 
 
 # MARK: Intervals
@@ -391,8 +394,8 @@ def breakdowns(labels: list[Label]) -> dict[str, dict]:
 
 
 def bar(labels: list[Label], bar_path: Path) -> dict:
-    """The 5.3 bar's figures over these labels, against `bar-v1.json`'s thresholds. Reported for
-    any set; it gates release only on the one held-out run."""
+    """The 5.3 bar's figures over these labels, against the thresholds of the bar file given (by
+    default `bar-v2.json`, D34). Reported for any set; it gates release only on the one held-out run."""
     gates = {gate["id"]: gate for gate in json.loads(bar_path.read_text(encoding="utf-8"))["gates"]}
     reached = [label for label in labels if label.outcome == "reached_confirm"]
     silent = sum(1 for label in reached if label.get("silent_error_table") == 1)
@@ -495,7 +498,7 @@ def main(argv: list[str]) -> int:
     s = sub.add_parser("summary")
     s.add_argument("results", type=Path)
     s.add_argument("--cases", type=Path)
-    s.add_argument("--bar", type=Path, default=Path(__file__).resolve().parent.parent / "bar-v1.json")
+    s.add_argument("--bar", type=Path, default=DEFAULT_BAR)
     c = sub.add_parser("compare")
     c.add_argument("results", type=Path)
     c.add_argument("cell_a")

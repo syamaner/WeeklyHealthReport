@@ -5,6 +5,8 @@ Run: python3 -I -m unittest discover -s Tools/PastedLabelAITextEval/statistics/t
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import sys
 import tempfile
@@ -15,7 +17,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import pasted_label_ai_text_stats as stats  # noqa: E402
 
-BAR = Path(__file__).resolve().parents[2] / "bar-v1.json"
+# bar-v2 is the bar A4 reads (D34); bar-v1 stays as history and differs only in bar 4 latency.
+BAR = Path(__file__).resolve().parents[2] / "bar-v2.json"
+BAR_V1 = Path(__file__).resolve().parents[2] / "bar-v1.json"
 
 
 def scores(*, outcome="reached_confirm", printed=10, shown=10, correct=10, wrong=0, flagged=0, silent=0, attention=0, exact=None, no_edit=None,
@@ -194,6 +198,36 @@ class MetricTests(unittest.TestCase):
         self.assertFalse(figures["bar_4_cost"]["pass"])
         # Latencies 1 to 18 and six of 30: the 22nd sorted is 30.
         self.assertEqual(figures["bar_4_latency"], {"value": 30.0, "missing": 0, "pass": False})
+
+    def test_the_default_bar_is_bar_v2(self):
+        self.assertEqual(stats.DEFAULT_BAR, BAR)
+        self.assertEqual(json.loads(stats.DEFAULT_BAR.read_text(encoding="utf-8"))["schema"], "pasted-label-ai-text-bar-v2")
+        # The summary command reads bar-v2 when --bar is not given: a p90 of 18 s passes.
+        rows = [result(f"h{i:02}", scores(), cost="0.001", latency=1.0) for i in range(21)]
+        rows += [result(f"h{i:02}", scores(), cost="0.001", latency=18.0) for i in range(21, 24)]
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.assertEqual(stats.main(["summary", str(write(rows)), "--resamples", "10"]), 0)
+        figures = json.loads(out.getvalue())["cells"]["model-a|prompt-v1"]["bar"]
+        self.assertEqual(figures["bar_4_latency"], {"value": 18.0, "missing": 0, "pass": True})
+
+    def test_a_p90_of_eighteen_seconds_passes_bar_v2_and_fails_bar_v1(self):
+        # 21 taps at 1 s and 3 at 18 s: the 22nd sorted latency is 18 s, over 15 s (v1) and within 20 s (D34).
+        rows = [result(f"h{i:02}", scores(), cost="0.001", latency=1.0) for i in range(21)]
+        rows += [result(f"h{i:02}", scores(), cost="0.001", latency=18.0) for i in range(21, 24)]
+        labels = stats.load_results(write(rows))["model-a|prompt-v1"]
+        self.assertEqual(stats.bar(labels, BAR)["bar_4_latency"], {"value": 18.0, "missing": 0, "pass": True})
+        self.assertEqual(stats.bar(labels, BAR_V1)["bar_4_latency"], {"value": 18.0, "missing": 0, "pass": False})
+
+    def test_a_p90_over_twenty_seconds_fails_bar_v2(self):
+        rows = [result(f"h{i:02}", scores(), cost="0.001", latency=1.0) for i in range(21)]
+        rows += [result(f"h{i:02}", scores(), cost="0.001", latency=20.5) for i in range(21, 24)]
+        labels = stats.load_results(write(rows))["model-a|prompt-v1"]
+        self.assertFalse(stats.bar(labels, BAR)["bar_4_latency"]["pass"])
+        rows[-1] = result("h23", scores(), cost="0.001", latency=20.0)
+        rows[-2] = result("h22", scores(), cost="0.001", latency=20.0)
+        rows[-3] = result("h21", scores(), cost="0.001", latency=20.0)
+        self.assertTrue(stats.bar(stats.load_results(write(rows))["model-a|prompt-v1"], BAR)["bar_4_latency"]["pass"], "at most 20 s")
 
 
 class GateFiveTests(unittest.TestCase):
