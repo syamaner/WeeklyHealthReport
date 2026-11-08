@@ -1,6 +1,6 @@
 # Personal food database evaluation tool
 
-Phase E1a of [`docs/personal-food-database-evaluation-v1.md`](../../docs/personal-food-database-evaluation-v1.md)
+Phase E1a (#427) of [`docs/personal-food-database-evaluation-v1.md`](../../docs/personal-food-database-evaluation-v1.md)
 (the plan). This folder holds the scoring tool and its synthetic tests. It holds no private data:
 every input it reads and every per-entry or per-query file it writes lives in the owner's private
 evaluation folder, and the only thing it writes into this repository is a counts-only results file.
