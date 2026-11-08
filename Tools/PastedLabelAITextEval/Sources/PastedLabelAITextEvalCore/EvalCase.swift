@@ -130,6 +130,13 @@ public struct EvalCase: Codable, Equatable, Sendable {
         try validate()
     }
 
+    /// The same case under another label ID or layout shape (A3: cases are named by a case ID that
+    /// is unique across sets, and their shape is assigned by hand). The copy is validated like any case.
+    public func with(labelID: String? = nil, layoutShape: LayoutShape?) throws -> EvalCase {
+        try EvalCase(labelID: labelID ?? self.labelID, set: set, tier: tier, copyMethod: copyMethod, textSHA256: textSHA256, expected: expected,
+                     source: source, legacy: legacy, layoutShape: layoutShape)
+    }
+
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(schema, forKey: .schema); try container.encode(labelID, forKey: .labelID); try container.encode(set, forKey: .set)

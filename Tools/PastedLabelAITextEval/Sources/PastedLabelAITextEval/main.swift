@@ -8,7 +8,14 @@ import PastedLabelAITextEvalHarness
 //     PastedLabelAITextEval send --label-id ID --text FILE --route CANDIDATE --cell CELL \
 //         --ledger FILE --cache DIR (--fake-transport DIR | --live) [--cell-stop-usd N<=5] [--programme-stop-usd N<=25]
 //     PastedLabelAITextEval score --case FILE --text FILE --send FILE|-
-//     PastedLabelAITextEval convert-legacy --in FILE --copy-method TEXT --text-sha256 HEX
+//     PastedLabelAITextEval convert --in FILE --set SET --copy-method TEXT --text-sha256 HEX [--tier T] [--layout-shape SHAPE] [--label-id ID]
+//     PastedLabelAITextEval convert-legacy --in FILE --copy-method TEXT --text-sha256 HEX [--layout-shape SHAPE] [--label-id ID]
+//
+// `convert` reads a Taiwan reader v3 fresh or UK transcription (chosen by its `schema`) into a
+// tuning case of `SET`, a tuning set of 5.1; `uk_v2_fresh`, the sealed held-out set, is refused.
+// `convert-legacy` reads the Taiwan reader v3 development set's older format. Both take the
+// layout shape assigned by hand (5.2.1) and a case ID to name the case by, round-trip check the
+// case against the file, and print its canonical JSON.
 //
 // `send` needs exactly one of `--fake-transport DIR` (canned replies; nothing is sent) and `--live`
 // (A3 tuning runs under the evaluation egress terms T1 to T6: the shipped transport to OpenRouter,
@@ -46,7 +53,7 @@ func printJSON<T: Encodable>(_ value: T) {
 }
 
 let arguments = CommandLine.arguments.dropFirst()
-guard let command = arguments.first else { fail("usage: PastedLabelAITextEval send|score|convert-legacy ...") }
+guard let command = arguments.first else { fail("usage: PastedLabelAITextEval send|score|convert|convert-legacy ...") }
 let given = options(arguments.dropFirst(), flags: command == "send" ? ["--live"] : [])
 
 switch command {
@@ -100,20 +107,26 @@ case "score":
         fail("score: \(error)")
     }
 
-case "convert-legacy":
-    let allowed: Set<String> = ["--in", "--copy-method", "--text-sha256"]
+case "convert", "convert-legacy":
+    let legacy = command == "convert-legacy"
+    let allowed: Set<String> = legacy ? ["--in", "--copy-method", "--text-sha256", "--layout-shape", "--label-id"]
+        : ["--in", "--set", "--copy-method", "--text-sha256", "--tier", "--layout-shape", "--label-id"]
     if let unknown = given.keys.first(where: { !allowed.contains($0) }) { fail("unknown option \(unknown)") }
-    guard let input = given["--in"], let copyMethod = given["--copy-method"], let sha = given["--text-sha256"] else {
-        fail("convert-legacy needs --in, --copy-method and --text-sha256")
+    guard let input = given["--in"], let copyMethod = given["--copy-method"], let sha = given["--text-sha256"], legacy || given["--set"] != nil else {
+        fail(legacy ? "convert-legacy needs --in, --copy-method and --text-sha256" : "convert needs --in, --set, --copy-method and --text-sha256")
     }
+    // The held-out set is refused before its file is opened.
+    if given["--set"] == EvalCase.EvalSet.ukV2Fresh.rawValue { fail("convert: uk_v2_fresh is the sealed held-out set (D4); it is never converted here") }
+    let convertOptions = ConvertCommand.Options(set: given["--set"], tier: given["--tier"], copyMethod: copyMethod, textSHA256: sha,
+                                                layoutShape: given["--layout-shape"], labelID: given["--label-id"])
     do {
-        let evalCase = try EvalCaseConverter.fromTaiwanLegacy(try Data(contentsOf: path(input)),
-                                                             metadata: .init(set: .taiwanV3Development, tier: nil, copyMethod: copyMethod, textSHA256: sha))
+        let data = try Data(contentsOf: path(input))
+        let evalCase = legacy ? try ConvertCommand.convertLegacy(data, convertOptions) : try ConvertCommand.convert(data, convertOptions)
         FileHandle.standardOutput.write(try evalCase.canonicalJSON())
     } catch {
-        fail("convert-legacy: \(error)")
+        fail("\(command): \(error)")
     }
 
 default:
-    fail("unknown command \(command); use send, score or convert-legacy")
+    fail("unknown command \(command); use send, score, convert or convert-legacy")
 }

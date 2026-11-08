@@ -6,11 +6,15 @@ import Foundation
 /// described their shape (field types only):
 ///
 ///     { columns: [{key, printed}], serving_size: {value, unit}, servings_per_pack: {value, approximate},
-///       values: [{nutrient, column, value, unit, comparator}], notes, id, transcribed_by }
+///       values: [{nutrient, column, value, unit, comparator, extra?}], notes, id, transcribed_by,
+///       transcription_corrections? }
 ///
 /// Decoding is strict (an undeclared key is an error). A `value` may be a JSON string or number,
 /// and `notes` a string or a list of strings; a file mixing string and number values is refused,
-/// so the encoding it used can be restored exactly. Nothing here was read from a real file.
+/// so the encoding it used can be restored exactly. The optional `extra` (on a value) and
+/// `transcription_corrections` (on the file) were found when A3 first ran the converter on the
+/// real files; both are kept in the case's legacy extras so the file round-trips. The fixtures that
+/// test them are synthetic.
 extension TranscriptionShapes {
     /// A printed number recorded as a JSON string or a JSON number.
     public enum LegacyNumber: Codable, Equatable, Sendable {
@@ -116,10 +120,13 @@ extension TranscriptionShapes {
             public let value: LegacyNumber
             public let unit: String
             public let comparator: String
-            public init(nutrient: String, column: String, value: LegacyNumber, unit: String, comparator: String) {
+            /// `true` on a printed value beyond the mandatory rows (seen in the real files in A3); absent otherwise.
+            public let extra: Bool?
+            public init(nutrient: String, column: String, value: LegacyNumber, unit: String, comparator: String, extra: Bool? = nil) {
                 self.nutrient = nutrient; self.column = column; self.value = value; self.unit = unit; self.comparator = comparator
+                self.extra = extra
             }
-            enum CodingKeys: String, CodingKey, CaseIterable { case nutrient, column, value, unit, comparator }
+            enum CodingKeys: String, CodingKey, CaseIterable { case nutrient, column, value, unit, comparator, extra }
             public init(from decoder: any Decoder) throws {
                 try rejectUnknownKeys(decoder, allowed: CodingKeys.allCases.map(\.rawValue), in: "legacy value")
                 let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -128,6 +135,7 @@ extension TranscriptionShapes {
                 value = try container.decode(LegacyNumber.self, forKey: .value)
                 unit = try container.decode(String.self, forKey: .unit)
                 comparator = try container.decode(String.self, forKey: .comparator)
+                extra = try container.decodeIfPresent(Bool.self, forKey: .extra)
             }
         }
 
@@ -138,16 +146,19 @@ extension TranscriptionShapes {
         public let notes: LegacyNotes?
         public let id: String
         public let transcribedBy: String?
+        /// The owner's dated corrections to the transcription (seen in the real files in A3), kept verbatim.
+        public let transcriptionCorrections: [String]?
 
         public init(columns: [Column], servingSize: Serving?, servingsPerPack: Pack?, values: [Value], notes: LegacyNotes?, id: String,
-                    transcribedBy: String?) {
+                    transcribedBy: String?, transcriptionCorrections: [String]? = nil) {
             self.columns = columns; self.servingSize = servingSize; self.servingsPerPack = servingsPerPack; self.values = values
-            self.notes = notes; self.id = id; self.transcribedBy = transcribedBy
+            self.notes = notes; self.id = id; self.transcribedBy = transcribedBy; self.transcriptionCorrections = transcriptionCorrections
         }
 
         enum CodingKeys: String, CodingKey, CaseIterable {
             case columns, values, notes, id
             case servingSize = "serving_size", servingsPerPack = "servings_per_pack", transcribedBy = "transcribed_by"
+            case transcriptionCorrections = "transcription_corrections"
         }
 
         public init(from decoder: any Decoder) throws {
@@ -160,6 +171,7 @@ extension TranscriptionShapes {
             notes = try container.decodeIfPresent(LegacyNotes.self, forKey: .notes)
             id = try container.decode(String.self, forKey: .id)
             transcribedBy = try container.decodeIfPresent(String.self, forKey: .transcribedBy)
+            transcriptionCorrections = try container.decodeIfPresent([String].self, forKey: .transcriptionCorrections)
         }
 
         public func encode(to encoder: any Encoder) throws {
@@ -168,6 +180,7 @@ extension TranscriptionShapes {
             try container.encodeIfPresent(servingsPerPack, forKey: .servingsPerPack); try container.encode(values, forKey: .values)
             try container.encodeIfPresent(notes, forKey: .notes); try container.encode(id, forKey: .id)
             try container.encodeIfPresent(transcribedBy, forKey: .transcribedBy)
+            try container.encodeIfPresent(transcriptionCorrections, forKey: .transcriptionCorrections)
         }
     }
 
@@ -182,15 +195,22 @@ extension TranscriptionShapes {
         public let numberEncoding: String
         /// `text`, `list` or nil when the file had no notes.
         public let notesEncoding: String?
+        /// `nutrient@column` of the values marked `extra: true`, in value order; nil when none is.
+        /// The values themselves stay in the expected table, as printed fields (as reader v3 scored them).
+        public let extraValues: [String]?
+        /// The file's `transcription_corrections`, verbatim; nil when it had none.
+        public let transcriptionCorrections: [String]?
 
-        public init(transcribedBy: String?, columnKeys: [String], valueOrder: [String], numberEncoding: String, notesEncoding: String?) {
+        public init(transcribedBy: String?, columnKeys: [String], valueOrder: [String], numberEncoding: String, notesEncoding: String?,
+                    extraValues: [String]? = nil, transcriptionCorrections: [String]? = nil) {
             self.transcribedBy = transcribedBy; self.columnKeys = columnKeys; self.valueOrder = valueOrder
             self.numberEncoding = numberEncoding; self.notesEncoding = notesEncoding
+            self.extraValues = extraValues; self.transcriptionCorrections = transcriptionCorrections
         }
 
         enum CodingKeys: String, CodingKey, CaseIterable {
             case transcribedBy = "transcribed_by", columnKeys = "column_keys", valueOrder = "value_order", numberEncoding = "number_encoding"
-            case notesEncoding = "notes_encoding"
+            case notesEncoding = "notes_encoding", extraValues = "extra_values", transcriptionCorrections = "transcription_corrections"
         }
 
         public init(from decoder: any Decoder) throws {
@@ -201,6 +221,8 @@ extension TranscriptionShapes {
             valueOrder = try container.decode([String].self, forKey: .valueOrder)
             numberEncoding = try container.decode(String.self, forKey: .numberEncoding)
             notesEncoding = try container.decodeIfPresent(String.self, forKey: .notesEncoding)
+            extraValues = try container.decodeIfPresent([String].self, forKey: .extraValues)
+            transcriptionCorrections = try container.decodeIfPresent([String].self, forKey: .transcriptionCorrections)
         }
     }
 }
@@ -240,12 +262,16 @@ extension EvalCaseConverter {
         let encodings = Set(numbers.map(\.isNumber))
         guard encodings.count <= 1 else { throw Refused("\(t.id): values mix JSON strings and numbers") }
         var order: [String] = []
+        var extraValues: [String] = []
         var rows: [(nutrient: String, values: [TranscriptionShapes.Value?])] = []
         for value in t.values {
             guard let column = keys.firstIndex(of: value.column) else { throw Refused("\(t.id): value names unknown column \(value.column)") }
             let pair = value.nutrient + "@" + value.column
             guard !order.contains(pair) else { throw Refused("\(t.id): repeated value \(pair)") }
+            // Only `extra: true` is seen; `false` would be a third state the case could not restore.
+            guard value.extra != false else { throw Refused("\(t.id): \(pair) has extra false") }
             order.append(pair)
+            if value.extra == true { extraValues.append(pair) }
             let index = rows.firstIndex { $0.nutrient == value.nutrient } ?? {
                 rows.append((value.nutrient, Array(repeating: nil, count: keys.count)))
                 return rows.count - 1
@@ -258,7 +284,9 @@ extension EvalCaseConverter {
         case nil: nil
         }
         let extras = TranscriptionShapes.LegacyExtras(transcribedBy: t.transcribedBy, columnKeys: keys, valueOrder: order,
-                                                      numberEncoding: encodings.first == true ? "number" : "string", notesEncoding: notesEncoding)
+                                                      numberEncoding: encodings.first == true ? "number" : "string", notesEncoding: notesEncoding,
+                                                      extraValues: extraValues.isEmpty ? nil : extraValues,
+                                                      transcriptionCorrections: t.transcriptionCorrections)
         return try EvalCase(labelID: t.id, set: metadata.set, tier: metadata.tier, copyMethod: metadata.copyMethod, textSHA256: metadata.textSHA256,
                             expected: EvalCase.Expected(panel: nil,
                                                         servingSize: t.servingSize.map { .init(number: $0.value.text, unit: $0.unit) },
@@ -288,7 +316,8 @@ extension EvalCaseConverter {
                   let row = e.rows.first(where: { $0.nutrient == parts[0] }), let value = row.values[column] else {
                 throw Refused("\(evalCase.labelID): legacy value order names \(pair), which the case does not hold")
             }
-            values.append(.init(nutrient: parts[0], column: parts[1], value: try number(value.number), unit: value.unit, comparator: value.comparator))
+            values.append(.init(nutrient: parts[0], column: parts[1], value: try number(value.number), unit: value.unit, comparator: value.comparator,
+                                extra: extras.extraValues?.contains(pair) == true ? true : nil))
         }
         let notes: TranscriptionShapes.LegacyNotes? = switch extras.notesEncoding {
         case "text"?: .text(e.notes.first ?? "")
@@ -299,6 +328,7 @@ extension EvalCaseConverter {
             columns: zip(extras.columnKeys, e.columns).map { .init(key: $0, printed: $1.heading) },
             servingSize: try e.servingSize.map { .init(value: try number($0.number), unit: $0.unit) },
             servingsPerPack: try e.servingsPerPack.map { .init(value: try number($0.number), approximate: $0.approximate) },
-            values: values, notes: notes, id: evalCase.labelID, transcribedBy: extras.transcribedBy)
+            values: values, notes: notes, id: evalCase.labelID, transcribedBy: extras.transcribedBy,
+            transcriptionCorrections: extras.transcriptionCorrections)
     }
 }

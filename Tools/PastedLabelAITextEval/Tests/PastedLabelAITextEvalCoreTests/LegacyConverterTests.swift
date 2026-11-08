@@ -96,3 +96,43 @@ final class LegacyConverterTests: XCTestCase {
         XCTAssertThrowsError(try EvalCase.decode(try JSONSerialization.data(withJSONObject: object)))
     }
 }
+
+/// The two members A3 found when it first ran the converter on the real files, `extra` on a value
+/// and `transcription_corrections` on the file, on synthetic fixtures only.
+final class LegacyExtraMembersTests: XCTestCase {
+    static let withExtras = Data("""
+    {"id": "tw-dev-synthetic-03", "transcribed_by": "synthetic",
+     "columns": [{"key": "per_serving", "printed": "每份"}],
+     "values": [
+       {"nutrient": "protein", "column": "per_serving", "value": "2", "unit": "公克", "comparator": "="},
+       {"nutrient": "fibre", "column": "per_serving", "value": "0.5", "unit": "公克", "comparator": "=", "extra": true}
+     ],
+     "notes": "synthetic", "transcription_corrections": ["2026-01-01 synthetic: servings approximate"]}
+    """.utf8)
+
+    func metadata() -> EvalCaseConverter.Metadata {
+        .init(set: .taiwanV3Development, tier: nil, copyMethod: "synthetic", textSHA256: LegacyConverterTests.textSHA)
+    }
+
+    func testExtraAndCorrectionsRoundTrip() throws {
+        let original = try JSONDecoder().decode(TranscriptionShapes.TaiwanLegacyTranscription.self, from: Self.withExtras)
+        let evalCase = try EvalCaseConverter.fromTaiwanLegacy(Self.withExtras, metadata: metadata())
+        XCTAssertEqual(evalCase.legacy?.extraValues, ["fibre@per_serving"])
+        XCTAssertEqual(evalCase.legacy?.transcriptionCorrections, ["2026-01-01 synthetic: servings approximate"])
+        XCTAssertEqual(evalCase.fields.count, 2, "an extra value stays a printed field")
+        let decoded = try EvalCase.decode(try evalCase.canonicalJSON())
+        XCTAssertEqual(try EvalCaseConverter.taiwanLegacyTranscription(decoded), original)
+        XCTAssertNoThrow(try EvalCaseConverter.verifyRoundTrip(decoded, source: Self.withExtras))
+    }
+
+    func testAbsentMembersLeaveTheCanonicalBytesUnchanged() throws {
+        let json = String(decoding: try EvalCaseConverter.fromTaiwanLegacy(LegacyConverterTests.strings, metadata: metadata()).canonicalJSON(), as: UTF8.self)
+        XCTAssertFalse(json.contains("extra_values"))
+        XCTAssertFalse(json.contains("transcription_corrections"))
+    }
+
+    func testExtraFalseIsRefused() {
+        let data = Data(String(decoding: Self.withExtras, as: UTF8.self).replacingOccurrences(of: #""extra": true"#, with: #""extra": false"#).utf8)
+        XCTAssertThrowsError(try EvalCaseConverter.fromTaiwanLegacy(data, metadata: metadata()))
+    }
+}
