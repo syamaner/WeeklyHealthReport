@@ -67,7 +67,7 @@ when identity is `same_food`, state is `same_state` or a supported
 
 | Stratum | Allowed combinations | Refused |
 |---|---|---|
-| A1, A5 | any checks with outcome `not_applicable`; the entry is **checked** when no check is `unresolved` | any other outcome |
+| A1, A5 | any checks with outcome `not_applicable`; the entry is **decided** when any check fails or all three pass, and **unresolved** otherwise (no failure, at least one unresolved) | any other outcome |
 | A2 | `merge_ok` only when all three checks pass; `merge_failed` when at least one check fails (other checks may be unresolved); `unresolved` when no check fails and at least one is unresolved | `merge_ok` with a failing or unresolved check; `merge_failed` with no failing check |
 | A3 | `sensible` when the candidate's relationship is accurately represented: identity `same_food`, or a labelled alternative state (`different_state`) or variety (`material_difference`) that never supplies target-state values; `misleading_other_state` when state is `different_state` and it is represented as equivalent; `misleading_close` for a misleading identity or variety; `unresolved` when any check is `unresolved` and nothing is misleading | `sensible` with identity `different_food`; `misleading_other_state` without `different_state` |
 | A4 | `match_missed` only with all three checks passing for the named record, plus a sidecar record of `assessment` `match_available`; `nothing_suitable` with all three checks `unresolved` (there is no record to check) after the documented search; `unresolved` otherwise | `match_missed` without its sidecar record; `nothing_suitable` with any check other than `unresolved` |
@@ -108,8 +108,9 @@ Inputs: the sealed sample, the v2 sheet, the sidecar, the inventory and the `par
 
 Counts, each entry counted at most once per measure:
 
-- **Per stratum:** checked, failed and unresolved entries for identity, state and variety.
-- **A1 and A5:** entries with a wrong identity, state or material variety over checked entries;
+- **Per stratum:** passed, failed and unresolved counts for each of identity, state and variety.
+- **A1 and A5:** entries with a wrong identity, state or material variety over decided entries
+  (so every failed entry is in the denominator, and the share can never exceed one);
   assessed value evidence errors (any `error_*`) over assessed values (`correct` plus `error_*`),
   macro and micro denominators separate. `unresolved`, `missing`, `missing_source_available`,
   `present_unquantified` and `candidate_only` never enter a denominator and are counted on their own.
@@ -177,9 +178,10 @@ other key or string is refused by the same string scan. It adds the v2 Part A fi
 
 - **Responsibilities.** `formats_v2` parses and validates bytes (pure); `score_a_v2` counts and
   builds the exclusion list as data (pure); `bars_v2` holds bars as data with its own judge;
-  `results_v2` writes the allow-listed results; `exclusions` defines `pfd-exclusions-v1`;
-  `pfd_eval_v2.py` is the only v2 module doing file input and output, private-folder checks and
-  seals; `pfd_eval.py` is untouched.
+  `results_v2` builds the allow-listed results bytes and `exclusions` the `pfd-exclusions-v1`
+  bytes (pure); `seals_v2` and `freeze_v2` read and append their own records, as `seals.py` and
+  `freeze.py` do in v1; `pfd_eval_v2.py` does every other file read and write and the
+  private-folder checks; `pfd_eval.py` is untouched.
 - **Dependency direction.** Unchanged: pure modules import nothing from file or network code;
   the entry points import them. Standard library only, run with `python3 -I`; `workspace_guard.py`
   stays the single private-folder guard.
@@ -228,17 +230,15 @@ other key or string is refused by the same string scan. It adds the v2 Part A fi
 
 ## 8. Review record
 
-Revision 2 answers an architecture-gate review (NEEDS WORK) of revision 1: scoring now fails closed
-without `part_a_bars`; `freeze.py` and `seals.py` are named as changed, with an optional freeze key,
-mutually exclusive review seals and exact-file bundles; `bars_v2` has its own judge; unresolved
-means "not final" with closed fields; per-stratum combination tables replace the loose rules; the
-sidecar gains `unresolved`, a full-inventory coverage rule and empty-field rules; `note_ref` is
-removed; the sheet holds initial rows only; the exclusion list is versioned and stored apart;
-results v2 carries the bars choice and not-assessable flags; round-trip tests are listed.
-A local Qodo review of revision 2 then led to three more changes in the same revision: no v1 file
-or `freeze-v1.json` is edited (a separate v2 entry point, `freeze-v2.json` and `seals-v2.txt`
-instead), the A1 unresolved rule is `passes: null` everywhere (no skip-limit equivalent), and the
-seal paths are separate, so a v1 seal can never block the v2 one.
+Revision 2 answers an architecture-gate review (NEEDS WORK) of revision 1 and a local Qodo review.
+As it now stands: scoring fails closed without `part_a_bars`; no v1 file or `freeze-v1.json` is
+edited, and v2 has its own entry point, `freeze-v2.json` and `seals-v2.txt`, so a v1 seal can
+never block the v2 one; `bars_v2` has its own judge; unresolved means "not final" (`passes: null`)
+everywhere, with closed fields; per-stratum combination tables define every outcome and the A1
+denominator; the sidecar has `unresolved`, a full-inventory coverage rule and empty-field rules;
+there is no free-text column; the sheet holds initial rows only; the exclusion list is versioned and
+stored apart; results v2 carries the bars choice and not-assessable flags; round-trip tests are
+listed.
 
 ## 9. For the owner
 
