@@ -187,4 +187,73 @@ final class PastedLabelAITextReaderTests: XCTestCase {
         let usTitle = Self.bilingualTaiwanText.replacingOccurrences(of: "營養標示 ", with: "")
         XCTAssertEqual(read(usTitle, Self.bilingualAnswer(language: "mixed")).declineReasons, ["detector:nutrition_facts_title"])
     }
+
+    // MARK: Revision 11: what prompt-v2's rules rely on in the reader (unchanged by them)
+
+    static let ukServingText = "Typical values\tPer 100g\tPer slice (40g)\tRI*\nEnergy\t1000kJ\t400kJ\t8400kJ\nFat\t5g\t-\t70g"
+
+    static func ukServingAnswer(serving: String, servingHeader: String = "Per slice (40g)", fatPerServing: String = "-") -> String {
+        answer(serving: serving,
+               headers: [("h1", "Per 100g", "per_100g"), ("h2", servingHeader, "per_serving"), ("h3", "RI*", "reference_intake")],
+               rows: [("Energy", "energy_kj", [("h1", "1000kJ"), ("h2", "400kJ"), ("h3", "8400kJ")]),
+                      ("Fat", "fat", [("h1", "5g"), ("h2", fatPerServing), ("h3", "70g")])])
+    }
+
+    /// Rule 1: a per-serving header copied as the serving size is located in the text and read as the
+    /// same quantity the mapping already takes from that header; a count-only serving stays text.
+    func testAServingHeaderCopiedAsTheServingSizeIsLocatedAndReadAsPrinted() throws {
+        let result = read(Self.ukServingText, Self.ukServingAnswer(serving: "Per slice (40g)"))
+        let candidate = try XCTUnwrap(result.candidate)
+        XCTAssertEqual(candidate.servingSize?.decimalText, "40")
+        XCTAssertEqual(candidate.servingSize?.canonicalUnit, "g")
+        XCTAssertEqual(candidate.headers.first { $0.headerID == "h2" }?.servingConversion, "40g")
+        XCTAssertEqual(result.servingLines.map(\.id), ["serving_size"])
+        XCTAssertEqual(result.servingLines.map(\.location), [.found])
+        // The same quantity as v1's reading of the header alone.
+        let headerOnly = try XCTUnwrap(read(Self.ukServingText, Self.ukServingAnswer(serving: "unknown")).candidate)
+        XCTAssertEqual(headerOnly.headers.first { $0.headerID == "h2" }?.servingConversion, "40g")
+        XCTAssertTrue(headerOnly.warnings.contains("serving_quantity_from_header: h2"))
+
+        for header in ["Per 3 nuggets", "PER 1/2 POT"] {
+            let countText = Self.ukServingText.replacingOccurrences(of: "Per slice (40g)", with: header)
+            let count = try XCTUnwrap(read(countText, Self.ukServingAnswer(serving: header, servingHeader: header)).candidate)
+            XCTAssertEqual(count.servingSize?.printedText, header)
+            XCTAssertNil(count.servingSize?.decimalText, "\(header): a count is never a weight")
+            XCTAssertFalse(count.wouldMarkReady, header)
+            XCTAssertTrue(count.warnings.contains("per_serving_without_printed_serving_quantity"), header)
+        }
+    }
+
+    /// Rule 4: a dash copied as printed is a not-read cell, never a value and never 0.
+    func testADashCellIsNotReadAndNeverZero() throws {
+        for dash in ["-", "\u{2013}"] {
+            let text = Self.ukServingText.replacingOccurrences(of: "\t-\t", with: "\t\(dash)\t")
+            let result = read(text, Self.ukServingAnswer(serving: "Per slice (40g)", fatPerServing: dash))
+            let candidate = try XCTUnwrap(result.candidate)
+            XCTAssertFalse(candidate.cells.contains { $0.nutrient == "fat" && $0.headerID == "h2" }, dash)
+            XCTAssertFalse(candidate.cells.contains { $0.decimalText == "0" }, dash)
+            XCTAssertEqual(result.values.first { $0.nutrient == "fat" && $0.headerID == "h2" }?.read, .notRead(.unreadable), dash)
+            XCTAssertFalse(candidate.wouldMarkReady, "a left-out amount, as for unknown")
+        }
+    }
+
+    /// Rule 2: absolute amounts in an `RI*` column are reference intake, never product amounts.
+    func testReferenceIntakeAmountsAreNeverProductAmounts() throws {
+        let text = Self.ukServingText.replacingOccurrences(of: "\t-\t", with: "\t2g\t")
+        let result = read(text, Self.ukServingAnswer(serving: "Per slice (40g)", fatPerServing: "2g"))
+        let candidate = try XCTUnwrap(result.candidate)
+        XCTAssertFalse(candidate.cells.contains { $0.headerID == "h3" })
+        XCTAssertEqual(result.values.filter { $0.headerID == "h3" }.map(\.read), [.notRead(.absoluteReferenceValue), .notRead(.absoluteReferenceValue)])
+        XCTAssertEqual(PastedLabelAITextVocabulary.basis(forHeader: "RI*"), "reference_intake")
+        XCTAssertEqual(PastedLabelAITextVocabulary.basis(forHeader: "your RI*"), "reference_intake")
+    }
+
+    /// Why prompt-v2 has no two-basis header rule: vocabulary v1 reads `per 100g/ml` as per 100 g
+    /// alone, so a per_100g basis for it agrees and raises no attention item.
+    func testATwoBasisHeaderIsNotAttentionUnderVocabularyV1() {
+        XCTAssertEqual(PastedLabelAITextVocabulary.basis(forHeader: "per 100g/ml"), "per_100g")
+        XCTAssertEqual(PastedLabelAITextVocabulary.checkHeader(printedText: "per 100g/ml", basis: "per_100g"), .agrees)
+        XCTAssertEqual(PastedLabelAITextVocabulary.checkHeader(printedText: "per 100g/ml", basis: "per_100ml"), .mismatch)
+        XCTAssertEqual(PastedLabelAITextVocabulary.checkHeader(printedText: "per 100g/100ml", basis: "per_100g"), .unknown)
+    }
 }
