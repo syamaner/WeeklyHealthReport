@@ -11,7 +11,36 @@
 'use strict';
 
 const { execFile } = require('node:child_process');
+const fs = require('node:fs');
 const path = require('node:path');
+
+// The sealed held-out set (T7) is never read by a tuning run: a data directory or file naming it,
+// as given or after resolving symbolic links, is refused, and so is a file that resolves outside
+// the resolved data directory. `send` refuses the same at the point of sending (it is passed
+// `--data`); this check stops the call before the child is started. A file that does not exist is
+// left to `send`, which refuses it as unreadable. Returns the refusal, or null.
+const SEALED = 'uk-english-v2';
+const SEALED_REFUSAL = 'the sealed held-out set (uk-english-v2) is never used by a tuning run (T7)';
+function dataFileRefusal(data, file) {
+  if (data.includes(SEALED) || file.includes(SEALED)) return SEALED_REFUSAL;
+  let directory;
+  try {
+    directory = fs.realpathSync(data);
+  } catch (e) {
+    return 'the data directory must exist';
+  }
+  if (directory.includes(SEALED)) return SEALED_REFUSAL;
+  if (!fs.lstatSync(file, { throwIfNoEntry: false })) return null;
+  let resolved;
+  try {
+    resolved = fs.realpathSync(file);
+  } catch (e) {
+    return `${path.basename(file)} does not resolve`;
+  }
+  if (resolved.includes(SEALED)) return SEALED_REFUSAL;
+  if (!resolved.startsWith(directory + path.sep)) return `${path.basename(file)} resolves outside the data directory`;
+  return null;
+}
 
 // The closed set of instructions `send --prompt-version` accepts (revision 11).
 const PROMPT_VERSIONS = ['prompt-v1', 'prompt-v2'];
@@ -77,6 +106,9 @@ class PastedLabelAITextSendProvider {
     const bin = required('PASTED_LABEL_AI_TEXT_EVAL_BIN');
     const data = required('PASTED_LABEL_AI_TEXT_EVAL_DATA');
     const run = required('PASTED_LABEL_AI_TEXT_EVAL_RUN');
+    const text = path.join(data, 'texts', `${label}.txt`);
+    const refusal = dataFileRefusal(data, text);
+    if (refusal) return { error: refusal };
     let link;
     try {
       link = connection();
@@ -84,7 +116,7 @@ class PastedLabelAITextSendProvider {
       return { error: e.message };
     }
     const args = [
-      'send', '--label-id', label, '--text', path.join(data, 'texts', `${label}.txt`),
+      'send', '--label-id', label, '--text', text, '--data', data,
       '--route', route, '--cell', cell,
       ...(promptVersion === undefined ? [] : ['--prompt-version', promptVersion]),
       ...(freshRun === undefined ? [] : ['--fresh-run', freshRun]),
@@ -140,3 +172,4 @@ class PastedLabelAITextSendProvider {
 
 module.exports = PastedLabelAITextSendProvider;
 module.exports.connection = connection;
+module.exports.dataFileRefusal = dataFileRefusal;

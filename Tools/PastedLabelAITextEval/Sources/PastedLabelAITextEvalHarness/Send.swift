@@ -55,14 +55,18 @@ public enum SendCommand {
         public let promptVersion: OpenRouterPastedLabelAITextRequest.PromptVersion
         /// The fresh run this tap belongs to (revision 16), nil for the default run.
         public let freshRun: String?
+        /// The data directory the text must lie in after resolving symbolic links (`--data`, passed
+        /// by provider.js), or nil when the caller names none; the sealed set is refused either way.
+        public let dataDirectory: URL?
 
         public init(labelID: String, textURL: URL, route: PastedLabelAITextRoute.Route, cell: String, ledgerURL: URL, cacheDirectory: URL,
                     connection: Connection, cellStop: Decimal = 5, programmeStop: Decimal = 25, reasoningBilledSeparately: Bool = true,
                     timeout: TimeInterval = 60, retry: SendRetryPolicy? = nil,
                     promptVersion: OpenRouterPastedLabelAITextRequest.PromptVersion = OpenRouterPastedLabelAITextRequest.defaultPromptVersion,
-                    freshRun: String? = nil) {
+                    freshRun: String? = nil, dataDirectory: URL? = nil) {
             self.promptVersion = promptVersion
             self.freshRun = freshRun
+            self.dataDirectory = dataDirectory
             self.labelID = labelID; self.textURL = textURL; self.route = route; self.cell = cell; self.ledgerURL = ledgerURL
             self.cacheDirectory = cacheDirectory; self.connection = connection; self.cellStop = cellStop
             self.programmeStop = programmeStop; self.reasoningBilledSeparately = reasoningBilledSeparately; self.timeout = timeout
@@ -147,9 +151,11 @@ public enum SendCommand {
     }
 
     public enum Failure: Error, CustomStringConvertible {
-        case unreadableText, textRefused(String), catalogue(String), cache(String), badFreshRun(String)
+        case unreadableText, textRefused(String), catalogue(String), cache(String), badFreshRun(String), sealedSet, outsideData
         public var description: String {
             switch self {
+            case .sealedSet: "the sealed held-out set (uk-english-v2) is never used by a tuning run (T7); nothing was reserved or sent"
+            case .outsideData: "the text file resolves outside the data directory; nothing was reserved or sent"
             case let .badFreshRun(name): "bad fresh run name \(name): a lower-case letter, then up to 15 lower-case letters, digits or single hyphens"
             case .unreadableText: "the text file is not UTF-8"
             case let .textRefused(reason): "the text was refused before any request: \(reason)"
@@ -161,10 +167,40 @@ public enum SendCommand {
 
     static func timestamp(_ date: Date = Date()) -> String { ISO8601DateFormatter().string(from: date) }
 
+    /// The sealed held-out set's directory name (T7): a path holding it is never read by a tuning run.
+    static let sealedSetName = "uk-english-v2"
+
+    /// The path with every symbolic link resolved (`realpath(3)`), or nil when it does not resolve.
+    static func resolved(_ path: String) -> String? {
+        guard let pointer = realpath(path, nil) else { return nil }
+        defer { free(pointer) }
+        return String(cString: pointer)
+    }
+
+    /// The text file `send` may read, checked before it is opened: the path as given is refused
+    /// first if it names the sealed set, so a refused path is never resolved; then the resolved path
+    /// is refused if it names the sealed set or, when a data directory is known, lies outside the
+    /// resolved data directory. A refusal reserves nothing and sends nothing.
+    static func checkedTextPath(_ options: Options) throws -> String {
+        let given = options.textURL.path
+        if given.contains(sealedSetName) { throw Failure.sealedSet }
+        if let data = options.dataDirectory, data.path.contains(sealedSetName) { throw Failure.sealedSet }
+        guard let file = resolved(given) else { throw Failure.unreadableText }
+        if file.contains(sealedSetName) { throw Failure.sealedSet }
+        if let data = options.dataDirectory {
+            guard let directory = resolved(data.path) else { throw Failure.outsideData }
+            if directory.contains(sealedSetName) { throw Failure.sealedSet }
+            guard file.hasPrefix(directory.hasSuffix("/") ? directory : directory + "/") else { throw Failure.outsideData }
+        }
+        return file
+    }
+
     public static func run(_ options: Options) async throws -> Output {
         // The run name is checked before the text is read or anything is built, reserved or sent.
         if let name = options.freshRun, !isFreshRunName(name) { throw Failure.badFreshRun(name) }
-        guard let textData = FileManager.default.contents(atPath: options.textURL.path), let text = String(data: textData, encoding: .utf8) else {
+        // The text path is checked, symbolic links resolved, before it is read (T7).
+        let textPath = try checkedTextPath(options)
+        guard let textData = FileManager.default.contents(atPath: textPath), let text = String(data: textData, encoding: .utf8) else {
             throw Failure.unreadableText
         }
         let request = try OpenRouterPastedLabelAITextRequest(route: options.route, promptVersion: options.promptVersion)

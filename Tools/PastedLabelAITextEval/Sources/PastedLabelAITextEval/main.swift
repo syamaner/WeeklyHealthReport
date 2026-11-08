@@ -8,7 +8,7 @@ import PastedLabelAITextEvalHarness
 //
 //     PastedLabelAITextEval send --label-id ID --text FILE --route CANDIDATE --cell CELL \
 //         --ledger FILE --cache DIR (--fake-transport DIR | --live) [--prompt-version prompt-v1|prompt-v2]
-//         [--fresh-run NAME] [--cell-stop-usd N<=5] [--programme-stop-usd N<=25]
+//         [--fresh-run NAME] [--data DIR] [--cell-stop-usd N<=5] [--programme-stop-usd N<=25]
 //     PastedLabelAITextEval score --case FILE --text FILE --send FILE|-
 //     PastedLabelAITextEval convert --in FILE --set SET --copy-method TEXT --text-sha256 HEX [--tier T] [--layout-shape SHAPE] [--label-id ID]
 //     PastedLabelAITextEval convert-legacy --in FILE --copy-method TEXT --text-sha256 HEX [--layout-shape SHAPE] [--label-id ID]
@@ -28,7 +28,10 @@ import PastedLabelAITextEvalHarness
 // the instruction (revision 11): `prompt-v1`, the app's, by default; it is recorded in the output.
 // `--fresh-run NAME` (revision 16) sends the same request body again for a noise measurement: it
 // never reads the default cache entry, keeps its own entry under the request SHA-256 and NAME, and
-// is reserved, retried and settled like any tap; NAME is recorded as `fresh_run`.
+// is reserved, retried and settled like any tap; NAME is recorded as `fresh_run`. Before the text
+// is read, a text path naming the sealed held-out set (`uk-english-v2`) is refused, as given and
+// after resolving symbolic links, and with `--data DIR` (provider.js passes its data directory) a
+// text that resolves outside DIR is refused too; a refusal reserves nothing and sends nothing.
 
 func fail(_ message: String, code: Int32 = 2) -> Never {
     FileHandle.standardError.write(Data((message + "\n").utf8))
@@ -65,7 +68,7 @@ let given = options(arguments.dropFirst(), flags: command == "send" ? ["--live"]
 switch command {
 case "send":
     let allowed: Set<String> = ["--label-id", "--text", "--route", "--cell", "--ledger", "--cache", "--fake-transport", "--live",
-                                "--cell-stop-usd", "--programme-stop-usd", "--prompt-version", "--fresh-run"]
+                                "--cell-stop-usd", "--programme-stop-usd", "--prompt-version", "--fresh-run", "--data"]
     if let unknown = given.keys.first(where: { !allowed.contains($0) }) { fail("unknown option \(unknown)") }
     // Exactly one connection, and for --live a well-formed key in the environment, before anything else.
     let choice: SendTransportChoice
@@ -104,7 +107,7 @@ case "send":
         let output = try await SendCommand.run(.init(labelID: labelID, textURL: path(text), route: route, cell: cell, ledgerURL: path(ledger),
                                                      cacheDirectory: path(cache), connection: connection, cellStop: cellStop,
                                                      programmeStop: programmeStop, promptVersion: promptVersion,
-                                                     freshRun: given["--fresh-run"]))
+                                                     freshRun: given["--fresh-run"], dataDirectory: given["--data"].map(path)))
         printJSON(output)
         if output.attempt.hasPrefix("refused:") { exit(3) }
     } catch {

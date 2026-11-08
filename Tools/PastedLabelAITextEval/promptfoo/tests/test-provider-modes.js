@@ -159,6 +159,53 @@ async function check(name, body) {
       assert.equal(result.output, undefined);
     }
   });
+  // Symbolic links inside a data directory: into a temporary directory named `uk-english-v2`
+  // (created here, never the sealed set) and to a file outside the data directory.
+  const data = path.join(dir, 'data');
+  const sealed = path.join(dir, 'held', 'uk-english-v2');
+  fs.mkdirSync(path.join(data, 'texts'), { recursive: true });
+  fs.mkdirSync(path.join(sealed, 'texts'), { recursive: true });
+  fs.writeFileSync(path.join(sealed, 'texts', 'held-01.txt'), 'synthetic stand-in\n');
+  fs.writeFileSync(path.join(dir, 'other.txt'), 'Fat 5g\n');
+  fs.writeFileSync(path.join(data, 'texts', 'uk-inside.txt'), 'Fat 5g\n');
+  fs.symlinkSync(path.join(sealed, 'texts', 'held-01.txt'), path.join(data, 'texts', 'uk-linked-sealed.txt'));
+  fs.symlinkSync(path.join(dir, 'other.txt'), path.join(data, 'texts', 'uk-linked-outside.txt'));
+  fs.symlinkSync(sealed, path.join(dir, 'innocent'));
+  const live = { PASTED_LABEL_AI_TEXT_EVAL_LIVE: '1', OPENROUTER_API_KEY: KEY };
+  await check('a text linked into the sealed set is refused without calling send, in both modes', async () => {
+    for (const mode of [fake, live]) {
+      const result = await call({ ...mode, PASTED_LABEL_AI_TEXT_EVAL_DATA: data }, {}, 'uk-linked-sealed');
+      assert.match(result.error, /sealed held-out set/);
+      assert.equal(result.output, undefined);
+    }
+  });
+  await check('a data directory naming or linked to the sealed set is refused without calling send', async () => {
+    for (const where of [sealed, path.join(dir, 'innocent')]) {
+      const result = await call({ ...fake, PASTED_LABEL_AI_TEXT_EVAL_DATA: where }, {}, 'held-01');
+      assert.match(result.error, /sealed held-out set/, where);
+      assert.equal(result.output, undefined);
+    }
+  });
+  await check('a text linked outside the data directory is refused without calling send', async () => {
+    const result = await call({ ...live, PASTED_LABEL_AI_TEXT_EVAL_DATA: data }, {}, 'uk-linked-outside');
+    assert.match(result.error, /resolves outside the data directory/);
+    assert.equal(result.output, undefined);
+  });
+  await check('a text inside the data directory is sent with --data naming that directory', async () => {
+    const result = await call({ ...fake, PASTED_LABEL_AI_TEXT_EVAL_DATA: data }, {}, 'uk-inside');
+    const send = JSON.parse(result.output);
+    assert.equal(send.args[send.args.indexOf('--data') + 1], data);
+    assert.equal(send.args[send.args.indexOf('--text') + 1], path.join(data, 'texts', 'uk-inside.txt'));
+  });
+  await check('assert.js refuses the same paths before scoring', async () => {
+    const assertion = require('../assert.js');
+    setEnv({ PASTED_LABEL_AI_TEXT_EVAL_DATA: data });
+    for (const label of ['uk-linked-sealed', 'uk-linked-outside']) {
+      const verdict = assertion('{}', { vars: { label_id: label } });
+      assert.equal(verdict.pass, false, label);
+      assert.match(verdict.reason, /sealed held-out set|resolves outside the data directory/, label);
+    }
+  });
   for (const name of Object.keys(process.env)) delete process.env[name];
   Object.assign(process.env, saved);
   fs.rmSync(dir, { recursive: true, force: true });

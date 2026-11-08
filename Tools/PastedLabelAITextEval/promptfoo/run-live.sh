@@ -37,11 +37,24 @@ data="$3"
 repo="$(cd -P "$(git -C "$here" rev-parse --show-toplevel)" && pwd -P)"
 if [[ ! -f "$config" ]]; then echo "the config must be an existing file" >&2; exit 2; fi
 config="$(cd -P "$(dirname "$config")" && pwd -P)/$(basename "$config")"
+# The held-out refusal comes first, on the path as given, so a refused path is never resolved (T7).
+case "$data" in *uk-english-v2*) echo "the sealed held-out set is never used by a tuning run (T7)" >&2; exit 2 ;; esac
 if [[ ! -d "$data" ]]; then echo "the data directory must exist" >&2; exit 2; fi
 data="$(cd -P "$data" && pwd -P)"
 case "$data/" in "$repo"/*) echo "the data directory must be outside the repository (T6)" >&2; exit 2 ;; esac
 case "$data/" in */uk-english-v2/*) echo "the sealed held-out set is never used by a tuning run (T7)" >&2; exit 2 ;; esac
 if [[ ! -d "$data/texts" || ! -d "$data/cases" ]]; then echo "the data directory must hold texts/ and cases/" >&2; exit 2; fi
+# Every text and case file, resolved: one naming the sealed set, as given or resolved, or resolving
+# outside the data directory (a symbolic link inside an approved directory) is refused. provider.js,
+# assert.js and `send --data` refuse the same per call; this refuses the whole run before it starts.
+shopt -s nullglob
+for file in "$data"/texts/* "$data"/cases/*; do
+  case "$file" in *uk-english-v2*) echo "the sealed held-out set is never used by a tuning run (T7)" >&2; exit 2 ;; esac
+  resolved="$(realpath "$file" 2>/dev/null)" || { echo "${file#"$data"/} does not resolve" >&2; exit 2; }
+  case "$resolved" in *uk-english-v2*) echo "the sealed held-out set is never used by a tuning run (T7)" >&2; exit 2 ;; esac
+  case "$resolved" in "$data"/*) ;; *) echo "${file#"$data"/} resolves outside the data directory" >&2; exit 2 ;; esac
+done
+shopt -u nullglob
 if [[ -z "${OPENROUTER_API_KEY:-}" ]]; then
   echo "OPENROUTER_API_KEY must be set: a live run reads the key from the environment only (T4)" >&2; exit 2
 fi
