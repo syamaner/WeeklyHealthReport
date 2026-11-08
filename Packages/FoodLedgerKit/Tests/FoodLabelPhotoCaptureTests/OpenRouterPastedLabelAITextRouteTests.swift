@@ -64,6 +64,65 @@ final class OpenRouterPastedLabelAITextRouteTests: XCTestCase {
         XCTAssertEqual(try request().body(text), body, "reproducible bytes")
     }
 
+    // MARK: Revision 11: the prompt version
+
+    func testThePromptVersionsAreTheClosedPinnedSetAndV1IsTheDefault() throws {
+        typealias Request = OpenRouterPastedLabelAITextRequest
+        XCTAssertEqual(Request.PromptVersion.allCases.map(\.rawValue), ["prompt-v1", "prompt-v2"])
+        XCTAssertEqual(Request.defaultPromptVersion, .v1)
+        XCTAssertEqual(try request().promptVersion, .v1)
+        // The static values are v1's, byte for byte as before revision 11.
+        XCTAssertEqual(Request.promptVersion, "prompt-v1")
+        XCTAssertEqual(Request.instructionVersion, "pasted-label-ai-text-instruction-v1")
+        XCTAssertEqual(Request.instructionResource, "pasted-label-ai-text-instruction-v1.txt")
+        XCTAssertEqual(Request.instructionSHA256, "0773427c91e061638c85a588226f1ffaab0708901dda5d2b64456954a869cba6")
+        let digester = SHA256Digester()
+        for version in Request.PromptVersion.allCases {
+            let instruction = try XCTUnwrap(OpenRouterLabelPhotoRequest.resource(version.instructionResource), version.rawValue)
+            XCTAssertEqual(try digester.sha256(instruction).value, version.instructionSHA256, version.rawValue)
+            XCTAssertTrue(String(decoding: instruction, as: UTF8.self).hasPrefix("\(version.instructionVersion) (\(version.rawValue), text route"),
+                          version.rawValue)
+        }
+        XCTAssertEqual(Request.PromptVersion.v2.instructionSHA256, "3ea63efb3f1fc1fff22402941de021c999bdead05438fe45333dc1dcc31ab513")
+    }
+
+    /// The v2 body: pinned bytes, and only the system message's content differs from v1's.
+    func testTheV2BodyDiffersFromV1OnlyInTheInstruction() throws {
+        let text = "Typical values Per 100g\nFat 9.5g"
+        let v1 = try request().body(text)
+        let v2Request = try OpenRouterPastedLabelAITextRequest(route: Self.route, promptVersion: .v2)
+        XCTAssertEqual(v2Request.promptVersion, .v2)
+        let v2 = try v2Request.body(text)
+        XCTAssertEqual(SHA256Digester().sha256Hex(v2), "3403dae8cec7b39f19677ae35f4be3da619e7adcd0041842d08d4d546ae32f42")
+        XCTAssertNotEqual(v1, v2)
+        var one = try XCTUnwrap(JSONSerialization.jsonObject(with: v1) as? [String: Any])
+        var two = try XCTUnwrap(JSONSerialization.jsonObject(with: v2) as? [String: Any])
+        let oneMessages = try XCTUnwrap(one["messages"] as? [[String: Any]])
+        let twoMessages = try XCTUnwrap(two["messages"] as? [[String: Any]])
+        XCTAssertEqual(twoMessages.count, 2)
+        XCTAssertEqual(twoMessages[0]["role"] as? String, "system")
+        XCTAssertTrue((twoMessages[0]["content"] as? String)?.hasPrefix("pasted-label-ai-text-instruction-v2 (prompt-v2") ?? false)
+        XCTAssertNotEqual(oneMessages[0]["content"] as? String, twoMessages[0]["content"] as? String)
+        XCTAssertEqual(twoMessages[1] as NSDictionary, oneMessages[1] as NSDictionary, "the same user message")
+        // With the instruction removed, the two bodies are identical: the schema, the provider block
+        // (one endpoint, no fallbacks, data collection denied, ZDR), the limits and the usage report.
+        one["messages"] = [oneMessages[1]]
+        two["messages"] = [twoMessages[1]]
+        XCTAssertEqual(one as NSDictionary, two as NSDictionary)
+        let provider = try XCTUnwrap(two["provider"] as? [String: Any])
+        XCTAssertEqual(provider["allow_fallbacks"] as? Bool, false)
+        XCTAssertEqual(provider["data_collection"] as? String, "deny")
+        XCTAssertEqual(provider["only"] as? [String], ["google-vertex/us"])
+        XCTAssertGreaterThan(v2Request.promptTokenBound(text), try request().promptTokenBound(text), "W follows the longer instruction")
+        // The key is never in a v2 body either.
+        let http = try v2Request.httpRequest("Fat 5g", key: Self.key)
+        XCTAssertEqual(http.headers["Authorization"], "Bearer " + Self.key)
+        XCTAssertNil(try XCTUnwrap(http.body).range(of: Data(Self.key.utf8)))
+        XCTAssertThrowsError(try v2Request.httpRequest("Fat 5g " + Self.key, key: Self.key)) {
+            XCTAssertEqual($0 as? OpenRouterPastedLabelAITextRequest.BuildError, .keyInBody)
+        }
+    }
+
     func testTheHTTPRequestCarriesTheKeyOnlyInItsHeader() throws {
         let http = try request().httpRequest("Fat 5g", key: Self.key)
         XCTAssertEqual(http.method, "POST")

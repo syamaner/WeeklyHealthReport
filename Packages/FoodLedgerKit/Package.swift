@@ -75,7 +75,9 @@ let package = Package(
             dependencies: ["FoodLedgerApplication", "FoodLedgerDomain", "FoodLabelPhotoReading"],
             resources: [.copy("Resources/label-photo-instruction-v1.txt"), .copy("Resources/label-photo-wire-schema-v1.json"),
                         // Pasted label AI text route (#416 A2): prompt-v1 and the text wire schema, pinned by SHA-256.
-                        .copy("Resources/pasted-label-ai-text-instruction-v1.txt"), .copy("Resources/pasted-label-ai-text-wire-schema-v1.json")]
+                        .copy("Resources/pasted-label-ai-text-instruction-v1.txt"), .copy("Resources/pasted-label-ai-text-wire-schema-v1.json"),
+                        // #416 A3 (revision 11): prompt-v2, selectable by the evaluation tool only; the app sends prompt-v1.
+                        .copy("Resources/pasted-label-ai-text-instruction-v2.txt")]
         ),
         // Pasted label AI text reader (#416 A2, docs/pasted-label-ai-text-v1.md 11.1): pure (Foundation,
         // the application and domain, and the frozen parser rules): the text wire schema, the text
