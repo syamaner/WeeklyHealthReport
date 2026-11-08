@@ -26,8 +26,8 @@ below serves that, and enrichment work is judged by it:
   record describes and the method (direct, derived, or carried from a close variant), so any value
   can be revisited and improved later. Estimates stay labelled as estimates.
 - **Web search is an allowed enrichment route** (owner, 8 November 2026), alongside the local
-  corpora and Open Food Facts. A search carries only a food description (title, brand, variety,
-  state), never receipt or personal data. A value taken from a web page records the URL, the date
+  corpora and Open Food Facts, when the owner asks for it (rule 4). A search carries only a food
+  description (title, brand, variety, state), never receipt or personal data. A value taken from a web page records the URL, the date
   read and the state the page describes, and stays `page_unconfirmed` until the owner confirms it
   (rule 7). Prefer national composition databases and manufacturer pages over aggregator sites.
 - **Identity and state first.** The right food in the right state (as sold, raw, cooked, drained,
@@ -67,7 +67,11 @@ below serves that, and enrichment work is judged by it:
    search query passes `http_client.safe_query` (deny patterns plus a known food word, or Chinese
    text containing a known Chinese food fragment) **and needs the owner's approval of that exact query**
    (step 5). Barcode lookups send only digits from Open Food Facts' own results and need no separate
-   approval. A product page the owner names is read once with the WebFetch tool. What you
+   approval. A product page the owner names is read once with the WebFetch tool. Web search runs
+  only when the owner has asked for it in the current session, under the Goal section's limits and
+  as recorded in `docs/privacy-and-egress.md`: a query is a food description built from sanitised
+  catalogue titles or generic names that would pass `http_client.safe_query`, never text from
+  receipts, notes or photos. What you
    read reaches your model provider: the owner's notes, label and receipt photos, CSV header rows,
    product pages the owner names, and the food titles you map or show the owner for approval; read
    them only when the owner asks.
