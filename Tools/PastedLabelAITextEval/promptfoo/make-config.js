@@ -7,7 +7,9 @@
 // Usage: node make-config.js --data DIR --candidates ID[,ID...] --prompt-version V --suite NAME [--fresh-run RUN] --out FILE
 //
 // - DATA holds texts/ and cases/. A path holding `uk-english-v2` (the sealed held-out set, T7) is
-//   refused, before and after resolving symbolic links, and nothing in it is opened.
+//   refused, before and after resolving symbolic links, and nothing in it is opened. Each text and
+//   case file is checked the same way and must resolve inside the resolved data directory, so a
+//   symbolic link inside an approved directory never reaches the sealed set or any other file.
 // - Each provider's cell is `<prompt-version>__<candidate-id>__<suite>`, the key of its $5 stop in
 //   the spend ledger. The candidate IDs are checked by `send` against the closed route set.
 // - The prompt version is one the shipped request builder can send (revision 11): `v1` (`prompt-v1`,
@@ -18,7 +20,8 @@
 //   provider.js passes RUN to `send --fresh-run`, which sends the same request bodies again under
 //   their own cache entries. RUN is a lower-case letter, then up to 15 lower-case letters, digits or
 //   single hyphens (`r2`, `r3`).
-// - FILE must be outside the repository; this script writes nothing else.
+// - FILE must be outside the repository, after resolving its directory, and may not be a symbolic
+//   link; this script writes nothing else.
 'use strict';
 
 const fs = require('node:fs');
@@ -51,19 +54,37 @@ function parse(argv) {
 }
 
 const SEALED = 'uk-english-v2';
+const SEALED_REFUSAL = 'the sealed held-out set (uk-english-v2) is never used by a tuning run (T7)';
+
+// One text or case file, checked before anything is written: the path as given is refused first if
+// it names the sealed set, so a refused path is never resolved; then its symbolic links are
+// resolved, and the file is refused if the resolved path names the sealed set or lies outside the
+// resolved data directory (a link inside an approved directory never reaches another set).
+function dataFile(file, data, name) {
+  if (file.includes(SEALED)) fail(SEALED_REFUSAL);
+  let resolved;
+  try {
+    resolved = fs.realpathSync(file);
+  } catch (e) {
+    fail(`${name} is missing`);
+  }
+  if (resolved.includes(SEALED)) fail(SEALED_REFUSAL);
+  if (!resolved.startsWith(data + path.sep)) fail(`${name} resolves outside the data directory (${data})`);
+  if (!fs.statSync(resolved).isFile()) fail(`${name} is not a file`);
+}
 
 function main() {
   const options = parse(process.argv.slice(2));
   const here = __dirname;
   // The held-out refusal comes first, on the path as given, so a refused path is never resolved or read.
-  if (options['--data'].includes(SEALED)) fail('the sealed held-out set (uk-english-v2) is never used by a tuning run (T7)');
+  if (options['--data'].includes(SEALED)) fail(SEALED_REFUSAL);
   let data;
   try {
     data = fs.realpathSync(options['--data']);
   } catch (e) {
     fail('the data directory must exist');
   }
-  if (data.includes(SEALED)) fail('the sealed held-out set (uk-english-v2) is never used by a tuning run (T7)');
+  if (data.includes(SEALED)) fail(SEALED_REFUSAL);
   for (const sub of ['texts', 'cases']) {
     if (!fs.statSync(path.join(data, sub), { throwIfNoEntry: false })?.isDirectory()) fail(`the data directory must hold ${sub}/`);
   }
@@ -84,19 +105,25 @@ function main() {
 
   const repo = fs.realpathSync(execFileSync('git', ['-C', here, 'rev-parse', '--show-toplevel']).toString().trim());
   const outPath = path.resolve(options['--out']);
+  // An existing output that is a symbolic link is refused, so the write can never follow it (into
+  // the repository or anywhere else); the target checked and written is the resolved directory
+  // plus the file name, and it is opened with O_NOFOLLOW.
+  if (fs.lstatSync(outPath, { throwIfNoEntry: false })?.isSymbolicLink()) fail('the output file may not be a symbolic link');
   let outDir;
   try {
     outDir = fs.realpathSync(path.dirname(outPath));
   } catch (e) {
     fail("the output file's directory must exist");
   }
-  if ((outDir + path.sep).startsWith(repo + path.sep)) fail(`the config must be written outside the repository (${repo})`);
+  const outTarget = path.join(outDir, path.basename(outPath));
+  if ((outTarget + path.sep).startsWith(repo + path.sep)) fail(`the config must be written outside the repository (${repo})`);
 
   const labels = fs.readdirSync(path.join(data, 'cases')).filter((name) => name.endsWith('.json')).map((name) => name.slice(0, -5)).sort();
   if (labels.length === 0) fail('cases/ holds no case');
   for (const label of labels) {
     if (!NAME.test(label)) fail(`bad case file name ${label}.json`);
-    if (!fs.statSync(path.join(data, 'texts', `${label}.txt`), { throwIfNoEntry: false })?.isFile()) fail(`texts/${label}.txt is missing`);
+    dataFile(path.join(data, 'cases', `${label}.json`), data, `cases/${label}.json`);
+    dataFile(path.join(data, 'texts', `${label}.txt`), data, `texts/${label}.txt`);
   }
 
   const promptVersion = PROMPT_VERSIONS[version];
@@ -120,7 +147,14 @@ function main() {
     '',
   ].join('\n');
   // JSON is YAML: promptfoo reads the file as YAML, and the comments above stay readable.
-  fs.writeFileSync(outPath, header + JSON.stringify(config, null, 2) + '\n');
+  let descriptor;
+  try {
+    descriptor = fs.openSync(outTarget, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_TRUNC | fs.constants.O_NOFOLLOW, 0o644);
+  } catch (e) {
+    fail(`the config could not be written: ${e.code || e.message}`);
+  }
+  fs.writeFileSync(descriptor, header + JSON.stringify(config, null, 2) + '\n');
+  fs.closeSync(descriptor);
   process.stdout.write(`${outPath}: ${candidates.length} providers x ${labels.length} tests\n`);
 }
 

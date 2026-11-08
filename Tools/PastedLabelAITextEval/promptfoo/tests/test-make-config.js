@@ -137,6 +137,91 @@ check('a fresh run outside the grammar is refused, and nothing is written', () =
   assert.equal(run([...args(), '--fresh-run', 'r2', '--fresh-run', 'r3']).code, 2);
 });
 
+// A tuning data directory whose files are symbolic links: one into a temporary directory named
+// `uk-english-v2` (created here, never the sealed set) and one to a file outside the directory.
+function linkedData(name, link) {
+  const data = path.join(tmp, name);
+  fs.mkdirSync(path.join(data, 'texts'), { recursive: true });
+  fs.mkdirSync(path.join(data, 'cases'), { recursive: true });
+  fs.writeFileSync(path.join(data, 'cases', 'x-01.json'), '{}');
+  fs.writeFileSync(path.join(data, 'texts', 'x-01.txt'), 'Fat 5g\n');
+  fs.writeFileSync(path.join(data, 'cases', 'x-02.json'), '{}');
+  link(data);
+  return data;
+}
+fs.writeFileSync(path.join(sealed, 'texts', 'held-01.txt'), 'synthetic stand-in\n');
+fs.writeFileSync(path.join(sealed, 'cases', 'held-01.json'), '{}');
+const outside = path.join(tmp, 'outside');
+fs.mkdirSync(outside, { recursive: true });
+fs.writeFileSync(path.join(outside, 'other.txt'), 'Fat 5g\n');
+fs.writeFileSync(path.join(outside, 'other.json'), '{}');
+
+check('a text file linked into the sealed set is refused, and nothing is written', () => {
+  const data = linkedData('linked-text-sealed', (d) => fs.symlinkSync(path.join(sealed, 'texts', 'held-01.txt'), path.join(d, 'texts', 'x-02.txt')));
+  if (fs.existsSync(out)) fs.unlinkSync(out);
+  const r = run(args({ '--data': data }));
+  assert.equal(r.code, 2);
+  assert.match(r.stderr, /sealed held-out set/);
+  assert.equal(fs.existsSync(out), false);
+});
+check('a case file linked into the sealed set is refused, and nothing is written', () => {
+  const data = linkedData('linked-case-sealed', (d) => {
+    fs.unlinkSync(path.join(d, 'cases', 'x-02.json'));
+    fs.symlinkSync(path.join(sealed, 'cases', 'held-01.json'), path.join(d, 'cases', 'x-02.json'));
+    fs.writeFileSync(path.join(d, 'texts', 'x-02.txt'), 'Fat 5g\n');
+  });
+  if (fs.existsSync(out)) fs.unlinkSync(out);
+  const r = run(args({ '--data': data }));
+  assert.equal(r.code, 2);
+  assert.match(r.stderr, /sealed held-out set/);
+  assert.equal(fs.existsSync(out), false);
+});
+check('a text or case file linked outside the data directory is refused, and nothing is written', () => {
+  const text = linkedData('linked-text-outside', (d) => fs.symlinkSync(path.join(outside, 'other.txt'), path.join(d, 'texts', 'x-02.txt')));
+  const kase = linkedData('linked-case-outside', (d) => {
+    fs.unlinkSync(path.join(d, 'cases', 'x-02.json'));
+    fs.symlinkSync(path.join(outside, 'other.json'), path.join(d, 'cases', 'x-02.json'));
+    fs.writeFileSync(path.join(d, 'texts', 'x-02.txt'), 'Fat 5g\n');
+  });
+  for (const data of [text, kase]) {
+    if (fs.existsSync(out)) fs.unlinkSync(out);
+    const r = run(args({ '--data': data }));
+    assert.equal(r.code, 2, data);
+    assert.match(r.stderr, /resolves outside the data directory/, data);
+    assert.equal(fs.existsSync(out), false, data);
+  }
+});
+check('a link that stays inside the data directory is accepted', () => {
+  const data = linkedData('linked-inside', (d) => fs.symlinkSync(path.join(d, 'texts', 'x-01.txt'), path.join(d, 'texts', 'x-02.txt')));
+  if (fs.existsSync(out)) fs.unlinkSync(out);
+  const r = run(args({ '--data': data }));
+  assert.equal(r.code, 0, r.stderr);
+});
+check('an output path that is a symbolic link is refused and its target is untouched', () => {
+  // A temporary file stands in for a repository file; the real repository is never a link target.
+  const standIn = path.join(tmp, 'stand-in-repository-file.swift');
+  fs.writeFileSync(standIn, 'unchanged\n');
+  const link = path.join(tmp, 'linked-config.yaml');
+  fs.symlinkSync(standIn, link);
+  const r = run(args({ '--out': link }));
+  assert.equal(r.code, 2);
+  assert.match(r.stderr, /may not be a symbolic link/);
+  assert.equal(fs.readFileSync(standIn, 'utf8'), 'unchanged\n');
+  // A dangling link is refused too, and nothing is created at its target.
+  const dangling = path.join(tmp, 'dangling-config.yaml');
+  fs.symlinkSync(path.join(tmp, 'never-created.yaml'), dangling);
+  assert.equal(run(args({ '--out': dangling })).code, 2);
+  assert.equal(fs.existsSync(path.join(tmp, 'never-created.yaml')), false);
+});
+check('an output whose directory links into the repository is refused', () => {
+  const linkedDir = path.join(tmp, 'repo-link');
+  fs.symlinkSync(__dirname, linkedDir);
+  const r = run(args({ '--out': path.join(linkedDir, 'generated.yaml') }));
+  assert.equal(r.code, 2);
+  assert.match(r.stderr, /outside the repository/);
+  assert.equal(fs.existsSync(path.join(__dirname, 'generated.yaml')), false);
+});
+
 fs.rmSync(tmp, { recursive: true, force: true });
 if (failures) {
   console.log(`${failures} failed`);
