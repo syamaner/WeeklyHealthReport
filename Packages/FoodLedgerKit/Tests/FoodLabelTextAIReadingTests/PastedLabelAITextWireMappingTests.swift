@@ -199,7 +199,7 @@ final class PastedLabelAITextWireMappingTests: XCTestCase {
             XCTAssertEqual(parsed.canonicalUnit, "kcal", printed)
         }
         XCTAssertEqual(Mapping.parseValue("30Cal"), .notAValue, "`Cal` is outside the closed table")
-        XCTAssertEqual(Mapping.version, "pasted-label-ai-text-mapping-v2")
+        XCTAssertEqual(Mapping.version, "pasted-label-ai-text-mapping-v3")
     }
 
     func testABracketedValueMapsToACellWhereTheTextPrintsTheBrackets() {

@@ -27,17 +27,89 @@ public struct PastedLabelTextScan: Sendable {
         public let end: Int
     }
 
+    /// A not-declared marker (revision 14, D30): a dash or `Trace`/`Tr` of
+    /// `PastedLabelAITextValueGrammar`'s marker lists, standing alone between token boundaries.
+    /// Its range includes trailing `*` and `†`; `text` is the marker as printed, without them. It
+    /// is never a value token, so nothing that reads tokens (the unit check, bound words, row
+    /// starts, block ends) sees it; only the locator's cells do.
+    public struct Marker: Equatable, Sendable, Codable {
+        public let start: Int
+        public let end: Int
+        public let coreEnd: Int
+        public let text: String
+        public var range: Range<Int> { start..<end }
+    }
+
     public let scalars: [Unicode.Scalar]
     public let lines: [Line]
     /// Every value token of the text, in text order.
     public let tokens: [Token]
+    /// Every not-declared marker of the text, in text order (none inside a value token).
+    public let markers: [Marker]
 
     public init(_ text: String) {
         let scalars = Array(text.unicodeScalars)
         self.scalars = scalars
         let lines = Self.splitLines(scalars)
         self.lines = lines
-        self.tokens = lines.flatMap { Self.tokens(scalars, line: $0) }
+        let tokens = lines.flatMap { Self.tokens(scalars, line: $0) }
+        self.tokens = tokens
+        self.markers = lines.flatMap { Self.markers(scalars, line: $0, tokens: tokens) }
+    }
+
+    // MARK: Not-declared markers (revision 14, D30)
+
+    /// The marker literal starting at `index`, if any: a dash exactly, or `trace` before `tr`
+    /// with ASCII letters compared in any case. The result is its length in scalars.
+    static func markerLength(_ scalars: [Unicode.Scalar], at index: Int, limit: Int) -> Int? {
+        for dash in PastedLabelAITextValueGrammar.notDeclaredDashes where starts(scalars, at: index, with: dash, limit: limit) {
+            return dash.unicodeScalars.count
+        }
+        for word in PastedLabelAITextValueGrammar.notDeclaredWords {
+            let pattern = Array(word.unicodeScalars)
+            guard index + pattern.count <= limit else { continue }
+            let matches = pattern.indices.allSatisfy { offset in
+                let scalar = scalars[index + offset]
+                return scalar.isASCII && Character(scalar).lowercased() == String(pattern[offset])
+            }
+            if matches { return pattern.count }
+        }
+        return nil
+    }
+
+    /// The markers of one line. A marker starts and ends at a token boundary (trailing `*` and
+    /// `†` allowed), lies outside every value token, and is not followed on its line, past
+    /// whitespace, by a letter that does not start another marker: so a list dash before a row
+    /// label (`- of which sugars`) and a word such as `Trace elements` are not markers.
+    static func markers(_ scalars: [Unicode.Scalar], line: Line, tokens: [Token]) -> [Marker] {
+        let lineTokens = tokens.filter { $0.start >= line.start && $0.start < line.end }
+        func standsAlone(_ start: Int) -> (core: Int, end: Int)? {
+            guard boundaryBefore(scalars, start, line: line), let length = markerLength(scalars, at: start, limit: line.end) else { return nil }
+            let core = start + length
+            var end = core
+            while end < line.end, scalars[end] == "*" || scalars[end] == "†" { end += 1 }
+            guard boundaryAfter(scalars, end, line: line) else { return nil }
+            return (core, end)
+        }
+        var out: [Marker] = []
+        var index = line.start
+        while index < line.end {
+            guard !lineTokens.contains(where: { $0.range.contains(index) }), let found = standsAlone(index) else {
+                index += 1
+                continue
+            }
+            var next = found.end
+            while next < line.end, scalars[next].properties.isWhitespace { next += 1 }
+            if next < line.end, scalars[next].properties.isAlphabetic, standsAlone(next) == nil {
+                index = found.end
+                continue
+            }
+            var core = String.UnicodeScalarView()
+            core.append(contentsOf: scalars[index..<found.core])
+            out.append(Marker(start: index, end: found.end, coreEnd: found.core, text: String(core)))
+            index = found.end
+        }
+        return out
     }
 
     // MARK: Lines

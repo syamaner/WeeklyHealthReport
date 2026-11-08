@@ -8,7 +8,8 @@ import Foundation
 /// (`LabelPhotoWireMapping.units`, `valueUnits`, `echoUnits` and `comparators`), which a parity
 /// test proves; the rules that differ are the text route's thousands separator (4.3 item 2),
 /// which belongs to the token grammar, not to these lists, and, from revision 10, the text-only
-/// kcal spellings (`textOnlyValueUnits`) and the bracket rule (`unbracketed`). A change to any
+/// kcal spellings (`textOnlyValueUnits`) and the bracket rule (`unbracketed`), and from revision
+/// 14 the not-declared markers (`notDeclaredDashes`, `notDeclaredWords`). A change to any
 /// list is a new version.
 public enum PastedLabelAITextValueGrammar {
     /// A printed comparator and the comparator it means (`=`, `<` or `<=`, the raw values of the
@@ -45,6 +46,29 @@ public enum PastedLabelAITextValueGrammar {
     /// The units the text route's value pattern and token scan try: the photo list, then the
     /// text-only kcal spellings (none is a prefix of another entry, so the order is safe).
     public static let textValueUnits: [String] = valueUnits + textOnlyValueUnits
+
+    /// Revision 14 (D30, mapping v3, locator v3): the printed cells that say a label does not
+    /// declare a value there. A dash (`-`, `–`, `—`) is matched exactly; `Trace` and `Tr` in any
+    /// letter case (`Tr` is already in the UK reader's marker list). A marker is never a number:
+    /// the mapping reads one, where the locator finds it, as not declared, never as zero.
+    public static let notDeclaredDashes: [String] = ["-", "\u{2013}", "\u{2014}"]
+    public static let notDeclaredWords: [String] = ["trace", "tr"]
+
+    /// Whether `printed` is one not-declared marker and nothing else (no comparator, unit or bracket).
+    public static func isNotDeclaredMarker(_ printed: String) -> Bool {
+        notDeclaredDashes.contains(printed) || notDeclaredWords.contains(printed.lowercased())
+    }
+
+    /// A model's printed value read as a marker: the text without trailing `*` and `†` (as the
+    /// locator matches values) when that is one marker, else nil. Nothing else is trimmed.
+    public static func notDeclaredMarker(_ printed: String) -> String? {
+        var scalars = Array(printed.unicodeScalars)
+        while let last = scalars.last, last == "*" || last == "†" { scalars.removeLast() }
+        var core = String.UnicodeScalarView()
+        core.append(contentsOf: scalars)
+        let text = String(core)
+        return isNotDeclaredMarker(text) ? text : nil
+    }
 
     /// The units a trailing bracketed echo may print after a value (`5 g (g)`).
     public static let echoUnits: [String] = ["kcal", "kJ", "g", "mg", "mcg", "µg", "ml"]

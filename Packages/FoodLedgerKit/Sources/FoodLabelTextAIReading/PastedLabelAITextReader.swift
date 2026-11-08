@@ -6,7 +6,7 @@ import NutritionLabelParsing
 /// 4.8, 5.2 item 2, 11.1, R5 and D19). Pure and on device, in product order:
 ///
 /// 1. the strict text wire decode (`pasted-label-ai-text-wire-schema-v1`);
-/// 2. `pasted-label-ai-text-mapping-v1`, which runs the locator and the unit check;
+/// 2. `pasted-label-ai-text-mapping-v3`, which runs the locator and the unit check;
 /// 3. format inference (`pasted-label-ai-text-format-v1` over the frozen inference), then decline gate v2 with the Taiwan format or `.uk`,
 ///    `label-arithmetic-checks-v2` over the amount bases and the `pasted-label-conversions-v1`
 ///    conversions for the stored column. The frozen rules are called, never copied;
@@ -131,7 +131,9 @@ public struct PastedLabelAITextReader: PastedLabelAITextReading {
             let wireValue = row.values[value.valueIndex]
             let status = mapped.located.value(row: value.rowIndex, index: value.valueIndex)?.status ?? .notFound
             var reasons = value.reasons
-            if value.read.rowID != nil {
+            // A not-declared marker (mapping v3, D30) takes the locator and vocabulary checks a cell
+            // takes, so a marker on a row or column the model may have misassigned is still an item.
+            if value.read.rowID != nil || value.read == .notRead(.notDeclared) {
                 if let located = mapped.located.value(row: value.rowIndex, index: value.valueIndex),
                    let reason = PastedLabelAITextAttention.reason(located) {
                     reasons.append(reason)

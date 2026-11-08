@@ -1,6 +1,6 @@
 import Foundation
 
-/// `pasted-label-text-locate-v2` (docs/pasted-label-ai-text-v1.md 4.3, D3; revision 10): a pure,
+/// `pasted-label-text-locate-v3` (docs/pasted-label-ai-text-v1.md 4.3, D3; revision 10, v3 in revision 14, D30): a pure,
 /// deterministic check of a model's answer against the text that was sent. It never produces,
 /// converts or assigns a value; it says, for each value the model returned, whether that printed
 /// value is found in the text exactly once where the model placed it, and which rows and columns
@@ -46,8 +46,14 @@ import Foundation
 /// 9. **Shared header spans**: two header IDs located on one printed span put their values under
 ///    attention. **Omitted rows**: a vocabulary row label no model row claimed, starting its line
 ///    or following a value, ends the block before it.
+/// 11. **Not-declared markers** (v3, D30): a dash or `Trace`/`Tr` standing alone in a block
+///    (`PastedLabelTextScan.Marker`) is a printed column position: the markers fill their
+///    printed positions among the columns (`columns`), so a marker in a column no longer puts its
+///    row's other values under attention. A model value that is a marker is found only where the
+///    same marker is printed at its row and column, by the rules above; a marker never matches a
+///    number, nor a number a marker. A block with no marker matches exactly as under v2.
 public enum PastedLabelTextLocator {
-    public static let version = "pasted-label-text-locate-v2"
+    public static let version = "pasted-label-text-locate-v3"
     public static let referenceIntakeBasis = "reference_intake"
 
     // MARK: Input
@@ -198,6 +204,14 @@ public enum PastedLabelTextLocator {
         let amountHeaders = headers.filter { headerSpans[$0.id] != nil && !duplicateIDs.contains($0.id) && $0.basis != referenceIntakeBasis }
             .sorted { headerSpans[$0.id]!.lowerBound < headerSpans[$1.id]!.lowerBound }
         let columnOfHeader = Dictionary(uniqueKeysWithValues: amountHeaders.enumerated().map { ($0.element.id, $0.offset) })
+        // v3 (D30): the located columns in printed order, `true` for the reference-intake one, when
+        // exactly one reference-intake header is returned and located on its own span.
+        let positionalHeaders: [Bool]? = {
+            guard referenceHeaderCount == 1, let reference = headers.first(where: { $0.basis == referenceIntakeBasis }),
+                  let span = headerSpans[reference.id], !duplicateIDs.contains(reference.id), !sharedSpanIDs.contains(reference.id) else { return nil }
+            let starts = amountHeaders.map { (headerSpans[$0.id]!.lowerBound, false) } + [(span.lowerBound, true)]
+            return starts.sorted { $0.0 < $1.0 }.map(\.1)
+        }()
 
         // 2. Row labels, longest first; equal printed labels are one group.
         var labels: [String] = []
@@ -250,24 +264,25 @@ public enum PastedLabelTextLocator {
             let tokens = scan.tokens.filter { token in block.contains(token.start) && !hidingSpans.contains { $0.overlaps(token.range) } }
             let percent = tokens.filter { $0.canonicalUnit == "%" }
             let cells = pairCells(tokens.filter { $0.canonicalUnit != "%" }, scan: scan)
+            let markers = scan.markers.filter { marker in block.contains(marker.start) && !hidingSpans.contains { $0.overlaps(marker.range) } }
+            let layout = columns(cells: cells, percent: percent, markers: markers, amountCount: amountHeaders.count, positional: positionalHeaders)
             var attention: [Attention] = []
             if locatedSpans.contains(where: { $0.overlaps(block) }) { attention.append(.headerInsideBlock) }
             // Qodo finding 7 on #421: `%` cells are set aside only for a returned reference-intake header.
             if !anyReferenceHeader, !percent.isEmpty { attention.append(.percentWithoutReferenceIntakeHeader) }
-            if cells.count < amountHeaders.count { attention.append(.fewerCellsThanHeaders) }
-            if cells.count > amountHeaders.count { attention.append(.moreCellsThanHeaders) }
+            if layout.amounts == nil, cells.count < amountHeaders.count { attention.append(.fewerCellsThanHeaders) }
+            if layout.amounts == nil, cells.count > amountHeaders.count { attention.append(.moreCellsThanHeaders) }
             groupAttention[label] = attention
-            let columnsMatch = !attention.contains(.fewerCellsThanHeaders) && !attention.contains(.moreCellsThanHeaders)
 
             var statuses: [Int: [Int: Status]] = [:]
             // Members' values in row order, then value order.
             let entries = members.flatMap { row in rows[row].values.indices.map { (row, $0, rows[row].values[$0]) } }
             func record(_ row: Int, _ index: Int, _ status: Status) { statuses[row, default: [:]][index] = status }
-            func ordinal(_ group: [(Int, Int, Value)], candidates: [PastedLabelTextScan.Token]) {
+            func ordinal(_ group: [(Int, Int, Value)], candidates: [Candidate]) {
                 let byText = Dictionary(grouping: group, by: { matchText($0.2.printedText) })
                 for (text, values) in byText {
                     let bracketed = PastedLabelAITextValueGrammar.unbracketed(text)
-                    let equal = candidates.filter { coreText(scan, $0) == bracketed.core && hasBrackets(scan, $0, bracketed) }
+                    let equal = candidates.filter { $0.matches(bracketed, scan: scan) }
                     for (position, entry) in values.enumerated() {
                         let status: Status = equal.isEmpty ? .notFound : equal.count == values.count ? .found(equal[position].range) : .ambiguous
                         record(entry.0, entry.1, status)
@@ -275,16 +290,16 @@ public enum PastedLabelTextLocator {
                 }
             }
             let isReference = { (value: Value) in headerByID[value.headerID]?.basis == referenceIntakeBasis }
-            ordinal(entries.filter { isReference($0.2) }, candidates: percent)
+            ordinal(entries.filter { isReference($0.2) }, candidates: percent.map(Candidate.token) + layout.referenceMarkers.map(Candidate.marker))
             let amounts = entries.filter { !isReference($0.2) }
-            if columnsMatch {
+            if let slots = layout.amounts {
                 let positioned = amounts.filter { columnOfHeader[$0.2.headerID] != nil }
                 for column in Set(positioned.map { columnOfHeader[$0.2.headerID]! }).sorted() {
-                    ordinal(positioned.filter { columnOfHeader[$0.2.headerID] == column }, candidates: cells[column].parts)
+                    ordinal(positioned.filter { columnOfHeader[$0.2.headerID] == column }, candidates: slots[column].candidates)
                 }
-                ordinal(amounts.filter { columnOfHeader[$0.2.headerID] == nil }, candidates: cells.flatMap { $0.parts })
+                ordinal(amounts.filter { columnOfHeader[$0.2.headerID] == nil }, candidates: slots.flatMap(\.candidates))
             } else {
-                ordinal(amounts, candidates: cells.flatMap { $0.parts })
+                ordinal(amounts, candidates: cells.flatMap { $0.parts }.map(Candidate.token) + markers.map(Candidate.marker))
             }
             groupStatuses[label] = statuses
         }
@@ -384,6 +399,95 @@ public enum PastedLabelTextLocator {
             index += 1
         }
         return cells
+    }
+
+    // MARK: Not-declared markers as cells (v3, D30)
+
+    /// What a model value may be matched to: a value token, or a not-declared marker. A marker
+    /// matches only the same marker text, never a bracketed value, so a number never matches a
+    /// marker and a marker never matches a number.
+    enum Candidate: Equatable {
+        case token(PastedLabelTextScan.Token)
+        case marker(PastedLabelTextScan.Marker)
+
+        var range: Range<Int> {
+            switch self {
+            case let .token(token): token.range
+            case let .marker(marker): marker.range
+            }
+        }
+
+        func matches(_ bracketed: PastedLabelAITextValueGrammar.Bracketed, scan: PastedLabelTextScan) -> Bool {
+            switch self {
+            case let .token(token): coreText(scan, token) == bracketed.core && hasBrackets(scan, token, bracketed)
+            case let .marker(marker): !bracketed.isBracketed && marker.text == bracketed.core
+            }
+        }
+    }
+
+    /// One printed column position of a block: a cell, a marker, or a `%` token.
+    enum Slot: Equatable {
+        case cell(Cell)
+        case marker(PastedLabelTextScan.Marker)
+        case percent(PastedLabelTextScan.Token)
+
+        var start: Int {
+            switch self {
+            case let .cell(cell): cell.parts[0].start
+            case let .marker(marker): marker.start
+            case let .percent(token): token.start
+            }
+        }
+
+        var candidates: [Candidate] {
+            switch self {
+            case let .cell(cell): cell.parts.map(Candidate.token)
+            case let .marker(marker): [.marker(marker)]
+            case let .percent(token): [.token(token)]
+            }
+        }
+    }
+
+    /// A block's columns: the amount column positions when they match the located amount headers
+    /// (nil otherwise, which is block attention), and the markers set aside for the
+    /// reference-intake column.
+    struct Layout: Equatable {
+        let amounts: [Slot]?
+        let referenceMarkers: [PastedLabelTextScan.Marker]
+    }
+
+    /// v3 (D30). A block with no marker matches exactly as under v2 (rule 2 or 4). With markers:
+    /// 1. with one located reference-intake header, every cell, marker and `%` token equals every
+    ///    located header, each in printed order, and each position holds what its header can (a
+    ///    cell or marker for an amount header; a `%` token, marker or absolute cell for reference
+    ///    intake, whose absolute cell is never read): the markers take their printed positions;
+    /// 2. the cells alone equal the amount headers: as v2, and the block's markers are the
+    ///    reference-intake column's candidates;
+    /// 3. the cells and markers together equal the amount headers: markers take their positions;
+    /// 4. otherwise the columns do not match.
+    static func columns(cells: [Cell], percent: [PastedLabelTextScan.Token], markers: [PastedLabelTextScan.Marker], amountCount: Int,
+                        positional: [Bool]?) -> Layout {
+        let amountSlots = (cells.map(Slot.cell) + markers.map(Slot.marker)).sorted { $0.start < $1.start }
+        if !markers.isEmpty, let positional {
+            let slots = (amountSlots + percent.map(Slot.percent)).sorted { $0.start < $1.start }
+            if slots.count == positional.count {
+                var amounts: [Slot] = []
+                var reference: [PastedLabelTextScan.Marker] = []
+                var fits = true
+                for (slot, isReference) in zip(slots, positional) {
+                    switch (slot, isReference) {
+                    case (.percent, true), (.cell, true): break
+                    case let (.marker(marker), true): reference.append(marker)
+                    case (.cell, false), (.marker, false): amounts.append(slot)
+                    case (.percent, false): fits = false
+                    }
+                }
+                if fits { return Layout(amounts: amounts, referenceMarkers: reference) }
+            }
+        }
+        if cells.count == amountCount { return Layout(amounts: cells.map(Slot.cell), referenceMarkers: markers) }
+        if !markers.isEmpty, amountSlots.count == amountCount { return Layout(amounts: amountSlots, referenceMarkers: []) }
+        return Layout(amounts: nil, referenceMarkers: [])
     }
 
     /// A model's printed value as matched: trailing `*` and `†` dropped, nothing else changed.

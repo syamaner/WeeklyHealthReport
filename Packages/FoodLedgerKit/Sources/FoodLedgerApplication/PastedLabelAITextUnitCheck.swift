@@ -1,7 +1,7 @@
 import Foundation
 
-/// The unit rule of `pasted-label-ai-text-mapping-v2` (unchanged from v1; v2 changes only the value
-/// grammar, revision 10) (docs/pasted-label-ai-text-v1.md 4.2, D10
+/// The unit rule of `pasted-label-ai-text-mapping-v3` (unchanged from v1; v2 changes only the value
+/// grammar, revision 10, and v3 the not-declared markers, revision 14) (docs/pasted-label-ai-text-v1.md 4.2, D10
 /// and D16): the model's unit for a bare number is accepted only when the sent text states that
 /// unit for the values. A unit is stated by a unit-only token (a unit of the closed list that
 /// starts and ends at a token boundary, is not part of a value token, and has no digit just
@@ -15,7 +15,7 @@ import Foundation
 /// The check never supplies a unit. Pure and deterministic.
 public enum PastedLabelAITextUnitCheck {
     /// The mapping version whose unit rule this is.
-    public static let mappingVersion = "pasted-label-ai-text-mapping-v2"
+    public static let mappingVersion = "pasted-label-ai-text-mapping-v3"
 
     public enum Outcome: String, Equatable, Sendable, Codable, CaseIterable {
         /// The printed value carries its own unit, and the model's unit (if any) is the same unit.

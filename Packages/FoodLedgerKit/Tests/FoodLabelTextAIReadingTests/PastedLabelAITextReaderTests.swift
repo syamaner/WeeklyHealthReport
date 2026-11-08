@@ -224,16 +224,18 @@ final class PastedLabelAITextReaderTests: XCTestCase {
         }
     }
 
-    /// Rule 4: a dash copied as printed is a not-read cell, never a value and never 0.
-    func testADashCellIsNotReadAndNeverZero() throws {
+    /// Rule 4: a dash copied as printed is never a value and never 0. From mapping v3 (D30) a dash the
+    /// locator finds at its row and column is not declared, so it no longer keeps the table from
+    /// being ready (`PastedLabelAITextNotDeclaredTests`).
+    func testADashCellIsNotDeclaredAndNeverZero() throws {
         for dash in ["-", "\u{2013}"] {
             let text = Self.ukServingText.replacingOccurrences(of: "\t-\t", with: "\t\(dash)\t")
             let result = read(text, Self.ukServingAnswer(serving: "Per slice (40g)", fatPerServing: dash))
             let candidate = try XCTUnwrap(result.candidate)
             XCTAssertFalse(candidate.cells.contains { $0.nutrient == "fat" && $0.headerID == "h2" }, dash)
             XCTAssertFalse(candidate.cells.contains { $0.decimalText == "0" }, dash)
-            XCTAssertEqual(result.values.first { $0.nutrient == "fat" && $0.headerID == "h2" }?.read, .notRead(.unreadable), dash)
-            XCTAssertFalse(candidate.wouldMarkReady, "a left-out amount, as for unknown")
+            XCTAssertEqual(result.values.first { $0.nutrient == "fat" && $0.headerID == "h2" }?.read, .notRead(.notDeclared), dash)
+            XCTAssertTrue(candidate.wouldMarkReady, "a found dash is not a left-out amount")
         }
     }
 

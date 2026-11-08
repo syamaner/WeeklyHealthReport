@@ -2,8 +2,8 @@ import FoodLedgerApplication
 import Foundation
 import NutritionLabelParsing
 
-/// `pasted-label-ai-text-mapping-v2` (docs/pasted-label-ai-text-v1.md 4.2, 4.3 item 2, D10, D16;
-/// A1 finding F9; revision 10): one text wire answer, checked against the sent text, to
+/// `pasted-label-ai-text-mapping-v3` (docs/pasted-label-ai-text-v1.md 4.2, 4.3 item 2, D10, D16;
+/// A1 finding F9; revision 10; v3 in revision 14, D30): one text wire answer, checked against the sent text, to
 /// `label-capture-candidate-v1` with route `C` (the model-read route gate v2 admits). Pure. It
 /// never converts, infers or fills a value. It is `label-photo-wire-mapping-v1` with these
 /// differences:
@@ -24,6 +24,12 @@ import NutritionLabelParsing
 /// - **A bare number with no model unit is not read** (F9): a not-read cell, never a value, under
 ///   a blocking `unit_not_stated` attention item so the user enters it. The photo route's amendment M2 (a bare energy number taking the row label's
 ///   energy unit) is replaced by the unit check, which needs the model's unit.
+///
+/// - **Not-declared markers** (v3, revision 14, D30): a value printed as a dash (`-`, `–`, `—`),
+///   `Trace` or `Tr` (any case) that the locator finds at its row and column with no attention is
+///   `not_declared`: shown as printed, never a cell, never zero, and not a left-out amount, so on
+///   its own it never keeps the table from being ready. A marker the locator does not find there
+///   (the model claimed a dash the text does not print in that place) stays a not-read value.
 ///
 /// Everything else (headers, M3, row IDs, parents, M1, duplicate cells, ready) is v1's.
 public enum PastedLabelAITextWireMapping {
@@ -134,6 +140,16 @@ public enum PastedLabelAITextWireMapping {
                     if amountColumn { leftOutAmounts += 1 }
                     notRead(.unknown)
                     continue
+                }
+                // v3 (D30): a printed dash, `Trace` or `Tr` is not declared, never zero and never a
+                // cell, but only where the locator finds that same marker at this row and column with
+                // nothing to check. Anywhere else it stays a not-read value the user enters.
+                if PastedLabelAITextValueGrammar.notDeclaredMarker(printed) != nil {
+                    if let place = located.value(row: rowIndex, index: valueIndex), place.status.range != nil, !place.needsAttention {
+                        warnings.append("value_not_declared: \(rowID) \(header.headerID) \(TextPython.repr(printed))")
+                        notRead(.notDeclared)
+                        continue
+                    }
                 }
                 switch parseValue(printed) {
                 case let .value(value):
