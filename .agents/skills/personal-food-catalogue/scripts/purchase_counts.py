@@ -34,7 +34,7 @@ def purchase_counts(catalogue: dict, export_bytes: bytes) -> dict:
     if len(set(ids)) != len(ids):
         raise CountsError("the import file repeats an entry id")
     counts = dict.fromkeys(ids, 0)
-    unmatched = 0
+    seen = set()
     for item in catalogue["items"]:
         if item.get("kind") != "food":
             continue
@@ -42,20 +42,23 @@ def purchase_counts(catalogue: dict, export_bytes: bytes) -> dict:
         if isinstance(lines, bool) or not isinstance(lines, int) or lines < 0:
             raise CountsError("a catalogue food has an invalid purchase line count")
         eid = entry_id(item.get("brand"), item["title"])
+        seen.add(eid)
         if eid in counts:
             counts[eid] += lines
-        elif lines:
-            unmatched += 1
-    if unmatched:
-        raise CountsError(f"{unmatched} catalogue foods with purchases are not in the import file; "
-                          "rebuild the import file from this catalogue first")
+    # The import file is built from this catalogue, so both must hold exactly the same foods; a catalogue
+    # changed after the export (new foods, or foods dropped) is refused rather than counted.
+    extra, missing = len(seen - set(counts)), len(set(counts) - seen)
+    if extra or missing:
+        raise CountsError(f"the catalogue and the import file differ ({extra} foods only in the catalogue, "
+                          f"{missing} entries only in the import file); rebuild the import file from this catalogue first")
     return {"schema": "pfd-purchase-counts-v1",
             "release_id": "pfc:sha256:" + hashlib.sha256(export_bytes).hexdigest(),
             "counts": dict(sorted(counts.items()))}
 
 
 def main(ws: Path, export_path: Path, out_path: Path):
-    catalogue = json.loads((ws / "out" / "personal-food-catalogue.json").read_text(encoding="utf-8"))
+    catalogue_bytes = (ws / "out" / "personal-food-catalogue.json").read_bytes()
+    catalogue = json.loads(catalogue_bytes.decode("utf-8"))
     export_bytes = check_output(export_path).read_bytes()
     try:
         doc = purchase_counts(catalogue, export_bytes)
@@ -70,7 +73,8 @@ def main(ws: Path, export_path: Path, out_path: Path):
     out.chmod(0o600)
     c = doc["counts"].values()
     print(f"purchase counts written: {len(doc['counts'])} entries, {sum(1 for v in c if v)} with purchases, "
-          f"{sum(c)} purchase lines")
+          f"{sum(c)} purchase lines; from catalogue sha256 {hashlib.sha256(catalogue_bytes).hexdigest()} "
+          f"and release {doc['release_id']}")
 
 
 if __name__ == "__main__":

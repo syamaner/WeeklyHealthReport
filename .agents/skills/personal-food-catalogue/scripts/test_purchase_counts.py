@@ -25,7 +25,8 @@ class PurchaseCounts(unittest.TestCase):
     def test_counts_follow_the_export_id_rule_and_add_up(self):
         data = export((None, "Synthetic oats"), ("Brandless", "Synthetic rice"), (None, "Synthetic note food"))
         cat = {"items": [food(None, "Synthetic oats", 3), food(None, "synthetic  OATS", 2),
-                         food("Brandless", "Synthetic rice", 1), food(None, "Synthetic soap", 9, kind="non_food")]}
+                         food("Brandless", "Synthetic rice", 1), food(None, "Synthetic note food", None),
+                         food(None, "Synthetic soap", 9, kind="non_food")]}
         doc = P.purchase_counts(cat, data)
         self.assertEqual(doc["schema"], "pfd-purchase-counts-v1")
         self.assertTrue(doc["release_id"].startswith("pfc:sha256:"))
@@ -38,9 +39,13 @@ class PurchaseCounts(unittest.TestCase):
             P.purchase_counts({"items": [food(None, "Synthetic secret", 2)]}, export((None, "Synthetic oats")))
         self.assertNotIn("secret", str(cm.exception))
 
-    def test_an_unbought_food_missing_from_the_export_is_ignored(self):
-        doc = P.purchase_counts({"items": [food(None, "Synthetic other", 0)]}, export((None, "Synthetic oats")))
-        self.assertEqual(list(doc["counts"].values()), [0])
+    def test_a_catalogue_changed_after_the_export_is_refused(self):
+        data = export((None, "Synthetic oats"))
+        for cat in ({"items": [food(None, "Synthetic oats", 1), food(None, "Synthetic secret", 0)]},  # added later
+                    {"items": []}):  # dropped later
+            with self.assertRaises(P.CountsError) as cm:
+                P.purchase_counts(cat, data)
+            self.assertNotIn("secret", str(cm.exception))
 
     def test_invalid_counts_and_files_are_refused(self):
         for lines in (-1, True, "2"):
@@ -49,7 +54,7 @@ class PurchaseCounts(unittest.TestCase):
         with self.assertRaises(P.CountsError):
             P.purchase_counts({"items": []}, b'{"schema": "other", "items": []}')
         with self.assertRaises(P.CountsError):
-            P.purchase_counts({"items": []}, export((None, "Synthetic oats"), (None, "Synthetic oats")))
+            P.purchase_counts({"items": [food(None, "Synthetic oats", 1)]}, export((None, "Synthetic oats"), (None, "Synthetic oats")))
 
 
 if __name__ == "__main__":

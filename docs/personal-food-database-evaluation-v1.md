@@ -421,7 +421,9 @@ The working mapping files it used (SHA-256):
 
 The seed `1072955911` was drawn with `pfd_eval.py draw-seed` and pushed in commit `2bc2941` before the
 sample was generated. The purchase counts came from the skill's `purchase_counts.py` (844 entries, 798 with
-receipt purchases). From the pinned release, `sample` drew A1 57 (census), A5 1 (census), A2 40, A3 40
+receipt purchases), from the working catalogue with SHA-256
+`bbd411ef433b1274a98d904787fc2463b9e0bcb6271da37746ad6b9069b5a1c3`, which holds exactly the foods of the
+pinned release (the script refuses otherwise). From the pinned release, `sample` drew A1 57 (census), A5 1 (census), A2 40, A3 40
 and A4 20: 158 entries to check (58 census, 30 top-30, 70 drawn), followed on the sheet by the seeded
 replacement order for A2 to A4. A second run from the same inputs gave byte-identical sample, sheet and
 purchase-count files. The sample and the purchase-count copy beside it are pinned in the Freeze list;
