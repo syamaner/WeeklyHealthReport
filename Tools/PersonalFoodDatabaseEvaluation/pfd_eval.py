@@ -3,9 +3,13 @@
 
 Only this file touches files, the clock and randomness. Every private path is refused inside a git
 working tree or outside a private folder (the skill's workspace_guard). The console shows counts
-only; the one repository output is a pfd-results-v1 file.
+only, except `lookup`, which is for the owner's own screen; the one repository output is a
+pfd-results-v1 file.
 
     pfd_eval.py draw-seed
+    pfd_eval.py query-template   --root DIR
+    pfd_eval.py assemble-queries --root DIR --export FILE
+    pfd_eval.py lookup           --root DIR --export FILE [--generic] WORDS...   (owner only)
     pfd_eval.py sample   --root DIR --export FILE --counts FILE
     pfd_eval.py split    --root DIR --query-set FILE
     pfd_eval.py seal     --root DIR NAME            (seal-dev, seal-heldout, seal-review)
@@ -27,6 +31,7 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(1, str(REPO / ".agents" / "skills" / "personal-food-catalogue" / "scripts"))
 
 import formats  # noqa: E402
+import queries  # noqa: E402
 import freeze  # noqa: E402
 import results  # noqa: E402
 import sample as sample_mod  # noqa: E402
@@ -142,6 +147,44 @@ def cmd_sample(a, root):
     print("sample written:", ", ".join(f"{k} {v}" for k, v in sorted(s["quotas"].items())), f"; sheet rows {len(rows)}")
 
 
+def pinned_export(a, root):
+    fz = frozen(("release_id",))
+    export = read_private(root, a.export)
+    if formats.release_id(export) != fz["release_id"]:
+        sys.exit("refused: the import file is not the pinned release")
+    entries, pins = formats.export_entries(export)
+    return fz, entries, corpora_records(REPO, pins)
+
+
+def cmd_query_template(a, root):
+    out = private(root, root / "queries" / "query-template.csv")
+    write_new(out, queries.template())
+    print("template written to queries/query-template.csv; fill it in, then run assemble-queries")
+
+
+def cmd_assemble_queries(a, root):
+    fz, entries, corpora = pinned_export(a, root)
+    doc = queries.assemble(read_private(root, root / "queries" / "query-template.csv"), fz["release_id"],
+                           {e["id"] for e in entries}, {src: set(recs) for src, recs in corpora.items()})
+    write_new(private(root, root / "queries" / "query-set.json"), formats.dumps(doc))
+    print("query set written:", ", ".join(f"{k} {v}" for k, v in queries.counts(doc).items()))
+
+
+def cmd_lookup(a, root):
+    """Owner only: prints catalogue rows to this screen and writes nothing."""
+    _, entries, corpora = pinned_export(a, root)
+    text = " ".join(a.words)
+    if a.generic:
+        rows, total = queries.lookup_generic(corpora, text)
+        for ref, name, prep in rows:
+            print(f"{ref}\t{name} ({prep})")
+    else:
+        rows, total = queries.lookup_entries(entries, text)
+        for eid, brand, title, matched in rows:
+            print(f"{eid}\t{brand + ' ' if brand else ''}{title}\tmatched: {', '.join(matched)}")
+    print(f"{total} match{'es' if total != 1 else ''}" + (f", first {len(rows)} shown; add a word to narrow" if total > len(rows) else ""))
+
+
 def cmd_split(a, root):
     fz = frozen(("release_id", "seed"))
     qs = formats.parse_query_set(read_private(root, a.query_set))
@@ -233,12 +276,17 @@ def main(argv=None):
     p = argparse.ArgumentParser(prog="pfd_eval.py", description="Personal food database evaluation (counts only).")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("draw-seed")
-    for name in ("sample", "split", "seal", "score-a", "score-b"):
+    for name in ("query-template", "assemble-queries", "lookup", "sample", "split", "seal", "score-a", "score-b"):
         sp = sub.add_parser(name)
         sp.add_argument("--root", required=True)
         if name == "sample":
             sp.add_argument("--export", required=True)
             sp.add_argument("--counts", required=True)
+        if name in ("assemble-queries", "lookup"):
+            sp.add_argument("--export", required=True)
+        if name == "lookup":
+            sp.add_argument("--generic", action="store_true", help="search the pinned generic records instead")
+            sp.add_argument("words", nargs="+")
         if name == "split":
             sp.add_argument("--query-set", required=True)
         if name == "seal":
@@ -254,8 +302,9 @@ def main(argv=None):
         return cmd_draw_seed(a)
     root = check(Path(a.root))
     try:
-        {"sample": cmd_sample, "split": cmd_split, "seal": cmd_seal, "score-a": cmd_score_a, "score-b": cmd_score_b}[a.cmd](a, root)
-    except (formats.FormatError, freeze.FreezeError, seals.SealError, results.ResultsError) as e:
+        {"query-template": cmd_query_template, "assemble-queries": cmd_assemble_queries, "lookup": cmd_lookup,
+         "sample": cmd_sample, "split": cmd_split, "seal": cmd_seal, "score-a": cmd_score_a, "score-b": cmd_score_b}[a.cmd](a, root)
+    except (formats.FormatError, queries.QueryTemplateError, freeze.FreezeError, seals.SealError, results.ResultsError) as e:
         sys.exit(f"refused: {e}")
 
 

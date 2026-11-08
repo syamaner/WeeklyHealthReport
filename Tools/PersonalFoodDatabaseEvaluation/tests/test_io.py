@@ -234,6 +234,33 @@ class CommandLine(unittest.TestCase):
         self.assertNotIn(self.QUERY, text)
         return code, text
 
+    def test_lookup_prints_to_the_owner_and_writes_nothing(self):
+        with H.private_dir() as t, tempfile.TemporaryDirectory() as r:
+            root, repo = Path(t), Path(r)
+            saved = (pfd_eval.REPO, pfd_eval.FREEZE, pfd_eval.corpora_records)
+            try:
+                pfd_eval.REPO, pfd_eval.FREEZE = repo, repo / "freeze-v1.json"
+                pfd_eval.corpora_records = lambda _repo, _pins: {"cofid": {"cofid:synthetic:1": ("Synthetic oats", "raw")}}
+                (repo / "frozen.py").write_text("frozen = True\n")
+                export = json.dumps({"schema": "personal-food-catalogue-v1", "items": [H.entry(1, title="Synthetic oats")],
+                                     "generic_corpora": []}).encode()
+                (root / "export.json").write_bytes(export)
+                pfd_eval.FREEZE.write_text(json.dumps({"schema": "pfd-freeze-v1", "release_id": formats.release_id(export),
+                    "files": {"frozen.py": hashlib.sha256(b"frozen = True\n").hexdigest()}}))
+                before = sorted(p.name for p in root.iterdir())
+                for extra in ([], ["--generic"]):
+                    out = io.StringIO()
+                    with contextlib.redirect_stdout(out):
+                        pfd_eval.main(["lookup", "--root", str(root), "--export", str(root / "export.json"), *extra, "oats"])
+                    self.assertIn("cofid=cofid:synthetic:1" if extra else H.eid(1), out.getvalue())
+                    self.assertIn("1 match", out.getvalue())
+                self.assertEqual(sorted(p.name for p in root.iterdir()), before)
+                (root / "other.json").write_bytes(export.replace(b"oats", b"rice"))
+                with self.assertRaises(SystemExit):  # not the pinned release
+                    pfd_eval.main(["lookup", "--root", str(root), "--export", str(root / "other.json"), "rice"])
+            finally:
+                pfd_eval.REPO, pfd_eval.FREEZE, pfd_eval.corpora_records = saved
+
     def test_end_to_end_counts_only(self):
         with H.private_dir() as t, tempfile.TemporaryDirectory() as r:
             root, repo = Path(t), Path(r)
@@ -259,12 +286,18 @@ class CommandLine(unittest.TestCase):
                 self.assertEqual(self.run_cli("sample", "--root", str(root), "--export", str(root / "export.json"),
                                               "--counts", str(root / "counts.json"))[0] != 0, True)  # never overwritten
 
-                queries = [{"query_id": f"q-{n:04d}", "text": self.QUERY, "negative": n >= 10,
-                            "answer": {"kind": "none"} if n >= 10 else {"kind": "entry", "entry_ids": [pop[n]["id"]], "step": 1}}
-                           for n in range(14)]
-                (root / "query-set.json").write_bytes(formats.dumps({"schema": "pfd-query-set-v1", "release_id": rel,
-                                                                     "queries": queries}))
-                self.assertEqual(self.run_cli("split", "--root", str(root), "--query-set", str(root / "query-set.json"))[0], 0)
+                self.assertEqual(self.run_cli("query-template", "--root", str(root))[0], 0)
+                template = root / "queries" / "query-template.csv"
+                rows = [f"{self.QUERY} {n},yes,none,,," if n >= 10 else f"{self.QUERY} {n},no,entry,{pop[n]['id']},title,"
+                        for n in range(14)]
+                template.write_bytes(template.read_bytes() + ("\n".join(rows) + "\n").encode())
+                code, text = self.run_cli("assemble-queries", "--root", str(root), "--export", str(root / "export.json"))
+                self.assertEqual(code, 0, text)
+                self.assertIn("queries 14, negative 4", text)
+                self.assertNotEqual(self.run_cli("assemble-queries", "--root", str(root), "--export",
+                                                 str(root / "export.json"))[0], 0)  # never overwritten
+                self.assertEqual(self.run_cli("split", "--root", str(root), "--query-set",
+                                              str(root / "queries" / "query-set.json"))[0], 0)
                 self.assertEqual(self.run_cli("seal", "--root", str(root), "seal-dev")[0], 0)
                 self.assertEqual(self.run_cli("seal", "--root", str(root), "seal-heldout")[0], 0)
 

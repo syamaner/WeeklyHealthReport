@@ -19,12 +19,13 @@ repository root. It uses the standard library only.
 | `bars.py` | The accepted bars of plan section 6 as data, the allowed-count rules (round down for "at most", round up for "at least", fixed A2 and A3 counts per decision 7) and the judge. Pure. |
 | `sample.py` | Stratum assignment (A5 > A1 > A2 > A3 > A4) from a `personal-food-catalogue-v1` file, the seeded Part A sample (A1 and A5 census, top 30 always included and counted in their stratum, A2 40, A3 40, A4 20, a full seeded replacement order for A2 to A4) and the review sheet rows. Pure: takes bytes and a seed, returns data. |
 | `split.py` | The seeded Part B split: negatives divided evenly, the rest about 60 per cent development and 40 per cent held-out. Pure. |
+| `queries.py` | The owner's query template (`query-template.csv`), its assembly into the unsplit `pfd-query-set-v1` (query IDs in row order; every entry ID checked against the pinned import file and every generic record against the pinned corpora; errors name the row and column, never a cell's value) and the owner-only lookup (entries or generic records holding every typed word, alphabetical, no score, with the fields that matched). Pure. |
 | `score_a.py` | Part A counts per stratum from a sample and a completed review sheet: skips, A1 product and nutrient counts over checked entries and checked values, `missing_in_entry` as its own count, A5 "not assessed" when empty, A3 close and other-state split. Pure. |
 | `score_b.py` | Part B measures from a query set and a ranking output: top-1 and top-3 acceptable by answer kind, step correct, wrong generic first, wrong entry first, negative false hits, with the plan's denominators. Pure. |
 | `results.py` | The `pfd-results-v1` allow-list writer: closed field names, whole-number counts, intervals, booleans for bar results and the release ID; any other key or string value is refused. |
 | `seals.py` | Append-only `seals.txt` (`<name> <sha256> <file count> <UTC time>`), verify, never replace; the clock is injected. |
 | `freeze.py` | Check file hashes against `freeze-v1.json` in this folder, the plan's one machine-checked Freeze list (plan section 11): scorer files and the skill's `workspace_guard.py` from E1a, then the release, seed, sample and purchase-count hashes, held-out seal hash and, before v12 code, the golden file. A test fails when a listed file stops matching. |
-| `pfd_eval.py` | Command line and file input/output only: `draw-seed`, `sample`, `split`, `seal`, `score-a`, `score-b`. Every private path is checked by the skill's `workspace_guard.check_output` (imported by a path built from this file's location in the repository, never the working directory) before it is read or written. |
+| `pfd_eval.py` | Command line and file input/output only: `draw-seed`, `query-template`, `assemble-queries`, `lookup`, `sample`, `split`, `seal`, `score-a`, `score-b`. Every private path is checked by the skill's `workspace_guard.check_output` (imported by a path built from this file's location in the repository, never the working directory) before it is read or written. |
 
 **Dependency direction.** `pfd_eval.py` (input/output, clock, randomness for `draw-seed` only) →
 the pure modules. The pure modules import nothing outside the standard library and this folder, and
@@ -64,7 +65,8 @@ written before the run is recorded, so a failed write uses up no run. Seal and r
 exclusive lock on the private `.seals.lock`, and a sealed folder or file that is a link is refused.
 
 **Private folder layout.** `<root>/sample/sample.json`, `<root>/review/review-sheet.csv`,
-`<root>/sample/purchase-counts.json`, `<root>/development/query-set.json`, `<root>/held-out/query-set.json`,
+`<root>/sample/purchase-counts.json`, `<root>/queries/query-template.csv`, `<root>/queries/query-set.json`,
+`<root>/development/query-set.json`, `<root>/held-out/query-set.json`,
 `seals.txt`, `.seals.lock` and `exposures.txt` (a plain file, never a link). The
 root must pass the skill's `workspace_guard.check` (not in a git tree, mode 700) and every path its
 `check_output`; no evaluation file is ever overwritten.
@@ -74,6 +76,35 @@ A stratum that runs out of rows before its quota fails its bar. Each held-out re
 `owner_development_output_openings`, the number of lines in the private `exposures.txt`, where the owner
 notes the date each time they open per-query development output (plan 4.3), and `held_out_run`, the
 run number it was recorded as (1, or 2 for the one permitted rerun).
+
+## Building the query set (E1d, owner)
+
+Run these yourself from this folder; the agent never sees the query text or answers. `ROOT` is the private evaluation
+folder and `EXPORT` the pinned import file. The release must already be pinned in `freeze-v1.json` (E1b).
+
+1. `python3 -I pfd_eval.py query-template --root ROOT` writes an empty `queries/query-template.csv`.
+2. Open it in a spreadsheet and add one row per query:
+
+   | Column | What to write |
+   |---|---|
+   | `query` | the search exactly as you would type it |
+   | `negative` | `yes` for a food you eat that is not in the database, otherwise `no` |
+   | `answer` | `entry`, `generic` or `none` |
+   | `entry_ids` | for `entry`: one or more `pfc:` IDs, separated by spaces |
+   | `step` | for `entry`: `title` (1), `variety` (2) or `concept` (3), the field that should find it |
+   | `generic` | for `generic`: `source=record_id` items separated by `;`, as `lookup --generic` prints them |
+
+   A negative query must have answer `none`; you may also mark other queries `none` (plan 4.2). Blank
+   rows are ignored. Save as UTF-8 CSV.
+3. To find IDs, `python3 -I pfd_eval.py lookup --root ROOT --export EXPORT oat milk` lists the entries
+   holding every word, alphabetically and without a score, with the fields that matched; add
+   `--generic` to search the generic records. It prints to your screen only and writes nothing. The
+   choice of answer and step stays yours: the lookup is not the ranking under test.
+4. `python3 -I pfd_eval.py assemble-queries --root ROOT --export EXPORT` checks every row and writes
+   `queries/query-set.json`, printing counts only. A refusal names the row and column to fix.
+5. `python3 -I pfd_eval.py split --root ROOT --query-set ROOT/queries/query-set.json`, then
+   `seal --root ROOT seal-dev` and `seal --root ROOT seal-heldout`; the held-out hash then goes into
+   the Freeze list.
 
 **Out of scope for E1a.** The Part B Swift step test, the `pfd-v11-ranking-golden-v1` file and the
 importer belong to the implementation phase; E1b to E1d (release pin, seed, sample, query set) need
