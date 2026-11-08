@@ -329,9 +329,9 @@ final class HarnessTests: XCTestCase {
         XCTAssertTrue(output.pass)
         XCTAssertEqual(output.namedScores["fields_correct"], 8)
         XCTAssertEqual(output.f1, 2 * (8.0 / 9) * 1 / (8.0 / 9 + 1), accuracy: 1e-12)
-        XCTAssertEqual(output.readerVersions["mapping"], "pasted-label-ai-text-mapping-v3")
+        XCTAssertEqual(output.readerVersions["mapping"], "pasted-label-ai-text-mapping-v4")
         XCTAssertEqual(output.readerVersions["format"], "pasted-label-ai-text-format-v1")
-        XCTAssertEqual(output.readerVersions["scorer"], "pasted-label-ai-text-scorer-v4 (rules of uk-fresh-scorer-v2; RI amount columns and unrecognised rows not printed fields)")
+        XCTAssertEqual(output.readerVersions["scorer"], "pasted-label-ai-text-scorer-v5 (rules of uk-fresh-scorer-v2; RI amount columns and unrecognised rows not printed fields; two or more %RI columns paired in printed order; a lone * a class marker)")
         XCTAssertEqual(output.score.fieldsReferenceAmounts, 0)
         XCTAssertEqual(output.score.fieldsUnrecognisedRows, 0)
     }

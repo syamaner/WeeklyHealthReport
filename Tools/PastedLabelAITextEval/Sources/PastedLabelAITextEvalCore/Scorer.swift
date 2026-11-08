@@ -121,7 +121,7 @@ public struct LabelScore: Codable, Equatable, Sendable {
     }
 }
 
-/// `pasted-label-ai-text-scorer-v4 (rules of uk-fresh-scorer-v2; RI amount columns and unrecognised rows not printed fields)`:
+/// `pasted-label-ai-text-scorer-v5 (rules of uk-fresh-scorer-v2; RI amount columns and unrecognised rows not printed fields; two or more %RI columns paired in printed order; a lone * a class marker)`:
 /// the frozen fresh-set scorer's comparison
 /// (`UKFreshSet.score` and `FreshSet`, `uk-fresh-scorer-v2` rules R1 to R3, in
 /// `Packages/FoodLedgerKit/Tests/FoodLabelTextCaptureTests/`), copied because this tool never
@@ -162,8 +162,24 @@ public struct LabelScore: Codable, Equatable, Sendable {
 /// v3, only the printed-field count changes: every cell shown at Confirm, an unrecognised cell
 /// included, is still scored by the same rules, and silent-error scoring is unchanged. The
 /// excluded count is `fieldsUnrecognisedRows`.
+///
+/// Changed in v5 (D31 and D32, revision 15):
+/// - two or more %RI columns (D31): R1 picks "the" percentage column, so with two percentage
+///   reference-intake columns in the key every %RI cell was ambiguous. When the key has two or
+///   more reference-intake columns that are percentage columns under R1, the app's
+///   reference-intake headers that hold percentages are paired with them in printed order (left to
+///   right), as product-amount columns are paired by position, and a cell is correct only in its
+///   paired column. Unequal counts stay ambiguous (wrong). One percentage column is read exactly
+///   as in v4;
+/// - a lone `*` (D32): a transcribed value that is a lone `*` (`=`, no unit, with or without
+///   `outside_table`) is a class marker for R1 (`isPercentColumn`), so a %RI column with some `*`
+///   cells stays a percentage column and its values are printed fields, and in `same`, where it
+///   matches only a shown `*` (the mapping's star marker), and a shown `*` matches only it.
+///
+/// The comparison rules (R1 to R3 otherwise, R2's dash condition, `expected`, the product-amount
+/// pairing), the printed-field exclusions and silent-error scoring are as in v4.
 public enum PastedLabelAITextScorer {
-    public static let version = "pasted-label-ai-text-scorer-v4 (rules of uk-fresh-scorer-v2; RI amount columns and unrecognised rows not printed fields)"
+    public static let version = "pasted-label-ai-text-scorer-v5 (rules of uk-fresh-scorer-v2; RI amount columns and unrecognised rows not printed fields; two or more %RI columns paired in printed order; a lone * a class marker)"
     /// The transcription's nutrient for a printed row the app keeps as unrecognised.
     static let unrecognisedNutrient = "other"
 
@@ -249,7 +265,9 @@ public enum PastedLabelAITextScorer {
     }
 
     /// The transcription column for a header: the one with its basis; two or more matched by
-    /// position among the amount columns, or by R1 among reference-intake columns.
+    /// position among the amount columns, or by R1 among reference-intake columns, where two or
+    /// more percentage columns are paired in printed order with the app's reference-intake headers
+    /// that hold percentages (v5, D31).
     static func column(_ headerID: String, _ table: ConfirmTable, _ e: EvalCase.Expected) -> ColumnMatch {
         guard let header = table.headers.first(where: { $0.id == headerID }) else { return .ambiguous }
         let same = e.columns.indices.filter { e.columns[$0].basis == header.basis }
@@ -258,7 +276,13 @@ public enum PastedLabelAITextScorer {
         case 1: return .index(same[0])
         case _ where header.basis == "reference_intake":
             let percent = same.filter { isPercentColumn(e, $0) }
-            return percent.count == 1 ? .index(percent[0]) : .ambiguous
+            if percent.count == 1 { return .index(percent[0]) }
+            guard percent.count > 1 else { return .ambiguous }
+            let readPercent = table.headers.filter { read in
+                read.basis == "reference_intake" && table.cells.contains { $0.headerID == read.id && $0.canonicalUnit == "%" }
+            }
+            guard readPercent.count == percent.count, let position = readPercent.firstIndex(where: { $0.id == headerID }) else { return .ambiguous }
+            return .index(percent[position])
         default:
             let readAmounts = table.headers.filter { $0.basis != "reference_intake" }
             let printedAmounts = e.columns.indices.filter { e.columns[$0].basis != "reference_intake" }
@@ -278,9 +302,10 @@ public enum PastedLabelAITextScorer {
         Set(e.columns.indices.filter { e.columns[$0].basis == "reference_intake" && !isPercentColumn(e, $0) })
     }
 
-    /// R1: a column holding at least one percentage and, apart from class markers, nothing else.
+    /// R1: a column holding at least one percentage and, apart from class markers (a lone `*`
+    /// included from v5, D32), nothing else.
     static func isPercentColumn(_ e: EvalCase.Expected, _ col: Int) -> Bool {
-        let values = e.rows.compactMap { value($0, col) }.filter { !TranscriptionRules.isClassMarker($0) }
+        let values = e.rows.compactMap { value($0, col) }.filter { !TranscriptionRules.isClassMarker($0) && !isStarMarker($0) }
         return !values.isEmpty && values.allSatisfy { TranscriptionRules.unit($0.unit, .uk) == "%" || TranscriptionRules.unit($0.unit, .taiwan) == "%" }
     }
 
@@ -395,10 +420,18 @@ public enum PastedLabelAITextScorer {
         return decimal(text.replacingOccurrences(of: ",", with: "."))
     }
 
-    /// Exact comparison: a class marker matches only a read marker; an `outside_table` marker only
-    /// itself; otherwise comparator, number and canonical unit must all match.
+    /// v5 (D32): a transcribed lone `*`, with comparator `=` and no unit (with or without
+    /// `outside_table`, which the transcription rules require outside the UK marker list).
+    static func isStarMarker(_ value: TranscriptionShapes.Value) -> Bool {
+        value.comparator == "=" && value.unit.isEmpty && value.number == "*"
+    }
+
+    /// Exact comparison: a class marker matches only a read marker; a lone `*` only a shown `*`
+    /// (v5, D32); an `outside_table` marker only itself; otherwise comparator, number and canonical
+    /// unit must all match.
     static func same(_ cell: ConfirmTable.Cell, as value: TranscriptionShapes.Value, printedLabel: String, inReferenceColumn: Bool,
                      schema: TranscriptionRules.Schema) -> Bool {
+        if isStarMarker(value) { return cell.decimalText == "*" && cell.comparator == "=" && cell.canonicalUnit.isEmpty }
         if TranscriptionRules.isClassMarker(value) { return TranscriptionRules.ukMarkers.contains(cell.decimalText.lowercased()) }
         if value.outsideTable == true, value.comparator == "=", value.unit.isEmpty, !value.number.isEmpty, !value.number.contains(where: \.isNumber) {
             return cell.decimalText == value.number

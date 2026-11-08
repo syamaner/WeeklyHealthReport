@@ -81,6 +81,6 @@ final class NotDeclaredMarkerTests: XCTestCase {
     func testTheMarkerClassIsTheFrozenOne() {
         let result = score(Self.numbers + [Self.marker("sugars", "h1", "Tr"), Self.marker("sugars", "h2", "\u{2013}")] + Array(Self.markers.dropFirst(2)))
         XCTAssertEqual(result.fieldsCorrect, 8)
-        XCTAssertEqual(PastedLabelAITextScorer.version.hasPrefix("pasted-label-ai-text-scorer-v4 "), true, "no scorer change for D30")
+        XCTAssertEqual(PastedLabelAITextScorer.version.hasPrefix("pasted-label-ai-text-scorer-v5 "), true, "no scorer change for D30; v5 adds D31 and D32")
     }
 }

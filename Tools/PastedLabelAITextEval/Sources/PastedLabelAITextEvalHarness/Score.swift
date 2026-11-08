@@ -11,12 +11,14 @@ import PastedLabelAITextEvalCore
 ///    failed).
 /// 2. The envelope check (T3): one choice, `stop`, and the response's model and provider must match
 ///    the pinned route, or the label failed.
-/// 3. `PastedLabelAITextReader`: the text mapping (`pasted-label-ai-text-mapping-v3`, whose not-declared
-///    markers the Confirm table shows as printed, D30); decline gate v2 (`.uk` for UK candidates), the
-///    conversions and the arithmetic checks; the panel detector; the locator, unit and vocabulary
-///    checks; attention. Only a hard decline declines (D19).
-/// 4. `pasted-label-ai-text-scorer-v4` (the comparison rules of `uk-fresh-scorer-v2`; reference-intake
-///    amount columns, D28, and unrecognised rows, D29, are not printed fields) against the case.
+/// 3. `PastedLabelAITextReader`: the text mapping (`pasted-label-ai-text-mapping-v4`, whose not-declared
+///    markers the Confirm table shows as printed, D30, with the lone `*` of reference-intake
+///    columns, D32); the two-basis header decline (`vocabulary:two_basis_header`, D33); decline gate
+///    v2 (`.uk` for UK candidates), the conversions and the arithmetic checks; the panel detector;
+///    the locator, unit and vocabulary checks; attention. Only a hard decline declines (D19).
+/// 4. `pasted-label-ai-text-scorer-v5` (the comparison rules of `uk-fresh-scorer-v2`; reference-intake
+///    amount columns, D28, and unrecognised rows, D29, are not printed fields; two or more %RI
+///    columns paired in printed order, D31; a lone `*` a class marker, D32) against the case.
 ///
 /// The pass rule: a tuning label passes when it reaches Confirm with no silent-error table. A
 /// synthetic adversarial case (4.9, `EvalCase.adversarialClass`) must end as a decline or an
@@ -115,7 +117,8 @@ public enum ScoreCommand {
                               needsAttention: attention[cell.rowID + "\u{0}" + cell.headerID] ?? true)
         }
         let markers = reading.values.filter { $0.read == .notRead(.notDeclared) }.compactMap { value -> ConfirmTable.Cell? in
-            guard let marker = PastedLabelAITextValueGrammar.notDeclaredMarker(value.printedText) else { return nil }
+            guard let marker = PastedLabelAITextValueGrammar.notDeclaredMarker(value.printedText,
+                                                                               inReferenceIntakeColumn: value.basis == "reference_intake") else { return nil }
             return ConfirmTable.Cell(rowID: value.nutrient == "unrecognised" ? "row_\(value.rowIndex + 1)" : value.nutrient, nutrient: value.nutrient,
                                      printedLabel: value.printedLabel, headerID: value.headerID, comparator: "=", decimalText: marker,
                                      canonicalUnit: "", needsAttention: value.needsAttention)
