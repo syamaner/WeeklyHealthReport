@@ -34,7 +34,9 @@ take seeds, clocks and bytes as arguments, so every result is reproducible from 
 **Invariants.**
 - No network access; no private data in this folder. Plan revision 5 permits a dedicated drafting
   agent to direct local offline scripts that prepare private unsplit queries and separate review
-  proposals for owner validation. Query drafting returns counts and hashes only. A subsequent explicit
+  proposals for owner validation. Query drafting returns counts and hashes only to anything outside
+  the drafting session; query wording may sit in that session's context, which is why the session is
+  excluded from ranking (plan section 7). A subsequent explicit
   owner authorisation permits selected titles, matched record names and preparation states in model
   context for semantic identity review (plan section 7); other private fields remain excluded.
   User-facing and external code-review output remains counts-only. The drafting agent cannot implement ranking.

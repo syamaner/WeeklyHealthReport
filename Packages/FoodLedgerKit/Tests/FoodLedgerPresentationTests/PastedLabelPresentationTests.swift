@@ -579,8 +579,8 @@ final class PastedLabelPresentationTests: XCTestCase {
         XCTAssertFalse(policy.contains("Effective 4 October 2026"))
         XCTAssertTrue(policy.split(separator: "\n")[1].hasPrefix("Effective "))
         let section = egress.components(separatedBy: "## Allowed egress")[1].components(separatedBy: "\n## ")[0]
-        XCTAssertEqual(section.split(separator: "\n").filter { $0.hasPrefix("| ") }.count, 9,
-                       "header, separator and seven destinations: the pasted label adds none; #316 L5 adds the label photo row")
+        XCTAssertEqual(section.split(separator: "\n").filter { $0.hasPrefix("| ") }.count, 11,
+                       "header and ten destinations: the pasted label adds none; #316 L5 adds the label photo row; #436 adds the evaluation model-provider and web research rows (outside the app)")
     }
 }
 

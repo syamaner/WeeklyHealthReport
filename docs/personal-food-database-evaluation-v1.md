@@ -98,6 +98,11 @@ sample` from the pinned release:
 | A3 | a close or other-state generic record offered separately | 40 | whether the separate candidate is represented accurately (section 3.4) |
 | A4 | no values and no reference | 20 | whether a suitable source record was missed |
 
+These counts are read from the pinned release and match the E1c record (section 11.2). The earlier
+plan estimated 58 A1 entries and "a few" A5 from the 7 November 2026 build; the pinned release
+places 57 in A1 and 1 in A5 under the order above, 58 census entries in all, and the sample itself is
+unchanged.
+
 The draw (section 11.2) also includes the 30 most-bought entries in their own strata. Do not redraw, replace rows, modify the pinned release or regenerate the existing sheet.
 A missing source or unresolved state is recorded as unresolved and is not a passing check.
 
@@ -373,8 +378,9 @@ fresh sample or a fresh held-out set.
   relevant product titles, matched record names and preparation states to enter Codex model context
   for identity and generic food/state review. Read only a filtered projection of those fields with
   row keys for alignment, not whole catalogue or sheet files. This sends the permitted fields to the
-  model provider. It does not authorise query text, expected query answers, nutrient values, pack
-  verdicts, private configuration, unrelated notes or held-out contents to enter model context.
+  model provider. Beyond the drafting session that writes them (see the next item), it does not
+  authorise query text or expected query answers to enter model context, nor private configuration,
+  unrelated notes or held-out contents; nutrient evidence is covered by the amendment below.
   Provisional semantic decisions are saved privately; user-facing replies, repository files,
   issues, PRs, commits and external code-review payloads contain counts and hashes only.
   See `privacy-and-egress.md` for this explicit, owner-requested exception. It does not approve
@@ -383,8 +389,11 @@ fresh sample or a fresh held-out set.
   supersedes pack checks, permits nutrient evidence in model context and authorises
   food-description-only web research; uncertain identity/state cases remain explicit.
 - **How the query boundary is kept:** query text and expected answers are written by local scripts
-  under the drafting agent's direction, and only counts and hashes are printed back. This is a
-  procedural control, not one a script enforces: nothing prevents a session from opening the query
+  under the drafting agent's direction, and only counts and hashes are printed back. Because the
+  agent directs the drafting, query wording can still be in that drafting session's model context.
+  The boundary is therefore that query text never leaves the drafting session (no repository file,
+  issue, PR, commit, review payload or reply) and that the session never implements ranking, not that
+  no model ever sees it. This is a procedural control, not one a script enforces: nothing prevents a session from opening the query
   files or a whole sheet. That is why any session that drafted or reviewed is treated as exposed and
   excluded from ranking implementation whether or not it read query text, and why every result states
   the exposure.
