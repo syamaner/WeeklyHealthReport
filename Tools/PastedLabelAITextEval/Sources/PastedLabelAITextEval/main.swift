@@ -8,7 +8,7 @@ import PastedLabelAITextEvalHarness
 //
 //     PastedLabelAITextEval send --label-id ID --text FILE --route CANDIDATE --cell CELL \
 //         --ledger FILE --cache DIR (--fake-transport DIR | --live) [--prompt-version prompt-v1|prompt-v2]
-//         [--cell-stop-usd N<=5] [--programme-stop-usd N<=25]
+//         [--fresh-run NAME] [--cell-stop-usd N<=5] [--programme-stop-usd N<=25]
 //     PastedLabelAITextEval score --case FILE --text FILE --send FILE|-
 //     PastedLabelAITextEval convert --in FILE --set SET --copy-method TEXT --text-sha256 HEX [--tier T] [--layout-shape SHAPE] [--label-id ID]
 //     PastedLabelAITextEval convert-legacy --in FILE --copy-method TEXT --text-sha256 HEX [--layout-shape SHAPE] [--label-id ID]
@@ -26,6 +26,9 @@ import PastedLabelAITextEvalHarness
 // before anything is reserved or sent. Outputs are JSON on stdout; errors go to stderr. Exit codes:
 // 0 done, 2 usage or input error, 3 the call was refused by a spend stop. `--prompt-version` picks
 // the instruction (revision 11): `prompt-v1`, the app's, by default; it is recorded in the output.
+// `--fresh-run NAME` (revision 16) sends the same request body again for a noise measurement: it
+// never reads the default cache entry, keeps its own entry under the request SHA-256 and NAME, and
+// is reserved, retried and settled like any tap; NAME is recorded as `fresh_run`.
 
 func fail(_ message: String, code: Int32 = 2) -> Never {
     FileHandle.standardError.write(Data((message + "\n").utf8))
@@ -62,7 +65,7 @@ let given = options(arguments.dropFirst(), flags: command == "send" ? ["--live"]
 switch command {
 case "send":
     let allowed: Set<String> = ["--label-id", "--text", "--route", "--cell", "--ledger", "--cache", "--fake-transport", "--live",
-                                "--cell-stop-usd", "--programme-stop-usd", "--prompt-version"]
+                                "--cell-stop-usd", "--programme-stop-usd", "--prompt-version", "--fresh-run"]
     if let unknown = given.keys.first(where: { !allowed.contains($0) }) { fail("unknown option \(unknown)") }
     // Exactly one connection, and for --live a well-formed key in the environment, before anything else.
     let choice: SendTransportChoice
@@ -85,6 +88,9 @@ case "send":
     } else {
         promptVersion = OpenRouterPastedLabelAITextRequest.defaultPromptVersion
     }
+    if let name = given["--fresh-run"], !SendCommand.isFreshRunName(name) {
+        fail("bad fresh run name \(name): a lower-case letter, then up to 15 lower-case letters, digits or single hyphens")
+    }
     let cellStop = given["--cell-stop-usd"].map { Decimal(string: $0) } ?? Decimal(5)
     let programmeStop = given["--programme-stop-usd"].map { Decimal(string: $0) } ?? Decimal(25)
     guard let cellStop, let programmeStop, cellStop > 0, cellStop <= 5, programmeStop > 0, programmeStop <= 25 else {
@@ -97,7 +103,8 @@ case "send":
         }
         let output = try await SendCommand.run(.init(labelID: labelID, textURL: path(text), route: route, cell: cell, ledgerURL: path(ledger),
                                                      cacheDirectory: path(cache), connection: connection, cellStop: cellStop,
-                                                     programmeStop: programmeStop, promptVersion: promptVersion))
+                                                     programmeStop: programmeStop, promptVersion: promptVersion,
+                                                     freshRun: given["--fresh-run"]))
         printJSON(output)
         if output.attempt.hasPrefix("refused:") { exit(3) }
     } catch {

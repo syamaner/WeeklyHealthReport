@@ -105,6 +105,38 @@ check('prompt v2 names its cells v2 and passes prompt-v2 to each provider', () =
   assert.match(text, /prompt v2 \(prompt-v2\)/);
 });
 
+check('a fresh run names its cells by suite and run, and passes the run to each provider', () => {
+  if (fs.existsSync(out)) fs.unlinkSync(out);
+  const r = run(args({ '--prompt-version': 'v2', '--suite': 'tuning', '--fresh-run': 'r2' }));
+  assert.equal(r.code, 0, r.stderr);
+  const text = fs.readFileSync(out, 'utf8');
+  const config = JSON.parse(text.replace(/^#.*\n/gm, ''));
+  assert.deepEqual(config.providers.map((p) => p.config), [
+    { route: 'gemini-4-argon-vertex-us', cell: 'v2__gemini-4-argon-vertex-us__tuning-r2', promptVersion: 'prompt-v2', freshRun: 'r2' },
+    { route: 'mistral-large-4-zdr', cell: 'v2__mistral-large-4-zdr__tuning-r2', promptVersion: 'prompt-v2', freshRun: 'r2' },
+  ]);
+  assert.match(text, /Fresh run r2/);
+  assert.match(config.description, /fresh run r2$/);
+});
+check('without --fresh-run no provider names a fresh run', () => {
+  if (fs.existsSync(out)) fs.unlinkSync(out);
+  const r = run(args({ '--prompt-version': 'v2', '--suite': 'tuning' }));
+  assert.equal(r.code, 0, r.stderr);
+  const config = JSON.parse(fs.readFileSync(out, 'utf8').replace(/^#.*\n/gm, ''));
+  for (const p of config.providers) assert.equal('freshRun' in p.config, false);
+  assert.deepEqual(config.providers.map((p) => p.config.cell), ['v2__gemini-4-argon-vertex-us__tuning', 'v2__mistral-large-4-zdr__tuning']);
+});
+check('a fresh run outside the grammar is refused, and nothing is written', () => {
+  for (const bad of ['R2', '2r', 'r_2', 'r__2', 'r2-', 'r--2', 'r.2', 'r2/x', 'r12345678901234567']) {
+    if (fs.existsSync(out)) fs.unlinkSync(out);
+    const r = run(args({ '--fresh-run': bad }));
+    assert.equal(r.code, 2, bad);
+    assert.match(r.stderr, /bad fresh run/, bad);
+    assert.equal(fs.existsSync(out), false, bad);
+  }
+  assert.equal(run([...args(), '--fresh-run', 'r2', '--fresh-run', 'r3']).code, 2);
+});
+
 fs.rmSync(tmp, { recursive: true, force: true });
 if (failures) {
   console.log(`${failures} failed`);

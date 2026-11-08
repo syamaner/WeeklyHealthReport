@@ -33,12 +33,13 @@ The script refuses a scratch path inside the repository or promptfoo's home defa
 `make-config.js` writes one suite's promptfoo config, outside the repository: one provider per route candidate and one test per case in the data directory's `cases/`. Each provider's cell is `<prompt-version>__<candidate-id>__<suite>`, which keys its $5 stop in the spend ledger.
 
 ```bash
-node make-config.js --data DIR --candidates ID[,ID...] --prompt-version v1|v2 --suite NAME --out /path/outside/the/repository/config.yaml
+node make-config.js --data DIR --candidates ID[,ID...] --prompt-version v1|v2 --suite NAME [--fresh-run RUN] --out /path/outside/the/repository/config.yaml
 ```
 
 - The config names no data path, so it runs over any copy of the suite; `run-live.sh` passes the data directory by environment. It does name this checkout's `provider.js` and `assert.js` by absolute path, so run it from the checkout that generated it.
 - A data path holding `uk-english-v2` is refused, before and after resolving symbolic links.
 - `--prompt-version` is `v1` (`prompt-v1`, the instruction the app sends) or `v2` (`prompt-v2`, revision 11). `provider.js` passes it to `send --prompt-version`, and refuses a send record whose prompt version is not the cell's. Each version's requests have their own SHA-256, so their responses are cached apart.
+- `--fresh-run RUN` (revision 16) writes a fresh repeat of the suite, to measure run-to-run noise. Its cells are `<prompt-version>__<candidate-id>__<suite>-<RUN>` (for example `v2__gpt-6-luna-azure-4k__tuning-r2`), so each has its own $5 stop. RUN is a lower-case letter, then up to 15 lower-case letters, digits or single hyphens (`r2`, `r3`). `provider.js` passes it to `send --fresh-run`, and refuses a send record whose cell or fresh run is not the provider's.
 - `run-live.sh` refuses data inside the repository (T6), so copy `adversarial/texts` and `adversarial/cases` to a private folder before a live adversarial run.
 
 ## Run a live tuning cell (A3)
@@ -52,6 +53,7 @@ OPENROUTER_API_KEY=... ./run-live.sh /private/folder/a3-scratch /path/to/matrix-
 - The live mode is explicit: `run-live.sh` sets `PASTED_LABEL_AI_TEXT_EVAL_LIVE=1`, and `provider.js` then runs `send --live` and passes `OPENROUTER_API_KEY` to the child by environment, never on a command line. Without that variable the provider is in fake mode and never passes a key; with it, a fake transport directory set as well is refused.
 - `send --live` uses the shipped OpenRouter transport for the keyless catalogue check and the completions POST, reads the key from `OPENROUTER_API_KEY` only and never prints, logs, caches or writes it. A missing, empty or malformed key is a usage error (exit 2) before anything is reserved or sent.
 - Each tap makes at most three attempts. Only a transport failure, HTTP 429 or HTTP 5xx is retried, with exponential backoff and jitter, honouring `Retry-After` (seconds or an HTTP date); a `Retry-After` over 30 s ends the tap instead. Every attempt reserves its own W in the spend ledger before it is sent, and the tap's `cost_usd`, `charged_usd`, `reserved_w_usd` and latency cover all its attempts (`attempts`, `attempt_outcomes` and `retry_stop` record them).
+- A re-run of a default cell returns the cached answers and measures nothing. To measure noise, generate a fresh run's config (`--fresh-run r2`) and run it as any other: `send --fresh-run` never reads the default cache entry, sends the same request body through the same transport, reservation, retries and ledger, and caches the reply under `<request SHA-256>.fresh-<RUN>.json`. A repeat of the same fresh run is then a cache hit and sends nothing; the default entry is never read or overwritten. Each send record carries `fresh_run` (absent in the default run and in older records). There is no new egress: the destinations, terms and stops are unchanged.
 - Use **one scratch directory for the whole A3 programme**, in the private folder: its `run/` holds the spend ledger and the response cache across runs, so the $5 cell and $25 programme stops span every run, and a re-run reuses cached answers without paying again. Each run's promptfoo results go to `results/<UTC time>.json` beside it.
 - The data directory (`texts/` and `cases/`) must be outside the repository (T6). The sealed held-out set (`uk-english-v2`) is refused: the held-out run (T7) is separate.
 - Telemetry, update checks, sharing and remote generation are off as in the smoke run. No dead proxy is set, since it would block the real call.
@@ -62,5 +64,6 @@ None of these runs promptfoo, builds the tool or sends anything:
 
 - `tests/test-scratch-path.sh` checks the scratch path refusal of both scripts (shared in `scratch-path.sh`), including a symbolic link outside the repository that points inside it.
 - `tests/test-run-live.sh` checks `run-live.sh`'s argument checks and its refusal without a key; every case exits 2 before the build and creates nothing.
-- `node tests/test-provider-modes.js` checks with a stub binary that the key reaches the child only in live mode, and only through its environment.
-- `node tests/test-make-config.js` checks the generator's refusals and the shape of the config it writes.
+- `node tests/test-provider-modes.js` checks with a stub binary that the key reaches the child only in live mode, and only through its environment, that the prompt version and fresh run are passed through, and that a record for another prompt version, cell or fresh run is refused.
+- `node tests/test-make-config.js` checks the generator's refusals and the shape of the config it writes, with and without a fresh run.
+- The Swift side of fresh runs (cache keys, the untouched default entry, W and the ledger) is in `Tests/PastedLabelAITextEvalHarnessTests/FreshRunTests.swift`, over a scripted transport.

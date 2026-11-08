@@ -15,6 +15,9 @@ const path = require('node:path');
 
 // The closed set of instructions `send --prompt-version` accepts (revision 11).
 const PROMPT_VERSIONS = ['prompt-v1', 'prompt-v2'];
+// A fresh run's name, as `send --fresh-run` checks it (revision 16): a lower-case letter, then up
+// to 15 lower-case letters, digits or single hyphens, with no trailing hyphen.
+const FRESH_RUN = /^[a-z](?:[a-z0-9]|-(?=[a-z0-9])){0,15}$/;
 
 function required(name) {
   const value = process.env[name];
@@ -60,11 +63,16 @@ class PastedLabelAITextSendProvider {
     if (!/^[A-Za-z0-9._-]+$/.test(label) || label.startsWith('.')) return { error: `bad label_id ${label}` };
     // The route and the cell come from the provider's config (make-config.js writes one provider per
     // route candidate, cell `<prompt-version>__<candidate>__<suite>`); neither is ever guessed.
-    const { route, cell, promptVersion } = this.config;
+    const { route, cell, promptVersion, freshRun } = this.config;
     if (typeof route !== 'string' || !route || typeof cell !== 'string' || !cell) return { error: 'the provider config needs route and cell' };
     // A config without a prompt version (the A2 smoke config) sends the default, prompt-v1.
     if (promptVersion !== undefined && !PROMPT_VERSIONS.includes(promptVersion)) {
       return { error: `unknown prompt version ${promptVersion}; the closed set is ${PROMPT_VERSIONS.join(', ')}` };
+    }
+    // A fresh run (revision 16) re-sends the cell's labels for a noise measurement; a config without
+    // one is the default run.
+    if (freshRun !== undefined && (typeof freshRun !== 'string' || !FRESH_RUN.test(freshRun))) {
+      return { error: `bad fresh run ${freshRun}` };
     }
     const bin = required('PASTED_LABEL_AI_TEXT_EVAL_BIN');
     const data = required('PASTED_LABEL_AI_TEXT_EVAL_DATA');
@@ -79,6 +87,7 @@ class PastedLabelAITextSendProvider {
       'send', '--label-id', label, '--text', path.join(data, 'texts', `${label}.txt`),
       '--route', route, '--cell', cell,
       ...(promptVersion === undefined ? [] : ['--prompt-version', promptVersion]),
+      ...(freshRun === undefined ? [] : ['--fresh-run', freshRun]),
       '--ledger', path.join(run, 'spend-ledger.json'), '--cache', path.join(run, 'response-cache'),
       ...link.args,
     ];
@@ -102,6 +111,12 @@ class PastedLabelAITextSendProvider {
     if (promptVersion !== undefined && send.prompt_version !== promptVersion) {
       return { error: `send used prompt ${send.prompt_version}, but the cell is for ${promptVersion}` };
     }
+    // A record for another cell, or for another run (a fresh run's record in the default run, or the
+    // reverse), is refused too, so a cached answer is never scored under the wrong run.
+    if (send.cell !== cell) return { error: `send recorded cell ${send.cell}, but the provider's cell is ${cell}` };
+    if ((send.fresh_run ?? undefined) !== freshRun) {
+      return { error: `send recorded fresh run ${send.fresh_run ?? 'none'}, but the cell's is ${freshRun ?? 'none'}` };
+    }
     // The send record, with the tap's start added; `score` ignores the extra member.
     send.tap_started_at_ms = started;
     return {
@@ -117,6 +132,7 @@ class PastedLabelAITextSendProvider {
       },
       metadata: {
         attempt: send.attempt, attempts: send.attempts, requestSha256: send.request_sha256, costKnown: send.cost_usd != null, cell: send.cell,
+        freshRun: send.fresh_run ?? null,
       },
     };
   }
