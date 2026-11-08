@@ -6,8 +6,10 @@ import PackageDescription
 // case format `pasted-label-ai-text-eval-case-v1`, the converters from the Taiwan reader v3 and UK
 // transcription schemas, and the committed bar `bar-v1.json`. A2: the `PastedLabelAITextEval` CLI
 // (`send` and `score`) over the shipped request builder, reader and checks, the spend reservation,
-// the response cache and the legacy converter. No network: A2 wires only a fake transport, and
-// every real file stays in the private folder outside the repository.
+// the response cache and the legacy converter, over a directory fake transport. A3: `send --live`,
+// the shipped live transport (named only in `LiveTransport.swift`, check-boundaries.sh) with the key
+// from the environment only and retries under the spend ledger, for the tuning runs. Every real file
+// stays in the private folder outside the repository.
 let package = Package(
     name: "PastedLabelAITextEval",
     platforms: [.macOS(.v14)],
@@ -15,7 +17,7 @@ let package = Package(
     targets: [
         // Pure: Foundation and CryptoKit only (check-boundaries.sh).
         .target(name: "PastedLabelAITextEvalCore"),
-        // The harness: the shipped adapters, the fake transport, the ledger and the cache.
+        // The harness: the shipped adapters, the fake and live connections, the ledger and the cache.
         .target(
             name: "PastedLabelAITextEvalHarness",
             dependencies: [

@@ -4,17 +4,23 @@ import Foundation
 import PastedLabelAITextEvalCore
 
 /// `PastedLabelAITextEval send` (docs/pasted-label-ai-text-v1.md 5.2 items 1 and 3): one label's
-/// call, built with the shipped text request builder, with the spend reservation and the response
-/// cache. In A2 the only transport is `DirectoryFakeTransport`.
+/// tap, built with the shipped text request builder, with the spend reservation and the response
+/// cache. It runs over one of two connections, chosen explicitly: the directory fake transport
+/// (`--fake-transport DIR`, A2), or the shipped live transport through `LiveTransport` with the key
+/// from the environment only (`--live`, A3, T1 and T4).
 ///
 /// 0. The pre-send panel detector runs on the text, as in the product (4.7): a detected US,
 ///    Australian or New Zealand panel is declined before any request is built, and nothing is spent.
 /// 1. The request body is built by `OpenRouterPastedLabelAITextRequest`; its SHA-256 keys the cache.
 /// 2. A cached response is returned as it was recorded, with its original cost, and charges nothing.
 /// 3. Otherwise the text route checker runs over the same transport, W is priced from the
-///    catalogue's prices, and W is reserved in the spend ledger (refused past a stop).
-/// 4. One attempt is sent; the reservation settles to the reported cost, to unknown (charged at
-///    W), or to zero when nothing was sent. A responded call is cached.
+///    catalogue's prices.
+/// 4. Each attempt first reserves a fresh W in the spend ledger (refused past a stop), then sends,
+///    then settles that reservation to the reported cost, to unknown (charged at W), or to zero
+///    when nothing was sent. A transient failure (a transport failure, HTTP 429 or 5xx) is retried
+///    under `SendRetryPolicy` (up to three attempts over the live transport, one over the fake), so
+///    no retry ever sends outside its own reservation. The tap's cost, charge, W and latency cover
+///    every attempt (5.3). A tap whose final reply is an HTTP 200 passing the envelope is cached.
 public enum SendCommand {
     public struct Options: Sendable {
         public let labelID: String
@@ -23,20 +29,41 @@ public enum SendCommand {
         public let cell: String
         public let ledgerURL: URL
         public let cacheDirectory: URL
-        public let fakeTransportDirectory: URL
+        public let connection: Connection
         public let cellStop: Decimal
         public let programmeStop: Decimal
         /// W includes the reasoning limit unless the endpoint is known to count it inside `max_tokens`.
         public let reasoningBilledSeparately: Bool
+        /// The per-attempt timeout.
         public let timeout: TimeInterval
+        /// The retry rule; by default one attempt over the fake transport and `standard` otherwise.
+        public let retry: SendRetryPolicy
 
         public init(labelID: String, textURL: URL, route: PastedLabelAITextRoute.Route, cell: String, ledgerURL: URL, cacheDirectory: URL,
-                    fakeTransportDirectory: URL, cellStop: Decimal = 5, programmeStop: Decimal = 25, reasoningBilledSeparately: Bool = true,
-                    timeout: TimeInterval = 60) {
+                    connection: Connection, cellStop: Decimal = 5, programmeStop: Decimal = 25, reasoningBilledSeparately: Bool = true,
+                    timeout: TimeInterval = 60, retry: SendRetryPolicy? = nil) {
             self.labelID = labelID; self.textURL = textURL; self.route = route; self.cell = cell; self.ledgerURL = ledgerURL
-            self.cacheDirectory = cacheDirectory; self.fakeTransportDirectory = fakeTransportDirectory; self.cellStop = cellStop
+            self.cacheDirectory = cacheDirectory; self.connection = connection; self.cellStop = cellStop
             self.programmeStop = programmeStop; self.reasoningBilledSeparately = reasoningBilledSeparately; self.timeout = timeout
+            if let retry { self.retry = retry } else if case .fake = connection { self.retry = .single } else { self.retry = .standard }
         }
+
+        /// The A2 form: the directory fake transport.
+        public init(labelID: String, textURL: URL, route: PastedLabelAITextRoute.Route, cell: String, ledgerURL: URL, cacheDirectory: URL,
+                    fakeTransportDirectory: URL, cellStop: Decimal = 5, programmeStop: Decimal = 25, reasoningBilledSeparately: Bool = true,
+                    timeout: TimeInterval = 60, retry: SendRetryPolicy? = nil) {
+            self.init(labelID: labelID, textURL: textURL, route: route, cell: cell, ledgerURL: ledgerURL, cacheDirectory: cacheDirectory,
+                      connection: .fake(directory: fakeTransportDirectory), cellStop: cellStop, programmeStop: programmeStop,
+                      reasoningBilledSeparately: reasoningBilledSeparately, timeout: timeout, retry: retry)
+        }
+    }
+
+    /// The transport and key store `send` uses.
+    public enum Connection: Sendable {
+        /// `DirectoryFakeTransport` over the directory, with the placeholder key: nothing is sent.
+        case fake(directory: URL)
+        /// An injected transport and key store: the live one from `LiveTransport`, or a scripted one in tests.
+        case transport(any LabelPhotoHTTPTransporting, keys: any FoodWebKeyStoring)
     }
 
     /// What `send` prints: everything promptfoo and `score` need, and nothing secret.
@@ -73,6 +100,15 @@ public enum SendCommand {
         /// The W this tap reserved (on a cache hit, the original tap's), nil when it reserved nothing.
         /// The statistics charge an unknown cost at this W (Qodo re-review finding 1).
         public var reservedWUSD: String? = nil
+        /// How many attempts this tap reserved and made (A3 retries); nil in an A2 record.
+        public var attempts: Int? = nil
+        /// Each attempt's outcome in order: `responded:<status>`, `transport_failed:<reason>` or
+        /// `not_sent:<reason>`. Never a header, a key or a body.
+        public var attemptOutcomes: [String]? = nil
+        /// Why a transient failure was not retried further: `attempts_exhausted`,
+        /// `retry_after_over_cap`, `refused:<stop>` (the next reservation was refused), `cancelled`
+        /// or `not_sent:<reason>`; nil when the last attempt was not a transient failure.
+        public var retryStop: String? = nil
 
         enum CodingKeys: String, CodingKey {
             case cell, model, endpoint, cached, attempt, status, response
@@ -80,6 +116,7 @@ public enum SendCommand {
             case instructionSHA256 = "instruction_sha256", schemaSHA256 = "schema_sha256", textSHA256 = "text_sha256"
             case requestSHA256 = "request_sha256", costUSD = "cost_usd", chargedUSD = "charged_usd", reservedUSD = "reserved_usd"
             case cachedCostUSD = "cached_cost_usd", reservedWUSD = "reserved_w_usd"
+            case attempts, attemptOutcomes = "attempt_outcomes", retryStop = "retry_stop"
             case latencySeconds = "latency_seconds", promptTokens = "prompt_tokens", completionTokens = "completion_tokens"
         }
     }
@@ -147,7 +184,14 @@ public enum SendCommand {
     static func sendOnce(_ options: Options, text: String, request: OpenRouterPastedLabelAITextRequest, requestSHA: String,
                          cache: ResponseCache, output start: Output) async throws -> Output {
         var output = start
-        let transport = DirectoryFakeTransport(directory: options.fakeTransportDirectory, labelID: options.labelID)
+        let transport: any LabelPhotoHTTPTransporting
+        let keys: any FoodWebKeyStoring
+        switch options.connection {
+        case let .fake(directory):
+            transport = DirectoryFakeTransport(directory: directory, labelID: options.labelID); keys = FakeTransportKey()
+        case let .transport(injected, injectedKeys):
+            transport = injected; keys = injectedKeys
+        }
         let checker = OpenRouterPastedLabelAITextRouteChecker(transport: transport, clock: SystemLedgerClock(),
                                                               reasoningBilledSeparately: options.reasoningBilledSeparately)
         let check: LabelPhotoManifest.CatalogueCheck
@@ -174,46 +218,89 @@ public enum SendCommand {
         }
         output.reservedUSD = "\(worstCase)"
         let ledger = try EvalSpendLedger(url: options.ledgerURL, cellStop: options.cellStop, programmeStop: options.programmeStop)
-        let reservation: String
-        do {
-            reservation = try ledger.reserve(cell: options.cell, caseID: options.labelID, model: options.route.model, worstCase: worstCase,
-                                             at: timestamp(), id: UUID().uuidString)
-        } catch let refusal as EvalSpendLedger.Refusal {
-            output.attempt = "refused:\(refusal)"
-            return output
-        }
-        output.reservedWUSD = "\(worstCase)"
-        let attempt = OpenRouterPastedLabelAITextAttempt(transport: transport, keys: FakeTransportKey(), request: request)
-        let started = Date()
-        let result = await attempt.attempt(text: text, timeout: options.timeout)
-        output.latencySeconds = Date().timeIntervalSince(started)
-        switch result {
-        case let .notSent(reason):
-            try ledger.settle(id: reservation, .notSent, returnedModel: nil, generationID: nil, at: timestamp())
-            output.attempt = "not_sent:\(reason.rawValue)"
-        case let .transportFailed(reason):
-            try ledger.settle(id: reservation, .unknown, returnedModel: nil, generationID: nil, at: timestamp())
-            output.attempt = "transport_failed:\(reason.rawValue)"
-            output.chargedUSD = "\(worstCase)"
-        case let .responded(response):
-            let object = (try? JSONSerialization.jsonObject(with: response.body)) as? [String: Any]
-            let usage = PastedLabelAITextEnvelope.usage(response.body)
-            let cost = usage.flatMap { $0.costUSD == LabelPhotoManifest.Usage.unknownCost ? nil : Decimal(string: $0.costUSD) }
-            try ledger.settle(id: reservation, cost.map(EvalSpendLedger.Settlement.reported) ?? .unknown, returnedModel: object?["model"] as? String,
-                              generationID: object?["id"] as? String, at: timestamp(), promptTokens: usage?.promptTokens,
-                              promptTokenBound: promptBound)
-            output.attempt = "responded"
-            output.status = response.status
-            output.response = String(decoding: response.body, as: UTF8.self)
-            output.costUSD = cost.map { "\($0)" }
-            output.chargedUSD = "\(cost ?? worstCase)"
-            output.promptTokens = usage?.promptTokens
-            output.completionTokens = usage?.completionTokens
-            // Only an HTTP 200 reply that passes the envelope check is cached (A2 gate finding 8),
-            // so a failed or rejected reply is never replayed as if it had answered.
-            if response.status == 200, case .answered = PastedLabelAITextEnvelope.check(response, route: options.route) {
-                try cache.store(requestSHA, output)
+        let attempt = OpenRouterPastedLabelAITextAttempt(transport: transport, keys: keys, request: request)
+        let policy = options.retry
+        let started = policy.now()
+        var reservations = 0
+        var charged = Decimal(0)
+        var reported = Decimal(0)
+        var anyResponded = false
+        var costUnknown = false
+        var outcomes: [String] = []
+        var last: PastedLabelAITextAttemptResult?
+        attempts: while true {
+            // Every attempt reserves its own W first, so a retry never sends outside a reservation.
+            let reservation: String
+            do {
+                reservation = try ledger.reserve(cell: options.cell, caseID: options.labelID, model: options.route.model, worstCase: worstCase,
+                                                 at: timestamp(policy.now()), id: UUID().uuidString)
+            } catch let refusal as EvalSpendLedger.Refusal {
+                if reservations == 0 {
+                    output.attempt = "refused:\(refusal)"
+                    return output
+                }
+                output.retryStop = "refused:\(refusal)"
+                break attempts
             }
+            reservations += 1
+            let result = await attempt.attempt(text: text, timeout: options.timeout)
+            switch result {
+            case let .notSent(reason):
+                try ledger.settle(id: reservation, .notSent, returnedModel: nil, generationID: nil, at: timestamp(policy.now()))
+                outcomes.append("not_sent:\(reason.rawValue)")
+                // Only the first attempt's not-sent outcome names the tap; a later one ends the retries.
+                if reservations > 1 { output.retryStop = "not_sent:\(reason.rawValue)"; break attempts }
+                output.attempt = "not_sent:\(reason.rawValue)"
+            case let .transportFailed(reason):
+                try ledger.settle(id: reservation, .unknownNoGeneration, returnedModel: nil, generationID: nil, at: timestamp(policy.now()))
+                outcomes.append("transport_failed:\(reason.rawValue)")
+                output.attempt = "transport_failed:\(reason.rawValue)"
+                output.status = nil; output.response = nil; output.promptTokens = nil; output.completionTokens = nil
+                charged += worstCase
+                costUnknown = true
+            case let .responded(response):
+                let object = (try? JSONSerialization.jsonObject(with: response.body)) as? [String: Any]
+                let usage = PastedLabelAITextEnvelope.usage(response.body)
+                let cost = usage.flatMap { $0.costUSD == LabelPhotoManifest.Usage.unknownCost ? nil : Decimal(string: $0.costUSD) }
+                // An HTTP error that returned no generation (no `id`, no `usage`) does not count towards
+                // the three-unknown stop; a 200 without a cost does (photo precedent, 17 October 2026).
+                let noGeneration = response.status != 200 && object?["id"] == nil && object?["usage"] == nil
+                try ledger.settle(id: reservation, cost.map(EvalSpendLedger.Settlement.reported) ?? (noGeneration ? .unknownNoGeneration : .unknown), returnedModel: object?["model"] as? String,
+                                  generationID: object?["id"] as? String, at: timestamp(policy.now()), promptTokens: usage?.promptTokens,
+                                  promptTokenBound: promptBound)
+                outcomes.append("responded:\(response.status)")
+                output.attempt = "responded"
+                output.status = response.status
+                output.response = String(decoding: response.body, as: UTF8.self)
+                output.promptTokens = usage?.promptTokens
+                output.completionTokens = usage?.completionTokens
+                anyResponded = true
+                if let cost { charged += cost; reported += cost } else { charged += worstCase; costUnknown = true }
+            }
+            last = result
+            switch policy.decide(afterAttempt: reservations, result: result, now: policy.now(), jitter: policy.jitter()) {
+            case let .stop(reason):
+                output.retryStop = reason
+                break attempts
+            case let .retry(delay):
+                do { try await policy.sleep(delay) } catch { output.retryStop = "cancelled"; break attempts }
+                if Task.isCancelled { output.retryStop = "cancelled"; break attempts }
+            }
+        }
+        output.latencySeconds = policy.now().timeIntervalSince(started)
+        output.attempts = reservations
+        output.attemptOutcomes = outcomes
+        output.reservedWUSD = "\(worstCase * Decimal(reservations))"
+        output.reservedUSD = output.reservedWUSD
+        output.chargedUSD = "\(charged)"
+        // The tap's reported cost covers every attempt (5.3); one unknown attempt makes it unknown,
+        // and the statistics then charge the tap at its W over all attempts.
+        output.costUSD = anyResponded && !costUnknown ? "\(reported)" : nil
+        // Only an HTTP 200 reply that passes the envelope check is cached (A2 gate finding 8),
+        // so a failed or rejected reply is never replayed as if it had answered.
+        if case let .responded(response) = last, response.status == 200,
+           case .answered = PastedLabelAITextEnvelope.check(response, route: options.route) {
+            try cache.store(requestSHA, output)
         }
         return output
     }

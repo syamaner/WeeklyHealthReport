@@ -35,6 +35,11 @@ public final class EvalSpendLedger: @unchecked Sendable {
     public static let settledKind = "pasted_label_ai_text_call"
     public static let unknownKind = "pasted_label_ai_text_unknown_cost"
     public static let notSentKind = "pasted_label_ai_text_not_sent"
+    /// An attempt that ended in an error and returned no generation (a transport failure, or an HTTP
+    /// error with no `id` and no `usage`). Its cost is unknown and it is charged at W towards the
+    /// cell and programme stops, but, as in the photo evaluation (owner, 17 October 2026), it does not
+    /// count towards the three-unknown stop; an HTTP 200 answer without a cost still does.
+    public static let noGenerationKind = "pasted_label_ai_text_error_no_generation"
     public static let maximumCellStop = Decimal(5)
     public static let maximumProgrammeStop = Decimal(25)
 
@@ -128,7 +133,7 @@ public final class EvalSpendLedger: @unchecked Sendable {
     }
 
     static func unknownCount(_ entries: [[String: Any]]) -> Int {
-        entries.filter { $0["cost_usd"] == nil || $0["cost_usd"] is NSNull }.count
+        entries.filter { ($0["cost_usd"] == nil || $0["cost_usd"] is NSNull) && $0["kind"] as? String != noGenerationKind }.count
     }
 
     static func decimal(_ text: String) -> Decimal? { Decimal(string: text, locale: Locale(identifier: "en_US_POSIX")) }
@@ -188,6 +193,7 @@ public final class EvalSpendLedger: @unchecked Sendable {
     public enum Settlement: Equatable, Sendable {
         case reported(Decimal)
         case unknown
+        case unknownNoGeneration
         case notSent
     }
 
@@ -207,6 +213,7 @@ public final class EvalSpendLedger: @unchecked Sendable {
             switch settlement {
             case let .reported(cost): entry["cost_usd"] = "\(cost)"; entry["kind"] = Self.settledKind
             case .unknown: entry["cost_usd"] = NSNull(); entry["kind"] = Self.unknownKind
+            case .unknownNoGeneration: entry["cost_usd"] = NSNull(); entry["kind"] = Self.noGenerationKind
             case .notSent: entry["cost_usd"] = "0"; entry["kind"] = Self.notSentKind
             }
             entry["returned_model"] = returnedModel ?? NSNull()

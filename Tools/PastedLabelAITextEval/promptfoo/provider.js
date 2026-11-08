@@ -1,8 +1,13 @@
-// Custom promptfoo provider (docs/pasted-label-ai-text-v1.md 5.2 item 1, #416 A2). promptfoo only
-// orchestrates: every call runs `PastedLabelAITextEval send`, which builds the request with the
-// shipped Swift builder, reserves W in the spend ledger and refuses past a stop, keeps its own
-// response cache, and in A2 sends only through the directory fake transport. This file never
-// opens a network connection and never sees a key.
+// Custom promptfoo provider (docs/pasted-label-ai-text-v1.md 5.2 item 1, #416 A2 and A3). promptfoo
+// only orchestrates: every call runs `PastedLabelAITextEval send`, which builds the request with the
+// shipped Swift builder, reserves W in the spend ledger and refuses past a stop, and keeps its own
+// response cache. This file never opens a network connection.
+//
+// Two modes, chosen explicitly:
+// - fake (the default; run-smoke.sh): `send --fake-transport DIR`; the child's environment is PATH only.
+// - live (PASTED_LABEL_AI_TEXT_EVAL_LIVE=1; run-live.sh, A3 under T1 to T6): `send --live`; the
+//   child's environment is PATH and OPENROUTER_API_KEY, passed through without being read, logged
+//   or put on a command line. A fake transport directory set at the same time is refused.
 'use strict';
 
 const { execFile } = require('node:child_process');
@@ -10,8 +15,30 @@ const path = require('node:path');
 
 function required(name) {
   const value = process.env[name];
-  if (!value) throw new Error(`${name} must be set (see run-smoke.sh)`);
+  if (!value) throw new Error(`${name} must be set (see run-smoke.sh or run-live.sh)`);
   return value;
+}
+
+// 'live' or 'fake'; anything but unset, empty, 0 or 1 is refused rather than guessed.
+function mode() {
+  const value = process.env.PASTED_LABEL_AI_TEXT_EVAL_LIVE;
+  if (value === undefined || value === '' || value === '0') return 'fake';
+  if (value === '1') return 'live';
+  throw new Error('PASTED_LABEL_AI_TEXT_EVAL_LIVE must be 1 (live) or unset (fake)');
+}
+
+// The transport arguments and the child's whole environment for one mode.
+function connection() {
+  const env = { PATH: process.env.PATH };
+  if (mode() === 'live') {
+    if (process.env.PASTED_LABEL_AI_TEXT_EVAL_FAKE_TRANSPORT) {
+      throw new Error('a live run takes no PASTED_LABEL_AI_TEXT_EVAL_FAKE_TRANSPORT');
+    }
+    if (!process.env.OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY must be set for a live run (see run-live.sh)');
+    env.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+    return { args: ['--live'], env };
+  }
+  return { args: ['--fake-transport', required('PASTED_LABEL_AI_TEXT_EVAL_FAKE_TRANSPORT')], env };
 }
 
 class PastedLabelAITextSendProvider {
@@ -31,19 +58,24 @@ class PastedLabelAITextSendProvider {
     const bin = required('PASTED_LABEL_AI_TEXT_EVAL_BIN');
     const data = required('PASTED_LABEL_AI_TEXT_EVAL_DATA');
     const run = required('PASTED_LABEL_AI_TEXT_EVAL_RUN');
-    const fake = required('PASTED_LABEL_AI_TEXT_EVAL_FAKE_TRANSPORT');
+    let link;
+    try {
+      link = connection();
+    } catch (e) {
+      return { error: e.message };
+    }
     const args = [
       'send', '--label-id', label, '--text', path.join(data, 'texts', `${label}.txt`),
       '--route', String(this.config.route), '--cell', String(this.config.cell),
       '--ledger', path.join(run, 'spend-ledger.json'), '--cache', path.join(run, 'response-cache'),
-      '--fake-transport', fake,
+      ...link.args,
     ];
     // The tap starts here (5.3: latency per tap, from the tap to Confirm or failure, including
     // retries): before the catalogue check, the reservation, the send and the settle. assert.js
     // records the end after scoring, and the statistics report end minus start.
     const started = Date.now();
     const result = await new Promise((resolve) => {
-      execFile(bin, args, { maxBuffer: 4 * 1024 * 1024, env: { PATH: process.env.PATH } }, (error, stdout, stderr) => {
+      execFile(bin, args, { maxBuffer: 4 * 1024 * 1024, env: link.env }, (error, stdout, stderr) => {
         resolve({ code: error ? error.code : 0, stdout, stderr });
       });
     });
@@ -67,9 +99,12 @@ class PastedLabelAITextSendProvider {
         completion: send.completion_tokens || 0,
         total: (send.prompt_tokens || 0) + (send.completion_tokens || 0),
       },
-      metadata: { attempt: send.attempt, requestSha256: send.request_sha256, costKnown: send.cost_usd != null, cell: send.cell },
+      metadata: {
+        attempt: send.attempt, attempts: send.attempts, requestSha256: send.request_sha256, costKnown: send.cost_usd != null, cell: send.cell,
+      },
     };
   }
 }
 
 module.exports = PastedLabelAITextSendProvider;
+module.exports.connection = connection;

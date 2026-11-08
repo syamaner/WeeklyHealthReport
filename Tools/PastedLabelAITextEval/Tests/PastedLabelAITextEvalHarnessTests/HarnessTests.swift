@@ -159,7 +159,7 @@ final class HarnessTests: XCTestCase {
         let result = try await SendCommand.run(options())
         XCTAssertEqual(result.attempt, "transport_failed:failed")
         XCTAssertEqual(result.chargedUSD, "\(Self.ukW)")
-        XCTAssertEqual(try entries().first?["kind"] as? String, EvalSpendLedger.unknownKind)
+        XCTAssertEqual(try entries().first?["kind"] as? String, EvalSpendLedger.noGenerationKind)
     }
 
     func testAPanelTheDetectorDeclinesIsNeverSent() async throws {
