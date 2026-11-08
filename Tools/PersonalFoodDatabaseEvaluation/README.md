@@ -32,8 +32,14 @@ the pure modules. The pure modules import nothing outside the standard library a
 take seeds, clocks and bytes as arguments, so every result is reproducible from its inputs.
 
 **Invariants.**
-- No network access; no private data in this folder; agents never read the private files (the commands
-  print counts only, never titles, query text or entry IDs).
+- No network access; no private data in this folder. Plan revision 5 permits a dedicated drafting
+  agent to direct local offline scripts that prepare private unsplit queries and separate review
+  proposals for owner validation. Query drafting returns counts and hashes only to anything outside
+  the drafting session; query wording may sit in that session's context, which is why the session is
+  excluded from ranking (plan section 7). A subsequent explicit
+  owner authorisation permits selected titles, matched record names and preparation states in model
+  context for semantic identity review (plan section 7); other private fields remain excluded.
+  User-facing and external code-review output remains counts-only. The drafting agent cannot implement ranking.
 - Unknown is never zero: `missing_in_entry`, `not_on_pack` and skips are excluded from denominators
   and reported as their own counts; an empty stratum or set is "not assessed", never a pass.
 - A1 and A5 skips are never replaced; more than 6 skipped A1 entries fails both A1 bars.
@@ -79,7 +85,9 @@ run number it was recorded as (1, or 2 for the one permitted rerun).
 
 ## Building the query set (E1d, owner)
 
-Run these yourself from this folder; the agent never sees the query text or answers. `ROOT` is the private evaluation
+Under plan revision 5, Codex may direct local offline scripts to prepare and assemble an unapproved
+draft, returning only aggregate counts and hashes. Workflow authorisation does not approve its rows.
+The owner validates every row before splitting or sealing; `lookup` remains owner-only. `ROOT` is the private evaluation
 folder and `EXPORT` the pinned import file. The release must already be pinned in `freeze-v1.json` (E1b).
 
 1. `python3 -I pfd_eval.py query-template --root ROOT` writes an empty `queries/query-template.csv`.
@@ -103,10 +111,42 @@ folder and `EXPORT` the pinned import file. The release must already be pinned i
    choice of answer and step stays yours: the lookup is not the ranking under test.
 4. `python3 -I pfd_eval.py assemble-queries --root ROOT --export EXPORT` checks every row and writes
    `queries/query-set.json`, printing counts only. A refusal names the row and column to fix.
-5. `python3 -I pfd_eval.py split --root ROOT --query-set ROOT/queries/query-set.json`, then
+5. Only after every query and expected answer is owner-approved: `python3 -I pfd_eval.py split --root ROOT --query-set ROOT/queries/query-set.json`, then
    `seal --root ROOT seal-dev` and `seal --root ROOT seal-heldout`; the held-out hash then goes into
    the Freeze list.
 
 **Out of scope for E1a.** The Part B Swift step test, the `pfd-v11-ranking-golden-v1` file and the
 importer belong to the implementation phase; E1b to E1d (release pin, seed, sample, query set) need
 the owner.
+
+## Owner validation of drafts (plan revision 5)
+
+Review `review/best-estimate-review.csv` alongside the unchanged `review/review-sheet.csv`;
+`review/prefill-proposals.csv` is a byte-identical copy kept under its earlier name, so validating
+one validates both. Proposals are keyed by sheet row, with reasons, for the initial census, top-30 and drawn rows only. Validate
+or correct every proposal. Pack checks are out of scope since the best-estimate amendment below,
+so no pack verdict exists for anyone to fill. Do not run `seal-review` or `score-a` (see the scoring
+hold below). The private `review/HOW-TO-REVIEW.txt` gives the sequence.
+
+If queries change after draft assembly, preserve the old unsplit JSON under a private archive name
+and reassemble; the tool never overwrites it. Approve the final CSV and assembled JSON together.
+No split or seal occurs during drafting. The results narrative must disclose agent-drafted and
+owner-approved query provenance without changing the closed results JSON schema. A separate
+unexposed session implements ranking and must never read queries or the held-out folder.
+
+The owner-authorised semantic review saves provisional identity/state judgements to the separate
+private proposal file and leaves uncertain cases unresolved. Model access is limited to the fields
+listed in plan section 7 and the privacy register (including nutrient evidence under the amendment
+below), not the whole review sheet. The original sheet is completed only through the owner-validation workflow.
+
+## Revision 5 best-estimate amendment: scoring hold
+
+The current v1 review sheet and Part A scorer implement the earlier pack-verification rubric. They
+cannot score the revised identity/state/variety, macro/micro coverage and per-nutrient evidence
+review. Keep the original sheet unchanged. Private `best-estimate-review.csv`,
+`nutrient-evidence.jsonl` and `enrichment-candidates.csv` hold proposals only. Do not translate these
+into v1 verdicts or run `seal-review`/`score-a` until the owner approves a versioned schema/scorer
+migration described in plan section 3.3. No new tool implementation is authorised by this document.
+The plan's subsequent amendment supersedes earlier pack-check instructions here. Part B query
+validation, blinding and bars remain unchanged. All web values remain `page_unconfirmed` and carry
+URL, date read, source state, basis and method; use local evidence before external research.

@@ -3991,3 +3991,46 @@ Excluded:
 - this ledger edit, the push and the PR after the window.
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
+
+## WHR-436-2026-11-08: evaluation plan revision 5
+
+| Phase | Input (cached) | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: |
+| Codex plan drafting and handover inspection | 2,642,354 (2,602,880) | 3,742 | 2,646,096 | $3.18 |
+
+Bounded session `01a1aa77-f626-7df3-a33b-3871dbc6159f`, baseline 18,883,425 input, 18,268,672 cached input and 38,597 output; measured before this ledger edit using the agent-phase-accounting helper. Cached input is included in input; total is input plus output; cache writes are zero. This excludes earlier work in the reused session, external review, private drafting, this ledger edit and delivery. No subagents were used.
+
+Historical ledger comparison rates: USD 10/M uncached input, 1/M cached input and 50/M output; exact USD 3.184720. These are explicitly historical assumptions, not verified current prices or subscription charges. Counts are not measures of productivity or quality.
+
+
+### WHR-436 best-estimate follow-up
+
+| Phase | Input | Cached input | Output | Total | API-equivalent cost |
+|---|---:|---:|---:|---:|---:|
+| Revised rubric, private evidence proposals and research follow-up | Unmeasured | Unmeasured | Unmeasured | Unmeasured | Unmeasured |
+
+No reliable start boundary was captured for this follow-up. The earlier measured row is unchanged;
+no usage or cost is inferred. External research and hosted reviews are also unmeasured.
+
+### WHR-436 lead review (Claude Code)
+
+The coordinator session (`claude-opus-5-5`, session `93e9e82e-ef3d-4d2f-9186-58c67056c1ca`) took over PR #437 on the owner's instruction. It did four things:
+- reviewed the plan and the private proposals;
+- corrected the private state flags, coverage counts and unit transforms;
+- restored the accepted Part A bars and the strata definitions in the plan;
+- aligned the README and privacy policy text with the best-estimate amendment.
+
+No subagents. The window runs from the takeover at `2026-11-08T19:02:27Z` to `2026-11-08T19:08:40Z`.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Lead review of revision 5 (#436), coordinator | 7,568,598 (7,497,468) | 71,058 | 28,916 | 7,597,514 | $2.65 |
+
+Method: `phase_usage.py --format claude --since 2026-11-08T19:02:27Z --until 2026-11-08T19:08:40Z --include-subagents` on the session transcript. Exact USD 2.6465656. The cache-write tokens are part of the input figure, so the total is input plus output.
+
+Excluded:
+- the Qodo review runs;
+- this ledger edit, the commit, the push and the handover after the window.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
