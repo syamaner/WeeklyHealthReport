@@ -58,7 +58,7 @@ class FreezeV2(unittest.TestCase):
         doc = freeze_v2.load(FREEZE_V2)
         freeze_v2.check(doc, H.REPO, FREEZE_V1)
         self.assertEqual(doc["part_a_bars"], "v2_proposed")
-        self.assertEqual(doc["freeze_v1_sha256"], sha(FREEZE_V1.read_bytes()))
+        self.assertEqual(doc["freeze_v1_sha256"], freeze_v2.v1_pin(FREEZE_V1.read_bytes()))
         listed = {f"{freeze_v2.TOOL}/v2/{p.name}" for p in (H.HERE / "v2").glob("*.py")} | {freeze_v2.INVENTORY}
         self.assertEqual(set(doc["files"]), listed)
         freeze.check(freeze.load(FREEZE_V1), H.REPO)  # every v1 hash still matches beside the v2 files
@@ -82,8 +82,14 @@ class FreezeV2(unittest.TestCase):
             v1 = repo / "freeze-v1.json"
             v1.write_bytes(b"{}\n")
             doc = {"schema": "pfd-freeze-v2", "files": {freeze_v2.INVENTORY: sha(INVENTORY_BYTES)},
-                   "freeze_v1_sha256": sha(b"{}\n"), "part_a_bars": "v2_proposed"}
+                   "freeze_v1_sha256": freeze_v2.v1_pin(b"{}\n"), "part_a_bars": "v2_proposed"}
             freeze_v2.check(freeze_v2.parse(formats.dumps(doc)), repo, v1)
+            v1.write_bytes(b'{"heldout_sha256": "' + b"0" * 64 + b'"}\n')  # filled in later by the plan
+            freeze_v2.check(freeze_v2.parse(formats.dumps(doc)), repo, v1)
+            v1.write_bytes(b'{"seed": 1}\n')  # any other v1 change stops v2
+            with self.assertRaises(freeze_v2.FreezeError):
+                freeze_v2.check(freeze_v2.parse(formats.dumps(doc)), repo, v1)
+            v1.write_bytes(b"{}\n")
             for bad in ({**doc, "part_a_bars": "v3"}, {**doc, "part_a_bars": None},
                         {**doc, "part_a_bars": ["v2_proposed"]}, {**doc, "part_a_bars": {}}, {**doc, "extra": 1},
                         {**doc, "schema": "pfd-freeze-v1"}, {**doc, "freeze_v1_sha256": "x"},
@@ -101,7 +107,7 @@ class FreezeV2(unittest.TestCase):
     def test_every_v2_module_must_be_listed(self):
         with self.assertRaises(freeze_v2.FreezeError) as e:
             freeze_v2.check({"schema": "pfd-freeze-v2", "files": {freeze_v2.INVENTORY: sha(INVENTORY_BYTES)},
-                             "freeze_v1_sha256": sha(FREEZE_V1.read_bytes())}, H.REPO, FREEZE_V1)
+                             "freeze_v1_sha256": freeze_v2.v1_pin(FREEZE_V1.read_bytes())}, H.REPO, FREEZE_V1)
         self.assertIn("does not list v2 file", str(e.exception))
 
 
@@ -119,6 +125,17 @@ class SealsV2(unittest.TestCase):
             self.assertEqual(seals_v2.require_review(root), h)
             with self.assertRaises(seals_v2.SealError):
                 seals_v2.seal_review(root, T)  # never replaced
+
+    def test_a_bundle_changed_after_validation_is_not_sealed(self):
+        with H.private_dir() as t:
+            root = Path(t)
+            v1_seals(root)
+            review_files(root)
+            with self.assertRaises(seals_v2.SealError):
+                seals_v2.seal_review(root, T, expected_sha256="0" * 64)
+            self.assertNotIn(seals_v2.REVIEW, seals_v2.recorded(root))
+            h, _ = seals_v2.bundle_sha256(root)
+            self.assertEqual(seals_v2.seal_review(root, T, expected_sha256=h), h)
             (root / "review-v2" / seals_v2.SHEET).write_bytes(b"changed\n")
             with self.assertRaises(seals_v2.SealError):
                 seals_v2.require_review(root)
@@ -312,7 +329,7 @@ class CommandLine(unittest.TestCase):
                 def fz2(**extra):
                     pfd_eval_v2.FREEZE_V2.write_bytes(formats.dumps(
                         {"schema": "pfd-freeze-v2", "files": {freeze_v2.INVENTORY: sha(INVENTORY_BYTES)},
-                         "freeze_v1_sha256": sha(fz1), **extra}))
+                         "freeze_v1_sha256": freeze_v2.v1_pin(fz1), **extra}))
                 fz2()
                 score = ("score-a-v2", "--root", str(root), "--out")
 
@@ -385,7 +402,9 @@ class CommandLine(unittest.TestCase):
                 inv.write_bytes(INVENTORY_BYTES + b"\n")  # a changed v2 file
                 self.assertNotEqual(self.run_cli(*score, str(repo / "d.json"))[0], 0)
                 inv.write_bytes(INVENTORY_BYTES)
-                pfd_eval_v2.FREEZE_V1.write_bytes(fz1 + b"\n")  # a different freeze-v1.json
+                changed = json.loads(fz1)
+                changed["seed"] = changed.get("seed", 0) + 1
+                pfd_eval_v2.FREEZE_V1.write_bytes(json.dumps(changed).encode())  # a different freeze-v1.json
                 self.assertNotEqual(self.run_cli(*score, str(repo / "d.json"))[0], 0)
                 pfd_eval_v2.FREEZE_V1.write_bytes(fz1)
                 sheet_path.write_bytes(F2.write_sheet(make_rows(sample_doc)))  # changed after the seal

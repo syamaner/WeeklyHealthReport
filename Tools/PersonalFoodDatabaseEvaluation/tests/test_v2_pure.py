@@ -160,6 +160,7 @@ class Sheet(unittest.TestCase):
             ("A3", ("different_food", "unresolved", "same_or_immaterial", "unresolved")),  # misleading whatever is open
             ("A3", ("same_food", "same_state", "same_or_immaterial", "misleading_close")),  # nothing misleading
             ("A3", ("different_food", "different_state", "same_or_immaterial", "misleading_close")),  # other-state first
+            ("A3", ("same_food", "compatible_with_stated_assumption", "same_or_immaterial", "sensible")),  # no values
             ("A4", ("same_food", "unresolved", "same_or_immaterial", "match_missed")),
             ("A4", ("same_food", "unresolved", "unresolved", "nothing_suitable")),
             ("A4", ("unresolved", "unresolved", "unresolved", "sensible")),
@@ -195,10 +196,9 @@ class Sheet(unittest.TestCase):
         F2.check_bundle(rows, evidence(recs), INV)
         self.assertEqual(F2.check_status(rows[n - 1], "state"), "pass")
         a3 = row_of(self.sample, "A3")  # A3 rows supply no values, so the token can never be supported there
-        rows3 = sheet(make_rows(self.sample, {a3: ("same_food", "compatible_with_stated_assumption", "same_or_immaterial",
-                                                   "sensible")}))
-        with self.assertRaises(formats.FormatError):
-            F2.check_bundle(rows3, evidence(make_records(rows3)), INV)
+        with self.assertRaises(formats.FormatError):  # refused on the sheet itself
+            sheet(make_rows(self.sample, {a3: ("same_food", "compatible_with_stated_assumption", "same_or_immaterial",
+                                               "sensible")}))
 
     def test_match_missed_needs_its_sidecar_record(self):
         n = row_of(self.sample, "A4")
@@ -469,6 +469,9 @@ class ResultsV2(unittest.TestCase):
                 results_v2.build(H.RELEASE, bars_token, m)
         with self.assertRaises(results_v2.ResultsError):
             results_v2.build("pfc:not-a-release", "v2_proposed", m)
+        for bad_end in (float("nan"), float("inf")):
+            with self.assertRaises(results_v2.ResultsError):
+                results_v2.build(H.RELEASE, "v2_proposed", {"a3_misleading": {**good, "interval": [0.0, bad_end]}})
         results_v2.build(H.RELEASE, "v1_accepted", {"a1_nutrient_disagreements_not_assessable": True,
                                                     "a5_nutrient_disagreements_not_assessable": True})
 

@@ -127,6 +127,9 @@ def _combination(r: dict, where: str):
     unresolved = "unresolved" in st.values()
     if outcome not in OUTCOMES[s]:
         raise FormatError(f"{where}: column outcome: not allowed for {s}")
+    if r["state"] == "compatible_with_stated_assumption" and (s == "A3" or (s == "A4" and outcome != "match_missed")):
+        raise FormatError(f"{where}: column state: compatible_with_stated_assumption needs supplied values, which "
+                          "this row never has; use same_state, different_state or unresolved")
     if s == "A2":
         if outcome == "merge_ok" and (failing or unresolved):
             raise FormatError(f"{where}: merge_ok needs all three checks to pass")

@@ -8,6 +8,7 @@ any string other than the schema, part, bar set and release ID, is refused, so n
 entry ID can be written.
 """
 import json
+import math
 import re
 
 from formats import RELEASE_ID, dumps
@@ -52,7 +53,7 @@ def _check_measure(name, m):
     if not (_int(m["count"]) and _int(m["of"]) and m["count"] <= m["of"]):
         raise ResultsError(f"{name}: count and of must be whole numbers with count <= of")
     iv = m["interval"]
-    if not (iv is None or (isinstance(iv, list) and len(iv) == 2 and all(isinstance(x, float) or x in (0, 1) for x in iv)
+    if not (iv is None or (isinstance(iv, list) and len(iv) == 2 and all((isinstance(x, float) and math.isfinite(x)) or x in (0, 1) for x in iv)
                            and all(not isinstance(x, bool) for x in iv))):
         raise ResultsError(f"{name}: interval must be two numbers or null")
     if "allowed" in m and not (m["allowed"] is None or _int(m["allowed"])):

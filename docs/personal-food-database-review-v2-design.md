@@ -271,3 +271,9 @@ listed.
   separately for information.
 - The bars lock line in `seals-v2.txt` is `score-a-v2 <freeze-v2 sha256> <part_a_bars> <UTC time>`;
   a missing `part_a_bars` after the lock counts as a change and is refused.
+- `freeze_v1_sha256` pins `freeze-v1.json` in canonical form without `heldout_sha256` and
+  `golden_sha256`, the two entries the plan adds later, so recording the held-out seal does not stop
+  the v2 commands; any other change to the v1 record still does.
+- `seal-review-v2` hashes the bundle before validating it and refuses to seal if the files changed
+  in between. `compatible_with_stated_assumption` is refused on A3 rows and on A4 rows other than
+  `match_missed`, which never supply values.

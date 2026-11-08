@@ -93,7 +93,10 @@ def check_bars(root: Path, part_a_bars, freeze_v2_sha256=None):
         raise SealError("freeze-v2.json differs from the record locked by the first score-a-v2 run")
 
 
-def seal_review(root: Path, now_utc: str) -> str:
+def seal_review(root: Path, now_utc: str, expected_sha256=None) -> str:
+    """Append the seal-review-v2 line. With `expected_sha256` (the bundle hash taken before the
+    caller validated the files), a bundle that changed since validation is refused, so the seal can
+    only cover bytes that were checked."""
     with _locked(root):
         have = recorded(root)
         if REVIEW in have:
@@ -105,6 +108,8 @@ def seal_review(root: Path, now_utc: str) -> str:
             if earlier not in v1:
                 raise SealError(f"{earlier} must be recorded before {REVIEW}")
         h, files = bundle_sha256(root)
+        if expected_sha256 is not None and h != expected_sha256:
+            raise SealError(f"{FOLDER} changed while it was being checked; nothing was sealed")
         with open(_file(root), "a", encoding="utf-8") as fh:
             fh.write(f"{REVIEW} {h} {files} {now_utc}\n")
         return h

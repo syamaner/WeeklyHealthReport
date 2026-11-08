@@ -2,11 +2,13 @@
 
     {"schema": "pfd-freeze-v2",
      "files": {"<repo-relative path>": "<sha256>", ...},   every v2 module and the inventory
-     "freeze_v1_sha256": "...",                              the unchanged freeze-v1.json
+     "freeze_v1_sha256": "...",                              freeze-v1.json, see v1_pin()
      "part_a_bars": "v1_accepted" | "v2_proposed"}          optional; set by a docs commit
 
-`freeze-v1.json` is never edited: its hash here carries the v1 record (and everything it pins)
-forward, and the v2 commands also run the unchanged v1 check. Mirroring v1, every `.py` file of the
+`freeze-v1.json` is never edited by v2: its pin here carries the v1 record (and everything it pins)
+forward, and the v2 commands also run the unchanged v1 check. The pin leaves out the two entries the
+plan fills in later (`heldout_sha256` after `seal-heldout`, `golden_sha256` before v12 code), so
+adding them does not stop the v2 commands; every other v1 entry is pinned. Mirroring v1, every `.py` file of the
 v2 folder must be listed (the tests are not), and so must the inventory. A missing or unknown key,
 an unknown `part_a_bars` value, a changed file or a different freeze-v1.json stops a command
 (fail closed).
@@ -27,8 +29,23 @@ INVENTORY = TOOL + "/nutrient-inventory-v1.json"
 HEX64 = re.compile(r"[0-9a-f]{64}")
 
 
+LATER_V1_KEYS = ("heldout_sha256", "golden_sha256")
+
+
 class FreezeError(ValueError):
     pass
+
+
+def v1_pin(freeze_v1_bytes: bytes) -> str:
+    """SHA-256 of freeze-v1.json in canonical form, without the entries the plan adds later."""
+    try:
+        doc = json.loads(freeze_v1_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        raise FreezeError("freeze-v1.json is not valid JSON") from None
+    if not isinstance(doc, dict):
+        raise FreezeError("freeze-v1.json is not an object")
+    kept = {k: v for k, v in doc.items() if k not in LATER_V1_KEYS}
+    return sha256(json.dumps(kept, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
 
 
 def sha256(data: bytes) -> str:
@@ -60,7 +77,7 @@ def load(path: Path) -> dict:
 
 
 def check(doc: dict, repo: Path, freeze_v1: Path) -> dict:
-    if not freeze_v1.is_file() or sha256(freeze_v1.read_bytes()) != doc["freeze_v1_sha256"]:
+    if not freeze_v1.is_file() or v1_pin(freeze_v1.read_bytes()) != doc["freeze_v1_sha256"]:
         raise FreezeError("freeze-v1.json differs from the hash in the freeze-v2 record")
     here = Path(__file__).resolve().parent
     if repo.resolve() in here.parents:

@@ -107,8 +107,9 @@ def cmd_review_sheet_v2(a, root):
 
 def cmd_seal(a, root):
     fz1, _, _ = frozen(root, ("release_id", "sample_sha256"))
+    before, _ = seals_v2.bundle_sha256(root)
     bundle(root, fz1)  # a bundle that could never be scored is refused before an irreversible seal
-    h = seals_v2.seal_review(root, now_utc())
+    h = seals_v2.seal_review(root, now_utc(), expected_sha256=before)
     print(f"{a.name} recorded: {h}")
 
 
