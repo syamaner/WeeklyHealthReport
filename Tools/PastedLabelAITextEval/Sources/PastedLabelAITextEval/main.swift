@@ -1,3 +1,4 @@
+import FoodLabelPhotoCapture
 import FoodLedgerApplication
 import Foundation
 import PastedLabelAITextEvalCore
@@ -6,7 +7,8 @@ import PastedLabelAITextEvalHarness
 // PastedLabelAITextEval (docs/pasted-label-ai-text-v1.md 5.2, #416 A2 and A3).
 //
 //     PastedLabelAITextEval send --label-id ID --text FILE --route CANDIDATE --cell CELL \
-//         --ledger FILE --cache DIR (--fake-transport DIR | --live) [--cell-stop-usd N<=5] [--programme-stop-usd N<=25]
+//         --ledger FILE --cache DIR (--fake-transport DIR | --live) [--prompt-version prompt-v1|prompt-v2]
+//         [--cell-stop-usd N<=5] [--programme-stop-usd N<=25]
 //     PastedLabelAITextEval score --case FILE --text FILE --send FILE|-
 //     PastedLabelAITextEval convert --in FILE --set SET --copy-method TEXT --text-sha256 HEX [--tier T] [--layout-shape SHAPE] [--label-id ID]
 //     PastedLabelAITextEval convert-legacy --in FILE --copy-method TEXT --text-sha256 HEX [--layout-shape SHAPE] [--label-id ID]
@@ -22,7 +24,8 @@ import PastedLabelAITextEvalHarness
 // up to three attempts per tap, each with its own reservation). `--live` reads the key from
 // `OPENROUTER_API_KEY` only and never prints it; a missing, empty or malformed key is a usage error
 // before anything is reserved or sent. Outputs are JSON on stdout; errors go to stderr. Exit codes:
-// 0 done, 2 usage or input error, 3 the call was refused by a spend stop.
+// 0 done, 2 usage or input error, 3 the call was refused by a spend stop. `--prompt-version` picks
+// the instruction (revision 11): `prompt-v1`, the app's, by default; it is recorded in the output.
 
 func fail(_ message: String, code: Int32 = 2) -> Never {
     FileHandle.standardError.write(Data((message + "\n").utf8))
@@ -59,7 +62,7 @@ let given = options(arguments.dropFirst(), flags: command == "send" ? ["--live"]
 switch command {
 case "send":
     let allowed: Set<String> = ["--label-id", "--text", "--route", "--cell", "--ledger", "--cache", "--fake-transport", "--live",
-                                "--cell-stop-usd", "--programme-stop-usd"]
+                                "--cell-stop-usd", "--programme-stop-usd", "--prompt-version"]
     if let unknown = given.keys.first(where: { !allowed.contains($0) }) { fail("unknown option \(unknown)") }
     // Exactly one connection, and for --live a well-formed key in the environment, before anything else.
     let choice: SendTransportChoice
@@ -73,6 +76,15 @@ case "send":
     guard let route = PastedLabelAITextRoute.candidate(routeID) else {
         fail("unknown route candidate \(routeID); the closed set is \(PastedLabelAITextRoute.candidates.map(\.candidateID))")
     }
+    let promptVersion: OpenRouterPastedLabelAITextRequest.PromptVersion
+    if let value = given["--prompt-version"] {
+        guard let chosen = OpenRouterPastedLabelAITextRequest.PromptVersion(rawValue: value) else {
+            fail("unknown prompt version \(value); the closed set is \(OpenRouterPastedLabelAITextRequest.PromptVersion.allCases.map(\.rawValue))")
+        }
+        promptVersion = chosen
+    } else {
+        promptVersion = OpenRouterPastedLabelAITextRequest.defaultPromptVersion
+    }
     let cellStop = given["--cell-stop-usd"].map { Decimal(string: $0) } ?? Decimal(5)
     let programmeStop = given["--programme-stop-usd"].map { Decimal(string: $0) } ?? Decimal(25)
     guard let cellStop, let programmeStop, cellStop > 0, cellStop <= 5, programmeStop > 0, programmeStop <= 25 else {
@@ -85,7 +97,7 @@ case "send":
         }
         let output = try await SendCommand.run(.init(labelID: labelID, textURL: path(text), route: route, cell: cell, ledgerURL: path(ledger),
                                                      cacheDirectory: path(cache), connection: connection, cellStop: cellStop,
-                                                     programmeStop: programmeStop))
+                                                     programmeStop: programmeStop, promptVersion: promptVersion))
         printJSON(output)
         if output.attempt.hasPrefix("refused:") { exit(3) }
     } catch {

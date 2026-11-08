@@ -10,9 +10,9 @@
 //   refused, before and after resolving symbolic links, and nothing in it is opened.
 // - Each provider's cell is `<prompt-version>__<candidate-id>__<suite>`, the key of its $5 stop in
 //   the spend ledger. The candidate IDs are checked by `send` against the closed route set.
-// - The prompt version is the one the shipped request builder sends: `send` has no way to select
-//   another instruction yet, so only `v1` (`prompt-v1`) is accepted, and provider.js refuses a send
-//   record whose prompt version is not the cell's.
+// - The prompt version is one the shipped request builder can send (revision 11): `v1` (`prompt-v1`,
+//   the app's) or `v2` (`prompt-v2`). provider.js passes it to `send --prompt-version`, and refuses a
+//   send record whose prompt version is not the cell's.
 // - FILE must be outside the repository; this script writes nothing else.
 'use strict';
 
@@ -20,7 +20,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
-const PROMPT_VERSIONS = { v1: 'prompt-v1' };
+const PROMPT_VERSIONS = { v1: 'prompt-v1', v2: 'prompt-v2' };
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
 function fail(message) {

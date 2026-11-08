@@ -11,7 +11,9 @@ import PastedLabelAITextEvalCore
 ///
 /// 0. The pre-send panel detector runs on the text, as in the product (4.7): a detected US,
 ///    Australian or New Zealand panel is declined before any request is built, and nothing is spent.
-/// 1. The request body is built by `OpenRouterPastedLabelAITextRequest`; its SHA-256 keys the cache.
+/// 1. The request body is built by `OpenRouterPastedLabelAITextRequest` with the chosen prompt
+///    version (`prompt-v1` by default, revision 11); its SHA-256 keys the cache, so each version
+///    has its own entries.
 /// 2. A cached response is returned as it was recorded, with its original cost, and charges nothing.
 /// 3. Otherwise the text route checker runs over the same transport, W is priced from the
 ///    catalogue's prices.
@@ -38,10 +40,14 @@ public enum SendCommand {
         public let timeout: TimeInterval
         /// The retry rule; by default one attempt over the fake transport and `standard` otherwise.
         public let retry: SendRetryPolicy
+        /// The instruction the request builder sends; `prompt-v1` unless chosen (revision 11).
+        public let promptVersion: OpenRouterPastedLabelAITextRequest.PromptVersion
 
         public init(labelID: String, textURL: URL, route: PastedLabelAITextRoute.Route, cell: String, ledgerURL: URL, cacheDirectory: URL,
                     connection: Connection, cellStop: Decimal = 5, programmeStop: Decimal = 25, reasoningBilledSeparately: Bool = true,
-                    timeout: TimeInterval = 60, retry: SendRetryPolicy? = nil) {
+                    timeout: TimeInterval = 60, retry: SendRetryPolicy? = nil,
+                    promptVersion: OpenRouterPastedLabelAITextRequest.PromptVersion = OpenRouterPastedLabelAITextRequest.defaultPromptVersion) {
+            self.promptVersion = promptVersion
             self.labelID = labelID; self.textURL = textURL; self.route = route; self.cell = cell; self.ledgerURL = ledgerURL
             self.cacheDirectory = cacheDirectory; self.connection = connection; self.cellStop = cellStop
             self.programmeStop = programmeStop; self.reasoningBilledSeparately = reasoningBilledSeparately; self.timeout = timeout
@@ -51,10 +57,11 @@ public enum SendCommand {
         /// The A2 form: the directory fake transport.
         public init(labelID: String, textURL: URL, route: PastedLabelAITextRoute.Route, cell: String, ledgerURL: URL, cacheDirectory: URL,
                     fakeTransportDirectory: URL, cellStop: Decimal = 5, programmeStop: Decimal = 25, reasoningBilledSeparately: Bool = true,
-                    timeout: TimeInterval = 60, retry: SendRetryPolicy? = nil) {
+                    timeout: TimeInterval = 60, retry: SendRetryPolicy? = nil,
+                    promptVersion: OpenRouterPastedLabelAITextRequest.PromptVersion = OpenRouterPastedLabelAITextRequest.defaultPromptVersion) {
             self.init(labelID: labelID, textURL: textURL, route: route, cell: cell, ledgerURL: ledgerURL, cacheDirectory: cacheDirectory,
                       connection: .fake(directory: fakeTransportDirectory), cellStop: cellStop, programmeStop: programmeStop,
-                      reasoningBilledSeparately: reasoningBilledSeparately, timeout: timeout, retry: retry)
+                      reasoningBilledSeparately: reasoningBilledSeparately, timeout: timeout, retry: retry, promptVersion: promptVersion)
         }
     }
 
@@ -139,12 +146,12 @@ public enum SendCommand {
         guard let textData = FileManager.default.contents(atPath: options.textURL.path), let text = String(data: textData, encoding: .utf8) else {
             throw Failure.unreadableText
         }
-        let request = try OpenRouterPastedLabelAITextRequest(route: options.route)
+        let request = try OpenRouterPastedLabelAITextRequest(route: options.route, promptVersion: options.promptVersion)
         let detector = PastedLabelAITextPanelDetector.detect(text: text)
         if detector.declines {
             return Output(labelID: options.labelID, cell: options.cell, routeCandidate: options.route.candidateID, model: options.route.model,
-                          endpoint: options.route.endpoint, promptVersion: OpenRouterPastedLabelAITextRequest.promptVersion,
-                          instructionSHA256: OpenRouterPastedLabelAITextRequest.instructionSHA256,
+                          endpoint: options.route.endpoint, promptVersion: request.promptVersion.rawValue,
+                          instructionSHA256: request.promptVersion.instructionSHA256,
                           schemaSHA256: OpenRouterPastedLabelAITextRequest.wireSchemaSHA256, textSHA256: EvalCase.sha256(textData),
                           requestSHA256: "", cached: false,
                           attempt: "declined_before_send:" + detector.markers.map(\.rawValue).joined(separator: ","), status: nil, response: nil,
@@ -155,8 +162,8 @@ public enum SendCommand {
         do { body = try request.body(text) } catch { throw Failure.textRefused("\(error)") }
         let requestSHA = EvalCase.sha256(body)
         var output = Output(labelID: options.labelID, cell: options.cell, routeCandidate: options.route.candidateID, model: options.route.model,
-                            endpoint: options.route.endpoint, promptVersion: OpenRouterPastedLabelAITextRequest.promptVersion,
-                            instructionSHA256: OpenRouterPastedLabelAITextRequest.instructionSHA256,
+                            endpoint: options.route.endpoint, promptVersion: request.promptVersion.rawValue,
+                            instructionSHA256: request.promptVersion.instructionSHA256,
                             schemaSHA256: OpenRouterPastedLabelAITextRequest.wireSchemaSHA256, textSHA256: EvalCase.sha256(textData),
                             requestSHA256: requestSHA, cached: false, attempt: "", status: nil, response: nil, costUSD: nil, chargedUSD: "0",
                             cachedCostUSD: nil, reservedUSD: nil, latencySeconds: nil, promptTokens: nil, completionTokens: nil)

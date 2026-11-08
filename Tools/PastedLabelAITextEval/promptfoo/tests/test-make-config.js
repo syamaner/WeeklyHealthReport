@@ -57,7 +57,7 @@ check('a config inside the repository is refused', () => {
   assert.equal(fs.existsSync(path.join(__dirname, 'generated.yaml')), false);
 });
 check('a prompt version the builder cannot send is refused', () => {
-  const r = run(args({ '--prompt-version': 'v2' }));
+  const r = run(args({ '--prompt-version': 'v3' }));
   assert.equal(r.code, 2);
   assert.match(r.stderr, /cannot be sent/);
 });
@@ -89,6 +89,20 @@ check('one provider per candidate and one test per case, with the cell named by 
   for (const p of config.providers) assert.equal(p.id, `file://${path.join(__dirname, '..', 'provider.js')}`);
   assert.equal(config.sharing, false);
   assert.equal(JSON.stringify(config).includes(suite), false, 'the config names no data path');
+});
+
+check('prompt v2 names its cells v2 and passes prompt-v2 to each provider', () => {
+  if (fs.existsSync(out)) fs.unlinkSync(out);
+  const r = run(args({ '--prompt-version': 'v2' }));
+  assert.equal(r.code, 0, r.stderr);
+  const text = fs.readFileSync(out, 'utf8');
+  const config = JSON.parse(text.replace(/^#.*\n/gm, ''));
+  assert.deepEqual(config.prompts, [{ id: 'prompt-v2', label: 'prompt-v2', raw: '{{label_id}}' }]);
+  assert.deepEqual(config.providers.map((p) => p.config), [
+    { route: 'gemini-4-argon-vertex-us', cell: 'v2__gemini-4-argon-vertex-us__adversarial', promptVersion: 'prompt-v2' },
+    { route: 'mistral-large-4-zdr', cell: 'v2__mistral-large-4-zdr__adversarial', promptVersion: 'prompt-v2' },
+  ]);
+  assert.match(text, /prompt v2 \(prompt-v2\)/);
 });
 
 fs.rmSync(tmp, { recursive: true, force: true });

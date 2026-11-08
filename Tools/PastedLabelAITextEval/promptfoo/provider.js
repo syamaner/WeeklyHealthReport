@@ -13,6 +13,9 @@
 const { execFile } = require('node:child_process');
 const path = require('node:path');
 
+// The closed set of instructions `send --prompt-version` accepts (revision 11).
+const PROMPT_VERSIONS = ['prompt-v1', 'prompt-v2'];
+
 function required(name) {
   const value = process.env[name];
   if (!value) throw new Error(`${name} must be set (see run-smoke.sh or run-live.sh)`);
@@ -59,6 +62,10 @@ class PastedLabelAITextSendProvider {
     // route candidate, cell `<prompt-version>__<candidate>__<suite>`); neither is ever guessed.
     const { route, cell, promptVersion } = this.config;
     if (typeof route !== 'string' || !route || typeof cell !== 'string' || !cell) return { error: 'the provider config needs route and cell' };
+    // A config without a prompt version (the A2 smoke config) sends the default, prompt-v1.
+    if (promptVersion !== undefined && !PROMPT_VERSIONS.includes(promptVersion)) {
+      return { error: `unknown prompt version ${promptVersion}; the closed set is ${PROMPT_VERSIONS.join(', ')}` };
+    }
     const bin = required('PASTED_LABEL_AI_TEXT_EVAL_BIN');
     const data = required('PASTED_LABEL_AI_TEXT_EVAL_DATA');
     const run = required('PASTED_LABEL_AI_TEXT_EVAL_RUN');
@@ -71,6 +78,7 @@ class PastedLabelAITextSendProvider {
     const args = [
       'send', '--label-id', label, '--text', path.join(data, 'texts', `${label}.txt`),
       '--route', route, '--cell', cell,
+      ...(promptVersion === undefined ? [] : ['--prompt-version', promptVersion]),
       '--ledger', path.join(run, 'spend-ledger.json'), '--cache', path.join(run, 'response-cache'),
       ...link.args,
     ];
@@ -91,7 +99,7 @@ class PastedLabelAITextSendProvider {
       return { error: `send printed no JSON: ${e.message}` };
     }
     // The cell names a prompt version; a record sent under another one is refused, not scored (A3b).
-    if (promptVersion !== undefined && send.prompt_version !== undefined && send.prompt_version !== promptVersion) {
+    if (promptVersion !== undefined && send.prompt_version !== promptVersion) {
       return { error: `send used prompt ${send.prompt_version}, but the cell is for ${promptVersion}` };
     }
     // The send record, with the tap's start added; `score` ignores the extra member.

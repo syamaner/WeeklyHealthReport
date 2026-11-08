@@ -33,12 +33,12 @@ The script refuses a scratch path inside the repository or promptfoo's home defa
 `make-config.js` writes one suite's promptfoo config, outside the repository: one provider per route candidate and one test per case in the data directory's `cases/`. Each provider's cell is `<prompt-version>__<candidate-id>__<suite>`, which keys its $5 stop in the spend ledger.
 
 ```bash
-node make-config.js --data DIR --candidates ID[,ID...] --prompt-version v1 --suite NAME --out /path/outside/the/repository/config.yaml
+node make-config.js --data DIR --candidates ID[,ID...] --prompt-version v1|v2 --suite NAME --out /path/outside/the/repository/config.yaml
 ```
 
 - The config names no data path, so it runs over any copy of the suite; `run-live.sh` passes the data directory by environment. It does name this checkout's `provider.js` and `assert.js` by absolute path, so run it from the checkout that generated it.
 - A data path holding `uk-english-v2` is refused, before and after resolving symbolic links.
-- Only `v1` is accepted: the shipped request builder sends `prompt-v1` and `send` cannot select another instruction yet. `provider.js` refuses a send record whose prompt version is not the cell's.
+- `--prompt-version` is `v1` (`prompt-v1`, the instruction the app sends) or `v2` (`prompt-v2`, revision 11). `provider.js` passes it to `send --prompt-version`, and refuses a send record whose prompt version is not the cell's. Each version's requests have their own SHA-256, so their responses are cached apart.
 - `run-live.sh` refuses data inside the repository (T6), so copy `adversarial/texts` and `adversarial/cases` to a private folder before a live adversarial run.
 
 ## Run a live tuning cell (A3)

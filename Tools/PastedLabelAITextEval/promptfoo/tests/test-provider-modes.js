@@ -14,9 +14,17 @@ const Provider = require('../provider.js');
 const KEY = 'sk-or-v1-synthetic-provider-test-0123456789';
 const dir = fs.mkdtempSync(path.join(process.env.TMPDIR || os.tmpdir(), 'provider-modes-'));
 const stub = path.join(dir, 'send-stub');
+// The stub records the prompt version it was asked for, as `send` does, except for the label
+// `uk-wrong-version`, where it records prompt-v1 whatever it was asked, and `uk-no-version`, where it
+// records none.
 fs.writeFileSync(stub, `#!${process.execPath}
-process.stdout.write(JSON.stringify({ attempt: 'responded', charged_usd: '0', cached: false, args: process.argv.slice(2),
-  env_names: Object.keys(process.env).sort(), key_matches: process.env.OPENROUTER_API_KEY === ${JSON.stringify(KEY)} }));
+const args = process.argv.slice(2);
+const label = args[args.indexOf('--label-id') + 1];
+const asked = args.includes('--prompt-version') ? args[args.indexOf('--prompt-version') + 1] : 'prompt-v1';
+const record = { attempt: 'responded', charged_usd: '0', cached: false, args,
+  env_names: Object.keys(process.env).sort(), key_matches: process.env.OPENROUTER_API_KEY === ${JSON.stringify(KEY)} };
+if (label !== 'uk-no-version') record.prompt_version = label === 'uk-wrong-version' ? 'prompt-v1' : asked;
+process.stdout.write(JSON.stringify(record));
 `, { mode: 0o700 });
 
 const saved = { ...process.env };
@@ -25,10 +33,10 @@ function setEnv(values) {
   Object.assign(process.env, { PASTED_LABEL_AI_TEXT_EVAL_BIN: stub, PASTED_LABEL_AI_TEXT_EVAL_DATA: dir, PASTED_LABEL_AI_TEXT_EVAL_RUN: dir }, values);
 }
 
-async function call(values) {
+async function call(values, config = {}, label = 'uk-test-01') {
   setEnv(values);
-  const provider = new Provider({ config: { route: 'gemini-4-argon-vertex-us', cell: 'test-cell' } });
-  return provider.callApi('', { vars: { label_id: 'uk-test-01' } });
+  const provider = new Provider({ config: { route: 'gemini-4-argon-vertex-us', cell: 'test-cell', ...config } });
+  return provider.callApi('', { vars: { label_id: label } });
 }
 
 let failures = 0;
@@ -77,6 +85,36 @@ async function check(name, body) {
   await check('fake mode still needs its directory', async () => {
     const result = await call({});
     assert.match(result.error, /PASTED_LABEL_AI_TEXT_EVAL_FAKE_TRANSPORT must be set/);
+  });
+  const fake = { PASTED_LABEL_AI_TEXT_EVAL_FAKE_TRANSPORT: '/fake/dir' };
+  await check('a config without a prompt version passes none, so send uses its default', async () => {
+    const send = JSON.parse((await call(fake)).output);
+    assert.ok(!send.args.includes('--prompt-version'));
+  });
+  await check("the cell's prompt version is passed to send, and its record accepted", async () => {
+    for (const version of ['prompt-v1', 'prompt-v2']) {
+      const result = await call(fake, { promptVersion: version });
+      assert.equal(result.error, undefined, result.error);
+      const send = JSON.parse(result.output);
+      assert.deepEqual(send.args.slice(send.args.indexOf('--prompt-version'), send.args.indexOf('--prompt-version') + 2), ['--prompt-version', version]);
+      assert.equal(send.prompt_version, version);
+    }
+  });
+  await check("a send record under another prompt version than the cell's is refused", async () => {
+    const result = await call(fake, { promptVersion: 'prompt-v2' }, 'uk-wrong-version');
+    assert.match(result.error, /send used prompt prompt-v1, but the cell is for prompt-v2/);
+    assert.equal(result.output, undefined);
+  });
+  await check('a send record without a prompt version is refused when the cell names one', async () => {
+    const result = await call(fake, { promptVersion: 'prompt-v2' }, 'uk-no-version');
+    assert.match(result.error, /but the cell is for prompt-v2/);
+  });
+  await check('a prompt version outside the closed set is refused without calling send', async () => {
+    for (const version of ['prompt-v3', '--live', '']) {
+      const result = await call(fake, { promptVersion: version });
+      assert.match(result.error, /unknown prompt version/, version);
+      assert.equal(result.output, undefined);
+    }
   });
   for (const name of Object.keys(process.env)) delete process.env[name];
   Object.assign(process.env, saved);

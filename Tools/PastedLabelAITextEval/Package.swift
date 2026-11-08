@@ -27,7 +27,12 @@ let package = Package(
                 .product(name: "FoodLabelTextAIReading", package: "FoodLedgerKit"),
             ]
         ),
-        .executableTarget(name: "PastedLabelAITextEval", dependencies: ["PastedLabelAITextEvalHarness", "PastedLabelAITextEvalCore"]),
+        // The CLI names the request builder's closed prompt versions (`--prompt-version`, revision 11).
+        .executableTarget(
+            name: "PastedLabelAITextEval",
+            dependencies: ["PastedLabelAITextEvalHarness", "PastedLabelAITextEvalCore",
+                           .product(name: "FoodLabelPhotoCapture", package: "FoodLedgerKit")]
+        ),
         .testTarget(name: "PastedLabelAITextEvalCoreTests", dependencies: ["PastedLabelAITextEvalCore"]),
         .testTarget(
             name: "PastedLabelAITextEvalHarnessTests",
