@@ -65,10 +65,21 @@ public enum PastedLabelAITextRoute {
                                                       reasoningLimit: 500)
     public static let gpt6LunaAzure4K = Route(version: version, candidateID: "gpt-6-luna-azure-4k", model: "openai/gpt-6-luna", endpoint: "azure",
                                               providerName: "Azure", maxOutputTokens: 4_000, reasoningLimit: 500)
+    // A3 finalists (owner, 8 November 2026): the Sol endpoint with the same 4,000-token output cap,
+    // appended so the set stays append-only and the 2,400-token Sol cells stay comparable.
+    public static let gpt61SolAzure4K = Route(version: version, candidateID: "gpt-6.1-sol-azure-4k", model: "openai/gpt-6.1-sol", endpoint: "azure",
+                                              providerName: "Azure", maxOutputTokens: 4_000, reasoningLimit: 500)
+    // Two more A3 finalists (owner, 8 November 2026), with no 2,400-token sibling; the 8 November
+    // catalogue snapshot lists each on Azure (`azure`) with structured outputs and reasoning, and ZDR.
+    public static let gpt61TerraAzure4K = Route(version: version, candidateID: "gpt-6.1-terra-azure-4k", model: "openai/gpt-6.1-terra",
+                                                endpoint: "azure", providerName: "Azure", maxOutputTokens: 4_000, reasoningLimit: 500)
+    public static let gpt6LunaProAzure4K = Route(version: version, candidateID: "gpt-6-luna-pro-azure-4k", model: "openai/gpt-6-luna-pro",
+                                                 endpoint: "azure", providerName: "Azure", maxOutputTokens: 4_000, reasoningLimit: 500)
 
     /// Closed and append-only: the candidates an evaluation cell may name.
     public static let candidates: [Route] = [gemini4ArgonVertexUS, gemini38FlashVertexUS, mistralLarge4ZDR, gpt6LunaAzure, gpt61SolAzure,
-                                             claudeHaiku55VertexGlobal, gemini38FlashVertexUS4K, gpt6LunaAzure4K]
+                                             claudeHaiku55VertexGlobal, gemini38FlashVertexUS4K, gpt6LunaAzure4K, gpt61SolAzure4K,
+                                             gpt61TerraAzure4K, gpt6LunaProAzure4K]
 
     /// The one shipped route; nil until A3 freezes one.
     public static let current: Route? = nil

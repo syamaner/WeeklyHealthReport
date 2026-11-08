@@ -161,7 +161,8 @@ final class OpenRouterPastedLabelAITextRouteTests: XCTestCase {
 
     func testTheFourThousandTokenCandidatesDifferOnlyInIDAndOutputCap() throws {
         let pairs = [(PastedLabelAITextRoute.gemini38FlashVertexUS, PastedLabelAITextRoute.gemini38FlashVertexUS4K),
-                     (PastedLabelAITextRoute.gpt6LunaAzure, PastedLabelAITextRoute.gpt6LunaAzure4K)]
+                     (PastedLabelAITextRoute.gpt6LunaAzure, PastedLabelAITextRoute.gpt6LunaAzure4K),
+                     (PastedLabelAITextRoute.gpt61SolAzure, PastedLabelAITextRoute.gpt61SolAzure4K)]
         for (base, wide) in pairs {
             XCTAssertEqual(wide.candidateID, base.candidateID + "-4k")
             XCTAssertEqual(wide.maxOutputTokens, 4_000)
@@ -171,6 +172,26 @@ final class OpenRouterPastedLabelAITextRouteTests: XCTestCase {
             XCTAssertTrue(PastedLabelAITextRoute.isAdmitted(wide))
             XCTAssertEqual(PastedLabelAITextRoute.candidate(wide.candidateID), wide)
             let body = try JSONSerialization.jsonObject(with: try OpenRouterPastedLabelAITextRequest(route: wide).body("Energy 100 kJ")) as? [String: Any]
+            XCTAssertEqual(body?["max_tokens"] as? Int, 4_000)
+        }
+        XCTAssertEqual(Set(PastedLabelAITextRoute.candidates.map(\.candidateID)).count, PastedLabelAITextRoute.candidates.count)
+        XCTAssertNil(PastedLabelAITextRoute.current)
+    }
+
+    func testTheTerraAndLunaProFourThousandTokenCandidatesAreAdmittedAzureRoutes() throws {
+        let expected = [(PastedLabelAITextRoute.gpt61TerraAzure4K, "gpt-6.1-terra-azure-4k", "openai/gpt-6.1-terra"),
+                        (PastedLabelAITextRoute.gpt6LunaProAzure4K, "gpt-6-luna-pro-azure-4k", "openai/gpt-6-luna-pro")]
+        for (route, id, model) in expected {
+            XCTAssertEqual(route.candidateID, id)
+            XCTAssertEqual(route.version, PastedLabelAITextRoute.version)
+            XCTAssertEqual(route.model, model)
+            XCTAssertEqual(route.endpoint, "azure")
+            XCTAssertEqual(route.providerName, "Azure")
+            XCTAssertEqual(route.maxOutputTokens, 4_000)
+            XCTAssertEqual(route.reasoningLimit, 500)
+            XCTAssertTrue(PastedLabelAITextRoute.isAdmitted(route))
+            XCTAssertEqual(PastedLabelAITextRoute.candidate(id), route)
+            let body = try JSONSerialization.jsonObject(with: try OpenRouterPastedLabelAITextRequest(route: route).body("Energy 100 kJ")) as? [String: Any]
             XCTAssertEqual(body?["max_tokens"] as? Int, 4_000)
         }
         XCTAssertEqual(Set(PastedLabelAITextRoute.candidates.map(\.candidateID)).count, PastedLabelAITextRoute.candidates.count)
