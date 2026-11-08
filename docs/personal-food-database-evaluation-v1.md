@@ -1,15 +1,15 @@
 # Personal food database evaluation v1
 
-Status: **draft, revision 4, 8 November 2026; the owner has taken every section 9 decision.** Revision 2
-added three clarifications to the bars after a Qodo review (section 9, decision 4). Revision 3 answers
-the architecture-gate review (PASS WITH CHANGES) and the invariant review (NEEDS WORK) of revision 2
-with the mechanics they asked for (sections 2, 4, 5 and 8) and closes judging gaps; it moves no bar
-(section 10). It also records the A3 consequence, the private configuration and the larger-sample rule
-(decisions 5 to 7). Revision 4 names the machine-checked Freeze list and the files E1a introduces
-(section 10). Phase E0 of the personal food database work, after the accepted [import
-contract](personal-food-catalogue-import-v1.md) (#419). It defines how the database and its search are
-measured **before any importer code is written**. It adds no product code and changes no shipped
-behaviour. Issue: #424.
+Status: **draft, revision 4, 8 November 2026; the owner has taken every section 9 decision, and the plan
+is not yet marked accepted.** Revision 2 added three clarifications to the bars after a Qodo review
+(section 9, decision 4). Revision 3 answers the architecture-gate review (PASS WITH CHANGES) and the
+invariant review (NEEDS WORK) of revision 2 with the mechanics they asked for (sections 2, 4, 5 and 8)
+and closes judging gaps; it moves no bar (section 10). It also records the A3 consequence, the private
+configuration and the larger-sample rule (decisions 5 to 7). Revision 4 names the machine-checked Freeze
+list and the files E1a introduces (section 10). Phase E0 of the personal food database work, after the
+accepted [import contract](personal-food-catalogue-import-v1.md) (#419). It defines how the database and
+its search are measured **before any importer code is written**. It adds no product code and changes no
+shipped behaviour. Issue: #424.
 
 In this file, "decision N" means section 9, decision N of this file; contract decisions are written
 "contract decision N".
@@ -42,10 +42,10 @@ a docs commit; a command that needs an entry stops when it is missing (fail clos
 2. **E1b, release.** The database release under test is pinned: its `pfc:sha256:` ID (bytes stay
    private), the skill commit that built it, and the SHA-256 of the working mapping files it used.
 3. **E1c, Part A sample.** The seed is drawn, recorded **in plain text** in the Freeze list (it is not
-   secret without the private entry list), and the sample is generated from it. The sampled-ID file
-   is `pfd-sample-v1`; its SHA-256, and that of the `pfd-purchase-counts-v1` file it was drawn from, are
-   recorded too, so neither can change afterwards. Seeded orders use the SHA-256 of `<seed>|<entry id>`,
-   so they never depend on the Python version.
+   secret without the private entry list), and the sample is generated from it. The sampled-ID file is
+   `pfd-sample-v1`; its SHA-256, and that of the copy of the `pfd-purchase-counts-v1` file it was drawn
+   from (kept beside it), are recorded too, so neither can change afterwards. Seeded orders use the
+   SHA-256 of `<seed>|<entry id>`, so they never depend on the Python version.
 4. **E1d, Part B query set.** The owner records every query and its expected answer first; then the
    seeded split runs into the private `development/` and `held-out/` folders; then `seal-dev` and
    `seal-heldout` append one line each to a private append-only `seals.txt` (`<name> <sha256> <file

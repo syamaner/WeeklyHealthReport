@@ -68,8 +68,11 @@ def corpora_records(repo: Path, pins: dict) -> dict:
     res = repo / "Packages/FoodLedgerKit/Sources/FoodGenericSearch/Resources"
     out = {}
     for src, name in CORPORA.items():
+        if src not in pins:
+            out[src] = {}  # an unpinned corpus is never read; a reference to it is refused when the sheet is built
+            continue
         data = (res / name).read_bytes()
-        if src in pins and pins[src] != formats.sha256(data):
+        if pins[src] != formats.sha256(data):
             raise formats.FormatError(f"{src}: the import file was built against a different bundled corpus")
         recs = json.loads(data)["records"]
         if src == "cofid":
@@ -94,7 +97,8 @@ def cmd_sample(a, root):
     export = read_private(root, a.export)
     if formats.release_id(export) != fz["release_id"]:
         sys.exit("refused: the import file is not the pinned release")
-    counts = formats.parse_purchase_counts(read_private(root, a.counts))
+    counts_bytes = read_private(root, a.counts)
+    counts = formats.parse_purchase_counts(counts_bytes)
     if counts["release_id"] != fz["release_id"]:
         sys.exit("refused: the purchase counts belong to another release")
     entries, pins = formats.export_entries(export)
@@ -103,6 +107,7 @@ def cmd_sample(a, root):
     rows = sample_mod.sheet_rows(doc, entries, corpora_records(REPO, pins))
     write_new(private(root, root / "sample" / "sample.json"), formats.dumps(doc))
     write_new(private(root, root / "review" / "review-sheet.csv"), formats.write_sheet(rows))
+    write_new(private(root, root / "sample" / "purchase-counts.json"), counts_bytes)  # the copy the freeze record pins
     print("sample written:", ", ".join(f"{k} {v}" for k, v in sorted(s["quotas"].items())), f"; sheet rows {len(rows)}")
 
 
@@ -131,10 +136,12 @@ def repo_out(path) -> Path:
 
 
 def cmd_score_a(a, root):
-    fz = frozen(("release_id", "sample_sha256"))
+    fz = frozen(("release_id", "sample_sha256", "purchase_counts_sha256"))
     sample_bytes = read_private(root, root / "sample" / "sample.json")
     if formats.sha256(sample_bytes) != fz["sample_sha256"]:
         sys.exit("refused: the sample differs from the freeze record")
+    if formats.sha256(read_private(root, root / "sample" / "purchase-counts.json")) != fz["purchase_counts_sha256"]:
+        sys.exit("refused: the purchase counts differ from the freeze record")
     seals.require("seal-review", root)
     sample = formats.parse_sample(sample_bytes)
     rows = formats.parse_sheet(read_private(root, root / "review" / "review-sheet.csv"))

@@ -129,9 +129,10 @@ class CommandLine(unittest.TestCase):
                                    capture_output=True, text=True)
                 self.assertNotEqual(r.returncode, 0)
 
-    def test_corpus_hash_mismatch_refused(self):
+    def test_corpus_hash_mismatch_refused_and_unpinned_corpus_unread(self):
         with self.assertRaises(formats.FormatError):
             pfd_eval.corpora_records(H.REPO, {"cofid": "0" * 64})
+        self.assertEqual(pfd_eval.corpora_records(H.REPO, {}), {"cofid": {}, "usda": {}, "tfda": {}})
 
     def run_cli(self, *argv):
         out = io.StringIO()
@@ -198,6 +199,7 @@ class CommandLine(unittest.TestCase):
                 self.assertNotEqual(self.run_cli("score-a", "--root", str(root), "--out", str(repo / "a.json"))[0], 0)  # unsealed, unpinned
                 self.assertEqual(self.run_cli("seal", "--root", str(root), "seal-review")[0], 0)
                 fz["sample_sha256"] = formats.sha256((root / "sample" / "sample.json").read_bytes())
+                fz["purchase_counts_sha256"] = formats.sha256((root / "sample" / "purchase-counts.json").read_bytes())
                 fz["heldout_sha256"] = seals.recorded(root)["seal-heldout"]
                 pfd_eval.FREEZE.write_text(json.dumps(fz))
                 code, text = self.run_cli("score-a", "--root", str(root), "--out", str(repo / "a.json"))
