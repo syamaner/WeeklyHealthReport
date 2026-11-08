@@ -18,6 +18,15 @@
 # - Telemetry, update checks, sharing and remote generation are switched off as in run-smoke.sh.
 #   Unlike run-smoke.sh, no dead proxy is set: it would block the real call.
 #
+# - CONFIG must be exactly what make-config.js writes (validate-config.js): its only providers are this
+#   checkout's provider.js and its only assertion this checkout's assert.js, with nothing else that
+#   promptfoo would load and run. Any other config is refused before the build, with the key never
+#   passed on, and promptfoo reads a copy of the validated text in SCRATCH_DIR/configs, so the file
+#   cannot change between the check and the run.
+# - The promptfoo eval options are limited to ones that load no code: --no-cache, --verbose,
+#   --filter-pattern REGEX, --filter-providers REGEX, -n/--filter-first-n N, --filter-sample N,
+#   -j/--max-concurrency N, --delay MS. Any other option is refused before the build.
+#
 # `--check-scratch SCRATCH_DIR` only checks and prints the resolved scratch path. Every check runs
 # before anything is created, built or sent.
 set -euo pipefail
@@ -55,6 +64,22 @@ for file in "$data"/texts/* "$data"/cases/*; do
   case "$resolved" in "$data"/*) ;; *) echo "${file#"$data"/} resolves outside the data directory" >&2; exit 2 ;; esac
 done
 shopt -u nullglob
+# promptfoo eval options after DATA_DIR: only these, so no option names a provider, prompt, test,
+# assertion, var or environment file for promptfoo to load (which could read the key).
+options=("${@:4}")
+i=0
+while (( i < ${#options[@]} )); do
+  case "${options[$i]}" in
+    --no-cache|--verbose) i=$((i + 1)) ;;
+    --filter-pattern|--filter-providers)
+      [[ -n "${options[$((i + 1))]:-}" ]] || { echo "${options[$i]} needs a value" >&2; exit 2; }; i=$((i + 2)) ;;
+    -n|--filter-first-n|--filter-sample|-j|--max-concurrency|--delay)
+      [[ "${options[$((i + 1))]:-}" =~ ^[0-9]+$ ]] || { echo "${options[$i]} needs a number" >&2; exit 2; }; i=$((i + 2)) ;;
+    *) echo "promptfoo option ${options[$i]} is not allowed by a live run" >&2; exit 2 ;;
+  esac
+done
+# The config is checked without the key in the environment, and its validated text is what promptfoo reads.
+validated="$(env -u OPENROUTER_API_KEY node "$here/validate-config.js" "$config")" || { echo "the config is not one make-config.js writes; nothing was run" >&2; exit 2; }
 if [[ -z "${OPENROUTER_API_KEY:-}" ]]; then
   echo "OPENROUTER_API_KEY must be set: a live run reads the key from the environment only (T4)" >&2; exit 2
 fi
@@ -62,8 +87,12 @@ mkdir -p "$scratch"
 swift build --package-path "$here/.." -c debug --product PastedLabelAITextEval >&2
 bin="$(swift build --package-path "$here/.." -c debug --show-bin-path)/PastedLabelAITextEval"
 run="$scratch/run"
-mkdir -p "$run" "$scratch/results"
-results="$scratch/results/$(date -u +%Y%m%dT%H%M%SZ).json"
+mkdir -p "$run" "$scratch/results" "$scratch/configs"
+stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+results="$scratch/results/$stamp.json"
+# A new file (noclobber), never one already there or a link, holding exactly the validated text.
+checked="$scratch/configs/$stamp-$$.yaml"
+( set -o noclobber; umask 077; printf '%s\n' "$validated" > "$checked" )
 cd "$here"
 (
   # A clean environment, as `env -i` gives run-smoke.sh, but the key is kept by inheritance rather
@@ -76,5 +105,5 @@ cd "$here"
   export PROMPTFOO_CONFIG_DIR="$scratch/promptfoo-config" PROMPTFOO_CACHE_PATH="$scratch/promptfoo-cache" PROMPTFOO_LOG_DIR="$scratch/promptfoo-logs"
   export PASTED_LABEL_AI_TEXT_EVAL_LIVE=1
   export PASTED_LABEL_AI_TEXT_EVAL_BIN="$bin" PASTED_LABEL_AI_TEXT_EVAL_DATA="$data" PASTED_LABEL_AI_TEXT_EVAL_RUN="$run"
-  exec "$here/node_modules/.bin/promptfoo" eval -c "$config" --no-progress-bar --output "$results" "${@:4}"
+  exec "$here/node_modules/.bin/promptfoo" eval -c "$checked" --no-progress-bar --output "$results" ${options[@]+"${options[@]}"}
 )

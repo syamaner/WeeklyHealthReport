@@ -27,10 +27,10 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
+// validate-config.js holds the names and the whole shape this script writes; run-live.sh refuses
+// any config that is not exactly that shape.
+const { PROMPT_VERSIONS, NAME, FRESH_RUN, ConfigRefusal, validateConfigText } = require('./validate-config.js');
 
-const PROMPT_VERSIONS = { v1: 'prompt-v1', v2: 'prompt-v2' };
-const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
-const FRESH_RUN = /^[a-z](?:[a-z0-9]|-(?=[a-z0-9])){0,15}$/;
 const OPTIONS = ['--data', '--candidates', '--prompt-version', '--suite', '--fresh-run', '--out'];
 const REQUIRED = ['--data', '--candidates', '--prompt-version', '--suite', '--out'];
 
@@ -147,13 +147,21 @@ function main() {
     '',
   ].join('\n');
   // JSON is YAML: promptfoo reads the file as YAML, and the comments above stay readable.
+  const text = header + JSON.stringify(config, null, 2) + '\n';
+  // The same check run-live.sh makes, so this script never writes a config run-live.sh refuses.
+  try {
+    validateConfigText(text, here);
+  } catch (e) {
+    if (e instanceof ConfigRefusal) fail(`the generated config fails its own check: ${e.message}`);
+    throw e;
+  }
   let descriptor;
   try {
     descriptor = fs.openSync(outTarget, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_TRUNC | fs.constants.O_NOFOLLOW, 0o644);
   } catch (e) {
     fail(`the config could not be written: ${e.code || e.message}`);
   }
-  fs.writeFileSync(descriptor, header + JSON.stringify(config, null, 2) + '\n');
+  fs.writeFileSync(descriptor, text);
   fs.closeSync(descriptor);
   process.stdout.write(`${outPath}: ${candidates.length} providers x ${labels.length} tests\n`);
 }
