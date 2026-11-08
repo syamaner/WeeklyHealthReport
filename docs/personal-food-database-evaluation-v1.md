@@ -1,14 +1,15 @@
 # Personal food database evaluation v1
 
-Status: **draft, revision 3, 7 November 2026; the owner has taken every section 9 decision.** Revision 2
-added three clarifications to the bars after a Qodo review (section 9, decision 4). Revision 3 answers
-the architecture-gate review (PASS WITH CHANGES) and the invariant review (NEEDS WORK) of revision 2
-with the mechanics they asked for (sections 2, 4, 5 and 8) and closes judging gaps; it moves no bar
-(section 10). It also records the A3 consequence, the private configuration and the larger-sample rule
-(decisions 5 to 7). Phase E0 of the personal food database work, after the accepted [import
-contract](personal-food-catalogue-import-v1.md) (#419). It defines how the database and its search are
-measured **before any importer code is written**. It adds no product code and changes no shipped
-behaviour. Issue: #424.
+Status: **draft, revision 4, 8 November 2026; the owner has taken every section 9 decision, and the plan
+is not yet marked accepted.** Revision 2 added three clarifications to the bars after a Qodo review
+(section 9, decision 4). Revision 3 answers the architecture-gate review (PASS WITH CHANGES) and the
+invariant review (NEEDS WORK) of revision 2 with the mechanics they asked for (sections 2, 4, 5 and 8)
+and closes judging gaps; it moves no bar (section 10). It also records the A3 consequence, the private
+configuration and the larger-sample rule (decisions 5 to 7). Revision 4 names the machine-checked Freeze
+list and the files E1a introduces (section 10). Phase E0 of the personal food database work, after the
+accepted [import contract](personal-food-catalogue-import-v1.md) (#419). It defines how the database and
+its search are measured **before any importer code is written**. It adds no product code and changes no
+shipped behaviour. Issue: #424.
 
 In this file, "decision N" means section 9, decision N of this file; contract decisions are written
 "contract decision N".
@@ -30,29 +31,33 @@ is dropped from the import file (section 6), never shown with a looser bar.
 
 ## 2. What is frozen, and in what order
 
-Nothing private is ever committed. The **Freeze list** (section 11 of this file, added by a docs
-commit) records only release IDs, commit hashes, file hashes and the plain-text seed.
+Nothing private is ever committed. The **Freeze list** is one machine-checked record,
+`Tools/PersonalFoodDatabaseEvaluation/freeze-v1.json` (format `pfd-freeze-v1`, section 11), holding
+only file hashes, the release ID, the plain-text seed and the seal hashes. Each step adds its entries in
+a docs commit; a command that needs an entry stops when it is missing (fail closed).
 
 1. **E1a, scorers.** The scoring tool and its synthetic tests are committed (section 7). The Freeze
-   list records that commit and the SHA-256 of each scorer file, of the skill's `workspace_guard.py`
-   that the scorer imports, and of the v11 golden file (section 4.5).
+   list records the SHA-256 of each scorer file and of the skill's `workspace_guard.py` that the scorer
+   imports. The v11 golden file (section 4.5) is added to the Freeze list before any v12 code lands.
 2. **E1b, release.** The database release under test is pinned: its `pfc:sha256:` ID (bytes stay
    private), the skill commit that built it, and the SHA-256 of the working mapping files it used.
 3. **E1c, Part A sample.** The seed is drawn, recorded **in plain text** in the Freeze list (it is not
-   secret without the private entry list), and the sample is generated from it. The SHA-256 of the
-   sampled-ID file is recorded too, so the sample cannot change afterwards.
+   secret without the private entry list), and the sample is generated from it. The sampled-ID file is
+   `pfd-sample-v1`; its SHA-256, and that of the copy of the `pfd-purchase-counts-v1` file it was drawn
+   from (kept beside it), are recorded too, so neither can change afterwards. Seeded orders use the
+   SHA-256 of `<seed>|<entry id>`, so they never depend on the Python version.
 4. **E1d, Part B query set.** The owner records every query and its expected answer first; then the
-   seeded split runs; then `seal-dev` and `seal-heldout` append one line each to a private
-   append-only `seals.txt` (`<name> <sha256> <file count> <UTC time>`, the format of the UK fresh-set
-   protocol; a seal is never replaced); then the held-out hash goes into the Freeze list.
-
+   seeded split runs into the private `development/` and `held-out/` folders; then `seal-dev` and
+   `seal-heldout` append one line each to a private append-only `seals.txt` (`<name> <sha256> <file
+   count> <UTC time>`, the format of the UK fresh-set protocol, with its bundle hash: the SHA-256 of
+   sorted `<sha256>  <folder>/<file>` lines; a seal is never replaced, and seals are recorded in the
+   order `seal-dev`, `seal-heldout`, `seal-review`); then the held-out hash goes into the Freeze list.
 5. **E3, review sheet.** When the owner has finished the Part A review sheet, `seal-review` appends its
    hash to `seals.txt` before the E3 scoring run.
 
 Scorers refuse an input that is unsealed, changed since its seal, or not the pinned release, and refuse
 to run when the hash of a scorer file, `workspace_guard.py` or the golden file differs from the Freeze
-list. A rebuilt
-database is a new release, except an E3 export that only **drops** values or candidates under a section
+list. A rebuilt database is a new release, except an E3 export that only **drops** values or candidates under a section
 6 rule: that needs no new Part A sample. Part B answers are keyed by entry `id`, which is stable for a
 brand and title (contract section 4), and every result names the release it ran on.
 
@@ -76,7 +81,9 @@ will be re-read from the pinned release.
 ### 3.2 Sample
 
 - **A1 and A5 are checked in full** (a census, not a sample): all 58 A1 entries and every A5 entry.
-- **Always included:** the 30 most-bought entries (by receipt purchase lines). They count towards
+- **Always included:** the 30 most-bought entries (by receipt purchase lines, from a private
+  `pfd-purchase-counts-v1` file that a skill script writes in E1c, since the import file carries no
+  purchase data; ties go to the lower entry `id`). They count towards
   their own stratum's quota; if a stratum's members among the top 30 exceed its quota, its quota grows
   to include them all, and the A2 and A3 bars keep their fixed allowed counts (decision 7).
 - **A2 40, A3 40 and A4 20**, filled by a seeded random draw without replacement after the top 30.
@@ -145,7 +152,8 @@ The query set is split by a seeded draw, stratified so the negative queries divi
 about 60 per cent **development**, 40 per cent **held-out** (about 64 queries, 10 negative). The two sets
 live in **separate private subfolders**. The held-out set is sealed (section 2) before any ranking code
 exists and is opened once, at the release check, with at most one rerun for an infrastructure failure
-(as in the UK fresh-set protocol). Implementers and harness operators never read the held-out file or
+(as in the UK fresh-set protocol); the scorer records each held-out run as a `run-heldout` line in the private `seals.txt` and
+refuses a third. Implementers and harness operators never read the held-out file or
 its per-query output, and every result states any exposure. Development iteration is counts-only for
 agents too: only the owner may open per-query development output, and each time they do, the date is
 recorded in the private folder and reported with the release-check result. If a held-out bar fails, the fresh held-out
@@ -354,3 +362,26 @@ output, golden and results formats, with an allow-list results writer; `workspac
 golden file in the Freeze list; a sealed review sheet; counts-only development iteration; and the
 `missing_in_entry` verdict. Decisions 5 to 7 settled the remaining points; nothing is open for the
 owner before E1.
+
+Revision 4 (8 November 2026, with E1a) answers the E1a architecture gate: one machine-checked Freeze
+list (`freeze-v1.json`, section 11) instead of a list in this file; the golden file's hash recorded
+before v12 code rather than at E1a; the sample and purchase-count files named (`pfd-sample-v1`,
+`pfd-purchase-counts-v1`) with a version-independent seeded order and a top-30 tie-break; the seal
+bundle rule and order shared with the Swift fresh-set protocol; and the held-out run log. It moves no
+bar and changes no decision.
+
+## 11. Freeze list
+
+The Freeze list is `Tools/PersonalFoodDatabaseEvaluation/freeze-v1.json` (format `pfd-freeze-v1`). It is
+filled in this order, each by a docs commit:
+
+| Step | Entries |
+|---|---|
+| E1a | `files`: SHA-256 of each scorer file and of `.agents/skills/personal-food-catalogue/scripts/workspace_guard.py` |
+| E1b | `release_id` |
+| E1c | `seed`, `sample_sha256`, `purchase_counts_sha256` |
+| E1d | `heldout_sha256` (the `seal-heldout` bundle hash) |
+| Before v12 code | `golden_sha256` and the golden file's path in `files` |
+
+A test fails when a listed file no longer matches its hash, so a scorer change after E1a is visible in
+CI and needs a new freeze record.
