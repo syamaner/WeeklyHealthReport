@@ -180,6 +180,22 @@ final class EvalCaseConverterTests: XCTestCase {
         XCTAssertEqual(try EvalCase.decode(try JSONSerialization.data(withJSONObject: object)), evalCase)
     }
 
+    /// Qodo finding 9: the optional closed `layout_shape` member; absent, the canonical bytes are unchanged.
+    func testTheLayoutShapeMember() throws {
+        let evalCase = try EvalCaseConverter.convert(Self.uk, metadata: metadata(.ukV1Fresh, tier: "A"))
+        let bytes = try evalCase.canonicalJSON()
+        XCTAssertFalse(String(decoding: bytes, as: UTF8.self).contains("layout_shape"))
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: bytes) as? [String: Any])
+        object["layout_shape"] = "misaligned"
+        let shaped = try EvalCase.decode(try JSONSerialization.data(withJSONObject: object))
+        XCTAssertEqual(shaped.layoutShape, .misaligned)
+        XCTAssertEqual(try EvalCase.decode(try shaped.canonicalJSON()), shaped, "round-trips")
+        XCTAssertTrue(String(decoding: try shaped.canonicalJSON(), as: UTF8.self).contains(#""layout_shape" : "misaligned""#))
+        object["layout_shape"] = "two_columns"
+        XCTAssertThrowsError(try EvalCase.decode(try JSONSerialization.data(withJSONObject: object)), "a closed set")
+        XCTAssertEqual(EvalCase.LayoutShape.allCases.map(\.rawValue), ["one_row_per_line", "one_value_per_line", "misaligned", "unitless", "other"])
+    }
+
     func testSetsAndRoles() {
         XCTAssertEqual(EvalCase.EvalSet.allCases.filter { $0.role == .heldOut }, [.ukV2Fresh])
         XCTAssertEqual(EvalCase.schema, "pasted-label-ai-text-eval-case-v1")

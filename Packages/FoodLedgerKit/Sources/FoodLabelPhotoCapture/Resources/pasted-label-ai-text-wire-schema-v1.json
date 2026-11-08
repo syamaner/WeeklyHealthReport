@@ -1,0 +1,52 @@
+{
+  "$comment": "pasted-label-ai-text-wire-schema-v1 (text route). The photo wire's shape plus one member on each value, unit, which the model fills only for a bare number (an empty string otherwise). No union-bearing parameters: absent values use the explicit string unknown, and an absent unit the empty string. The app maps it with pasted-label-ai-text-mapping-v1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["declined", "decline_reasons", "language", "serving_size_text", "servings_per_pack_text", "headers", "rows"],
+  "properties": {
+    "declined": {"type": "boolean"},
+    "decline_reasons": {"type": "array", "items": {"type": "string"}},
+    "language": {"type": "string", "enum": ["en", "zh-Hant", "mixed", "unknown"]},
+    "serving_size_text": {"type": "string", "description": "Printed serving size line, or unknown"},
+    "servings_per_pack_text": {"type": "string", "description": "Printed servings per pack line, or unknown"},
+    "headers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["header_id", "printed_text", "basis"],
+        "properties": {
+          "header_id": {"type": "string"},
+          "printed_text": {"type": "string"},
+          "basis": {"type": "string", "enum": ["per_100g", "per_100ml", "per_serving", "reference_intake"]}
+        }
+      }
+    },
+    "rows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["printed_label", "nutrient", "parent_nutrient", "values"],
+        "properties": {
+          "printed_label": {"type": "string"},
+          "nutrient": {"type": "string", "enum": ["energy_kj", "energy_kcal", "fat", "saturates", "trans_fat", "carbohydrate", "sugars", "added_sugars", "fibre", "protein", "salt", "sodium", "unrecognised"]},
+          "parent_nutrient": {"type": "string", "description": "Canonical nutrient of the parent row, or none"},
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["header_id", "printed_text", "unit"],
+              "properties": {
+                "header_id": {"type": "string"},
+                "printed_text": {"type": "string", "description": "Exactly as in the text, including comparator and unit"},
+                "unit": {"type": "string", "description": "Only for a bare number: the unit the text states for it in the row label or column header; otherwise an empty string"}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

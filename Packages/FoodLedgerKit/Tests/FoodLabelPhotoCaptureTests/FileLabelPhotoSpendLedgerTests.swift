@@ -29,6 +29,26 @@ final class FileLabelPhotoSpendLedgerTests: XCTestCase {
         XCTAssertEqual(ledger.load(), .unreadable)
     }
 
+    /// The shared day record (docs/pasted-label-ai-text-v1.md D14, test 20): a photo-only file
+    /// written before the text route reads as photo-only, a text write keeps the photo counts, and a
+    /// record of an unknown version is unreadable, so both routes fail closed.
+    func testTheSharedRecordThroughTheFile() throws {
+        let ledger = FileLabelPhotoSpendLedger(url: url)
+        try Data(#"{"cost":0.15,"day":"2026-10-25","openTaps":["t1"],"paused":false,"reads":3}"#.utf8).write(to: url)
+        XCTAssertEqual(ledger.load(), .day(day))
+        let shared = try ledger.update { stored in
+            guard case let .day(previous) = stored else { throw CocoaError(.fileReadCorruptFile) }
+            return PastedLabelAITextSpendPolicy.reservation(today: "2026-10-25", stored: previous, tap: "x1")
+        }
+        XCTAssertEqual(shared.reads, 4)
+        XCTAssertEqual(shared.openTaps, ["t1"])
+        XCTAssertEqual(shared.text.openTaps, ["x1"])
+        XCTAssertEqual(FileLabelPhotoSpendLedger(url: url).load(), .day(shared))
+        try Data(#"{"cost":0.15,"day":"2026-10-25","paused":false,"reads":3,"version":"label-ai-spend-day-v2","text":{}}"#.utf8).write(to: url)
+        XCTAssertEqual(ledger.load(), .unreadable)
+        XCTAssertEqual(PastedLabelAITextSpendPolicy.admission(today: "2026-10-25", stored: ledger.load()), .limitReached)
+    }
+
     func testUpdateStoresAndReturnsTheDayItWrote() throws {
         let ledger = FileLabelPhotoSpendLedger(url: url)
         let stored = try ledger.update { previous in

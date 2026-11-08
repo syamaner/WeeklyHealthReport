@@ -29,6 +29,12 @@ public struct EvalCase: Codable, Equatable, Sendable {
 
     public enum Role: String, Codable, CaseIterable, Sendable { case tuning, heldOut = "held_out" }
 
+    /// The label's layout shape (5.2.1 breakdowns, Qodo finding 9 on A2): a closed set, assigned on
+    /// the case when cases are built in A3, never inferred from the text.
+    public enum LayoutShape: String, Codable, CaseIterable, Sendable {
+        case oneRowPerLine = "one_row_per_line", oneValuePerLine = "one_value_per_line", misaligned, unitless, other
+    }
+
     /// The format the label is read under: Taiwan, or a UK-format declaration (EU English included, D18).
     public enum Format: String, Codable, CaseIterable, Sendable { case taiwan, uk }
 
@@ -103,17 +109,35 @@ public struct EvalCase: Codable, Equatable, Sendable {
     public let textSHA256: String
     public let expected: Expected
     public let source: Source
+    /// What a legacy transcription records beyond the case format, so it round-trips exactly
+    /// (A2: the Taiwan reader v3 development set's older answer format). Absent for every other
+    /// schema, so their canonical bytes are unchanged.
+    public let legacy: TranscriptionShapes.LegacyExtras?
+    /// Optional; absent until assigned, and then not encoded, so existing canonical bytes are unchanged.
+    public let layoutShape: LayoutShape?
 
     enum CodingKeys: String, CodingKey, CaseIterable {
-        case schema, set, role, format, tier, expected, source
+        case schema, set, role, format, tier, expected, source, legacy, layoutShape = "layout_shape"
         case labelID = "label_id", copyMethod = "copy_method", textSHA256 = "text_sha256"
     }
 
-    public init(labelID: String, set: EvalSet, tier: String?, copyMethod: String, textSHA256: String, expected: Expected, source: Source) throws {
+    public init(labelID: String, set: EvalSet, tier: String?, copyMethod: String, textSHA256: String, expected: Expected, source: Source,
+                legacy: TranscriptionShapes.LegacyExtras? = nil, layoutShape: LayoutShape? = nil) throws {
         self.schema = Self.schema
         self.labelID = labelID; self.set = set; self.role = set.role; self.format = set.format; self.tier = tier
-        self.copyMethod = copyMethod; self.textSHA256 = textSHA256; self.expected = expected; self.source = source
+        self.copyMethod = copyMethod; self.textSHA256 = textSHA256; self.expected = expected; self.source = source; self.legacy = legacy
+        self.layoutShape = layoutShape
         try validate()
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(schema, forKey: .schema); try container.encode(labelID, forKey: .labelID); try container.encode(set, forKey: .set)
+        try container.encode(role, forKey: .role); try container.encode(format, forKey: .format)
+        try container.encodeIfPresent(tier, forKey: .tier); try container.encode(copyMethod, forKey: .copyMethod)
+        try container.encode(textSHA256, forKey: .textSHA256); try container.encode(expected, forKey: .expected)
+        try container.encode(source, forKey: .source); try container.encodeIfPresent(legacy, forKey: .legacy)
+        try container.encodeIfPresent(layoutShape, forKey: .layoutShape)
     }
 
     public init(from decoder: any Decoder) throws {
@@ -129,6 +153,8 @@ public struct EvalCase: Codable, Equatable, Sendable {
         textSHA256 = try container.decode(String.self, forKey: .textSHA256)
         expected = try container.decode(Expected.self, forKey: .expected)
         source = try container.decode(Source.self, forKey: .source)
+        legacy = try container.decodeIfPresent(TranscriptionShapes.LegacyExtras.self, forKey: .legacy)
+        layoutShape = try container.decodeIfPresent(LayoutShape.self, forKey: .layoutShape)
         try validate()
     }
 
@@ -151,15 +177,18 @@ public struct EvalCase: Codable, Equatable, Sendable {
     ///   `UKDevelopment/UKDevelopmentSet.swift`, which reads the P1 Taiwan-schema files and returns a
     ///   UK-schema file as it is;
     /// - `taiwan_v3_development`: no committed harness reads it (reader v3 section 1.1 kept its
-    ///   transcriptions outside the repository with no recorded schema), so no pairing is admitted
-    ///   until one is evidenced.
+    ///   transcriptions outside the repository with no recorded schema). A2 admits its older answer
+    ///   format under the named legacy schema `TranscriptionShapes.TaiwanLegacyTranscription.schema`
+    ///   (the format the owner described: columns with keys, values as a flat list), and nothing else.
     static let schemas: [EvalSet: Set<String>] = [
-        .taiwanV3Development: [],
+        .taiwanV3Development: [TranscriptionShapes.TaiwanLegacyTranscription.schema],
         .taiwanV3Fresh: [TranscriptionShapes.TaiwanTranscription.schema],
         .ukV1Development: [TranscriptionShapes.TaiwanTranscription.schema, TranscriptionShapes.UKTranscription.schema],
         .ukV1Fresh: [TranscriptionShapes.UKTranscription.schema],
         .ukV2Fresh: [TranscriptionShapes.UKTranscription.schema],
     ]
+
+    public static func isSHA256Hex(_ text: String) -> Bool { isSHA256(text) }
 
     static func isSHA256(_ text: String) -> Bool {
         text.count == 64 && text.allSatisfy { ("0"..."9").contains($0) || ("a"..."f").contains($0) }
@@ -179,8 +208,11 @@ public struct EvalCase: Codable, Equatable, Sendable {
         guard Self.schemas[set, default: []].contains(source.schema) else {
             throw Invalid("\(labelID): set \(set.rawValue) is not transcribed in schema \(source.schema)")
         }
+        guard (legacy != nil) == (source.schema == TranscriptionShapes.TaiwanLegacyTranscription.schema) else {
+            throw Invalid("\(labelID): legacy extras belong to the legacy schema only")
+        }
         switch source.schema {
-        case TranscriptionShapes.TaiwanTranscription.schema:
+        case TranscriptionShapes.TaiwanTranscription.schema, TranscriptionShapes.TaiwanLegacyTranscription.schema:
             guard expected.panel == nil else { throw Invalid("\(labelID): a Taiwan-schema transcription has no panel") }
         default:
             guard let panel = expected.panel, TranscriptionShapes.UKTranscription.panels.contains(panel) else {
@@ -197,7 +229,7 @@ public struct EvalCase: Codable, Equatable, Sendable {
             }
         }
         // The frozen harnesses' value rules, by the source schema's tables.
-        let schema: TranscriptionRules.Schema = source.schema == TranscriptionShapes.TaiwanTranscription.schema ? .taiwan : .uk
+        let schema: TranscriptionRules.Schema = source.schema == TranscriptionShapes.UKTranscription.schema ? .uk : .taiwan
         let problems = TranscriptionRules.problems(expected, schema, ukMarkers: format == .uk)
         guard problems.isEmpty else { throw Invalid("\(labelID): " + problems.joined(separator: "; ")) }
     }
