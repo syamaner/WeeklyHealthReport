@@ -25,6 +25,11 @@ below serves that, and enrichment work is judged by it:
 - **Evidence on every value.** Each nutrient keeps its source and record identifier, the state the
   record describes and the method (direct, derived, or carried from a close variant), so any value
   can be revisited and improved later. Estimates stay labelled as estimates.
+- **Web search is an allowed enrichment route** (owner, 8 November 2026), alongside the local
+  corpora and Open Food Facts. A search carries only a food description (title, brand, variety,
+  state), never receipt or personal data. A value taken from a web page records the URL, the date
+  read and the state the page describes, and stays `page_unconfirmed` until the owner confirms it
+  (rule 7). Prefer national composition databases and manufacturer pages over aggregator sites.
 - **Identity and state first.** The right food in the right state (as sold, raw, cooked, drained,
   dry, prepared) and the right cut or variety matter more than any single value; a raw record for a
   cooked food is the worst error.
