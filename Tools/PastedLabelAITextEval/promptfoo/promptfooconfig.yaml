@@ -1,0 +1,28 @@
+# Pasted label AI text evaluation, A2 smoke run (docs/pasted-label-ai-text-v1.md 5.2, #416).
+# Synthetic labels only, over the directory fake transport: nothing is sent to OpenRouter or any
+# provider. Run through run-smoke.sh, which switches off telemetry, update checks and sharing and
+# keeps promptfoo's config, database, cache and logs in a scratch directory.
+description: pasted-label-ai-text A2 smoke (fake transport, synthetic labels)
+sharing: false
+prompts:
+  # The instruction is the shipped prompt-v1 inside the Swift request builder (pinned by SHA-256);
+  # promptfoo passes only the label to the provider.
+  - id: prompt-v1
+    label: prompt-v1
+    raw: '{{label_id}}'
+providers:
+  - id: file://provider.js
+    label: gemini-4-argon-vertex-us
+    config:
+      route: gemini-4-argon-vertex-us
+      cell: a2-smoke-prompt-v1-gemini-4-argon-vertex-us
+defaultTest:
+  assert:
+    - type: javascript
+      value: file://assert.js
+tests:
+  - vars: { label_id: uk-smoke-01 }
+  - vars: { label_id: tw-smoke-01 }
+  - vars: { label_id: us-smoke-01 }
+  - vars: { label_id: uk-smoke-nocost }
+  - vars: { label_id: uk-smoke-missing }

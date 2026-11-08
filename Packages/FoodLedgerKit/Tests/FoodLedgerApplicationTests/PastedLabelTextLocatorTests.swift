@@ -326,6 +326,47 @@ final class PastedLabelTextLocatorTests: XCTestCase {
         XCTAssertFalse(maximal.values[0].needsAttention, "max must end a word")
     }
 
+    /// A token that prints its own comparator keeps its bound, so a redundant bound word beside it is
+    /// not an extra attention item (A1 finding carried to A2 of #416). The bare token still is.
+    func testATokenWithItsOwnComparatorIgnoresARedundantBoundWord() {
+        for (line, printed) in [("Salt <= 0.5g or less", "<= 0.5g"), ("Salt less than 0.5g max", "less than 0.5g"), ("Salt ≤0.5g, maximum", "≤0.5g")] {
+            let text = "Per 100g\n" + line
+            let result = Locator.locate(text: text, headers: [Self.per100], rows: [Self.row("Salt", [("h1", printed)])])
+            XCTAssertEqual(result.values[0].status, .found(Self.scalars(printed, in: text)), line)
+            XCTAssertEqual(result.values[0].attention, [], line)
+        }
+        let taiwan = "每份\n鈉 少於5毫克 以下"
+        let tw = Locator.locate(text: taiwan, headers: [Locator.Header(id: "h1", printedText: "每份", basis: "per_serving")],
+                                rows: [Self.row("鈉", [("h1", "少於5毫克")])])
+        XCTAssertEqual(tw.values[0].attention, [])
+        let bare = Locator.locate(text: "Per 100g\nSalt 0.5g or less", headers: [Self.per100], rows: [Self.row("Salt", [("h1", "0.5g")])])
+        XCTAssertEqual(bare.values[0].attention, [.comparatorOutsideToken], "a bare token is still under attention")
+    }
+
+    /// A2 gate finding 4: only a bound that agrees with the token's own comparator is suppressed; a
+    /// contradicting bound word or symbol stays under attention, and a lower bound beside a bare
+    /// token is attention too.
+    func testAContradictingBoundStaysUnderAttention() {
+        for (line, printed) in [("Salt <5g or more", "<5g"), ("Salt at least <5g", "<5g"), ("Salt ≥ <5g", "<5g"), ("Salt <=5g minimum", "<=5g"),
+                                ("Salt 5g or more", "5g"), ("Salt at least 5g", "5g"), ("Salt over 5g", "5g")] {
+            let text = "Per 100g\n" + line
+            let result = Locator.locate(text: text, headers: [Self.per100], rows: [Self.row("Salt", [("h1", printed)])])
+            XCTAssertEqual(result.values[0].attention, [.comparatorOutsideToken], line)
+        }
+        let perServing = [Locator.Header(id: "h1", printedText: "每份", basis: "per_serving")]
+        for (line, printed, attention) in [("鈉 少於5毫克 以上", "少於5毫克", true), ("鈉 少於5毫克，以上", "少於5毫克", true), ("鈉 至少 5毫克", "5毫克", true),
+                                           ("鈉 少於5毫克 以下", "少於5毫克", false), ("鈉 ＜5毫克 以內", "＜5毫克", false)] {
+            let text = "每份\n" + line
+            let result = Locator.locate(text: text, headers: perServing, rows: [Self.row("鈉", [("h1", printed)])])
+            XCTAssertEqual(result.values[0].attention == [.comparatorOutsideToken], attention, line)
+        }
+        // Glued to the CJK bound word, the value is not a whole token, so it is not found (attention either way).
+        let glued = Locator.locate(text: "每份\n鈉 少於5毫克以上", headers: perServing, rows: [Self.row("鈉", [("h1", "少於5毫克")])])
+        XCTAssertTrue(glued.values[0].needsAttention)
+        let agreeing = Locator.locate(text: "Per 100g\nSalt ≤ <0.5g", headers: [Self.per100], rows: [Self.row("Salt", [("h1", "<0.5g")])])
+        XCTAssertEqual(agreeing.values[0].attention, [], "an upper-bound symbol agrees with an upper-bound token")
+    }
+
     func testPercentWithoutAReferenceIntakeHeaderIsAttention() {
         let text = "Per 100g %RI\nFat 1g 5%"
         let result = Locator.locate(text: text, headers: [Self.per100], rows: [Self.row("Fat", [("h1", "1g")])])

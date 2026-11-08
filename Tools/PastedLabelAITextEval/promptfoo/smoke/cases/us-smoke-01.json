@@ -1,0 +1,61 @@
+{
+ "copy_method": "synthetic",
+ "expected": {
+  "columns": [
+   {
+    "basis": "per_100g",
+    "heading": "Per 100g"
+   }
+  ],
+  "notes": [
+   "synthetic"
+  ],
+  "panel": "us_nutrition_facts",
+  "rows": [
+   {
+    "label": "Total Fat",
+    "nutrient": "fat",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "9",
+      "unit": "g"
+     }
+    ]
+   },
+   {
+    "label": "Sodium",
+    "nutrient": "sodium",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "100",
+      "unit": "mg"
+     }
+    ]
+   },
+   {
+    "label": "Protein",
+    "nutrient": "protein",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "8",
+      "unit": "g"
+     }
+    ]
+   }
+  ]
+ },
+ "format": "uk",
+ "label_id": "us-smoke-01",
+ "role": "tuning",
+ "schema": "pasted-label-ai-text-eval-case-v1",
+ "set": "uk_v1_fresh",
+ "source": {
+  "schema": "uk-english-v1-fresh-transcription-v1",
+  "sha256": "feba42dd605c58147752ba57af03db9abbfaf01a98a0ab8326d3a7ecbda7e18c"
+ },
+ "text_sha256": "ad2d72a57b6dd2493422bcc23bdd12574fd2297055aea0d46711f7b40a82fdcb",
+ "tier": "A"
+}

@@ -27,9 +27,10 @@ public enum PastedLabelAITextUnitCheck {
         case notStated = "not_stated"
         /// The model's unit differs from the unit printed with the value.
         case conflict
-        /// A bare number with no model unit. It is not an attention item because it must never become
-        /// a value: the mapping leaves it unread (a not-read cell, never zero), which A2's text
-        /// mapping enforces and tests (review F9).
+        /// A bare number with no model unit. It must never become a value: the mapping leaves it
+        /// unread (a not-read cell, never zero, review F9) and puts a blocking `unit_not_stated` item
+        /// on that cell so the user is prompted to enter it (A2 gate finding 3). `needsAttention`
+        /// stays false here because no unit is checked; the mapping adds the item.
         case missing
         /// The printed text is not one value token (`unknown`, `trace`): no unit to check.
         case notAValue = "not_a_value"

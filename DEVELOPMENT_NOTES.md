@@ -3870,3 +3870,31 @@ Excluded:
 - this ledger edit, the commit, the push and the PR after the window.
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
+## WHR-416-2026-11-07d: Claude Code AI text route A2, harness over a fake transport (#416)
+
+The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) did five things:
+- scoped A2 and got the owner's approval to install promptfoo 0.125.0 with `--ignore-scripts`;
+- briefed one implementation subagent and sent it four rounds of fixes;
+- ran the architecture gate, invariant reviewer and two validator subagents;
+- wrote spec revision 7, the shared-cap egress wording and D24 and D25;
+- ran two local Qodo reviews.
+
+All the subagents were `claude-opus-5-5`. The window runs from the owner's go-ahead at `2026-11-07T21:10:27Z` to `2026-11-07T23:46:43Z`. Of the cache writes, 4,891,411 tokens were 5-minute writes (the subagents) and the rest 1-hour.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| AI text route A2 (#416), coordinator and subagents | 145,074,227 (140,101,798) | 4,971,605 | 450,641 | 145,524,868 | $62.14 |
+| **Subtotal** | 145,074,227 (140,101,798) | 4,971,605 | 450,641 | 145,524,868 | $62.14 |
+
+Method: `phase_usage.py --format claude --since 2026-11-07T21:10:27Z --until 2026-11-07T23:46:43Z --include-subagents` on the session transcript. Exact USD 62.1350826, of which 5.452324 was the coordinator alone.
+
+Excluded:
+- the Qodo review runs;
+- the npm registry traffic (one approved install and two read-only metadata or audit queries);
+- local builds, simulator runs, promptfoo smoke runs over the fake transport and test loops, which use no API tokens;
+- this ledger edit, the commit, the push and the PR after the window.
+
+No call reached OpenRouter.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a charge. Token totals are not evidence of productivity, quality or provider efficiency.

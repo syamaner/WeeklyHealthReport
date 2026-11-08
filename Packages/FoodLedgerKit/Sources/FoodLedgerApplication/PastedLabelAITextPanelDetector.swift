@@ -42,6 +42,7 @@ public enum PastedLabelAITextPanelDetector {
     public struct Verdict: Equatable, Sendable, Codable {
         /// The markers found, in `Marker.allCases` order.
         public let markers: [Marker]
+        public init(markers: [Marker]) { self.markers = markers }
         public var declines: Bool { !markers.isEmpty }
         /// The declined panels, in `Panel` order (US first).
         public var panels: [Panel] {
