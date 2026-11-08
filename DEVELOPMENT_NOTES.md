@@ -4050,3 +4050,26 @@ Excluded:
 - this ledger edit, the commit, the push and the PR after the window.
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
+## WHR-443-2026-11-08: Claude Code Part A review v2 tool (#443)
+
+The coordinator session (`claude-opus-5-5`, session `93e9e82e-ef3d-4d2f-9186-58c67056c1ca`) implemented the owner-approved review v2 design. One general-purpose subagent wrote the v2 modules and their synthetic tests. The coordinator then:
+- reviewed the code against the design;
+- made the A1 and A5 value bar a single bar over macro and micro values together;
+- regenerated `freeze-v2.json`;
+- added the README section, the CI document entry and the design implementation notes.
+
+The window runs from the owner's go-ahead (`2026-11-08T21:18:30Z`) to `2026-11-08T21:35:57Z`.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Review v2 tool (#443), coordinator and subagent | 13,615,382 (13,358,298) | 256,982 | 107,629 | 13,723,011 | $6.23 |
+
+Method: `phase_usage.py --format claude --since 2026-11-08T21:18:30Z --until 2026-11-08T21:35:57Z --include-subagents` on the session transcript. Exact USD 6.2314926. The cache-write tokens (216,337 of them 5-minute writes) are part of the input figure, so the total is input plus output.
+
+Excluded:
+- the Qodo review runs;
+- local test runs, which use no API tokens;
+- this ledger edit, the commit, the push and the PR after the window.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.

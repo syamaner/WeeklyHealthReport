@@ -1,0 +1,16 @@
+{
+  "files": {
+    "Tools/PersonalFoodDatabaseEvaluation/nutrient-inventory-v1.json": "22d7679da994caa65614dac7722eb351bf738d38520183c84c8fef48527b3330",
+    "Tools/PersonalFoodDatabaseEvaluation/v2/bars_v2.py": "755e69d86c2de943eb6ebf847bbb16d17709b3b877d82b8435c5024154d19a1d",
+    "Tools/PersonalFoodDatabaseEvaluation/v2/exclusions.py": "e20277682e500a4f3a61d393d844ac3f2d80d04e94106a4155e62322040f68a2",
+    "Tools/PersonalFoodDatabaseEvaluation/v2/formats_v2.py": "6559fea17de351b9a107cce89aaa8c402a6f84498d739c7288d853b7b6d62a9e",
+    "Tools/PersonalFoodDatabaseEvaluation/v2/freeze_v2.py": "e25bef29bae51bf760eec7ab66f3071f24ec9985382d72ade247e600089aa1bd",
+    "Tools/PersonalFoodDatabaseEvaluation/v2/pfd_eval_v2.py": "da02638c650cd35918e7dad9262f1b1386abcaeafbf03abf85147cdb4775ea2f",
+    "Tools/PersonalFoodDatabaseEvaluation/v2/results_v2.py": "769b9e6414f9bbb73c18a3ddbabec407a89507453e0946cd995f7b36ab92cef8",
+    "Tools/PersonalFoodDatabaseEvaluation/v2/score_a_v2.py": "3f594c89156869ac9a05ee9153d49b105095895e1fba1bf2fc74977258696e28",
+    "Tools/PersonalFoodDatabaseEvaluation/v2/seals_v2.py": "86941b7ff4ae1e6b8d574041cd714037efa92f47d5d5d6f69b84d416e889562c"
+  },
+  "freeze_v1_sha256": "0f6036018cc189b4d4ee18599d4088dcd7478ae67775d976de341f276fce4a49",
+  "part_a_bars": "v2_proposed",
+  "schema": "pfd-freeze-v2"
+}

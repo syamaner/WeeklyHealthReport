@@ -257,3 +257,17 @@ listed.
 3. After approval, an implementation phase (its own issue and PR) builds the tool and its tests.
    The owner then fills the v2 sheet and sidecar, using the private proposals as a starting point,
    before `seal-review-v2` and `score-a-v2`.
+
+## 10. Implementation notes (#443)
+
+- The v2 modules sit in `Tools/PersonalFoodDatabaseEvaluation/v2/`, not beside the v1 modules:
+  the v1 freeze check refuses any `*.py` file in the tool folder that `freeze-v1.json` does not
+  list, so a v2 module there would stop every v1 command. The data files and tests stay where
+  section 1 places them.
+- Private file names: `review-v2/review-sheet-v2.csv`, `review-v2/nutrient-evidence-v2.jsonl` and
+  `exclusions-v2/exclusions.json`.
+- The A1 and A5 value bar is judged on macro and micro values together, matching the single
+  "assessed value evidence error" bar of plan section 6; macro and micro counts are reported
+  separately for information.
+- The bars lock line in `seals-v2.txt` is `score-a-v2 <freeze-v2 sha256> <part_a_bars> <UTC time>`;
+  a missing `part_a_bars` after the lock counts as a change and is refused.
