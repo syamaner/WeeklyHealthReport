@@ -116,22 +116,20 @@ def require_review(root: Path) -> str:
 
 
 def score_locked(root: Path, part_a_bars: str, freeze_v2_sha256: str, now_utc: str, write):
-    """Run `write()` (which returns the paths it created) under the seal lock, after checking the review
-    seal and the bars lock; the first run then appends the bars lock line. If that append fails, the
-    paths just written are removed, so no count is left without its lock."""
+    """Run `write()` under the seal lock, after checking the review seal and the bars lock. The first
+    run appends the bars lock line, flushed to disk, before any count is written, so an interruption
+    can leave a lock without counts (a rerun with the same bars is allowed) but never counts without
+    a lock."""
     if part_a_bars not in BAR_SETS or not HEX64.fullmatch(freeze_v2_sha256):
         raise SealError("score-a-v2 needs a known part_a_bars and the freeze-v2 hash")
     with _locked(root):
         require_review(root)
         check_bars(root, part_a_bars)
         first = LOCK not in recorded(root)
-        written = write()
         if first:
-            try:
-                with open(_file(root), "a", encoding="utf-8") as fh:
-                    fh.write(f"{LOCK} {freeze_v2_sha256} {part_a_bars} {now_utc}\n")
-            except BaseException:
-                for p in written or ():
-                    Path(p).unlink(missing_ok=True)
-                raise
+            with open(_file(root), "a", encoding="utf-8") as fh:
+                fh.write(f"{LOCK} {freeze_v2_sha256} {part_a_bars} {now_utc}\n")
+                fh.flush()
+                os.fsync(fh.fileno())
+        write()
         return first

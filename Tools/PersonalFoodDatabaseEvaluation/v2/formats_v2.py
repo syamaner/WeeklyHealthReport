@@ -132,6 +132,9 @@ def _combination(r: dict, where: str):
             raise FormatError(f"{where}: sensible is refused while a check is unresolved")
         if outcome == "unresolved" and not unresolved:
             raise FormatError(f"{where}: unresolved needs at least one unresolved check")
+        if outcome == "unresolved" and r["identity"] == "different_food":
+            # a candidate for a different food is misleading whatever else is open
+            raise FormatError(f"{where}: unresolved is refused with identity different_food")
     elif s == "A4":
         if outcome == "match_missed" and st != {c: "pass" for c in CHECKS}:
             raise FormatError(f"{where}: match_missed needs all three checks to pass for the named record")

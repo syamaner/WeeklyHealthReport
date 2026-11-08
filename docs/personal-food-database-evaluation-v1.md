@@ -116,13 +116,13 @@ gaps, state-conflict flags and a reason. Store individual values in `nutrient-ev
 next-release work in `enrichment-candidates.csv`. These are proposals, not scorer input.
 
 The smallest tool change (proposed in detail in
-[personal-food-database-review-v2-design.md](personal-food-database-review-v2-design.md), awaiting
-owner approval) is a versioned review-v2 row schema plus a nutrient-evidence sidecar, with
+[personal-food-database-review-v2-design.md](personal-food-database-review-v2-design.md), approved
+by the owner on 8 November 2026 and implemented in #443) is a versioned review-v2 row schema plus a nutrient-evidence sidecar, with
 parsing, validation, sealing and Part A result/scorer support for the measures below. It needs
 synthetic contracts for missing versus zero, state conflicts, derived values, incomplete evidence,
 macro/micro coverage and rejection of v1 inputs by the v2 scorer. Existing v1 results remain readable
-under their original semantics. Implement this only after the owner approves the design; no tool
-code or freeze pin is changed by this plan PR. Part A sealing and scoring are blocked until then.
+under their original semantics. The owner approved the design on 8 November 2026 and #443
+implements it; Part A sealing and scoring wait for the owner's completed v2 sheet and sidecar.
 The owner validates the proposals last. Never coerce the new rubric into old pack-verdict tokens.
 
 ### 3.4 Measures

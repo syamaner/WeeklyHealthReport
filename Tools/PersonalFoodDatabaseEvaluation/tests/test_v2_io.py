@@ -196,24 +196,38 @@ class SealsV2(unittest.TestCase):
             self.assertFalse(seals_v2.score_locked(root, "v2_proposed", "b" * 64, T, lambda: []))
             self.assertEqual(len((root / "seals-v2.txt").read_text().splitlines()), 2)
 
-    def test_counts_are_removed_when_the_lock_cannot_be_recorded(self):
+    def test_lock_is_recorded_before_any_count(self):
         with H.private_dir() as t:
             root = Path(t)
             v1_seals(root)
             review_files(root)
             seals_v2.seal_review(root, T)
-            result = root / "result.json"
+            seen = []
 
             def write():
-                result.write_text("{}")
-                os.chmod(root / "seals-v2.txt", 0o400)
-                return [result]
+                seen.append(seals_v2.LOCK in seals_v2.recorded(root))
+                raise KeyboardInterrupt  # interrupted while writing counts
+            with self.assertRaises(KeyboardInterrupt):
+                seals_v2.score_locked(root, "v2_proposed", "a" * 64, T, write)
+            self.assertEqual(seen, [True])  # the lock existed before the first count
+            with self.assertRaises(seals_v2.SealError):
+                seals_v2.score_locked(root, "v1_accepted", "a" * 64, T, lambda: [])  # bars cannot change now
+            self.assertFalse(seals_v2.score_locked(root, "v2_proposed", "a" * 64, T, lambda: []))  # same bars rerun
+
+    def test_no_count_is_written_when_the_lock_cannot_be_recorded(self):
+        with H.private_dir() as t:
+            root = Path(t)
+            v1_seals(root)
+            review_files(root)
+            seals_v2.seal_review(root, T)
+            called = []
+            os.chmod(root / "seals-v2.txt", 0o400)
             try:
                 with self.assertRaises(OSError):
-                    seals_v2.score_locked(root, "v2_proposed", "a" * 64, T, write)
+                    seals_v2.score_locked(root, "v2_proposed", "a" * 64, T, lambda: called.append(1))
             finally:
                 os.chmod(root / "seals-v2.txt", 0o600)
-            self.assertFalse(result.exists())
+            self.assertEqual(called, [])
             self.assertNotIn(seals_v2.LOCK, seals_v2.recorded(root))
 
     def test_damaged_or_linked_seal_file_refused(self):

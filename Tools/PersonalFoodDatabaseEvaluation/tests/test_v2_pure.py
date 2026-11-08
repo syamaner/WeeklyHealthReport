@@ -157,6 +157,7 @@ class Sheet(unittest.TestCase):
             ("A3", ("same_food", "same_state", "material_difference", "misleading_other_state")),
             ("A3", ("same_food", "unresolved", "same_or_immaterial", "sensible")),
             ("A3", ("same_food", "same_state", "same_or_immaterial", "unresolved")),
+            ("A3", ("different_food", "unresolved", "same_or_immaterial", "unresolved")),  # misleading whatever is open
             ("A4", ("same_food", "unresolved", "same_or_immaterial", "match_missed")),
             ("A4", ("same_food", "unresolved", "unresolved", "nothing_suitable")),
             ("A4", ("unresolved", "unresolved", "unresolved", "sensible")),
