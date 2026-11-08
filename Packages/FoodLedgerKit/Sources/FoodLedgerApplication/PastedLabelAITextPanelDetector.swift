@@ -8,7 +8,9 @@ import Foundation
 /// rules and pass (D18). Words are maximal runs of letters and digits, lower-cased.
 ///
 /// US panels (Nutrition Facts, including per 100 variants):
-/// - `nutrition_facts_title`: the words `nutrition facts`;
+/// - `nutrition_facts_title`: the words `nutrition facts`, in a text that does not also print the
+///   Taiwan mandatory title `營養標示` (v2: a bilingual Taiwan paste prints `營養標示 Nutrition Facts`
+///   as its title and is not a US panel; a US panel never prints the Taiwan title);
 /// - `daily_value`: the words `daily value` or `daily values`, or the word `dv`;
 /// - `sodium_without_salt`: the word `sodium` with no word `salt`, in a text with no CJK script
 ///   (Han, Hiragana or Katakana: a bilingual Taiwan paste prints `Sodium` beside `鈉` and is not a
@@ -19,7 +21,7 @@ import Foundation
 /// - `per_serve`: the words `per serve`;
 /// - `servings_per_package`: the words `servings per package`.
 public enum PastedLabelAITextPanelDetector {
-    public static let version = "pasted-label-ai-text-panel-detector-v1"
+    public static let version = "pasted-label-ai-text-panel-detector-v2"
 
     public enum Marker: String, Equatable, Sendable, Codable, CaseIterable {
         case nutritionFactsTitle = "nutrition_facts_title"
@@ -52,7 +54,7 @@ public enum PastedLabelAITextPanelDetector {
 
     /// The detector on the pasted text, before any request is built.
     public static func detect(text: String) -> Verdict {
-        Verdict(markers: markers(words: words(text), hasHan: hasHan(text)))
+        Verdict(markers: markers(words: words(text), hasHan: hasHan(text), hasTaiwanTitle: hasTaiwanTitle(text)))
     }
 
     /// The detector again on the model's candidate: its header texts and row labels as one text,
@@ -60,18 +62,18 @@ public enum PastedLabelAITextPanelDetector {
     public static func detect(candidateHeaders: [String], rowLabels: [String], nutrients: [String]) -> Verdict {
         let text = (candidateHeaders + rowLabels).joined(separator: "\n")
         let han = hasHan(text)
-        var found = Set(markers(words: words(text), hasHan: han))
+        var found = Set(markers(words: words(text), hasHan: han, hasTaiwanTitle: hasTaiwanTitle(text)))
         if nutrients.contains("sodium"), !nutrients.contains("salt"), !han { found.insert(.sodiumWithoutSalt) }
         return Verdict(markers: Marker.allCases.filter(found.contains))
     }
 
-    static func markers(words: [String], hasHan: Bool) -> [Marker] {
+    static func markers(words: [String], hasHan: Bool, hasTaiwanTitle: Bool) -> [Marker] {
         func phrase(_ sequence: [String]) -> Bool {
             guard sequence.count <= words.count else { return false }
             return (0...(words.count - sequence.count)).contains { Array(words[$0..<($0 + sequence.count)]) == sequence }
         }
         var found: [Marker] = []
-        if phrase(["nutrition", "facts"]) { found.append(.nutritionFactsTitle) }
+        if phrase(["nutrition", "facts"]), !hasTaiwanTitle { found.append(.nutritionFactsTitle) }
         if phrase(["daily", "value"]) || phrase(["daily", "values"]) || words.contains("dv") { found.append(.dailyValue) }
         if words.contains("sodium"), !words.contains("salt"), !hasHan { found.append(.sodiumWithoutSalt) }
         if ["average", "avg", "ave", "av"].contains(where: { phrase([$0, "quantity"]) }) { found.append(.averageQuantity) }
@@ -83,6 +85,11 @@ public enum PastedLabelAITextPanelDetector {
     static func words(_ text: String) -> [String] {
         text.lowercased().split { !($0.isLetter || $0.isNumber) }.map(String.init)
     }
+
+    /// The Taiwan mandatory panel title (v2), as printed in traditional Chinese.
+    static let taiwanTitle = "營養標示"
+
+    static func hasTaiwanTitle(_ text: String) -> Bool { text.contains(taiwanTitle) }
 
     static func hasHan(_ text: String) -> Bool {
         text.unicodeScalars.contains { PastedLabelTextScan.isCJK($0) }

@@ -47,6 +47,22 @@ final class PastedLabelAITextPanelDetectorTests: XCTestCase {
         XCTAssertFalse(Detector.detect(text: "營養標示\n每份 每100公克\n鈉 Sodium 50毫克 100毫克").declines)
     }
 
+    /// v2: a bilingual Taiwan panel titled `營養標示` beside `Nutrition Facts` is not a US panel.
+    func testTaiwanBilingualTitlePasses() {
+        XCTAssertFalse(Detector.detect(text: "營養標示 Nutrition Facts\n每一份量 Serving Size 30公克\n每份 每100公克\n熱量 Calories 120大卡 400大卡\n鈉 Sodium 50毫克 160毫克").declines)
+        XCTAssertFalse(Detector.detect(text: "營養標示/Nutrition Facts\n每一份量20公克/本包裝含8份\n每份 每100公克\n鈉/Sodium 30毫克 150毫克").declines)
+    }
+
+    /// The unsafe neighbours still decline: Han script without the Taiwan title, and the Taiwan
+    /// title with another US marker.
+    func testNutritionFactsWithHanButNoTaiwanTitleStillDeclines() {
+        XCTAssertEqual(Detector.detect(text: "Nutrition Facts 營養\nServing size 30g\nTotal Fat 5g\nSalt 1g").markers, [.nutritionFactsTitle])
+        XCTAssertEqual(Detector.detect(text: "Nutrition Facts\n鈉 Sodium 50mg").markers, [.nutritionFactsTitle])
+        XCTAssertEqual(Detector.detect(text: "營養標示 Nutrition Facts\nTotal Fat 5g 6% Daily Value").markers, [.dailyValue])
+        XCTAssertEqual(Detector.detect(candidateHeaders: ["Nutrition Facts per serving"], rowLabels: ["Fat", "Salt"],
+                                       nutrients: ["fat", "salt"]).markers, [.nutritionFactsTitle])
+    }
+
     func testEachUSRuleDeclines() {
         XCTAssertEqual(Detector.detect(text: "Nutrition Facts\nServing size 30g\nTotal Fat 5g\nSalt 1g").markers, [.nutritionFactsTitle])
         XCTAssertEqual(Detector.detect(text: "Amount per 100g\nTotal Fat 5g 6% Daily Value\nSalt 1g").markers, [.dailyValue])
@@ -78,5 +94,5 @@ final class PastedLabelAITextPanelDetectorTests: XCTestCase {
         XCTAssertFalse(Detector.detect(candidateHeaders: ["每份"], rowLabels: ["熱量", "鈉"], nutrients: ["energy_kcal", "sodium"]).declines)
     }
 
-    func testVersion() { XCTAssertEqual(Detector.version, "pasted-label-ai-text-panel-detector-v1") }
+    func testVersion() { XCTAssertEqual(Detector.version, "pasted-label-ai-text-panel-detector-v2") }
 }
