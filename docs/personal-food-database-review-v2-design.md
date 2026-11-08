@@ -1,8 +1,9 @@
 # Personal food database evaluation: Part A review v2 design
 
-Status: **design proposal, revision 2, 8 November 2026, awaiting owner approval. No tool code,
-freeze entry, seal or private file changes until the owner approves or amends it.** Issue #440,
-programme #424. Revision 2 answers an architecture-gate review (section 8).
+Status: **revision 2, design approved by the owner on 8 November 2026. The Part A bars choice
+(`part_a_bars`) is still open. No tool code, freeze entry, seal or private file changes are made by
+this document; implementation is its own phase.** Issue #440, programme #424. Revision 2 answers
+an architecture-gate review (section 8).
 
 The [evaluation plan](personal-food-database-evaluation-v1.md) (revision 5, section 3.3) says the
 existing `pfd-review-sheet-v1` sheet and Part A scorer cannot represent the best-estimate rubric of
@@ -163,6 +164,11 @@ Under `v2_proposed` the plan section 6 proposed table applies directly.
   check both records and refuse a mismatch in either. `part_a_bars` is set only in a docs commit
   recording the owner's choice, before the first `score-a-v2` run (ideally before
   `seal-review-v2`). `freeze-v1.json` is never edited.
+- **Bars lock.** The first `score-a-v2` run appends a `score-a-v2` line to `seals-v2.txt` holding
+  the `part_a_bars` value and the SHA-256 of `freeze-v2.json` it ran under. Every later v2 command
+  compares the current `part_a_bars` with that line and refuses a difference, so the bars cannot be
+  switched after counts are seen. Changing them needs a new plan revision and a fresh sample (plan
+  section 6), not an edit.
 - **Bars (`bars_v2.py`).** Its own table and judge, holding `v1_accepted` and `v2_proposed`; a test
   shows it gives the same allowed counts and verdicts as `bars.judge` for the names both share.
 
@@ -203,7 +209,8 @@ other key or string is refused by the same string scan. It adds the v2 Part A fi
 - Every existing v1 test passes unmodified; v1 and v2 sheets are each refused by the other scorer.
 - Freeze: `freeze-v1.json` and every v1 file hash are unchanged; `freeze-v2.json` refuses a
   `freeze_v1_sha256` mismatch, an unknown `part_a_bars` value and a changed v2 file; `score-a-v2`
-  refuses to run, writing nothing, without `part_a_bars`.
+  refuses to run, writing nothing, without `part_a_bars`; after a first run, a changed
+  `part_a_bars` makes every v2 command refuse.
 - Seals: v2 seals are written only to `seals-v2.txt`; the v1 `seals.py` reads `seals.txt`
   unchanged afterwards; `seal-review-v2` needs `seal-dev` and `seal-heldout`, refuses when a v1
   `seal-review` exists, covers exactly its two files and refuses a third file or a link.
@@ -231,9 +238,11 @@ other key or string is refused by the same string scan. It adds the v2 Part A fi
 ## 8. Review record
 
 Revision 2 answers an architecture-gate review (NEEDS WORK) of revision 1 and a local Qodo review.
-As it now stands: scoring fails closed without `part_a_bars`; no v1 file or `freeze-v1.json` is
-edited, and v2 has its own entry point, `freeze-v2.json` and `seals-v2.txt`, so a v1 seal can
-never block the v2 one; `bars_v2` has its own judge; unresolved means "not final" (`passes: null`)
+As it now stands: scoring fails closed without `part_a_bars`, and the first scoring run locks it;
+no v1 file or `freeze-v1.json` is edited, and v2 has its own entry point, `freeze-v2.json` and
+`seals-v2.txt`, so v2 never writes to the v1 seal log; v2 sealing still depends on the v1
+`seal-dev` and `seal-heldout` (plan seal order) and is refused, by design, if a v1 `seal-review`
+exists; `bars_v2` has its own judge; unresolved means "not final" (`passes: null`)
 everywhere, with closed fields; per-stratum combination tables define every outcome and the A1
 denominator; the sidecar has `unresolved`, a full-inventory coverage rule and empty-field rules;
 there is no free-text column; the sheet holds initial rows only; the exclusion list is versioned and
@@ -242,7 +251,7 @@ listed.
 
 ## 9. For the owner
 
-1. Approve, amend or reject this design.
+1. Approve, amend or reject this design. Approved on 8 November 2026.
 2. Choose the Part A bars (`v1_accepted` or `v2_proposed`), recorded as `part_a_bars` before any
    v2 scoring.
 3. After approval, an implementation phase (its own issue and PR) builds the tool and its tests.
