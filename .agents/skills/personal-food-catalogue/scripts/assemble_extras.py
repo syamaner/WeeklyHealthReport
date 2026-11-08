@@ -23,6 +23,42 @@ LABEL_SOURCE = {"owner_typed": "label:owner-typed", "photo_confirmed": "label:ow
                 "page_unconfirmed": "label:page-unconfirmed"}
 
 
+def attach_label(target, e) -> bool:
+    """Add intake item e's label to an existing catalogue entry. Pure apart from mutating target.
+
+    Returns False when nothing is attached. The intake note (for a page, its URL, date read and the
+    state it describes) is kept with the label as its evidence, keyed by the label source.
+    """
+    lab = e.get("label") or {}
+    if target is None or lab.get("basis") not in ("per_100_g", "per_100_ml"):
+        return False
+    lab_basis = "per_100_ml_as_labelled" if lab["basis"] == "per_100_ml" else "per_100_g"
+    confirmed = not lab["origin"].endswith("unconfirmed")
+    if lab_basis != target.get("basis", "per_100_g"):
+        if not confirmed:
+            return False  # an unconfirmed label never changes an entry's basis
+        # the owner's confirmed label wins: its basis replaces the entry's, and values on the
+        # old basis (product label, merged generic values) are dropped from the entry
+        target["basis"] = lab_basis
+        target["label_tiers"] = {"off": {}}
+        target["nutrients"] = {}
+        target["label_evidence"] = {}  # evidence for the dropped values goes with them
+    src = f"{LABEL_SOURCE[lab['origin']]}:{e['source_id']}"
+    owner = {}
+    for k, v in lab["values"].items():
+        owner[k] = {"value": v, "unit": I.CANON[k], "source": src}
+        t = (lab.get("transforms") or {}).get(k)
+        if t:
+            owner[k]["transforms"] = [{"transform_id": t["transform_id"], "version": t["version"]}]
+            owner[k]["source_value"] = t["source_value"]
+    target.setdefault("label_tiers", {})["owner"] = owner
+    target.setdefault("label_evidence", {})[src] = {"origin": lab["origin"], "note": e.get("note")}
+    target["captured"] = e.get("captured")
+    if confirmed:
+        target.setdefault("nutrients", {}).update(owner)  # a printed label the owner confirmed comes first
+    return True
+
+
 def main(work: Path, cat_path: Path, res: Path):
     A.PRODUCT_DIR = work / "off-products-v3"
     cat = json.load(open(cat_path))
@@ -44,32 +80,8 @@ def main(work: Path, cat_path: Path, res: Path):
             continue  # supplements are per serving; not in catalogue v1
         if e.get("attach_to"):
             # an owner label for a receipt food: add it to that entry, never a second entry
-            target, lab = by_title.get(I.norm(e["attach_to"])), e.get("label") or {}
-            if target is None or lab.get("basis") not in ("per_100_g", "per_100_ml"):
-                continue
-            lab_basis = "per_100_ml_as_labelled" if lab["basis"] == "per_100_ml" else "per_100_g"
-            confirmed = not lab["origin"].endswith("unconfirmed")
-            if lab_basis != target.get("basis", "per_100_g"):
-                if not confirmed:
-                    continue  # an unconfirmed label never changes an entry's basis
-                # the owner's confirmed label wins: its basis replaces the entry's, and values on the
-                # old basis (product label, merged generic values) are dropped from the entry
-                target["basis"] = lab_basis
-                target["label_tiers"] = {"off": {}}
-                target["nutrients"] = {}
-            src = f"{LABEL_SOURCE[lab['origin']]}:{e['source_id']}"
-            owner = {}
-            for k, v in lab["values"].items():
-                owner[k] = {"value": v, "unit": I.CANON[k], "source": src}
-                t = (lab.get("transforms") or {}).get(k)
-                if t:
-                    owner[k]["transforms"] = [{"transform_id": t["transform_id"], "version": t["version"]}]
-                    owner[k]["source_value"] = t["source_value"]
-            target.setdefault("label_tiers", {})["owner"] = owner
-            target["captured"] = e.get("captured")
-            if not lab["origin"].endswith("unconfirmed"):
-                target["nutrients"].update(owner)  # a printed label the owner confirmed comes first
-            attached += 1
+            if attach_label(by_title.get(I.norm(e["attach_to"])), e):
+                attached += 1
             continue
         m = maps.get(e["n"], {})
         g = m.get("generic") or {}
