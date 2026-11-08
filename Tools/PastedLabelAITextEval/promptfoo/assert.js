@@ -39,7 +39,7 @@ module.exports = (output, context) => {
     score: scored.f1,
     reason: `${s.outcome}${s.decline_reasons.length ? ' ' + s.decline_reasons.join(',') : ''}${s.failure ? ' ' + s.failure : ''}: `
       + `${s.fields_correct}/${s.fields_printed} printed fields correct, ${s.fields_wrong} wrong (${s.wrong_silent} silent), `
-      + `${s.attention_items} attention items`,
+      + `${s.attention_items} attention items; ${s.scorer}`,
     namedScores: named,
   };
 };
