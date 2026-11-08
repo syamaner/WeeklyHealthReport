@@ -93,7 +93,7 @@ temporary list, then follow the free-text recipe. Do not keep the transcription.
 Fetch only pages the owner names, or result pages of an approved web search (SKILL.md rule 4),
 once each, with the WebFetch tool. Record per 100 g (or per 100 ml) values as `page_unconfirmed`,
 with the URL, the date read and the state the page describes in `note`. Ask the owner to confirm as
-for photos. Keep the intake file: it is the page evidence record (see the known limit in SKILL.md).
+for photos. Keep the intake file: with the working catalogue it is the page evidence record (see the known limit in SKILL.md).
 
 ## Typed by the owner
 
