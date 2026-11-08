@@ -416,3 +416,13 @@ The working mapping files it used (SHA-256):
 | `work/intake-registry.json` | `fc97b80adbfb7e0a02b136ee15e9a4498169bf09aa53d58769199da5ee362f6b` |
 | `work/intake-mapping-notes-2026-11-07.json` | `c074c6bb0a167e6869f1320f2c532aabbccf93aa3a6d517933c039a416b9b7a8` |
 | `work/intake/notes-2026-11-07.json` | `2f5469c969e125aaa9ecbf6ff646305c051bd52dfe6772f62d67e6237791bba7` |
+
+### 11.2 E1c sample record (8 November 2026)
+
+The seed `1072955911` was drawn with `pfd_eval.py draw-seed` and pushed in commit `2bc2941` before the
+sample was generated. The purchase counts came from the skill's `purchase_counts.py` (844 entries, 798 with
+receipt purchases). From the pinned release, `sample` drew A1 57 (census), A5 1 (census), A2 40, A3 40
+and A4 20: 158 entries to check (58 census, 30 top-30, 70 drawn), followed on the sheet by the seeded
+replacement order for A2 to A4. A second run from the same inputs gave byte-identical sample, sheet and
+purchase-count files. The sample and the purchase-count copy beside it are pinned in the Freeze list;
+both stay private.

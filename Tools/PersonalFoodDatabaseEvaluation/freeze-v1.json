@@ -14,7 +14,9 @@
     "Tools/PersonalFoodDatabaseEvaluation/split.py": "4c1799b864f6512e2447f08a2e2c7722056c78b778d0ddcce35c0b92cd3796d7",
     "Tools/PersonalFoodDatabaseEvaluation/stats.py": "1fde63c18c23775e9092481826cd44e0ceef03e5b832dbd029bce2cb938e9b1b"
   },
+  "purchase_counts_sha256": "2f1dbfafdfd0eb31f8f5d420f9ca0405b6b413dc30185f985c365e38000f298f",
   "release_id": "pfc:sha256:55caa60d11a9af23a0a7aff23f6a52b6390ef9d8da05c069b4b3f66295d5088d",
+  "sample_sha256": "074320a487f5587bbb939dc01120d97dcfeb86f8c1770a68e69b00b164229c19",
   "schema": "pfd-freeze-v1",
   "seed": 1072955911
 }
