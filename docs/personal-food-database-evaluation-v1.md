@@ -117,6 +117,23 @@ identity, state, basis, transcription or derivation. Report candidate-only value
 proposed usable values. A complete micronutrient row means every nutrient in the declared inventory,
 not merely every nutrient available from that source.
 
+For the retained generic-match measures, the proposed v2 scorer uses these explicit row outcomes:
+
+- **A2:** count one failed entry if a merged reference has a different food identity, an incompatible
+  preparation state or a material variety difference. Multiple failures in one entry count once.
+  A missing required judgement is unresolved, never counted as a passing entry.
+- **A3:** a separate candidate is sensible only when its food relationship and material differences
+  are accurately represented, its source state is explicit and its values are never silently merged.
+  Count `misleading_other_state` when a state-incompatible source is represented as equivalent;
+  otherwise count `misleading_close` for a misleading identity or material variety relationship.
+  Other-state takes precedence, so each entry counts at most once. A clearly labelled alternative
+  state may be sensible as a separate option, but cannot supply values for the target state.
+- **A4:** count `match_missed` only when the review names an available source record with a checked
+  suitable identity, state, variety and basis. Count `nothing_suitable` only after the documented
+  source search finds no suitable record. An unsearched or ambiguous case is unresolved.
+
+These mappings are part of the proposed v2 design and do not authorise feeding new tokens into v1.
+
 ## 4. Part B: search quality (a query set from the owner's own words)
 
 ### 4.1 Building the query set (`pfd-query-set-v1`)
@@ -248,7 +265,7 @@ all evidence. These are software-quality thresholds, not nutrition targets.
 
 | Measure | Bar | If it fails |
 |---|---|---|
-| A1 wrong identity, state or material variety | at most 2 checked entries, with unresolved entries reported separately | drop Open Food Facts label values from the import (entries keep their generic reference) |
+| A1 wrong identity, state or material variety | at most 2 checked entries, with unresolved entries reported separately | drop Open Food Facts values; retain only independently checked suitable generic references |
 | A1 assessed value evidence error | at most 3 per cent of checked values | as above |
 | A2 different food or other state | at most 2 of 40 | no merges: every generic reference becomes a separate candidate |
 | A3 misleading | at most 4 of 40 | drop all separate candidates (close and other-state); merges are unaffected |
@@ -268,6 +285,14 @@ informational, with all gaps and unresolved rows visible. A stratum containing u
 identity/state/evidence checks cannot receive a final pass. For Part B the planned held-out counts
 remain wrong entry first at most 1 of about 64, negative false hits 0 of 10 and top-1 acceptable at
 least 55 of 64. The actual denominators are recorded before scoring.
+
+**Per-entry exclusion, independent of bars.** Any identified wrong identity, incompatible merged
+state or material variety mismatch withholds the affected source values and reference, regardless
+of whether the entry was sampled as A1, A2, A3, A4 or A5. A threshold is not permission to retain a
+known error. A reference lacking the required review remains a candidate pending review, never a
+new merge after label values are removed. This includes generic references attached to A1/A5 entries.
+The owner-approved v2 tool phase must implement and test these exclusions alongside stratum-wide
+failure consequences; this documentation revision performs no export changes.
 
 **Export switches.** The A1 and A2 consequences need switches in `export_v1.py` (drop Open Food Facts
 values; force every reference to `candidate`). Dropping Open Food Facts values can change an entry's
