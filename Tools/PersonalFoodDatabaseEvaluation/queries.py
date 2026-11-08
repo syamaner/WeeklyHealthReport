@@ -56,10 +56,13 @@ def assemble(template_bytes: bytes, release_id: str, entry_ids: set, generic_ids
         text = template_bytes.decode("utf-8-sig")
     except UnicodeDecodeError:
         raise QueryTemplateError("the template must be saved as UTF-8 CSV")
+    reader, rows = csv.reader(io.StringIO(text), strict=True), []
     try:
-        rows = list(csv.reader(io.StringIO(text), strict=True))
+        for row in reader:
+            rows.append(row)
     except csv.Error:
-        raise QueryTemplateError("the template contains invalid CSV or an oversized cell") from None
+        # The line is the file's line (a quoted cell can span lines), so the owner can find it in an editor.
+        raise QueryTemplateError(f"line {reader.line_num}: invalid CSV quoting or an oversized cell") from None
     if not rows or tuple(c.strip().casefold() for c in rows[0]) != TEMPLATE_COLUMNS:
         raise QueryTemplateError("the first row must be the template header: " + ",".join(TEMPLATE_COLUMNS))
     queries, seen = [], set()
@@ -67,7 +70,8 @@ def assemble(template_bytes: bytes, release_id: str, entry_ids: set, generic_ids
         if not any(c.strip() for c in raw):
             continue  # blank rows are allowed while filling in
         if len(raw) > len(TEMPLATE_COLUMNS):
-            raise QueryTemplateError(f"row {n}: more cells than the header")
+            raise QueryTemplateError(f"row {n}: {len(raw)} cells; the header has {len(TEMPLATE_COLUMNS)} columns, "
+                                     f"so a cell after generic must be removed")
         cell = dict(zip(TEMPLATE_COLUMNS, [c.strip() for c in raw] + [""] * (len(TEMPLATE_COLUMNS) - len(raw))))
         if not cell["query"]:
             raise QueryTemplateError(f"row {n}: query is empty")

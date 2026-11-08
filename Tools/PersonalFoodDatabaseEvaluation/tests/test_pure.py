@@ -381,6 +381,18 @@ class QueryCSVRegression(unittest.TestCase):
         with self.assertRaises(queries.QueryTemplateError):
             queries.assemble(queries.template() + b'"Synthetic,no,none,,,\n', H.RELEASE, set(), {})
 
+    def test_malformed_quoting_names_the_line_without_a_value(self):
+        with self.assertRaises(queries.QueryTemplateError) as cm:
+            queries.assemble(queries.template() + b'Synthetic,no,none,,,\n"Synthetic secret,no,none,,,\n', H.RELEASE, set(), {})
+        self.assertTrue(str(cm.exception).startswith("line "), str(cm.exception))
+        self.assertNotIn("secret", str(cm.exception))
+
+    def test_extra_cells_name_the_row_and_column_count(self):
+        with self.assertRaises(queries.QueryTemplateError) as cm:
+            queries.assemble(queries.template() + b"Synthetic,no,none,,,,secret\n", H.RELEASE, set(), {})
+        self.assertIn("row 2: 7 cells; the header has 6 columns", str(cm.exception))
+        self.assertNotIn("secret", str(cm.exception))
+
     def test_query_whitespace_is_preserved(self):
         doc = queries.assemble(queries.template() + b"  Synthetic query  ,no,none,,,\n", H.RELEASE, set(), {})
         self.assertEqual(doc["queries"][0]["text"], "  Synthetic query  ")

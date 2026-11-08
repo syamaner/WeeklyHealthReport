@@ -170,8 +170,17 @@ def cmd_assemble_queries(a, root):
     print("query set written:", ", ".join(f"{k} {v}" for k, v in queries.counts(doc).items()))
 
 
+def interactive() -> bool:
+    return sys.stdin.isatty() and sys.stdout.isatty()
+
+
 def cmd_lookup(a, root):
-    """Owner only: prints catalogue rows to this screen and writes nothing."""
+    """Owner only: prints catalogue rows to this screen and writes nothing.
+
+    This is a guard against an accidental run by an agent's non-interactive shell, not authentication:
+    on the owner's own account nothing in code can tell the owner from a process acting for them."""
+    if not interactive():
+        sys.exit("refused: lookup prints catalogue rows, so it runs only in the owner's interactive terminal")
     _, entries, corpora = pinned_export(a, root)
     text = " ".join(a.words)
     if a.generic:

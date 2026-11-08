@@ -98,7 +98,8 @@ folder and `EXPORT` the pinned import file. The release must already be pinned i
    rows are ignored. Save as UTF-8 CSV.
 3. To find IDs, `python3 -I pfd_eval.py lookup --root ROOT --export EXPORT oat milk` lists the entries
    holding every word, alphabetically and without a score, with the fields that matched; add
-   `--generic` to search the generic records. It prints to your screen only and writes nothing. The
+   `--generic` to search the generic records. It prints to your screen only, writes nothing, and runs only
+   in an interactive terminal (a guard against an accidental run by an agent, not authentication). The
    choice of answer and step stays yours: the lookup is not the ranking under test.
 4. `python3 -I pfd_eval.py assemble-queries --root ROOT --export EXPORT` checks every row and writes
    `queries/query-set.json`, printing counts only. A refusal names the row and column to fix.

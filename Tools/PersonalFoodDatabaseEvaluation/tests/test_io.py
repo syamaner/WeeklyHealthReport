@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 import helpers as H
@@ -248,6 +249,11 @@ class CommandLine(unittest.TestCase):
                 pfd_eval.FREEZE.write_text(json.dumps({"schema": "pfd-freeze-v1", "release_id": formats.release_id(export),
                     "files": {"frozen.py": hashlib.sha256(b"frozen = True\n").hexdigest()}}))
                 before = sorted(p.name for p in root.iterdir())
+                with self.assertRaises(SystemExit) as cm, \
+                        unittest.mock.patch.object(pfd_eval, "interactive", return_value=False):  # an agent's shell
+                    pfd_eval.main(["lookup", "--root", str(root), "--export", str(root / "export.json"), "oats"])
+                self.assertIn("interactive terminal", str(cm.exception.code))
+                self.enterContext(unittest.mock.patch.object(pfd_eval, "interactive", return_value=True))
                 for extra in ([], ["--generic"]):
                     out = io.StringIO()
                     with contextlib.redirect_stdout(out):
