@@ -42,6 +42,7 @@ def attach_label(target, e) -> bool:
         target["basis"] = lab_basis
         target["label_tiers"] = {"off": {}}
         target["nutrients"] = {}
+        target["label_evidence"] = {}  # evidence for the dropped values goes with them
     src = f"{LABEL_SOURCE[lab['origin']]}:{e['source_id']}"
     owner = {}
     for k, v in lab["values"].items():

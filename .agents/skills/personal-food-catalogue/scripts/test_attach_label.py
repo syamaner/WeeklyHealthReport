@@ -57,6 +57,13 @@ class AttachLabel(unittest.TestCase):
         self.assertEqual(t["basis"], "per_100_ml_as_labelled")
         self.assertNotIn("fiber", t["nutrients"])  # old-basis values dropped
 
+    def test_basis_change_drops_old_evidence(self):
+        t = entry()
+        X.attach_label(t, item("page_unconfirmed"))
+        other = {**item("page_confirmed", basis="per_100_ml"), "source_id": "synthetic-page-2026-11-09"}
+        self.assertTrue(X.attach_label(t, other))
+        self.assertEqual(list(t["label_evidence"]), ["label:owner-page:synthetic-page-2026-11-09"])
+
 
 if __name__ == "__main__":
     unittest.main(argv=sys.argv[:1])
