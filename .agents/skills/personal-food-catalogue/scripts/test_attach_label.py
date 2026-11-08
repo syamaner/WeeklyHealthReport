@@ -64,6 +64,22 @@ class AttachLabel(unittest.TestCase):
         self.assertTrue(X.attach_label(t, other))
         self.assertEqual(list(t["label_evidence"]), ["label:owner-page:synthetic-page-2026-11-09"])
 
+    def test_superseded_label_evidence_is_pruned(self):
+        t = entry()
+        X.attach_label(t, item("page_unconfirmed"))
+        newer = {**item("page_unconfirmed"), "source_id": "synthetic-page-2026-11-09"}
+        self.assertTrue(X.attach_label(t, newer))  # same basis, a second source replaces the owner tier
+        self.assertEqual(list(t["label_evidence"]), ["label:page-unconfirmed:synthetic-page-2026-11-09"])
+
+    def test_evidence_kept_while_confirmed_values_remain(self):
+        t = entry()
+        X.attach_label(t, item("page_confirmed"))  # fills entry nutrients from the confirmed page
+        partial = {**item("page_unconfirmed"), "source_id": "synthetic-page-2026-11-09"}
+        X.attach_label(t, partial)  # unconfirmed: replaces the owner tier, never the entry nutrients
+        self.assertEqual(sorted(t["label_evidence"]),
+                         ["label:owner-page:synthetic-page-2026-11-08", "label:page-unconfirmed:synthetic-page-2026-11-09"])
+        self.assertEqual(t["nutrients"]["protein"]["source"], "label:owner-page:synthetic-page-2026-11-08")
+
 
 if __name__ == "__main__":
     unittest.main(argv=sys.argv[:1])

@@ -56,6 +56,10 @@ def attach_label(target, e) -> bool:
     target["captured"] = e.get("captured")
     if confirmed:
         target.setdefault("nutrients", {}).update(owner)  # a printed label the owner confirmed comes first
+    # Keep evidence only for label sources the entry still uses, so a superseded label's note never
+    # describes values that are no longer there.
+    used = {v.get("source") for tier in (target.get("nutrients") or {}, owner) for v in tier.values()}
+    target["label_evidence"] = {s: ev for s, ev in target["label_evidence"].items() if s in used}
     return True
 
 
