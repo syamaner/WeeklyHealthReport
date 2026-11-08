@@ -25,7 +25,7 @@ class SealError(ValueError):
 
 
 def bundle_sha256(folder: Path, prefix: str, suffix: str):
-    if folder.is_symlink() or any(p.is_symlink() for p in folder.iterdir() if folder.is_dir()):
+    if folder.is_symlink() or (folder.is_dir() and any(p.is_symlink() for p in folder.iterdir())):
         raise SealError(f"{prefix}: a sealed folder and its files must not be links")
     names = sorted(p.name for p in folder.iterdir() if p.is_file() and p.name.endswith(suffix)) if folder.is_dir() else []
     listing = "".join(f"{hashlib.sha256((folder / n).read_bytes()).hexdigest()}  {prefix}/{n}\n" for n in names)
@@ -111,14 +111,19 @@ def require(name: str, root: Path) -> str:
 
 
 def log_held_out_run(root: Path, ranking_sha256: str, now_utc: str, write=lambda n: None):
-    """Record the next held-out run. `write(n)` produces the run's result first, under the same lock;
-    if it fails, no run is recorded, so a failed write never uses up one of the two runs."""
+    """Record the next held-out run. `write(n)` produces the run's result first, under the same lock,
+    and returns its path; if it fails, no run is recorded, and if recording fails, the result is removed."""
     with _locked(root):
         require("seal-heldout", root)
         runs = held_out_runs(root)
         if runs >= HELD_OUT_RUN_LIMIT:
             raise SealError("the held-out set has already been scored once and rerun once")
-        write(runs + 1)
-        with open(_file(root), "a", encoding="utf-8") as fh:
-            fh.write(f"run-heldout {ranking_sha256} {runs + 1} {now_utc}\n")
+        written = write(runs + 1)
+        try:
+            with open(_file(root), "a", encoding="utf-8") as fh:
+                fh.write(f"run-heldout {ranking_sha256} {runs + 1} {now_utc}\n")
+        except BaseException:
+            if written is not None:  # a result whose run was never recorded is removed
+                Path(written).unlink(missing_ok=True)
+            raise
         return runs + 1

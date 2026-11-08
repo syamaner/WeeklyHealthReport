@@ -86,6 +86,33 @@ class Seals(unittest.TestCase):
                 seals.log_held_out_run(root, "a" * 64, "t1", fail)
             self.assertEqual(seals.held_out_runs(root), 0)
 
+    def test_missing_folder_is_refused_cleanly(self):
+        with H.private_dir() as t:
+            with self.assertRaises(seals.SealError):
+                seals.seal("seal-dev", Path(t), "t0")
+
+    def test_result_is_removed_when_the_run_cannot_be_recorded(self):
+        with H.private_dir() as t:
+            root = Path(t)
+            for d in ("development", "held-out"):
+                (root / d).mkdir()
+                (root / d / "query-set.json").write_text("{}")
+            seals.seal("seal-dev", root, "t0")
+            seals.seal("seal-heldout", root, "t0")
+            result = root / "result.json"
+
+            def write(n):
+                result.write_text("{}")
+                os.chmod(root / "seals.txt", 0o400)  # the append will now fail
+                return result
+            try:
+                with self.assertRaises(OSError):
+                    seals.log_held_out_run(root, "a" * 64, "t1", write)
+            finally:
+                os.chmod(root / "seals.txt", 0o600)
+            self.assertFalse(result.exists())
+            self.assertEqual(seals.held_out_runs(root), 0)
+
     def test_linked_bundle_member_is_refused(self):
         with H.private_dir() as t, tempfile.TemporaryDirectory() as other:
             root = Path(t)

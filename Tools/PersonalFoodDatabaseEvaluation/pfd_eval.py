@@ -211,6 +211,7 @@ def cmd_score_b(a, root):
         def write(n):
             measures["held_out_run"] = n
             write_new(out, results.build("B", fz["release_id"], measures, "held-out"))
+            return out
 
         n = seals.log_held_out_run(root, formats.sha256(ranking_bytes), now_utc(), write)
         print(f"held-out run {n} of {seals.HELD_OUT_RUN_LIMIT} recorded")
