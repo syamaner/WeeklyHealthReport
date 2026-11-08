@@ -1,6 +1,6 @@
 import Foundation
 
-/// `pasted-label-text-locate-v1` (docs/pasted-label-ai-text-v1.md 4.3, D3): a pure,
+/// `pasted-label-text-locate-v2` (docs/pasted-label-ai-text-v1.md 4.3, D3; revision 10): a pure,
 /// deterministic check of a model's answer against the text that was sent. It never produces,
 /// converts or assigns a value; it says, for each value the model returned, whether that printed
 /// value is found in the text exactly once where the model placed it, and which rows and columns
@@ -39,11 +39,15 @@ import Foundation
 /// 8. **Two or more reference-intake headers** put every reference-intake value under attention
 ///    (review F7), since `%` cells are not positioned between them; `%` tokens in a block with no
 ///    reference-intake header put the block under attention.
+/// 10. **Brackets** (v2): a printed value wrapped in the label's own brackets (`(4.9g)`, or `1.1g)`
+///    from a row printed as `(of which saturates 1.1g)`) matches the bracket-free token only where
+///    the text prints those same brackets right beside it (`PastedLabelAITextValueGrammar.unbracketed`).
+///    The token scan also takes the text-only kcal spellings (`588kCal`).
 /// 9. **Shared header spans**: two header IDs located on one printed span put their values under
 ///    attention. **Omitted rows**: a vocabulary row label no model row claimed, starting its line
 ///    or following a value, ends the block before it.
 public enum PastedLabelTextLocator {
-    public static let version = "pasted-label-text-locate-v1"
+    public static let version = "pasted-label-text-locate-v2"
     public static let referenceIntakeBasis = "reference_intake"
 
     // MARK: Input
@@ -262,7 +266,8 @@ public enum PastedLabelTextLocator {
             func ordinal(_ group: [(Int, Int, Value)], candidates: [PastedLabelTextScan.Token]) {
                 let byText = Dictionary(grouping: group, by: { matchText($0.2.printedText) })
                 for (text, values) in byText {
-                    let equal = candidates.filter { coreText(scan, $0) == text }
+                    let bracketed = PastedLabelAITextValueGrammar.unbracketed(text)
+                    let equal = candidates.filter { coreText(scan, $0) == bracketed.core && hasBrackets(scan, $0, bracketed) }
                     for (position, entry) in values.enumerated() {
                         let status: Status = equal.isEmpty ? .notFound : equal.count == values.count ? .found(equal[position].range) : .ambiguous
                         record(entry.0, entry.1, status)
@@ -388,6 +393,15 @@ public enum PastedLabelTextLocator {
         var out = String.UnicodeScalarView()
         out.append(contentsOf: scalars)
         return String(out)
+    }
+
+    /// Whether the text prints the brackets the model's value carried right beside the token (v2):
+    /// the opener just before the token's start, the closer just after its end.
+    static func hasBrackets(_ scan: PastedLabelTextScan, _ token: PastedLabelTextScan.Token,
+                            _ bracketed: PastedLabelAITextValueGrammar.Bracketed) -> Bool {
+        if let open = bracketed.open, !(token.start > 0 && scan.scalars[token.start - 1] == open) { return false }
+        if let close = bracketed.close, !(token.end < scan.scalars.count && scan.scalars[token.end] == close) { return false }
+        return true
     }
 
     static func coreText(_ scan: PastedLabelTextScan, _ token: PastedLabelTextScan.Token) -> String {

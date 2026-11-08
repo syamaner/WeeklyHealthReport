@@ -448,6 +448,64 @@ final class PastedLabelTextLocatorTests: XCTestCase {
         }
         let decoded = try JSONDecoder().decode(Locator.Result.self, from: first)
         XCTAssertEqual(decoded, Locator.locate(text: text, headers: headers, rows: rows))
-        XCTAssertEqual(decoded.version, "pasted-label-text-locate-v1")
+        XCTAssertEqual(decoded.version, "pasted-label-text-locate-v2")
     }
+
+    // MARK: Revision 10 (locator v2)
+
+    /// A value the model copied with the label's own brackets is found only where the text prints
+    /// those brackets beside the token.
+    func testABracketedValueIsFoundWhereTheTextPrintsTheBrackets() {
+        let text = "Per 100g\nFat 12.0g\n(of which saturates) (3.5g)\nSalt 0.40g"
+        let result = Locator.locate(text: text, headers: [Self.per100],
+                                    rows: [Self.row("Fat", [("h1", "12.0g")]), Self.row("(of which saturates)", [("h1", "(3.5g)")]),
+                                           Self.row("Salt", [("h1", "0.40g")])])
+        XCTAssertEqual(statuses(result), [.found(Self.scalars("12.0g", in: text)), .found(Self.scalars("3.5g", in: text)),
+                                          .found(Self.scalars("0.40g", in: text))])
+        XCTAssertTrue(result.values.allSatisfy { !$0.needsAttention })
+    }
+
+    func testAValueWithOnlyTheRowsClosingBracketIsFound() {
+        let text = "Per 100g Per pack\nFat 4.0g 16.0g\n(of which saturates 1.2g 4.8g)\nSalt 0.5g 2.0g"
+        let result = Locator.locate(text: text, headers: [Self.per100, Self.perServing.withText("Per pack")],
+                                    rows: [Self.row("Fat", [("h1", "4.0g"), ("h2", "16.0g")]),
+                                           Self.row("(of which saturates", [("h1", "1.2g"), ("h2", "4.8g)")]),
+                                           Self.row("Salt", [("h1", "0.5g"), ("h2", "2.0g")])])
+        XCTAssertEqual(result.values[3].status, .found(Self.scalars("4.8g", in: text)))
+        XCTAssertEqual(result.values[2].status, .found(Self.scalars("1.2g", in: text)))
+    }
+
+    /// The unsafe neighbours: brackets the text does not print there are not found.
+    func testBracketsTheTextDoesNotPrintBesideTheTokenAreNotFound() {
+        let text = "Per 100g\nFat 12.0g\nof which saturates 3.5g (high)\nSalt 0.40g"
+        let result = Locator.locate(text: text, headers: [Self.per100],
+                                    rows: [Self.row("Fat", [("h1", "(12.0g)")]), Self.row("of which saturates", [("h1", "(3.5g)")]),
+                                           Self.row("Salt", [("h1", "0.40g)")])])
+        XCTAssertEqual(statuses(result), [.notFound, .notFound, .notFound])
+        let closingOnly = "Per 100g\nof which saturates 3.5g)\nSalt 0.40g"
+        let opened = Locator.locate(text: closingOnly, headers: [Self.per100], rows: [Self.row("of which saturates", [("h1", "(3.5g)")])])
+        XCTAssertEqual(statuses(opened), [.notFound], "an opener the text does not print before the token")
+    }
+
+    /// The text-only kcal spellings form an energy pair (`kCal`, `Kcal`); `Cal` stays outside.
+    func testTextOnlyKcalSpellingsFormAnEnergyPair() {
+        let text = "Per 100g\nEnergy 1500kJ / 360kCal\nFat 10g\nSalt 1.0g"
+        let result = Locator.locate(text: text, headers: [Self.per100],
+                                    rows: [Self.row("Energy", [("h1", "1500kJ")]), Self.row("Energy", [("h1", "360kCal")]),
+                                           Self.row("Fat", [("h1", "10g")]), Self.row("Salt", [("h1", "1.0g")])])
+        XCTAssertEqual(statuses(result), [.found(Self.scalars("1500kJ", in: text)), .found(Self.scalars("360kCal", in: text)),
+                                          .found(Self.scalars("10g", in: text)), .found(Self.scalars("1.0g", in: text))])
+        let capitals = "Per 100g\nEnergy 1500KJ / 360Kcal\nSalt 1.0g"
+        XCTAssertEqual(statuses(Locator.locate(text: capitals, headers: [Self.per100],
+                                               rows: [Self.row("Energy", [("h1", "1500KJ")]), Self.row("Energy", [("h1", "360Kcal")])])),
+                       [.found(Self.scalars("1500KJ", in: capitals)), .found(Self.scalars("360Kcal", in: capitals))])
+        let cal = "Per 100ml\nEnergy 30Cal\nSalt 0.1g"
+        let header = Locator.Header(id: "h1", printedText: "Per 100ml", basis: "per_100ml")
+        XCTAssertEqual(Locator.locate(text: cal, headers: [header], rows: [Self.row("Energy", [("h1", "30Cal")])]).values[0].status, .notFound,
+                       "`Cal` is not a unit of the closed table, so `30Cal` is no token")
+    }
+}
+
+extension PastedLabelTextLocator.Header {
+    func withText(_ printed: String) -> Self { .init(id: id, printedText: printed, basis: basis) }
 }

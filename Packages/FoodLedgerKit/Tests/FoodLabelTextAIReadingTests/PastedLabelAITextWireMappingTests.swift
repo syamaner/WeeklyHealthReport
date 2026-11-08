@@ -170,4 +170,49 @@ final class PastedLabelAITextWireMappingTests: XCTestCase {
             XCTAssertEqual(text.warnings.map { $0.components(separatedBy: " ").first! }, photo.warnings.map { $0.components(separatedBy: " ").first! })
         }
     }
+
+    // MARK: Revision 10 (mapping v2)
+
+    func testABracketedPrintedValueIsReadWithoutItsBrackets() {
+        for (printed, decimal, unit) in [("(3.5g)", "3.5", "g"), ("4.8g)", "4.8", "g"), ("(4.8g", "4.8", "g"), ("(<0.5g)", "0.5", "g"),
+                                         ("\u{FF08}3.5公克\u{FF09}", "3.5", "g"), ("(1,046kJ)", "1046", "kJ")] {
+            guard case let .value(parsed) = Mapping.parseValue(printed) else { return XCTFail(printed) }
+            XCTAssertEqual(parsed.decimalText, decimal, printed)
+            XCTAssertEqual(parsed.canonicalUnit, unit, printed)
+        }
+        XCTAssertEqual(Mapping.parseValue("5g (g)"), Mapping.parseValue("5g"), "an echo is unchanged")
+    }
+
+    /// The unsafe neighbours: a bracketed bare number, a bracketed word and nested brackets are never values.
+    func testABracketedBareNumberOrWordIsNotAValue() {
+        for printed in ["(35)", "35)", "(trace)", "(unknown)", "((3.5g))", "(5g) (2g)", "(0,500g)"] {
+            XCTAssertNotEqual(Mapping.parseValue(printed).isValue, true, printed)
+        }
+        let text = "Per 100g\nFat (35)\nSalt 1g"
+        let result = mapped(text, Self.wire(printed: "(35)", unit: "g"))
+        XCTAssertTrue(result.candidate.cells.isEmpty, "a bracketed bare number is not read, even with a model unit")
+    }
+
+    func testTheKcalSpellingsAreReadAsKcal() {
+        for printed in ["360kCal", "360Kcal", "360 KCal", "360KCAL", "<1kCal"] {
+            guard case let .value(parsed) = Mapping.parseValue(printed) else { return XCTFail(printed) }
+            XCTAssertEqual(parsed.canonicalUnit, "kcal", printed)
+        }
+        XCTAssertEqual(Mapping.parseValue("30Cal"), .notAValue, "`Cal` is outside the closed table")
+        XCTAssertEqual(Mapping.version, "pasted-label-ai-text-mapping-v2")
+    }
+
+    func testABracketedValueMapsToACellWhereTheTextPrintsTheBrackets() {
+        let text = "Per 100g\n(of which saturates) (3.5g)\nSalt 1g"
+        let found = mapped(text, Self.wire(label: "(of which saturates)", nutrient: "saturates", printed: "(3.5g)"))
+        XCTAssertEqual(found.candidate.cells.map(\.decimalText), ["3.5"])
+        let start = Array(text.unicodeScalars).count - "3.5g)\nSalt 1g".unicodeScalars.count
+        XCTAssertEqual(found.located.values.map(\.status), [.found(start..<(start + 4))])
+        let elsewhere = mapped("Per 100g\nof which saturates 3.5g\nSalt 1g", Self.wire(label: "of which saturates", nutrient: "saturates", printed: "(3.5g)"))
+        XCTAssertEqual(elsewhere.located.values.map(\.status), [.notFound], "read, but not found, so under attention")
+    }
+}
+
+extension PastedLabelAITextWireMapping.ParseResult {
+    var isValue: Bool { if case .value = self { true } else { false } }
 }
