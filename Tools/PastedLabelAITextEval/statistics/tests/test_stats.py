@@ -19,13 +19,13 @@ BAR = Path(__file__).resolve().parents[2] / "bar-v1.json"
 
 
 def scores(*, outcome="reached_confirm", printed=10, shown=10, correct=10, wrong=0, flagged=0, silent=0, attention=0, exact=None, no_edit=None,
-           nutrients=None):
+           nutrients=None, reference_amounts=0):
     exact = (outcome == "reached_confirm" and wrong == 0 and correct == printed) if exact is None else exact
     out = {"reached_confirm": int(outcome == "reached_confirm"), "declined": int(outcome == "declined"), "failed": int(outcome == "failed"),
            "fields_printed": printed, "fields_shown": shown if outcome == "reached_confirm" else 0,
            "fields_correct": correct if outcome == "reached_confirm" else 0, "fields_wrong": wrong, "wrong_flagged": flagged, "wrong_silent": silent,
            "attention_items": attention, "exact_match": int(exact), "no_edit": int(exact if no_edit is None else no_edit),
-           "silent_error_table": int(silent > 0)}
+           "silent_error_table": int(silent > 0), "fields_reference_amounts": reference_amounts}
     for nutrient, counts in (nutrients or {}).items():
         for name, value in counts.items():
             out[f"nutrient.{nutrient}.{name}"] = value
@@ -159,6 +159,15 @@ class MetricTests(unittest.TestCase):
         self.assertLessEqual(low, 16 / 30)
         self.assertGreaterEqual(high, 16 / 30)
 
+    def test_summary_sums_the_reference_amounts(self):
+        # Scorer v3 (D28): RI amount values are counted beside the printed fields, never in them.
+        rows = [result("a", scores(printed=7, reference_amounts=4)), result("b", scores(outcome="declined", printed=5, reference_amounts=2)),
+                result("c", scores(printed=3))]
+        out = stats.summary(stats.load_results(write(rows)), 50, 1, None)["cells"]["model-a|prompt-v1"]
+        self.assertEqual(out["fields_reference_amounts"], 6)
+        legacy = [{"vars": {"label_id": "x"}, "provider": {"label": "m"}, "prompt": {"label": "p"}, "gradingResult": {}, "response": {}}]
+        self.assertEqual(stats.summary(stats.load_results(write(legacy)), 10, 1, None)["cells"]["m|p"]["fields_reference_amounts"], 0)
+
     def test_breakdown_by_nutrient(self):
         rows = [result("a", scores(nutrients={"fat": {"printed": 1, "shown": 1, "correct": 1, "wrong": 0}})),
                 result("b", scores(nutrients={"fat": {"printed": 1, "shown": 1, "correct": 0, "wrong": 1}}))]
@@ -283,10 +292,25 @@ class CompareTests(unittest.TestCase):
         cells = stats.load_results(write(rows))
         out = stats.compare(cells, "model-a|prompt-v1", "model-b|prompt-v1", 400, 3)
         self.assertEqual(out["exact_match_mcnemar"], {"a_only": 6, "b_only": 0, "p_value_exact": 2 / 64})
+        self.assertEqual(out["no_edit_mcnemar"], out["exact_match_mcnemar"], "no serving edits, so no edit follows exact match")
         self.assertGreater(out["field_f1_micro_paired_bootstrap"]["difference_a_minus_b"], 0)
         self.assertEqual(out, stats.compare(cells, "model-a|prompt-v1", "model-b|prompt-v1", 400, 3), "seeded")
         same = stats.compare(cells, "model-a|prompt-v1", "model-a|prompt-v1", 200, 3)
         self.assertEqual(same["field_f1_micro_paired_bootstrap"]["interval"], [0.0, 0.0])
+
+    def test_compare_no_edit_apart_from_exact_match(self):
+        # Every label exact in both cells; model-b needs a serving edit on three, and on one a declined
+        # label (no edit 0) faces an edit-free model-a table. b = 4, c = 1: 2 * (C(5,0) + C(5,1)) / 2^5 = 0.375.
+        rows = []
+        for i in range(6):
+            rows.append(result(f"l{i}", scores(no_edit=i != 5), provider="model-a"))
+            if i == 3:
+                rows.append(result(f"l{i}", scores(outcome="declined"), provider="model-b"))
+            else:
+                rows.append(result(f"l{i}", scores(no_edit=i not in (0, 1, 2)), provider="model-b"))
+        out = stats.compare(stats.load_results(write(rows)), "model-a|prompt-v1", "model-b|prompt-v1", 100, 3)
+        self.assertEqual(out["no_edit_mcnemar"], {"a_only": 4, "b_only": 1, "p_value_exact": 0.375})
+        self.assertEqual(out["exact_match_mcnemar"], {"a_only": 1, "b_only": 0, "p_value_exact": 1.0})
 
     def test_a_result_without_named_scores_is_a_failed_label(self):
         rows = [{"vars": {"label_id": "x"}, "provider": {"label": "m"}, "prompt": {"label": "p"}, "gradingResult": {}, "response": {}}]

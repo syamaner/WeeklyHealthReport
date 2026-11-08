@@ -19,8 +19,13 @@ Intervals (95%):
   recall, and attention items per table: a percentile bootstrap resampling labels (10,000 by
   default), with the seed recorded in the output.
 
-Comparisons between two cells, on the labels both ran: an exact McNemar test for table-level
-exact match, and a paired bootstrap (same resampling of labels) for micro field F1.
+Comparisons between two cells, on the labels both ran: exact McNemar tests for table-level
+exact match and for no edit (bar 2's per-label outcome; a label that does not reach Confirm has no
+edit-free table), and a paired bootstrap (same resampling of labels) for micro field F1.
+
+Scorer v3 (D28): values in reference-intake amount columns are not printed fields; each cell's
+summary reports their sum as ``fields_reference_amounts``, so the printed fields plus that sum is
+every transcribed value.
 
 Bar 4 (5.3, D23): the median cost is the upper median (rank n // 2 + 1 of n sorted costs, the
 13th of 24) and p90 latency is the nearest-rank 90th percentile (rank ceil(0.9 n), the 22nd of
@@ -421,7 +426,8 @@ def summary(cells: dict[str, list[Label]], resamples: int, seed: int, bar_path: 
     for cell, labels in sorted(cells.items()):
         field_level = bootstrap(labels, resamples, seed)
         field_level["field_precision_macro"]["exclusions"] = macro_precision_exclusions(labels)
-        entry = {"labels": len(labels), "label_level": label_proportions(labels), "field_level": field_level,
+        entry = {"labels": len(labels), "fields_reference_amounts": int(sum(label.get("fields_reference_amounts") for label in labels)),
+                 "label_level": label_proportions(labels), "field_level": field_level,
                  "operational": operational(labels), "breakdowns": breakdowns(labels)}
         if bar_path is not None:
             entry["bar"] = bar(labels, bar_path)
@@ -441,15 +447,21 @@ def mcnemar_exact(b: int, c: int) -> float:
     return min(1.0, 2 * tail)
 
 
+def _mcnemar(left: dict[str, Label], right: dict[str, Label], shared: list[str], name: str) -> dict:
+    """The discordant pairs on a per-label 0 or 1 score, and the exact McNemar p value."""
+    only_a = sum(1 for i in shared if left[i].get(name) == 1 and right[i].get(name) != 1)
+    only_b = sum(1 for i in shared if left[i].get(name) != 1 and right[i].get(name) == 1)
+    return {"a_only": only_a, "b_only": only_b, "p_value_exact": mcnemar_exact(only_a, only_b)}
+
+
 def compare(cells: dict[str, list[Label]], a: str, b: str, resamples: int, seed: int) -> dict:
-    """McNemar on exact match and a paired bootstrap on micro field F1, over the shared labels."""
+    """McNemar on exact match and on no edit, and a paired bootstrap on micro field F1, over the
+    shared labels."""
     left = {label.label_id: label for label in cells[a]}
     right = {label.label_id: label for label in cells[b]}
     shared = sorted(set(left) & set(right))
     if not shared:
         raise ValueError("the two cells share no labels")
-    only_a = sum(1 for i in shared if left[i].get("exact_match") == 1 and right[i].get("exact_match") != 1)
-    only_b = sum(1 for i in shared if left[i].get("exact_match") != 1 and right[i].get("exact_match") == 1)
     pairs = [(left[i], right[i]) for i in shared]
 
     def micro_f1(labels: list[Label]) -> float:
@@ -467,7 +479,8 @@ def compare(cells: dict[str, list[Label]], a: str, b: str, resamples: int, seed:
     return {
         "schema": SCHEMA, "seed": seed, "resamples": resamples, "cell_a": a, "cell_b": b, "shared_labels": len(shared),
         "versions_compared": 2,
-        "exact_match_mcnemar": {"a_only": only_a, "b_only": only_b, "p_value_exact": mcnemar_exact(only_a, only_b)},
+        "exact_match_mcnemar": _mcnemar(left, right, shared, "exact_match"),
+        "no_edit_mcnemar": _mcnemar(left, right, shared, "no_edit"),
         "field_f1_micro_paired_bootstrap": {"difference_a_minus_b": observed,
                                             "interval": [percentile_of_sorted(differences, 2.5), percentile_of_sorted(differences, 97.5)],
                                             "p_value_two_sided": min(1.0, 2 * min(at_most_zero, at_least_zero))},
