@@ -44,3 +44,7 @@ The app's optional note and food microphone paths request microphone/speech perm
 Permissions, diagnostics and policy changes
 
 You can revoke Health, microphone, speech and camera permissions in Apple's settings, disable food-search services in the app, and revoke Google access in your Google account. No app analytics or tracking SDK is included. Apple may process TestFlight feedback, crash or diagnostic information under its own settings and terms; information you voluntarily send in feedback is separate from app data collection. Please avoid including health records or credentials in public bug reports. This policy is available offline in the app and at https://github.com/syamaner/WeeklyHealthReport/blob/main/docs/privacy-policy.txt. A later release may update it when its data flows change.
+
+Private evaluation tooling outside the app
+
+For the owner's explicitly requested personal food database evaluation review, selected product titles, matched record names and preparation states may be supplied to Codex's model provider to propose identity and food-state judgements. Row keys align those proposals with the private review sheet. This permission is limited to that review: it excludes query sets and expected answers, nutrient values, pack verdicts, private configuration, unrelated notes and held-out contents. Proposals remain private and provisional; the owner validates them and performs every comparison against pack values. The app does not perform this transfer.

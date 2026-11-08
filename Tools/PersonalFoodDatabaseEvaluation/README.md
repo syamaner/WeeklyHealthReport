@@ -34,9 +34,10 @@ take seeds, clocks and bytes as arguments, so every result is reproducible from 
 **Invariants.**
 - No network access; no private data in this folder. Plan revision 5 permits a dedicated drafting
   agent to direct local offline scripts that prepare private unsplit queries and separate review
-  proposals for owner validation. Only aggregate counts and hashes return to the model; private
-  contents must never appear in prompts, tool output or external review payloads. The drafting
-  agent cannot implement ranking.
+  proposals for owner validation. Query drafting returns counts and hashes only. A subsequent explicit
+  owner authorisation permits selected titles, matched record names and preparation states in model
+  context for semantic identity review (plan section 7); other private fields remain excluded.
+  User-facing and external code-review output remains counts-only. The drafting agent cannot implement ranking.
 - Unknown is never zero: `missing_in_entry`, `not_on_pack` and skips are excluded from denominators
   and reported as their own counts; an empty stratum or set is "not assessed", never a pass.
 - A1 and A5 skips are never replaced; more than 6 skipped A1 entries fails both A1 bars.
@@ -129,3 +130,8 @@ and reassemble; the tool never overwrites it. Approve the final CSV and assemble
 No split or seal occurs during drafting. The results narrative must disclose agent-drafted and
 owner-approved query provenance without changing the closed results JSON schema. A separate
 unexposed session implements ranking and must never read queries or the held-out folder.
+
+The owner-authorised semantic review saves provisional identity/state judgements to the separate
+private proposal file. It leaves uncertain cases and every nutrient value-against-pack verdict blank.
+Model access is limited to the fields listed in plan section 7 and the privacy register, not the
+whole review sheet. The original sheet is completed only through the owner-validation workflow.

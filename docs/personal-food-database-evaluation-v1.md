@@ -105,7 +105,8 @@ and initial review rows on the Mac to propose identity and generic food/state ch
 `review/prefill-proposals.csv`, keyed by sheet row with a one-line reason. It never changes
 `review/review-sheet.csv` or its format. Proposals cover only `census`, `top30` and `draw` rows,
 not replacements. Every nutrient value-against-pack verdict stays blank and rows needing a pack
-are flagged. Scripts return only counts and hashes to Codex, never the source rows or proposals.
+are flagged. Local drafting scripts return counts and hashes only. For semantic review, the owner
+subsequently authorised the narrow model-context exception in decision 8 and section 7.
 The owner validates every row and enters the final verdicts (decision 8). Each verdict uses exactly
 one token; the scorer rejects any other token or an unknown schema version:
 
@@ -305,15 +306,19 @@ fresh sample or a fresh held-out set.
   commit, so later edits to it run the code jobs.
 - **Private, never committed:** the database, the sample and review sheet, the verdicts, the query set
   and its expected answers, the held-out set, `seals.txt`, and any per-entry or per-query output.
-- **Bounded local drafting (decision 8):** Codex may direct offline scripts to process the pinned
-  release, initial review rows and unsplit queries on the owner's Mac. Only aggregate counts and
-  hashes may return through tool results, console, chat or handover. Catalogue contents, titles,
-  brands, queries, expected answers, sheet rows and proposals must never enter model context,
-  prompts, tool output or external review payloads. Do not use file-display tools on these files;
-  failures must not echo private cells. This is local processing authority, not permission to send
-  private data to a model provider. See `privacy-and-egress.md` for the matching boundary.
-  The drafting session never implements ranking. After splitting, no agent opens the held-out
-  folder or per-query output. Private drafts remain local; no external food query is authorised.
+- **Bounded drafting and semantic review (decision 8):** query drafting remains local-script work,
+  returning aggregate counts and hashes only. On 8 November 2026 the owner explicitly authorised
+  relevant product titles, matched record names and preparation states to enter Codex model context
+  for identity and generic food/state review. Read only a filtered projection of those fields with
+  row keys for alignment, not whole catalogue or sheet files. This sends the permitted fields to the
+  model provider. It does not authorise query text, expected query answers, nutrient values, pack
+  verdicts, private configuration, unrelated notes or held-out contents to enter model context.
+  Provisional semantic decisions are saved privately; user-facing replies, repository files,
+  issues, PRs, commits and external code-review payloads contain counts and hashes only.
+  See `privacy-and-egress.md` for this explicit, owner-requested exception. It does not approve
+  Open Food Facts or any other external food query. The drafting/reviewing session cannot implement
+  ranking. After splitting, no agent opens the held-out folder or per-query output. Every pack-value
+  check remains the owner's, and uncertain identity/state cases stay blank.
 - **In the repository:** this plan; the scoring tool and its synthetic fixtures; the v11 golden file of
   section 4.5; and the E3 and release-check results files in the versioned format `pfd-results-v1`,
   **counts and intervals only**. That format is an allow-list: closed field names, whole-number counts,
@@ -381,6 +386,10 @@ fresh sample or a fresh held-out set.
    query provenance. The ranking implementer must be a separate unexposed session or agent and never
    read the query set or held-out folder. Decisions 1 to 7, acceptance bars, sample, release, seed and
    split rules remain unchanged. No split, seal or scoring is authorised before owner approval.
+   Later on 8 November 2026, after being told that the selected fields reach the model provider,
+   the owner explicitly authorised relevant titles, matched record names and preparation states
+   for semantic identity review. This narrow exception replaces the counts-only model-input rule
+   for those fields alone. It does not approve provisional decisions, nutrient comparisons or seals.
 
 ## 10. Review record
 

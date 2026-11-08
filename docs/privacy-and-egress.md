@@ -16,22 +16,22 @@ Source datasets bundled with the app (CoFID 2021, USDA FoodData Central, TFDA an
 
 Developer tooling for Your food database ([personal-food-catalogue-import-v1.md](personal-food-catalogue-import-v1.md)) runs on the owner's Mac, not in the app, and is not app egress. Its scripts send to Open Food Facts only (a) product titles from the owner's own receipts and from intake items that name a brand, with pack sizes removed, (b) generic food names, and (c) barcodes of chosen matches. They never send receipt text, notes, amounts, prices, addresses or identifiers, and all requests go through the skill's paced client (below the published limit, with backoff and Retry-After). Receipt titles come only from receipt item lines, never headers, after the extractor's privacy gate, and every query also passes an outbound gate (no currency, prices, emails, postcodes, long numbers, honorific names, street addresses or order and payment words, and at least one known food word, or Chinese text containing a known Chinese food fragment). Because a word list cannot recognise every personal name, no search query is sent until the owner has approved that exact query: the scripts list every planned query in a pending file and stop before any network call, then send only approved queries and never declined ones. Barcode lookups for chosen products send only digits taken from Open Food Facts' own results and need no separate approval. A product page the owner names is read once with the agent's web-fetch tool. What the agent reads reaches the agent's model provider: the owner's notes, label and receipt photos, CSV header rows, product pages the owner names, and the food titles the agent maps or shows the owner for approval; only when the owner asks. Owner approval: 7 November 2026.
 
-Personal food database evaluation drafting ([evaluation plan revision 5](personal-food-database-evaluation-v1.md),
-section 9 decision 8) is local processing on the owner's Mac. Codex may direct offline scripts to
-read the pinned release, initial review rows and unsplit queries and write private drafts and
-proposals. Only aggregate counts and hashes may be returned to the agent through tool results,
-console, chat or handover. The underlying catalogue contents, titles, brands, query text, expected
-answers, review-sheet rows and proposals are not approved for model-provider access: never include
-them in prompts, file-display output, error messages or external review payloads. Drafting authority
-does not approve a food query to any external service. The owner validates every row; nutrient
-value-against-pack checks remain exclusively the owner's. This narrows the evaluation workflow to
-local scripts and adds no destination or private-data payload to the allowed egress list. Owner
-workflow approval: 8 November 2026; draft contents and plan acceptance remain pending.
+Personal food database evaluation ([evaluation plan revision 5](personal-food-database-evaluation-v1.md),
+section 9 decision 8) uses local offline scripts for query drafting, returning counts and hashes only.
+On 8 November 2026 the owner separately authorised relevant product titles, matched record names
+and preparation states to enter Codex model context for semantic identity and generic food/state
+review, after being told these fields reach the model provider. Only a filtered projection of those
+fields with row keys is permitted. Query text, expected query answers, nutrient values, pack verdicts,
+private configuration, unrelated notes and held-out contents are excluded. Proposals remain private;
+user-facing replies and repository/issue/PR/code-review payloads contain counts and hashes only.
+The exception does not authorise any external food query. Pack comparisons remain exclusively the
+owner's; every semantic decision is provisional until owner validation. Plan acceptance remains pending.
 
 ## Allowed egress
 
 | Destination | What is sent | When | Contract |
 |---|---|---|---|
+| Codex model provider | Relevant product titles, matched record names, preparation states and row keys for private evaluation identity review; no query set, nutrient values, pack verdicts or held-out contents | Only for the owner's explicitly authorised semantic review on 8 November 2026; outside the app, with provisional outputs saved privately | [personal-food-database-evaluation-v1.md](personal-food-database-evaluation-v1.md) revision 5, section 9 decision 8 |
 | Clipboard, share sheet or the iOS screenshot editor | The report text, or a Full Page PDF of Health (the report) or Today (today's food totals, quick-add favourite names and amounts, today's note count and today-so-far Health values), created in memory; or a misread report for a pasted nutrition label (the pasted label text, the values read from it, and the parser, gate, check and conversion versions), as previewed and edited by the user | Only when the user chooses Copy all, Share, a screenshot's Full Page, or Report a misread, and then saves or shares it; the user picks the destination in the system share sheet and can cancel; the app has no destination of its own and nothing is sent automatically | [app-reference.md](app-reference.md), [pasted-nutrition-label-v1.md](pasted-nutrition-label-v1.md) |
 | A file location the user chooses | The inventory backup file | Only when the user chooses to export a backup | [food-library-storage-and-backup-decision.md](food-library-storage-and-backup-decision.md) |
 | Google Drive (`drive.file`) | The exact reviewed Daily JSON bytes (health data, selected-source nutrition and that day's notes), and, when the user keeps Food log on, the exact reviewed food daily JSON bytes for the same day (log entries, nutrient values with their sources, daily totals), each with minimal export-identity metadata | Only when the user chooses Export | [daily-export-contract.md](daily-export-contract.md), [food-daily-export-contract-v1.md](food-daily-export-contract-v1.md), [google-drive-export-plan.md](google-drive-export-plan.md) |
