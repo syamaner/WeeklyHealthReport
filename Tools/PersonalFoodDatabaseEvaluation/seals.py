@@ -9,7 +9,10 @@ an infrastructure failure. The limit guards against an accidental rerun, not a d
 private file. A seal file
 that is a link is refused.
 """
+import contextlib
+import fcntl
 import hashlib
+import os
 from pathlib import Path
 
 ORDER = ("seal-dev", "seal-heldout", "seal-review")
@@ -22,6 +25,8 @@ class SealError(ValueError):
 
 
 def bundle_sha256(folder: Path, prefix: str, suffix: str):
+    if folder.is_symlink() or any(p.is_symlink() for p in folder.iterdir() if folder.is_dir()):
+        raise SealError(f"{prefix}: a sealed folder and its files must not be links")
     names = sorted(p.name for p in folder.iterdir() if p.is_file() and p.name.endswith(suffix)) if folder.is_dir() else []
     listing = "".join(f"{hashlib.sha256((folder / n).read_bytes()).hexdigest()}  {prefix}/{n}\n" for n in names)
     return hashlib.sha256(listing.encode("utf-8")).hexdigest(), len(names)
@@ -32,6 +37,17 @@ def _file(root: Path) -> Path:
     if p.is_symlink() or (p.exists() and not p.is_file()):
         raise SealError("seals.txt must be a plain file inside the evaluation folder")
     return p
+
+
+@contextlib.contextmanager
+def _locked(root: Path):
+    """One writer at a time: an exclusive lock on a private lock file that is never a link."""
+    fd = os.open(root / ".seals.lock", os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        os.close(fd)
 
 
 def _lines(root: Path):
@@ -66,6 +82,11 @@ def current(name: str, root: Path):
 def seal(name: str, root: Path, now_utc: str) -> str:
     if name not in ORDER:
         raise SealError("unknown seal")
+    with _locked(root):
+        return _seal(name, root, now_utc)
+
+
+def _seal(name: str, root: Path, now_utc: str) -> str:
     have = recorded(root)
     if name in have:
         raise SealError(f"{name} is already recorded; seals are never replaced")
@@ -89,11 +110,15 @@ def require(name: str, root: Path) -> str:
     return have[name]
 
 
-def log_held_out_run(root: Path, ranking_sha256: str, now_utc: str):
-    require("seal-heldout", root)
-    runs = held_out_runs(root)
-    if runs >= HELD_OUT_RUN_LIMIT:
-        raise SealError("the held-out set has already been scored once and rerun once")
-    with open(_file(root), "a", encoding="utf-8") as fh:
-        fh.write(f"run-heldout {ranking_sha256} {runs + 1} {now_utc}\n")
-    return runs + 1
+def log_held_out_run(root: Path, ranking_sha256: str, now_utc: str, write=lambda n: None):
+    """Record the next held-out run. `write(n)` produces the run's result first, under the same lock;
+    if it fails, no run is recorded, so a failed write never uses up one of the two runs."""
+    with _locked(root):
+        require("seal-heldout", root)
+        runs = held_out_runs(root)
+        if runs >= HELD_OUT_RUN_LIMIT:
+            raise SealError("the held-out set has already been scored once and rerun once")
+        write(runs + 1)
+        with open(_file(root), "a", encoding="utf-8") as fh:
+            fh.write(f"run-heldout {ranking_sha256} {runs + 1} {now_utc}\n")
+        return runs + 1

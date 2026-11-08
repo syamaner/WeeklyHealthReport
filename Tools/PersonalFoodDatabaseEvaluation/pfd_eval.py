@@ -195,24 +195,27 @@ def cmd_score_b(a, root):
     if ranking["set"] != a.set or qs["release_id"] != fz["release_id"]:
         sys.exit("refused: the ranking output or query set is for another set or release")
     measures = score_b.score(qs, ranking)
-    out = None
-    if a.out:
-        if a.set != "held-out":
-            sys.exit("refused: development results are never repository evidence")
+    if a.set == "held-out":
+        if not a.out:
+            sys.exit("refused: a held-out run needs --out, so every run leaves its result")
         out = repo_out(a.out)
-        if out.exists():
+        if out.exists() or out.is_symlink():
             sys.exit("refused: an evaluation file already exists and is never overwritten")
         # Plan 4.3: every result states the owner's openings of per-query development output.
         log = root / "exposures.txt"
+        if log.is_symlink() or (log.exists() and not log.is_file()):
+            sys.exit("refused: exposures.txt must be a plain file inside the evaluation folder")
         measures["owner_development_output_openings"] = len(
             [l for l in log.read_text(encoding="utf-8").splitlines() if l.strip()]) if log.exists() else 0
-        measures["held_out_run"] = seals.held_out_runs(root) + 1  # the run this result will be recorded as
-        data = results.build("B", fz["release_id"], measures, "held-out")
-    if a.set == "held-out":
-        n = seals.log_held_out_run(root, formats.sha256(ranking_bytes), now_utc())
+
+        def write(n):
+            measures["held_out_run"] = n
+            write_new(out, results.build("B", fz["release_id"], measures, "held-out"))
+
+        n = seals.log_held_out_run(root, formats.sha256(ranking_bytes), now_utc(), write)
         print(f"held-out run {n} of {seals.HELD_OUT_RUN_LIMIT} recorded")
-    if out is not None:
-        write_new(out, data)
+    elif a.out:
+        sys.exit("refused: development results are never repository evidence")
     print(f"Part B {a.set} scored:", summary(measures))
 
 

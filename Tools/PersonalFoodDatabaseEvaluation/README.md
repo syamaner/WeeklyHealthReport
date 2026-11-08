@@ -59,11 +59,13 @@ prints no title, query text or entry ID.
 `EXPECTED` hash, for the Swift step test to check in the implementation phase. Held-out scoring runs are
 recorded as `run-heldout` lines in `seals.txt`, and a third is refused. This guards against an
 accidental rerun, not a deliberate one: anyone who can edit the private folder can remove those lines, so
-each held-out result also states its run number.
+each held-out result also states its run number. A held-out run must name `--out`; its result is
+written before the run is recorded, so a failed write uses up no run. Seal and run writes take an
+exclusive lock on the private `.seals.lock`, and a sealed folder or file that is a link is refused.
 
 **Private folder layout.** `<root>/sample/sample.json`, `<root>/review/review-sheet.csv`,
 `<root>/sample/purchase-counts.json`, `<root>/development/query-set.json`, `<root>/held-out/query-set.json`,
-`seals.txt` and `exposures.txt`. The
+`seals.txt`, `.seals.lock` and `exposures.txt` (a plain file, never a link). The
 root must pass the skill's `workspace_guard.check` (not in a git tree, mode 700) and every path its
 `check_output`; no evaluation file is ever overwritten.
 

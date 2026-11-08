@@ -71,6 +71,30 @@ class Seals(unittest.TestCase):
             with self.assertRaises(seals.SealError):
                 seals.log_held_out_run(root, "c" * 64, "t3")
 
+    def test_failed_result_write_uses_no_run(self):
+        with H.private_dir() as t:
+            root = Path(t)
+            for d in ("development", "held-out"):
+                (root / d).mkdir()
+                (root / d / "query-set.json").write_text("{}")
+            seals.seal("seal-dev", root, "t0")
+            seals.seal("seal-heldout", root, "t0")
+
+            def fail(n):
+                raise OSError("synthetic write failure")
+            with self.assertRaises(OSError):
+                seals.log_held_out_run(root, "a" * 64, "t1", fail)
+            self.assertEqual(seals.held_out_runs(root), 0)
+
+    def test_linked_bundle_member_is_refused(self):
+        with H.private_dir() as t, tempfile.TemporaryDirectory() as other:
+            root = Path(t)
+            (root / "development").mkdir()
+            (Path(other) / "x.json").write_text("{}")
+            os.symlink(Path(other) / "x.json", root / "development" / "query-set.json")
+            with self.assertRaises(seals.SealError):
+                seals.seal("seal-dev", root, "t0")
+
 
 class Freeze(unittest.TestCase):
     def test_changed_file_and_missing_entry_fail_closed(self):
@@ -250,10 +274,15 @@ class CommandLine(unittest.TestCase):
                                           "--ranking", str(root / "ranking.json"), "--out", str(repo / "b.json"))
                 self.assertEqual(code, 0, text)
                 self.assertNotIn(self.QUERY.encode(), (repo / "b.json").read_bytes())
-                self.assertEqual(self.run_cli("score-b", "--root", str(root), "--set", "held-out",
-                                              "--ranking", str(root / "ranking.json"))[0], 0)
+                self.assertEqual(json.loads((repo / "b.json").read_bytes())["measures"]["held_out_run"], 1)
                 self.assertNotEqual(self.run_cli("score-b", "--root", str(root), "--set", "held-out",
-                                                 "--ranking", str(root / "ranking.json"))[0], 0)  # third run refused
+                                                 "--ranking", str(root / "ranking.json"))[0], 0)  # no --out: refused
+                self.assertEqual(seals.held_out_runs(root), 1)  # and no run used
+                self.assertEqual(self.run_cli("score-b", "--root", str(root), "--set", "held-out",
+                                              "--ranking", str(root / "ranking.json"), "--out", str(repo / "b2.json"))[0], 0)
+                self.assertNotEqual(self.run_cli("score-b", "--root", str(root), "--set", "held-out",
+                                                 "--ranking", str(root / "ranking.json"), "--out", str(repo / "b3.json"))[0], 0)  # third run refused
+                self.assertFalse((repo / "b3.json").exists())
                 (repo / "frozen.py").write_text("frozen = False\n")
                 self.assertNotEqual(self.run_cli("score-a", "--root", str(root), "--out", str(repo / "c.json"))[0], 0)
             finally:
