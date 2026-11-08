@@ -150,3 +150,26 @@ migration described in plan section 3.3. No new tool implementation is authorise
 The plan's subsequent amendment supersedes earlier pack-check instructions here. Part B query
 validation, blinding and bars remain unchanged. All web values remain `page_unconfirmed` and carry
 URL, date read, source state, basis and method; use local evidence before external research.
+
+## Part A review v2 (#443)
+
+The owner approved the v2 design ([`docs/personal-food-database-review-v2-design.md`](../../docs/personal-food-database-review-v2-design.md))
+and the Part A bars `v2_proposed` (plan decision 9). The v2 modules live in `v2/`, because the v1
+freeze check refuses any unlisted `*.py` file in this folder; every v1 file and `freeze-v1.json`
+stay byte for byte. `freeze-v2.json` pins the v2 modules, `nutrient-inventory-v1.json` and the
+hash of `freeze-v1.json`, and holds `part_a_bars`.
+
+Private layout under the evaluation root: `review-v2/review-sheet-v2.csv` and
+`review-v2/nutrient-evidence-v2.jsonl` (the only two files sealed by `seal-review-v2`),
+`exclusions-v2/exclusions.json`, and the append-only `seals-v2.txt`.
+
+```
+python3 -I v2/pfd_eval_v2.py review-sheet-v2 --root DIR     (writes the empty v2 sheet)
+python3 -I v2/pfd_eval_v2.py seal --root DIR seal-review-v2 (after the owner fills both files)
+python3 -I v2/pfd_eval_v2.py score-a-v2 --root DIR --out OUT (refuses without part_a_bars; locks it)
+```
+
+Run `python3 -I v2/pfd_eval_v2.py <command> --help` for exact options. The A1 and A5 value bar is
+judged on macro and micro values together, as the plan's single "assessed value evidence error"
+bar; macro and micro counts are reported separately for information. After any change to a `v2/`
+module or the inventory, regenerate `freeze-v2.json` in the same commit.
