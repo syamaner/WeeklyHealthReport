@@ -15,5 +15,6 @@
     "Tools/PersonalFoodDatabaseEvaluation/stats.py": "1fde63c18c23775e9092481826cd44e0ceef03e5b832dbd029bce2cb938e9b1b"
   },
   "release_id": "pfc:sha256:55caa60d11a9af23a0a7aff23f6a52b6390ef9d8da05c069b4b3f66295d5088d",
-  "schema": "pfd-freeze-v1"
+  "schema": "pfd-freeze-v1",
+  "seed": 1072955911
 }
