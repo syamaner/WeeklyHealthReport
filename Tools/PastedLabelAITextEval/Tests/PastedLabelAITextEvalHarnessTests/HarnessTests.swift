@@ -122,6 +122,29 @@ final class HarnessTests: XCTestCase {
         XCTAssertNil(refused.response)
     }
 
+    func testThePhotoLedgerIsRefusedAndAFreshLedgerIsTheTextSchema() async throws {
+        // #426 Qodo findings: the text and photo routes never share a ledger file, so neither reader
+        // applies its rules to the other's entries.
+        XCTAssertNotEqual(EvalSpendLedger.schema, EvalSpendLedger.photoSchema)
+        try Data(#"{"schema_version": "label-capture-spend-ledger-v1", "entries": []}"#.utf8).write(to: root.appendingPathComponent("ledger.json"))
+        let refused = try await SendCommand.run(options())
+        XCTAssertEqual(refused.attempt, "refused:the spend ledger is the photo evaluation's; the text evaluation keeps its own")
+        XCTAssertNil(refused.response)
+        try FileManager.default.removeItem(at: root.appendingPathComponent("ledger.json"))
+        _ = try await SendCommand.run(options(label: "uk-no-cost"))
+        XCTAssertEqual(try ledger()["schema_version"] as? String, "pasted-label-ai-text-spend-ledger-v1")
+        XCTAssertEqual(try ledger()["limits"] as? [String: AnyHashable], ["per_call_usd": "0.20", "total_usd": "25", "unknown_cost_calls_allowed": 3])
+    }
+
+    func testTheFileStatesTheChargeIncludingWForUnknownCosts() async throws {
+        _ = try await SendCommand.run(options())
+        _ = try await SendCommand.run(options(label: "uk-no-cost"))
+        XCTAssertEqual(try ledger()["reported_spend_usd"] as? String, "0.004", "an unknown cost is never zero")
+        XCTAssertEqual(try ledger()["charged_usd"] as? String, "\(Decimal(string: "0.004")! + Self.noCostW)")
+        XCTAssertEqual(try ledger()["open_calls"] as? Int, 0)
+        XCTAssertEqual(try ledger()["unknown_cost_calls"] as? Int, 1)
+    }
+
     func testANotSentAttemptSettlesToZero() async throws {
         let ledger = try EvalSpendLedger(url: root.appendingPathComponent("ledger.json"))
         let id = try ledger.reserve(cell: "c", caseID: "x", model: "m", worstCase: Decimal(string: "0.02")!, at: "t", id: "r1")

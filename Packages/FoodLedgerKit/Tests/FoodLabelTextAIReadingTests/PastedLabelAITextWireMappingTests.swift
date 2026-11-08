@@ -112,6 +112,15 @@ final class PastedLabelAITextWireMappingTests: XCTestCase {
         XCTAssertEqual(result.values[0].reasons, [.unitNotStated])
     }
 
+    func testAModelUnitInAnotherLetterCaseIsReadAsItsCanonicalUnit() throws {
+        // #426 Qodo finding: `G` maps to `g` in the closed table, so the value is read, not lost.
+        let result = mapped("Per 100g\nFat (g) 5", Self.wire(label: "Fat (g)", printed: "5", unit: "G"))
+        XCTAssertEqual(result.values[0].unitCheck, .statedInRowLabel)
+        XCTAssertEqual(result.values[0].reasons, [])
+        let cell = try XCTUnwrap(result.candidate.cells.first)
+        XCTAssertEqual([cell.decimalText, cell.unit, cell.canonicalUnit], ["5", "g", "g"])
+    }
+
     func testAPrintedUnitIsNeverOverridden() throws {
         let result = mapped("Per 100g\nFat 5g", Self.wire(printed: "5g", unit: "mg"))
         XCTAssertEqual(result.values[0].unitCheck, .conflict)
