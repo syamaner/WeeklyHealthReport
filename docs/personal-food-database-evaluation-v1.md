@@ -135,7 +135,10 @@ is informational in every case.
 - **Target size:** about 160 queries, 20 negative.
 - **Who handles it.** The owner types the added queries and every expected answer into the private
   file directly. A script assembles the file and draws the split; the agent never reads the query
-  text, the expected answers, the held-out file or any per-query output, only counts.
+  text, the expected answers, the held-out file or any per-query output, only counts. The owner works
+  in a spreadsheet template and finds entry and generic record IDs with an owner-only lookup that
+  prints to their screen, alphabetically and without a score, so it is not the ranking under test
+  (the tool's README gives the steps).
 
 ### 4.2 Expected answers
 

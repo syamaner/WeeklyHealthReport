@@ -3938,6 +3938,18 @@ Excluded:
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
 
+
+## WHR-430-2026-11-08: query tools E1d
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| E1d Codex, bounded fixes and checks | 245,852 (239,104) | 0 | 1,204 | 247,056 | $0.37 |
+| E1d Claude Code implementation | Unmeasured | Unmeasured | Unmeasured | Unmeasured | Unmeasured |
+
+Codex session `01a1aa77-f626-7df3-a33b-3871dbc6159f`; measured with the agent-phase-accounting helper using baseline counters 10,465,920 input, 9,890,816 cached input and 24,873 output. The boundary starts after initial inspection and ends before this ledger edit. Initial Codex inspection is unmeasured; Claude Code has no captured boundary. No subagents were used. External review, local test execution costs, this ledger edit and subsequent delivery are excluded. Qodo review runs are outside this measured boundary.
+
+Comparison uses the ledger's historical Astra Standard assumptions of USD 10/M uncached input, 1/M cached input and 50/M output, not current verified prices or actual subscription billing. Exact comparison: USD 0.366784. Token counts are not evidence of productivity or quality.
+
 ## WHR-431-2026-11-08: Claude Code personal food database evaluation release pin (phase E1b, #431)
 
 The coordinator session (`claude-opus-5-5`, session `93e9e82e-ef3d-4d2f-9186-58c67056c1ca`) pinned the release on the owner's approval. It checked the private release with the evaluation tool's own parser, rebuilt a private copy offline with the committed skill to confirm the entries were reproduced, recorded the release ID in the freeze record and the skill commit and mapping-file hashes in the plan, and ran the evaluation tests. No subagents. The window runs from the owner's approval at `2026-11-08T13:58:52Z` to `2026-11-08T14:50:00Z`.
