@@ -135,3 +135,15 @@ The owner-authorised semantic review saves provisional identity/state judgements
 private proposal file. It leaves uncertain cases and every nutrient value-against-pack verdict blank.
 Model access is limited to the fields listed in plan section 7 and the privacy register, not the
 whole review sheet. The original sheet is completed only through the owner-validation workflow.
+
+## Revision 5 best-estimate amendment: scoring hold
+
+The current v1 review sheet and Part A scorer implement the earlier pack-verification rubric. They
+cannot score the revised identity/state/variety, macro/micro coverage and per-nutrient evidence
+review. Keep the original sheet unchanged. Private `best-estimate-review.csv`,
+`nutrient-evidence.jsonl` and `enrichment-candidates.csv` hold proposals only. Do not translate these
+into v1 verdicts or run `seal-review`/`score-a` until the owner approves a versioned schema/scorer
+migration described in plan section 3.3. No new tool implementation is authorised by this document.
+The plan's subsequent amendment supersedes earlier pack-check instructions here. Part B query
+validation, blinding and bars remain unchanged. All web values remain `page_unconfirmed` and carry
+URL, date read, source state, basis and method; use local evidence before external research.

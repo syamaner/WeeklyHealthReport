@@ -55,3 +55,13 @@ owner's; every semantic decision is provisional until owner validation. Plan acc
 ## Retired
 
 Gemini is no longer used by the app. Its contracts remain in [`archive/`](archive/) as regression evidence only.
+
+
+Evaluation best-estimate amendment (8 November 2026)
+
+For the explicitly requested estimate review, food descriptions may be sent to web search and
+source sites, with national composition databases and manufacturer pages preferred. Receipt text
+and personal data are excluded. Source nutrient values, food state and provenance may enter the
+model context for this work. This narrowly supersedes the earlier evaluation nutrient-context and
+external-query exclusions. Private outputs retain source URL, date read and page_unconfirmed status;
+no catalogue or evaluation file is published, and no app transfer or automatic food save is added.

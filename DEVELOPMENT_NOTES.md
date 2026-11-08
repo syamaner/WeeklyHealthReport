@@ -4002,3 +4002,13 @@ Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base 
 Bounded session `01a1aa77-f626-7df3-a33b-3871dbc6159f`, baseline 18,883,425 input, 18,268,672 cached input and 38,597 output; measured before this ledger edit using the agent-phase-accounting helper. Cached input is included in input; total is input plus output; cache writes are zero. This excludes earlier work in the reused session, external review, private drafting, this ledger edit and delivery. No subagents were used.
 
 Historical ledger comparison rates: USD 10/M uncached input, 1/M cached input and 50/M output; exact USD 3.184720. These are explicitly historical assumptions, not verified current prices or subscription charges. Counts are not measures of productivity or quality.
+
+
+### WHR-436 best-estimate follow-up
+
+| Phase | Input | Cached input | Output | Total | API-equivalent cost |
+|---|---:|---:|---:|---:|---:|
+| Revised rubric, private evidence proposals and research follow-up | Unmeasured | Unmeasured | Unmeasured | Unmeasured | Unmeasured |
+
+No reliable start boundary was captured for this follow-up. The earlier measured row is unchanged;
+no usage or cost is inferred. External research and hosted reviews are also unmeasured.

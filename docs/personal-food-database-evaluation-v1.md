@@ -64,75 +64,58 @@ list. A rebuilt database is a new release, except an E3 export that only **drops
 6 rule: that needs no new Part A sample. Part B answers are keyed by entry `id`, which is stable for a
 brand and title (contract section 4), and every result names the release it ran on.
 
-## 3. Part A: database quality (owner checks a sample)
+## 3. Part A: evidence-backed estimates
 
-### 3.1 Strata
+### 3.1 Review standard
 
-Each entry is placed in exactly **one** stratum, in this order: A5 if it carries owner label values,
-else A1 if it carries Open Food Facts label values, else A2 if its generic reference role is `merge`,
-else A3 if it is `candidate`, else A4. Counts below are from the release built on 7 November 2026 and
-will be re-read from the pinned release.
+The objective is the best supported estimate per 100 g or 100 ml for the food actually eaten.
+Review identity, preparation state and materially different variety, then macro and micronutrient
+coverage and the evidence for each value. Raw, cooked, drained, dry and prepared states are distinct;
+no universal cooking or density conversion is assumed. Unknown is never zero. Pack verification,
+pack tiers, serving sizes and portions are outside this review.
 
-| Stratum | What the entry carries | Entries | What the owner checks |
-|---|---|---:|---|
-| A1 own label | Open Food Facts label values for the product | 58 | Is it this product (brand, variant, pack)? Do the values agree with the pack? |
-| A2 merge | a same-food, raw or cooked generic record merged in | 297 | Is the generic record the same food in the same state? |
-| A3 candidate | a close or other-state generic record offered separately | 382 | Is it a sensible "Generic" choice for this food, or misleading? |
-| A4 name only | no values, no reference | 138 | Is there really nothing suitable, or did matching miss an obvious one? |
-| A5 owner label | values the owner typed or confirmed | (few) | Do they agree with the pack? (checks the intake path, not the owner) |
+Use the pinned release and its pinned national composition corpora first. A matching national
+composition record or manufacturer page may improve a missing value. Aggregator records are
+secondary candidates. Each proposed value records source and record identifier, source state, basis,
+method (direct, derived with its formula, or carried over from a similar food), and uncertainty.
+Web-derived values also record URL and date read and remain `page_unconfirmed`. A page which does
+not specify the nutrition table's preparation state is recorded as unspecified, not assumed cooked.
+Every value remains an estimate; no proposal automatically changes the release.
 
-### 3.2 Sample
+### 3.2 Existing sample
 
-- **A1 and A5 are checked in full** (a census, not a sample): all 58 A1 entries and every A5 entry.
-- **Always included:** the 30 most-bought entries (by receipt purchase lines, from a private
-  `pfd-purchase-counts-v1` file that a skill script writes in E1c, since the import file carries no
-  purchase data; ties go to the lower entry `id`). They count towards
-  their own stratum's quota; if a stratum's members among the top 30 exceed its quota, its quota grows
-  to include them all, and the A2 and A3 bars keep their fixed allowed counts (decision 7).
-- **A2 40, A3 40 and A4 20**, filled by a seeded random draw without replacement after the top 30.
-- **Skips.** In A1 and A5 a skipped entry ("no pack to hand", or a pack that prints values only per
-  serving) is **not replaced**; it is recorded and reported, and more than 6 skipped A1 entries fail the
-  A1 bars (fail closed). In A2 to A4 a skipped entry is replaced by the next one in the seeded order and
-  recorded.
-- Expected effort: up to about 180 checks, including replacements.
+Keep the pinned 158 initial census, top30 and draw rows and their existing A1 to A5 identifiers for
+reproducibility. Those identifiers describe the historical source grouping, not evidence-quality
+or pack tiers. Do not redraw, replace rows, modify the pinned release or regenerate the existing sheet.
+A missing source or unresolved state is recorded as unresolved and is not a passing check.
 
-### 3.3 What the owner records (`pfd-review-sheet-v1`)
+### 3.3 Review format and minimal tool change
 
-The skill writes a private review sheet in the versioned format `pfd-review-sheet-v1` (columns:
-`stratum`, `entry_id`, `title`, `matched`, `values`, then one verdict column per check). The sheet is
-**written and scored by scripts**. Codex may run local offline scripts that read the pinned release
-and initial review rows on the Mac to propose identity and generic food/state checks in a separate private
-`review/prefill-proposals.csv`, keyed by sheet row with a one-line reason. It never changes
-`review/review-sheet.csv` or its format. Proposals cover only `census`, `top30` and `draw` rows,
-not replacements. Every nutrient value-against-pack verdict stays blank and rows needing a pack
-are flagged. Local drafting scripts return counts and hashes only. For semantic review, the owner
-subsequently authorised the narrow model-context exception in decision 8 and section 7.
-The owner validates every row and enters the final verdicts (decision 8). Each verdict uses exactly
-one token; the scorer rejects any other token or an unknown schema version:
+`pfd-review-sheet-v1` cannot express this rubric. Its eight fixed nutrient columns and stratum-specific
+verdicts omit separate state and variety checks, micronutrients and per-value evidence. Preserve
+`review/review-sheet.csv` byte-for-byte. Use a separate private `best-estimate-review.csv` keyed by
+sheet row, with identity/state/variety proposals, present and missing macro/micro fields, evidence
+gaps, state-conflict flags and a reason. Store individual values in `nutrient-evidence.jsonl` and
+next-release work in `enrichment-candidates.csv`. These are proposals, not scorer input.
 
-- **A1, A5 product:** `right_product`, `wrong_variant` (flavour, fat level, recipe), `wrong_product`,
-  `skipped`.
-- **A1, A5 each of the eight label nutrients:** `agrees`, `differs`, `not_on_pack`, `missing_in_entry`.
-  "Agrees" means equal to the pack's printed **per 100 g (or per 100 ml)** value at the pack's own
-  rounding; sodium is compared through the pack's printed salt. `missing_in_entry` means the pack prints
-  the value but the entry has none: unknown is never counted as wrong or right. An entry value that the
-  pack does not print is `differs`, because the entry claims a value the pack does not support.
-- **A2:** `same_food_same_state`, `same_food_other_state`, `different_food`, `skipped`.
-- **A3:** `sensible`, `misleading_close`, `misleading_other_state`, `skipped`.
-- **A4:** `nothing_suitable`, `match_missed`, `skipped`.
-
-The owner is the only final judge. Model proposals are not verdicts and are never scored directly.
-Every value-against-pack check is performed by the owner and is never pre-filled.
+The smallest tool change is a versioned review-v2 row schema plus a nutrient-evidence sidecar, with
+parsing, validation, sealing and Part A result/scorer support for the measures below. It needs
+synthetic contracts for missing versus zero, state conflicts, derived values, incomplete evidence,
+macro/micro coverage and rejection of v1 inputs by the v2 scorer. Existing v1 results remain readable
+under their original semantics. Implement this only after the owner approves the design; no tool
+code or freeze pin is changed by this plan PR. Part A sealing and scoring are blocked until then.
+The owner validates the proposals last. Never coerce the new rubric into old pack-verdict tokens.
 
 ### 3.4 Measures
 
-Counts per stratum, over **checked** entries (skips excluded and reported): wrong product or wrong
-variant (A1); nutrient disagreements over **checked values**, where checked values are `agrees` plus
-`differs` (`not_on_pack` and `missing_in_entry` excluded, and `missing_in_entry` reported as its own
-count) (A1, A5); different food or other state (A2); misleading, split into
-close and other-state (A3); match missed (A4). Each count is reported with a 95 per cent Wilson
-interval. For nutrient values the interval is approximate, because values cluster within an entry; it
-is informational in every case.
+Report checked and unresolved identity/state/variety counts by historical stratum; errors in the
+source, basis, state or recorded derivation for assessed values; macro and micro coverage separately;
+and counts of missing values a suitable source could supply. Freeze the assessed nutrient inventory
+before scoring. Missing, trace and unquantified values are not zero and do not enter numerical-error
+denominators. Source disagreement alone is not an error: an error requires evidence of an incorrect
+identity, state, basis, transcription or derivation. Report candidate-only values separately from
+proposed usable values. A complete micronutrient row means every nutrient in the declared inventory,
+not merely every nutrient available from that source.
 
 ## 4. Part B: search quality (a query set from the owner's own words)
 
@@ -258,18 +241,19 @@ fresh-set step tests:
 
 ## 6. Acceptance bars (owner sets these before any result is seen)
 
-The bars below were **accepted by the owner as proposed on 7 November 2026**, before any result was
-seen. They are measurement thresholds for this software, not nutrition targets. Each failing stratum
-has a fixed consequence that removes the risk rather than relaxing the bar.
+Part B bars remain as accepted on 7 November 2026. The revised Part A bars below are proposals
+for the new rubric, requiring owner acceptance before scoring. No revised Part A result has been
+scored. Earlier preliminary reviews have occurred; this is not a claim of preregistration before
+all evidence. These are software-quality thresholds, not nutrition targets.
 
 | Measure | Bar | If it fails |
 |---|---|---|
-| A1 wrong product or wrong variant | at most 2 checked entries, whatever the number of skips | drop Open Food Facts label values from the import (entries keep their generic reference) |
-| A1 nutrient disagreement | at most 3 per cent of checked values | as above |
+| A1 wrong identity, state or material variety | at most 2 checked entries, with unresolved entries reported separately | drop Open Food Facts label values from the import (entries keep their generic reference) |
+| A1 assessed value evidence error | at most 3 per cent of checked values | as above |
 | A2 different food or other state | at most 2 of 40 | no merges: every generic reference becomes a separate candidate |
 | A3 misleading | at most 4 of 40 | drop all separate candidates (close and other-state); merges are unaffected |
 | A4 match missed | informational | improve matching before the next release; no bar |
-| A5 owner label value disagrees with the pack | at most 3 per cent of checked values; no A5 entries means "not assessed", not a pass | hold owner label values out of the import until the intake step is fixed and re-checked |
+| A5 assessed value evidence error | at most 3 per cent of checked values; no A5 entries means "not assessed", not a pass | hold unsupported values out until their evidence is corrected and re-checked |
 | B wrong entry first (held-out) | at most 3 per cent | not released; fix ranking and re-run on a fresh held-out set (section 4.3) |
 | B negative false hits (held-out) | at most 5 per cent | as above |
 | B top-1 acceptable (held-out) | at least 85 per cent | as above |
@@ -278,12 +262,12 @@ has a fixed consequence that removes the risk rather than relaxing the bar.
 **How a bar is judged.** Each bar is judged on the **observed count**: the result passes when the count
 is within the bar. The 95 per cent interval is reported beside it for information and does not decide
 the result. A percentage bar allows the largest whole count within it (rounding down; for "at least",
-the smallest whole count at or above it), computed on the actual denominator. At the planned sizes this
-means: A1 wrong product or variant at most 2; A1 nutrient disagreements at most 13 of up to 464 checked
-values; A2 at most 2 of 40; A3 at most 4 of 40; A5 at most the largest whole count within 3 per cent of
-its checked values (0 below 34 values); held-out wrong entry first at most 1 of about 64; held-out
-negative false hits at most 0 of 10; held-out top-1 acceptable at least 55 of 64. The counts for the
-actual sizes are recorded in the results file before scoring.
+the smallest whole count at or above it), computed on the actual denominator. For Part A, count assessed values under the new declared inventory, reporting macro and micro
+denominators separately; do not reuse the old eight-column denominator. Proposed coverage bars are
+informational, with all gaps and unresolved rows visible. A stratum containing unresolved required
+identity/state/evidence checks cannot receive a final pass. For Part B the planned held-out counts
+remain wrong entry first at most 1 of about 64, negative false hits 0 of 10 and top-1 acceptable at
+least 55 of 64. The actual denominators are recorded before scoring.
 
 **Export switches.** The A1 and A2 consequences need switches in `export_v1.py` (drop Open Food Facts
 values; force every reference to `candidate`). Dropping Open Food Facts values can change an entry's
@@ -317,8 +301,7 @@ fresh sample or a fresh held-out set.
   issues, PRs, commits and external code-review payloads contain counts and hashes only.
   See `privacy-and-egress.md` for this explicit, owner-requested exception. It does not approve
   Open Food Facts or any other external food query. The drafting/reviewing session cannot implement
-  ranking. After splitting, no agent opens the held-out folder or per-query output. Every pack-value
-  check remains the owner's, and uncertain identity/state cases stay blank.
+  ranking. After splitting, no agent opens the held-out folder or per-query output. The best-estimate amendment below supersedes pack checks; uncertain identity/state cases remain explicit.
 - **In the repository:** this plan; the scoring tool and its synthetic fixtures; the v11 golden file of
   section 4.5; and the E3 and release-check results files in the versioned format `pfd-results-v1`,
   **counts and intervals only**. That format is an allow-list: closed field names, whole-number counts,
@@ -390,6 +373,20 @@ fresh sample or a fresh held-out set.
    the owner explicitly authorised relevant titles, matched record names and preparation states
    for semantic identity review. This narrow exception replaces the counts-only model-input rule
    for those fields alone. It does not approve provisional decisions, nutrient comparisons or seals.
+
+### Subsequent revision 5 amendment: best-estimate review
+
+The owner replaced pack and serving checks with the section 3 rubric before any seal. Local evidence
+comes first; food-description-only web research is authorised where it improves a source or fills a
+nutrient gap, with national composition databases and manufacturers preferred over aggregators.
+Requests contain no receipts or personal data; failures use backoff. Nutrient evidence read for this
+work may enter model context and is stored privately, with web values marked `page_unconfirmed`.
+The earlier offline-only and nutrient-context restrictions are superseded for this work alone.
+Query texts and expected answers remain local-script-only. Private configuration and held-out
+contents remain excluded. This supersedes earlier pack-check and fixed-Part-A-bar statements in
+revision 5; Part B bars and ranking blinding do not change. Approval of this workflow is not approval
+of individual rows, the proposed Part A bars, the tool migration or seals. The alternate private
+format is authorised; the existing sheet, pinned inputs and frozen tools remain untouched.
 
 ## 10. Review record
 
