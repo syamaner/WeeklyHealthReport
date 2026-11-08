@@ -46,7 +46,8 @@ public struct OpenRouterPastedLabelAITextRouteChecker: Sendable {
                              reasoningBilledSeparately: Bool = false) throws -> LabelPhotoManifest.CatalogueCheck {
         guard PastedLabelAITextRoute.isAdmitted(route) else { throw CheckError.notATextRoute }
         let check = try OpenRouterLabelRouteChecker.parseListings(listing: listing, zeroDataRetention: zeroDataRetention, model: route.model,
-                                                                  endpoint: route.endpoint, at: at, reasoningBilledSeparately: reasoningBilledSeparately)
+                                                                  endpoint: route.endpoint, at: at, reasoningBilledSeparately: reasoningBilledSeparately,
+                                                                  textPromptCeiling: PastedLabelAITextSpendPolicy.promptTokenCeiling)
         guard check.zeroDataRetention, check.inputModalities.contains("text"), check.endpoint == route.endpoint else {
             throw CheckError.unavailable
         }

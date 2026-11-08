@@ -77,8 +77,13 @@ public struct OpenRouterLabelRouteChecker: LabelPhotoRouteChecking {
 
     /// The listing and pricing rules for one model and endpoint, shared with the text route
     /// checker, which admits its own closed set before calling them.
+    /// `textPromptCeiling` is the text route's own rule (#416 A3) and is nil for the photo route,
+    /// whose rules it leaves unchanged. With it, tiered `overrides` are accepted only when every
+    /// tier starts above that prompt-token ceiling (so no bounded request can reach one), cache
+    /// writes are accepted at any price, and the returned prompt price is the highest listed input
+    /// price (prompt, cache read or cache write), so a spend bound priced from it stays a true bound.
     static func parseListings(listing: Data, zeroDataRetention: Data, model routeModel: String, endpoint routeEndpoint: String, at: Int64,
-                              reasoningBilledSeparately: Bool) throws -> LabelPhotoManifest.CatalogueCheck {
+                              reasoningBilledSeparately: Bool, textPromptCeiling: Int? = nil) throws -> LabelPhotoManifest.CatalogueCheck {
         guard let root = (try? JSONSerialization.jsonObject(with: listing)) as? [String: Any],
               let model = root["data"] as? [String: Any], let slug = model["id"] as? String,
               let endpoints = model["endpoints"] as? [[String: Any]] else { throw CheckError.malformed }
@@ -90,8 +95,17 @@ public struct OpenRouterLabelRouteChecker: LabelPhotoRouteChecking {
         guard matches.count == 1, let pricing = matches[0]["pricing"] as? [String: Any],
               let prompt = (pricing["prompt"] as? String).flatMap(decimalText),
               let completion = (pricing["completion"] as? String).flatMap(decimalText) else { throw CheckError.malformed }
-        guard pricesAreModelled(pricing, completion: completion, reasoningBilledSeparately: reasoningBilledSeparately) else {
+        guard pricesAreModelled(pricing, completion: completion, reasoningBilledSeparately: reasoningBilledSeparately,
+                                textPromptCeiling: textPromptCeiling) else {
             throw CheckError.unavailable
+        }
+        var promptPrice = prompt
+        if textPromptCeiling != nil, var highest = Decimal(string: prompt) {
+            for name in ["input_cache_read", "input_cache_write", "input_cache_write_1h"] {
+                if let text = (pricing[name] as? String).flatMap(decimalText), let price = Decimal(string: text), price > highest {
+                    highest = price; promptPrice = text
+                }
+            }
         }
         guard let zdrRoot = (try? JSONSerialization.jsonObject(with: zeroDataRetention)) as? [String: Any],
               let zdrEntries = zdrRoot["data"] as? [[String: Any]] else { throw CheckError.malformed }
@@ -99,7 +113,7 @@ public struct OpenRouterLabelRouteChecker: LabelPhotoRouteChecking {
             entry["model_id"] as? String == routeModel && entry["tag"] as? String == routeEndpoint
         }
         return LabelPhotoManifest.CatalogueCheck(at: at, slug: slug, endpoint: routeEndpoint, inputModalities: modalities,
-                                                 zeroDataRetention: listed, promptPrice: prompt, completionPrice: completion)
+                                                 zeroDataRetention: listed, promptPrice: promptPrice, completionPrice: completion)
     }
 
     /// The live pricing object's fields, as listed on 26 October 2026 (17.21), and how each one
@@ -120,12 +134,26 @@ public struct OpenRouterLabelRouteChecker: LabelPhotoRouteChecking {
     static let inputAtMostPrompt: Set<String> = ["image", "input_cache_read", "input_cache_write"]
     static let neverSent: Set<String> = ["audio", "input_audio_cache", "web_search"]
 
-    static func pricesAreModelled(_ pricing: [String: Any], completion: String, reasoningBilledSeparately: Bool) -> Bool {
+    static let textCacheWrites: Set<String> = ["input_cache_write", "input_cache_write_1h"]
+
+    static func pricesAreModelled(_ pricing: [String: Any], completion: String, reasoningBilledSeparately: Bool,
+                                  textPromptCeiling: Int? = nil) -> Bool {
         guard let completion = Decimal(string: completion),
               let promptText = pricing["prompt"] as? String, let prompt = decimalText(promptText).flatMap({ Decimal(string: $0) }) else {
             return false
         }
         for (name, value) in pricing where name != "prompt" && name != "completion" {
+            if let ceiling = textPromptCeiling, name == "overrides" {
+                guard let tiers = value as? [[String: Any]], !tiers.isEmpty, tiers.allSatisfy({ tier in
+                    guard let start = tier["min_prompt_tokens"] as? NSNumber, CFGetTypeID(start) != CFBooleanGetTypeID() else { return false }
+                    return start.doubleValue > Double(ceiling)
+                }) else { return false }
+                continue
+            }
+            if textPromptCeiling != nil, textCacheWrites.contains(name) {
+                guard let text = value as? String, decimalText(text).flatMap({ Decimal(string: $0) }) != nil else { return false }
+                continue
+            }
             if name == "discount" {
                 guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(),
                       number.doubleValue.isFinite, number.doubleValue >= 0, number.doubleValue < 1 else { return false }

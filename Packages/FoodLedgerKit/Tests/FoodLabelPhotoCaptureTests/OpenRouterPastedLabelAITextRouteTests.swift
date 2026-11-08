@@ -215,6 +215,36 @@ final class OpenRouterPastedLabelAITextRouteTests: XCTestCase {
                                                                                 route: Self.route, at: 1, reasoningBilledSeparately: true))
     }
 
+    /// A3: tiered `overrides` above the text ceiling and cache writes above the prompt price are
+    /// accepted for the text route only, with W's prompt price raised to the highest input price.
+    func testTheTextCheckerAcceptsTiersAboveItsCeilingAndPricesCacheWrites() throws {
+        func listing(overridesFrom start: Int) throws -> Data {
+            var listing = OpenRouterLabelPhotoRouteTests.listing
+            var data = listing["data"] as! [String: Any]
+            data["endpoints"] = (data["endpoints"] as! [[String: Any]]).map { endpoint in
+                var endpoint = endpoint
+                var pricing = endpoint["pricing"] as! [String: Any]
+                pricing["input_cache_write"] = "0.000003"
+                pricing["input_cache_write_1h"] = "0.000004"
+                pricing["overrides"] = [["min_prompt_tokens": start, "prompt": "0.000005", "completion": "0.00002"]]
+                endpoint["pricing"] = pricing
+                return endpoint
+            }
+            listing["data"] = data
+            return try JSONSerialization.data(withJSONObject: listing)
+        }
+        let zdr = try JSONSerialization.data(withJSONObject: OpenRouterLabelPhotoRouteTests.zdr)
+        let accepted = try OpenRouterPastedLabelAITextRouteChecker.parse(listing: listing(overridesFrom: 272_000), zeroDataRetention: zdr,
+                                                                         route: Self.route, at: 1, reasoningBilledSeparately: true)
+        XCTAssertEqual(accepted.promptPrice, "0.000004", "W prices prompt tokens at the highest input price listed")
+        XCTAssertThrowsError(try OpenRouterPastedLabelAITextRouteChecker.parse(listing: listing(overridesFrom: 10_000), zeroDataRetention: zdr,
+                                                                                route: Self.route, at: 1, reasoningBilledSeparately: true),
+                             "a tier a bounded request could reach is refused")
+        XCTAssertThrowsError(try OpenRouterLabelRouteChecker.parse(listing: listing(overridesFrom: 272_000), zeroDataRetention: zdr,
+                                                                   route: LabelPhotoRoute.current, at: 1, reasoningBilledSeparately: true),
+                             "the photo route's rules are unchanged")
+    }
+
     /// Qodo finding 2 on A2: a listing for another model that happens to hold the endpoint tag never qualifies it.
     func testAListingForAnotherModelIsRefused() throws {
         var listing = OpenRouterLabelPhotoRouteTests.listing
