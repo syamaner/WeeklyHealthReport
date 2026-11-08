@@ -1,6 +1,6 @@
 # Personal food database evaluation v1
 
-Status: **draft, revision 4, 8 November 2026; the owner has taken every section 9 decision, and the plan
+Status: **draft, revision 5, 8 November 2026; the owner has taken every section 9 decision, and the plan
 is not yet marked accepted.** Revision 2 added three clarifications to the bars after a Qodo review
 (section 9, decision 4). Revision 3 answers the architecture-gate review (PASS WITH CHANGES) and the
 invariant review (NEEDS WORK) of revision 2 with the mechanics they asked for (sections 2, 4, 5 and 8)
@@ -46,7 +46,8 @@ a docs commit; a command that needs an entry stops when it is missing (fail clos
    `pfd-sample-v1`; its SHA-256, and that of the copy of the `pfd-purchase-counts-v1` file it was drawn
    from (kept beside it), are recorded too, so neither can change afterwards. Seeded orders use the
    SHA-256 of `<seed>|<entry id>`, so they never depend on the Python version.
-4. **E1d, Part B query set.** The owner records every query and its expected answer first; then the
+4. **E1d, Part B query set.** Codex drafts queries and expected answers; the owner validates and
+   approves every row before any split or seal (decision 8). Then the
    seeded split runs into the private `development/` and `held-out/` folders; then `seal-dev` and
    `seal-heldout` append one line each to a private append-only `seals.txt` (`<name> <sha256> <file
    count> <UTC time>`, the format of the UK fresh-set protocol, with its bundle hash: the SHA-256 of
@@ -97,8 +98,12 @@ will be re-read from the pinned release.
 
 The skill writes a private review sheet in the versioned format `pfd-review-sheet-v1` (columns:
 `stratum`, `entry_id`, `title`, `matched`, `values`, then one verdict column per check). The sheet is
-**written and scored by scripts; the agent never reads it, the verdicts or any per-entry output**, only
-the counts (section 7). Each verdict uses exactly one token; the scorer rejects any other token or an
+**written and scored by scripts**. The drafting agent may read the pinned release and initial
+review rows to propose identity and generic food/state checks in a separate private
+`review/prefill-proposals.csv`, keyed by sheet row with a one-line reason. It never changes
+`review/review-sheet.csv` or its format. Proposals cover only `census`, `top30` and `draw` rows,
+not replacements. Every nutrient value-against-pack verdict stays blank and rows needing a pack
+are flagged. The owner validates every row and enters the final verdicts (decision 8). Each verdict uses exactly one token; the scorer rejects any other token or an
 unknown schema version:
 
 - **A1, A5 product:** `right_product`, `wrong_variant` (flavour, fat level, recipe), `wrong_product`,
@@ -112,7 +117,8 @@ unknown schema version:
 - **A3:** `sensible`, `misleading_close`, `misleading_other_state`, `skipped`.
 - **A4:** `nothing_suitable`, `match_missed`, `skipped`.
 
-The owner is the only judge. Verdicts are never inferred by a model.
+The owner is the only final judge. Model proposals are not verdicts and are never scored directly.
+Every value-against-pack check is performed by the owner and is never pre-filled.
 
 ### 3.4 Measures
 
@@ -128,21 +134,24 @@ is informational in every case.
 
 ### 4.1 Building the query set (`pfd-query-set-v1`)
 
-- **Sources:** the food names in the owner's daily food logs and the foods in their notes (already
-  extracted privately), with the owner's own spellings and variants exactly as written there.
-- **Added by the owner:** the way they would actually type a search for twenty foods they eat often,
-  and **twenty** foods they eat that are **not** in the database (negative queries).
-- **Target size:** about 160 queries, 20 negative.
-- **Who handles it.** The owner types the added queries and every expected answer into the private
-  file directly. A script assembles the file and draws the split; the agent never reads the query
-  text, the expected answers, the held-out file or any per-query output, only counts. The owner works
-  in a spreadsheet template and finds entry and generic record IDs with an owner-only lookup that
-  prints to their screen, alphabetically and without a score, so it is not the ranking under test
-  (the tool's README gives the steps).
+- **Draft sources:** Codex drafts from the pinned catalogue, including its titles, aliases, varieties
+  and concepts. These are proposed searches, not evidence of the owner's actual wording or habits.
+- **Owner validation:** the owner corrects every query and expected answer, confirms twenty frequent
+  foods and twenty foods they eat that are absent from the database, and approves every row.
+- **Target size:** about 160 queries, 20 negative, with entry, generic and none answers and all three
+  entry steps represented. The existing split, bars and denominators do not change.
+- **Who handles it:** Codex writes the private CSV draft and runs `assemble-queries` until it validates.
+  The draft remains unapproved. No split or seal runs until the owner approves all rows. `lookup`
+  remains owner-only and interactive; the drafting agent never runs it. Any correction requires the
+  unsplit JSON to be reassembled before approval and splitting.
+- **Reporting:** every results report states "agent-drafted and owner-approved query set" only after
+  approval. Until then it states "agent-drafted, awaiting owner approval". Record this provenance in
+  the results narrative beside the counts, without adding fields to the closed `pfd-results-v1`
+  format or changing its writer in this documentation revision.
 
 ### 4.2 Expected answers
 
-For each query the owner records, before any ranking is run, exactly one answer kind:
+For each query the owner validates and approves, before any ranking is run, exactly one answer kind:
 
 - `entry`: one or more acceptable database entry IDs, and the expected step: title or alias (1),
   variety (2) or concept (3);
@@ -156,7 +165,10 @@ about 60 per cent **development**, 40 per cent **held-out** (about 64 queries, 1
 live in **separate private subfolders**. The held-out set is sealed (section 2) before any ranking code
 exists and is opened once, at the release check, with at most one rerun for an infrastructure failure
 (as in the UK fresh-set protocol); the scorer records each held-out run as a `run-heldout` line in the private `seals.txt` and
-refuses a third. Implementers and harness operators never read the held-out file or
+refuses a third. The session or agent that implements ranking must never read the query set, its answers or the
+held-out folder. A session or agent exposed while drafting is excluded from ranking implementation;
+use a separate unexposed session without inherited private context. Implementers and harness operators
+never read the held-out file or
 its per-query output, and every result states any exposure. Development iteration is counts-only for
 agents too: only the owner may open per-query development output, and each time they do, the date is
 recorded in the private folder and reported with the release-check result. If a held-out bar fails, the fresh held-out
@@ -289,10 +301,11 @@ fresh sample or a fresh held-out set.
   commit, so later edits to it run the code jobs.
 - **Private, never committed:** the database, the sample and review sheet, the verdicts, the query set
   and its expected answers, the held-out set, `seals.txt`, and any per-entry or per-query output.
-- **Never read by the agent:** the review sheet and verdicts, the query text and expected answers, the
-  held-out set and any per-query output. Scripts write and score them; the agent sees only counts.
-  Earlier, already-recorded agent reading (notes, photos, food titles it maps) is unchanged
-  (`privacy-and-egress.md`).
+- **Bounded drafting access (decision 8):** Codex may process the pinned release, initial review rows
+  and unsplit queries only to prepare private drafts for owner validation. No private contents appear
+  in console or handover output. The drafting session never implements ranking. After splitting, no
+  agent opens the held-out folder or per-query output; other evaluation work remains counts-only.
+  Private drafts and proposals remain local; no external food query is authorised by this decision.
 - **In the repository:** this plan; the scoring tool and its synthetic fixtures; the v11 golden file of
   section 4.5; and the E3 and release-check results files in the versioned format `pfd-results-v1`,
   **counts and intervals only**. That format is an allow-list: closed field names, whole-number counts,
@@ -352,6 +365,13 @@ fresh sample or a fresh held-out set.
 7. Decided 7 November 2026, before any result was seen: when the top 30 make the A2 or A3 sample larger
    than 40, the allowed counts stay fixed at 2 (A2) and 4 (A3) whatever the sample size.
 
+8. Decided 8 November 2026: Codex drafts E1d queries and pre-fills E3 identity and generic food/state
+   proposals in a separate private file; the owner validates every row last. Pack value checks remain
+   exclusively the owner's and are never pre-filled. Results disclose agent-drafted, owner-approved
+   query provenance. The ranking implementer must be a separate unexposed session or agent and never
+   read the query set or held-out folder. Decisions 1 to 7, acceptance bars, sample, release, seed and
+   split rules remain unchanged. No split, seal or scoring is authorised before owner approval.
+
 ## 10. Review record
 
 Revision 3 applies the review findings that change mechanics or close a judging gap without moving a
@@ -372,6 +392,11 @@ before v12 code rather than at E1a; the sample and purchase-count files named (`
 `pfd-purchase-counts-v1`) with a version-independent seeded order and a top-30 tie-break; the seal
 bundle rule and order shared with the Swift fresh-set protocol; and the held-out run log. It moves no
 bar and changes no decision.
+
+Revision 5 (8 November 2026) records decision 8 and updates sections 2, 3, 4 and 7 consistently.
+Drafts are not approvals or measured results. The private review guide gives the owner the approval,
+split, seal and scoring sequence; `heldout_sha256` is added in a later docs commit after approval and
+sealing. This revision changes no tool, schema, existing decision or acceptance bar.
 
 ## 11. Freeze list
 
