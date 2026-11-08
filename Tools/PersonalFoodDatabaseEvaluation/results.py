@@ -16,7 +16,7 @@ COUNTS_A = {"a1_entries", "a1_skipped", "a1_wrong_product", "a1_wrong_variant", 
 FLAGS_A = {"a1_skip_limit_exceeded", "a2_short_of_quota", "a3_short_of_quota", "a4_short_of_quota"}
 MEASURES_B = {"b_top1_acceptable", "b_top3_acceptable", "b_step_correct", "b_wrong_generic_first",
               "b_wrong_entry_first", "b_negative_false_hits"}
-COUNTS_B = {"queries", "none_queries", "owner_development_output_openings"}
+COUNTS_B = {"queries", "none_queries", "owner_development_output_openings", "held_out_run"}
 MEASURE_KEYS = {"count", "of", "interval", "allowed", "passes"}
 SETS = {"development", "held-out"}
 

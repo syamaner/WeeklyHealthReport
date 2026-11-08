@@ -152,8 +152,8 @@ The query set is split by a seeded draw, stratified so the negative queries divi
 about 60 per cent **development**, 40 per cent **held-out** (about 64 queries, 10 negative). The two sets
 live in **separate private subfolders**. The held-out set is sealed (section 2) before any ranking code
 exists and is opened once, at the release check, with at most one rerun for an infrastructure failure
-(as in the UK fresh-set protocol); the scorer logs each held-out run in a private `runs.txt` and refuses
-a third. Implementers and harness operators never read the held-out file or
+(as in the UK fresh-set protocol); the scorer records each held-out run as a `run-heldout` line in the private `seals.txt` and
+refuses a third. Implementers and harness operators never read the held-out file or
 its per-query output, and every result states any exposure. Development iteration is counts-only for
 agents too: only the owner may open per-query development output, and each time they do, the date is
 recorded in the private folder and reported with the release-check result. If a held-out bar fails, the fresh held-out

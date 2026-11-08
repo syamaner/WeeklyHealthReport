@@ -118,6 +118,28 @@ class Results(unittest.TestCase):
             results.build("A", "pfc:not-a-release", {})
 
 
+class WriteAll(unittest.TestCase):
+    def test_planted_partial_link_is_not_followed(self):
+        with H.private_dir() as d, tempfile.TemporaryDirectory() as other:
+            root, target = Path(d), Path(other) / "outside.csv"
+            (root / "review").mkdir()
+            os.symlink(target, root / "review" / "review-sheet.csv.partial")
+            pfd_eval.write_all([(root / "review" / "review-sheet.csv", b"synthetic")])
+            self.assertFalse(target.exists())
+            self.assertEqual((root / "review" / "review-sheet.csv").read_bytes(), b"synthetic")
+
+    def test_failed_write_leaves_nothing_behind(self):
+        with H.private_dir() as d:
+            root = Path(d)
+            (root / "blocked").write_bytes(b"")  # a file where a folder must go
+            items = [(root / "sample" / "sample.json", b"a"), (root / "blocked" / "review-sheet.csv", b"b")]
+            with self.assertRaises(OSError):
+                pfd_eval.write_all(items)
+            self.assertEqual(sorted(p.name for p in (root / "sample").iterdir()), [])
+            pfd_eval.write_all([(root / "sample" / "sample.json", b"a")])  # a rerun is not refused
+            self.assertEqual((root / "sample" / "sample.json").read_bytes(), b"a")
+
+
 class CommandLine(unittest.TestCase):
     TITLE = "Synthetic Secret Title"
     QUERY = "synthetic secret query"

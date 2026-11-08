@@ -4,8 +4,9 @@ The bundle hash matches the Swift fresh-set protocol (FreshSetProtocol.bundleSHA
 of `<sha256>  <prefix>/<name>\\n` lines, one per file with the suffix, sorted by name. `seals.txt`
 holds one line per seal, `<name> <sha256> <files> <UTC time>`, in the order seal-dev, seal-heldout,
 seal-review; a seal is never replaced. Held-out scoring runs are recorded in the same file as
-`run-heldout <sha256> <n> <UTC time>` lines, so removing them means removing the seals too, which
-voids the held-out set; it may be scored once plus one rerun for an infrastructure failure. A seal file
+`run-heldout <sha256> <n> <UTC time>` lines; the held-out set may be scored once plus one rerun for
+an infrastructure failure. The limit guards against an accidental rerun, not a deliberate edit of the
+private file. A seal file
 that is a link is refused.
 """
 import hashlib

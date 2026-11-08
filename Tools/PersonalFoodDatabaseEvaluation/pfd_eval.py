@@ -15,8 +15,10 @@ only; the one repository output is a pfd-results-v1 file.
 import argparse
 import datetime
 import json
+import os
 import secrets
 import sys
+import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -61,14 +63,35 @@ def write_new(path: Path, data: bytes):
 
 
 def write_all(items):
-    """Write every file or none: all destinations are checked before the first write."""
+    """Write every file or none.
+
+    All destinations are checked first. Each file goes to a new, randomly named temporary file created
+    exclusively (so a planted link is never followed); only when every temporary file is complete are
+    they moved into place. Any failure removes the temporary files and every destination already
+    moved, so a failed run leaves nothing behind and can be run again.
+    """
     if any(p.exists() or p.is_symlink() for p, _ in items):
         sys.exit("refused: an evaluation file already exists and is never overwritten")
-    for p, data in items:
-        p.parent.mkdir(parents=True, exist_ok=True)
-        tmp = p.with_name(p.name + ".partial")
-        tmp.write_bytes(data)
-        tmp.replace(p)
+    temps, done = [], []
+    try:
+        for p, data in items:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            fd, name = tempfile.mkstemp(dir=p.parent, prefix="." + p.name + ".", suffix=".partial")
+            temps.append(Path(name))
+            with os.fdopen(fd, "wb") as fh:
+                fh.write(data)
+        for (p, _), tmp in zip(items, temps):
+            if p.exists() or p.is_symlink():
+                raise FileExistsError("an evaluation file appeared during the write")
+            os.replace(tmp, p)
+            done.append(p)
+    except BaseException:
+        for p in temps + done:
+            try:
+                p.unlink()
+            except FileNotFoundError:
+                pass
+        raise
 
 
 def corpora_records(repo: Path, pins: dict) -> dict:
@@ -183,6 +206,7 @@ def cmd_score_b(a, root):
         log = root / "exposures.txt"
         measures["owner_development_output_openings"] = len(
             [l for l in log.read_text(encoding="utf-8").splitlines() if l.strip()]) if log.exists() else 0
+        measures["held_out_run"] = seals.held_out_runs(root) + 1  # the run this result will be recorded as
         data = results.build("B", fz["release_id"], measures, "held-out")
     if a.set == "held-out":
         n = seals.log_held_out_run(root, formats.sha256(ranking_bytes), now_utc())

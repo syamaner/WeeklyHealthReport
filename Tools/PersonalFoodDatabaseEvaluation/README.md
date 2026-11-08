@@ -57,8 +57,9 @@ prints no title, query text or entry ID.
 `development/`, `held-out/` and `review/` folders, with the Swift fresh-set bundle rule (SHA-256 of sorted
 `<sha256>  <folder>/<file>` lines); `tests/fixtures/seal-bundle/` is the shared fixture and its
 `EXPECTED` hash, for the Swift step test to check in the implementation phase. Held-out scoring runs are
-recorded as `run-heldout` lines in `seals.txt` itself, so they cannot be removed without voiding the seals;
-a third is refused.
+recorded as `run-heldout` lines in `seals.txt`, and a third is refused. This guards against an
+accidental rerun, not a deliberate one: anyone who can edit the private folder can remove those lines, so
+each held-out result also states its run number.
 
 **Private folder layout.** `<root>/sample/sample.json`, `<root>/review/review-sheet.csv`,
 `<root>/sample/purchase-counts.json`, `<root>/development/query-set.json`, `<root>/held-out/query-set.json`,
@@ -69,7 +70,8 @@ root must pass the skill's `workspace_guard.check` (not in a git tree, mode 700)
 **Reading rules settled in E1a.** For a `none` query, top-3 counts the first result only (as top-1).
 A stratum that runs out of rows before its quota fails its bar. Each held-out result records
 `owner_development_output_openings`, the number of lines in the private `exposures.txt`, where the owner
-notes the date each time they open per-query development output (plan 4.3).
+notes the date each time they open per-query development output (plan 4.3), and `held_out_run`, the
+run number it was recorded as (1, or 2 for the one permitted rerun).
 
 **Out of scope for E1a.** The Part B Swift step test, the `pfd-v11-ranking-golden-v1` file and the
 importer belong to the implementation phase; E1b to E1d (release pin, seed, sample, query set) need
