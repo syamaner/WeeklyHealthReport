@@ -30,11 +30,11 @@ below serves that, and enrichment work is judged by it:
   search carries only a food description (title, brand, variety, state), never receipt or personal
   data. A value taken from a web page records the URL, the date read and the state the page
   describes in its intake `note`, and stays `page_unconfirmed` until the owner confirms it (rule 7).
-  **Known limit:** the intake file is the page evidence record and must be kept. A label attached
-  to an existing entry (`attach_to`) does not copy its `note` into the working catalogue, and the v1
-  file carries only what the import contract allows, so a confirmed page value exports like any
-  other confirmed value. Carrying page evidence further needs a script change, and a contract
-  amendment for the v1 file. Prefer national composition databases and manufacturer pages over aggregator sites.
+  A label attached to an existing entry (`attach_to`) keeps that note in the entry's
+  `label_evidence`, keyed by the label source. **Known limit:** the v1 file carries only what the
+  import contract allows, so a confirmed page value exports like any other confirmed value, and the
+  working catalogue and intake file stay the evidence record; carrying it into the v1 file needs a
+  contract amendment. Prefer national composition databases and manufacturer pages over aggregator sites.
 - **Identity and state first.** The right food in the right state (as sold, raw, cooked, drained,
   dry, prepared) and the right cut or variety matter more than any single value; a raw record for a
   cooked food is the worst error.
@@ -166,6 +166,7 @@ Facts, OpenRouter label reading) run is unchanged and decided by the existing es
 | `test_off_rules.py`, `test_export_check.py` | Synthetic tests: the Open Food Facts port, and one failing case per import rejection rule |
 | `validate_mappings.py`, `assemble.py`, `assemble_extras.py`, `export_v1.py`, `build.py` | Offline build and export |
 | `workspace_guard.py` | Refuses unsafe workspaces and any output path inside a git tree |
+| `test_attach_label.py` | Synthetic tests for `assemble_extras.attach_label`: basis rules and kept page evidence |
 | `purchase_counts.py`, `test_purchase_counts.py` | The private `pfd-purchase-counts-v1` file for an import file (evaluation plan section 3.2), and its synthetic tests |
 | `test_http_client.py` | Local fake-server test of pacing, Retry-After, 403 and the circuit breaker |
 
@@ -175,7 +176,7 @@ Keep it compatible with Codex and Claude Code: canonical files here, relative sy
 `.claude/skills/personal-food-catalogue`. Documentation-only changes need `git diff --check`.
 After touching scripts, run `python3 -I scripts/test_http_client.py scripts`,
 `python3 -I scripts/test_off_rules.py scripts`, `python3 -I scripts/test_outbound_gate.py scripts`,
-`python3 -I scripts/test_owner_approval.py scripts`, `python3 -I scripts/test_private_config.py scripts`, `python3 -I scripts/test_compile_all.py scripts`, `python3 -I scripts/test_guards_and_edges.py scripts`, `python3 -I scripts/test_purchase_counts.py scripts` and
+`python3 -I scripts/test_owner_approval.py scripts`, `python3 -I scripts/test_private_config.py scripts`, `python3 -I scripts/test_compile_all.py scripts`, `python3 -I scripts/test_guards_and_edges.py scripts`, `python3 -I scripts/test_purchase_counts.py scripts`, `python3 -I scripts/test_attach_label.py scripts` and
 `python3 -I scripts/test_export_check.py scripts docs/fixtures/personal-food-database-v1` (from the
 repository root). These tests run locally only; CI does not run them. When a rejection rule changes, regenerate the shared fixtures with `--write
 docs/fixtures/personal-food-database-v1` and review the diff: the Swift importer tests read them too.
