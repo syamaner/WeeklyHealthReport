@@ -47,6 +47,15 @@ final class FrozenScorerParityTests: XCTestCase {
         return result.byNutrient[cell.nutrient]?.correct == 1 && !result.wrong.contains { $0.hasPrefix("\(cell.rowID) \(cell.headerID)") }
     }
 
+    /// Scorer v3 (D28): the `RI` amount column's four values are not printed fields; the counts
+    /// change, the comparisons below do not.
+    func testTheReferenceAmountColumnIsNotPrintedFields() {
+        let result = PastedLabelAITextScorer.score(Self.evalCase, outcome: "reached_confirm", declineReasons: [], failure: nil,
+                                                   table: .init(headers: Self.headers, cells: [], servingSize: nil, servingsPerPack: nil, attentionItems: 0))
+        XCTAssertEqual(result.fieldsPrinted, 10)
+        XCTAssertEqual(result.fieldsReferenceAmounts, 4)
+    }
+
     func testRecognisedCellsAndTheExactComparison() {
         // `same`: comparator, number and canonical unit all equal.
         XCTAssertTrue(correct(Self.cell("energy_kj", "h1", "1046", "kJ")))

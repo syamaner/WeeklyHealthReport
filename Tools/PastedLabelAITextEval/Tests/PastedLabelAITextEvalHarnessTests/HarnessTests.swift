@@ -331,6 +331,8 @@ final class HarnessTests: XCTestCase {
         XCTAssertEqual(output.f1, 2 * (8.0 / 9) * 1 / (8.0 / 9 + 1), accuracy: 1e-12)
         XCTAssertEqual(output.readerVersions["mapping"], "pasted-label-ai-text-mapping-v2")
         XCTAssertEqual(output.readerVersions["format"], "pasted-label-ai-text-format-v1")
+        XCTAssertEqual(output.readerVersions["scorer"], "pasted-label-ai-text-scorer-v3 (rules of uk-fresh-scorer-v2; RI amount columns not printed fields)")
+        XCTAssertEqual(output.score.fieldsReferenceAmounts, 0)
     }
 
     func testAWrongModelFailsTheLabel() async throws {

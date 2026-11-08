@@ -59,8 +59,12 @@ public struct LabelScore: Codable, Equatable, Sendable {
     public let outcome: String
     public let declineReasons: [String]
     public let failure: String?
-    /// Every printed field (one nutrient under one column) of the transcription.
+    /// Every printed field (one nutrient under one column) of the transcription, less the values
+    /// in reference-intake amount columns (scorer v3, D28).
     public let fieldsPrinted: Int
+    /// Transcribed values in reference-intake amount columns, which are not printed fields (D28):
+    /// `fieldsPrinted + fieldsReferenceAmounts` is every transcribed value.
+    public let fieldsReferenceAmounts: Int
     /// Fields shown at Confirm (cells), correct and wrong under the scorer.
     public let fieldsShown: Int
     public let fieldsCorrect: Int
@@ -80,6 +84,7 @@ public struct LabelScore: Codable, Equatable, Sendable {
     enum CodingKeys: String, CodingKey {
         case scorer, set, tier, format, outcome, failure, wrong
         case labelID = "label_id", copyMethod = "copy_method", declineReasons = "decline_reasons", fieldsPrinted = "fields_printed"
+        case fieldsReferenceAmounts = "fields_reference_amounts"
         case fieldsShown = "fields_shown", fieldsCorrect = "fields_correct", fieldsWrong = "fields_wrong", wrongFlagged = "wrong_flagged"
         case wrongSilent = "wrong_silent", attentionItems = "attention_items", printedNotCorrect = "printed_not_correct"
         case exactMatch = "exact_match", noEdit = "no_edit", silentErrorTable = "silent_error_table", byNutrient = "by_nutrient"
@@ -97,7 +102,7 @@ public struct LabelScore: Codable, Equatable, Sendable {
         }
         return byNutrientScores.merging([
             "reached_confirm": b(outcome == "reached_confirm"), "declined": b(outcome == "declined"), "failed": b(outcome == "failed"),
-            "fields_printed": Double(fieldsPrinted), "fields_shown": Double(fieldsShown), "fields_correct": Double(fieldsCorrect),
+            "fields_printed": Double(fieldsPrinted), "fields_reference_amounts": Double(fieldsReferenceAmounts), "fields_shown": Double(fieldsShown), "fields_correct": Double(fieldsCorrect),
             "fields_wrong": Double(fieldsWrong), "wrong_flagged": Double(wrongFlagged), "wrong_silent": Double(wrongSilent),
             "attention_items": Double(attentionItems), "printed_not_correct": Double(printedNotCorrect), "exact_match": b(exactMatch),
             "no_edit": b(noEdit), "silent_error_table": b(silentErrorTable),
@@ -112,7 +117,8 @@ public struct LabelScore: Codable, Equatable, Sendable {
     }
 }
 
-/// `pasted-label-ai-text-scorer-v1 (rules of uk-fresh-scorer-v2)`: the frozen fresh-set scorer's comparison
+/// `pasted-label-ai-text-scorer-v3 (rules of uk-fresh-scorer-v2; RI amount columns not printed fields)`:
+/// the frozen fresh-set scorer's comparison
 /// (`UKFreshSet.score` and `FreshSet`, `uk-fresh-scorer-v2` rules R1 to R3, in
 /// `Packages/FoodLedgerKit/Tests/FoodLabelTextCaptureTests/`), copied because this tool never
 /// imports a test target. Each rule only chooses the printed cell a read value is compared with;
@@ -133,8 +139,20 @@ public struct LabelScore: Codable, Equatable, Sendable {
 /// (`TranscriptionRules.hasCJK`). The alias rows are Chinese labels, so this is meant to cover
 /// them; a CJK row that is not an alias is made ambiguous too, where the frozen scorer could
 /// match it. Validation already requires `outside_table` for such a comma (`TranscriptionRules`).
+///
+/// Changed in v3 (D28, docs/pasted-label-ai-text-v1.md): a reference-intake column that is not a
+/// percentage column under R1 (`isPercentColumn`: at least one `%` value and, apart from class
+/// markers, nothing else) is a reference-intake amount column, and its values, class markers
+/// included, are not printed fields. The mapping never reads an absolute reference amount and the
+/// ledger never stores one, so the user never enters it. A mixed column (percentages and amounts)
+/// is excluded whole. Only the printed-field count changes: the comparison rules (R1 to R3,
+/// `expected`, `column`, `same`), the columns matching reads and silent-error scoring are as in v1,
+/// every cell shown at Confirm is still scored, and a cell in a reference-intake column that the
+/// transcription records as amounts stays wrong, never "read, but not printed". The excluded count is
+/// `fieldsReferenceAmounts`. This scorer has no v2: the number is skipped so that its version never
+/// reads as `uk-fresh-scorer-v2`, whose rules it applies.
 public enum PastedLabelAITextScorer {
-    public static let version = "pasted-label-ai-text-scorer-v1 (rules of uk-fresh-scorer-v2)"
+    public static let version = "pasted-label-ai-text-scorer-v3 (rules of uk-fresh-scorer-v2; RI amount columns not printed fields)"
 
     enum Expected: Equatable { case value(TranscriptionShapes.Value, rowLabel: String), notPrinted, ambiguous }
     enum ColumnMatch: Equatable { case index(Int), notPrinted, ambiguous }
@@ -144,13 +162,15 @@ public enum PastedLabelAITextScorer {
         // development case from a Taiwan-schema file is scored by the UK rules, as the frozen
         // harness does (Qodo finding 3 on A2).
         let schema: TranscriptionRules.Schema = evalCase.format == .uk ? .uk : .taiwan
-        let fields = evalCase.fields
+        let amountColumns = referenceAmountColumns(evalCase.expected)
+        let fields = evalCase.fields.filter { !amountColumns.contains($0.columnIndex) }
+        let referenceAmounts = evalCase.fields.count - fields.count
         var byNutrient: [String: LabelScore.Counts] = [:]
         for field in fields { byNutrient[field.nutrient, default: .init()].printed += 1 }
         func ended() -> LabelScore {
             LabelScore(scorer: version, labelID: evalCase.labelID, set: evalCase.set.rawValue, tier: evalCase.tier, copyMethod: evalCase.copyMethod,
                        format: evalCase.format.rawValue, outcome: outcome, declineReasons: declineReasons, failure: failure,
-                       fieldsPrinted: fields.count, fieldsShown: 0, fieldsCorrect: 0, fieldsWrong: 0, wrongFlagged: 0, wrongSilent: 0,
+                       fieldsPrinted: fields.count, fieldsReferenceAmounts: referenceAmounts, fieldsShown: 0, fieldsCorrect: 0, fieldsWrong: 0, wrongFlagged: 0, wrongSilent: 0,
                        attentionItems: 0, printedNotCorrect: fields.count, exactMatch: false, noEdit: false, silentErrorTable: false,
                        byNutrient: byNutrient, wrong: [])
         }
@@ -183,7 +203,9 @@ public enum PastedLabelAITextScorer {
             }
         }
         let wrongCount = table.cells.count - correct
-        let printedNotCorrect = max(0, fields.count - matched.count)
+        // A kept field with no correct cell, by position, so a match in an excluded column (which
+        // the comparison still allows) never offsets a kept field that was not read.
+        let printedNotCorrect = fields.filter { !matched.contains([$0.rowIndex, $0.columnIndex]) }.count
         var servingEdits = 0
         if evalCase.expected.servingSize != nil, table.servingSize == nil { servingEdits += 1 }
         if let read = table.servingSize, let printed = evalCase.expected.servingSize {
@@ -199,7 +221,7 @@ public enum PastedLabelAITextScorer {
         let exact = wrongCount == 0 && printedNotCorrect == 0
         return LabelScore(scorer: version, labelID: evalCase.labelID, set: evalCase.set.rawValue, tier: evalCase.tier, copyMethod: evalCase.copyMethod,
                           format: evalCase.format.rawValue, outcome: outcome, declineReasons: declineReasons, failure: failure,
-                          fieldsPrinted: fields.count, fieldsShown: table.cells.count, fieldsCorrect: correct, fieldsWrong: wrongCount,
+                          fieldsPrinted: fields.count, fieldsReferenceAmounts: referenceAmounts, fieldsShown: table.cells.count, fieldsCorrect: correct, fieldsWrong: wrongCount,
                           wrongFlagged: wrongFlagged, wrongSilent: wrongSilent, attentionItems: table.attentionItems,
                           printedNotCorrect: printedNotCorrect, exactMatch: exact, noEdit: exact && servingEdits == 0,
                           silentErrorTable: wrongSilent > 0, byNutrient: byNutrient, wrong: wrong)
@@ -233,6 +255,12 @@ public enum PastedLabelAITextScorer {
 
     static func value(_ row: TranscriptionShapes.Row, _ col: Int) -> TranscriptionShapes.Value? {
         row.values.indices.contains(col) ? row.values[col] : nil
+    }
+
+    /// v3 (D28): the reference-intake amount columns, whose values are not printed fields: every
+    /// reference-intake column that is not a percentage column under R1.
+    static func referenceAmountColumns(_ e: EvalCase.Expected) -> Set<Int> {
+        Set(e.columns.indices.filter { e.columns[$0].basis == "reference_intake" && !isPercentColumn(e, $0) })
     }
 
     /// R1: a column holding at least one percentage and, apart from class markers, nothing else.

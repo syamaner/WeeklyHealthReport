@@ -2,8 +2,9 @@ import Foundation
 @testable import PastedLabelAITextEvalCore
 import XCTest
 
-/// `pasted-label-ai-text-scorer-v1` (docs/pasted-label-ai-text-v1.md 5.2.1 and 5.3): the frozen
-/// scorer's exact comparison, and the per-label counts, on synthetic tables.
+/// `pasted-label-ai-text-scorer-v3` (docs/pasted-label-ai-text-v1.md 5.2.1, 5.3 and D28): the frozen
+/// scorer's exact comparison, the per-label counts, and reference-intake amount columns left out of
+/// the printed fields, on synthetic tables.
 final class ScorerTests: XCTestCase {
     static var ukCase: EvalCase {
         try! EvalCaseConverter.convert(EvalCaseConverterTests.uk, metadata: .init(set: .ukV1Fresh, tier: "A", copyMethod: "m",
@@ -98,7 +99,8 @@ final class ScorerTests: XCTestCase {
         XCTAssertNil(PastedLabelAITextScorer.rowNumber("1,046", label: "Energy"))
         XCTAssertEqual(PastedLabelAITextScorer.rowNumber("0,5", label: "Salt"), Decimal(string: "0.5"))
         XCTAssertNil(PastedLabelAITextScorer.rowNumber("0,5", label: "鹽"), "any comma on a CJK row (the documented deviation)")
-        XCTAssertEqual(PastedLabelAITextScorer.version, "pasted-label-ai-text-scorer-v1 (rules of uk-fresh-scorer-v2)")
+        XCTAssertEqual(PastedLabelAITextScorer.version,
+                       "pasted-label-ai-text-scorer-v3 (rules of uk-fresh-scorer-v2; RI amount columns not printed fields)")
     }
 
     /// Qodo finding 3: a UK development case from a Taiwan-schema file is scored by the UK rules.

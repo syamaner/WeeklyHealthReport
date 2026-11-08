@@ -14,7 +14,8 @@ import PastedLabelAITextEvalCore
 /// 3. `PastedLabelAITextReader`: the text mapping; decline gate v2 (`.uk` for UK candidates), the
 ///    conversions and the arithmetic checks; the panel detector; the locator, unit and vocabulary
 ///    checks; attention. Only a hard decline declines (D19).
-/// 4. `pasted-label-ai-text-scorer-v1` against the case.
+/// 4. `pasted-label-ai-text-scorer-v3` (the comparison rules of `uk-fresh-scorer-v2`; reference-intake
+///    amount columns are not printed fields, D28) against the case.
 ///
 /// The pass rule: a tuning label passes when it reaches Confirm with no silent-error table. A
 /// synthetic adversarial case (4.9, `EvalCase.adversarialClass`) must end as a decline or an
