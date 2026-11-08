@@ -109,6 +109,9 @@ def parse_sample(data: bytes) -> dict:
         raise FormatError("sample: unknown schema")
     if not RELEASE_ID.fullmatch(str(doc["release_id"])) or not isinstance(doc["seed"], int) or isinstance(doc["seed"], bool):
         raise FormatError("sample: invalid release_id or seed")
+    if not isinstance(doc["entries"], list) or not isinstance(doc["replacements"], dict) or not isinstance(doc["quotas"], dict) \
+            or not all(isinstance(v, list) for v in doc["replacements"].values()):
+        raise FormatError("sample: entries, quotas or replacements have the wrong type")
     for n, e in enumerate(doc["entries"]):
         _keys(e, {"entry_id", "stratum", "reason"}, f"sample: entry {n}")
         if not ENTRY_ID.fullmatch(str(e["entry_id"])) or e["stratum"] not in STRATA or e["reason"] not in REASONS - {"replacement"}:
@@ -191,6 +194,8 @@ def parse_query_set(data: bytes) -> dict:
         raise FormatError("query set: unknown schema")
     if not RELEASE_ID.fullmatch(str(doc["release_id"])) or ("set" in doc and doc["set"] not in SETS):
         raise FormatError("query set: invalid release_id or set")
+    if not isinstance(doc["queries"], list):
+        raise FormatError("query set: queries must be a list")
     seen = set()
     for n, q in enumerate(doc["queries"]):
         what = f"query set: query {n}"
@@ -204,12 +209,12 @@ def parse_query_set(data: bytes) -> dict:
         kind = a.get("kind") if isinstance(a, dict) else None
         if kind == "entry":
             _keys(a, {"kind", "entry_ids", "step"}, what)
-            if not a["entry_ids"] or not all(isinstance(e, str) and ENTRY_ID.fullmatch(e) for e in a["entry_ids"]) \
+            if not isinstance(a["entry_ids"], list) or not a["entry_ids"] or not all(isinstance(e, str) and ENTRY_ID.fullmatch(e) for e in a["entry_ids"]) \
                     or isinstance(a["step"], bool) or a["step"] not in (1, 2, 3):
                 raise FormatError(f"{what}: invalid entry answer")
         elif kind == "generic":
             _keys(a, {"kind", "generic"}, what)
-            if not a["generic"]:
+            if not isinstance(a["generic"], list) or not a["generic"]:
                 raise FormatError(f"{what}: a generic answer names at least one record")
             for g in a["generic"]:
                 _generic_ref(g, what)
@@ -231,6 +236,8 @@ def parse_ranking(data: bytes) -> dict:
         raise FormatError("ranking output: unknown schema")
     if not RELEASE_ID.fullmatch(str(doc["release_id"])) or doc["set"] not in SETS:
         raise FormatError("ranking output: invalid release_id or set")
+    if not isinstance(doc["results"], list):
+        raise FormatError("ranking output: results must be a list")
     seen = set()
     for n, r in enumerate(doc["results"]):
         what = f"ranking output: result {n}"

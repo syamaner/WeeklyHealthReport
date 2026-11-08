@@ -288,6 +288,15 @@ class Formats(unittest.TestCase):
         data = formats.dumps(doc)
         self.assertEqual(formats.dumps(formats.parse_ranking(data)), data)
 
+    def test_wrong_types_refused_not_crashed(self):
+        for doc, parser in (({"schema": "pfd-query-set-v1", "release_id": H.RELEASE, "queries": None}, formats.parse_query_set),
+                            ({"schema": "pfd-ranking-output-v1", "release_id": H.RELEASE, "set": "development", "results": 1}, formats.parse_ranking),
+                            ({"schema": "pfd-query-set-v1", "release_id": H.RELEASE, "queries": [
+                                {"query_id": "q-0001", "text": "x", "negative": False, "answer": {"kind": "entry", "entry_ids": 1, "step": 1}}]},
+                             formats.parse_query_set)):
+            with self.assertRaises(formats.FormatError):
+                parser(formats.dumps(doc))
+
     def test_boolean_step_refused(self):
         doc = {"schema": "pfd-ranking-output-v1", "release_id": H.RELEASE, "set": "development",
                "results": [{"query_id": "q-0001", "candidates": [{"kind": "entry", "entry_id": H.eid(1), "step": True}]}]}

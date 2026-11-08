@@ -3,8 +3,10 @@
 The bundle hash matches the Swift fresh-set protocol (FreshSetProtocol.bundleSHA256): the SHA-256
 of `<sha256>  <prefix>/<name>\\n` lines, one per file with the suffix, sorted by name. `seals.txt`
 holds one line per seal, `<name> <sha256> <files> <UTC time>`, in the order seal-dev, seal-heldout,
-seal-review; a seal is never replaced. Held-out scoring runs are logged in `runs.txt`; the held-out
-set may be scored once plus one rerun for an infrastructure failure.
+seal-review; a seal is never replaced. Held-out scoring runs are recorded in the same file as
+`run-heldout <sha256> <n> <UTC time>` lines, so removing them means removing the seals too, which
+voids the held-out set; it may be scored once plus one rerun for an infrastructure failure. A seal file
+that is a link is refused.
 """
 import hashlib
 from pathlib import Path
@@ -24,16 +26,35 @@ def bundle_sha256(folder: Path, prefix: str, suffix: str):
     return hashlib.sha256(listing.encode("utf-8")).hexdigest(), len(names)
 
 
-def recorded(root: Path) -> dict:
+def _file(root: Path) -> Path:
     p = root / "seals.txt"
-    out = {}
-    if p.exists():
-        for n, line in enumerate(p.read_text(encoding="utf-8").splitlines(), start=1):
-            parts = line.split()
-            if len(parts) != 4 or parts[0] not in ORDER or parts[0] in out or len(parts[1]) != 64 or not parts[2].isdigit():
-                raise SealError(f"seals.txt line {n} is damaged or repeats a seal; fix it by hand before going on")
-            out[parts[0]] = parts[1]
+    if p.is_symlink() or (p.exists() and not p.is_file()):
+        raise SealError("seals.txt must be a plain file inside the evaluation folder")
+    return p
+
+
+def _lines(root: Path):
+    p = _file(root)
+    return p.read_text(encoding="utf-8").splitlines() if p.exists() else []
+
+
+def recorded(root: Path) -> dict:
+    out, runs = {}, 0
+    for n, line in enumerate(_lines(root), start=1):
+        parts = line.split()
+        ok = len(parts) == 4 and len(parts[1]) == 64 and parts[2].isdigit()
+        if ok and parts[0] == "run-heldout" and "seal-heldout" in out and int(parts[2]) == runs + 1:
+            runs += 1
+            continue
+        if not ok or parts[0] not in ORDER or parts[0] in out:
+            raise SealError(f"seals.txt line {n} is damaged or repeats a seal; fix it by hand before going on")
+        out[parts[0]] = parts[1]
     return out
+
+
+def held_out_runs(root: Path) -> int:
+    recorded(root)
+    return sum(1 for l in _lines(root) if l.startswith("run-heldout "))
 
 
 def current(name: str, root: Path):
@@ -53,7 +74,7 @@ def seal(name: str, root: Path, now_utc: str) -> str:
     h, files = current(name, root)
     if files == 0:
         raise SealError(f"{name}: nothing to seal")
-    with open(root / "seals.txt", "a", encoding="utf-8") as fh:
+    with open(_file(root), "a", encoding="utf-8") as fh:
         fh.write(f"{name} {h} {files} {now_utc}\n")
     return h
 
@@ -68,10 +89,10 @@ def require(name: str, root: Path) -> str:
 
 
 def log_held_out_run(root: Path, ranking_sha256: str, now_utc: str):
-    p = root / "runs.txt"
-    runs = [l for l in p.read_text(encoding="utf-8").splitlines() if l.startswith("held-out ")] if p.exists() else []
-    if len(runs) >= HELD_OUT_RUN_LIMIT:
+    require("seal-heldout", root)
+    runs = held_out_runs(root)
+    if runs >= HELD_OUT_RUN_LIMIT:
         raise SealError("the held-out set has already been scored once and rerun once")
-    with open(p, "a", encoding="utf-8") as fh:
-        fh.write(f"held-out {ranking_sha256} {now_utc}\n")
-    return len(runs) + 1
+    with open(_file(root), "a", encoding="utf-8") as fh:
+        fh.write(f"run-heldout {ranking_sha256} {runs + 1} {now_utc}\n")
+    return runs + 1

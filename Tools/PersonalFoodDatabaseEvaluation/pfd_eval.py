@@ -57,10 +57,18 @@ def read_private(root, path) -> bytes:
 
 
 def write_new(path: Path, data: bytes):
-    if path.exists():
+    write_all([(path, data)])
+
+
+def write_all(items):
+    """Write every file or none: all destinations are checked before the first write."""
+    if any(p.exists() or p.is_symlink() for p, _ in items):
         sys.exit("refused: an evaluation file already exists and is never overwritten")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(data)
+    for p, data in items:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        tmp = p.with_name(p.name + ".partial")
+        tmp.write_bytes(data)
+        tmp.replace(p)
 
 
 def corpora_records(repo: Path, pins: dict) -> dict:
@@ -105,9 +113,9 @@ def cmd_sample(a, root):
     s = sample_mod.draw(entries, counts["counts"], fz["seed"])
     doc = {"schema": "pfd-sample-v1", "release_id": fz["release_id"], **s}
     rows = sample_mod.sheet_rows(doc, entries, corpora_records(REPO, pins))
-    write_new(private(root, root / "sample" / "sample.json"), formats.dumps(doc))
-    write_new(private(root, root / "review" / "review-sheet.csv"), formats.write_sheet(rows))
-    write_new(private(root, root / "sample" / "purchase-counts.json"), counts_bytes)  # the copy the freeze record pins
+    write_all([(private(root, root / "sample" / "sample.json"), formats.dumps(doc)),
+               (private(root, root / "review" / "review-sheet.csv"), formats.write_sheet(rows)),
+               (private(root, root / "sample" / "purchase-counts.json"), counts_bytes)])  # the copy the freeze pins
     print("sample written:", ", ".join(f"{k} {v}" for k, v in sorted(s["quotas"].items())), f"; sheet rows {len(rows)}")
 
 
@@ -117,8 +125,7 @@ def cmd_split(a, root):
     if qs["release_id"] != fz["release_id"] or "set" in qs:
         sys.exit("refused: the query set must be the unsplit set for the pinned release")
     out = split_mod.split(qs, fz["seed"])
-    for name, doc in out.items():
-        write_new(private(root, root / name / "query-set.json"), formats.dumps(doc))
+    write_all([(private(root, root / name / "query-set.json"), formats.dumps(doc)) for name, doc in out.items()])
     print("split written:", ", ".join(f"{k} {len(v['queries'])} ({sum(q['negative'] for q in v['queries'])} negative)"
                                       for k, v in out.items()))
 
@@ -144,6 +151,8 @@ def cmd_score_a(a, root):
         sys.exit("refused: the purchase counts differ from the freeze record")
     seals.require("seal-review", root)
     sample = formats.parse_sample(sample_bytes)
+    if sample["release_id"] != fz["release_id"]:
+        sys.exit("refused: the sample belongs to another release")
     rows = formats.parse_sheet(read_private(root, root / "review" / "review-sheet.csv"))
     measures = score_a.score(sample, rows)
     out = repo_out(a.out)

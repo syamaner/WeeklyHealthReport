@@ -57,10 +57,12 @@ prints no title, query text or entry ID.
 `development/`, `held-out/` and `review/` folders, with the Swift fresh-set bundle rule (SHA-256 of sorted
 `<sha256>  <folder>/<file>` lines); `tests/fixtures/seal-bundle/` is the shared fixture and its
 `EXPECTED` hash, for the Swift step test to check in the implementation phase. Held-out scoring runs are
-logged in `runs.txt`; a third is refused.
+recorded as `run-heldout` lines in `seals.txt` itself, so they cannot be removed without voiding the seals;
+a third is refused.
 
 **Private folder layout.** `<root>/sample/sample.json`, `<root>/review/review-sheet.csv`,
-`<root>/development/query-set.json`, `<root>/held-out/query-set.json`, `seals.txt` and `runs.txt`. The
+`<root>/sample/purchase-counts.json`, `<root>/development/query-set.json`, `<root>/held-out/query-set.json`,
+`seals.txt` and `exposures.txt`. The
 root must pass the skill's `workspace_guard.check` (not in a git tree, mode 700) and every path its
 `check_output`; no evaluation file is ever overwritten.
 

@@ -43,6 +43,13 @@ class Seals(unittest.TestCase):
                 seals.require("seal-heldout", root)
             self.assertEqual(len((root / "seals.txt").read_text().splitlines()), 2)
 
+    def test_seal_file_link_refused(self):
+        with H.private_dir() as t, tempfile.TemporaryDirectory() as other:
+            root = Path(t)
+            (root / "seals.txt").symlink_to(Path(other) / "elsewhere.txt")
+            with self.assertRaises(seals.SealError):
+                seals.recorded(root)
+
     def test_damaged_seal_file_refused(self):
         with H.private_dir() as t:
             root = Path(t)
@@ -53,6 +60,12 @@ class Seals(unittest.TestCase):
     def test_held_out_scored_once_plus_one_rerun(self):
         with H.private_dir() as t:
             root = Path(t)
+            (root / "held-out").mkdir()
+            (root / "development").mkdir()
+            for d in ("development", "held-out"):
+                (root / d / "query-set.json").write_text("{}")
+            seals.seal("seal-dev", root, "t0")
+            seals.seal("seal-heldout", root, "t0")
             self.assertEqual(seals.log_held_out_run(root, "a" * 64, "t1"), 1)
             self.assertEqual(seals.log_held_out_run(root, "b" * 64, "t2"), 2)
             with self.assertRaises(seals.SealError):
