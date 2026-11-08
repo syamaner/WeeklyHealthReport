@@ -146,4 +146,45 @@ final class PastedLabelAITextReaderTests: XCTestCase {
         let result = reader.reading(text: text, textSHA256: Self.sha, answer: PastedLabelAITextPortContracts.ukAnswer)
         XCTAssertEqual(result.values.first { $0.nutrient == "fat" }?.printedText, "9.5g")
     }
+
+    // MARK: Revision 10: the format step and the detector on bilingual Taiwan panels
+
+    static let bilingualTaiwanText = """
+    營養標示 Nutrition Facts
+    每100毫升
+    熱量 Calories 30.0大卡
+    蛋白質 Protein 0.5公克
+    脂肪 Fat 0.0公克
+    飽和脂肪 Saturated fat 0.0公克
+    反式脂肪 Trans fat 0.0公克
+    碳水化合物 Carbohydrate 7.0公克
+    糖 Sugars 6.5公克
+    鈉 Sodium 20毫克
+    """
+
+    static func bilingualAnswer(language: String) -> String {
+        answer(language: language, headers: [("h1", "每100毫升", "per_100ml")],
+               rows: [("熱量 Calories", "energy_kcal", [("h1", "30.0大卡")]), ("蛋白質 Protein", "protein", [("h1", "0.5公克")]),
+                      ("脂肪 Fat", "fat", [("h1", "0.0公克")]), ("飽和脂肪 Saturated fat", "saturates", [("h1", "0.0公克")]),
+                      ("反式脂肪 Trans fat", "trans_fat", [("h1", "0.0公克")]), ("碳水化合物 Carbohydrate", "carbohydrate", [("h1", "7.0公克")]),
+                      ("糖 Sugars", "sugars", [("h1", "6.5公克")]), ("鈉 Sodium", "sodium", [("h1", "20毫克")])])
+    }
+
+    func testABilingualTaiwanPanelReadAsMixedIsGatedAsTaiwan() {
+        let result = read(Self.bilingualTaiwanText, Self.bilingualAnswer(language: "mixed"))
+        XCTAssertFalse(result.textDetector.declines, "the Taiwan title clears `nutrition_facts_title`")
+        XCTAssertEqual(result.outcome, .reachedConfirm, "\(result.declineReasons)")
+        XCTAssertEqual(result.inferredFormat, PastedLabelAITextOffer.taiwanFormat)
+        XCTAssertEqual(result.gate?.format, LabelGateFormat.taiwan.rawValue)
+        XCTAssertEqual(result.candidate?.cells.count, 8)
+        XCTAssertEqual(result.versions.format, PastedLabelAITextFormat.version)
+    }
+
+    func testWithoutTheTaiwanTitleAMixedAnswerStaysAmbiguous() {
+        let untitled = Self.bilingualTaiwanText.replacingOccurrences(of: "營養標示 Nutrition Facts\n", with: "")
+        XCTAssertEqual(read(untitled, Self.bilingualAnswer(language: "mixed")).declineReasons, ["format:format_ambiguous"])
+        XCTAssertEqual(read(untitled, Self.bilingualAnswer(language: "unknown")).declineReasons, ["format:format_ambiguous"])
+        let usTitle = Self.bilingualTaiwanText.replacingOccurrences(of: "營養標示 ", with: "")
+        XCTAssertEqual(read(usTitle, Self.bilingualAnswer(language: "mixed")).declineReasons, ["detector:nutrition_facts_title"])
+    }
 }

@@ -7,7 +7,7 @@ import NutritionLabelParsing
 ///
 /// 1. the strict text wire decode (`pasted-label-ai-text-wire-schema-v1`);
 /// 2. `pasted-label-ai-text-mapping-v1`, which runs the locator and the unit check;
-/// 3. format inference, then decline gate v2 with the Taiwan format or `.uk`,
+/// 3. format inference (`pasted-label-ai-text-format-v1` over the frozen inference), then decline gate v2 with the Taiwan format or `.uk`,
 ///    `label-arithmetic-checks-v2` over the amount bases and the `pasted-label-conversions-v1`
 ///    conversions for the stored column. The frozen rules are called, never copied;
 /// 4. the panel detector, on the text and again on the candidate;
@@ -24,7 +24,7 @@ public struct PastedLabelAITextReader: PastedLabelAITextReading {
     public static let versions = PastedLabelAITextReadingResult.Versions(
         wireSchema: PastedLabelAITextWire.schemaVersion, mapping: PastedLabelAITextWireMapping.version, locator: PastedLabelTextLocator.version,
         vocabulary: PastedLabelAITextVocabulary.version, detector: PastedLabelAITextPanelDetector.version, attention: PastedLabelAITextAttention.version,
-        gate: LabelDeclineGate.version, arithmetic: LabelArithmeticChecksV2.version, conversion: PastedLabelConversions.version)
+        format: PastedLabelAITextFormat.version, gate: LabelDeclineGate.version, arithmetic: LabelArithmeticChecksV2.version, conversion: PastedLabelConversions.version)
 
     public init() {}
 
@@ -49,7 +49,10 @@ public struct PastedLabelAITextReader: PastedLabelAITextReading {
         if textDetector.declines {
             return ended(.declined, declines: textDetector.markers.map { "detector:" + $0.rawValue }, candidate: projected)
         }
-        let format = LabelFormatInference.infer(candidate)
+        // The text route's format step (`pasted-label-ai-text-format-v1`): the frozen inference,
+        // then a `mixed` candidate whose text prints the Taiwan title is Taiwan.
+        var format = LabelFormatInference.infer(candidate)
+        if format == .ambiguous, PastedLabelAITextFormat.mixedIsTaiwan(language: candidate.language.rawValue, text: text) { format = .taiwan }
         guard let gateFormat = format.gateFormat else {
             return ended(.declined, declines: ["format:" + (format.declineCode ?? format.rawValue)], format: format.rawValue, candidate: projected)
         }

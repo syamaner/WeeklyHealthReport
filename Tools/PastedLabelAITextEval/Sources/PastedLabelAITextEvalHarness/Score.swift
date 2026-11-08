@@ -62,7 +62,7 @@ public enum ScoreCommand {
         let versions = PastedLabelAITextReader.versions
         let readerVersions = ["wire_schema": versions.wireSchema, "mapping": versions.mapping, "locator": versions.locator,
                               "vocabulary": versions.vocabulary, "detector": versions.detector, "attention": versions.attention,
-                              "gate": versions.gate, "arithmetic": versions.arithmetic, "conversion": versions.conversion,
+                              "format": versions.format, "gate": versions.gate, "arithmetic": versions.arithmetic, "conversion": versions.conversion,
                               "scorer": PastedLabelAITextScorer.version]
         func output(_ score: LabelScore) -> Output {
             Output(score: score, pass: passes(score, adversarial: evalCase.adversarialClass != nil), f1: score.fieldF1,

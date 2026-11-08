@@ -93,14 +93,16 @@ public struct PastedLabelAITextReadingResult: Equatable, Sendable {
         public let vocabulary: String
         public let detector: String
         public let attention: String
+        /// The text route's format step (`pasted-label-ai-text-format-v1`).
+        public let format: String
         public let gate: String
         public let arithmetic: String
         public let conversion: String
 
-        public init(wireSchema: String, mapping: String, locator: String, vocabulary: String, detector: String, attention: String, gate: String,
-                    arithmetic: String, conversion: String) {
+        public init(wireSchema: String, mapping: String, locator: String, vocabulary: String, detector: String, attention: String, format: String,
+                    gate: String, arithmetic: String, conversion: String) {
             self.wireSchema = wireSchema; self.mapping = mapping; self.locator = locator; self.vocabulary = vocabulary
-            self.detector = detector; self.attention = attention; self.gate = gate; self.arithmetic = arithmetic; self.conversion = conversion
+            self.detector = detector; self.attention = attention; self.format = format; self.gate = gate; self.arithmetic = arithmetic; self.conversion = conversion
         }
     }
 
