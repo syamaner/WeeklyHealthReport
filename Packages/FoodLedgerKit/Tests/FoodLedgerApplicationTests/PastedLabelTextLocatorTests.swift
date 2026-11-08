@@ -448,7 +448,7 @@ final class PastedLabelTextLocatorTests: XCTestCase {
         }
         let decoded = try JSONDecoder().decode(Locator.Result.self, from: first)
         XCTAssertEqual(decoded, Locator.locate(text: text, headers: headers, rows: rows))
-        XCTAssertEqual(decoded.version, "pasted-label-text-locate-v3")
+        XCTAssertEqual(decoded.version, "pasted-label-text-locate-v4")
     }
 
     // MARK: Revision 10 (locator v2)

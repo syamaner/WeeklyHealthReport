@@ -9,7 +9,8 @@ import Foundation
 /// test proves; the rules that differ are the text route's thousands separator (4.3 item 2),
 /// which belongs to the token grammar, not to these lists, and, from revision 10, the text-only
 /// kcal spellings (`textOnlyValueUnits`) and the bracket rule (`unbracketed`), and from revision
-/// 14 the not-declared markers (`notDeclaredDashes`, `notDeclaredWords`). A change to any
+/// 14 the not-declared markers (`notDeclaredDashes`, `notDeclaredWords`), with the lone `*` of
+/// reference-intake columns from revision 15 (`notDeclaredStar`). A change to any
 /// list is a new version.
 public enum PastedLabelAITextValueGrammar {
     /// A printed comparator and the comparator it means (`=`, `<` or `<=`, the raw values of the
@@ -68,6 +69,19 @@ public enum PastedLabelAITextValueGrammar {
         core.append(contentsOf: scalars)
         let text = String(core)
         return isNotDeclaredMarker(text) ? text : nil
+    }
+
+    /// Revision 15 (D32, mapping v4, locator v4): a lone `*` is a not-declared class marker in a
+    /// reference-intake percentage column only (`*` for "reference value not set"). The cell holds
+    /// the `*` and nothing else: a `*` attached to a number (`7%*`) or to a heading is a footnote,
+    /// and a lone `*` under a product-amount header is not a marker.
+    public static let notDeclaredStar = "*"
+
+    /// `notDeclaredMarker(_:)`, plus the lone `*` (D32) when the value sits under a
+    /// reference-intake header. The `*` is matched exactly, with nothing trimmed.
+    public static func notDeclaredMarker(_ printed: String, inReferenceIntakeColumn: Bool) -> String? {
+        if printed == notDeclaredStar { return inReferenceIntakeColumn ? notDeclaredStar : nil }
+        return notDeclaredMarker(printed)
     }
 
     /// The units a trailing bracketed echo may print after a value (`5 g (g)`).

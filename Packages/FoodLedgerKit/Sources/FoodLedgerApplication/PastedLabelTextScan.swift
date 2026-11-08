@@ -31,13 +31,17 @@ public struct PastedLabelTextScan: Sendable {
     /// `PastedLabelAITextValueGrammar`'s marker lists, standing alone between token boundaries.
     /// Its range includes trailing `*` and `†`; `text` is the marker as printed, without them. It
     /// is never a value token, so nothing that reads tokens (the unit check, bound words, row
-    /// starts, block ends) sees it; only the locator's cells do.
+    /// starts, block ends) sees it; only the locator's cells do. From revision 15 (D32, locator
+    /// v4) a lone `*` between token boundaries is a marker too (`isStar`), with no trailing marks:
+    /// the locator places it only in a reference-intake column.
     public struct Marker: Equatable, Sendable, Codable {
         public let start: Int
         public let end: Int
         public let coreEnd: Int
         public let text: String
         public var range: Range<Int> { start..<end }
+        /// A lone `*` (D32), a marker of reference-intake columns only.
+        public var isStar: Bool { text == PastedLabelAITextValueGrammar.notDeclaredStar }
     }
 
     public let scalars: [Unicode.Scalar]
@@ -60,8 +64,10 @@ public struct PastedLabelTextScan: Sendable {
     // MARK: Not-declared markers (revision 14, D30)
 
     /// The marker literal starting at `index`, if any: a dash exactly, or `trace` before `tr`
-    /// with ASCII letters compared in any case. The result is its length in scalars.
+    /// with ASCII letters compared in any case, or (revision 15, D32) a lone `*`. The result is
+    /// its length in scalars.
     static func markerLength(_ scalars: [Unicode.Scalar], at index: Int, limit: Int) -> Int? {
+        if starts(scalars, at: index, with: PastedLabelAITextValueGrammar.notDeclaredStar, limit: limit) { return 1 }
         for dash in PastedLabelAITextValueGrammar.notDeclaredDashes where starts(scalars, at: index, with: dash, limit: limit) {
             return dash.unicodeScalars.count
         }
@@ -87,7 +93,9 @@ public struct PastedLabelTextScan: Sendable {
             guard boundaryBefore(scalars, start, line: line), let length = markerLength(scalars, at: start, limit: line.end) else { return nil }
             let core = start + length
             var end = core
-            while end < line.end, scalars[end] == "*" || scalars[end] == "†" { end += 1 }
+            // A lone `*` (D32) takes no trailing marks: `**` and `*†` are not markers.
+            let star = scalars[start] == "*"
+            while !star, end < line.end, scalars[end] == "*" || scalars[end] == "†" { end += 1 }
             guard boundaryAfter(scalars, end, line: line) else { return nil }
             return (core, end)
         }

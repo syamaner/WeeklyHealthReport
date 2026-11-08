@@ -119,7 +119,7 @@ final class PastedLabelAITextNotDeclaredTests: XCTestCase {
         let mapped = PastedLabelAITextWireMapping.map(wire, text: Self.text, inputSHA256: PastedLabelAITextReaderTests.sha)
         XCTAssertTrue(mapped.candidate.wouldMarkReady)
         XCTAssertEqual(mapped.values.filter { $0.read == .notRead(.notDeclared) }.count, 6)
-        XCTAssertEqual(PastedLabelAITextWireMapping.version, "pasted-label-ai-text-mapping-v3")
+        XCTAssertEqual(PastedLabelAITextWireMapping.version, "pasted-label-ai-text-mapping-v4")
         let unknown = try XCTUnwrap(PastedLabelAITextWire.decode(Data(PastedLabelAITextReaderTests.answer(
             serving: "Per serving (40g)", headers: Self.headers, rows: Self.rows(protein: [("h1", "8.1g"), ("h2", "unknown"), ("h3", "-")])).utf8)))
         XCTAssertFalse(PastedLabelAITextWireMapping.map(unknown, text: Self.text, inputSHA256: PastedLabelAITextReaderTests.sha).candidate.wouldMarkReady)

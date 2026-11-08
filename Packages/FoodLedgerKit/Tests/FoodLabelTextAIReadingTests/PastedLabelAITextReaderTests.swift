@@ -250,12 +250,14 @@ final class PastedLabelAITextReaderTests: XCTestCase {
         XCTAssertEqual(PastedLabelAITextVocabulary.basis(forHeader: "your RI*"), "reference_intake")
     }
 
-    /// Why prompt-v2 has no two-basis header rule: vocabulary v1 reads `per 100g/ml` as per 100 g
-    /// alone, so a per_100g basis for it agrees and raises no attention item.
-    func testATwoBasisHeaderIsNotAttentionUnderVocabularyV1() {
-        XCTAssertEqual(PastedLabelAITextVocabulary.basis(forHeader: "per 100g/ml"), "per_100g")
-        XCTAssertEqual(PastedLabelAITextVocabulary.checkHeader(printedText: "per 100g/ml", basis: "per_100g"), .agrees)
-        XCTAssertEqual(PastedLabelAITextVocabulary.checkHeader(printedText: "per 100g/ml", basis: "per_100ml"), .mismatch)
+    /// Vocabulary v2 (D33): `per 100g/ml` names two bases, so it names no single basis and neither
+    /// basis agrees (v1 read it as per 100 g alone). The reader declines it
+    /// (`PastedLabelAITextTwoBasisHeaderTests`).
+    func testATwoBasisHeaderNamesNoSingleBasisUnderVocabularyV2() {
+        XCTAssertNil(PastedLabelAITextVocabulary.basis(forHeader: "per 100g/ml"))
+        XCTAssertEqual(PastedLabelAITextVocabulary.checkHeader(printedText: "per 100g/ml", basis: "per_100g"), .unknown)
+        XCTAssertEqual(PastedLabelAITextVocabulary.checkHeader(printedText: "per 100g/ml", basis: "per_100ml"), .unknown)
         XCTAssertEqual(PastedLabelAITextVocabulary.checkHeader(printedText: "per 100g/100ml", basis: "per_100g"), .unknown)
+        XCTAssertTrue(PastedLabelAITextVocabulary.namesTwoBases(header: "per 100g/ml"))
     }
 }

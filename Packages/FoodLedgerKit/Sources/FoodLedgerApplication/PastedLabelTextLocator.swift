@@ -1,6 +1,7 @@
 import Foundation
 
-/// `pasted-label-text-locate-v3` (docs/pasted-label-ai-text-v1.md 4.3, D3; revision 10, v3 in revision 14, D30): a pure,
+/// `pasted-label-text-locate-v4` (docs/pasted-label-ai-text-v1.md 4.3, D3; revision 10, v3 in revision 14, D30, v4 in
+/// revision 15, D32): a pure,
 /// deterministic check of a model's answer against the text that was sent. It never produces,
 /// converts or assigns a value; it says, for each value the model returned, whether that printed
 /// value is found in the text exactly once where the model placed it, and which rows and columns
@@ -15,7 +16,7 @@ import Foundation
 ///    kJ row and a kcal row under one `Energy`). An occurrence of a longer label, located or
 ///    not, is never searched again for a shorter one. A label found more than once is ambiguous
 ///    and its values are under attention. So is a label whose remaining occurrence lies inside a
-///    case-insensitive whole-word occurrence of a longer `pasted-label-ai-text-vocabulary-v1`
+///    case-insensitive whole-word occurrence of a longer `pasted-label-ai-text-vocabulary-v2`
 ///    row label that no model row claimed (`fat` inside `Saturated fat`, review F4).
 /// 3. **Blocks** run from a located label's end to the next located label's start; the last
 ///    block ends at the first blank line after a value token in it, or at the text's end (item
@@ -52,8 +53,13 @@ import Foundation
 ///    row's other values under attention. A model value that is a marker is found only where the
 ///    same marker is printed at its row and column, by the rules above; a marker never matches a
 ///    number, nor a number a marker. A block with no marker matches exactly as under v2.
+/// 12. **Star markers** (v4, D32): a lone `*` standing alone in a block is a marker of the
+///    reference-intake column only. It may take a reference-intake position, never an amount
+///    position, and is never an amount candidate, so a model's lone `*` under an amount header is
+///    never found. A model value printed as `*` is matched as `*` (not trimmed to nothing). A block
+///    with no `*` marker is located exactly as under v3.
 public enum PastedLabelTextLocator {
-    public static let version = "pasted-label-text-locate-v3"
+    public static let version = "pasted-label-text-locate-v4"
     public static let referenceIntakeBasis = "reference_intake"
 
     // MARK: Input
@@ -299,7 +305,7 @@ public enum PastedLabelTextLocator {
                 }
                 ordinal(amounts.filter { columnOfHeader[$0.2.headerID] == nil }, candidates: slots.flatMap(\.candidates))
             } else {
-                ordinal(amounts, candidates: cells.flatMap { $0.parts }.map(Candidate.token) + markers.map(Candidate.marker))
+                ordinal(amounts, candidates: cells.flatMap { $0.parts }.map(Candidate.token) + markers.filter { !$0.isStar }.map(Candidate.marker))
             }
             groupStatuses[label] = statuses
         }
@@ -465,11 +471,17 @@ public enum PastedLabelTextLocator {
     ///    reference-intake column's candidates;
     /// 3. the cells and markers together equal the amount headers: markers take their positions;
     /// 4. otherwise the columns do not match.
+    ///
+    /// v4 (D32): a lone `*` marker takes only a reference-intake position. In rule 1 a `*` at an
+    /// amount position does not fit; in rule 2 it is a reference-intake candidate like any marker;
+    /// in rule 3 only the other markers count.
     static func columns(cells: [Cell], percent: [PastedLabelTextScan.Token], markers: [PastedLabelTextScan.Marker], amountCount: Int,
                         positional: [Bool]?) -> Layout {
-        let amountSlots = (cells.map(Slot.cell) + markers.map(Slot.marker)).sorted { $0.start < $1.start }
+        let amountMarkers = markers.filter { !$0.isStar }
+        let amountSlots = (cells.map(Slot.cell) + amountMarkers.map(Slot.marker)).sorted { $0.start < $1.start }
+        let starSlots = markers.filter(\.isStar).map(Slot.marker)
         if !markers.isEmpty, let positional {
-            let slots = (amountSlots + percent.map(Slot.percent)).sorted { $0.start < $1.start }
+            let slots = (amountSlots + starSlots + percent.map(Slot.percent)).sorted { $0.start < $1.start }
             if slots.count == positional.count {
                 var amounts: [Slot] = []
                 var reference: [PastedLabelTextScan.Marker] = []
@@ -478,6 +490,7 @@ public enum PastedLabelTextLocator {
                     switch (slot, isReference) {
                     case (.percent, true), (.cell, true): break
                     case let (.marker(marker), true): reference.append(marker)
+                    case let (.marker(marker), false) where marker.isStar: fits = false
                     case (.cell, false), (.marker, false): amounts.append(slot)
                     case (.percent, false): fits = false
                     }
@@ -486,12 +499,14 @@ public enum PastedLabelTextLocator {
             }
         }
         if cells.count == amountCount { return Layout(amounts: cells.map(Slot.cell), referenceMarkers: markers) }
-        if !markers.isEmpty, amountSlots.count == amountCount { return Layout(amounts: amountSlots, referenceMarkers: []) }
+        if !amountMarkers.isEmpty, amountSlots.count == amountCount { return Layout(amounts: amountSlots, referenceMarkers: []) }
         return Layout(amounts: nil, referenceMarkers: [])
     }
 
-    /// A model's printed value as matched: trailing `*` and `†` dropped, nothing else changed.
+    /// A model's printed value as matched: trailing `*` and `†` dropped, nothing else changed. v4
+    /// (D32): a lone `*` is matched as itself, the star marker, never as empty text.
     static func matchText(_ printed: String) -> String {
+        if printed == PastedLabelAITextValueGrammar.notDeclaredStar { return printed }
         var scalars = Array(printed.unicodeScalars)
         while let last = scalars.last, last == "*" || last == "†" { scalars.removeLast() }
         var out = String.UnicodeScalarView()

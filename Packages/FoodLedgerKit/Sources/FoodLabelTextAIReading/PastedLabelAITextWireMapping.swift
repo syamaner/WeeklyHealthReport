@@ -2,8 +2,8 @@ import FoodLedgerApplication
 import Foundation
 import NutritionLabelParsing
 
-/// `pasted-label-ai-text-mapping-v3` (docs/pasted-label-ai-text-v1.md 4.2, 4.3 item 2, D10, D16;
-/// A1 finding F9; revision 10; v3 in revision 14, D30): one text wire answer, checked against the sent text, to
+/// `pasted-label-ai-text-mapping-v4` (docs/pasted-label-ai-text-v1.md 4.2, 4.3 item 2, D10, D16;
+/// A1 finding F9; revision 10; v3 in revision 14, D30; v4 in revision 15, D32): one text wire answer, checked against the sent text, to
 /// `label-capture-candidate-v1` with route `C` (the model-read route gate v2 admits). Pure. It
 /// never converts, infers or fills a value. It is `label-photo-wire-mapping-v1` with these
 /// differences:
@@ -30,6 +30,11 @@ import NutritionLabelParsing
 ///   `not_declared`: shown as printed, never a cell, never zero, and not a left-out amount, so on
 ///   its own it never keeps the table from being ready. A marker the locator does not find there
 ///   (the model claimed a dash the text does not print in that place) stays a not-read value.
+///
+/// - **Star markers** (v4, revision 15, D32): a value printed as a lone `*` under a
+///   reference-intake header is a not-declared marker on the same terms as a dash. A `*` attached
+///   to a number (`7%*`) is a footnote and reads as before; a lone `*` under a product-amount
+///   header is not a marker and stays unreadable.
 ///
 /// Everything else (headers, M3, row IDs, parents, M1, duplicate cells, ready) is v1's.
 public enum PastedLabelAITextWireMapping {
@@ -143,8 +148,9 @@ public enum PastedLabelAITextWireMapping {
                 }
                 // v3 (D30): a printed dash, `Trace` or `Tr` is not declared, never zero and never a
                 // cell, but only where the locator finds that same marker at this row and column with
-                // nothing to check. Anywhere else it stays a not-read value the user enters.
-                if PastedLabelAITextValueGrammar.notDeclaredMarker(printed) != nil {
+                // nothing to check. Anywhere else it stays a not-read value the user enters. v4 (D32):
+                // so is a lone `*` under a reference-intake header; under an amount header it stays unreadable.
+                if PastedLabelAITextValueGrammar.notDeclaredMarker(printed, inReferenceIntakeColumn: !amountColumn) != nil {
                     if let place = located.value(row: rowIndex, index: valueIndex), place.status.range != nil, !place.needsAttention {
                         warnings.append("value_not_declared: \(rowID) \(header.headerID) \(TextPython.repr(printed))")
                         notRead(.notDeclared)

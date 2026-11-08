@@ -45,7 +45,7 @@ final class PastedLabelTextMarkerTests: XCTestCase {
         XCTAssertEqual(result.values.map(\.status), [.found(T.scalars("5g", in: text)), .found(T.scalars("-", in: text)),
                                                      .found(T.scalars("Trace", in: text)), .found(T.scalars("1.2g", in: text))])
         XCTAssertTrue(result.values.allSatisfy { !$0.needsAttention }, "a marker fills its column, so no fewer-cells attention")
-        XCTAssertEqual(Locator.version, "pasted-label-text-locate-v3")
+        XCTAssertEqual(Locator.version, "pasted-label-text-locate-v4")
     }
 
     func testAMarkerInTheReferenceIntakeColumnIsFound() {

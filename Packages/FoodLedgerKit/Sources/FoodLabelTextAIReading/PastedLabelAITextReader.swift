@@ -6,17 +6,18 @@ import NutritionLabelParsing
 /// 4.8, 5.2 item 2, 11.1, R5 and D19). Pure and on device, in product order:
 ///
 /// 1. the strict text wire decode (`pasted-label-ai-text-wire-schema-v1`);
-/// 2. `pasted-label-ai-text-mapping-v3`, which runs the locator and the unit check;
+/// 2. `pasted-label-ai-text-mapping-v4`, which runs the locator and the unit check;
 /// 3. format inference (`pasted-label-ai-text-format-v1` over the frozen inference), then decline gate v2 with the Taiwan format or `.uk`,
 ///    `label-arithmetic-checks-v2` over the amount bases and the `pasted-label-conversions-v1`
 ///    conversions for the stored column. The frozen rules are called, never copied;
 /// 4. the panel detector, on the text and again on the candidate;
-/// 5. the vocabulary check on every value's row label and header;
+/// 5. the vocabulary check (`pasted-label-ai-text-vocabulary-v2`) on every value's row label and
+///    header; a header naming two bases declines before the format step (D33);
 /// 6. attention: `label-photo-attention-v1` composed for the gate flags and failed checks, plus the
 ///    text reasons (`pasted-label-ai-text-attention-v1`).
 ///
 /// The outcome follows D19: only a hard decline declines (the model's own decline, a detector
-/// decline, a format the text route does not admit, gate G1 or G2, a gate that could not run, or
+/// decline, a header naming two bases (D33), a format the text route does not admit, gate G1 or G2, a gate that could not run, or
 /// a mapping that leaves no amount value read). G3 to G6 travel to Confirm. It never persists,
 /// decides or presents, and never changes a value: the mapped candidate is passed on, never the
 /// gate's withheld copy.
@@ -48,6 +49,12 @@ public struct PastedLabelAITextReader: PastedLabelAITextReading {
         }
         if textDetector.declines {
             return ended(.declined, declines: textDetector.markers.map { "detector:" + $0.rawValue }, candidate: projected)
+        }
+        // Revision 15 (D33, vocabulary v2): a header that names two bases (`per 100g/ml`) does not
+        // establish the basis from the paste, whatever basis the model gave it, so the reply is
+        // declined as a value column with no recognisable basis is (D27).
+        if wire.headers.contains(where: { PastedLabelAITextVocabulary.namesTwoBases(header: $0.printedText, in: text) }) {
+            return ended(.declined, declines: [PastedLabelAITextVocabulary.twoBasisDecline], candidate: projected)
         }
         // The text route's format step (`pasted-label-ai-text-format-v1`): the frozen inference,
         // then a `mixed` candidate whose text prints the Taiwan title is Taiwan.
