@@ -91,6 +91,10 @@ public struct OpenRouterPastedLabelAITextRequest: Sendable {
     /// The HTTP request: POST to the one destination, the key only in the Authorization header.
     public func httpRequest(_ text: String, key: String) throws -> LabelPhotoHTTPRequest {
         let body = try body(text)
+        // The key is checked against the decoded message content as well as the serialised bytes,
+        // because JSON escaping would hide a key containing `"` or `\` from a byte search alone
+        // (#426 Qodo finding).
+        if !key.isEmpty, text.contains(key) || instruction.contains(key) { throw BuildError.keyInBody }
         guard body.range(of: Data(key.utf8)) == nil else { throw BuildError.keyInBody }
         return LabelPhotoHTTPRequest(method: "POST", url: Self.endpointURL,
                                      headers: ["Authorization": "Bearer " + key, "Content-Type": "application/json"], body: body)

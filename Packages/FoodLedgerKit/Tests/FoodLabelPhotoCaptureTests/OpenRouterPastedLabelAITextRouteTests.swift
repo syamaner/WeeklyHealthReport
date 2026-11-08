@@ -74,6 +74,15 @@ final class OpenRouterPastedLabelAITextRouteTests: XCTestCase {
         }
     }
 
+    func testAKeyThatJSONEscapingWouldHideIsStillRefused() throws {
+        for key in ["sk-or-v1-a\"b", "sk-or-v1-a\\b"] {
+            XCTAssertThrowsError(try request().httpRequest("Fat 5g " + key, key: key), key) {
+                XCTAssertEqual($0 as? OpenRouterPastedLabelAITextRequest.BuildError, .keyInBody)
+            }
+            XCTAssertNoThrow(try request().httpRequest("Fat 5g", key: key), key)
+        }
+    }
+
     func testTheEightThousandScalarCap() throws {
         XCTAssertNoThrow(try request().body(String(repeating: "鈉", count: 8_000)))
         XCTAssertThrowsError(try request().body(String(repeating: "鈉", count: 8_001))) {

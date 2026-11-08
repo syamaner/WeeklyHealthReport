@@ -1,14 +1,15 @@
 import Foundation
 
-/// The text programme's reservations in the photo evaluation's existing spend ledger
-/// (docs/pasted-label-ai-text-v1.md 5.2 item 1, T5): the JSON file of
-/// `Tools/NutritionLabelCaptureEvaluation/budget.py` (`label-capture-spend-ledger-v1`), under the
-/// same `fcntl` lock on its sibling `.lock` file, so the Python stops and this tool always see one
-/// file. Every member this tool does not own is kept as it is.
+/// The text evaluation's own spend ledger (docs/pasted-label-ai-text-v1.md 5.2 item 1, T5 as
+/// amended 8 November 2026, D26): a JSON file with its own schema,
+/// `pasted-label-ai-text-spend-ledger-v1`, under an exclusive `flock` on its sibling `.lock` file.
+/// It is never the photo evaluation's `label-capture-spend-ledger-v1` file: each tool refuses the
+/// other's schema, so no reader ever applies one route's rules to the other's entries (#426 Qodo
+/// findings on unknown costs and on a fresh ledger's limits). Every member this tool does not own
+/// is kept as it is.
 ///
 /// - **Before a call** the worst case W is reserved as an open entry charged at W (its `cost_usd`
-///   holds W until it settles, as `budget.py` charges an open call at its ceiling, so the Python
-///   total sees it and concurrent calls never count as unknown). The reservation is refused
+///   holds W until it settles, so concurrent calls never count as unknown). The reservation is refused
 ///   when the cell's charges plus W would pass the $5 cell stop, the programme's would pass the
 ///   $25 programme stop, or the ledger's own unknown-cost stop is already reached.
 /// - **After the call** the entry settles to the reported cost. With no reported cost it stays
@@ -17,28 +18,32 @@ import Foundation
 /// - A text entry is charged its reported cost, or its W when the cost is unknown or open.
 /// - **The ledger's own stops apply too** (A2 gate finding 2): a W above its `per_call_usd` is
 ///   refused, a model or cell named in `stopped_models` is refused, and a reported cost above
-///   `per_call_usd` stops the model, as `budget.py` does. A settle whose reported cost passes W, or
+///   `per_call_usd` stops the model.
+/// - **`charged_usd`** records the total the stops see (reported costs, plus W for every open or
+///   unknown entry), beside `reported_spend_usd` (reported costs only), so the file states the
+///   charge without re-deriving it. A settle whose reported cost passes W, or
 ///   whose prompt tokens pass the request's bound, stops the cell: W was not a true bound.
 ///
 /// The ledger records the purpose, cell, model, case ID, W and the reported cost; never a key, a
 /// header, a prompt, the text or a response.
 public final class EvalSpendLedger: @unchecked Sendable {
-    public static let schema = "label-capture-spend-ledger-v1"
+    public static let schema = "pasted-label-ai-text-spend-ledger-v1"
+    /// The photo evaluation's schema (`budget.py`), refused by name.
+    public static let photoSchema = "label-capture-spend-ledger-v1"
     public static let purpose = "pasted-label-ai-text-eval"
     public static let openKind = "pasted_label_ai_text_open"
     public static let settledKind = "pasted_label_ai_text_call"
     public static let unknownKind = "pasted_label_ai_text_unknown_cost"
     public static let notSentKind = "pasted_label_ai_text_not_sent"
-    /// The kinds `budget.py` leaves out of its unknown-cost stop.
-    static let notCountedUnknownKinds: Set<String> = ["retryable_error_unknown_cost", "rejected_no_generation_unknown_cost"]
     public static let maximumCellStop = Decimal(5)
     public static let maximumProgrammeStop = Decimal(25)
 
     public enum Refusal: Error, Equatable, CustomStringConvertible {
-        case unknownSchema, unreadable, cellStop, programmeStop, unknownCostStop, noOpenReservation, stopsOutOfRange
+        case photoLedger, unknownSchema, unreadable, cellStop, programmeStop, unknownCostStop, noOpenReservation, stopsOutOfRange
         case perCallStop, modelStopped, cellStopped, promptBoundOverCeiling
         public var description: String {
             switch self {
+            case .photoLedger: "the spend ledger is the photo evaluation's; the text evaluation keeps its own"
             case .unknownSchema: "the spend ledger has an unknown schema"
             case .unreadable: "the spend ledger cannot be read"
             case .cellStop: "the $5 cell stop would be passed"
@@ -85,17 +90,19 @@ public final class EvalSpendLedger: @unchecked Sendable {
         guard FileManager.default.fileExists(atPath: url.path) else { return Self.fresh() }
         guard let data = FileManager.default.contents(atPath: url.path),
               let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { throw Refusal.unreadable }
-        guard object["schema_version"] as? String == Self.schema else { throw Refusal.unknownSchema }
+        let schema = object["schema_version"] as? String
+        if schema == Self.photoSchema { throw Refusal.photoLedger }
+        guard schema == Self.schema else { throw Refusal.unknownSchema }
         return object
     }
 
-    /// A new ledger in `budget.py`'s shape, with its default limits and no sealed reservation.
+    /// A new text ledger: a $0.20 per-call stop (D25), the $25 programme total (T5) and three
+    /// unknown-cost calls allowed.
     static func fresh() -> [String: Any] {
         ["schema_version": schema,
-         "limits": ["per_call_usd": "0.20", "total_usd": "25", "unknown_cost_calls_allowed": 3, "sealed_reserved_calls": 0,
-                    "sealed_reserved_per_call_usd": "0.05"],
-         "reported_spend_usd": "0", "unknown_cost_calls": 0, "sealed_calls_made": 0, "sealed_reservation_remaining_calls": 0, "open_calls": 0,
-         "open_sealed_calls": 0, "stopped_models": [String](), "limits_history": [Any](), "amendments": [Any](), "entries": [Any]()]
+         "limits": ["per_call_usd": "0.20", "total_usd": "25", "unknown_cost_calls_allowed": 3],
+         "reported_spend_usd": "0", "charged_usd": "0", "unknown_cost_calls": 0, "open_calls": 0,
+         "stopped_models": [String](), "entries": [Any]()]
     }
 
     func save(_ ledger: [String: Any]) throws {
@@ -107,16 +114,21 @@ public final class EvalSpendLedger: @unchecked Sendable {
         guard rename(temporary.path, url.path) == 0 else { throw Refusal.unreadable }
     }
 
-    /// `budget.py`'s `_recount` for the two counters entries change.
+    /// The counters entries change. `reported_spend_usd` sums settled reported costs only;
+    /// `charged_usd` is what the stops see: the text entries' charges, with W for every open or
+    /// unknown entry.
     static func recount(_ ledger: inout [String: Any]) {
         let entries = ledger["entries"] as? [[String: Any]] ?? []
-        let reported = entries.compactMap { ($0["cost_usd"] as? String).flatMap(decimal) }.reduce(Decimal(0), +)
+        let reported = entries.filter { $0["kind"] as? String != openKind }
+            .compactMap { ($0["cost_usd"] as? String).flatMap(decimal) }.reduce(Decimal(0), +)
         ledger["reported_spend_usd"] = "\(reported)"
+        ledger["charged_usd"] = "\(textEntries(ledger).map(charge).reduce(Decimal(0), +))"
         ledger["unknown_cost_calls"] = unknownCount(entries)
+        ledger["open_calls"] = entries.filter { $0["kind"] as? String == openKind }.count
     }
 
     static func unknownCount(_ entries: [[String: Any]]) -> Int {
-        entries.filter { ($0["cost_usd"] == nil || $0["cost_usd"] is NSNull) && !notCountedUnknownKinds.contains($0["kind"] as? String ?? "") }.count
+        entries.filter { $0["cost_usd"] == nil || $0["cost_usd"] is NSNull }.count
     }
 
     static func decimal(_ text: String) -> Decimal? { Decimal(string: text, locale: Locale(identifier: "en_US_POSIX")) }
@@ -144,7 +156,7 @@ public final class EvalSpendLedger: @unchecked Sendable {
                       programme: entries.map(Self.charge).reduce(0, +))
     }
 
-    /// The `stopped_models` key of a stopped text cell (`budget.py` keeps the list as it is).
+    /// The `stopped_models` key of a stopped text cell.
     public static func cellKey(_ cell: String) -> String { "pasted-label-ai-text-cell:" + cell }
 
     static func perCall(_ limits: [String: Any]) -> Decimal? {
