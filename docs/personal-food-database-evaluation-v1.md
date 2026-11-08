@@ -385,3 +385,29 @@ filled in this order, each by a docs commit:
 
 A test fails when a listed file no longer matches its hash, so a scorer change after E1a is visible in
 CI and needs a new freeze record.
+
+### 11.1 E1b release record (8 November 2026)
+
+The release under test is `pfc:sha256:55caa60d11a9af23a0a7aff23f6a52b6390ef9d8da05c069b4b3f66295d5088d`
+(844 entries; the bytes stay private). It was exported on 7 November 2026 at 19:07 UTC, shortly before
+the skill's first commit. On 8 November 2026 the skill at commit
+`80889c4940d642538f8b656fa4ee63d7b8c724ea` (the latest commit touching
+`.agents/skills/personal-food-catalogue/`) rebuilt it offline with `build.py`, from a copy of the same
+working files, into an empty output folder: every entry was identical, and only the `generated` date
+differed. The pinned release is the original file, and that commit is the skill that reproduces it.
+
+The working mapping files it used (SHA-256):
+
+| File | SHA-256 |
+|---|---|
+| `work/families.json` | `e4214142742dceb6e78d809c75f34fd1fbd71f9a95b6c3c5d6cbcbbeecf91fb5` |
+| `work/mapping-1.json` | `60f5db12d88238d10e86a23adf9a66979a66ace21c2f062fe488c268bc8cdd71` |
+| `work/mapping-2.json` | `3739bd52040fbf77ac5676d5806a7ae00e9e9079597112804be1c4b457899657` |
+| `work/mapping-3.json` | `e1dd93747a3da322405ec82f2aec24df3e2403ab1d61fc7a206e6e86cb6618cf` |
+| `work/mapping-4.json` | `6629a33fc0652d82b33e915930e14cc74e8d0b0ebe6bb2b5856ddcf6d8ace5ba` |
+| `work/mapping-validated.json` | `5cd021c4782888fee72511b4102fc4b647b09e0bf6775bf0ae314a09b3e7a02b` |
+| `work/usda-mapping-1.json` | `80630227cae6807d1367593ad3e56d443261381c27cb46553cbb2c230df3fc7a` |
+| `work/usda-mapping-2.json` | `750d2847574e50cd3856069f5551cc830b215b7d6480b5b394880a162186bed2` |
+| `work/intake-registry.json` | `fc97b80adbfb7e0a02b136ee15e9a4498169bf09aa53d58769199da5ee362f6b` |
+| `work/intake-mapping-notes-2026-11-07.json` | `c074c6bb0a167e6869f1320f2c532aabbccf93aa3a6d517933c039a416b9b7a8` |
+| `work/intake/notes-2026-11-07.json` | `2f5469c969e125aaa9ecbf6ff646305c051bd52dfe6772f62d67e6237791bba7` |
