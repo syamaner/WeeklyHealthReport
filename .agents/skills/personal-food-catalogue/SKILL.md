@@ -10,6 +10,35 @@ The owner keeps a private nutrition catalogue, imported into the app under
 This skill holds the procedure and data-free scripts. The catalogue itself, every input and every
 derived value live only in the private workspace.
 
+## Goal (owner, 8 November 2026)
+
+The catalogue exists to give the best possible estimate of what the owner actually eats. Everything
+below serves that, and enrichment work is judged by it:
+
+- **Per 100 g (or 100 ml) only.** The owner never uses serving or portion sizes: do not collect,
+  propose, check or require them.
+- **No pack-accuracy target.** Many foods (cooked meat bought by weight, loose produce) have no
+  pack. A label is a good source where one exists, not the definition of correct, and no entry is
+  held back or flagged for lacking one.
+- **Macronutrients and micronutrients both matter.** Fill each nutrient from the best source
+  available under the precedence below.
+- **Evidence on every value.** Each nutrient keeps its source and record identifier, the state the
+  record describes and the method (direct, derived, or carried from a close variant), so any value
+  can be revisited and improved later. Estimates stay labelled as estimates.
+- **Web search is an allowed enrichment route** (owner, 8 November 2026), alongside the local
+  corpora and Open Food Facts, when the owner asks for it and approves the queries (rule 4). A
+  search carries only a food description (title, brand, variety, state), never receipt or personal
+  data. A value taken from a web page records the URL, the date read and the state the page
+  describes in its intake `note`, and stays `page_unconfirmed` until the owner confirms it (rule 7).
+  **Known limit:** the intake file is the page evidence record and must be kept. A label attached
+  to an existing entry (`attach_to`) does not copy its `note` into the working catalogue, and the v1
+  file carries only what the import contract allows, so a confirmed page value exports like any
+  other confirmed value. Carrying page evidence further needs a script change, and a contract
+  amendment for the v1 file. Prefer national composition databases and manufacturer pages over aggregator sites.
+- **Identity and state first.** The right food in the right state (as sold, raw, cooked, drained,
+  dry, prepared) and the right cut or variety matter more than any single value; a raw record for a
+  cooked food is the worst error.
+
 ## Hard rules
 
 1. **Private workspace only.** Default `~/Documents/personal-food-catalogue` (mode 700, never a
@@ -43,7 +72,12 @@ derived value live only in the private workspace.
    search query passes `http_client.safe_query` (deny patterns plus a known food word, or Chinese
    text containing a known Chinese food fragment) **and needs the owner's approval of that exact query**
    (step 5). Barcode lookups send only digits from Open Food Facts' own results and need no separate
-   approval. A product page the owner names is read once with the WebFetch tool. What you
+   approval. A product page the owner names is read once with the WebFetch tool. Web search runs
+  only when the owner has asked for it in the current session, as recorded in
+  `docs/privacy-and-egress.md`, and because a word list cannot recognise every personal name, each
+  query is either a generic food name with no brand or a query the owner has approved exactly, for
+  web search, before it is sent. Approval of an Open Food Facts query (`work/outbound-approved.txt`)
+  does not extend to web search. Never search with text from receipts, notes or photos. What you
    read reaches your model provider: the owner's notes, label and receipt photos, CSV header rows,
    product pages the owner names, and the food titles you map or show the owner for approval; read
    them only when the owner asks.

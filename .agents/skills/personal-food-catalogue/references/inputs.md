@@ -74,8 +74,8 @@ asks for it, as they did on 7 November 2026.
 
 ## Label photo
 
-1. Read the nutrition table. Use the per 100 g (or per 100 ml) column only; record the serving
-   size in `serving` but do not convert.
+1. Read the nutrition table. Use the per 100 g (or per 100 ml) column only. Do not record the
+   serving size: the owner never uses servings.
 2. Copy printed values exactly. Convert salt to sodium (g × 400 = mg) and kJ to kcal (÷ 4.184, only
    when kcal is not printed) and record each as a `transforms` entry with the printed value.
    `<0.5 g` style values are not exact: leave them out.
@@ -90,8 +90,10 @@ temporary list, then follow the free-text recipe. Do not keep the transcription.
 
 ## Product page (URL)
 
-Fetch only pages the owner names, once, with the WebFetch tool. Record per 100 g
-values as `page_unconfirmed`, with the URL in `note`. Ask the owner to confirm as for photos.
+Fetch only pages the owner names, or result pages of an approved web search (SKILL.md rule 4),
+once each, with the WebFetch tool. Record per 100 g (or per 100 ml) values as `page_unconfirmed`,
+with the URL, the date read and the state the page describes in `note`. Ask the owner to confirm as
+for photos. Keep the intake file: it is the page evidence record (see the known limit in SKILL.md).
 
 ## Typed by the owner
 
