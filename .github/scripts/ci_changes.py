@@ -52,6 +52,8 @@ CODE_READ_DOCS = {
     "docs/food-query-interpretation-v4.md",
     # Cited by the shared lexical policy (food-lexical-terms-v9), its tests and CI.
     "docs/food-lexical-terms-v9.md",
+    # Cited by the personal food database evaluation tool and its tests.
+    "docs/personal-food-database-evaluation-v1.md",
     # Cited by the Health follow-ups (#214 to #217), their tests and Developer tools.
     "docs/health-report-section-groups-v1.md",
     "docs/health-steps-trend-v1.md",
