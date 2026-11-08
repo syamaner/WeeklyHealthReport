@@ -16,6 +16,18 @@ Source datasets bundled with the app (CoFID 2021, USDA FoodData Central, TFDA an
 
 Developer tooling for Your food database ([personal-food-catalogue-import-v1.md](personal-food-catalogue-import-v1.md)) runs on the owner's Mac, not in the app, and is not app egress. Its scripts send to Open Food Facts only (a) product titles from the owner's own receipts and from intake items that name a brand, with pack sizes removed, (b) generic food names, and (c) barcodes of chosen matches. They never send receipt text, notes, amounts, prices, addresses or identifiers, and all requests go through the skill's paced client (below the published limit, with backoff and Retry-After). Receipt titles come only from receipt item lines, never headers, after the extractor's privacy gate, and every query also passes an outbound gate (no currency, prices, emails, postcodes, long numbers, honorific names, street addresses or order and payment words, and at least one known food word, or Chinese text containing a known Chinese food fragment). Because a word list cannot recognise every personal name, no search query is sent until the owner has approved that exact query: the scripts list every planned query in a pending file and stop before any network call, then send only approved queries and never declined ones. Barcode lookups for chosen products send only digits taken from Open Food Facts' own results and need no separate approval. A product page the owner names is read once with the agent's web-fetch tool. What the agent reads reaches the agent's model provider: the owner's notes, label and receipt photos, CSV header rows, product pages the owner names, and the food titles the agent maps or shows the owner for approval; only when the owner asks. Owner approval: 7 November 2026.
 
+Personal food database evaluation drafting ([evaluation plan revision 5](personal-food-database-evaluation-v1.md),
+section 9 decision 8) is local processing on the owner's Mac. Codex may direct offline scripts to
+read the pinned release, initial review rows and unsplit queries and write private drafts and
+proposals. Only aggregate counts and hashes may be returned to the agent through tool results,
+console, chat or handover. The underlying catalogue contents, titles, brands, query text, expected
+answers, review-sheet rows and proposals are not approved for model-provider access: never include
+them in prompts, file-display output, error messages or external review payloads. Drafting authority
+does not approve a food query to any external service. The owner validates every row; nutrient
+value-against-pack checks remain exclusively the owner's. This narrows the evaluation workflow to
+local scripts and adds no destination or private-data payload to the allowed egress list. Owner
+workflow approval: 8 November 2026; draft contents and plan acceptance remain pending.
+
 ## Allowed egress
 
 | Destination | What is sent | When | Contract |

@@ -1,7 +1,9 @@
 # Personal food database evaluation v1
 
-Status: **draft, revision 5, 8 November 2026; the owner has taken every section 9 decision, and the plan
-is not yet marked accepted.** Revision 2 added three clarifications to the bars after a Qodo review
+Status: **draft, revision 5, 8 November 2026. Decisions 1 to 7 are settled. The owner has
+authorised the drafting workflow in decision 8; this does not approve any draft query, answer or
+review verdict. Every row still requires owner validation, and the plan is not yet marked accepted.**
+Revision 2 added three clarifications to the bars after a Qodo review
 (section 9, decision 4). Revision 3 answers the architecture-gate review (PASS WITH CHANGES) and the
 invariant review (NEEDS WORK) of revision 2 with the mechanics they asked for (sections 2, 4, 5 and 8)
 and closes judging gaps; it moves no bar (section 10). It also records the A3 consequence, the private
@@ -98,13 +100,14 @@ will be re-read from the pinned release.
 
 The skill writes a private review sheet in the versioned format `pfd-review-sheet-v1` (columns:
 `stratum`, `entry_id`, `title`, `matched`, `values`, then one verdict column per check). The sheet is
-**written and scored by scripts**. The drafting agent may read the pinned release and initial
-review rows to propose identity and generic food/state checks in a separate private
+**written and scored by scripts**. Codex may run local offline scripts that read the pinned release
+and initial review rows on the Mac to propose identity and generic food/state checks in a separate private
 `review/prefill-proposals.csv`, keyed by sheet row with a one-line reason. It never changes
 `review/review-sheet.csv` or its format. Proposals cover only `census`, `top30` and `draw` rows,
 not replacements. Every nutrient value-against-pack verdict stays blank and rows needing a pack
-are flagged. The owner validates every row and enters the final verdicts (decision 8). Each verdict uses exactly one token; the scorer rejects any other token or an
-unknown schema version:
+are flagged. Scripts return only counts and hashes to Codex, never the source rows or proposals.
+The owner validates every row and enters the final verdicts (decision 8). Each verdict uses exactly
+one token; the scorer rejects any other token or an unknown schema version:
 
 - **A1, A5 product:** `right_product`, `wrong_variant` (flavour, fat level, recipe), `wrong_product`,
   `skipped`.
@@ -134,13 +137,14 @@ is informational in every case.
 
 ### 4.1 Building the query set (`pfd-query-set-v1`)
 
-- **Draft sources:** Codex drafts from the pinned catalogue, including its titles, aliases, varieties
-  and concepts. These are proposed searches, not evidence of the owner's actual wording or habits.
+- **Draft sources:** Codex directs local offline scripts to draft from the pinned catalogue, including
+  its titles, aliases, varieties and concepts. These are proposed searches, not evidence of the owner's actual wording or habits.
 - **Owner validation:** the owner corrects every query and expected answer, confirms twenty frequent
   foods and twenty foods they eat that are absent from the database, and approves every row.
 - **Target size:** about 160 queries, 20 negative, with entry, generic and none answers and all three
   entry steps represented. The existing split, bars and denominators do not change.
-- **Who handles it:** Codex writes the private CSV draft and runs `assemble-queries` until it validates.
+- **Who handles it:** Codex runs local scripts to write the private CSV draft and runs
+  `assemble-queries` until it validates. Only counts and hashes return to the model.
   The draft remains unapproved. No split or seal runs until the owner approves all rows. `lookup`
   remains owner-only and interactive; the drafting agent never runs it. Any correction requires the
   unsplit JSON to be reassembled before approval and splitting.
@@ -301,11 +305,15 @@ fresh sample or a fresh held-out set.
   commit, so later edits to it run the code jobs.
 - **Private, never committed:** the database, the sample and review sheet, the verdicts, the query set
   and its expected answers, the held-out set, `seals.txt`, and any per-entry or per-query output.
-- **Bounded drafting access (decision 8):** Codex may process the pinned release, initial review rows
-  and unsplit queries only to prepare private drafts for owner validation. No private contents appear
-  in console or handover output. The drafting session never implements ranking. After splitting, no
-  agent opens the held-out folder or per-query output; other evaluation work remains counts-only.
-  Private drafts and proposals remain local; no external food query is authorised by this decision.
+- **Bounded local drafting (decision 8):** Codex may direct offline scripts to process the pinned
+  release, initial review rows and unsplit queries on the owner's Mac. Only aggregate counts and
+  hashes may return through tool results, console, chat or handover. Catalogue contents, titles,
+  brands, queries, expected answers, sheet rows and proposals must never enter model context,
+  prompts, tool output or external review payloads. Do not use file-display tools on these files;
+  failures must not echo private cells. This is local processing authority, not permission to send
+  private data to a model provider. See `privacy-and-egress.md` for the matching boundary.
+  The drafting session never implements ranking. After splitting, no agent opens the held-out
+  folder or per-query output. Private drafts remain local; no external food query is authorised.
 - **In the repository:** this plan; the scoring tool and its synthetic fixtures; the v11 golden file of
   section 4.5; and the E3 and release-check results files in the versioned format `pfd-results-v1`,
   **counts and intervals only**. That format is an allow-list: closed field names, whole-number counts,
@@ -365,8 +373,10 @@ fresh sample or a fresh held-out set.
 7. Decided 7 November 2026, before any result was seen: when the top 30 make the A2 or A3 sample larger
    than 40, the allowed counts stay fixed at 2 (A2) and 4 (A3) whatever the sample size.
 
-8. Decided 8 November 2026: Codex drafts E1d queries and pre-fills E3 identity and generic food/state
-   proposals in a separate private file; the owner validates every row last. Pack value checks remain
+8. Decided 8 November 2026: Codex directs local offline scripts to draft E1d queries and pre-fill
+   E3 identity and generic food/state proposals in a separate private file, returning counts and
+   hashes only. This authorises the workflow, not the draft contents; the owner validates every row
+   last. Pack value checks remain
    exclusively the owner's and are never pre-filled. Results disclose agent-drafted, owner-approved
    query provenance. The ranking implementer must be a separate unexposed session or agent and never
    read the query set or held-out folder. Decisions 1 to 7, acceptance bars, sample, release, seed and

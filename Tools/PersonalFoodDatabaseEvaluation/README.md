@@ -33,8 +33,10 @@ take seeds, clocks and bytes as arguments, so every result is reproducible from 
 
 **Invariants.**
 - No network access; no private data in this folder. Plan revision 5 permits a dedicated drafting
-  agent to prepare private unsplit queries and separate review proposals for owner validation.
-  Console and handover output remain counts-only; the drafting agent cannot implement ranking.
+  agent to direct local offline scripts that prepare private unsplit queries and separate review
+  proposals for owner validation. Only aggregate counts and hashes return to the model; private
+  contents must never appear in prompts, tool output or external review payloads. The drafting
+  agent cannot implement ranking.
 - Unknown is never zero: `missing_in_entry`, `not_on_pack` and skips are excluded from denominators
   and reported as their own counts; an empty stratum or set is "not assessed", never a pass.
 - A1 and A5 skips are never replaced; more than 6 skipped A1 entries fails both A1 bars.
@@ -80,8 +82,9 @@ run number it was recorded as (1, or 2 for the one permitted rerun).
 
 ## Building the query set (E1d, owner)
 
-Under plan revision 5, Codex may prepare the template and assemble an unapproved draft. The owner
-validates every row before splitting or sealing; `lookup` remains owner-only. `ROOT` is the private evaluation
+Under plan revision 5, Codex may direct local offline scripts to prepare and assemble an unapproved
+draft, returning only aggregate counts and hashes. Workflow authorisation does not approve its rows.
+The owner validates every row before splitting or sealing; `lookup` remains owner-only. `ROOT` is the private evaluation
 folder and `EXPORT` the pinned import file. The release must already be pinned in `freeze-v1.json` (E1b).
 
 1. `python3 -I pfd_eval.py query-template --root ROOT` writes an empty `queries/query-template.csv`.
