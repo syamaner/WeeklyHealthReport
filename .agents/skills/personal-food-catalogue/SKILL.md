@@ -31,7 +31,10 @@ below serves that, and enrichment work is judged by it:
   data. A value taken from a web page records the URL, the date read and the state the page
   describes in its intake `note`, and stays `page_unconfirmed` until the owner confirms it (rule 7).
   A label attached to an existing entry (`attach_to`) keeps that note in the entry's
-  `label_evidence`, keyed by the label source. **Known limit:** the v1 file carries only what the
+  `label_evidence`, keyed by the label source, for as long as the entry still uses that source's
+  values. When several intake items describe the same product, only the one the intake rules choose
+  (confirmation, then capture date) reaches the entry, so the intake files, not the working
+  catalogue, hold every page's note. **Known limit:** the v1 file carries only what the
   import contract allows, so a confirmed page value exports like any other confirmed value, and the
   working catalogue and intake file stay the evidence record; carrying it into the v1 file needs a
   contract amendment. Prefer national composition databases and manufacturer pages over aggregator sites.
