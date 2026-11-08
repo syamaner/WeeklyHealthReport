@@ -7,8 +7,9 @@ import Foundation
 /// the pasted text exactly as given, the fixed strict wire schema (pinned by SHA-256), the provider
 /// block pinned to the one endpoint (`only` and `order`, `allow_fallbacks: false`,
 /// `require_parameters: true`, `data_collection: "deny"`, `zdr: true`), `max_tokens`, the reasoning
-/// limit, no streaming, no tools and the usage report. Nothing else: no name, brand, notes, food
-/// log, health data, location, device or account identifier. The text is at most 8,000 Unicode
+/// limit (or `effort: "none"` for a reasoning-off route), no streaming, no tools and the usage
+/// report. Nothing else: no name, brand, notes, food log, health data, location, device or account
+/// identifier. The text is at most 8,000 Unicode
 /// scalars, and the key travels only in the Authorization header; a body that contains it is refused.
 ///
 /// The prompt version is a closed choice (revision 11): `prompt-v1` is the default and the only
@@ -99,6 +100,14 @@ public struct OpenRouterPastedLabelAITextRequest: Sendable {
                                                       textBytes: text.utf8.count)
     }
 
+    /// The reasoning member: the budget (every route before revision 17), or `effort: "none"`.
+    var reasoning: [String: Any] {
+        switch route.reasoning {
+        case let .budget(limit): ["max_tokens": limit]
+        case .off: ["effort": "none"]
+        }
+    }
+
     /// The exact request body, serialised with sorted keys so the bytes are reproducible.
     public func body(_ text: String) throws -> Data {
         try Self.admit(text)
@@ -112,7 +121,7 @@ public struct OpenRouterPastedLabelAITextRequest: Sendable {
             ],
             "provider": providerBlock,
             "max_tokens": route.maxOutputTokens,
-            "reasoning": ["max_tokens": route.reasoningLimit],
+            "reasoning": reasoning,
             "stream": false,
             "usage": ["include": true],
         ]

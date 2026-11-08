@@ -244,7 +244,7 @@ public enum SendCommand {
                                                   maxOutputTokens: options.route.maxOutputTokens)
         // W from this request's own prompt bound (A2 gate finding 2); a bound past the ceiling is refused.
         let promptBound = request.promptTokenBound(text)
-        guard let worstCase = PastedLabelAITextSpendPolicy.worstCase(prices, reasoningLimit: options.route.reasoningLimit,
+        guard let worstCase = PastedLabelAITextSpendPolicy.worstCase(prices, reasoningLimit: options.route.reasoningTokenBound,
                                                                      promptTokenBound: promptBound) else {
             output.attempt = "refused:\(EvalSpendLedger.Refusal.promptBoundOverCeiling)"
             return output

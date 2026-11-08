@@ -217,6 +217,32 @@ final class HarnessTests: XCTestCase {
         XCTAssertGreaterThan(try Self.w(text), Self.ukW)
     }
 
+    /// Revision 17: a reasoning-off cell reserves W with the whole output cap counted again as
+    /// reasoning (the session bills reasoning separately), and its body sends `effort: "none"`.
+    func testAReasoningOffCellReservesItsOutputCapAsReasoning() async throws {
+        let route = PastedLabelAITextRoute.gpt6LunaAzure4KNoReason
+        let listing: [String: Any] = ["data": ["id": route.model, "architecture": ["input_modalities": ["text", "image"]],
+                                               "endpoints": [["tag": "azure", "provider_name": "Azure", "pricing": Fixtures.pricing]]]]
+        try Fixtures.json(listing, root.appendingPathComponent("fake/catalogue/listing.json"))
+        try Fixtures.json(["data": [["model_id": route.model, "tag": "azure", "provider_name": "Azure"]]], root.appendingPathComponent("fake/catalogue/zdr.json"))
+        var reply = Fixtures.reply(cost: "0.004")
+        reply["body"] = (reply["body"] as! String).replacingOccurrences(of: "google/gemini-4-argon", with: route.model)
+            .replacingOccurrences(of: #""provider": "Google""#, with: #""provider": "Azure""#)
+        try Fixtures.json(reply, root.appendingPathComponent("fake/responses/uk-synthetic-01.json"))
+        let base = options()
+        let off = SendCommand.Options(labelID: base.labelID, textURL: base.textURL, route: route, cell: "cell-off", ledgerURL: base.ledgerURL,
+                                      cacheDirectory: base.cacheDirectory, fakeTransportDirectory: root.appendingPathComponent("fake"))
+        let send = try await SendCommand.run(off)
+        XCTAssertEqual(send.attempt, "responded")
+        let bound = try OpenRouterPastedLabelAITextRequest(route: route).promptTokenBound(Fixtures.ukText)
+        let w = Decimal(bound) * Decimal(string: "0.0000022")! + Decimal(8_000) * Decimal(string: "0.000011")!
+        XCTAssertEqual(send.reservedUSD, "\(w)")
+        let body = try OpenRouterPastedLabelAITextRequest(route: route).body(Fixtures.ukText)
+        XCTAssertEqual(send.requestSHA256, EvalCase.sha256(body))
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        XCTAssertEqual(object["reasoning"] as? [String: String], ["effort": "none"])
+    }
+
     func testAnOverrunStopsTheCell() async throws {
         // Prompt tokens above the request's bound: W was not a true bound, so the cell stops.
         try Fixtures.json(Fixtures.reply(cost: "0.004", promptTokens: 999_999), root.appendingPathComponent("fake/responses/uk-synthetic-01.json"))
