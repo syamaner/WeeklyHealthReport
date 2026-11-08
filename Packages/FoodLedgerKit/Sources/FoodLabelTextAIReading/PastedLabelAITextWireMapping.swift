@@ -151,8 +151,11 @@ public enum PastedLabelAITextWireMapping {
                         notRead(.bareNumberWithoutUnit, [.unitNotStated])
                         continue
                     }
-                    guard PastedLabelAITextValueGrammar.canonicalUnit(modelUnit) != nil,
-                          case let .value(withUnit) = parseValue(TextPython.strip(printed) + modelUnit) else {
+                    // The reparse uses the canonical unit, which the value pattern always accepts, so a
+                    // model spelling the closed table maps case-insensitively (`G` for `g`) is read
+                    // rather than lost (#426 Qodo finding). The unit check above has already verified it.
+                    guard let canonicalModelUnit = PastedLabelAITextValueGrammar.canonicalUnit(modelUnit),
+                          case let .value(withUnit) = parseValue(TextPython.strip(printed) + canonicalModelUnit) else {
                         warnings.append("value_not_read: \(rowID) \(header.headerID) model unit outside the table")
                         if amountColumn { leftOutAmounts += 1 }
                         notRead(.unitOutsideTable, [.unitNotStated])

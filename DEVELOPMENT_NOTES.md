@@ -3898,3 +3898,18 @@ Excluded:
 No call reached OpenRouter.
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a charge. Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-416-2026-11-08: Claude Code fixes for the four #426 Qodo findings (#416)
+
+The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) made the four fixes and their tests, wrote spec revision 8 (D26), ran one local Qodo review and briefed one validator subagent (`claude-opus-5-5`). The window runs from the owner's "Let's fix" at `2026-11-08T08:43:29Z` to `2026-11-08T09:12:05Z`. Of the cache writes, 75,464 tokens were 5-minute writes (the subagent) and the rest 1-hour.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| #426 Qodo follow-ups (#416), coordinator and subagent | 6,037,178 (5,829,926) | 207,126 | 29,209 | 6,066,387 | $3.18 |
+| **Subtotal** | 6,037,178 (5,829,926) | 207,126 | 29,209 | 6,066,387 | $3.18 |
+
+Method: `phase_usage.py --format claude --since 2026-11-08T08:43:29Z --until 2026-11-08T09:12:05Z --include-subagents` on the session transcript. Exact USD 3.1812852.
+
+Excluded: the Qodo review run; local builds and test loops, which use no API tokens; this ledger edit, the commit, the push and the PR after the window. No call reached OpenRouter.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a charge. Token totals are not evidence of productivity, quality or provider efficiency.
