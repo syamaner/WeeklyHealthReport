@@ -23,7 +23,6 @@ One JSON file per input, written to `<workspace>/inbox/<source_id>.json` and reg
       "label": {
         "origin": "photo_unconfirmed",
         "basis": "per_100_g",
-        "serving": "1 cake = 10 g",
         "values": {"energy_consumed": 380, "fat_total": 3.0, "fat_saturated": 0.5,
                    "carbohydrates": 80.0, "sugar": 0.5, "fiber": 4.0, "protein": 8.0, "sodium": 200}
       }
