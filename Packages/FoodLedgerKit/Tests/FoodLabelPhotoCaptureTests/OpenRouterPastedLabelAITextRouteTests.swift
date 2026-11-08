@@ -159,6 +159,24 @@ final class OpenRouterPastedLabelAITextRouteTests: XCTestCase {
         }
     }
 
+    func testTheFourThousandTokenCandidatesDifferOnlyInIDAndOutputCap() throws {
+        let pairs = [(PastedLabelAITextRoute.gemini38FlashVertexUS, PastedLabelAITextRoute.gemini38FlashVertexUS4K),
+                     (PastedLabelAITextRoute.gpt6LunaAzure, PastedLabelAITextRoute.gpt6LunaAzure4K)]
+        for (base, wide) in pairs {
+            XCTAssertEqual(wide.candidateID, base.candidateID + "-4k")
+            XCTAssertEqual(wide.maxOutputTokens, 4_000)
+            XCTAssertEqual(base.maxOutputTokens, 2_400)
+            XCTAssertEqual([wide.version, wide.model, wide.endpoint, wide.providerName], [base.version, base.model, base.endpoint, base.providerName])
+            XCTAssertEqual(wide.reasoningLimit, base.reasoningLimit)
+            XCTAssertTrue(PastedLabelAITextRoute.isAdmitted(wide))
+            XCTAssertEqual(PastedLabelAITextRoute.candidate(wide.candidateID), wide)
+            let body = try JSONSerialization.jsonObject(with: try OpenRouterPastedLabelAITextRequest(route: wide).body("Energy 100 kJ")) as? [String: Any]
+            XCTAssertEqual(body?["max_tokens"] as? Int, 4_000)
+        }
+        XCTAssertEqual(Set(PastedLabelAITextRoute.candidates.map(\.candidateID)).count, PastedLabelAITextRoute.candidates.count)
+        XCTAssertNil(PastedLabelAITextRoute.current)
+    }
+
     // MARK: Test 28: the attempt adapter passes the attempting contract
 
     final class CountingTransport: LabelPhotoHTTPTransporting, @unchecked Sendable {

@@ -57,9 +57,18 @@ public enum PastedLabelAITextRoute {
                                                         model: "anthropic/claude-haiku-5.5", endpoint: "google-vertex/global",
                                                         providerName: "Google", maxOutputTokens: 3_000, reasoningLimit: 1_024)
 
+    // A3 prompt-v2 follow-up (owner, 8 November 2026): the same Flash and Luna endpoints with a
+    // 4,000-token output cap, because four-column UK tables ran out of output at 2,400. Added as
+    // new candidates, so the set stays append-only and the 2,400 cells stay comparable.
+    public static let gemini38FlashVertexUS4K = Route(version: version, candidateID: "gemini-3.8-flash-vertex-us-4k", model: "google/gemini-3.8-flash",
+                                                      endpoint: "google-vertex/us", providerName: "Google", maxOutputTokens: 4_000,
+                                                      reasoningLimit: 500)
+    public static let gpt6LunaAzure4K = Route(version: version, candidateID: "gpt-6-luna-azure-4k", model: "openai/gpt-6-luna", endpoint: "azure",
+                                              providerName: "Azure", maxOutputTokens: 4_000, reasoningLimit: 500)
+
     /// Closed and append-only: the candidates an evaluation cell may name.
     public static let candidates: [Route] = [gemini4ArgonVertexUS, gemini38FlashVertexUS, mistralLarge4ZDR, gpt6LunaAzure, gpt61SolAzure,
-                                             claudeHaiku55VertexGlobal]
+                                             claudeHaiku55VertexGlobal, gemini38FlashVertexUS4K, gpt6LunaAzure4K]
 
     /// The one shipped route; nil until A3 freezes one.
     public static let current: Route? = nil
