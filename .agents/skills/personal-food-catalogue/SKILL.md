@@ -30,8 +30,11 @@ below serves that, and enrichment work is judged by it:
   search carries only a food description (title, brand, variety, state), never receipt or personal
   data. A value taken from a web page records the URL, the date read and the state the page
   describes in its intake `note`, and stays `page_unconfirmed` until the owner confirms it (rule 7).
-  That evidence lives in the working catalogue; the v1 file carries only what the import contract
-  allows, so a confirmed page value exports like any other confirmed value. Prefer national composition databases and manufacturer pages over aggregator sites.
+  **Known limit:** the intake file is the page evidence record and must be kept. A label attached
+  to an existing entry (`attach_to`) does not copy its `note` into the working catalogue, and the v1
+  file carries only what the import contract allows, so a confirmed page value exports like any
+  other confirmed value. Carrying page evidence further needs a script change, and a contract
+  amendment for the v1 file. Prefer national composition databases and manufacturer pages over aggregator sites.
 - **Identity and state first.** The right food in the right state (as sold, raw, cooked, drained,
   dry, prepared) and the right cut or variety matter more than any single value; a raw record for a
   cooked food is the worst error.
