@@ -7,6 +7,7 @@ import bars
 import formats
 import sample
 import score_a
+import queries
 import score_b
 import split
 from stats import wilson
@@ -308,6 +309,122 @@ class Formats(unittest.TestCase):
              "queries": [{"query_id": "q-0001", "text": "x", "negative": True, "answer": {"kind": "entry", "entry_ids": [H.eid(1)], "step": 1}}]}
         with self.assertRaises(formats.FormatError):
             formats.parse_query_set(formats.dumps(q))
+
+
+
+class QueryTemplate(unittest.TestCase):
+    ENTRIES = {H.eid(1), H.eid(2)}
+    GENERIC = {"cofid": {"cofid:synthetic:1"}}
+
+    def assemble(self, *rows):
+        data = queries.template() + ("\n".join(rows) + "\n").encode()
+        return queries.assemble(data, H.RELEASE, self.ENTRIES, self.GENERIC)
+
+    def test_rows_become_a_valid_query_set(self):
+        doc = self.assemble(f"synthetic one,no,entry,{H.eid(1)} {H.eid(2)},variety,",
+                            "synthetic two,no,generic,,,cofid=cofid:synthetic:1",
+                            ",,,,,",  # blank rows are skipped
+                            "synthetic three,yes,none,,,",
+                            "synthetic four,no,none,,,")  # plan 4.2: the owner may mark others none
+        self.assertEqual([q["query_id"] for q in doc["queries"]], ["q-0001", "q-0002", "q-0003", "q-0004"])
+        self.assertEqual(doc["queries"][0]["answer"], {"kind": "entry", "entry_ids": [H.eid(1), H.eid(2)], "step": 2})
+        self.assertEqual(doc["queries"][1]["answer"]["generic"], [{"source": "cofid", "record_id": "cofid:synthetic:1"}])
+        self.assertEqual(queries.counts(doc), {"queries": 4, "negative": 1, "entry": 1, "generic": 1, "none": 2})
+        formats.parse_query_set(formats.dumps(doc))
+
+    def test_mistakes_are_refused_by_row_without_echoing_cells(self):
+        bad = [
+            "secret words,maybe,none,,,",
+            f"secret words,yes,entry,{H.eid(1)},1,",
+            f"secret words,no,entry,{H.eid(9)},1,",
+            "secret words,no,entry,pfc:nothex,1,",
+            f"secret words,no,entry,{H.eid(1)},4,",
+            "secret words,no,generic,,,cofid=cofid:unknown",
+            "secret words,no,generic,,,ciqual=x",
+            "secret words,no,none,,1,",
+            ",no,none,,,",
+            "secret words,no,none,,,,extra",
+        ]
+        for row in bad:
+            with self.subTest(row=row), self.assertRaises(queries.QueryTemplateError) as cm:
+                self.assemble(row)
+            self.assertIn("row 2", str(cm.exception))
+            self.assertNotIn("secret", str(cm.exception))
+        with self.assertRaises(queries.QueryTemplateError):
+            self.assemble("Secret  Words,no,none,,,", "secret words,no,none,,,")  # duplicate after normalising
+        with self.assertRaises(queries.QueryTemplateError):
+            queries.assemble(b"query,answer\n", H.RELEASE, self.ENTRIES, self.GENERIC)
+        with self.assertRaises(queries.QueryTemplateError):
+            self.assemble()
+
+    def test_lookup_is_alphabetical_and_says_where_words_matched(self):
+        entries = [H.entry(1, title="Synthetic Zeta Oats"), H.entry(2, title="Synthetic Alpha Oats"), H.entry(3, title="Synthetic Rice")]
+        entries[2]["variety"] = "oats"
+        rows, total = queries.lookup_entries(entries, "OATS")
+        self.assertEqual(total, 3)
+        self.assertEqual([r[0] for r in rows], [H.eid(2), H.eid(3), H.eid(1)])
+        self.assertEqual(rows[1][3], ["variety"])
+        self.assertEqual(queries.lookup_entries(entries, "oats missing"), ([], 0))
+        self.assertEqual(queries.lookup_entries(entries, "  "), ([], 0))
+        many = [H.entry(n, title=f"Synthetic oats {n}") for n in range(1, 40)]
+        rows, total = queries.lookup_entries(many, "oats")
+        self.assertEqual((len(rows), total), (queries.LOOKUP_LIMIT, 39))
+
+    def test_generic_lookup_prints_the_template_form(self):
+        recs = {"cofid": {"cofid:synthetic:1": ("Synthetic oats, raw", "raw")}, "usda": {}}
+        rows, total = queries.lookup_generic(recs, "oats")
+        self.assertEqual((rows, total), ([("cofid=cofid:synthetic:1", "Synthetic oats, raw", "raw")], 1))
+
+
+class GenericAliasLookup(unittest.TestCase):
+    def test_a_record_is_found_by_its_search_alias(self):
+        recs = {"tfda": {"tfda:synthetic-1": ("Synthetic fruit", "raw")}, "cofid": {}}
+        aliases = {"tfda": {"tfda:synthetic-1": ["Synthetic alias word"]}}
+        self.assertEqual(queries.lookup_generic(recs, "alias word", aliases)[1], 1)
+        self.assertEqual(queries.lookup_generic(recs, "alias word")[1], 0)
+        self.assertEqual(queries.lookup_generic(recs, "alias fruit", aliases)[1], 0)  # one name holds every word
+
+    def test_tfda_aliases_come_from_the_bundled_corpus(self):
+        import pfd_eval
+        aliases = pfd_eval.generic_aliases(H.REPO, {"tfda": "pinned"})["tfda"]
+        self.assertTrue(aliases and all(k.startswith("tfda:") for k in aliases))
+        self.assertTrue(any(aliases.values()))
+        self.assertEqual(pfd_eval.generic_aliases(H.REPO, {}), {})
+
+
+class QueryCSVRegression(unittest.TestCase):
+    def test_malformed_quoting_is_refused(self):
+        with self.assertRaises(queries.QueryTemplateError):
+            queries.assemble(queries.template() + b'"Synthetic,no,none,,,\n', H.RELEASE, set(), {})
+
+    def test_malformed_quoting_names_the_line_without_a_value(self):
+        with self.assertRaises(queries.QueryTemplateError) as cm:
+            queries.assemble(queries.template() + b'Synthetic,no,none,,,\n"Synthetic secret,no,none,,,\n', H.RELEASE, set(), {})
+        self.assertTrue(str(cm.exception).startswith("line "), str(cm.exception))
+        self.assertNotIn("secret", str(cm.exception))
+
+    def test_extra_cells_name_the_row_and_column_count(self):
+        with self.assertRaises(queries.QueryTemplateError) as cm:
+            queries.assemble(queries.template() + b"Synthetic,no,none,,,,secret\n", H.RELEASE, set(), {})
+        self.assertIn("row 2: 7 cells; the header has 6 columns", str(cm.exception))
+        self.assertNotIn("secret", str(cm.exception))
+
+    def test_query_whitespace_is_preserved(self):
+        doc = queries.assemble(queries.template() + b"  Synthetic query  ,no,none,,,\n", H.RELEASE, set(), {})
+        self.assertEqual(doc["queries"][0]["text"], "  Synthetic query  ")
+
+    def test_unknown_entry_names_column_without_value(self):
+        with self.assertRaises(queries.QueryTemplateError) as cm:
+            queries.assemble(queries.template() + f"Synthetic,no,entry,{H.eid(9)},1,\n".encode(), H.RELEASE, set(), {})
+        self.assertIn("row 2: entry_ids:", str(cm.exception))
+        self.assertNotIn(H.eid(9), str(cm.exception))
+
+    def test_brand_only_match_is_not_reported_as_title(self):
+        entry = H.entry(1, title="Synthetic item")
+        entry["brand"] = "SyntheticBrand"
+        rows, total = queries.lookup_entries([entry], "SyntheticBrand")
+        self.assertEqual(total, 1)
+        self.assertEqual(rows[0][3], ["brand"])
 
 
 if __name__ == "__main__":
