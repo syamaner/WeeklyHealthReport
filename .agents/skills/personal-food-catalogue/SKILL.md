@@ -10,6 +10,25 @@ The owner keeps a private nutrition catalogue, imported into the app under
 This skill holds the procedure and data-free scripts. The catalogue itself, every input and every
 derived value live only in the private workspace.
 
+## Goal (owner, 8 November 2026)
+
+The catalogue exists to give the best possible estimate of what the owner actually eats. Everything
+below serves that, and enrichment work is judged by it:
+
+- **Per 100 g (or 100 ml) only.** The owner never uses serving or portion sizes: do not collect,
+  propose, check or require them.
+- **No pack-accuracy target.** Many foods (cooked meat bought by weight, loose produce) have no
+  pack. A label is a good source where one exists, not the definition of correct, and no entry is
+  held back or flagged for lacking one.
+- **Macronutrients and micronutrients both matter.** Fill each nutrient from the best source
+  available under the precedence below.
+- **Evidence on every value.** Each nutrient keeps its source and record identifier, the state the
+  record describes and the method (direct, derived, or carried from a close variant), so any value
+  can be revisited and improved later. Estimates stay labelled as estimates.
+- **Identity and state first.** The right food in the right state (as sold, raw, cooked, drained,
+  dry, prepared) and the right cut or variety matter more than any single value; a raw record for a
+  cooked food is the worst error.
+
 ## Hard rules
 
 1. **Private workspace only.** Default `~/Documents/personal-food-catalogue` (mode 700, never a
