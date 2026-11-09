@@ -173,3 +173,45 @@ Run `python3 -I v2/pfd_eval_v2.py <command> --help` for exact options. The A1 an
 judged on macro and micro values together, as the plan's single "assessed value evidence error"
 bar; macro and micro counts are reported separately for information. After any change to a `v2/`
 module or the inventory, regenerate `freeze-v2.json` in the same commit.
+
+## R1, the drops-only export (#424, plan decision 10)
+
+`r1/` builds R1, the export of the pinned release with the E3 consequences applied (E3 disposition,
+[`docs/personal-food-database-e3-disposition.md`](../../docs/personal-food-database-e3-disposition.md),
+D1 and D2). It changes no frozen file: it imports the frozen review v2 modules and the skill's
+`export_v1.py` read-only, and it is not in either freeze record.
+
+| Module | Responsibility |
+|---|---|
+| `r1/r1_export.py` | Pure. Derives R1 from the parsed pinned release, the frozen `pfd-exclusions-v1` list and a `pfd-unresolved-v1` list, under two explicit switches (`a1`: drop every Open Food Facts label value; `a2`: every merge becomes a candidate). `check_drops_only` proves the result only removes: same entries in the same order, every kept field, value, source and reference byte-equal, and a reference changed only from `merge` to `candidate`. `check_applied` proves every required removal happened. |
+| `r1/pfd_r1.py` | Command line and files only: `build-r1 --root DIR --release PINNED.json --a1 on|off --a2 on|off`. |
+
+**How it decides.** R1 is never rebuilt from working files, so no merge can be created and a
+merge made newly eligible by dropped values stays a candidate by construction. A withheld entry
+keeps no value and no reference and stays listed ("No nutrition data yet"). A withheld or
+unresolved value is removed. Its key must be in the frozen nutrient inventory; when it is not a
+label value of the entry, the reviewed value came from the entry's generic reference, so that
+reference is removed instead, whether `merge` or `candidate`, and a listed key on an entry with
+neither is refused. Unresolved values are taken from every stratum (unresolved is never a pass),
+and the console reports them by stratum. A label value dropped from an entry whose `merge`
+reference stays is then supplied by that reference as a generic value, which the plan keeps
+(section 6); entries keep their pinned `basis`. Sources no longer cited are removed; `generated`
+and `generic_corpora` stay as pinned.
+
+**Formats.** `pfd-unresolved-v1`, private: `{"schema": "pfd-unresolved-v1", "release_id":
+"pfc:sha256:...", "withhold_values": [{"entry_id", "nutrient"}]}`, values unique and in ascending
+`(entry_id, nutrient)` order, written with sorted keys, no spaces and one trailing newline; any
+other byte form is refused. It holds entry IDs and inventory keys only. `pfd-r1-build-v1`, private,
+the same canonical form: the pinned and R1 release IDs, the switches and the SHA-256 of the
+exclusion and unresolved lists, so the stored R1 always says how it was built. A new field is a
+new schema version.
+
+**Fail closed.** `build-r1` runs only when both freeze records, the bars lock and the review seal
+hold, the release file has the pinned ID and passes the importer's rules, and the exclusion list
+names the same release. The unresolved list is derived from the sealed review with the frozen
+parsers (values assessed `unresolved`). The output must pass `check_drops_only`, `check_applied`, the skill's
+export conventions and the importer's rules, or nothing is written. All three files go to
+`<root>/r1/`, all or nothing, and a different existing file is never overwritten. The console
+prints counts and the R1 release ID only. The three files are the R1 file, the unresolved list and the build record.
+
+For the A1 consequence the evaluator runs it with `--a1 on --a2 off` (A2 passed).

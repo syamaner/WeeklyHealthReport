@@ -1,8 +1,11 @@
 # Personal food database evaluation v1
 
-Status: **draft, revision 5, 8 November 2026. Decisions 1 to 7 are settled. The owner has
+Status: **draft, revision 6, 9 November 2026. Decisions 1 to 7 are settled. The owner has
 authorised the drafting workflow in decision 8; this does not approve any draft query, answer or
-review verdict. Every row still requires owner validation, and the plan is not yet marked accepted.**
+review verdict. Every row still requires owner validation, and the plan is not yet marked accepted.
+Decisions 9 and 10 are also settled. Revision 6 records decision 10 (the E3 disposition) and was
+approved by the owner on 9 November 2026. E3 is not final until the steps of the
+[E3 disposition](personal-food-database-e3-disposition.md), section 1, are done.**
 Revision 2 added three clarifications to the bars after a Qodo review
 (section 9, decision 4). Revision 3 answers the architecture-gate review (PASS WITH CHANGES) and the
 invariant review (NEEDS WORK) of revision 2 with the mechanics they asked for (sections 2, 4, 5 and 8)
@@ -62,7 +65,9 @@ a docs commit; a command that needs an entry stops when it is missing (fail clos
 Scorers refuse an input that is unsealed, changed since its seal, or not the pinned release, and refuse
 to run when the hash of a scorer file, `workspace_guard.py` or the golden file differs from the Freeze
 list. A rebuilt database is a new release, except an E3 export that only **drops** values or candidates under a section
-6 rule: that needs no new Part A sample. Part B answers are keyed by entry `id`, which is stable for a
+6 rule: that needs no new Part A sample. Since revision 6, a release that adds approved estimates to
+such a drops-only export is an **additive estimate release** with its own binding (decision 10,
+point 4): it never reuses the pinned release's ID, seals or Part B answers. Part B answers are keyed by entry `id`, which is stable for a
 brand and title (contract section 4), and every result names the release it ran on.
 
 ## 3. Part A: evidence-backed estimates
@@ -266,6 +271,8 @@ Three checks, all required:
 
 Implementation does not start until E3 is complete and its section 6 consequences are applied to the
 exported file. A failed Part A bar changes the export, not the implementation plan (decision 3).
+Under decision 10, E3 produces two files in order: R1, the drops-only export of the pinned release,
+and then R2, R1 plus approved estimates under the additive estimate binding.
 
 ### 5.1 Running Part B against the real Swift code, privately
 
@@ -359,6 +366,16 @@ failure consequences; this documentation revision performs no export changes.
 values; force every reference to `candidate`). Dropping Open Food Facts values can change an entry's
 basis and make a merge newly eligible; such newly eligible merges stay `candidate` in that release,
 because A2 never sampled them.
+
+**A1 outcome determined (revision 6, decision 10).** The A1 result was scored with 2 unresolved
+values, so the tool reports `passes: null`. Both A1 bars are exceeded under every resolution of
+those values (E3 disposition, section 2), so the owner recorded A1 as failed and its consequence
+applies to R1. This amends one rule by name: review v2 design section 3, "Unresolved and bars",
+says no section 6 export consequence fires while a measure is not final. From revision 6 that rule
+has one exception: a consequence fires when the measure **fails under every possible resolution**
+of its unresolved items, and the owner records that in a dated revision of this file. It never
+applies to a pass. The tool's verdict is unchanged: the results file keeps `passes: null` and the
+unresolved count, and the unresolved values stay withheld.
 
 A bar is never moved after its results are seen. A changed bar needs a new revision of this file and a
 fresh sample or a fresh held-out set.
@@ -492,6 +509,31 @@ format is authorised; the existing sheet, pinned inputs and frozen tools remain 
    and accepted the rubric Part A bars of section 6 (`v2_proposed`) in place of the 7 November bars,
    whose pack-comparison measures cannot be scored under the rubric. Part B bars are unchanged. The
    implementation of the v2 tool is its own phase.
+10. Decided 9 November 2026, after the Part A v2 result was scored and before any Part B run (the
+    owner's decisions D1 to D5 of the [E3 disposition](personal-food-database-e3-disposition.md)).
+    No bar moves.
+    1. **A1 disposition.** A1 is recorded as failed because both A1 bars are exceeded under every
+       resolution of its 2 unresolved values; section 6 records the rule this amends. The A1
+       consequence and the per-entry exclusions apply to R1.
+    2. **Two releases.** R1 is the drops-only export of the pinned release (schema
+       `personal-food-catalogue-v1`) and relies on the pinned release's E3. R2 is R1 plus approved
+       estimates (schema `personal-food-catalogue-estimates-v1`,
+       [contract](personal-food-catalogue-estimates-v1.md)). R1 is produced first and stands alone.
+    3. **Evidence classes.** R2 admits the aggregator-sourced and indexed-copy estimates as labelled
+       estimates, against the recommendation to withhold them: they are accepted as weaker evidence
+       and never described as checked. The 2 unresolved A1 values stay withheld. Any value whose underlying source is Open Food Facts is refused while the A1
+       consequence stands, and no estimate that restores a value withheld by E3 is admitted.
+    4. **Additive estimate binding.** R2's ID is the SHA-256 of its bytes, recorded with R1's ID
+       and the estimate companion's hash (counts and hashes only). Entries R2 leaves unchanged must
+       be byte-identical to R1 in canonical form outside `estimated_nutrients`, with zero
+       differences reported. Added estimates are a census reported by class, with no accuracy bar.
+       That exemption from section 2 was proposed after the audit counts were known, so R2's
+       estimates are never described as evaluated.
+    5. **Part B binding.** Part B binds to R2 if the estimates contract is accepted and the
+       evaluator has built and checked R2 before the first development run, and to R1 otherwise.
+       The choice is recorded in a freeze record before that run and never changed. If the bound
+       release does not ship, the other needs its own Part B run on a fresh held-out set (section
+       4.3).
 
 ## 10. Review record
 
@@ -521,6 +563,12 @@ sealing. It changes no tool or schema. Its best-estimate amendment proposed repl
 bars, which decision 9 accepted on 8 November 2026 before any Part A result was scored; the
 7 November bars stay in section 6 as the superseded record.
 
+Revision 6 (9 November 2026) records decision 10, adds the additive estimate release to section 2,
+the two-release order to section 5, and the "A1 outcome determined" rule to section 6, which
+amends review v2 design section 3 by name for a failure determined under every resolution only. It
+moves no bar, changes no tool, seal or frozen hash, and adds a freeze row (section 11) that a later
+tool phase fills.
+
 ## 11. Freeze list
 
 The Freeze list is `Tools/PersonalFoodDatabaseEvaluation/freeze-v1.json` (format `pfd-freeze-v1`). It is
@@ -533,6 +581,7 @@ filled in this order, each by a docs commit:
 | E1c | `seed`, `sample_sha256`, `purchase_counts_sha256` |
 | E1d | `heldout_sha256` (the `seal-heldout` bundle hash) |
 | Before v12 code | `golden_sha256` and the golden file's path in `files` |
+| Before the first Part B development run | the Part B release binding (decision 10, point 5): R2's ID, or R1's. Recorded in a new versioned freeze record added by its own tool phase; `freeze-v1.json`, `freeze-v2.json` and every frozen tool hash stay as they are |
 
 A test fails when a listed file no longer matches its hash, so a scorer change after E1a is visible in
 CI and needs a new freeze record.
