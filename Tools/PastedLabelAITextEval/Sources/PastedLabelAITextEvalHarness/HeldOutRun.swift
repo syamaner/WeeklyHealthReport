@@ -275,6 +275,9 @@ public enum HeldOutRun {
     /// line was cut off) is a row with no named scores, so it counts as failed. Idempotent: the same
     /// inputs give the same bytes.
     package static func finalise(_ paths: Paths) throws -> Counts {
+        // The run record and the journal are read only as plain files, never through a link (Qodo, A4).
+        guard isPlainFile(paths.runRecord) else { throw exists(paths.runRecord) ? Refusal.linkedFixedPath : Refusal.runRecordMissing }
+        if exists(paths.journal) && !isPlainFile(paths.journal) { throw Refusal.linkedFixedPath }
         guard let recordData = FileManager.default.contents(atPath: paths.runRecord.path),
               let record = (try? JSONSerialization.jsonObject(with: recordData)) as? [String: Any],
               record["schema"] as? String == runSchema, let ids = record["label_ids"] as? [String], !ids.isEmpty else {
@@ -401,7 +404,11 @@ public enum HeldOutRun {
         let entries = EvalSpendLedger.textEntries(object)
         if entries.contains(where: { EvalSpendLedger.charge($0) < 0 }) { throw Refusal.ledgerNegativeCharge }
         if entries.contains(where: { SendCommand.isHeldOutCell(($0["cell"] as? String) ?? "") }) { throw Refusal.ledgerHoldsA4Cell }
-        guard entries.contains(where: { !(($0["cell"] as? String) ?? "").isEmpty }) else { throw Refusal.noA3Entry }
+        // An A3 entry is one of the frozen configuration's own tuning cells, not any text-evaluation cell (Qodo, A4).
+        let a3Prefix = "v2__gpt-6.1-sol-azure-4k__"
+        guard entries.contains(where: { (($0["cell"] as? String) ?? "").hasPrefix(a3Prefix) && $0["cell"] as? String != cell }) else {
+            throw Refusal.noA3Entry
+        }
         let stopped = Set(object["stopped_models"] as? [String] ?? [])
         if stopped.contains(route.model) || stopped.contains(EvalSpendLedger.cellKey(cell)) { throw Refusal.stoppedInLedger }
         let limits = object["limits"] as? [String: Any] ?? [:]
@@ -536,6 +543,11 @@ public enum HeldOutRun {
         var status = stat()
         guard lstat(paths.ledger.path, &status) == 0 else { throw Refusal.ledgerMissing }
         guard status.st_mode & S_IFMT == S_IFREG else { throw Refusal.linkedFixedPath }
+    }
+
+    static func isPlainFile(_ url: URL) -> Bool {
+        var status = stat()
+        return lstat(url.path, &status) == 0 && status.st_mode & S_IFMT == S_IFREG
     }
 
     static func isPlainDirectory(_ url: URL) -> Bool {

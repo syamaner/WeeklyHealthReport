@@ -34,7 +34,9 @@ esac
 if [[ -z "${OPENROUTER_API_KEY:-}" ]]; then refuse "OPENROUTER_API_KEY must be set: the run reads the key from the environment only (T4)"; fi
 nokey() { env -u OPENROUTER_API_KEY "$@"; }
 nokey git -C "$repo" fetch --quiet origin || refuse "git fetch origin failed"
-[[ -z "$(nokey git -C "$repo" status --porcelain --untracked-files=all)" ]] || refuse "the checkout is not clean"
+# A failed status is a refusal, never an empty and so clean answer (Qodo, A4).
+status="$(nokey git -C "$repo" status --porcelain --untracked-files=all)" || refuse "git status failed"
+[[ -z "$status" ]] || refuse "the checkout is not clean"
 head="$(nokey git -C "$repo" rev-parse HEAD)" || refuse "HEAD could not be read"
 main="$(nokey git -C "$repo" rev-parse origin/main)" || refuse "origin/main could not be read"
 [[ -n "$head" && "$head" == "$main" ]] || refuse "HEAD is not origin/main"
@@ -45,7 +47,8 @@ bin="$(nokey swift build --package-path "$package" -c debug --show-bin-path)/Pas
 # The checkout is checked again just before the run, so a change made during the tests or the build
 # is refused (Qodo, A4). A change in the moment between this check and the exec is not covered: the
 # run is a single local operator's, on a checkout nothing else is writing to.
-[[ -z "$(nokey git -C "$repo" status --porcelain --untracked-files=all)" ]] || refuse "the checkout changed during the tests or the build"
+status="$(nokey git -C "$repo" status --porcelain --untracked-files=all)" || refuse "git status failed"
+[[ -z "$status" ]] || refuse "the checkout changed during the tests or the build"
 [[ "$(nokey git -C "$repo" rev-parse HEAD)" == "$head" ]] || refuse "HEAD moved during the tests or the build"
 nokey "$bin" check ${root_args[@]+"${root_args[@]}"} >&2 || refuse "the held-out check refused the run"
 exec "$bin" run ${root_args[@]+"${root_args[@]}"}

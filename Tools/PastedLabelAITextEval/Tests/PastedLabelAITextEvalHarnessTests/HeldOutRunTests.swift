@@ -404,6 +404,29 @@ final class HeldOutRunTests: XCTestCase {
         try await assertRefused(.ledgerNegativeCharge)
     }
 
+    /// Qodo, A4: an entry for another model's cell is not A3's spend history.
+    func testALedgerWithoutAFrozenModelEntryIsRefused() async throws {
+        try HeldOutFixtures.ledger(paths.ledger, entries: [HeldOutFixtures.a3Entry(cell: "v2__gpt-6-luna-azure-4k__tuning")])
+        try await assertRefused(.noA3Entry)
+    }
+
+    /// Qodo, A4: finalise never reads the run record or the journal through a link.
+    func testFinaliseRefusesALinkedRunRecordOrJournal() throws {
+        let elsewhere = root.appendingPathComponent("elsewhere", isDirectory: true)
+        try FileManager.default.createDirectory(at: elsewhere, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: paths.output, withIntermediateDirectories: true)
+        let record = elsewhere.appendingPathComponent("a4-run.json")
+        try Data("{}".utf8).write(to: record)
+        try FileManager.default.createSymbolicLink(at: paths.runRecord, withDestinationURL: record)
+        XCTAssertThrowsError(try HeldOutRun.finalise(paths)) { XCTAssertEqual($0 as? HeldOutRun.Refusal, .linkedFixedPath) }
+        try FileManager.default.removeItem(at: paths.runRecord)
+        try Data("{}".utf8).write(to: paths.runRecord)
+        let journal = elsewhere.appendingPathComponent("journal.jsonl")
+        try Data().write(to: journal)
+        try FileManager.default.createSymbolicLink(at: paths.journal, withDestinationURL: journal)
+        XCTAssertThrowsError(try HeldOutRun.finalise(paths)) { XCTAssertEqual($0 as? HeldOutRun.Refusal, .linkedFixedPath) }
+    }
+
     func testFinaliseWithoutARunIsRefused() throws {
         XCTAssertThrowsError(try HeldOutRun.finalise(paths)) { XCTAssertEqual($0 as? HeldOutRun.Refusal, .runRecordMissing) }
     }

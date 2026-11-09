@@ -12,14 +12,14 @@ trap 'rm -rf "$outside"' EXIT
 status=0
 state="$outside/state"
 mkdir -p "$outside/shims" "$outside/bin" "$state"
-# git: fetch fails when state/fetch-fails exists; status prints state/status; rev-parse prints state/head or state/main.
+# git: fetch fails when state/fetch-fails exists; status fails when state/status-fails exists, else prints state/status; rev-parse prints state/head or state/main.
 cat > "$outside/shims/git" <<EOF
 #!/bin/sh
 if [ -n "\${OPENROUTER_API_KEY+x}" ]; then echo git >> "$state/saw-key"; fi
 for arg in "\$@"; do
   case "\$arg" in
     fetch) [ -e "$state/fetch-fails" ] && exit 1; exit 0 ;;
-    status) cat "$state/status" 2>/dev/null; exit 0 ;;
+    status) [ -e "$state/status-fails" ] && exit 1; cat "$state/status" 2>/dev/null; exit 0 ;;
     HEAD) cat "$state/head"; exit 0 ;;
     origin/main) cat "$state/main"; exit 0 ;;
   esac
@@ -79,6 +79,7 @@ if [[ "$got" == 2 && "$out" == *"OPENROUTER_API_KEY must be set"* && ! -e "$stat
 reset; touch "$state/fetch-fails"; refused "a failed fetch" "git fetch origin failed" dummy-not-a-key
 reset; printf ' M Tools/x.swift\n' > "$state/status"; refused "a dirty checkout" "not clean" dummy-not-a-key
 reset; printf '?? scratch.txt\n' > "$state/status"; refused "an untracked file" "not clean" dummy-not-a-key
+reset; touch "$state/status-fails"; refused "a failing git status" "git status failed" dummy-not-a-key
 reset; printf '%s\n' 2222222222222222222222222222222222222222 > "$state/main"; refused "HEAD behind origin/main" "HEAD is not origin/main" dummy-not-a-key
 reset; touch "$state/tests-fail"; refused "failing pin tests" "FreezePinTests or SealedTextPathTests failed" dummy-not-a-key
 if [[ -e "$state/swift-calls" ]] && grep -q "^build" "$state/swift-calls"; then echo "FAIL: failing pin tests still built" >&2; status=1; fi
