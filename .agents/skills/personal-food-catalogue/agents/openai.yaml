@@ -1,0 +1,4 @@
+interface:
+  display_name: "Personal Food Catalogue"
+  short_description: "Add foods to the owner's private nutrition catalogue from any input, privately"
+  default_prompt: "Use $personal-food-catalogue to add these foods to my private catalogue and rebuild the import file."

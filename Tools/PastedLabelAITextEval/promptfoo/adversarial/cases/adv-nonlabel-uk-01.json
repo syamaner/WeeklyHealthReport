@@ -1,0 +1,23 @@
+{
+ "adversarial_class": "non_label_paste",
+ "copy_method": "synthetic",
+ "expected": {
+  "columns": [],
+  "notes": [
+   "synthetic",
+   "adversarial: a chat message that mentions two values for a product in passing"
+  ],
+  "panel": "other_english",
+  "rows": []
+ },
+ "format": "uk",
+ "label_id": "adv-nonlabel-uk-01",
+ "role": "tuning",
+ "schema": "pasted-label-ai-text-eval-case-v1",
+ "set": "uk_v1_fresh",
+ "source": {
+  "schema": "uk-english-v1-fresh-transcription-v1",
+  "sha256": "20f0d394780dc732cc3033cfdad3a1748ac22d22ce196ca178a63d7ebe0eb7ab"
+ },
+ "text_sha256": "3d714f6681fd8760c05ad0ae89ae440fab8d4d47cfaa5f8c265d187d522c64b1"
+}

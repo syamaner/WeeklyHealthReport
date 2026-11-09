@@ -31,6 +31,8 @@ DOCUMENTATION_PREFIXES = ("docs/",)
 AGENT_MARKDOWN_PREFIXES = (".agents/", ".claude/")
 # Paths under docs/ that code, tests or CI read. They always need a full run.
 CODE_READ_DOCS = {
+    # Metric semantics cited by model and presentation doc comments (#402).
+    "docs/app-reference.md",
     "docs/food-healthkit-write-plan.md",
     "docs/privacy-policy.txt",
     # Cited by the food daily export builder, Drive policy and their tests (#287).
@@ -50,6 +52,9 @@ CODE_READ_DOCS = {
     "docs/food-query-interpretation-v4.md",
     # Cited by the shared lexical policy (food-lexical-terms-v9), its tests and CI.
     "docs/food-lexical-terms-v9.md",
+    # Cited by the personal food database evaluation tool and its tests.
+    "docs/personal-food-database-evaluation-v1.md",
+    "docs/personal-food-database-review-v2-design.md",
     # Cited by the Health follow-ups (#214 to #217), their tests and Developer tools.
     "docs/health-report-section-groups-v1.md",
     "docs/health-steps-trend-v1.md",
@@ -80,10 +85,18 @@ CODE_READ_DOCS = {
     "docs/cocoa-aware-search-v1.md",
     # Cited by the UK freeze, the UK fresh-set harness and scorer and their tests (#371 P3).
     "docs/pasted-nutrition-label-uk-english-v1-p3.md",
+    # Cited by the UK reader v2 region rules, guard, identity v3 and their tests (#371 v2 P2).
+    "docs/pasted-nutrition-label-uk-english-v2-p1.md",
+    # Cited by the UK freeze re-pin 2, scorer v2 and the UK fresh-set harness and tests (#371 v2 P3).
+    "docs/pasted-nutrition-label-uk-english-v2-p3.md",
     # Cited by the label estimate compatibility and merge policies and their tests (#383).
     "docs/label-estimate-merge-v1.md",
     # Cited by the Ciqual projector, audit and tests and, from C2, the Ciqual searcher (#384).
     "docs/ciqual-2025-admission-v1.md",
+    # Cited by the pasted label AI text checks, the evaluation tool, its bar and their tests (#416).
+    "docs/pasted-label-ai-text-v1.md",
+    # Cited by the personal-food-catalogue skill's export and fixtures, and later the importer (#419).
+    "docs/personal-food-catalogue-import-v1.md",
 }
 CODE_READ_DOC_PREFIXES = ("docs/fixtures/",)
 # Never documentation, whatever the lists above say: CI, its scripts and this

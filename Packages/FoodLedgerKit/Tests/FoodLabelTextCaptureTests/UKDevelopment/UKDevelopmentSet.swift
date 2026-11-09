@@ -42,7 +42,7 @@ enum UKDevelopmentSet {
         let builder = UKFreshSet.builder()
         let ids = try labelIDs(root)
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-        for folder in ["run", "run-extra"] {
+        for folder in ["run", "run-extra", "set-aside"] {
             try FileManager.default.createDirectory(at: root.appendingPathComponent(folder), withIntermediateDirectories: true)
         }
         for id in ids {
@@ -51,6 +51,8 @@ enum UKDevelopmentSet {
             let (result, extra) = run(labelID: id, text: text, transcription: t) { try builder.choose($0, in: $1) }
             try encoder.encode(result).write(to: root.appendingPathComponent("run/\(id).json"))
             try encoder.encode(extra).write(to: root.appendingPathComponent("run-extra/\(id).json"))
+            // The set-aside list beside the run output, so the run schema is unchanged (v2 P1 section 2).
+            try encoder.encode(UKFreshSet.SetAsideFile(labelID: id, text: text)).write(to: root.appendingPathComponent("set-aside/\(id).json"))
         }
         try FreshSet.append("run \(ISO8601DateFormatter().string(from: now)) commit=\(commit) labels=\(ids.count)\n",
                             to: root.appendingPathComponent("run-log.txt"))

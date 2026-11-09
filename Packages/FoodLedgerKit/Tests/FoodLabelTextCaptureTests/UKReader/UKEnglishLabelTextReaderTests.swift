@@ -106,4 +106,44 @@ final class UKEnglishLabelTextReaderTests: XCTestCase {
                        Set(UKVocabulary.identitySymbolMarkers))
         XCTAssertEqual(UKReadingGuard.basisStateNotSupported, PastedLabelIdentity.basisStateNotSupported)
     }
+
+    // MARK: UK reader v2 (`docs/pasted-nutrition-label-uk-english-v2-p1.md`)
+
+    func testIdentityV3AddsOnlyCompoundCookingWordsAndMatchesGuardG3() throws {
+        XCTAssertEqual(PastedLabelBasisStateV3.wordMarkers, PastedLabelBasisStateV2.wordMarkers)
+        XCTAssertEqual(PastedLabelBasisStateV3.substringMarkers, PastedLabelBasisStateV2.substringMarkers)
+        XCTAssertEqual(PastedLabelBasisStateV3.compoundPrefixes, UKVocabulary.identityCompoundPrefixes)
+        XCTAssertEqual(PastedLabelBasisStateV3.compoundCookingWords, UKVocabulary.identityCompoundCookingWords)
+        XCTAssertTrue(Set(PastedLabelBasisStateV3.compoundCookingWords).isSubset(of: PastedLabelBasisStateV2.wordMarkers))
+        for header in ["Per 100g (ovenbaked)", "Per 100g airfried", "Per 100g deepfried", "Per 100g ovenmicrowaved"] {
+            XCTAssertFalse(PastedLabelBasisStateV3.isAsSold(candidate(header: header)), header)
+            XCTAssertTrue(PastedLabelBasisStateV2.isAsSold(candidate(header: header)), "identity v2 misses \(header)")
+        }
+        for header in ["Per 100g oven-baked", "Per 100g pan-fried"] {
+            XCTAssertFalse(PastedLabelBasisStateV3.isAsSold(candidate(header: header)), "regression: \(header)")
+        }
+        for header in ["Per 100g panettone", "Per 100g airy", "Per 100g deeply", "Per 100g unbaked", "Per 100g uncooked", "Per 30g serving"] {
+            XCTAssertTrue(PastedLabelBasisStateV3.isAsSold(candidate(header: header)), header)
+        }
+        for text in try fixtureTexts() {
+            let reading = pinned.read(text, textSHA256: "h", assertedBases: nil)
+            XCTAssertEqual(PastedLabelBasisStateV3.isAsSold(reading.candidate), PastedLabelBasisStateV2.isAsSold(reading.candidate), text)
+        }
+    }
+
+    func testSetAsideVitaminRowsAreUnreadRowsAndNothingElseIs() {
+        let heading = "Typical values\tPer 100g\tPer 30g serving"
+        let body = ["Energy\t1500kJ / 360kcal\t450kJ / 108kcal", "Fat\t12.0g\t3.6g", "of which saturates\t4.0g\t1.2g",
+                    "Carbohydrate\t50.0g\t15.0g", "of which sugars\t20.0g\t6.0g", "Fibre\t3.0g\t0.9g", "Protein\t8.0g\t2.4g",
+                    "Salt\t0.50g\t0.15g"]
+        let text = ([". Contains 3 Servings", heading] + body + ["Vitamins", "Typical values\tPer 100g\tPer 30g serving\t% NRV",
+                                                                "Vitamin D\t4.0µg\t1.2µg\t24%", "*NRV = Nutrient Reference Value"])
+            .joined(separator: "\n")
+        let reading = uk.read(text, textSHA256: "h", assertedBases: nil)
+        XCTAssertEqual(reading.unreadRows, [LabelUnreadRow(reason: UKSetAsideReport.reason, printedLabel: "Vitamin D")])
+        let records = uk.setAside(text)
+        XCTAssertEqual(records.map(\.rule), ["S1", "S2", "S2", "S2", "S2"])
+        XCTAssertEqual(records.first, UKSetAsideRecord(rule: "S1", line: 0, cell: nil, text: ". Contains 3 Servings"))
+        XCTAssertEqual(uk.setAside("營養標示\n每一份量30公克\n本包裝含4份"), [], "nothing is set aside from a text that is not English")
+    }
 }

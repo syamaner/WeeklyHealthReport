@@ -9,7 +9,7 @@ Deliver a HealthKit metric without losing the meaning of the underlying record o
 
 ## Start with repository authority
 
-Read the repository's `AGENTS.md`, relevant README semantics, existing query, model, formatter, view-model flow and tests. Repository rules and the user's explicit scope override this skill.
+Read the repository's `AGENTS.md`, relevant metric semantics (`docs/app-reference.md`), existing query, model, formatter, view-model flow and tests. Repository rules and the user's explicit scope override this skill.
 
 Preserve unrelated work and determine whether the request is research, design, implementation, review or validation before changing files.
 

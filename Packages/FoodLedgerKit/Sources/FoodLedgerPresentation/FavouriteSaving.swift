@@ -76,6 +76,10 @@ public enum FavouriteSaveText {
 @MainActor
 public final class FavouriteSaveModel: ObservableObject {
     @Published public private(set) var states: [LogItemVersionID: FavouriteSaveState] = [:]
+    /// The versions the last refresh covered; nil before the first (#399).
+    @Published public private(set) var refreshedIDs: [LogItemVersionID]?
+    /// Counts the saves begun here (#399), so a favourites read begun before a save cannot undo it.
+    public private(set) var saveGeneration = 0
     private let store: any FavouriteSaving
     /// The entry's current product version, read at tap time; nil when it was removed.
     private let currentVersion: ((LogItemID) throws -> LogItemVersionID?)?
@@ -87,6 +91,10 @@ public final class FavouriteSaveModel: ObservableObject {
 
     public func state(for id: LogItemVersionID) -> FavouriteSaveState { states[id] ?? .available }
 
+    /// Whether the states for exactly these versions have been read (#399). Until they have, a
+    /// row's favourite badge and Save action are withheld rather than shown as available.
+    public func hasStates(for ids: [LogItemVersionID]) -> Bool { refreshedIDs == ids }
+
     /// Marks each version already pinned by an active favourite. A version saved here keeps
     /// "Saved as favourite"; one whose favourite was removed elsewhere becomes available again.
     /// When favourites cannot be read the control stays available and a save reports its own result.
@@ -94,10 +102,23 @@ public final class FavouriteSaveModel: ObservableObject {
     /// preparation and amount, so re-logging a favourite keeps "Already a favourite" (#308). The
     /// matches are read once per refresh, not once per row.
     public func refresh(_ ids: [LogItemVersionID]) {
-        let matches = try? store.activeFavourites(matching: ids)
+        apply(ids, matches: try? store.activeFavourites(matching: ids))
+    }
+
+    /// `refresh(_:)` with the matches read elsewhere, such as off the main actor (#399); nil when
+    /// favourites could not be read, as in `refresh(_:)`. `readGeneration` is `saveGeneration`
+    /// when the read began: if a save has begun since, the read predates it, so a row saving,
+    /// saved or already a favourite keeps its state instead of turning back to Save.
+    public func apply(_ ids: [LogItemVersionID], matches: [LogItemVersionID: FavouriteVersion]?,
+                      readGeneration: Int? = nil) {
+        let stale = readGeneration.map { $0 != saveGeneration } ?? false
         var next: [LogItemVersionID: FavouriteSaveState] = [:]
         for id in ids {
             let active = matches?[id] != nil
+            if stale, let current = states[id], current == .saving || current.isFavourite {
+                next[id] = current
+                continue
+            }
             switch (states[id], active) {
             case (.saved?, true): next[id] = .saved
             case (_, true): next[id] = .alreadyFavourite
@@ -106,6 +127,7 @@ public final class FavouriteSaveModel: ObservableObject {
             }
         }
         states = next
+        refreshedIDs = ids
     }
 
     /// A recent row's save: the entry's current version is re-read at tap time, so a list left
@@ -117,6 +139,7 @@ public final class FavouriteSaveModel: ObservableObject {
         case .saving, .saved, .alreadyFavourite: return
         case .available, .failed: break
         }
+        saveGeneration += 1
         let current: LogItemVersionID?
         do { current = try currentVersion(logItemID) } catch { states[shown] = .failed; return }
         guard let current else { states[shown] = .failed; return }
@@ -135,6 +158,7 @@ public final class FavouriteSaveModel: ObservableObject {
         case .saving, .saved, .alreadyFavourite: return
         case .available, .failed: break
         }
+        saveGeneration += 1
         // The same food and source became a favourite elsewhere: say so, write nothing (#308).
         if (try? store.projection().activeFavourite(boundTo: id)) == nil, projectionHasActive(id) {
             states[id] = .alreadyFavourite

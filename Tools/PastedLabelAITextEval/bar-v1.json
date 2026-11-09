@@ -1,0 +1,112 @@
+{
+  "schema": "pasted-label-ai-text-bar-v1",
+  "source": "docs/pasted-label-ai-text-v1.md revision 6, sections 5.2.1 and 5.3",
+  "accepted": "Owner, 7 November 2026: D5 (the bar as proposed), D12 (bar 3 denominator), D19 (gate declines count against bar 3), D22 (standard metrics with 95% intervals), D23 (the median of the 24 costs is the upper median)",
+  "committed": "A1 of #416, before any tuning run; pinned by SHA-256 in BarPinTests so it cannot change before A4",
+  "held_out": {
+    "set": "uk_v2_fresh",
+    "labels": 24,
+    "runs": 1,
+    "run_by": "the frozen prompt, model, route and checks, after this bar is committed (T7)",
+    "independent_tier": "A",
+    "tier_counts": {"A": 9, "B": 15}
+  },
+  "definitions": {
+    "wrong_value": "A value at Confirm that differs from the transcription under scorer v2.",
+    "silent_error_table": "A table with a wrong value that carries no attention item.",
+    "not_read_row": "A printed row the model omits. It is shown as missing, never as zero, and is not a wrong value. It does make the table need an edit.",
+    "no_edit": "No correction and no entry. Taps confirming that a value matches the text on attention items are allowed and counted.",
+    "outcome": "Each held-out label ends as exactly one of reached_confirm, failed or declined, and the three add up to 24. A gate or detector decline after a valid model reply counts as declined (D19).",
+    "hard_decline": "Gate G1 or G2, a panel detector decline, or a mapping that leaves no usable table (D19). Gate findings G3 to G6 travel to Confirm as flags or attention items.",
+    "reached_confirm": "A table the product would show at Confirm.",
+    "cost": "Per tap, including retries, the reported cost. An unknown cost is counted at the per-tap cap. Measured over all 24 taps.",
+    "latency": "Per tap, from the tap to Confirm or failure, including retries, over all 24 taps.",
+    "copy_method": "The copy method recorded in each label's collection record."
+  },
+  "gates": [
+    {
+      "id": "bar_1",
+      "metric": "silent_error_tables",
+      "comparison": "equal",
+      "threshold": 0,
+      "denominator": "tables_reaching_confirm"
+    },
+    {
+      "id": "bar_2",
+      "metric": "tables_needing_no_edit",
+      "comparison": "at_least_fraction",
+      "threshold": 0.8,
+      "denominator": "tables_reaching_confirm"
+    },
+    {
+      "id": "bar_3",
+      "metric": "failed_or_declined_reads",
+      "comparison": "at_most_count",
+      "threshold": 6,
+      "fraction": 0.25,
+      "denominator": "all_held_out_labels",
+      "denominator_count": 24,
+      "reason": "The shipped reader declines every UK paste (D12)."
+    },
+    {
+      "id": "bar_4_cost",
+      "metric": "cost_per_tap_usd",
+      "statistic": "median",
+      "median_definition": "The upper median, the 13th of the 24 sorted values (owner, D23).",
+      "rank": 13,
+      "comparison": "at_most",
+      "threshold": 0.01,
+      "over": "all_held_out_taps",
+      "count": 24
+    },
+    {
+      "id": "bar_4_latency",
+      "metric": "latency_per_tap_seconds",
+      "statistic": "p90_nearest_rank",
+      "rank": 22,
+      "comparison": "at_most",
+      "threshold": 15,
+      "over": "all_held_out_taps",
+      "count": 24
+    }
+  ],
+  "reported_not_gating": [
+    "wrong values that were flagged",
+    "attention items per table",
+    "results by tier, with tier A on its own as the independent figure",
+    "results by copy method",
+    "rule-of-three upper limits with the real counts, as in P4",
+    "the exposure already known about the held-out set (5.1), beside the counts",
+    "zero silent errors in 24 tables still allows a true rate of up to about 14% (two-sided 95%)"
+  ],
+  "intervals": {
+    "confidence": 0.95,
+    "label_level_proportions": {
+      "metrics": ["exact_match", "no_edit", "coverage", "failed_reads", "silent_error_tables"],
+      "method": "wilson",
+      "method_when_count_is_zero_or_total": "clopper_pearson"
+    },
+    "field_level_and_per_table": {
+      "metrics": ["field_precision_micro", "field_recall_micro", "field_f1_micro", "field_precision_macro", "field_recall_macro", "field_f1_macro",
+                  "error_detection_precision", "error_detection_recall", "attention_items_per_table"],
+      "method": "percentile_bootstrap",
+      "resample": "labels",
+      "resamples": 10000,
+      "seed": "seed recorded in each run"
+    }
+  },
+  "macro_averages": {
+    "precision": "Averaged over the labels that reach Confirm; the count of labels excluded is reported beside it.",
+    "recall_and_f1": "Averaged over all labels; a failed or declined label scores 0 on both."
+  },
+  "comparing_versions": {
+    "data": "tuning set only, on the same labels",
+    "table_exact_match": "mcnemar",
+    "field_f1": "paired_bootstrap",
+    "resample": "labels",
+    "resamples": 10000,
+    "seed": "seed recorded in each run",
+    "report": "the number of versions compared, with the winner; no held-out label informs the choice"
+  },
+  "on_miss": "A miss stops release. The held-out set is then spent and becomes tuning data."
+}

@@ -82,6 +82,8 @@ final class PastedLabelReaderV3PresentationTests: XCTestCase {
         XCTAssertFalse(PastedLabelText.unreadReason("ambiguous_number").contains("“more than”"))
         XCTAssertEqual(PastedLabelText.unreadReason("gloss_conflict"), "Not read: the English name beside this row names a different nutrient.")
         XCTAssertEqual(PastedLabelText.unreadReason("unit_pair_mismatch"), "Not read: the two units printed for this value do not match.")
+        // UK reader v2's set-aside rows use the fallback copy until P5 (`docs/pasted-nutrition-label-uk-english-v2-p1.md` section 7).
+        XCTAssertEqual(PastedLabelText.unreadReason("uk_set_aside"), "Not read.")
         for sentence in sentences {
             XCTAssertFalse(sentence.contains("\""), "typographic quotes only: \(sentence)")
             XCTAssertFalse(sentence.contains("_"), sentence)

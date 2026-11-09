@@ -218,6 +218,107 @@ final class FavouriteSavingPresentationTests: XCTestCase {
         XCTAssertFalse(AddFoodView.showsSaveHint([favourite, available], model: model), "hidden once the last row is saved")
     }
 
+    private func recentRow(_ number: Int, version: LogItemVersionID?) throws -> FoodRecentRelogItem {
+        FoodRecentRelogItem(item: FoodRecentItem(logItemID: try LedgerID(String(format: "00000000-0000-0000-0000-%012x", 700 + number)),
+            sourceReleaseID: try ExternalIdentifier("fixture:release"), recordID: try ExternalIdentifier("fixture:\(number)"),
+            occurredAt: Date(timeIntervalSince1970: 1_791_800_000), lastAmount: try PositiveQuantity(value: 150, unit: .grams), energyKcal: 90),
+            name: "Food \(number)", isEstimate: false, logItemVersionID: version)
+    }
+
+    /// #399 (Qodo 1): while an existing favourite's state is still being read, its recent row
+    /// carries no badge, hint or Save action (it still re-logs); once the delayed read applies,
+    /// it reads "Already a favourite" and is never offered Save.
+    func testAnExistingFavouriteWithholdsSaveUntilItsDelayedStateReadApplies() throws {
+        let store = FakeStore()
+        let favourite = try id(30)
+        store.active = [favourite]
+        let model = FavouriteSaveModel(store: store)
+        let row = try recentRow(1, version: favourite)
+        let ids = [favourite]
+        model.apply([], matches: [:])
+        XCTAssertFalse(model.hasStates(for: ids), "the shown rows' states are not read yet")
+        XCTAssertEqual(model.state(for: favourite), .available, "the default the rows must not show")
+        XCTAssertFalse(AddFoodView.offersFavouriteSaving(row, statesLoaded: model.hasStates(for: ids)),
+                       "no badge or Save action before the read")
+        // The delayed read, begun before and applied after.
+        let generation = model.saveGeneration
+        let matches = try store.activeFavourites(matching: ids)
+        model.apply(ids, matches: matches, readGeneration: generation)
+        XCTAssertTrue(model.hasStates(for: ids))
+        XCTAssertTrue(AddFoodView.offersFavouriteSaving(row, statesLoaded: model.hasStates(for: ids)))
+        XCTAssertEqual(model.state(for: favourite), .alreadyFavourite)
+        XCTAssertFalse(AddFoodView.showsSaveHint([row], model: model))
+        model.save(favourite)
+        XCTAssertEqual(store.saves, 0, "never saved twice")
+    }
+
+    /// #399 (Qodo 2): a favourites read begun before a save and applied after it never turns the
+    /// saved row back to Save. A read begun after the save still applies in full.
+    func testASaveDuringAFavouritesReadStaysSaved() throws {
+        let store = FakeStore()
+        let shown = try id(31), other = try id(32)
+        let model = FavouriteSaveModel(store: store)
+        model.refresh([shown, other])
+        XCTAssertEqual(model.state(for: shown), .available)
+        let generation = model.saveGeneration
+        let staleMatches = try store.activeFavourites(matching: [shown, other])
+        model.save(shown)
+        XCTAssertEqual(model.state(for: shown), .saved)
+        model.apply([shown, other], matches: staleMatches, readGeneration: generation)
+        XCTAssertEqual(model.state(for: shown), .saved, "the older read cannot undo the save")
+        XCTAssertEqual(model.state(for: other), .available)
+        XCTAssertEqual(store.saves, 1)
+        // A read begun after the save is current: a favourite removed elsewhere is available again.
+        store.active = []
+        model.apply([shown, other], matches: try store.activeFavourites(matching: [shown, other]),
+                    readGeneration: model.saveGeneration)
+        XCTAssertEqual(model.state(for: shown), .available)
+    }
+
+    /// #399 (Qodo 3): of two overlapping recents reads, only the newer applies, even when the
+    /// older finishes last; loading stays first, and a newest read that fails shows failed.
+    func testOverlappingRecentsReadsApplyOnlyTheNewestWhenTheyFinishInReverseOrder() async throws {
+        let older = [try recentRow(2, version: try id(40))]
+        let newer = [try recentRow(3, version: try id(41)), try recentRow(4, version: try id(42))]
+        let reads = PendingReads()
+        let model = AddFoodRecentsModel { await reads.next() }
+        XCTAssertEqual(model.state, .loading)
+        let first = Task { await model.reload() }
+        while reads.count < 1 { await Task.yield() }
+        let second = Task { await model.reload() }
+        while reads.count < 2 { await Task.yield() }
+        reads.finish(1, with: newer)
+        let secondApplied = await second.value
+        XCTAssertTrue(secondApplied)
+        XCTAssertEqual(model.recents, newer)
+        reads.finish(0, with: older)
+        let firstApplied = await first.value
+        XCTAssertFalse(firstApplied, "the older read finished last and is dropped")
+        XCTAssertEqual(model.recents, newer, "the newer list stays")
+        XCTAssertEqual(model.state, .items)
+
+        let failing = Task { await model.reload() }
+        while reads.count < 3 { await Task.yield() }
+        reads.finish(2, with: nil)
+        let failedApplied = await failing.value
+        XCTAssertTrue(failedApplied)
+        XCTAssertEqual(model.state, .failed, "a failed read is never shown as No recent foods")
+        XCTAssertTrue(model.recents.isEmpty)
+    }
+
+    /// Reads that wait until the test finishes them, in any order.
+    @MainActor private final class PendingReads {
+        private var continuations: [CheckedContinuation<[FoodRecentRelogItem]?, Never>?] = []
+        var count: Int { continuations.count }
+        func next() async -> [FoodRecentRelogItem]? {
+            await withCheckedContinuation { continuations.append($0) }
+        }
+        func finish(_ index: Int, with result: [FoodRecentRelogItem]?) {
+            continuations[index]?.resume(returning: result)
+            continuations[index] = nil
+        }
+    }
+
     func testFromWhatYouLoggedOffersOnlyPinnableNonWaterFoods() throws {
         func recent(_ number: Int, version: LogItemVersionID?, water: Bool) throws -> FoodRecentRelogItem {
             FoodRecentRelogItem(item: FoodRecentItem(logItemID: try LedgerID(String(format: "00000000-0000-0000-0000-%012x", 500 + number)),
