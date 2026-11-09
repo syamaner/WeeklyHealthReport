@@ -193,9 +193,11 @@ unresolved value is removed. Its key must be in the frozen nutrient inventory; w
 label value of the entry, the reviewed value came from the entry's generic reference, so that
 reference is removed instead, whether `merge` or `candidate`, and a listed key on an entry with
 neither is refused. Unresolved values are taken from every stratum (unresolved is never a pass),
-and the console reports them by stratum. A label value dropped from an entry whose `merge`
-reference stays is then supplied by that reference as a generic value, which the plan keeps
-(section 6); entries keep their pinned `basis`. Sources no longer cited are removed; `generated`
+and the console reports them by stratum. When a withheld or unresolved label value is
+removed, the entry's `merge` reference becomes a `candidate`, so the merged record never silently
+supplies that nutrient in its place (plan section 6: never a new merge after label values are
+removed); Open Food Facts values dropped by `a1` do not demote, because every A1 entry was reviewed
+and the A1 consequence keeps the checked references. Entries keep their pinned `basis`. Sources no longer cited are removed; `generated`
 and `generic_corpora` stay as pinned.
 
 **Formats.** `pfd-unresolved-v1`, private: `{"schema": "pfd-unresolved-v1", "release_id":

@@ -20,8 +20,11 @@ candidate. Sources no longer cited by any value are removed; `generated` and `ge
 are unchanged. `check_drops_only` proves the output only removes; `check_applied` proves every
 required removal happened.
 
-A label value dropped from an entry whose `merge` reference stays is then supplied, as a generic
-value, by that reference: the plan keeps suitable generic references (section 6). Entries keep
+When a withheld or unresolved label value is removed, the entry's `merge` reference becomes a
+`candidate`, so the merged record never silently supplies that nutrient in its place: the plan
+says a reference is never a new merge after label values are removed (section 6). Open Food Facts
+values dropped by the `a1` switch do not demote: every A1 entry was reviewed (census), and the A1
+consequence keeps the checked references. Entries keep
 their pinned `basis`, which the merge condition already met when the pinned file was built.
 """
 import hashlib
@@ -145,10 +148,12 @@ def derive(pinned: dict, exclusions: dict, unresolved: dict, switches: dict, nut
                 counts["references_removed_withheld_entry"] += 1
             ref = None
         else:
+            label_dropped = False
             for key, why in sorted(drops.get(it["id"], {}).items()):
                 if key in labels:
                     del labels[key]
                     counts["values_dropped_" + why] += 1
+                    label_dropped = True
                 elif it["generic_reference"] is not None:
                     if ref is not None:  # several listed keys may come through one reference
                         ref = None
@@ -159,7 +164,7 @@ def derive(pinned: dict, exclusions: dict, unresolved: dict, switches: dict, nut
                 for key in [k for k, v in labels.items() if v["source_kind"] == OFF_KIND]:
                     del labels[key]
                     counts["values_dropped_a1"] += 1
-            if ref is not None and ref["role"] == "merge" and (switches["a2"] or it["id"] in demote):
+            if ref is not None and ref["role"] == "merge" and (switches["a2"] or it["id"] in demote or label_dropped):
                 ref = {**ref, "role": "candidate"}
                 counts["references_demoted_to_candidate"] += 1
         new["label_nutrients"] = labels
@@ -215,6 +220,9 @@ def check_applied(r1: dict, exclusions: dict, unresolved: dict, switches: dict) 
     for e, keys in _listed(exclusions, unresolved).items():
         if e in items and any(k in items[e]["label_nutrients"] for k in keys):
             errs.add("listed-value-kept")
+        ref = items.get(e, {}).get("generic_reference")
+        if ref is not None and ref["role"] == "merge":
+            errs.add("listed-value-reachable-through-merge")
     for e in exclusions["reference_candidates"]:
         ref = items.get(e, {}).get("generic_reference")
         if ref is not None and ref["role"] == "merge":

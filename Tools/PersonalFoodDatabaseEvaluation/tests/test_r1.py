@@ -138,6 +138,17 @@ class Derive(unittest.TestCase):
                           counts["references_removed_withheld_entry"]), (1, 2, 1))
         self.assertEqual(mixed["title"], "Synthetic mixed food")  # the entry stays: "No nutrition data yet"
 
+    def test_withheld_label_value_demotes_the_merge_so_it_cannot_refill_it(self):
+        e = excl(self.rel, values=[(ident("Synthetic mixed food"), "protein")])
+        doc, counts = self.run_r1(e=e)
+        mixed = by_title(doc, "Synthetic mixed food")
+        self.assertEqual(set(mixed["label_nutrients"]), {"sodium"})
+        self.assertEqual(mixed["generic_reference"]["role"], "candidate")
+        self.assertEqual(counts["references_demoted_to_candidate"], 1)
+        kept = copy.deepcopy(doc)
+        by_title(kept, "Synthetic mixed food")["generic_reference"]["role"] = "merge"
+        self.assertIn("listed-value-reachable-through-merge", R.check_applied(kept, e, unres(self.rel), SWITCH_OFF))
+
     def test_withheld_label_value_is_removed(self):
         e = excl(self.rel, values=[(ident("Synthetic owner food"), "protein")])
         doc, counts = self.run_r1(e=e)

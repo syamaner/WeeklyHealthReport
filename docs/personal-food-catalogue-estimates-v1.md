@@ -398,8 +398,8 @@ the estimate export test expects `state: "estimated"`; the lookup protocol is na
 method version; unresolved values join the no-laundering rule; the zero and aggregator-source
 builder rules; and Part B binds to R2 only once this contract is accepted.
 
-**Verdict sought:** PASS WITH CHANGES or better for planning, with no production code before the
-owner approves this contract and E3 is final.
+**Outcome:** the re-review reached PASS WITH CHANGES with every finding applied, and the owner
+accepted this contract on 9 November 2026. No production code starts until E3 is final.
 
 ## 9. Decisions for the owner
 
