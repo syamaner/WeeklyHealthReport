@@ -576,3 +576,19 @@ and A4 20: 158 entries to check (58 census, 30 top-30, 70 drawn), followed on th
 replacement order for A2 to A4. A second run from the same inputs gave byte-identical sample, sheet and
 purchase-count files. The sample and the purchase-count copy beside it are pinned in the Freeze list;
 both stay private.
+
+### 11.3 E1d held-out record (9 November 2026)
+
+The owner approved the 160 agent-drafted queries in the separate query-exposed drafting session,
+before any split. That session then ran `split`, which divided them into 94 development and 66
+held-out queries, each with 10 negatives, and `seal-dev` and `seal-heldout` sealed both sets at
+`2026-11-09T08:25:06Z` and `2026-11-09T08:25:12Z`. This docs commit came later: the owner's
+"Yes, open it" at `2026-11-09T10:29:18Z` (the WHR-424-E1d ledger window) authorised only recording
+the hash, not the queries or the seals. The Freeze list records the `seal-heldout` bundle
+hash as `heldout_sha256`: `cf74b225882b681e66fa05e2c892f751d19d0f0ae850daf2aa2018bd76543aab`. It was
+copied from the private seal log, and the held-out contents were not read. A held-out Part B run
+refuses a bundle whose seal differs from this hash.
+
+The review v2 freeze record pins `freeze-v1.json` without `heldout_sha256` and `golden_sha256`
+(`freeze_v2.v1_pin`), so this entry leaves `freeze-v2.json` and the recorded Part A v2 score
+binding unchanged. No tool file, schema or bar changes.
