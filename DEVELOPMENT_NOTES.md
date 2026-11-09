@@ -4200,3 +4200,20 @@ Excluded:
 - this ledger edit, the commit, the push and the PR after the window.
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a subscription, not a bill, and not evidence of productivity or quality.
+
+## WHR-312-2026-11-09: Claude Code food daily export v2 contract refresh (#312)
+
+The coordinator session (`claude-opus-5-5`, session `0dabb926-21ba-45d7-b0c2-2ab29f9918fd`) brought the 31 October contract draft (#343) up to date with `main` and added the edge cases for the label estimate layer (#383) and Ciqual 2025 rows (#384), plus one extension axis. No field, code or rule changes. The window runs from the owner's go-ahead (`2026-11-09T19:18:21Z`) to `2026-11-09T19:19:45Z`.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Export v2 contract refresh (#312), coordinator | 2,006,056 (1,845,168) | 160,866 | 5,186 | 2,011,242 | $1.76 |
+
+Method: `phase_usage.py --format claude --since 2026-11-09T19:18:21Z --until 2026-11-09T19:19:45Z` on the session transcript, with no subagents. Exact USD 1.7597696. The cache-write tokens are part of the input figure, so the total is input plus output.
+
+Excluded:
+- the read-only assessment of #343 before the go-ahead;
+- the Qodo review runs;
+- this ledger edit, the commit, the push, the CI wait and the merge after the window.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
