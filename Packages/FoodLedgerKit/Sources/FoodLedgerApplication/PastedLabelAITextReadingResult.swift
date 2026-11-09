@@ -20,7 +20,8 @@ public struct PastedLabelAITextReadingResult: Equatable, Sendable {
         case reachedConfirm = "reached_confirm", declined, failed
     }
 
-    /// Why a wire value is not a cell. Never shown as zero: a not-read value is missing.
+    /// Why a wire value is not a cell. Never shown as zero: a not-read value is missing, except a
+    /// not-declared marker, which the label prints in place of a value.
     public enum NotRead: String, Equatable, Sendable, Codable, CaseIterable {
         /// The model printed `unknown`.
         case unknown
@@ -39,6 +40,11 @@ public struct PastedLabelAITextReadingResult: Equatable, Sendable {
         case absoluteReferenceValue = "absolute_reference_value"
         /// A second value for the same row and header.
         case duplicateCell = "duplicate_cell"
+        /// Revision 14 (D30, mapping v3): a printed not-declared marker (a dash, `Trace` or `Tr`)
+        /// that the locator found at the value's row and column. It is shown as printed, is never
+        /// zero and never a stored value, and needs no entry from the user, so it alone never keeps
+        /// a table from being ready. The raw value is the domain's `not_declared` reason.
+        case notDeclared = "not_declared"
     }
 
     public enum Read: Equatable, Sendable {
@@ -93,14 +99,16 @@ public struct PastedLabelAITextReadingResult: Equatable, Sendable {
         public let vocabulary: String
         public let detector: String
         public let attention: String
+        /// The text route's format step (`pasted-label-ai-text-format-v1`).
+        public let format: String
         public let gate: String
         public let arithmetic: String
         public let conversion: String
 
-        public init(wireSchema: String, mapping: String, locator: String, vocabulary: String, detector: String, attention: String, gate: String,
-                    arithmetic: String, conversion: String) {
+        public init(wireSchema: String, mapping: String, locator: String, vocabulary: String, detector: String, attention: String, format: String,
+                    gate: String, arithmetic: String, conversion: String) {
             self.wireSchema = wireSchema; self.mapping = mapping; self.locator = locator; self.vocabulary = vocabulary
-            self.detector = detector; self.attention = attention; self.gate = gate; self.arithmetic = arithmetic; self.conversion = conversion
+            self.detector = detector; self.attention = attention; self.format = format; self.gate = gate; self.arithmetic = arithmetic; self.conversion = conversion
         }
     }
 

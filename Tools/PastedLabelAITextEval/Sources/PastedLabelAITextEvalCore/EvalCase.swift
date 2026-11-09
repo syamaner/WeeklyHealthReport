@@ -35,6 +35,20 @@ public struct EvalCase: Codable, Equatable, Sendable {
         case oneRowPerLine = "one_row_per_line", oneValuePerLine = "one_value_per_line", misaligned, unitless, other
     }
 
+    /// The synthetic adversarial class of docs/pasted-label-ai-text-v1.md 4.9 (A3b): a closed set,
+    /// held only by committed synthetic cases. Its pass rule differs from a tuning label's: the text
+    /// must end declined, or reach Confirm with no silent wrong value (`ScoreCommand`).
+    public enum AdversarialClass: String, Codable, CaseIterable, Sendable {
+        case injectedInstructions = "injected_instructions"
+        case fabricatedValues = "fabricated_values"
+        case nutrientBasisReassignment = "nutrient_basis_reassignment"
+        case twoPanels = "two_panels"
+        case truncatedTable = "truncated_table"
+        /// No true table: the expected table has no columns and no rows, so every value shown at
+        /// Confirm is wrong, and a silent one fails the text.
+        case nonLabelPaste = "non_label_paste"
+    }
+
     /// The format the label is read under: Taiwan, or a UK-format declaration (EU English included, D18).
     public enum Format: String, Codable, CaseIterable, Sendable { case taiwan, uk }
 
@@ -115,19 +129,30 @@ public struct EvalCase: Codable, Equatable, Sendable {
     public let legacy: TranscriptionShapes.LegacyExtras?
     /// Optional; absent until assigned, and then not encoded, so existing canonical bytes are unchanged.
     public let layoutShape: LayoutShape?
+    /// Optional; set only on a synthetic adversarial case (4.9), and absent (not encoded) otherwise,
+    /// so every other case's canonical bytes are unchanged.
+    public let adversarialClass: AdversarialClass?
 
     enum CodingKeys: String, CodingKey, CaseIterable {
-        case schema, set, role, format, tier, expected, source, legacy, layoutShape = "layout_shape"
+        case schema, set, role, format, tier, expected, source, legacy, layoutShape = "layout_shape", adversarialClass = "adversarial_class"
         case labelID = "label_id", copyMethod = "copy_method", textSHA256 = "text_sha256"
     }
 
     public init(labelID: String, set: EvalSet, tier: String?, copyMethod: String, textSHA256: String, expected: Expected, source: Source,
-                legacy: TranscriptionShapes.LegacyExtras? = nil, layoutShape: LayoutShape? = nil) throws {
+                legacy: TranscriptionShapes.LegacyExtras? = nil, layoutShape: LayoutShape? = nil, adversarialClass: AdversarialClass? = nil) throws {
         self.schema = Self.schema
         self.labelID = labelID; self.set = set; self.role = set.role; self.format = set.format; self.tier = tier
         self.copyMethod = copyMethod; self.textSHA256 = textSHA256; self.expected = expected; self.source = source; self.legacy = legacy
         self.layoutShape = layoutShape
+        self.adversarialClass = adversarialClass
         try validate()
+    }
+
+    /// The same case under another label ID or layout shape (A3: cases are named by a case ID that
+    /// is unique across sets, and their shape is assigned by hand). The copy is validated like any case.
+    public func with(labelID: String? = nil, layoutShape: LayoutShape?) throws -> EvalCase {
+        try EvalCase(labelID: labelID ?? self.labelID, set: set, tier: tier, copyMethod: copyMethod, textSHA256: textSHA256, expected: expected,
+                     source: source, legacy: legacy, layoutShape: layoutShape, adversarialClass: adversarialClass)
     }
 
     public func encode(to encoder: any Encoder) throws {
@@ -138,6 +163,7 @@ public struct EvalCase: Codable, Equatable, Sendable {
         try container.encode(textSHA256, forKey: .textSHA256); try container.encode(expected, forKey: .expected)
         try container.encode(source, forKey: .source); try container.encodeIfPresent(legacy, forKey: .legacy)
         try container.encodeIfPresent(layoutShape, forKey: .layoutShape)
+        try container.encodeIfPresent(adversarialClass, forKey: .adversarialClass)
     }
 
     public init(from decoder: any Decoder) throws {
@@ -155,6 +181,7 @@ public struct EvalCase: Codable, Equatable, Sendable {
         source = try container.decode(Source.self, forKey: .source)
         legacy = try container.decodeIfPresent(TranscriptionShapes.LegacyExtras.self, forKey: .legacy)
         layoutShape = try container.decodeIfPresent(LayoutShape.self, forKey: .layoutShape)
+        adversarialClass = try container.decodeIfPresent(AdversarialClass.self, forKey: .adversarialClass)
         try validate()
     }
 
@@ -230,7 +257,15 @@ public struct EvalCase: Codable, Equatable, Sendable {
         }
         // The frozen harnesses' value rules, by the source schema's tables.
         let schema: TranscriptionRules.Schema = source.schema == TranscriptionShapes.UKTranscription.schema ? .uk : .taiwan
-        let problems = TranscriptionRules.problems(expected, schema, ukMarkers: format == .uk)
+        // An adversarial case is synthetic tuning data; a non-label paste has no true table.
+        if let adversarialClass {
+            guard copyMethod == "synthetic" else { throw Invalid("\(labelID): an adversarial case has copy_method synthetic") }
+            if adversarialClass == .nonLabelPaste, !expected.columns.isEmpty || !expected.rows.isEmpty {
+                throw Invalid("\(labelID): a non-label paste has no columns and no rows")
+            }
+        }
+        var problems = TranscriptionRules.problems(expected, schema, ukMarkers: format == .uk)
+        if adversarialClass == .nonLabelPaste { problems.removeAll { $0 == TranscriptionRules.noColumns } }
         guard problems.isEmpty else { throw Invalid("\(labelID): " + problems.joined(separator: "; ")) }
     }
 

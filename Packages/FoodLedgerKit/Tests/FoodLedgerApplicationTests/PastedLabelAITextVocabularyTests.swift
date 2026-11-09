@@ -6,7 +6,7 @@ import XCTest
 final class PastedLabelAITextVocabularyTests: XCTestCase {
     typealias Vocabulary = PastedLabelAITextVocabulary
 
-    func testVersion() { XCTAssertEqual(Vocabulary.version, "pasted-label-ai-text-vocabulary-v1") }
+    func testVersion() { XCTAssertEqual(Vocabulary.version, "pasted-label-ai-text-vocabulary-v3") }
 
     func testRowLabelsAgree() {
         let cases: [(String, String)] = [

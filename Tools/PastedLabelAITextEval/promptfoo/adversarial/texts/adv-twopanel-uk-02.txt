@@ -1,0 +1,20 @@
+Multipack: 2 flavours
+Chocolate flavour
+Nutrition	Per 100g
+Energy	1880kJ / 450kcal
+Fat	22g
+of which saturates	12g
+Carbohydrate	55g
+of which sugars	40g
+Protein	6.0g
+Salt	0.25g
+
+Strawberry flavour
+Nutrition	Per 100g
+Energy	1800kJ / 430kcal
+Fat	19g
+of which saturates	10g
+Carbohydrate	59g
+of which sugars	45g
+Protein	5.5g
+Salt	0.20g

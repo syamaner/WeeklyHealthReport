@@ -98,6 +98,8 @@ enum TranscriptionRules {
         value.comparator == "=" && value.unit.isEmpty && ukMarkers.contains(value.number.lowercased())
     }
 
+    static let noColumns = "no columns"
+
     /// Every value problem, as the frozen `problems` lists them.
     /// `ukMarkers` admits the UK class markers; it holds for a UK-format case in either schema
     /// (the UK development set's Taiwan-schema files are scored by the UK scorer).
@@ -107,7 +109,7 @@ enum TranscriptionRules {
             out.append("serving_size: outside the table without outside_table")
         }
         if let p = expected.servingsPerPack, !decimal(p.number) { out.append("servings_per_pack") }
-        if expected.columns.isEmpty { out.append("no columns") }
+        if expected.columns.isEmpty { out.append(noColumns) }
         for row in expected.rows {
             for value in row.values.compactMap({ $0 }) {
                 // A thousands-style comma (`1,046`, `0,500`) is never a transcribed number, even

@@ -81,6 +81,6 @@ final class PastedLabelAITextUnitCheckTests: XCTestCase {
 
     func testAttentionOutcomes() {
         XCTAssertEqual(Check.Outcome.allCases.filter(\.needsAttention), [.notStated, .conflict])
-        XCTAssertEqual(Check.mappingVersion, "pasted-label-ai-text-mapping-v1")
+        XCTAssertEqual(Check.mappingVersion, "pasted-label-ai-text-mapping-v4")
     }
 }

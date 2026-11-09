@@ -7,7 +7,7 @@ counts come from the shipped Swift scorer through ``assert.js`` (``namedScores``
 cost and latency come from ``PastedLabelAITextEval send`` (the provider's output). promptfoo's own
 pass rates are never used as results. Run with ``python3 -I``; standard library only.
 
-    python3 -I pasted_label_ai_text_stats.py summary RESULTS.json [--cases DIR] [--seed N] [--resamples N]
+    python3 -I pasted_label_ai_text_stats.py summary RESULTS.json [--cases DIR] [--bar BAR.json] [--seed N] [--resamples N]
     python3 -I pasted_label_ai_text_stats.py compare RESULTS.json CELL_A CELL_B [--seed N] [--resamples N]
 
 A cell is one provider label and one prompt label (``<provider>|<prompt>``).
@@ -19,8 +19,14 @@ Intervals (95%):
   recall, and attention items per table: a percentile bootstrap resampling labels (10,000 by
   default), with the seed recorded in the output.
 
-Comparisons between two cells, on the labels both ran: an exact McNemar test for table-level
-exact match, and a paired bootstrap (same resampling of labels) for micro field F1.
+Comparisons between two cells, on the labels both ran: exact McNemar tests for table-level
+exact match and for no edit (bar 2's per-label outcome; a label that does not reach Confirm has no
+edit-free table), and a paired bootstrap (same resampling of labels) for micro field F1.
+
+Scorer v3 (D28): values in reference-intake amount columns are not printed fields; each cell's
+summary reports their sum as ``fields_reference_amounts``, so the printed fields plus that sum is
+every transcribed value. Scorer v4 (D29) likewise reports values on unrecognised rows (nutrient
+``other``) as ``fields_unrecognised_rows``.
 
 Bar 4 (5.3, D23): the median cost is the upper median (rank n // 2 + 1 of n sorted costs, the
 13th of 24) and p90 latency is the nearest-rank 90th percentile (rank ceil(0.9 n), the 22nd of
@@ -52,6 +58,9 @@ ALPHA = 0.05
 PER_TAP_CAP_USD = 0.20
 DEFAULT_RESAMPLES = 10_000
 DEFAULT_SEED = 416
+# The bar A4 reads (D34, revision 18): bar-v2, bar-v1 with bar 4 latency at most 20 s. bar-v1.json stays
+# committed as history and can still be passed with --bar.
+DEFAULT_BAR = Path(__file__).resolve().parent.parent / "bar-v2.json"
 
 
 # MARK: Intervals
@@ -385,8 +394,8 @@ def breakdowns(labels: list[Label]) -> dict[str, dict]:
 
 
 def bar(labels: list[Label], bar_path: Path) -> dict:
-    """The 5.3 bar's figures over these labels, against `bar-v1.json`'s thresholds. Reported for
-    any set; it gates release only on the one held-out run."""
+    """The 5.3 bar's figures over these labels, against the thresholds of the bar file given (by
+    default `bar-v2.json`, D34). Reported for any set; it gates release only on the one held-out run."""
     gates = {gate["id"]: gate for gate in json.loads(bar_path.read_text(encoding="utf-8"))["gates"]}
     reached = [label for label in labels if label.outcome == "reached_confirm"]
     silent = sum(1 for label in reached if label.get("silent_error_table") == 1)
@@ -421,7 +430,9 @@ def summary(cells: dict[str, list[Label]], resamples: int, seed: int, bar_path: 
     for cell, labels in sorted(cells.items()):
         field_level = bootstrap(labels, resamples, seed)
         field_level["field_precision_macro"]["exclusions"] = macro_precision_exclusions(labels)
-        entry = {"labels": len(labels), "label_level": label_proportions(labels), "field_level": field_level,
+        entry = {"labels": len(labels), "fields_reference_amounts": int(sum(label.get("fields_reference_amounts") for label in labels)),
+                 "fields_unrecognised_rows": int(sum(label.get("fields_unrecognised_rows") for label in labels)),
+                 "label_level": label_proportions(labels), "field_level": field_level,
                  "operational": operational(labels), "breakdowns": breakdowns(labels)}
         if bar_path is not None:
             entry["bar"] = bar(labels, bar_path)
@@ -441,15 +452,21 @@ def mcnemar_exact(b: int, c: int) -> float:
     return min(1.0, 2 * tail)
 
 
+def _mcnemar(left: dict[str, Label], right: dict[str, Label], shared: list[str], name: str) -> dict:
+    """The discordant pairs on a per-label 0 or 1 score, and the exact McNemar p value."""
+    only_a = sum(1 for i in shared if left[i].get(name) == 1 and right[i].get(name) != 1)
+    only_b = sum(1 for i in shared if left[i].get(name) != 1 and right[i].get(name) == 1)
+    return {"a_only": only_a, "b_only": only_b, "p_value_exact": mcnemar_exact(only_a, only_b)}
+
+
 def compare(cells: dict[str, list[Label]], a: str, b: str, resamples: int, seed: int) -> dict:
-    """McNemar on exact match and a paired bootstrap on micro field F1, over the shared labels."""
+    """McNemar on exact match and on no edit, and a paired bootstrap on micro field F1, over the
+    shared labels."""
     left = {label.label_id: label for label in cells[a]}
     right = {label.label_id: label for label in cells[b]}
     shared = sorted(set(left) & set(right))
     if not shared:
         raise ValueError("the two cells share no labels")
-    only_a = sum(1 for i in shared if left[i].get("exact_match") == 1 and right[i].get("exact_match") != 1)
-    only_b = sum(1 for i in shared if left[i].get("exact_match") != 1 and right[i].get("exact_match") == 1)
     pairs = [(left[i], right[i]) for i in shared]
 
     def micro_f1(labels: list[Label]) -> float:
@@ -467,7 +484,8 @@ def compare(cells: dict[str, list[Label]], a: str, b: str, resamples: int, seed:
     return {
         "schema": SCHEMA, "seed": seed, "resamples": resamples, "cell_a": a, "cell_b": b, "shared_labels": len(shared),
         "versions_compared": 2,
-        "exact_match_mcnemar": {"a_only": only_a, "b_only": only_b, "p_value_exact": mcnemar_exact(only_a, only_b)},
+        "exact_match_mcnemar": _mcnemar(left, right, shared, "exact_match"),
+        "no_edit_mcnemar": _mcnemar(left, right, shared, "no_edit"),
         "field_f1_micro_paired_bootstrap": {"difference_a_minus_b": observed,
                                             "interval": [percentile_of_sorted(differences, 2.5), percentile_of_sorted(differences, 97.5)],
                                             "p_value_two_sided": min(1.0, 2 * min(at_most_zero, at_least_zero))},
@@ -480,7 +498,7 @@ def main(argv: list[str]) -> int:
     s = sub.add_parser("summary")
     s.add_argument("results", type=Path)
     s.add_argument("--cases", type=Path)
-    s.add_argument("--bar", type=Path, default=Path(__file__).resolve().parent.parent / "bar-v1.json")
+    s.add_argument("--bar", type=Path, default=DEFAULT_BAR)
     c = sub.add_parser("compare")
     c.add_argument("results", type=Path)
     c.add_argument("cell_a")

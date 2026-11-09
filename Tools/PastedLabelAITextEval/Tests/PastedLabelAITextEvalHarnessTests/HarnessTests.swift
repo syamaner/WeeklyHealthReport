@@ -70,6 +70,31 @@ final class HarnessTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("cache/\(first.requestSHA256).json").path))
     }
 
+    /// Revision 11: the prompt version is recorded, and each version has its own cache key.
+    func testThePromptVersionIsRecordedAndKeysItsOwnCacheEntry() async throws {
+        typealias Request = OpenRouterPastedLabelAITextRequest
+        let v1 = try await SendCommand.run(options())
+        XCTAssertEqual(v1.promptVersion, "prompt-v1", "the default")
+        XCTAssertEqual(v1.instructionSHA256, Request.PromptVersion.v1.instructionSHA256)
+        let base = options()
+        let v2Options = SendCommand.Options(labelID: base.labelID, textURL: base.textURL, route: base.route, cell: "cell-v2",
+                                            ledgerURL: base.ledgerURL, cacheDirectory: base.cacheDirectory,
+                                            fakeTransportDirectory: root.appendingPathComponent("fake"), promptVersion: .v2)
+        let v2 = try await SendCommand.run(v2Options)
+        XCTAssertEqual(v2.promptVersion, "prompt-v2")
+        XCTAssertEqual(v2.instructionSHA256, Request.PromptVersion.v2.instructionSHA256)
+        XCTAssertEqual(v2.schemaSHA256, v1.schemaSHA256)
+        XCTAssertNotEqual(v2.requestSHA256, v1.requestSHA256, "the instruction is in the body, so the cache key differs")
+        XCTAssertFalse(v2.cached, "a v1 answer is never served for v2")
+        XCTAssertEqual(try entries().count, 2, "v2 reserved and settled its own call")
+        let again = try await SendCommand.run(v2Options)
+        XCTAssertTrue(again.cached)
+        XCTAssertEqual(again.promptVersion, "prompt-v2")
+        XCTAssertEqual(again.requestSHA256, v2.requestSHA256)
+        XCTAssertGreaterThan(Decimal(string: try XCTUnwrap(v2.reservedUSD))!, Decimal(string: try XCTUnwrap(v1.reservedUSD))!,
+                             "W follows the longer instruction")
+    }
+
     func testAnUnknownCostIsChargedAtWAndCountsTowardTheUnknownStop() async throws {
         let result = try await SendCommand.run(options(label: "uk-no-cost"))
         XCTAssertEqual(result.attempt, "responded")
@@ -159,7 +184,7 @@ final class HarnessTests: XCTestCase {
         let result = try await SendCommand.run(options())
         XCTAssertEqual(result.attempt, "transport_failed:failed")
         XCTAssertEqual(result.chargedUSD, "\(Self.ukW)")
-        XCTAssertEqual(try entries().first?["kind"] as? String, EvalSpendLedger.unknownKind)
+        XCTAssertEqual(try entries().first?["kind"] as? String, EvalSpendLedger.noGenerationKind)
     }
 
     func testAPanelTheDetectorDeclinesIsNeverSent() async throws {
@@ -190,6 +215,32 @@ final class HarnessTests: XCTestCase {
         XCTAssertEqual(send.attempt, "responded")
         XCTAssertEqual(send.reservedUSD, "\(try Self.w(text))")
         XCTAssertGreaterThan(try Self.w(text), Self.ukW)
+    }
+
+    /// Revision 17: a reasoning-off cell reserves W with the whole output cap counted again as
+    /// reasoning (the session bills reasoning separately), and its body sends `effort: "none"`.
+    func testAReasoningOffCellReservesItsOutputCapAsReasoning() async throws {
+        let route = PastedLabelAITextRoute.gpt6LunaAzure4KNoReason
+        let listing: [String: Any] = ["data": ["id": route.model, "architecture": ["input_modalities": ["text", "image"]],
+                                               "endpoints": [["tag": "azure", "provider_name": "Azure", "pricing": Fixtures.pricing]]]]
+        try Fixtures.json(listing, root.appendingPathComponent("fake/catalogue/listing.json"))
+        try Fixtures.json(["data": [["model_id": route.model, "tag": "azure", "provider_name": "Azure"]]], root.appendingPathComponent("fake/catalogue/zdr.json"))
+        var reply = Fixtures.reply(cost: "0.004")
+        reply["body"] = (reply["body"] as! String).replacingOccurrences(of: "google/gemini-4-argon", with: route.model)
+            .replacingOccurrences(of: #""provider": "Google""#, with: #""provider": "Azure""#)
+        try Fixtures.json(reply, root.appendingPathComponent("fake/responses/uk-synthetic-01.json"))
+        let base = options()
+        let off = SendCommand.Options(labelID: base.labelID, textURL: base.textURL, route: route, cell: "cell-off", ledgerURL: base.ledgerURL,
+                                      cacheDirectory: base.cacheDirectory, fakeTransportDirectory: root.appendingPathComponent("fake"))
+        let send = try await SendCommand.run(off)
+        XCTAssertEqual(send.attempt, "responded")
+        let bound = try OpenRouterPastedLabelAITextRequest(route: route).promptTokenBound(Fixtures.ukText)
+        let w = Decimal(bound) * Decimal(string: "0.0000022")! + Decimal(8_000) * Decimal(string: "0.000011")!
+        XCTAssertEqual(send.reservedUSD, "\(w)")
+        let body = try OpenRouterPastedLabelAITextRequest(route: route).body(Fixtures.ukText)
+        XCTAssertEqual(send.requestSHA256, EvalCase.sha256(body))
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        XCTAssertEqual(object["reasoning"] as? [String: String], ["effort": "none"])
     }
 
     func testAnOverrunStopsTheCell() async throws {
@@ -304,7 +355,11 @@ final class HarnessTests: XCTestCase {
         XCTAssertTrue(output.pass)
         XCTAssertEqual(output.namedScores["fields_correct"], 8)
         XCTAssertEqual(output.f1, 2 * (8.0 / 9) * 1 / (8.0 / 9 + 1), accuracy: 1e-12)
-        XCTAssertEqual(output.readerVersions["mapping"], "pasted-label-ai-text-mapping-v1")
+        XCTAssertEqual(output.readerVersions["mapping"], "pasted-label-ai-text-mapping-v4")
+        XCTAssertEqual(output.readerVersions["format"], "pasted-label-ai-text-format-v1")
+        XCTAssertEqual(output.readerVersions["scorer"], "pasted-label-ai-text-scorer-v5 (rules of uk-fresh-scorer-v2; RI amount columns and unrecognised rows not printed fields; two or more %RI columns paired in printed order; a lone * a class marker)")
+        XCTAssertEqual(output.score.fieldsReferenceAmounts, 0)
+        XCTAssertEqual(output.score.fieldsUnrecognisedRows, 0)
     }
 
     func testAWrongModelFailsTheLabel() async throws {

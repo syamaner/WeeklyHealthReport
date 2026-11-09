@@ -7,8 +7,23 @@ import Foundation
 /// the printed label or header is `vocabulary_mismatch`, and a label or header the vocabulary
 /// does not know (or reads as more than one basis) is `label_unknown`. Both are attention items.
 /// A new entry is a new version.
+///
+/// v2 (revision 15, D33): a header that joins a mass and a volume basis with a slash
+/// (`per 100g/ml`, `per 100 g/ml`, `100g/100ml`, `per 100g / 100ml`, `每100公克/毫升`) names two
+/// bases, so it names no single basis (`basis(forHeader:)` is nil and the check `label_unknown`),
+/// and `namesTwoBases` reports it so the reader declines the reply, as it would a value column
+/// with no recognisable basis (D27). Under v1 `per 100g/ml` read as per 100 g alone. A
+/// reference-intake word still decides the basis on its own (`%RI per 100g/ml` is reference
+/// intake, not two bases), and every other header reads as under v1.
+///
+/// v3 (revision 20, a bug fix to D33): the check of a shortened header against the sent text reads
+/// only the header's own located occurrence (the locator's single whole-word match), never every
+/// occurrence of its words, so a footnote or row such as `values per 100g/ml` cannot decline a
+/// table whose heading is `per 100g`. A heading cell that itself continues with `/ml` still declines.
 public enum PastedLabelAITextVocabulary {
-    public static let version = "pasted-label-ai-text-vocabulary-v1"
+    public static let version = "pasted-label-ai-text-vocabulary-v3"
+    /// The reader's decline reason for a header that names two bases (D33).
+    public static let twoBasisDecline = "vocabulary:two_basis_header"
 
     public enum Verdict: String, Equatable, Sendable, Codable, CaseIterable {
         case agrees
@@ -107,6 +122,55 @@ public enum PastedLabelAITextVocabulary {
 /// names no basis, and neither does a standalone `serving` or `portion` without a per-serving
 /// phrase or a printed quantity.
     public static func basis(forHeader printed: String) -> String? {
+        switch reading(ofHeader: printed) {
+        case .referenceIntake: "reference_intake"
+        case .quantity: nil
+        case let .bases(found): found.count == 1 ? found.first : nil
+        }
+    }
+
+    /// v2 (D33): whether a printed header names both a per 100 g and a per 100 ml basis, and no
+    /// reference-intake word or quantity: such a header does not establish the basis from the paste.
+    public static func namesTwoBases(header printed: String) -> Bool {
+        guard case let .bases(found) = reading(ofHeader: printed) else { return false }
+        return found.isSuperset(of: ["per_100g", "per_100ml"])
+    }
+
+    /// v3 (D33, revision 20): whether a model's header names two bases, as printed or as the sent
+    /// text prints it on at the header's own located occurrence: when the text continues the
+    /// located span with a slash and the other basis unit (`per 100g` printed as `per 100g/ml`), the
+    /// header names two bases even when the model left the rest out. `located` is the locator's
+    /// header span (4.3 item 4: the single whole-word occurrence, in Unicode scalar offsets of
+    /// `text`); a header not located exactly once is read from its own printed text alone, since
+    /// its column is already under attention, so a footnote or row that repeats the header's
+    /// words never declines the table. The printed heading read is the occurrence's whole cell,
+    /// from the start of its line, or the last tab or run of two spaces before it, to the end of
+    /// the continuation, so a reference-intake heading (`%RI per 100g/ml`) still decides its basis
+    /// on its own. Pure; never assigns a basis.
+    public static func namesTwoBases(header printed: String, located: Range<Int>?, in text: String) -> Bool {
+        if namesTwoBases(header: printed) { return true }
+        let scalars = Array(text.unicodeScalars)
+        guard let located, located.lowerBound >= 0, located.lowerBound < located.upperBound, located.upperBound <= scalars.count,
+              let continuation = try? NSRegularExpression(pattern: #"^[ \t\u00A0]*[/／][ \t\u00A0]*(100[ \t\u00A0]*)?(ml|毫升|g|公克|克)"#,
+                                                          options: [.caseInsensitive]) else { return false }
+        func string(_ range: Range<Int>) -> String { String(String.UnicodeScalarView(scalars[range])) }
+        let rest = string(located.upperBound..<scalars.count)
+        guard let match = continuation.firstMatch(in: rest, range: NSRange(rest.startIndex..., in: rest)),
+              let matched = Range(match.range, in: rest) else { return false }
+        var cellStart = located.lowerBound
+        while cellStart > 0 {
+            let before = scalars[cellStart - 1]
+            if before == "\t" || CharacterSet.newlines.contains(before) { break }
+            if before == " ", cellStart - 2 >= 0, scalars[cellStart - 2] == " " { break }
+            cellStart -= 1
+        }
+        return namesTwoBases(header: string(cellStart..<located.upperBound) + rest[matched])
+    }
+
+    enum HeaderReading: Equatable { case referenceIntake, quantity, bases(Set<String>) }
+
+    /// The closed header reading behind `basis(forHeader:)` and `namesTwoBases`.
+    static func reading(ofHeader printed: String) -> HeaderReading {
         let lower = printed.lowercased()
         var words: [String] = []
         var current = ""
@@ -126,17 +190,23 @@ public enum PastedLabelAITextVocabulary {
         }
         let referenceIntake = phrase(["reference", "intake"]) || phrase(["reference", "intakes"]) || words.contains("ri")
             || words.contains("gda") || compact.contains("每日參考值")
-        if referenceIntake { return "reference_intake" }
+        if referenceIntake { return .referenceIntake }
         // A header that names a quantity (a serving size, a pack count) is not an amount basis,
         // so `Serving size` never passes as per serving (Qodo review of A1).
         let quantity = phrase(["serving", "size"]) || phrase(["portion", "size"]) || phrase(["servings", "per"])
             || phrase(["portions", "per"]) || compact.contains("每份重量") || compact.contains("本包裝含") || compact.contains("份量")
-        if quantity { return nil }
+        if quantity { return .quantity }
         var found: Set<String> = []
         if words.contains("100g") || phrase(["100", "g"]) || compact.contains("每100公克") || compact.contains("每100克")
             || compact.contains("每100g") { found.insert("per_100g") }
         if words.contains("100ml") || phrase(["100", "ml"]) || compact.contains("每100毫升") || compact.contains("每100ml") {
             found.insert("per_100ml")
+        }
+        // v2 (D33): a mass and a volume basis joined by a slash (`100g/ml`, `100 g / 100 ml`,
+        // `100ml/g`, `每100公克/毫升`) name both bases.
+        if compact.range(of: #"100(g|公克|克)[/／](100)?(ml|毫升)(?![a-z])"#, options: .regularExpression) != nil
+            || compact.range(of: #"100(ml|毫升)[/／](100)?(g|公克|克)(?![a-z])"#, options: .regularExpression) != nil {
+            found.formUnion(["per_100g", "per_100ml"])
         }
         // Only a per-serving phrase names the basis (Qodo finding on #421 at 21e2d76): `per serving`,
         // `per portion`, `per <number> <unit> serving`, `每份`, `每一份`, or `serving` or `portion`
@@ -154,7 +224,7 @@ public enum PastedLabelAITextVocabulary {
             || compact.contains("每份") || compact.contains("每一份") {
             found.insert("per_serving")
         }
-        return found.count == 1 ? found.first : nil
+        return .bases(found)
     }
 
     public static func checkHeader(printedText: String, basis: String) -> Verdict {

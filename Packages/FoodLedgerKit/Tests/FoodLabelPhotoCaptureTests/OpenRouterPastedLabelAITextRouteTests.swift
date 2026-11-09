@@ -64,6 +64,65 @@ final class OpenRouterPastedLabelAITextRouteTests: XCTestCase {
         XCTAssertEqual(try request().body(text), body, "reproducible bytes")
     }
 
+    // MARK: Revision 11: the prompt version
+
+    func testThePromptVersionsAreTheClosedPinnedSetAndV1IsTheDefault() throws {
+        typealias Request = OpenRouterPastedLabelAITextRequest
+        XCTAssertEqual(Request.PromptVersion.allCases.map(\.rawValue), ["prompt-v1", "prompt-v2"])
+        XCTAssertEqual(Request.defaultPromptVersion, .v1)
+        XCTAssertEqual(try request().promptVersion, .v1)
+        // The static values are v1's, byte for byte as before revision 11.
+        XCTAssertEqual(Request.promptVersion, "prompt-v1")
+        XCTAssertEqual(Request.instructionVersion, "pasted-label-ai-text-instruction-v1")
+        XCTAssertEqual(Request.instructionResource, "pasted-label-ai-text-instruction-v1.txt")
+        XCTAssertEqual(Request.instructionSHA256, "0773427c91e061638c85a588226f1ffaab0708901dda5d2b64456954a869cba6")
+        let digester = SHA256Digester()
+        for version in Request.PromptVersion.allCases {
+            let instruction = try XCTUnwrap(OpenRouterLabelPhotoRequest.resource(version.instructionResource), version.rawValue)
+            XCTAssertEqual(try digester.sha256(instruction).value, version.instructionSHA256, version.rawValue)
+            XCTAssertTrue(String(decoding: instruction, as: UTF8.self).hasPrefix("\(version.instructionVersion) (\(version.rawValue), text route"),
+                          version.rawValue)
+        }
+        XCTAssertEqual(Request.PromptVersion.v2.instructionSHA256, "3ea63efb3f1fc1fff22402941de021c999bdead05438fe45333dc1dcc31ab513")
+    }
+
+    /// The v2 body: pinned bytes, and only the system message's content differs from v1's.
+    func testTheV2BodyDiffersFromV1OnlyInTheInstruction() throws {
+        let text = "Typical values Per 100g\nFat 9.5g"
+        let v1 = try request().body(text)
+        let v2Request = try OpenRouterPastedLabelAITextRequest(route: Self.route, promptVersion: .v2)
+        XCTAssertEqual(v2Request.promptVersion, .v2)
+        let v2 = try v2Request.body(text)
+        XCTAssertEqual(SHA256Digester().sha256Hex(v2), "3403dae8cec7b39f19677ae35f4be3da619e7adcd0041842d08d4d546ae32f42")
+        XCTAssertNotEqual(v1, v2)
+        var one = try XCTUnwrap(JSONSerialization.jsonObject(with: v1) as? [String: Any])
+        var two = try XCTUnwrap(JSONSerialization.jsonObject(with: v2) as? [String: Any])
+        let oneMessages = try XCTUnwrap(one["messages"] as? [[String: Any]])
+        let twoMessages = try XCTUnwrap(two["messages"] as? [[String: Any]])
+        XCTAssertEqual(twoMessages.count, 2)
+        XCTAssertEqual(twoMessages[0]["role"] as? String, "system")
+        XCTAssertTrue((twoMessages[0]["content"] as? String)?.hasPrefix("pasted-label-ai-text-instruction-v2 (prompt-v2") ?? false)
+        XCTAssertNotEqual(oneMessages[0]["content"] as? String, twoMessages[0]["content"] as? String)
+        XCTAssertEqual(twoMessages[1] as NSDictionary, oneMessages[1] as NSDictionary, "the same user message")
+        // With the instruction removed, the two bodies are identical: the schema, the provider block
+        // (one endpoint, no fallbacks, data collection denied, ZDR), the limits and the usage report.
+        one["messages"] = [oneMessages[1]]
+        two["messages"] = [twoMessages[1]]
+        XCTAssertEqual(one as NSDictionary, two as NSDictionary)
+        let provider = try XCTUnwrap(two["provider"] as? [String: Any])
+        XCTAssertEqual(provider["allow_fallbacks"] as? Bool, false)
+        XCTAssertEqual(provider["data_collection"] as? String, "deny")
+        XCTAssertEqual(provider["only"] as? [String], ["google-vertex/us"])
+        XCTAssertGreaterThan(v2Request.promptTokenBound(text), try request().promptTokenBound(text), "W follows the longer instruction")
+        // The key is never in a v2 body either.
+        let http = try v2Request.httpRequest("Fat 5g", key: Self.key)
+        XCTAssertEqual(http.headers["Authorization"], "Bearer " + Self.key)
+        XCTAssertNil(try XCTUnwrap(http.body).range(of: Data(Self.key.utf8)))
+        XCTAssertThrowsError(try v2Request.httpRequest("Fat 5g " + Self.key, key: Self.key)) {
+            XCTAssertEqual($0 as? OpenRouterPastedLabelAITextRequest.BuildError, .keyInBody)
+        }
+    }
+
     func testTheHTTPRequestCarriesTheKeyOnlyInItsHeader() throws {
         let http = try request().httpRequest("Fat 5g", key: Self.key)
         XCTAssertEqual(http.method, "POST")
@@ -98,6 +157,134 @@ final class OpenRouterPastedLabelAITextRouteTests: XCTestCase {
         XCTAssertThrowsError(try OpenRouterPastedLabelAITextRequest(route: photoShaped)) {
             XCTAssertEqual($0 as? OpenRouterPastedLabelAITextRequest.BuildError, .notATextRoute)
         }
+    }
+
+    func testTheFourThousandTokenCandidatesDifferOnlyInIDAndOutputCap() throws {
+        let pairs = [(PastedLabelAITextRoute.gemini38FlashVertexUS, PastedLabelAITextRoute.gemini38FlashVertexUS4K),
+                     (PastedLabelAITextRoute.gpt6LunaAzure, PastedLabelAITextRoute.gpt6LunaAzure4K),
+                     (PastedLabelAITextRoute.gpt61SolAzure, PastedLabelAITextRoute.gpt61SolAzure4K)]
+        for (base, wide) in pairs {
+            XCTAssertEqual(wide.candidateID, base.candidateID + "-4k")
+            XCTAssertEqual(wide.maxOutputTokens, 4_000)
+            XCTAssertEqual(base.maxOutputTokens, 2_400)
+            XCTAssertEqual([wide.version, wide.model, wide.endpoint, wide.providerName], [base.version, base.model, base.endpoint, base.providerName])
+            XCTAssertEqual(wide.reasoningLimit, base.reasoningLimit)
+            XCTAssertTrue(PastedLabelAITextRoute.isAdmitted(wide))
+            XCTAssertEqual(PastedLabelAITextRoute.candidate(wide.candidateID), wide)
+            let body = try JSONSerialization.jsonObject(with: try OpenRouterPastedLabelAITextRequest(route: wide).body("Energy 100 kJ")) as? [String: Any]
+            XCTAssertEqual(body?["max_tokens"] as? Int, 4_000)
+        }
+        XCTAssertEqual(Set(PastedLabelAITextRoute.candidates.map(\.candidateID)).count, PastedLabelAITextRoute.candidates.count)
+        XCTAssertNil(PastedLabelAITextRoute.current)
+    }
+
+    func testTheTerraAndLunaProFourThousandTokenCandidatesAreAdmittedAzureRoutes() throws {
+        let expected = [(PastedLabelAITextRoute.gpt61TerraAzure4K, "gpt-6.1-terra-azure-4k", "openai/gpt-6.1-terra"),
+                        (PastedLabelAITextRoute.gpt6LunaProAzure4K, "gpt-6-luna-pro-azure-4k", "openai/gpt-6-luna-pro")]
+        for (route, id, model) in expected {
+            XCTAssertEqual(route.candidateID, id)
+            XCTAssertEqual(route.version, PastedLabelAITextRoute.version)
+            XCTAssertEqual(route.model, model)
+            XCTAssertEqual(route.endpoint, "azure")
+            XCTAssertEqual(route.providerName, "Azure")
+            XCTAssertEqual(route.maxOutputTokens, 4_000)
+            XCTAssertEqual(route.reasoningLimit, 500)
+            XCTAssertTrue(PastedLabelAITextRoute.isAdmitted(route))
+            XCTAssertEqual(PastedLabelAITextRoute.candidate(id), route)
+            let body = try JSONSerialization.jsonObject(with: try OpenRouterPastedLabelAITextRequest(route: route).body("Energy 100 kJ")) as? [String: Any]
+            XCTAssertEqual(body?["max_tokens"] as? Int, 4_000)
+        }
+        XCTAssertEqual(Set(PastedLabelAITextRoute.candidates.map(\.candidateID)).count, PastedLabelAITextRoute.candidates.count)
+        XCTAssertNil(PastedLabelAITextRoute.current)
+    }
+
+    /// Revision 17: every route that existed before the reasoning-off candidates sends the same bytes
+    /// as before, for both prompt versions (pinned from the revision 16 builder).
+    func testEveryReasoningBudgetRouteBodyIsUnchanged() throws {
+        let goldens: [String: [String]] = [
+            "gemini-4-argon-vertex-us": ["b9aba386aaf1e61026498b18e6b5d98e54e86ea9865a414e7a0670245070a6b5",
+                                         "6c0910a64b0c7dc84007fb5cf7173c6bb6992053ed709f7ee0fb9fc3cc351ccf"],
+            "gemini-3.8-flash-vertex-us": ["47e32bf82d936349118ada620427cd18764cf8d96ffdc9751916f5a578a1d4a5",
+                                           "39ae4a3dff939dc9aa174f282848b1ef3b5eac736237158c81857dfbdc2b82ae"],
+            "mistral-large-4-zdr": ["95214cceb82d2414b34ae7cc2735bd0bfd6cc5b1e06047ac9f0daecab9f69bd5",
+                                    "56679711672d1a351e75820f013453b177a618bb76f41ecca00f4654a8cad4bf"],
+            "gpt-6-luna-azure": ["25b818279e923348f9964ac2297ca1c0acc54f6eb8c52c40fddc6e0a20f05e30",
+                                 "a529bae16f5708efb0d150621846f9ad789cecccce22c5be48282fc4a118bd4f"],
+            "gpt-6.1-sol-azure": ["960bd3d7cc51b1f32ea00b3ee39ba9c3c5a00b984e0d625570b8c542d861b8ad",
+                                  "7972d658e07aa0a853c59100bf0f92b7c2ef434c23961fc6a1c59b20579113ee"],
+            "claude-haiku-5.5-vertex-global": ["38cb09cbea17bb340954989f48d0742f99850eb82610e9cfc60872db35971a2f",
+                                               "1d0faba64b7ac3e5f709ce30a2edaf0d96b38319aa0a6a282ae31769eefb94b7"],
+            "gemini-3.8-flash-vertex-us-4k": ["c0e2bda51ab7435e9dad8861d5a1533d1932cbe99a0313ec2ea301bd48ca5739",
+                                              "b4495e762216ba4f9e15c272f8583e0680fabc27710207a6ecdff57d6cebdcd4"],
+            "gpt-6-luna-azure-4k": ["9b2fb27c744268b82c7c36f6e793417421c86c2489454fbb2f5aa16d1f135a94",
+                                    "55468bdbe87bdb40fe536d154b1552d240fa1c363da4518819a7afa2cd0c4b1f"],
+            "gpt-6.1-sol-azure-4k": ["1f45ef408fc24b465387bcf4e15c8f03c49eb446c9915ec4211bad9a5dc1b96c",
+                                     "62182b8939325b259e93033bc9ac1acb91e04b7b2d78125e5be74ef1350c34c8"],
+            "gpt-6.1-terra-azure-4k": ["84087d5bcc3b3b6f572df0b5efc3db30dc49b441e22b754b5878039d13b4e488",
+                                       "7b0e50d32a8d8f0a6a4a0f536103637b41e6c6d5531bd68acd6bf7451e3c1e05"],
+            "gpt-6-luna-pro-azure-4k": ["b33e2cfb62fb037fed5c56fb064cf1fada7a3375d1fa8e4aa8e35f2bbaa8d542",
+                                        "2313fd1a002db54075749e376db83537f9c8b4d360db4764039720ecf8f32327"],
+        ]
+        let budgeted = PastedLabelAITextRoute.candidates.filter { $0.reasoning != .off }
+        XCTAssertEqual(Set(budgeted.map(\.candidateID)), Set(goldens.keys))
+        for route in budgeted {
+            for (index, version) in OpenRouterPastedLabelAITextRequest.PromptVersion.allCases.enumerated() {
+                let body = try OpenRouterPastedLabelAITextRequest(route: route, promptVersion: version).body("Energy 100 kJ")
+                XCTAssertEqual(SHA256Digester().sha256Hex(body), goldens[route.candidateID]?[index], "\(route.candidateID) \(version.rawValue)")
+            }
+            XCTAssertEqual(route.reasoningTokenBound, route.reasoningLimit)
+        }
+    }
+
+    /// Revision 17: the reasoning-off candidates are their 4,000-token siblings with `effort: "none"`
+    /// and nothing else changed. Sol and Gemini 3.8 Flash have none (reasoning is mandatory for both).
+    func testTheReasoningOffCandidatesDifferFromTheirSiblingsOnlyInReasoning() throws {
+        let pairs = [(PastedLabelAITextRoute.gpt61TerraAzure4K, PastedLabelAITextRoute.gpt61TerraAzure4KNoReason),
+                     (PastedLabelAITextRoute.gpt6LunaAzure4K, PastedLabelAITextRoute.gpt6LunaAzure4KNoReason)]
+        for (on, off) in pairs {
+            XCTAssertEqual(off.candidateID, on.candidateID + "-noreason")
+            XCTAssertEqual([off.version, off.model, off.endpoint, off.providerName], [on.version, on.model, on.endpoint, on.providerName])
+            XCTAssertEqual(off.maxOutputTokens, 4_000)
+            XCTAssertEqual(on.reasoning, .budget(500))
+            XCTAssertEqual(off.reasoning, .off)
+            XCTAssertEqual(off.reasoningLimit, 0)
+            XCTAssertEqual(off.reasoningTokenBound, 4_000, "W counts the whole output cap as reasoning when billed separately")
+            XCTAssertTrue(PastedLabelAITextRoute.isAdmitted(off))
+            XCTAssertEqual(PastedLabelAITextRoute.candidate(off.candidateID), off)
+            for version in OpenRouterPastedLabelAITextRequest.PromptVersion.allCases {
+                let offBody = try OpenRouterPastedLabelAITextRequest(route: off, promptVersion: version).body("Energy 100 kJ")
+                let onBody = try OpenRouterPastedLabelAITextRequest(route: on, promptVersion: version).body("Energy 100 kJ")
+                var offObject = try XCTUnwrap(JSONSerialization.jsonObject(with: offBody) as? [String: Any])
+                var onObject = try XCTUnwrap(JSONSerialization.jsonObject(with: onBody) as? [String: Any])
+                XCTAssertEqual(offObject["reasoning"] as? [String: String], ["effort": "none"])
+                XCTAssertEqual(onObject["reasoning"] as? [String: Int], ["max_tokens": 500])
+                XCTAssertEqual(offObject["max_tokens"] as? Int, 4_000)
+                let provider = try XCTUnwrap(offObject["provider"] as? [String: Any])
+                XCTAssertEqual(provider["only"] as? [String], ["azure"])
+                XCTAssertEqual(provider["order"] as? [String], ["azure"])
+                XCTAssertEqual(provider["allow_fallbacks"] as? Bool, false)
+                XCTAssertEqual(provider["require_parameters"] as? Bool, true)
+                XCTAssertEqual(provider["data_collection"] as? String, "deny")
+                XCTAssertEqual(provider["zdr"] as? Bool, true)
+                offObject["reasoning"] = nil; onObject["reasoning"] = nil
+                XCTAssertEqual(offObject as NSDictionary, onObject as NSDictionary, "schema, messages, provider and caps are the sibling's")
+                XCTAssertFalse(String(decoding: offBody, as: UTF8.self).contains(Self.key))
+                let http = try OpenRouterPastedLabelAITextRequest(route: off, promptVersion: version).httpRequest("Energy 100 kJ", key: Self.key)
+                XCTAssertEqual(http.body, offBody)
+                XCTAssertNil(http.body?.range(of: Data(Self.key.utf8)), "the key is only in the Authorization header")
+                XCTAssertEqual(http.headers["Authorization"], "Bearer " + Self.key)
+            }
+        }
+        let ids = Set(PastedLabelAITextRoute.candidates.map(\.candidateID))
+        XCTAssertFalse(ids.contains("gpt-6.1-sol-azure-4k-noreason"), "Sol's reasoning is mandatory")
+        XCTAssertFalse(ids.contains("gemini-3.8-flash-vertex-us-4k-noreason"), "Gemini 3.8 Flash's reasoning is mandatory")
+        XCTAssertEqual(ids.count, PastedLabelAITextRoute.candidates.count)
+        XCTAssertNil(PastedLabelAITextRoute.current)
+        // An off route with another field changed is not admitted: the set is closed.
+        let altered = PastedLabelAITextRoute.Route(version: PastedLabelAITextRoute.version, candidateID: "gpt-6-luna-azure-4k-noreason",
+                                                   model: "openai/gpt-6-luna", endpoint: "azure", providerName: "Azure", maxOutputTokens: 4_000,
+                                                   reasoningLimit: 500)
+        XCTAssertFalse(PastedLabelAITextRoute.isAdmitted(altered))
     }
 
     // MARK: Test 28: the attempt adapter passes the attempting contract
@@ -213,6 +400,36 @@ final class OpenRouterPastedLabelAITextRouteTests: XCTestCase {
                                                                                 route: Self.route, at: 1, reasoningBilledSeparately: true))
         XCTAssertThrowsError(try OpenRouterPastedLabelAITextRouteChecker.parse(listing: listing, zeroDataRetention: catalogue(zdr: ["data": []]).1,
                                                                                 route: Self.route, at: 1, reasoningBilledSeparately: true))
+    }
+
+    /// A3: tiered `overrides` above the text ceiling and cache writes above the prompt price are
+    /// accepted for the text route only, with W's prompt price raised to the highest input price.
+    func testTheTextCheckerAcceptsTiersAboveItsCeilingAndPricesCacheWrites() throws {
+        func listing(overridesFrom start: Int) throws -> Data {
+            var listing = OpenRouterLabelPhotoRouteTests.listing
+            var data = listing["data"] as! [String: Any]
+            data["endpoints"] = (data["endpoints"] as! [[String: Any]]).map { endpoint in
+                var endpoint = endpoint
+                var pricing = endpoint["pricing"] as! [String: Any]
+                pricing["input_cache_write"] = "0.000003"
+                pricing["input_cache_write_1h"] = "0.000004"
+                pricing["overrides"] = [["min_prompt_tokens": start, "prompt": "0.000005", "completion": "0.00002"]]
+                endpoint["pricing"] = pricing
+                return endpoint
+            }
+            listing["data"] = data
+            return try JSONSerialization.data(withJSONObject: listing)
+        }
+        let zdr = try JSONSerialization.data(withJSONObject: OpenRouterLabelPhotoRouteTests.zdr)
+        let accepted = try OpenRouterPastedLabelAITextRouteChecker.parse(listing: listing(overridesFrom: 272_000), zeroDataRetention: zdr,
+                                                                         route: Self.route, at: 1, reasoningBilledSeparately: true)
+        XCTAssertEqual(accepted.promptPrice, "0.000004", "W prices prompt tokens at the highest input price listed")
+        XCTAssertThrowsError(try OpenRouterPastedLabelAITextRouteChecker.parse(listing: listing(overridesFrom: 10_000), zeroDataRetention: zdr,
+                                                                                route: Self.route, at: 1, reasoningBilledSeparately: true),
+                             "a tier a bounded request could reach is refused")
+        XCTAssertThrowsError(try OpenRouterLabelRouteChecker.parse(listing: listing(overridesFrom: 272_000), zeroDataRetention: zdr,
+                                                                   route: LabelPhotoRoute.current, at: 1, reasoningBilledSeparately: true),
+                             "the photo route's rules are unchanged")
     }
 
     /// Qodo finding 2 on A2: a listing for another model that happens to hold the endpoint tag never qualifies it.

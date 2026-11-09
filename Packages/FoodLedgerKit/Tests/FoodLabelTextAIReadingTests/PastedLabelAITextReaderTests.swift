@@ -146,4 +146,118 @@ final class PastedLabelAITextReaderTests: XCTestCase {
         let result = reader.reading(text: text, textSHA256: Self.sha, answer: PastedLabelAITextPortContracts.ukAnswer)
         XCTAssertEqual(result.values.first { $0.nutrient == "fat" }?.printedText, "9.5g")
     }
+
+    // MARK: Revision 10: the format step and the detector on bilingual Taiwan panels
+
+    static let bilingualTaiwanText = """
+    營養標示 Nutrition Facts
+    每100毫升
+    熱量 Calories 30.0大卡
+    蛋白質 Protein 0.5公克
+    脂肪 Fat 0.0公克
+    飽和脂肪 Saturated fat 0.0公克
+    反式脂肪 Trans fat 0.0公克
+    碳水化合物 Carbohydrate 7.0公克
+    糖 Sugars 6.5公克
+    鈉 Sodium 20毫克
+    """
+
+    static func bilingualAnswer(language: String) -> String {
+        answer(language: language, headers: [("h1", "每100毫升", "per_100ml")],
+               rows: [("熱量 Calories", "energy_kcal", [("h1", "30.0大卡")]), ("蛋白質 Protein", "protein", [("h1", "0.5公克")]),
+                      ("脂肪 Fat", "fat", [("h1", "0.0公克")]), ("飽和脂肪 Saturated fat", "saturates", [("h1", "0.0公克")]),
+                      ("反式脂肪 Trans fat", "trans_fat", [("h1", "0.0公克")]), ("碳水化合物 Carbohydrate", "carbohydrate", [("h1", "7.0公克")]),
+                      ("糖 Sugars", "sugars", [("h1", "6.5公克")]), ("鈉 Sodium", "sodium", [("h1", "20毫克")])])
+    }
+
+    func testABilingualTaiwanPanelReadAsMixedIsGatedAsTaiwan() {
+        let result = read(Self.bilingualTaiwanText, Self.bilingualAnswer(language: "mixed"))
+        XCTAssertFalse(result.textDetector.declines, "the Taiwan title clears `nutrition_facts_title`")
+        XCTAssertEqual(result.outcome, .reachedConfirm, "\(result.declineReasons)")
+        XCTAssertEqual(result.inferredFormat, PastedLabelAITextOffer.taiwanFormat)
+        XCTAssertEqual(result.gate?.format, LabelGateFormat.taiwan.rawValue)
+        XCTAssertEqual(result.candidate?.cells.count, 8)
+        XCTAssertEqual(result.versions.format, PastedLabelAITextFormat.version)
+    }
+
+    func testWithoutTheTaiwanTitleAMixedAnswerStaysAmbiguous() {
+        let untitled = Self.bilingualTaiwanText.replacingOccurrences(of: "營養標示 Nutrition Facts\n", with: "")
+        XCTAssertEqual(read(untitled, Self.bilingualAnswer(language: "mixed")).declineReasons, ["format:format_ambiguous"])
+        XCTAssertEqual(read(untitled, Self.bilingualAnswer(language: "unknown")).declineReasons, ["format:format_ambiguous"])
+        let usTitle = Self.bilingualTaiwanText.replacingOccurrences(of: "營養標示 ", with: "")
+        XCTAssertEqual(read(usTitle, Self.bilingualAnswer(language: "mixed")).declineReasons, ["detector:nutrition_facts_title"])
+    }
+
+    // MARK: Revision 11: what prompt-v2's rules rely on in the reader (unchanged by them)
+
+    static let ukServingText = "Typical values\tPer 100g\tPer slice (40g)\tRI*\nEnergy\t1000kJ\t400kJ\t8400kJ\nFat\t5g\t-\t70g"
+
+    static func ukServingAnswer(serving: String, servingHeader: String = "Per slice (40g)", fatPerServing: String = "-") -> String {
+        answer(serving: serving,
+               headers: [("h1", "Per 100g", "per_100g"), ("h2", servingHeader, "per_serving"), ("h3", "RI*", "reference_intake")],
+               rows: [("Energy", "energy_kj", [("h1", "1000kJ"), ("h2", "400kJ"), ("h3", "8400kJ")]),
+                      ("Fat", "fat", [("h1", "5g"), ("h2", fatPerServing), ("h3", "70g")])])
+    }
+
+    /// Rule 1: a per-serving header copied as the serving size is located in the text and read as the
+    /// same quantity the mapping already takes from that header; a count-only serving stays text.
+    func testAServingHeaderCopiedAsTheServingSizeIsLocatedAndReadAsPrinted() throws {
+        let result = read(Self.ukServingText, Self.ukServingAnswer(serving: "Per slice (40g)"))
+        let candidate = try XCTUnwrap(result.candidate)
+        XCTAssertEqual(candidate.servingSize?.decimalText, "40")
+        XCTAssertEqual(candidate.servingSize?.canonicalUnit, "g")
+        XCTAssertEqual(candidate.headers.first { $0.headerID == "h2" }?.servingConversion, "40g")
+        XCTAssertEqual(result.servingLines.map(\.id), ["serving_size"])
+        XCTAssertEqual(result.servingLines.map(\.location), [.found])
+        // The same quantity as v1's reading of the header alone.
+        let headerOnly = try XCTUnwrap(read(Self.ukServingText, Self.ukServingAnswer(serving: "unknown")).candidate)
+        XCTAssertEqual(headerOnly.headers.first { $0.headerID == "h2" }?.servingConversion, "40g")
+        XCTAssertTrue(headerOnly.warnings.contains("serving_quantity_from_header: h2"))
+
+        for header in ["Per 3 nuggets", "PER 1/2 POT"] {
+            let countText = Self.ukServingText.replacingOccurrences(of: "Per slice (40g)", with: header)
+            let count = try XCTUnwrap(read(countText, Self.ukServingAnswer(serving: header, servingHeader: header)).candidate)
+            XCTAssertEqual(count.servingSize?.printedText, header)
+            XCTAssertNil(count.servingSize?.decimalText, "\(header): a count is never a weight")
+            XCTAssertFalse(count.wouldMarkReady, header)
+            XCTAssertTrue(count.warnings.contains("per_serving_without_printed_serving_quantity"), header)
+        }
+    }
+
+    /// Rule 4: a dash copied as printed is never a value and never 0. From mapping v3 (D30) a dash the
+    /// locator finds at its row and column is not declared, so it no longer keeps the table from
+    /// being ready (`PastedLabelAITextNotDeclaredTests`).
+    func testADashCellIsNotDeclaredAndNeverZero() throws {
+        for dash in ["-", "\u{2013}"] {
+            let text = Self.ukServingText.replacingOccurrences(of: "\t-\t", with: "\t\(dash)\t")
+            let result = read(text, Self.ukServingAnswer(serving: "Per slice (40g)", fatPerServing: dash))
+            let candidate = try XCTUnwrap(result.candidate)
+            XCTAssertFalse(candidate.cells.contains { $0.nutrient == "fat" && $0.headerID == "h2" }, dash)
+            XCTAssertFalse(candidate.cells.contains { $0.decimalText == "0" }, dash)
+            XCTAssertEqual(result.values.first { $0.nutrient == "fat" && $0.headerID == "h2" }?.read, .notRead(.notDeclared), dash)
+            XCTAssertTrue(candidate.wouldMarkReady, "a found dash is not a left-out amount")
+        }
+    }
+
+    /// Rule 2: absolute amounts in an `RI*` column are reference intake, never product amounts.
+    func testReferenceIntakeAmountsAreNeverProductAmounts() throws {
+        let text = Self.ukServingText.replacingOccurrences(of: "\t-\t", with: "\t2g\t")
+        let result = read(text, Self.ukServingAnswer(serving: "Per slice (40g)", fatPerServing: "2g"))
+        let candidate = try XCTUnwrap(result.candidate)
+        XCTAssertFalse(candidate.cells.contains { $0.headerID == "h3" })
+        XCTAssertEqual(result.values.filter { $0.headerID == "h3" }.map(\.read), [.notRead(.absoluteReferenceValue), .notRead(.absoluteReferenceValue)])
+        XCTAssertEqual(PastedLabelAITextVocabulary.basis(forHeader: "RI*"), "reference_intake")
+        XCTAssertEqual(PastedLabelAITextVocabulary.basis(forHeader: "your RI*"), "reference_intake")
+    }
+
+    /// Vocabulary v2 (D33): `per 100g/ml` names two bases, so it names no single basis and neither
+    /// basis agrees (v1 read it as per 100 g alone). The reader declines it
+    /// (`PastedLabelAITextTwoBasisHeaderTests`).
+    func testATwoBasisHeaderNamesNoSingleBasisUnderVocabularyV2() {
+        XCTAssertNil(PastedLabelAITextVocabulary.basis(forHeader: "per 100g/ml"))
+        XCTAssertEqual(PastedLabelAITextVocabulary.checkHeader(printedText: "per 100g/ml", basis: "per_100g"), .unknown)
+        XCTAssertEqual(PastedLabelAITextVocabulary.checkHeader(printedText: "per 100g/ml", basis: "per_100ml"), .unknown)
+        XCTAssertEqual(PastedLabelAITextVocabulary.checkHeader(printedText: "per 100g/100ml", basis: "per_100g"), .unknown)
+        XCTAssertTrue(PastedLabelAITextVocabulary.namesTwoBases(header: "per 100g/ml"))
+    }
 }

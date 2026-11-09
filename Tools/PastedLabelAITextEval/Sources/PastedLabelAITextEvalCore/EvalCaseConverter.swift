@@ -72,6 +72,38 @@ public enum EvalCaseConverter {
         }
     }
 
+    /// Proves a case recovers the transcription it was converted from (A3, run on every built case):
+    /// the source bytes must be the case's source SHA, the case's canonical bytes must decode to it,
+    /// and the back-converted transcription must equal the decoded source, allowing only the label
+    /// ID (a case may be renamed by `with(labelID:)`) and the documented UK development
+    /// normalisation (`ukDevelopmentRow`).
+    public static func verifyRoundTrip(_ evalCase: EvalCase, source data: Data) throws {
+        guard EvalCase.sha256(data) == evalCase.source.sha256 else { throw Refused("\(evalCase.labelID): the source bytes are not the case's source sha256") }
+        guard try EvalCase.decode(try evalCase.canonicalJSON()) == evalCase else { throw Refused("\(evalCase.labelID): canonical bytes do not decode to the case") }
+        let matches: Bool
+        switch evalCase.source.schema {
+        case TranscriptionShapes.TaiwanTranscription.schema:
+            let o = try JSONDecoder().decode(TranscriptionShapes.TaiwanTranscription.self, from: data)
+            let rows = evalCase.format == .uk ? o.rows.map(ukDevelopmentRow) : o.rows
+            matches = try taiwanTranscription(evalCase) == TranscriptionShapes.TaiwanTranscription(
+                schema: o.schema, labelID: evalCase.labelID, servingSize: o.servingSize, servingsPerPack: o.servingsPerPack, columns: o.columns,
+                rows: rows, notes: o.notes)
+        case TranscriptionShapes.UKTranscription.schema:
+            let o = try JSONDecoder().decode(TranscriptionShapes.UKTranscription.self, from: data)
+            matches = try ukTranscription(evalCase) == TranscriptionShapes.UKTranscription(
+                schema: o.schema, labelID: evalCase.labelID, panel: o.panel, servingSize: o.servingSize, servingsPerPack: o.servingsPerPack,
+                columns: o.columns, rows: o.rows, notes: o.notes)
+        case TranscriptionShapes.TaiwanLegacyTranscription.schema:
+            let o = try JSONDecoder().decode(TranscriptionShapes.TaiwanLegacyTranscription.self, from: data)
+            matches = try taiwanLegacyTranscription(evalCase) == TranscriptionShapes.TaiwanLegacyTranscription(
+                columns: o.columns, servingSize: o.servingSize, servingsPerPack: o.servingsPerPack, values: o.values, notes: o.notes,
+                id: evalCase.labelID, transcribedBy: o.transcribedBy, transcriptionCorrections: o.transcriptionCorrections)
+        case let other:
+            throw Refused("schema \(other) has no converter")
+        }
+        guard matches else { throw Refused("\(evalCase.labelID): the back-converted transcription differs from the source") }
+    }
+
     /// The Taiwan-schema transcription a case was converted from.
     public static func taiwanTranscription(_ evalCase: EvalCase) throws -> TranscriptionShapes.TaiwanTranscription {
         guard evalCase.source.schema == TranscriptionShapes.TaiwanTranscription.schema else {

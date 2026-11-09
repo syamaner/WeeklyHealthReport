@@ -2,8 +2,8 @@ import FoodLedgerApplication
 import Foundation
 import NutritionLabelParsing
 
-/// `pasted-label-ai-text-mapping-v1` (docs/pasted-label-ai-text-v1.md 4.2, 4.3 item 2, D10, D16;
-/// A1 finding F9): one text wire answer, checked against the sent text, to
+/// `pasted-label-ai-text-mapping-v4` (docs/pasted-label-ai-text-v1.md 4.2, 4.3 item 2, D10, D16;
+/// A1 finding F9; revision 10; v3 in revision 14, D30; v4 in revision 15, D32): one text wire answer, checked against the sent text, to
 /// `label-capture-candidate-v1` with route `C` (the model-read route gate v2 admits). Pure. It
 /// never converts, infers or fills a value. It is `label-photo-wire-mapping-v1` with these
 /// differences:
@@ -13,7 +13,9 @@ import NutritionLabelParsing
 ///   equals the photo copy (contract test 26) except for the **thousands rule**: a `,` followed by
 ///   exactly three digits and then a non-digit is a thousands separator (`1,046kJ` is 1046), where
 ///   the photo copy reads every `,` as a decimal mark. A thousands group led by `0` (`0,500g`) is
-///   ambiguous: it is never 500 (nor 0.5), and is an attention item.
+///   ambiguous: it is never 500 (nor 0.5), and is an attention item. From v2 (revision 10) it
+///   also reads the text-only kcal spellings (`588kCal`) and drops the label's own brackets
+///   around a value (`(4.9g)`, `1.1g)`); a bracketed bare number is still not read.
 /// - **The model's unit for a bare number** is accepted only when the unit check
 ///   (`PastedLabelAITextUnitCheck`) finds it stated for the values in the text, in the row's label or
 ///   the column's header (D10). A header's basis quantity never states one (D16). A unit the check
@@ -22,6 +24,17 @@ import NutritionLabelParsing
 /// - **A bare number with no model unit is not read** (F9): a not-read cell, never a value, under
 ///   a blocking `unit_not_stated` attention item so the user enters it. The photo route's amendment M2 (a bare energy number taking the row label's
 ///   energy unit) is replaced by the unit check, which needs the model's unit.
+///
+/// - **Not-declared markers** (v3, revision 14, D30): a value printed as a dash (`-`, `–`, `—`),
+///   `Trace` or `Tr` (any case) that the locator finds at its row and column with no attention is
+///   `not_declared`: shown as printed, never a cell, never zero, and not a left-out amount, so on
+///   its own it never keeps the table from being ready. A marker the locator does not find there
+///   (the model claimed a dash the text does not print in that place) stays a not-read value.
+///
+/// - **Star markers** (v4, revision 15, D32): a value printed as a lone `*` under a
+///   reference-intake header is a not-declared marker on the same terms as a dash. A `*` attached
+///   to a number (`7%*`) is a footnote and reads as before; a lone `*` under a product-amount
+///   header is not a marker and stays unreadable.
 ///
 /// Everything else (headers, M3, row IDs, parents, M1, duplicate cells, ready) is v1's.
 public enum PastedLabelAITextWireMapping {
@@ -133,6 +146,17 @@ public enum PastedLabelAITextWireMapping {
                     notRead(.unknown)
                     continue
                 }
+                // v3 (D30): a printed dash, `Trace` or `Tr` is not declared, never zero and never a
+                // cell, but only where the locator finds that same marker at this row and column with
+                // nothing to check. Anywhere else it stays a not-read value the user enters. v4 (D32):
+                // so is a lone `*` under a reference-intake header; under an amount header it stays unreadable.
+                if PastedLabelAITextValueGrammar.notDeclaredMarker(printed, inReferenceIntakeColumn: !amountColumn) != nil {
+                    if let place = located.value(row: rowIndex, index: valueIndex), place.status.range != nil, !place.needsAttention {
+                        warnings.append("value_not_declared: \(rowID) \(header.headerID) \(TextPython.repr(printed))")
+                        notRead(.notDeclared)
+                        continue
+                    }
+                }
                 switch parseValue(printed) {
                 case let .value(value):
                     parsed = value
@@ -234,6 +258,10 @@ public enum PastedLabelAITextWireMapping {
     /// ambiguous. Without a thousands separator the copied grammar runs on the text unchanged, so
     /// parity with the photo copy holds there by construction (contract test 26).
     static func parseValue(_ printed: String) -> ParseResult {
+        // Revision 10: the label's own brackets around a value are dropped first (the locator
+        // requires the same brackets beside the token in the text).
+        let bracketed = PastedLabelAITextValueGrammar.unbracketed(printed)
+        if bracketed.isBracketed { return parseValue(bracketed.core) }
         let characters = Array(printed)
         var separators: [Int] = []
         for index in characters.indices where characters[index] == "," && index > 0 && TextPython.isDigit(characters[index - 1]) {
@@ -270,7 +298,7 @@ public enum PastedLabelAITextWireMapping {
             start = position
             for end in TextPython.decimalEnds(text, from: start, separators: [".", ","]) {
                 let unitStart = TextPython.skipSpace(text, from: end)
-                for unit in PastedLabelAITextValueGrammar.valueUnits where TextPython.starts(text, at: unitStart, with: unit) {
+                for unit in PastedLabelAITextValueGrammar.textValueUnits where TextPython.starts(text, at: unitStart, with: unit) {
                     guard echoThenEnd(text, from: unitStart + unit.count), let canonical = PastedLabelAITextValueGrammar.canonicalUnit(unit) else {
                         continue
                     }

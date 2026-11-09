@@ -24,13 +24,48 @@ public enum PastedLabelAITextRoute {
         public let providerName: String
         /// The request's `max_tokens`.
         public let maxOutputTokens: Int
-        /// The request's reasoning limit.
-        public let reasoningLimit: Int
+        /// The request's reasoning setting.
+        public let reasoning: Reasoning
+
+        /// How a route asks for reasoning (revision 17). `budget` sends `"reasoning": {"max_tokens": n}`,
+        /// the setting of every route before revision 17, so their bodies are unchanged. `off` sends
+        /// `"reasoning": {"effort": "none"}`, OpenRouter's documented way to disable reasoning, for a
+        /// model whose catalogue entry lists `none` as an effort and reasoning as not mandatory.
+        public enum Reasoning: Equatable, Sendable {
+            case budget(Int)
+            case off
+        }
+
+        /// The requested reasoning budget: the budget, or 0 when reasoning is off.
+        public var reasoningLimit: Int {
+            switch reasoning {
+            case let .budget(limit): limit
+            case .off: 0
+            }
+        }
+
+        /// The reasoning tokens W counts when reasoning is billed separately: the budget, or, with
+        /// reasoning off, the whole output cap. With `effort: "none"` there is no budget to bound a
+        /// stray reasoning token by, but the provider counts reasoning inside `max_tokens` (OpenAI's
+        /// `max_completion_tokens` covers reasoning and visible output), so no more than
+        /// `maxOutputTokens` reasoning tokens can be billed; counting them again keeps W a true bound.
+        public var reasoningTokenBound: Int {
+            switch reasoning {
+            case let .budget(limit): limit
+            case .off: maxOutputTokens
+            }
+        }
+
+        public init(version: String, candidateID: String, model: String, endpoint: String, providerName: String, maxOutputTokens: Int,
+                    reasoning: Reasoning) {
+            self.version = version; self.candidateID = candidateID; self.model = model; self.endpoint = endpoint
+            self.providerName = providerName; self.maxOutputTokens = maxOutputTokens; self.reasoning = reasoning
+        }
 
         public init(version: String, candidateID: String, model: String, endpoint: String, providerName: String, maxOutputTokens: Int,
                     reasoningLimit: Int) {
-            self.version = version; self.candidateID = candidateID; self.model = model; self.endpoint = endpoint
-            self.providerName = providerName; self.maxOutputTokens = maxOutputTokens; self.reasoningLimit = reasoningLimit
+            self.init(version: version, candidateID: candidateID, model: model, endpoint: endpoint, providerName: providerName,
+                      maxOutputTokens: maxOutputTokens, reasoning: .budget(reasoningLimit))
         }
     }
 
@@ -40,8 +75,57 @@ public enum PastedLabelAITextRoute {
                                                    endpoint: "google-vertex/us", providerName: "Google", maxOutputTokens: 2_400,
                                                    reasoningLimit: 500)
 
+    // The A3 tuning matrix (owner, 8 November 2026). Each endpoint was listed as
+    // zero-data-retention with structured outputs and the reasoning parameter on that day; the
+    // route checker re-confirms it before every call. Anthropic's minimum reasoning budget is
+    // 1,024 tokens, so Haiku's limit is 1,024.
+    public static let gemini38FlashVertexUS = Route(version: version, candidateID: "gemini-3.8-flash-vertex-us", model: "google/gemini-3.8-flash",
+                                                    endpoint: "google-vertex/us", providerName: "Google", maxOutputTokens: 2_400,
+                                                    reasoningLimit: 500)
+    public static let mistralLarge4ZDR = Route(version: version, candidateID: "mistral-large-4-zdr", model: "mistralai/mistral-large-4-0",
+                                               endpoint: "mistral/zdr", providerName: "Mistral", maxOutputTokens: 2_400, reasoningLimit: 500)
+    public static let gpt6LunaAzure = Route(version: version, candidateID: "gpt-6-luna-azure", model: "openai/gpt-6-luna", endpoint: "azure",
+                                            providerName: "Azure", maxOutputTokens: 2_400, reasoningLimit: 500)
+    public static let gpt61SolAzure = Route(version: version, candidateID: "gpt-6.1-sol-azure", model: "openai/gpt-6.1-sol", endpoint: "azure",
+                                            providerName: "Azure", maxOutputTokens: 2_400, reasoningLimit: 500)
+    public static let claudeHaiku55VertexGlobal = Route(version: version, candidateID: "claude-haiku-5.5-vertex-global",
+                                                        model: "anthropic/claude-haiku-5.5", endpoint: "google-vertex/global",
+                                                        providerName: "Google", maxOutputTokens: 3_000, reasoningLimit: 1_024)
+
+    // A3 prompt-v2 follow-up (owner, 8 November 2026): the same Flash and Luna endpoints with a
+    // 4,000-token output cap, because four-column UK tables ran out of output at 2,400. Added as
+    // new candidates, so the set stays append-only and the 2,400 cells stay comparable.
+    public static let gemini38FlashVertexUS4K = Route(version: version, candidateID: "gemini-3.8-flash-vertex-us-4k", model: "google/gemini-3.8-flash",
+                                                      endpoint: "google-vertex/us", providerName: "Google", maxOutputTokens: 4_000,
+                                                      reasoningLimit: 500)
+    public static let gpt6LunaAzure4K = Route(version: version, candidateID: "gpt-6-luna-azure-4k", model: "openai/gpt-6-luna", endpoint: "azure",
+                                              providerName: "Azure", maxOutputTokens: 4_000, reasoningLimit: 500)
+    // A3 finalists (owner, 8 November 2026): the Sol endpoint with the same 4,000-token output cap,
+    // appended so the set stays append-only and the 2,400-token Sol cells stay comparable.
+    public static let gpt61SolAzure4K = Route(version: version, candidateID: "gpt-6.1-sol-azure-4k", model: "openai/gpt-6.1-sol", endpoint: "azure",
+                                              providerName: "Azure", maxOutputTokens: 4_000, reasoningLimit: 500)
+    // Two more A3 finalists (owner, 8 November 2026), with no 2,400-token sibling; the 8 November
+    // catalogue snapshot lists each on Azure (`azure`) with structured outputs and reasoning, and ZDR.
+    public static let gpt61TerraAzure4K = Route(version: version, candidateID: "gpt-6.1-terra-azure-4k", model: "openai/gpt-6.1-terra",
+                                                endpoint: "azure", providerName: "Azure", maxOutputTokens: 4_000, reasoningLimit: 500)
+    public static let gpt6LunaProAzure4K = Route(version: version, candidateID: "gpt-6-luna-pro-azure-4k", model: "openai/gpt-6-luna-pro",
+                                                 endpoint: "azure", providerName: "Azure", maxOutputTokens: 4_000, reasoningLimit: 500)
+
+    // Reasoning-off finalists (owner, 8 November 2026, revision 17): each the same endpoint and
+    // 4,000-token cap as its reasoning-on sibling, with `effort: "none"`. Only models whose
+    // 8 November catalogue entry lists `none` among its efforts, with reasoning not mandatory, are
+    // added: Terra and Luna. Sol and Gemini 3.8 Flash list reasoning as mandatory with no `none`
+    // effort, so OpenRouter documents that they reject it; they have no off candidate.
+    public static let gpt61TerraAzure4KNoReason = Route(version: version, candidateID: "gpt-6.1-terra-azure-4k-noreason",
+                                                        model: "openai/gpt-6.1-terra", endpoint: "azure", providerName: "Azure",
+                                                        maxOutputTokens: 4_000, reasoning: .off)
+    public static let gpt6LunaAzure4KNoReason = Route(version: version, candidateID: "gpt-6-luna-azure-4k-noreason", model: "openai/gpt-6-luna",
+                                                      endpoint: "azure", providerName: "Azure", maxOutputTokens: 4_000, reasoning: .off)
+
     /// Closed and append-only: the candidates an evaluation cell may name.
-    public static let candidates: [Route] = [gemini4ArgonVertexUS]
+    public static let candidates: [Route] = [gemini4ArgonVertexUS, gemini38FlashVertexUS, mistralLarge4ZDR, gpt6LunaAzure, gpt61SolAzure,
+                                             claudeHaiku55VertexGlobal, gemini38FlashVertexUS4K, gpt6LunaAzure4K, gpt61SolAzure4K,
+                                             gpt61TerraAzure4K, gpt6LunaProAzure4K, gpt61TerraAzure4KNoReason, gpt6LunaAzure4KNoReason]
 
     /// The one shipped route; nil until A3 freezes one.
     public static let current: Route? = nil

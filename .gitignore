@@ -19,3 +19,8 @@ Tools/NutritionLabelCaptureEvaluation/runs/
 # Inspect logs can hold images and model requests; they live outside the repository.
 logs/
 *.eval
+
+# Local secrets: never commit environment files (API keys stay in env files outside git)
+.env
+.env.*
+!.env.example

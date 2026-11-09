@@ -160,7 +160,8 @@ public struct ScriptedPastedLabelAITextReader: PastedLabelAITextReading {
 
     public static let versions = PastedLabelAITextReadingResult.Versions(
         wireSchema: "fake", mapping: "fake", locator: PastedLabelTextLocator.version, vocabulary: PastedLabelAITextVocabulary.version,
-        detector: PastedLabelAITextPanelDetector.version, attention: PastedLabelAITextAttention.version, gate: "fake", arithmetic: "fake",
+        detector: PastedLabelAITextPanelDetector.version, attention: PastedLabelAITextAttention.version, format: PastedLabelAITextFormat.version,
+        gate: "fake", arithmetic: "fake",
         conversion: "fake")
 
     public static func failed(textSHA256: String) -> PastedLabelAITextReadingResult {

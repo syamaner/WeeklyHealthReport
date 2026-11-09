@@ -31,6 +31,27 @@ final class PastedLabelAITextSpendPolicyTests: XCTestCase {
         XCTAssertNotNil(Text.worstCase(prices, reasoningLimit: 500, promptTokenBound: Text.promptTokenCeiling))
     }
 
+    /// Revision 17: a reasoning-off route has no reasoning budget, so W counts its whole output cap
+    /// as reasoning when reasoning is billed separately, and the output cap alone when it is not.
+    func testWForAReasoningOffRouteStaysAnUpperBound() {
+        let off = PastedLabelAITextRoute.gpt6LunaAzure4KNoReason
+        let on = PastedLabelAITextRoute.gpt6LunaAzure4K
+        XCTAssertEqual(off.reasoning, .off)
+        XCTAssertEqual(off.reasoningTokenBound, off.maxOutputTokens)
+        XCTAssertEqual(on.reasoningTokenBound, 500)
+        let price = { (separately: Bool) in
+            LabelPhotoSpendPolicy.Prices(promptPerToken: Decimal(string: "0.000001")!, completionPerToken: Decimal(string: "0.000004")!,
+                                         reasoningBilledSeparately: separately, maxOutputTokens: off.maxOutputTokens)
+        }
+        // 10,000 prompt tokens at 0.000001; 4,000 output plus 4,000 reasoning tokens at 0.000004.
+        XCTAssertEqual(Text.worstCase(price(true), reasoningLimit: off.reasoningTokenBound, promptTokenBound: 10_000), Decimal(string: "0.042"))
+        // Not billed separately: reasoning is inside the 4,000-token cap.
+        XCTAssertEqual(Text.worstCase(price(false), reasoningLimit: off.reasoningTokenBound, promptTokenBound: 10_000), Decimal(string: "0.026"))
+        // Never below the reasoning-on sibling's W, so turning reasoning off never shrinks the bound.
+        let onW = Text.worstCase(price(true), reasoningLimit: on.reasoningTokenBound, promptTokenBound: 10_000)!
+        XCTAssertGreaterThanOrEqual(Text.worstCase(price(true), reasoningLimit: off.reasoningTokenBound, promptTokenBound: 10_000)!, onW)
+    }
+
     /// A2 invariant finding 4: a tap with no attempts is released, never reconciled.
     func testReconcilingNoAttemptsIsARelease() throws {
         let reserved = Text.reservation(today: today, stored: nil, tap: "t1")

@@ -4035,6 +4035,23 @@ Excluded:
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
 
+## WHR-416-2026-11-08-A3: Claude Code A3 tuning and freeze (#416)
+
+The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) prepared and ran A3: the live evaluation transport, case building, the adversarial gate, the tuning matrix, the reader and scorer revisions (spec revisions 9 to 19, D27 to D36), prompt v2, the blind second transcription and the freeze. It delegated to subagents on `claude-opus-5-5` (implementation, triage, the validator) and `claude-fable-5-1` (the scorer v3 plan and the blind transcription), all inside the window. The window runs from the owner's "yes. Approved. Proceed" at `2026-11-08T10:19:47Z` to `2026-11-08T20:18:40Z` and includes one context compaction. Of the cache writes, 3,881,601 tokens were 5-minute writes (mostly subagents) and the rest 1-hour.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| A3 tuning and freeze (#416), coordinator and subagents | 206,971,440 (202,518,972) | 4,449,152 | 949,394 | 207,920,834 | $83.45 |
+| **Subtotal** | 206,971,440 (202,518,972) | 4,449,152 | 949,394 | 207,920,834 | $83.45 |
+
+Method: `phase_usage.py --format claude --since 2026-11-08T10:19:47Z --until 2026-11-08T20:18:40Z --include-subagents` on the session transcript. Exact USD 83.4533514. The Fable subagents' tokens are priced at the Opus rate, so their share is a comparison only.
+
+Evaluation spend, separate from the above and an actual charge: OpenRouter reported USD 8.14 for the A3 evaluation calls (the spend ledger's `reported_spend_usd`); the ledger counted USD 9.39 against the $25 programme stop, including worst-case reservations for 36 calls refused with 401 before the key was replaced. One call had an unknown cost.
+
+Excluded: the Codex data review (run by the owner outside this session, unmeasured); the local Qodo review; local builds and test loops, which use no API tokens; this ledger edit, the commit, the push and the PR after the window.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a charge. Token totals are not evidence of productivity, quality or provider efficiency.
+
 ## WHR-440-2026-11-08: Claude Code Part A review v2 design (#440)
 
 The coordinator session (`claude-opus-5-5`, session `93e9e82e-ef3d-4d2f-9186-58c67056c1ca`) drafted the Part A review v2 design under the owner's overnight instruction. One `architecture-gate` subagent reviewed it (NEEDS WORK), and the coordinator revised the design to answer every point. The window runs from the owner's instruction at `2026-11-08T20:34:03Z` to `2026-11-08T20:39:52Z`.

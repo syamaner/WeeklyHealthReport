@@ -2,8 +2,9 @@ import FoodLabelPhotoCapture
 import FoodLedgerApplication
 import Foundation
 
-/// The only transport A2 wires (docs/pasted-label-ai-text-v1.md 8, A2: "all run over a fake
-/// transport"): canned replies from a directory, so nothing reaches OpenRouter or any provider.
+/// The directory fake transport (docs/pasted-label-ai-text-v1.md 8, A2: "all run over a fake
+/// transport"; `send --fake-transport DIR`): canned replies from a directory, so nothing reaches
+/// OpenRouter or any provider. A3's live runs use `LiveTransport` instead, chosen explicitly.
 ///
 ///     <dir>/catalogue/listing.json   the model's endpoint listing (the catalogue GET)
 ///     <dir>/catalogue/zdr.json       the zero-data-retention listing (the catalogue GET)
@@ -59,8 +60,9 @@ public final class DirectoryFakeTransport: LabelPhotoHTTPTransporting, @unchecke
     static func capped(_ data: Data, _ limit: Int) -> Data { data.count > limit ? data.prefix(limit) : data }
 }
 
-/// A key store for the fake transport: a fixed placeholder that is not a credential. A2 never
-/// reads a key from the environment or a file, since nothing is sent.
+/// A key store for the fake transport: a fixed placeholder that is not a credential. The fake path
+/// never reads a key from the environment or a file, since nothing is sent; `--live` uses
+/// `EnvironmentKey`.
 public struct FakeTransportKey: FoodWebKeyStoring {
     public static let placeholder = "fake-transport-placeholder-not-a-key"
     public init() {}

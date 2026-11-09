@@ -1,0 +1,10 @@
+Nutrition Information
+	Per 30g serving	Per 100g
+Energy	480kJ / 115kcal	1600kJ / 383kcal
+Fat	4.5g	15g
+of which saturates	0.9g	3.0g
+Carbohydrate	15g	50g
+of which sugars	3.6g	12g
+Fibre	1.8g	6.0g
+Protein	2.4g	8.0g
+Salt	0.09g	0.30g
