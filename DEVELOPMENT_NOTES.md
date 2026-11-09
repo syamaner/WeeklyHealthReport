@@ -4090,3 +4090,28 @@ Excluded:
 - this ledger edit, the commit, the push and the PR after the window.
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
+## WHR-405-2026-11-09: Claude Code FoodLedgerKit CI trim (#405)
+
+The trim itself (commit `71bfd48`, 5 November 2026, which runs the slowest FoodLedgerKit test cases concurrently) had no boundary captured, so its row is Unmeasured. On 9 November the coordinator session (`claude-opus-5-5`, session `0dabb926-21ba-45d7-b0c2-2ab29f9918fd`) finished the draft:
+- merged `main` into the branch;
+- ran the FoodLedgerKit suite, the boundary check and the diff check locally;
+- read the new job time from CI;
+- lowered the timeout from 40 to 30 minutes and recorded the measurement in the CI analysis document.
+
+The measured window runs from the owner's go-ahead (`2026-11-09T08:19:42Z`) to `2026-11-09T08:52:48Z`.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| CI trim (#405), 5 November implementation | Unmeasured | Unmeasured | Unmeasured | Unmeasured | Unmeasured |
+| CI trim (#405), 9 November completion, coordinator | 4,143,813 (4,105,370) | 38,367 | 11,953 | 4,155,766 | $1.37 |
+
+Method: `phase_usage.py --format claude --since 2026-11-09T08:19:42Z --until 2026-11-09T08:52:48Z` on the session transcript, with no subagents. Exact USD 1.367374. The cache-write tokens are part of the input figure, so the total is input plus output.
+
+Excluded:
+- the read-only investigation of #381 before the go-ahead;
+- the Qodo review runs;
+- local and CI test runs, which use no API tokens;
+- this ledger edit, the commit, the push, the CI wait and the merge after the window.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
