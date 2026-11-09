@@ -54,6 +54,7 @@ CODE_READ_DOCS = {
     "docs/food-lexical-terms-v9.md",
     # Cited by the personal food database evaluation tool and its tests.
     "docs/personal-food-database-evaluation-v1.md",
+    "docs/personal-food-database-review-v2-design.md",
     # Cited by the Health follow-ups (#214 to #217), their tests and Developer tools.
     "docs/health-report-section-groups-v1.md",
     "docs/health-steps-trend-v1.md",
