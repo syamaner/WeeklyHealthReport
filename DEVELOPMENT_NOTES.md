@@ -4125,3 +4125,19 @@ Excluded:
 - this ledger edit, the commit, the push, the CI wait and the merge after the window.
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
+## WHR-424-E1d-2026-11-09: Claude Code held-out hash in the Freeze list (#424)
+
+The coordinator session (`claude-opus-5-5`, session `93e9e82e-ef3d-4d2f-9186-58c67056c1ca`) recorded the `seal-heldout` bundle hash in `freeze-v1.json` and added the plan's E1d record, after checking the hash against the private seal log. The window runs from the owner's "Yes, open it" at `2026-11-09T10:29:18Z` to `2026-11-09T10:30:31Z`.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| E1d held-out pin (#424), coordinator | 1,609,085 (1,592,880) | 16,179 | 5,468 | 1,614,553 | $0.56 |
+
+Method: `phase_usage.py --format claude --since 2026-11-09T10:29:18Z --until 2026-11-09T10:30:31Z --include-subagents` on the session transcript. Exact USD 0.557472. The cache-write tokens are part of the input figure, so the total is input plus output.
+
+Excluded:
+- local test runs, which use no API tokens;
+- this ledger edit, the commit, the push and the PR after the window.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
