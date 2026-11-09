@@ -84,7 +84,8 @@ public enum HeldOutRun {
         case noRoomUnderCellStop, noRoomUnderProgrammeStop, overPerCallCap, promptBoundOverCeiling
         case freshFolderUnsafe, sealsMalformed, textSealMismatch, seal2Mismatch, wrongFileCount, idsDiffer, unsafeFile, unreadableFile
         case textNotUTF8, sourceRecordInvalid, textHashMismatch, conversionFailed, roundTripFailed
-        case keyMissing, catalogueFailed, linkedFixedPath, ledgerLimitsChanged, tierSplitChanged, outputUnwritable, runRecordMissing, casesIncomplete, badCommit
+        case keyMissing, catalogueFailed, linkedFixedPath, ledgerLimitsChanged, tierSplitChanged, rootInsideCheckout, ledgerNegativeCharge,
+             runRecordInvalid, outputUnwritable, runRecordMissing, casesIncomplete, badCommit
 
         package var description: String {
             switch self {
@@ -116,6 +117,9 @@ public enum HeldOutRun {
             case .linkedFixedPath: "a folder or file on the runner's fixed paths under the private root is a symbolic link or not of its expected kind"
             case .ledgerLimitsChanged: "the spend ledger's limits are not the $0.20 per call, $25 total and three unknown-cost calls A4 runs under"
             case .tierSplitChanged: "the collection records do not give the held-out set's 9 tier A and 15 tier B labels"
+            case .rootInsideCheckout: "the private root is inside a git checkout: the held-out records stay outside every repository (T6)"
+            case .ledgerNegativeCharge: "the spend ledger holds a negative charge, which would widen the room under the stops"
+            case .runRecordInvalid: "a4-run.json does not list the 24 held-out label IDs: finalise writes nothing"
             case .keyMissing: "no OpenRouter key is available"
             case .catalogueFailed: "the frozen route's catalogue entry could not be confirmed"
             case .outputUnwritable: "the A4 output folder could not be created or written"
@@ -276,6 +280,14 @@ public enum HeldOutRun {
               record["schema"] as? String == runSchema, let ids = record["label_ids"] as? [String], !ids.isEmpty else {
             throw Refusal.runRecordMissing
         }
+        // The IDs name files, so they are checked before any path is built from them (Qodo, A4).
+        guard ids.count == labelCount, Set(ids).count == ids.count, ids == ids.sorted(), ids.allSatisfy(ConvertCommand.isSafeLabelID) else {
+            throw Refusal.runRecordInvalid
+        }
+        // Every folder finalise reads or writes is a plain directory, never a link (Qodo, A4).
+        try checkFixedPaths(paths)
+        guard isPlainDirectory(paths.runs), isPlainDirectory(paths.output) else { throw Refusal.linkedFixedPath }
+        for folder in [paths.cases, paths.casesTierA] where exists(folder) && !isPlainDirectory(folder) { throw Refusal.linkedFixedPath }
         var journal: [String: [String: Any]] = [:]
         if let data = FileManager.default.contents(atPath: paths.journal.path) {
             for line in data.split(separator: UInt8(ascii: "\n")) {
@@ -286,9 +298,23 @@ public enum HeldOutRun {
         }
         var cases: [String: EvalCase] = [:]
         for id in ids {
-            guard let data = FileManager.default.contents(atPath: paths.cases.appendingPathComponent("\(id).json").path),
-                  let evalCase = try? EvalCase.decode(data), evalCase.labelID == id else { throw Refusal.casesIncomplete }
+            guard let data = try? readInside(paths.cases, "\(id).json"), let evalCase = try? EvalCase.decode(data), evalCase.labelID == id else { continue }
             cases[id] = evalCase
+        }
+        // A crash while `start` wrote cases/ leaves it short: the cases are rebuilt from the sealed
+        // set, under every seal check, so the run can still be finalised (Qodo, A4).
+        if cases.count != ids.count {
+            let sealed = try readSealedSet(paths)
+            guard sealed.labels.map(\.id) == ids else { throw Refusal.casesIncomplete }
+            do {
+                if !exists(paths.cases) { try FileManager.default.createDirectory(at: paths.cases, withIntermediateDirectories: false) }
+                for label in sealed.labels where cases[label.id] == nil {
+                    try label.evalCase.canonicalJSON().write(to: paths.cases.appendingPathComponent("\(label.id).json"), options: .atomic)
+                    cases[label.id] = label.evalCase
+                }
+            } catch {
+                throw Refusal.outputUnwritable
+            }
         }
         let rows = ids.map { journal[$0] ?? resultRow($0, send: nil, started: nil, grading: nil, error: "not_run") }
         let tierA = ids.filter { cases[$0]?.tier == "A" }
@@ -299,7 +325,11 @@ public enum HeldOutRun {
             try FileManager.default.createDirectory(at: paths.casesTierA, withIntermediateDirectories: true)
             let wanted = Set(tierA.map { "\($0).json" })
             for name in try FileManager.default.contentsOfDirectory(atPath: paths.casesTierA.path) where !wanted.contains(name) {
-                try FileManager.default.removeItem(at: paths.casesTierA.appendingPathComponent(name))
+                // Only a regular file this folder holds is removed; anything else stops finalise.
+                var status = stat()
+                let url = paths.casesTierA.appendingPathComponent(name)
+                guard lstat(url.path, &status) == 0, status.st_mode & S_IFMT == S_IFREG else { throw Refusal.linkedFixedPath }
+                try FileManager.default.removeItem(at: url)
             }
             for id in tierA {
                 try cases[id]!.canonicalJSON().write(to: paths.casesTierA.appendingPathComponent("\(id).json"), options: .atomic)
@@ -363,6 +393,7 @@ public enum HeldOutRun {
             throw Refusal.ledgerUnreadable
         }
         let entries = EvalSpendLedger.textEntries(object)
+        if entries.contains(where: { EvalSpendLedger.charge($0) < 0 }) { throw Refusal.ledgerNegativeCharge }
         if entries.contains(where: { SendCommand.isHeldOutCell(($0["cell"] as? String) ?? "") }) { throw Refusal.ledgerHoldsA4Cell }
         guard entries.contains(where: { !(($0["cell"] as? String) ?? "").isEmpty }) else { throw Refusal.noA3Entry }
         let stopped = Set(object["stopped_models"] as? [String] ?? [])
@@ -483,6 +514,15 @@ public enum HeldOutRun {
     /// given (Qodo, A4). The output folder and cache must not exist at all; that is checked apart.
     static func checkFixedPaths(_ paths: Paths) throws {
         let root = paths.root
+        // The private root and every ancestor, links resolved, hold no `.git` (Qodo, A4; T6).
+        // Walked as path strings, which stop at "/" (a URL's parent of "/" is "/..", which never ends).
+        var ancestor = SendCommand.resolved(root.path) ?? root.path
+        while true {
+            if exists(URL(fileURLWithPath: ancestor, isDirectory: true).appendingPathComponent(".git")) { throw Refusal.rootInsideCheckout }
+            let parent = (ancestor as NSString).deletingLastPathComponent
+            if parent == ancestor || parent.isEmpty { break }
+            ancestor = parent
+        }
         let folders = ["", "uk-english-v2", "uk-english-v2/fresh", "ai-text-v1", "ai-text-v1/runs", "ai-text-v1/runs/a3", "ai-text-v1/runs/a3/run"]
         for folder in folders where !isPlainDirectory(folder.isEmpty ? root : root.appendingPathComponent(folder, isDirectory: true)) {
             throw Refusal.linkedFixedPath

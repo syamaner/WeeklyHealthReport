@@ -336,6 +336,63 @@ final class HeldOutRunTests: XCTestCase {
         try await assertRefused(.outputExists, outputExisted: true, cacheExisted: true)
     }
 
+    /// Qodo, A4: the run record's IDs name files, so a tampered list is refused before any path is built.
+    func testFinaliseRefusesATamperedRunRecord() async throws {
+        _ = try await run()
+        var record = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: paths.runRecord)) as? [String: Any])
+        var ids = try XCTUnwrap(record["label_ids"] as? [String])
+        ids[0] = "../../outside"
+        record["label_ids"] = ids
+        try JSONSerialization.data(withJSONObject: record, options: [.sortedKeys]).write(to: paths.runRecord)
+        XCTAssertThrowsError(try HeldOutRun.finalise(paths)) { XCTAssertEqual($0 as? HeldOutRun.Refusal, .runRecordInvalid) }
+    }
+
+    /// Qodo, A4: a linked cases-tier-a folder is refused, and nothing outside the run is removed.
+    func testFinaliseRefusesALinkedTierAFolder() async throws {
+        _ = try await run()
+        let fm = FileManager.default
+        let outside = root.appendingPathComponent("outside-tier-a")
+        try fm.createDirectory(at: outside, withIntermediateDirectories: true)
+        let keep = outside.appendingPathComponent("keep.txt")
+        try Data("keep".utf8).write(to: keep)
+        try fm.removeItem(at: paths.casesTierA)
+        try fm.createSymbolicLink(at: paths.casesTierA, withDestinationURL: outside)
+        XCTAssertThrowsError(try HeldOutRun.finalise(paths)) { XCTAssertEqual($0 as? HeldOutRun.Refusal, .linkedFixedPath) }
+        XCTAssertTrue(fm.fileExists(atPath: keep.path))
+    }
+
+    /// Qodo, A4: a crash while cases/ was being written is still finalised, its cases rebuilt
+    /// from the sealed set, with every label not run counted as failed.
+    func testACrashWhileWritingCasesStillFinalises() async throws {
+        _ = try await run()
+        let fm = FileManager.default
+        for url in [paths.results, paths.resultsTierA, paths.casesTierA] { try fm.removeItem(at: url) }
+        for id in Self.ids.suffix(20) { try fm.removeItem(at: paths.cases.appendingPathComponent("\(id).json")) }
+        try Data().write(to: paths.journal)
+        let counts = try HeldOutRun.finalise(paths)
+        XCTAssertEqual(counts.labels, 24)
+        XCTAssertEqual(counts.notRun, 24)
+        XCTAssertEqual(counts.failed, 24)
+        XCTAssertEqual(try fm.contentsOfDirectory(atPath: paths.cases.path).count, 24)
+    }
+
+    /// Qodo, A4: the private root may not sit inside a git checkout (T6).
+    func testAPrivateRootInsideACheckoutIsRefused() async throws {
+        try FileManager.default.createDirectory(at: root.appendingPathComponent(".git"), withIntermediateDirectories: true)
+        try await assertRefused(.rootInsideCheckout)
+        XCTAssertThrowsError(try HeldOutRun.check(privateRoot: root)) { XCTAssertEqual($0 as? HeldOutRun.Refusal, .rootInsideCheckout) }
+    }
+
+    /// Qodo, A4: a negative charge would widen the room under the stops.
+    func testANegativeLedgerChargeIsRefused() async throws {
+        var ledger = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: paths.ledger)) as? [String: Any])
+        var entries = try XCTUnwrap(ledger["entries"] as? [[String: Any]])
+        entries[0]["cost_usd"] = "-20"
+        ledger["entries"] = entries
+        try JSONSerialization.data(withJSONObject: ledger, options: [.sortedKeys]).write(to: paths.ledger)
+        try await assertRefused(.ledgerNegativeCharge)
+    }
+
     func testFinaliseWithoutARunIsRefused() throws {
         XCTAssertThrowsError(try HeldOutRun.finalise(paths)) { XCTAssertEqual($0 as? HeldOutRun.Refusal, .runRecordMissing) }
     }
