@@ -3194,6 +3194,19 @@ Boundary: `phase_usage.py --format claude --since 2026-10-30T16:03:06Z --until 2
 
 Token totals are not evidence of productivity, quality or provider efficiency.
 
+## WHR-312-2026-10-31: Claude Code food daily export v2 contract draft (#312)
+
+One `claude-opus-5-5` subagent, transcript `subagents/agent-ada8a2a2f258f14af.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`, for the docs-only draft of `docs/food-daily-export-contract-v2.md`. The window runs from the subagent's first message (`2026-10-30T16:18:16Z`) to `2026-10-30T16:23:29Z`, just before this ledger edit (UTC). It covers reading the issue, the export contracts, the egress list, the export builder, Drive identity policy, estimate rules and goldens, and writing the contract and its index entry. The commit, push and PR fall after the window. The orchestrating session, the owner's decisions and the later architecture gate are not included.
+
+Pricing checked 25 October 2026 (WHR-316-2026-10-25-L1A), not re-checked on the day of this entry: `claude-opus-5-5` USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache hit, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Food daily export v2 contract draft (#312), subagent | 3,643,087 (3,497,777) | 145,254 | 28,735 | 3,671,822 | $2.00 |
+| Architecture gate fold and owner-delegated decisions (#312), subagent | 1,854,994 (1,838,854) | 16,118 | 13,294 | 1,868,288 | $0.71 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-30T16:18:16Z --until 2026-10-30T16:23:29Z` on the subagent transcript alone. Cache writes 145,254 5-minute, 0 1-hour; exact USD 2.0007494. Fold: `--since 2026-10-30T16:23:29Z --until 2026-10-30T16:29:25Z`, just before this edit: the first commit, push and PR #343, then folding the architecture gate (PASS WITH CHANGES, F1 to F8) and the owner-delegated Q1 to Q8 decisions into the contract, and filing #344 for Q4. Cache writes 16,118 5-minute, 0 1-hour; exact USD 0.7143288. The gate reviewer is not included. Token totals are not evidence of productivity, quality or provider efficiency.
+
 ## WHR-346-2026-10-31: Claude Code AX5 Food details fields and Save bar line (#346, #347)
 
 One `claude-opus-5-5` subagent, transcript `subagents/agent-a8372b57560224778.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`, with the two reviewers it launched in parallel: `invariant-reviewer` (`subagents/agent-a5d4933834a17a5d5.jsonl`) and `journey-qa` (`subagents/agent-a8fad306f52da7a59.jsonl`). The window runs from the subagent's first message (`2026-10-31T01:42:42Z`) to `2026-10-31T02:21:30Z`, just before this ledger edit (UTC). It covers waiting for PR #341, reading both issues and the code, the wrapping Food details field and the pinned line change, the presentation and hosted OCR tests (with one deliberate negative run against the one-line field), both reviews, the fold of the reviewer's question and every gate. The commit, push and PR fall after the window. The orchestrating session is not included.
@@ -4208,5 +4221,41 @@ Excluded:
 - local test runs, which use no API tokens;
 - this ledger edit, the Qodo review, the commit, the push and the PR after the window;
 - the separate private-data evaluator, which has not run R1 yet.
+
+## WHR-416-2026-11-09-V6: Claude Code scorer v6 field counts (#416, D37)
+
+The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) did two things in this window:
+- found why the A4 field F1 interval exceeded 1, and recorded the cause and the recognised-row figures in the A4 result PR (#448);
+- built `pasted-label-ai-text-scorer-v6` (D37) with its tests, the re-pin and the spec text, and ran a local Qodo review.
+
+There were no subagents. The window runs from `2026-11-09T12:52:11Z`, the end of WHR-416-2026-11-09-A4, to `2026-11-09T16:42:24Z`.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Scorer v6 field counts (#416), coordinator | 6,610,155 (6,409,515) | 200,572 | 31,060 | 6,641,215 | $3.51 |
+
+Method: `phase_usage.py --format claude --since 2026-11-09T12:52:11Z --include-subagents` on the session transcript. Exact USD 3.507951. The cache-write tokens (none of them 5-minute writes) are part of the input figure, not added to it.
+
+Excluded:
+- the Qodo review runs;
+- local builds and test loops, which use no API tokens;
+- this ledger edit, the commit, the push and the PR after the window.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a subscription, not a bill, and not evidence of productivity or quality.
+
+## WHR-312-2026-11-09: Claude Code food daily export v2 contract refresh (#312)
+
+The coordinator session (`claude-opus-5-5`, session `0dabb926-21ba-45d7-b0c2-2ab29f9918fd`) brought the 31 October contract draft (#343) up to date with `main` and added the edge cases for the label estimate layer (#383) and Ciqual 2025 rows (#384), plus one extension axis. No field, code or rule changes. The window runs from the owner's go-ahead (`2026-11-09T19:18:21Z`) to `2026-11-09T19:19:45Z`.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Export v2 contract refresh (#312), coordinator | 2,006,056 (1,845,168) | 160,866 | 5,186 | 2,011,242 | $1.76 |
+
+Method: `phase_usage.py --format claude --since 2026-11-09T19:18:21Z --until 2026-11-09T19:19:45Z` on the session transcript, with no subagents. Exact USD 1.7597696. The cache-write tokens are part of the input figure, so the total is input plus output.
+
+Excluded:
+- the read-only assessment of #343 before the go-ahead;
+- the Qodo review runs;
+- this ledger edit, the commit, the push, the CI wait and the merge after the window.
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.

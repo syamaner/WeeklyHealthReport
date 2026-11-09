@@ -16,9 +16,10 @@ import PastedLabelAITextEvalCore
 ///    columns, D32); the two-basis header decline (`vocabulary:two_basis_header`, D33); decline gate
 ///    v2 (`.uk` for UK candidates), the conversions and the arithmetic checks; the panel detector;
 ///    the locator, unit and vocabulary checks; attention. Only a hard decline declines (D19).
-/// 4. `pasted-label-ai-text-scorer-v5` (the comparison rules of `uk-fresh-scorer-v2`; reference-intake
+/// 4. `pasted-label-ai-text-scorer-v6` (the comparison rules of `uk-fresh-scorer-v2`; reference-intake
 ///    amount columns, D28, and unrecognised rows, D29, are not printed fields; two or more %RI
-///    columns paired in printed order, D31; a lone `*` a class marker, D32) against the case.
+///    columns paired in printed order, D31; a lone `*` a class marker, D32; the field counts only
+///    printed fields, D37) against the case. A4 ran v5.
 ///
 /// The pass rule: a tuning label passes when it reaches Confirm with no silent-error table. A
 /// synthetic adversarial case (4.9, `EvalCase.adversarialClass`) must end as a decline or an
