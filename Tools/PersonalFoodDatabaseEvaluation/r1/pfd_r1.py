@@ -2,8 +2,9 @@
 """Command line for R1, the drops-only export (r1_export.py; E3 disposition D1 and D2).
 
 Only this file touches files. It reuses the frozen review v2 checks without editing them: both
-freeze records, the bars lock and the review seal must hold, and the pinned release must have the
-ID in freeze-v1.json. It reads the frozen exclusion list, derives the unresolved list from the
+freeze records and the review seal must hold, Part A must already be scored (the bars lock exists
+and matches), and the pinned release must have the ID in freeze-v1.json. It reads the exclusion
+list and refuses it unless it equals the list the sealed review gives, derives the unresolved list from the
 sealed review with the frozen parsers, writes the R1 file, the unresolved list and a build record
 (switches and hashes) to the private folder (never overwriting a different file) and prints counts
 and the R1 release ID only.
@@ -58,8 +59,11 @@ def _write_once(items):
 
 
 def cmd_build_r1(a, root: Path):
-    fz1, _, _ = pfd_eval_v2.frozen(root, ("release_id", "sample_sha256"))
+    fz1, fz2, fz2_sha = pfd_eval_v2.frozen(root, ("release_id", "sample_sha256"))
     seals_v2.require_review(root)
+    if seals_v2.recorded(root).get(seals_v2.LOCK) is None:
+        sys.exit("refused: Part A has not been scored; R1 is built only after score-a-v2 locks the bars")
+    seals_v2.check_bars(root, fz2.get("part_a_bars"), fz2_sha)  # same bars and scoring code as the locked run
     if Path(a.release).is_symlink():
         sys.exit("refused: the pinned release file is a link")
     pinned_path = check_output(Path(a.release))
@@ -78,9 +82,13 @@ def cmd_build_r1(a, root: Path):
         if n:
             per_stratum[r["stratum"]] = per_stratum.get(r["stratum"], 0) + n
     unresolved_bytes = r1_export.build_unresolved(fz1["release_id"], r1_export.unresolved_list(rows, by_row))
-    excl = exclusions.parse(pfd_eval_v2.read_private(root, root / pfd_eval_v2.EXCLUSIONS))
+    excl_bytes = pfd_eval_v2.read_private(root, root / pfd_eval_v2.EXCLUSIONS)
+    excl = exclusions.parse(excl_bytes)
     if excl["release_id"] != fz1["release_id"]:
         sys.exit("refused: the exclusion list belongs to another release")
+    expected = exclusions.build(fz1["release_id"], score_a_v2.exclusion_list(sample, rows, records, inventory))
+    if excl_bytes != expected:
+        sys.exit("refused: the exclusion list differs from the one the sealed review gives; it was changed")
     pinned = json.loads(pinned_bytes.decode("utf-8"))
     switches = {"a1": a.a1 == "on", "a2": a.a2 == "on"}
     try:
@@ -96,7 +104,7 @@ def cmd_build_r1(a, root: Path):
                  "nothing written")
     record = json.dumps({"schema": "pfd-r1-build-v1", "pinned_release_id": fz1["release_id"],
                          "r1_release_id": r1_export.release_id(data), "switches": switches,
-                         "exclusions_sha256": formats.sha256(pfd_eval_v2.read_private(root, root / pfd_eval_v2.EXCLUSIONS)),
+                         "exclusions_sha256": formats.sha256(excl_bytes),
                          "unresolved_sha256": formats.sha256(unresolved_bytes)},
                         sort_keys=True, separators=(",", ":")).encode() + b"\n"
     _write_once([(pfd_eval_v2.private(root, root / UNRESOLVED_FILE), unresolved_bytes),

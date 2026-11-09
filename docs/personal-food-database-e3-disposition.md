@@ -170,6 +170,11 @@ The "additive estimate release" rule:
    Part B binds to R2 only once the estimates contract is accepted and R2 is built and checked. If
    the bound release then does not ship, its Part B result does not carry over to the other
    release: that release needs its own Part B run on a fresh held-out set (plan section 4.3).
+   Today the query set, the Part B runner and `score_b.py` all check the pinned release ID, so
+   Part B cannot run on R1 or R2 yet. The tool phase that adds the binding record must also make
+   the runner and the scorer take the bound release ID from it (answers are keyed by entry `id`,
+   which removal-only R1 and additive R2 keep), with synthetic tests, before the first development
+   run.
 
 ## 6. Who does what
 

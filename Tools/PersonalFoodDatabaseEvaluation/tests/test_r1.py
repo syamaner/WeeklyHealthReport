@@ -288,7 +288,10 @@ class CommandLine(unittest.TestCase):
         self.data = R.dumps(self.pinned)
         self.rel = R.release_id(self.data)
         self.saved = (pfd_r1.pfd_eval_v2.frozen, pfd_r1.pfd_eval_v2.bundle, pfd_r1.seals_v2.require_review,
-                      pfd_r1.score_a_v2.validate)
+                      pfd_r1.score_a_v2.validate, pfd_r1.seals_v2.recorded, pfd_r1.score_a_v2.exclusion_list)
+        self.excl_data = {"withhold_entries": [], "withhold_values": [],
+                          "reference_candidates": [ident("Synthetic merge food")]}
+        self.lock = {pfd_r1.seals_v2.LOCK: ("fz2sha", "v2_proposed")}
         rows = [{"row": "1", "entry_id": ident("Synthetic mixed food"), "stratum": "A1"}]
         by_row = {"1": [{"nutrient": "sodium", "assessment": "unresolved"}]}
         self.called = set()
@@ -301,20 +304,21 @@ class CommandLine(unittest.TestCase):
                     raise SystemExit(f"refused: {name} failed")
                 return value
             return stub
-        pfd_r1.pfd_eval_v2.frozen = gate("frozen", ({"release_id": self.rel}, {}, ""))
+        pfd_r1.pfd_eval_v2.frozen = gate("frozen", ({"release_id": self.rel}, {"part_a_bars": "v2_proposed"}, "fz2sha"))
+        pfd_r1.seals_v2.recorded = lambda root: self.lock
+        pfd_r1.score_a_v2.exclusion_list = lambda *a: self.excl_data
         pfd_r1.pfd_eval_v2.bundle = gate("bundle", ({}, rows, [], {"group_of": {k: "macro" for k in NUTRIENTS}}))
         pfd_r1.seals_v2.require_review = gate("require_review", "sealed")
         pfd_r1.score_a_v2.validate = gate("validate", by_row)
 
     def tearDown(self):
         (pfd_r1.pfd_eval_v2.frozen, pfd_r1.pfd_eval_v2.bundle, pfd_r1.seals_v2.require_review,
-         pfd_r1.score_a_v2.validate) = self.saved
+         pfd_r1.score_a_v2.validate, pfd_r1.seals_v2.recorded, pfd_r1.score_a_v2.exclusion_list) = self.saved
 
     def setup_root(self, root: Path, exclusion_release=None):
         (root / "exclusions-v2").mkdir()
         (root / "exclusions-v2" / "exclusions.json").write_bytes(exclusions.build(
-            exclusion_release or self.rel, {"withhold_entries": [], "withhold_values": [],
-                                            "reference_candidates": [ident("Synthetic merge food")]}))
+            exclusion_release or self.rel, self.excl_data))
         release = root / "pinned.json"
         release.write_bytes(self.data)
         return release
@@ -377,11 +381,32 @@ class CommandLine(unittest.TestCase):
             bad = R.dumps({**self.pinned, "schema": "personal-food-catalogue-v0"})
             release.write_bytes(bad)
             self.rel = R.release_id(bad)
-            pfd_r1.pfd_eval_v2.frozen = lambda root, needs=(): ({"release_id": self.rel}, {}, "")
+            pfd_r1.pfd_eval_v2.frozen = lambda root, needs=(): ({"release_id": self.rel}, {"part_a_bars": "v2_proposed"},
+                                                                "fz2sha")
             code, text = self.run_cli("build-r1", "--root", str(root), "--release", str(release), "--a1", "on",
                                       "--a2", "off")
             self.assertNotEqual(code, 0)
             self.assertIn("importer's rules", text)
+            self.assertFalse((root / "r1").exists())
+
+    def test_refuses_before_part_a_is_scored(self):
+        with H.private_dir() as t:
+            root = Path(t)
+            release = self.setup_root(root)
+            self.lock = {}
+            code, text = self.run_cli("build-r1", "--root", str(root), "--release", str(release), "--a1", "on", "--a2", "off")
+            self.assertNotEqual(code, 0)
+            self.assertIn("not been scored", text)
+            self.assertFalse((root / "r1").exists())
+
+    def test_refuses_an_edited_exclusion_list(self):
+        with H.private_dir() as t:
+            root = Path(t)
+            release = self.setup_root(root)
+            self.excl_data = {**self.excl_data, "reference_candidates": []}  # the sealed review gives another list
+            code, text = self.run_cli("build-r1", "--root", str(root), "--release", str(release), "--a1", "on", "--a2", "off")
+            self.assertNotEqual(code, 0)
+            self.assertIn("was changed", text)
             self.assertFalse((root / "r1").exists())
 
     def test_linked_release_is_refused(self):

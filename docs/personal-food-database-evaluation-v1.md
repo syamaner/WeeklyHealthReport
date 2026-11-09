@@ -581,7 +581,7 @@ filled in this order, each by a docs commit:
 | E1c | `seed`, `sample_sha256`, `purchase_counts_sha256` |
 | E1d | `heldout_sha256` (the `seal-heldout` bundle hash) |
 | Before v12 code | `golden_sha256` and the golden file's path in `files` |
-| Before the first Part B development run | the Part B release binding (decision 10, point 5): R2's ID, or R1's. Recorded in a new versioned freeze record added by its own tool phase; `freeze-v1.json`, `freeze-v2.json` and every frozen tool hash stay as they are |
+| Before the first Part B development run | the Part B release binding (decision 10, point 5): R2's ID, or R1's. Recorded in a new versioned freeze record added by its own tool phase, which also makes the Part B runner and scorer take the bound release ID from it (they check the pinned ID today); `freeze-v1.json`, `freeze-v2.json` and every frozen tool hash stay as they are |
 
 A test fails when a listed file no longer matches its hash, so a scorer change after E1a is visible in
 CI and needs a new freeze record.
