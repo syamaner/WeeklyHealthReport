@@ -212,8 +212,10 @@ def check_drops_only(pinned: dict, r1: dict) -> list:
 
 def check_applied(r1: dict, exclusions: dict, unresolved: dict, switches: dict, pinned: dict = None) -> list:
     """Proves every required removal happened. Returns rule codes, empty when it holds. With the
-    pinned document, also proves no entry that lost a label value keeps a merge."""
+    pinned document, also proves no entry that lost a label value keeps a merge, and that a listed
+    value reached through a reference (not a pinned label value) leaves no reference of any role."""
     pinned_items = pinned["items"] if pinned is not None else None
+    pinned_by_id = {it["id"]: it for it in pinned_items} if pinned_items is not None else {}
     errs = set()
     items = {it["id"]: it for it in r1["items"]}
     for e in exclusions["withhold_entries"]:
@@ -225,6 +227,9 @@ def check_applied(r1: dict, exclusions: dict, unresolved: dict, switches: dict, 
         ref = items.get(e, {}).get("generic_reference")
         if ref is not None and ref["role"] == "merge":
             errs.add("listed-value-reachable-through-merge")
+        before = pinned_by_id.get(e)
+        if ref is not None and before is not None and any(k not in before["label_nutrients"] for k in keys):
+            errs.add("listed-value-reference-kept")
     for e in exclusions["reference_candidates"]:
         ref = items.get(e, {}).get("generic_reference")
         if ref is not None and ref["role"] == "merge":

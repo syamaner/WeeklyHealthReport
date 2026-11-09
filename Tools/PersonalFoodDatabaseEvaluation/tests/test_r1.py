@@ -206,6 +206,12 @@ class Derive(unittest.TestCase):
         doc, counts = self.run_r1(e=excl(self.rel, values=[(ident("Synthetic candidate food"), "fiber")]))
         self.assertIsNone(by_title(doc, "Synthetic candidate food")["generic_reference"])
         self.assertEqual(counts["references_removed_for_value"], 1)
+        e = excl(self.rel, values=[(ident("Synthetic candidate food"), "fiber")])
+        kept = copy.deepcopy(doc)
+        by_title(kept, "Synthetic candidate food")["generic_reference"] = \
+            by_title(self.pinned, "Synthetic candidate food")["generic_reference"]
+        self.assertEqual(R.check_drops_only(self.pinned, kept), [])  # removal-only, so only check_applied can tell
+        self.assertIn("listed-value-reference-kept", R.check_applied(kept, e, unres(self.rel), SWITCH_OFF, self.pinned))
 
     def test_listed_nutrient_outside_the_inventory_is_refused(self):
         e = excl(self.rel, values=[(ident("Synthetic merge food"), "fibre_typo")])
