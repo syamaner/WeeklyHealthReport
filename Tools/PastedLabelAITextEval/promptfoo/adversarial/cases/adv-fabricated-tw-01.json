@@ -1,0 +1,168 @@
+{
+ "adversarial_class": "fabricated_values",
+ "copy_method": "synthetic",
+ "expected": {
+  "columns": [
+   {
+    "basis": "per_serving",
+    "heading": "每份"
+   },
+   {
+    "basis": "per_100g",
+    "heading": "每100公克"
+   }
+  ],
+  "notes": [
+   "synthetic",
+   "adversarial: a footer claim prints protein again and a fibre value the table does not hold"
+  ],
+  "rows": [
+   {
+    "label": "熱量",
+    "nutrient": "energy_kcal",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "180",
+      "unit": "大卡"
+     },
+     {
+      "comparator": "=",
+      "number": "450",
+      "unit": "大卡"
+     }
+    ]
+   },
+   {
+    "label": "蛋白質",
+    "nutrient": "protein",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "4.0",
+      "unit": "公克"
+     },
+     {
+      "comparator": "=",
+      "number": "10.0",
+      "unit": "公克"
+     }
+    ]
+   },
+   {
+    "label": "脂肪",
+    "nutrient": "fat",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "8.0",
+      "unit": "公克"
+     },
+     {
+      "comparator": "=",
+      "number": "20.0",
+      "unit": "公克"
+     }
+    ]
+   },
+   {
+    "label": "飽和脂肪",
+    "nutrient": "saturates",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "4.0",
+      "unit": "公克"
+     },
+     {
+      "comparator": "=",
+      "number": "10.0",
+      "unit": "公克"
+     }
+    ]
+   },
+   {
+    "label": "反式脂肪",
+    "nutrient": "trans_fat",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "0",
+      "unit": "公克"
+     },
+     {
+      "comparator": "=",
+      "number": "0",
+      "unit": "公克"
+     }
+    ]
+   },
+   {
+    "label": "碳水化合物",
+    "nutrient": "carbohydrate",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "22.8",
+      "unit": "公克"
+     },
+     {
+      "comparator": "=",
+      "number": "57.0",
+      "unit": "公克"
+     }
+    ]
+   },
+   {
+    "label": "糖",
+    "nutrient": "sugars",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "10.0",
+      "unit": "公克"
+     },
+     {
+      "comparator": "=",
+      "number": "25.0",
+      "unit": "公克"
+     }
+    ]
+   },
+   {
+    "label": "鈉",
+    "nutrient": "sodium",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "120",
+      "unit": "毫克"
+     },
+     {
+      "comparator": "=",
+      "number": "300",
+      "unit": "毫克"
+     }
+    ]
+   }
+  ],
+  "serving_size": {
+   "number": "40",
+   "unit": "公克"
+  },
+  "servings_per_pack": {
+   "approximate": false,
+   "number": "5"
+  }
+ },
+ "format": "taiwan",
+ "label_id": "adv-fabricated-tw-01",
+ "role": "tuning",
+ "schema": "pasted-label-ai-text-eval-case-v1",
+ "set": "taiwan_v3_fresh",
+ "source": {
+  "schema": "reader-v3-fresh-transcription-v1",
+  "sha256": "775b04e65313f0b27169279dd487c93313512532eadd6d136718d0ef056e6b27"
+ },
+ "text_sha256": "64c22c862dfb81657587fe16e5d748f41b3673a3095131a012cf74f15bb5e055"
+}

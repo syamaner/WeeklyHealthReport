@@ -1,0 +1,98 @@
+{
+  "evidence_date": "2026-09-20",
+  "cohort": "Nine deliberately selected products from a user-supplied recurring online-grocer purchase list",
+  "method": {
+    "observation": "Manual read-only inspection of a UK online grocer's public product pages in Safari",
+    "selection": "Purposeful contract-edge sample: prepared produce, drained fish, edible bones, canned pulses, processed bread, soda water, raw meat, frozen fish and dairy",
+    "privacy": "The supplied purchase dates, quantities, frequencies and prices were used only to select cases and are not retained in this artefact",
+    "excluded": [
+      "non-food item",
+      "unavailable item that was substituted",
+      "duplicate purchases"
+    ],
+    "account_state": "Not logged in",
+    "mutations": "None; no basket, order, review or account action"
+  },
+  "summary": {
+    "cases": 9,
+    "exact_public_product_pages_found": 9,
+    "retailer_product_ids_present": 9,
+    "nutrition_panels_present": 9,
+    "ingredient_lists_present": 7,
+    "pages_with_a_public_upc_or_gtin": 1,
+    "pages_with_an_immutable_source_release": 0,
+    "pages_with_a_formulation_effective_date": 0,
+    "pages_with_at_least_one_bounded_nutrient": 2,
+    "confirmed_fortified_cases": 0,
+    "supplement_cases": 0,
+    "liquid_packed_cases": 3,
+    "liquid_packed_cases_with_drained_weight": 2,
+    "liquid_packed_cases_with_unambiguous_consumption_basis": 2
+  },
+  "cases": [
+    {
+      "case_id": "prepared-produce-01",
+      "classification": "food",
+      "contract_nutrients_published": 8,
+      "ingredients_present": true,
+      "upc_or_gtin_present": false
+    },
+    {
+      "case_id": "drained-fish-01",
+      "classification": "food",
+      "contract_nutrients_published": 8,
+      "ingredients_present": true,
+      "upc_or_gtin_present": false
+    },
+    {
+      "case_id": "edible-bone-fish-01",
+      "classification": "food",
+      "contract_nutrients_published": 8,
+      "ingredients_present": true,
+      "upc_or_gtin_present": false
+    },
+    {
+      "case_id": "canned-pulse-01",
+      "classification": "food",
+      "contract_nutrients_published": 8,
+      "ingredients_present": true,
+      "upc_or_gtin_present": false
+    },
+    {
+      "case_id": "processed-bread-01",
+      "classification": "food",
+      "contract_nutrients_published": 8,
+      "ingredients_present": true,
+      "upc_or_gtin_present": false
+    },
+    {
+      "case_id": "water-drink-01",
+      "classification": "water",
+      "contract_nutrients_published": 8,
+      "ingredients_present": true,
+      "upc_or_gtin_present": true
+    },
+    {
+      "case_id": "raw-meat-01",
+      "classification": "food",
+      "contract_nutrients_published": 8,
+      "ingredients_present": true,
+      "upc_or_gtin_present": false
+    },
+    {
+      "case_id": "frozen-fish-01",
+      "classification": "food",
+      "contract_nutrients_published": 8,
+      "ingredients_present": false,
+      "upc_or_gtin_present": false
+    },
+    {
+      "case_id": "dairy-01",
+      "classification": "drink",
+      "contract_nutrients_published": 7,
+      "ingredients_present": false,
+      "upc_or_gtin_present": false
+    }
+  ],
+  "interpretation": "The live pages are useful dated corroborating evidence for exact product and decisive-attribute review, including drained basis, edible bones, preparation state and bounded label values. They are mutable retailer pages, not immutable source releases: no sampled page provides a formulation-effective date, and eight of nine expose no public UPC or GTIN. The observation therefore does not promote the grocer's pages into the canonical Phase 1 source stack and does not independently establish Open Food Facts exact-variant coverage."
+}

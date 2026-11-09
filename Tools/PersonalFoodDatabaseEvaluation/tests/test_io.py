@@ -1,0 +1,359 @@
+"""Contract tests for seals, the freeze record, the results writer and the command line (synthetic)."""
+import contextlib
+import hashlib
+import io
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import unittest
+import unittest.mock
+from pathlib import Path
+
+import helpers as H
+import formats
+import freeze
+import pfd_eval
+import results
+import seals
+
+FIX = Path(__file__).resolve().parent / "fixtures"
+
+
+class Seals(unittest.TestCase):
+    def test_bundle_matches_the_swift_listing_rule(self):
+        h, files = seals.bundle_sha256(FIX / "seal-bundle" / "development", "development", ".json")
+        self.assertEqual(f"{h} {files}", (FIX / "seal-bundle" / "EXPECTED").read_text().strip())
+
+    def test_order_never_replaced_and_void_on_change(self):
+        with H.private_dir() as t:
+            root = Path(t)
+            for name in ("development", "held-out"):
+                (root / name).mkdir()
+                (root / name / "query-set.json").write_text("{}")
+            with self.assertRaises(seals.SealError):
+                seals.seal("seal-heldout", root, "2026-11-08T00:00:00Z")
+            seals.seal("seal-dev", root, "2026-11-08T00:00:00Z")
+            with self.assertRaises(seals.SealError):
+                seals.seal("seal-dev", root, "2026-11-08T00:00:01Z")
+            seals.seal("seal-heldout", root, "2026-11-08T00:00:02Z")
+            seals.require("seal-heldout", root)
+            (root / "held-out" / "query-set.json").write_text("{ }")
+            with self.assertRaises(seals.SealError):
+                seals.require("seal-heldout", root)
+            self.assertEqual(len((root / "seals.txt").read_text().splitlines()), 2)
+
+    def test_seal_file_link_refused(self):
+        with H.private_dir() as t, tempfile.TemporaryDirectory() as other:
+            root = Path(t)
+            (root / "seals.txt").symlink_to(Path(other) / "elsewhere.txt")
+            with self.assertRaises(seals.SealError):
+                seals.recorded(root)
+
+    def test_damaged_seal_file_refused(self):
+        with H.private_dir() as t:
+            root = Path(t)
+            (root / "seals.txt").write_text("seal-dev broken\n")
+            with self.assertRaises(seals.SealError):
+                seals.seal("seal-dev", root, "t")
+
+    def test_held_out_scored_once_plus_one_rerun(self):
+        with H.private_dir() as t:
+            root = Path(t)
+            (root / "held-out").mkdir()
+            (root / "development").mkdir()
+            for d in ("development", "held-out"):
+                (root / d / "query-set.json").write_text("{}")
+            seals.seal("seal-dev", root, "t0")
+            seals.seal("seal-heldout", root, "t0")
+            self.assertEqual(seals.log_held_out_run(root, "a" * 64, "t1"), 1)
+            self.assertEqual(seals.log_held_out_run(root, "b" * 64, "t2"), 2)
+            with self.assertRaises(seals.SealError):
+                seals.log_held_out_run(root, "c" * 64, "t3")
+
+    def test_failed_result_write_uses_no_run(self):
+        with H.private_dir() as t:
+            root = Path(t)
+            for d in ("development", "held-out"):
+                (root / d).mkdir()
+                (root / d / "query-set.json").write_text("{}")
+            seals.seal("seal-dev", root, "t0")
+            seals.seal("seal-heldout", root, "t0")
+
+            def fail(n):
+                raise OSError("synthetic write failure")
+            with self.assertRaises(OSError):
+                seals.log_held_out_run(root, "a" * 64, "t1", fail)
+            self.assertEqual(seals.held_out_runs(root), 0)
+
+    def test_missing_folder_is_refused_cleanly(self):
+        with H.private_dir() as t:
+            with self.assertRaises(seals.SealError):
+                seals.seal("seal-dev", Path(t), "t0")
+
+    def test_result_is_removed_when_the_run_cannot_be_recorded(self):
+        with H.private_dir() as t:
+            root = Path(t)
+            for d in ("development", "held-out"):
+                (root / d).mkdir()
+                (root / d / "query-set.json").write_text("{}")
+            seals.seal("seal-dev", root, "t0")
+            seals.seal("seal-heldout", root, "t0")
+            result = root / "result.json"
+
+            def write(n):
+                result.write_text("{}")
+                os.chmod(root / "seals.txt", 0o400)  # the append will now fail
+                return result
+            try:
+                with self.assertRaises(OSError):
+                    seals.log_held_out_run(root, "a" * 64, "t1", write)
+            finally:
+                os.chmod(root / "seals.txt", 0o600)
+            self.assertFalse(result.exists())
+            self.assertEqual(seals.held_out_runs(root), 0)
+
+    def test_linked_bundle_member_is_refused(self):
+        with H.private_dir() as t, tempfile.TemporaryDirectory() as other:
+            root = Path(t)
+            (root / "development").mkdir()
+            (Path(other) / "x.json").write_text("{}")
+            os.symlink(Path(other) / "x.json", root / "development" / "query-set.json")
+            with self.assertRaises(seals.SealError):
+                seals.seal("seal-dev", root, "t0")
+
+
+class Freeze(unittest.TestCase):
+    def test_changed_file_and_missing_entry_fail_closed(self):
+        with tempfile.TemporaryDirectory() as t:
+            repo = Path(t)
+            (repo / "f.py").write_text("x = 1\n")
+            doc = {"schema": "pfd-freeze-v1", "files": {"f.py": hashlib.sha256(b"x = 1\n").hexdigest()}}
+            (repo / "freeze.json").write_text(json.dumps(doc))
+            fz = freeze.load(repo / "freeze.json")
+            freeze.check(fz, repo)
+            with self.assertRaises(freeze.FreezeError):
+                freeze.check(fz, repo, ("release_id",))
+            (repo / "f.py").write_text("x = 2\n")
+            with self.assertRaises(freeze.FreezeError):
+                freeze.check(fz, repo)
+            with self.assertRaises(freeze.FreezeError):  # the real tool folder: every scorer file must be listed
+                freeze.check({"schema": "pfd-freeze-v1", "files": {}}, H.REPO)
+            (repo / "freeze.json").write_text(json.dumps({**doc, "extra": 1}))
+            with self.assertRaises(freeze.FreezeError):
+                freeze.load(repo / "freeze.json")
+
+
+class FreezeRecord(unittest.TestCase):
+    def test_committed_record_matches_the_repository(self):
+        record = H.HERE / "freeze-v1.json"
+        if not record.exists():
+            self.skipTest("no freeze record yet")
+        doc = freeze.load(record)
+        freeze.check(doc, H.REPO)
+        self.assertIn(".agents/skills/personal-food-catalogue/scripts/workspace_guard.py", doc["files"])
+
+
+class Results(unittest.TestCase):
+    def test_allow_list(self):
+        m = {"count": 1, "of": 40, "interval": [0.004, 0.128], "allowed": 4, "passes": True}
+        data = results.build("A", H.RELEASE, {"a3_misleading": m, "a1_entries": 58, "a1_skip_limit_exceeded": False})
+        self.assertIn(b"pfd-results-v1", data)
+        for bad in ({"a3_misleading": {**m, "note": "x"}}, {"title": 1}, {"a1_entries": "Private title"},
+                    {"a3_misleading": {**m, "count": 41}}):
+            with self.assertRaises(results.ResultsError):
+                results.build("A", H.RELEASE, bad)
+        with self.assertRaises(results.ResultsError):
+            results.build("B", H.RELEASE, {"queries": 3})  # Part B needs a set
+        with self.assertRaises(results.ResultsError):
+            results.build("A", "pfc:not-a-release", {})
+
+
+class WriteAll(unittest.TestCase):
+    def test_planted_partial_link_is_not_followed(self):
+        with H.private_dir() as d, tempfile.TemporaryDirectory() as other:
+            root, target = Path(d), Path(other) / "outside.csv"
+            (root / "review").mkdir()
+            os.symlink(target, root / "review" / "review-sheet.csv.partial")
+            pfd_eval.write_all([(root / "review" / "review-sheet.csv", b"synthetic")])
+            self.assertFalse(target.exists())
+            self.assertEqual((root / "review" / "review-sheet.csv").read_bytes(), b"synthetic")
+
+    def test_failed_write_leaves_nothing_behind(self):
+        with H.private_dir() as d:
+            root = Path(d)
+            (root / "blocked").write_bytes(b"")  # a file where a folder must go
+            items = [(root / "sample" / "sample.json", b"a"), (root / "blocked" / "review-sheet.csv", b"b")]
+            with self.assertRaises(OSError):
+                pfd_eval.write_all(items)
+            self.assertEqual(sorted(p.name for p in (root / "sample").iterdir()), [])
+            pfd_eval.write_all([(root / "sample" / "sample.json", b"a")])  # a rerun is not refused
+            self.assertEqual((root / "sample" / "sample.json").read_bytes(), b"a")
+
+
+class CommandLine(unittest.TestCase):
+    TITLE = "Synthetic Secret Title"
+    QUERY = "synthetic secret query"
+
+    def test_isolated_help_from_another_folder(self):
+        r = subprocess.run([sys.executable, "-I", str(H.HERE / "pfd_eval.py"), "--help"], capture_output=True, text=True,
+                           cwd=tempfile.gettempdir())
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("score-a", r.stdout)
+
+    def test_private_root_refusals(self):
+        with tempfile.TemporaryDirectory() as t:
+            repo = Path(t) / "repo"
+            repo.mkdir()
+            subprocess.run(["git", "init", "-q", str(repo)], check=True)
+            os.chmod(repo, 0o700)
+            shared = Path(t) / "shared"
+            shared.mkdir(mode=0o755)
+            os.chmod(shared, 0o755)
+            for root in (repo, shared):
+                r = subprocess.run([sys.executable, "-I", str(H.HERE / "pfd_eval.py"), "seal", "--root", str(root), "seal-dev"],
+                                   capture_output=True, text=True)
+                self.assertNotEqual(r.returncode, 0)
+
+    def test_corpus_hash_mismatch_refused_and_unpinned_corpus_unread(self):
+        with self.assertRaises(formats.FormatError):
+            pfd_eval.corpora_records(H.REPO, {"cofid": "0" * 64})
+        self.assertEqual(pfd_eval.corpora_records(H.REPO, {}), {"cofid": {}, "usda": {}, "tfda": {}})
+
+    def run_cli(self, *argv):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            try:
+                pfd_eval.main(list(argv))
+                code = 0
+            except SystemExit as e:
+                code = e.code if isinstance(e.code, int) else 1
+                print(e.code)
+        text = out.getvalue()
+        self.assertNotIn(self.TITLE, text)
+        self.assertNotIn(self.QUERY, text)
+        return code, text
+
+    def test_lookup_prints_to_the_owner_and_writes_nothing(self):
+        with H.private_dir() as t, tempfile.TemporaryDirectory() as r:
+            root, repo = Path(t), Path(r)
+            saved = (pfd_eval.REPO, pfd_eval.FREEZE, pfd_eval.corpora_records)
+            try:
+                pfd_eval.REPO, pfd_eval.FREEZE = repo, repo / "freeze-v1.json"
+                pfd_eval.corpora_records = lambda _repo, _pins: {"cofid": {"cofid:synthetic:1": ("Synthetic oats", "raw")}}
+                (repo / "frozen.py").write_text("frozen = True\n")
+                export = json.dumps({"schema": "personal-food-catalogue-v1", "items": [H.entry(1, title="Synthetic oats")],
+                                     "generic_corpora": []}).encode()
+                (root / "export.json").write_bytes(export)
+                pfd_eval.FREEZE.write_text(json.dumps({"schema": "pfd-freeze-v1", "release_id": formats.release_id(export),
+                    "files": {"frozen.py": hashlib.sha256(b"frozen = True\n").hexdigest()}}))
+                before = sorted(p.name for p in root.iterdir())
+                with self.assertRaises(SystemExit) as cm, \
+                        unittest.mock.patch.object(pfd_eval, "interactive", return_value=False):  # an agent's shell
+                    pfd_eval.main(["lookup", "--root", str(root), "--export", str(root / "export.json"), "oats"])
+                self.assertIn("interactive terminal", str(cm.exception.code))
+                self.enterContext(unittest.mock.patch.object(pfd_eval, "interactive", return_value=True))
+                for extra in ([], ["--generic"]):
+                    out = io.StringIO()
+                    with contextlib.redirect_stdout(out):
+                        pfd_eval.main(["lookup", "--root", str(root), "--export", str(root / "export.json"), *extra, "oats"])
+                    self.assertIn("cofid=cofid:synthetic:1" if extra else H.eid(1), out.getvalue())
+                    self.assertIn("1 match", out.getvalue())
+                self.assertEqual(sorted(p.name for p in root.iterdir()), before)
+                (root / "other.json").write_bytes(export.replace(b"oats", b"rice"))
+                with self.assertRaises(SystemExit):  # not the pinned release
+                    pfd_eval.main(["lookup", "--root", str(root), "--export", str(root / "other.json"), "rice"])
+            finally:
+                pfd_eval.REPO, pfd_eval.FREEZE, pfd_eval.corpora_records = saved
+
+    def test_end_to_end_counts_only(self):
+        with H.private_dir() as t, tempfile.TemporaryDirectory() as r:
+            root, repo = Path(t), Path(r)
+            saved = (pfd_eval.REPO, pfd_eval.FREEZE, pfd_eval.corpora_records)
+            try:
+                pfd_eval.REPO = repo
+                pfd_eval.FREEZE = repo / "freeze-v1.json"
+                pfd_eval.corpora_records = lambda _repo, _pins: {"cofid": {f"cofid:synthetic:{n}": ("synthetic", "raw") for n in range(400)}}
+                (repo / "frozen.py").write_text("frozen = True\n")
+                pop = H.population(a1=4, a2=50, a3=45, a4=25, a5=1)
+                pop[0]["title"] = self.TITLE
+                export = json.dumps({"schema": "personal-food-catalogue-v1", "items": pop, "generic_corpora": []}).encode()
+                rel = formats.release_id(export)
+                (root / "export.json").write_bytes(export)
+                (root / "counts.json").write_bytes(formats.dumps({"schema": "pfd-purchase-counts-v1", "release_id": rel,
+                                                                  "counts": {pop[5]["id"]: 3}}))
+                fz = {"schema": "pfd-freeze-v1", "files": {"frozen.py": hashlib.sha256(b"frozen = True\n").hexdigest()},
+                      "release_id": rel, "seed": 42}
+                pfd_eval.FREEZE.write_text(json.dumps(fz))
+                code, text = self.run_cli("sample", "--root", str(root), "--export", str(root / "export.json"),
+                                          "--counts", str(root / "counts.json"))
+                self.assertEqual(code, 0, text)
+                self.assertEqual(self.run_cli("sample", "--root", str(root), "--export", str(root / "export.json"),
+                                              "--counts", str(root / "counts.json"))[0] != 0, True)  # never overwritten
+
+                self.assertEqual(self.run_cli("query-template", "--root", str(root))[0], 0)
+                template = root / "queries" / "query-template.csv"
+                rows = [f"{self.QUERY} {n},yes,none,,," if n >= 10 else f"{self.QUERY} {n},no,entry,{pop[n]['id']},title,"
+                        for n in range(14)]
+                template.write_bytes(template.read_bytes() + ("\n".join(rows) + "\n").encode())
+                code, text = self.run_cli("assemble-queries", "--root", str(root), "--export", str(root / "export.json"))
+                self.assertEqual(code, 0, text)
+                self.assertIn("queries 14, negative 4", text)
+                self.assertNotEqual(self.run_cli("assemble-queries", "--root", str(root), "--export",
+                                                 str(root / "export.json"))[0], 0)  # never overwritten
+                self.assertEqual(self.run_cli("split", "--root", str(root), "--query-set",
+                                              str(root / "queries" / "query-set.json"))[0], 0)
+                self.assertEqual(self.run_cli("seal", "--root", str(root), "seal-dev")[0], 0)
+                self.assertEqual(self.run_cli("seal", "--root", str(root), "seal-heldout")[0], 0)
+
+                sheet = formats.parse_sheet((root / "review" / "review-sheet.csv").read_bytes())
+                sample_doc = formats.parse_sample((root / "sample" / "sample.json").read_bytes())
+                for row in sheet:
+                    if row["stratum"] in ("A1", "A5"):
+                        row["product"] = "right_product"
+                        for k in formats.NUTRIENTS:
+                            row[k] = "agrees"
+                done = {}
+                for row in sheet:
+                    s = row["stratum"]
+                    if s in ("A2", "A3", "A4") and done.get(s, 0) < sample_doc["quotas"][s]:
+                        row["verdict"] = {"A2": "same_food_same_state", "A3": "sensible", "A4": "nothing_suitable"}[s]
+                        done[s] = done.get(s, 0) + 1
+                (root / "review" / "review-sheet.csv").write_bytes(formats.write_sheet(sheet))
+                self.assertNotEqual(self.run_cli("score-a", "--root", str(root), "--out", str(repo / "a.json"))[0], 0)  # unsealed, unpinned
+                self.assertEqual(self.run_cli("seal", "--root", str(root), "seal-review")[0], 0)
+                fz["sample_sha256"] = formats.sha256((root / "sample" / "sample.json").read_bytes())
+                fz["purchase_counts_sha256"] = formats.sha256((root / "sample" / "purchase-counts.json").read_bytes())
+                fz["heldout_sha256"] = seals.recorded(root)["seal-heldout"]
+                pfd_eval.FREEZE.write_text(json.dumps(fz))
+                code, text = self.run_cli("score-a", "--root", str(root), "--out", str(repo / "a.json"))
+                self.assertEqual(code, 0, text)
+                self.assertNotIn(self.TITLE.encode(), (repo / "a.json").read_bytes())
+                self.assertNotIn(pop[0]["id"].encode(), (repo / "a.json").read_bytes())
+
+                held = formats.parse_query_set((root / "held-out" / "query-set.json").read_bytes())
+                ranking = {"schema": "pfd-ranking-output-v1", "release_id": rel, "set": "held-out",
+                           "results": [{"query_id": q["query_id"], "candidates": []} for q in held["queries"]]}
+                (root / "ranking.json").write_bytes(formats.dumps(ranking))
+                code, text = self.run_cli("score-b", "--root", str(root), "--set", "held-out",
+                                          "--ranking", str(root / "ranking.json"), "--out", str(repo / "b.json"))
+                self.assertEqual(code, 0, text)
+                self.assertNotIn(self.QUERY.encode(), (repo / "b.json").read_bytes())
+                self.assertEqual(json.loads((repo / "b.json").read_bytes())["measures"]["held_out_run"], 1)
+                self.assertNotEqual(self.run_cli("score-b", "--root", str(root), "--set", "held-out",
+                                                 "--ranking", str(root / "ranking.json"))[0], 0)  # no --out: refused
+                self.assertEqual(seals.held_out_runs(root), 1)  # and no run used
+                self.assertEqual(self.run_cli("score-b", "--root", str(root), "--set", "held-out",
+                                              "--ranking", str(root / "ranking.json"), "--out", str(repo / "b2.json"))[0], 0)
+                self.assertNotEqual(self.run_cli("score-b", "--root", str(root), "--set", "held-out",
+                                                 "--ranking", str(root / "ranking.json"), "--out", str(repo / "b3.json"))[0], 0)  # third run refused
+                self.assertFalse((repo / "b3.json").exists())
+                (repo / "frozen.py").write_text("frozen = False\n")
+                self.assertNotEqual(self.run_cli("score-a", "--root", str(root), "--out", str(repo / "c.json"))[0], 0)
+            finally:
+                pfd_eval.REPO, pfd_eval.FREEZE, pfd_eval.corpora_records = saved
+
+
+if __name__ == "__main__":
+    unittest.main()

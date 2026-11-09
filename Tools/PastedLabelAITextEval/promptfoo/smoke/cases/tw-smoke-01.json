@@ -1,0 +1,166 @@
+{
+ "copy_method": "synthetic",
+ "expected": {
+  "columns": [
+   {
+    "basis": "per_serving",
+    "heading": "每份"
+   },
+   {
+    "basis": "per_100g",
+    "heading": "每100公克"
+   }
+  ],
+  "notes": [
+   "synthetic"
+  ],
+  "rows": [
+   {
+    "label": "熱量",
+    "nutrient": "energy_kcal",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "150",
+      "unit": "大卡"
+     },
+     {
+      "comparator": "=",
+      "number": "500",
+      "unit": "大卡"
+     }
+    ]
+   },
+   {
+    "label": "蛋白質",
+    "nutrient": "protein",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "3.0",
+      "unit": "公克"
+     },
+     {
+      "comparator": "=",
+      "number": "10.0",
+      "unit": "公克"
+     }
+    ]
+   },
+   {
+    "label": "脂肪",
+    "nutrient": "fat",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "5.0",
+      "unit": "公克"
+     },
+     {
+      "comparator": "=",
+      "number": "16.7",
+      "unit": "公克"
+     }
+    ]
+   },
+   {
+    "label": "飽和脂肪",
+    "nutrient": "saturates",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "2.0",
+      "unit": "公克"
+     },
+     {
+      "comparator": "=",
+      "number": "6.7",
+      "unit": "公克"
+     }
+    ]
+   },
+   {
+    "label": "反式脂肪",
+    "nutrient": "trans_fat",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "0",
+      "unit": "公克"
+     },
+     {
+      "comparator": "=",
+      "number": "0",
+      "unit": "公克"
+     }
+    ]
+   },
+   {
+    "label": "碳水化合物",
+    "nutrient": "carbohydrate",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "23.0",
+      "unit": "公克"
+     },
+     {
+      "comparator": "=",
+      "number": "76.7",
+      "unit": "公克"
+     }
+    ]
+   },
+   {
+    "label": "糖",
+    "nutrient": "sugars",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "10.0",
+      "unit": "公克"
+     },
+     {
+      "comparator": "=",
+      "number": "33.3",
+      "unit": "公克"
+     }
+    ]
+   },
+   {
+    "label": "鈉",
+    "nutrient": "sodium",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "100",
+      "unit": "毫克"
+     },
+     {
+      "comparator": "=",
+      "number": "333",
+      "unit": "毫克"
+     }
+    ]
+   }
+  ],
+  "serving_size": {
+   "number": "30",
+   "unit": "公克"
+  },
+  "servings_per_pack": {
+   "approximate": false,
+   "number": "8"
+  }
+ },
+ "format": "taiwan",
+ "label_id": "tw-smoke-01",
+ "role": "tuning",
+ "schema": "pasted-label-ai-text-eval-case-v1",
+ "set": "taiwan_v3_fresh",
+ "source": {
+  "schema": "reader-v3-fresh-transcription-v1",
+  "sha256": "602e5eef907f11a717064770a33c897668580cd098554e002f9d036e9e4560dc"
+ },
+ "text_sha256": "9c3fe1c7ac596eb5135cdffbd448b2932dce3220f0a7de6a4b87f485488c5d6e"
+}

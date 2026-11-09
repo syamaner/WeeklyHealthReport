@@ -20,6 +20,7 @@ let package = Package(
         .library(name: "FoodBarcodeCapture", targets: ["FoodBarcodeCapture"]),
         .library(name: "FoodLabelTextCapture", targets: ["FoodLabelTextCapture"]),
         .library(name: "FoodLabelPhotoCapture", targets: ["FoodLabelPhotoCapture"]),
+        .library(name: "FoodLabelTextAIReading", targets: ["FoodLabelTextAIReading"]),
         .library(name: "FoodLabelPhotoUI", targets: ["FoodLabelPhotoUI"]),
         .library(name: "FoodLedgerArchive", targets: ["FoodLedgerArchive"]),
         .library(name: "FoodLedgerGRDB", targets: ["FoodLedgerGRDB"]),
@@ -72,8 +73,17 @@ let package = Package(
         .target(
             name: "FoodLabelPhotoCapture",
             dependencies: ["FoodLedgerApplication", "FoodLedgerDomain", "FoodLabelPhotoReading"],
-            resources: [.copy("Resources/label-photo-instruction-v1.txt"), .copy("Resources/label-photo-wire-schema-v1.json")]
+            resources: [.copy("Resources/label-photo-instruction-v1.txt"), .copy("Resources/label-photo-wire-schema-v1.json"),
+                        // Pasted label AI text route (#416 A2): prompt-v1 and the text wire schema, pinned by SHA-256.
+                        .copy("Resources/pasted-label-ai-text-instruction-v1.txt"), .copy("Resources/pasted-label-ai-text-wire-schema-v1.json"),
+                        // #416 A3 (revision 11): prompt-v2, selectable by the evaluation tool only; the app sends prompt-v1.
+                        .copy("Resources/pasted-label-ai-text-instruction-v2.txt")]
         ),
+        // Pasted label AI text reader (#416 A2, docs/pasted-label-ai-text-v1.md 11.1): pure (Foundation,
+        // the application and domain, and the frozen parser rules): the text wire schema, the text
+        // mapping and the reader. It never imports FoodLabelPhotoReading; wired only at the composition
+        // root, and used by the evaluation tool in Tools/PastedLabelAITextEval.
+        .target(name: "FoodLabelTextAIReading", dependencies: ["FoodLedgerApplication", "FoodLedgerDomain", "NutritionLabelParsing"]),
         .target(name: "FoodLabelPhotoUI", dependencies: ["FoodLedgerApplication", "FoodLedgerDomain"]),
         .target(name: "FoodInventoryImport", dependencies: ["FoodLedgerApplication", "FoodLedgerDomain"]),
         .target(
@@ -100,7 +110,13 @@ let package = Package(
         ),
         .testTarget(
             name: "FoodLabelPhotoCaptureTests",
-            dependencies: ["FoodLabelPhotoCapture", "FoodLabelPhotoReading", "FoodLedgerApplication", "FoodLedgerDomain"]
+            dependencies: ["FoodLabelPhotoCapture", "FoodLabelPhotoReading", "FoodLedgerApplication", "FoodLedgerDomain", "FoodLedgerTestSupport"]
+        ),
+        // Imports both readers, so the text mapping's parity with label-photo-wire-mapping-v1 is tested (11.1).
+        .testTarget(
+            name: "FoodLabelTextAIReadingTests",
+            dependencies: ["FoodLabelTextAIReading", "FoodLabelPhotoReading", "FoodLedgerApplication", "FoodLedgerDomain", "FoodLedgerTestSupport",
+                           "NutritionLabelParsing"]
         ),
         .testTarget(
             name: "FoodLabelPhotoReadingTests",

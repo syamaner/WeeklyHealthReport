@@ -1,6 +1,6 @@
 # Pasted nutrition label, UK English v2 (plan draft, #371)
 
-Status: **draft, 5 November 2026. All five owner decisions made; no architecture gate yet.** It follows the owner's decision of 5 November 2026 to hold UK English off release after the v1 release check, and to work on the reader first.
+Status: **draft, 5 November 2026. All five owner decisions made. P1 rule spec: [revision 3](pasted-nutrition-label-uk-english-v2-p1.md), architecture gate PASS WITH CHANGES applied, 6 November 2026; it sets reference-value columns aside rather than binding them (change 2). P2 merged in PR 413. P3: [freeze and fresh-set protocol](pasted-nutrition-label-uk-english-v2-p3.md), 6 November 2026.** It follows the owner's decision of 5 November 2026 to hold UK English off release after the v1 release check, and to work on the reader first.
 
 ## 1. Where v1 stands
 
@@ -43,14 +43,14 @@ Some labels need more than one fix: removing one cause can expose the next (two 
 
 Each change is a parser or normaliser rule with positive and negative synthetic tests, under the same invariants as v1: no number, unit or comparator is ever invented, unknown is never zero, a misbinding always declines, and Taiwan readings stay byte-identical.
 
-If every change works as planned, up to 17 of the 24 v1 fresh labels might reach Confirm (20 with change 6), against 4 today; the C8 label and the 3 C9 labels would still decline. That is an upper bound on development data, not a prediction: only the new fresh set measures v2.
+If every change works as planned, up to 17 of the 24 v1 fresh labels might reach Confirm (19 with change 6, after the [P1 spec](pasted-nutrition-label-uk-english-v2-p1.md) found that one C4 label names a prepared state in a compound word), against 4 today; the C8 label and the C9 labels would still decline. That is an upper bound on development data, not a prediction: only the new fresh set measures v2.
 
 ## 5. Phases
 
 1. **P1, specification and gate.** Map the P1 set's declines to the causes, write the v2 rule spec, and pass the architecture gate.
 2. **P2, rules.** Implement changes 1 to 5 (and 6 if decision 4 says so), with synthetic tests. Re-run both development sets, reporting counts only.
 3. **P3, freeze.** Freeze UK reader v2 and commit the fresh-set protocol, with the copy method settled by decision 4.
-4. **P4, release check.** Collect, transcribe, verify and seal a new fresh set of 24, then do one run and the device step.
+4. **P4, release check.** Collect, transcribe, verify and seal a new fresh set of 24, then do one run and the device step. ([results](pasted-nutrition-label-uk-english-v2-p4.md): the harness step held the bar on 7 November 2026, with 5 of 24 labels reaching Confirm and none of the 9 tier A labels. The owner decided on 7 November 2026 not to ship v2; the device step and P5 are not run.)
 5. **P5, enable UK.** Only after P4 passes and the owner decides to ship, including the v1 P3 spec section 6 question.
 
 ## 6. Owner decisions

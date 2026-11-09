@@ -5,7 +5,7 @@ import NutritionLabelParsing
 import UKNutritionLabelParsing
 
 /// The UK English adapter for the `LabelTextReading` port (`docs/pasted-nutrition-label-uk-english-v1-p2.md`
-/// section 1). A text parser v3 reads as `english` goes through `NutritionLabelTextParserUK`, and
+/// section 1; parser `nutrition-label-text-parser-uk-v3` from `docs/pasted-nutrition-label-uk-english-v2-p1.md`). A text parser v3 reads as `english` goes through `NutritionLabelTextParserUK`, and
 /// its reading records that parser's version; every other text goes to the pinned
 /// `NutritionLabelTextReader`, whose reading is returned unchanged. The gate, inference, checks
 /// and conversions steps repeat `NutritionLabelTextReader.read` with the UK parser, held together
@@ -66,5 +66,28 @@ public struct UKEnglishLabelTextReader: LabelTextReading {
         return LabelReading(origin: .pastedText, textSHA256: textSHA256, candidate: NutritionLabelTextReader.candidate(candidate),
                             format: format.rawValue, gate: gate, checks: checks, conversions: conversions, storedHeaderID: storedHeaderID,
                             versions: assertedBases == nil ? Self.versions : Self.assertedVersions, unheadedTable: unheaded)
+    }
+
+    /// What the UK region stage set aside from `text`, beside the reading (never inside the pinned
+    /// `LabelReading`); empty for a text that is not English. For the harness and, from P5,
+    /// Developer tools (`docs/pasted-nutrition-label-uk-english-v2-p1.md` section 2).
+    public func setAside(_ text: String) -> [UKSetAsideRecord] {
+        parser.setAside(text).map { UKSetAsideRecord(rule: $0.rule.rawValue, line: $0.line, cell: $0.cell, text: $0.text) }
+    }
+}
+
+/// One line or tab cell the UK reader set aside, as a plain value of `FoodLabelTextCapture`, so no
+/// caller outside it depends on the UK parsing target.
+public struct UKSetAsideRecord: Codable, Equatable, Sendable {
+    /// The schema of a set-aside file: `{schema, label_id, entries}` with these records as entries.
+    public static let fileSchema = "uk-set-aside-v1"
+
+    public let rule: String
+    public let line: Int
+    public let cell: Int?
+    public let text: String
+
+    public init(rule: String, line: Int, cell: Int?, text: String) {
+        self.rule = rule; self.line = line; self.cell = cell; self.text = text
     }
 }

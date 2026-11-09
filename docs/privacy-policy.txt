@@ -44,3 +44,17 @@ The app's optional note and food microphone paths request microphone/speech perm
 Permissions, diagnostics and policy changes
 
 You can revoke Health, microphone, speech and camera permissions in Apple's settings, disable food-search services in the app, and revoke Google access in your Google account. No app analytics or tracking SDK is included. Apple may process TestFlight feedback, crash or diagnostic information under its own settings and terms; information you voluntarily send in feedback is separate from app data collection. Please avoid including health records or credentials in public bug reports. This policy is available offline in the app and at https://github.com/syamaner/WeeklyHealthReport/blob/main/docs/privacy-policy.txt. A later release may update it when its data flows change.
+
+Private evaluation tooling outside the app
+
+For the owner's explicitly requested personal food database evaluation review, selected product titles, matched record names and preparation states may be supplied to the model provider of the coding agent doing the review (Codex or Claude Code) to propose identity and food-state judgements. Row keys align those proposals with the private review sheet. This permission is limited to that review: it excludes query sets and expected answers, nutrient values, pack verdicts, private configuration, unrelated notes and held-out contents. Proposals remain private and provisional, and the owner validates them; the amendment below adds nutrient evidence and removes pack comparisons from this review. The app does not perform this transfer.
+
+
+Evaluation best-estimate amendment (8 November 2026)
+
+For the explicitly requested estimate review, food descriptions may be sent to web search and
+source sites, with national composition databases and manufacturer pages preferred. Receipt text
+and personal data are excluded. Source nutrient values, food state and provenance may enter the
+model context for this work. This narrowly supersedes the earlier evaluation nutrient-context and
+external-query exclusions. Private outputs retain source URL, date read and page_unconfirmed status;
+no catalogue or evaluation file is published, and no app transfer or automatic food save is added.

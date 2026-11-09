@@ -1,0 +1,50 @@
+{
+  "groups": {
+    "macro": [
+      "energy_consumed",
+      "protein",
+      "fat_total",
+      "fat_saturated",
+      "carbohydrates",
+      "sugar",
+      "fiber",
+      "sodium"
+    ],
+    "micro": [
+      "vitamin_a",
+      "thiamin_b1",
+      "riboflavin_b2",
+      "niacin_b3",
+      "pantothenic_acid_b5",
+      "vitamin_b6",
+      "biotin_b7",
+      "folate_b9",
+      "vitamin_b12",
+      "vitamin_c",
+      "vitamin_d",
+      "vitamin_e",
+      "vitamin_k",
+      "calcium",
+      "chloride",
+      "iron",
+      "magnesium",
+      "phosphorus",
+      "potassium",
+      "zinc",
+      "chromium",
+      "copper",
+      "iodine",
+      "manganese",
+      "molybdenum",
+      "selenium"
+    ],
+    "other": [
+      "water",
+      "cholesterol",
+      "fat_monounsaturated",
+      "fat_polyunsaturated",
+      "caffeine"
+    ]
+  },
+  "schema": "pfd-nutrient-inventory-v1"
+}

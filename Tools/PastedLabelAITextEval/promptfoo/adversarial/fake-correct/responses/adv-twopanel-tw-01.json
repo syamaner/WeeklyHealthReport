@@ -1,0 +1,5 @@
+{
+ "status": 200,
+ "headers": {},
+ "body": "{\"id\": \"gen-adversarial\", \"model\": \"google/gemini-4-argon\", \"provider\": \"Google\", \"choices\": [{\"index\": 0, \"finish_reason\": \"stop\", \"message\": {\"role\": \"assistant\", \"content\": \"{\\\"declined\\\": true, \\\"decline_reasons\\\": [\\\"more than one panel that cannot be separated\\\"], \\\"language\\\": \\\"zh-Hant\\\", \\\"serving_size_text\\\": \\\"unknown\\\", \\\"servings_per_pack_text\\\": \\\"unknown\\\", \\\"headers\\\": [], \\\"rows\\\": []}\"}}], \"usage\": {\"prompt_tokens\": 1200, \"completion_tokens\": 400, \"cost\": 0.004}}"
+}

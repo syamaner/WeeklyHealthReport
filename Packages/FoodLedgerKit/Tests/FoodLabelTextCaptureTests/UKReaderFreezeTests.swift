@@ -25,17 +25,34 @@ import XCTest
 /// Re-pin rules are reader v3's (12.1). The one change named in advance is the P5 diff (section 6),
 /// recorded with pins 1 and 2 unchanged.
 ///
-/// Re-pins after the UK freeze: none.
+/// Re-pins after the UK freeze:
+/// 1. UK reader v2 P2 (#371, `docs/pasted-nutrition-label-uk-english-v2-p1.md` section 2.1): parser
+///    `nutrition-label-text-parser-uk-v3`, identity `pasted-label-identity-v3` and `.ukDevelopment`
+///    reading with it. Pin 1 gains the new versions and decline codes; pin 2 gains identity v3's
+///    lists and every new region and normalisation table, with identity v2's lists unchanged; pin
+///    3 gains `UKTableRegion.swift`, `PastedLabelBasisStateV3.swift` and the development harness,
+///    which writes the set-aside file, and re-hashes the changed UK files. uk-v2 was never admitted
+///    or stored; the v1 release check stays the record of uk-v2.
+/// 2. UK reader v2 P3 (#371, `docs/pasted-nutrition-label-uk-english-v2-p3.md` section 1): the
+///    freeze reference of the v2 P4 release check. Pins 1 and 2 are unchanged. Pin 3 re-hashes
+///    `UKFreshSetProtocol.swift` (scorer v2 rules R1 to R3, the release run's set-aside files) and
+///    `UKDevelopmentSet.swift` (its set-aside file type moved to the release harness). A new pin 4
+///    holds the scorer version and the R1 to R3 tables, so pin 2's listing stays byte-identical.
 ///
 /// No label text, value or product name is here: only rule tables and source hashes.
 final class UKReaderFreezeTests: XCTestCase {
     // MARK: 1. Version strings
 
     func testFrozenVersionStrings() {
-        XCTAssertEqual(NutritionLabelTextParserUK.version, "nutrition-label-text-parser-uk-v2")
+        XCTAssertEqual(NutritionLabelTextParserUK.version, "nutrition-label-text-parser-uk-v3")
         XCTAssertEqual(UKEnglishLabelTextReader.versions.parser, NutritionLabelTextParserUK.version)
         XCTAssertEqual(UKEnglishLabelTextReader.assertedVersions.parser, NutritionLabelTextParserUK.version)
         XCTAssertEqual(PastedLabelBasisStateV2.version, "pasted-label-identity-v2")
+        XCTAssertEqual(PastedLabelBasisStateV3.version, "pasted-label-identity-v3")
+        XCTAssertEqual(UKReadingGuard.regionInconsistent, "uk_region_inconsistent")
+        XCTAssertEqual(UKTableRegion.rowsAfterTable, "uk_rows_after_table")
+        XCTAssertEqual(UKSetAsideReport.reason, "uk_set_aside")
+        XCTAssertEqual(UKSetAsideRecord.fileSchema, "uk-set-aside-v1")
         XCTAssertEqual(UKReadingGuard.headerBasisUnrecognised, "uk_header_basis_unrecognised")
         XCTAssertEqual(UKReadingGuard.conflictingUnits, "uk_orphan_unit")
         XCTAssertEqual(UKReadingGuard.basisStateNotSupported, "basis_state_not_supported")
@@ -43,13 +60,13 @@ final class UKReaderFreezeTests: XCTestCase {
         XCTAssertEqual(UKFreshSet.transcriptionSchema, "uk-english-v1-fresh-transcription-v1")
         XCTAssertEqual(UKFreshSet.runSchema, "uk-english-v1-fresh-run-v1")
         XCTAssertEqual(PastedLabelReadingPolicy.ukDevelopment.launchScope, ["taiwan_nutrition_labelling", "uk_nutrition_declaration"])
-        XCTAssertEqual(PastedLabelReadingPolicy.ukDevelopment.identity, .v2)
-        XCTAssertEqual(PastedLabelReadingPolicy.ukDevelopment.identity.rawValue, PastedLabelBasisStateV2.version)
+        XCTAssertEqual(PastedLabelReadingPolicy.ukDevelopment.identity, .v3)
+        XCTAssertEqual(PastedLabelReadingPolicy.ukDevelopment.identity.rawValue, PastedLabelBasisStateV3.version)
     }
 
     // MARK: 2. Frozen rule tables
 
-    static let frozenRuleTablesSHA256 = "6c17e3698c426dcd23133a15b4e79a3833726b2e0a3724c978d4ba8f09fa0315"
+    static let frozenRuleTablesSHA256 = "f20fa484f3917cc4dd9bd7143404c22f3950bb318a14740bb9bf832b97b341ca"
 
     func testFrozenRuleTablesAreUnchanged() {
         let listing = Self.ruleTableListing()
@@ -67,8 +84,8 @@ final class UKReaderFreezeTests: XCTestCase {
             (0..<0x10000).compactMap { Unicode.Scalar($0) }.filter(set.contains).map { String(format: "U+%04X", $0.value) }
         }
 
-        add("versions", [NutritionLabelTextParserUK.version, PastedLabelBasisStateV2.version, UKFreshSet.transcriptionSchema,
-                         UKFreshSet.runSchema])
+        add("versions", [NutritionLabelTextParserUK.version, PastedLabelBasisStateV2.version, PastedLabelBasisStateV3.version,
+                         UKFreshSet.transcriptionSchema, UKFreshSet.runSchema])
         // UKVocabulary.
         add("uk-value-pattern", [UKVocabulary.valuePattern])
         add("uk-header-phrase-pattern", [UKVocabulary.headerPhrasePattern])
@@ -105,6 +122,25 @@ final class UKReaderFreezeTests: XCTestCase {
         // Identity v2.
         add("identity-v2-word-markers", PastedLabelBasisStateV2.wordMarkers)
         add("identity-v2-substring-markers", PastedLabelBasisStateV2.substringMarkers)
+        // Identity v3 (I1) and the UK reader v2 tables.
+        add("identity-v3-compound-prefixes", PastedLabelBasisStateV3.compoundPrefixes)
+        add("identity-v3-compound-cooking-words", PastedLabelBasisStateV3.compoundCookingWords)
+        add("uk-identity-compound-prefixes", UKVocabulary.identityCompoundPrefixes)
+        add("uk-identity-compound-cooking-words", UKVocabulary.identityCompoundCookingWords)
+        add("uk-table-titles", UKVocabulary.tableTitles)
+        add("uk-row-words", UKVocabulary.rowWords)
+        add("uk-count-statement-pattern", [UKVocabulary.countStatementPattern])
+        add("uk-following-table-titles", UKVocabulary.followingTableTitles)
+        add("uk-reference-intake-headings", UKVocabulary.referenceIntakeHeadings)
+        add("uk-reference-intake-footnote-pattern", [UKVocabulary.referenceIntakeFootnotePattern])
+        add("uk-serving-words", UKVocabulary.servingWords)
+        add("region-rules", ["S1", "S2", "S3", "S4", "S5", "S6", "S7"].map { UKSetAsideEntry.Rule(rawValue: $0)!.rawValue })
+        add("region-patterns", [UKTableRegion.per100, UKTableRegion.standaloneHundred].map(\.expression.pattern))
+        add("region-codes", [UKTableRegion.rowsAfterTable, UKReadingGuard.regionInconsistent, UKSetAsideReport.reason])
+        add("normalisation-n6-n7-patterns", [UKTextNormalisation.wholeQuantity, UKTextNormalisation.hundredQuantity,
+                                             UKTextNormalisation.quantityWithServingWord, UKTextNormalisation.valueCell,
+                                             UKTextNormalisation.referenceBasis].map(\.expression.pattern))
+        add("normalisation-n7-markers", UKTextNormalisation.markerCells.sorted())
         add("policy-uk-development", PastedLabelReadingPolicy.ukDevelopment.launchScope + [PastedLabelReadingPolicy.ukDevelopment.identity.rawValue])
         // The UK scorer (section 3).
         add("scorer-comparators", UKFreshSet.comparatorTable.keys.sorted().map { "\($0)\t\(UKFreshSet.comparatorTable[$0]!)" })
@@ -120,18 +156,41 @@ final class UKReaderFreezeTests: XCTestCase {
         return lines.joined(separator: "\n") + "\n"
     }
 
+    // MARK: 4. Scorer v2 rules (re-pin 2)
+
+    static let frozenScorerRulesSHA256 = "bf238343393993c73844f4fc8182948ea65b46cf54473644b0842ea7739607d0"
+
+    func testFrozenScorerRulesAreUnchanged() {
+        let listing = Self.scorerRuleListing()
+        XCTAssertEqual(Self.sha256(Data(listing.utf8)), Self.frozenScorerRulesSHA256,
+                       "A frozen UK scorer rule changed. That is a new scorer version and a new fresh set (v2 P3 section 1). Listing:\n\(listing)")
+    }
+
+    /// The scorer version and the closed tables of R1 to R3, one line each, sorted where the source is a dictionary.
+    static func scorerRuleListing() -> String {
+        var lines: [String] = []
+        func add(_ section: String, _ items: [String]) { lines.append("## " + section); lines.append(contentsOf: items) }
+        add("scorer-version", [UKFreshSet.scorerVersion])
+        add("r1-r2-percent-unit", [UKFreshSet.percentUnit])
+        add("r2-energy-partners", UKFreshSet.energyPartners.keys.sorted().map { "\($0)\t\(UKFreshSet.energyPartners[$0]!)" })
+        add("r2-dashes", UKFreshSet.dashes)
+        add("r3-label-unit-tokens", UKFreshSet.labelUnitTokens)
+        return lines.joined(separator: "\n") + "\n"
+    }
+
     // MARK: 3. Frozen source files
 
     /// Paths relative to the FoodLedgerKit package root, each with its own UK hash.
     static let frozenSources: [String: String] = [
         "Sources/FoodLabelTextCapture/NutritionLabelTextReader.swift": "88208cb37f96a22e3e53c03129bb01f281ab62be7279ccf822b558a157948642",
         "Sources/FoodLabelTextCapture/PastedHeaderBasisGuard.swift": "4dd39071a6e4142d30999f6bb0a30e4240da210558fb2dc251a8d452aba7ff9b",
-        "Sources/FoodLabelTextCapture/UKEnglishLabelTextReader.swift": "7479441743aab81f9f62ed0cdf769b7dd077a2935ac67ce64a7f2191a875ffa3",
+        "Sources/FoodLabelTextCapture/UKEnglishLabelTextReader.swift": "2f2c2c7d4b91ef28951eaadb808ba71ea21e85210e3ab910e632117b67d78cf5",
         "Sources/FoodLedgerApplication/LabelReading.swift": "eae0e1ad23f06b2517e1620b2f3007213b445b5700089d99eb021b8109881af9",
         "Sources/FoodLedgerApplication/PastedLabelBasisChoice.swift": "4b36617823f0ab5236dc13587e1a0c62f73a77b4f826c891f844b85fccefc13f",
         "Sources/FoodLedgerApplication/PastedLabelBasisStateV2.swift": "12cfc96607a57411c6fc44ab2492b7e798c9b6757aa1be796fa042faf49d1d35",
+        "Sources/FoodLedgerApplication/PastedLabelBasisStateV3.swift": "1c93d035c5413f492c1f3f117565b17b8c1aee85b88f19a4324be936f5c42e1c",
         "Sources/FoodLedgerApplication/PastedLabelConfirmation.swift": "e806b82fb5c2126e3eb205ea403389b59a054119309eb20c6ff8649fb1919afb",
-        "Sources/FoodLedgerApplication/PastedLabelLaunchScope.swift": "c123d10305720aa9b6fc921658cc5493df5a65e86731736ccf1bd33bbed3b892",
+        "Sources/FoodLedgerApplication/PastedLabelLaunchScope.swift": "0f91d48fae065cfb557edb7b24952f04b52ef4d496fda3f620d3b59004fd36bc",
         "Sources/FoodLedgerApplication/PastedLabelManifest.swift": "ab2f9fd1a8d080801dc65b37f6a6ef889d147d7590914c01f846dc429e67d8ba",
         "Sources/FoodLedgerApplication/PastedLabelManifestV2.swift": "dd2e1a7e6288efac802d7545716d781a15cec89c9b55d662591cd3448b95bdf5",
         "Sources/FoodLedgerApplication/PastedLabelServingPolicy.swift": "bca53615081e45bb4f5470614de66aa2b5267caf37973663c41508e2d6e65cc1",
@@ -151,22 +210,26 @@ final class UKReaderFreezeTests: XCTestCase {
         "Sources/NutritionLabelParsing/Resources/gate-v2-marker-classes-v1.txt": "65761772f268b4c7ec41d096ebd4ac9f01f10a1fe5e8bf7144898781f7855109",
         "Sources/NutritionLabelParsing/Resources/gate-v2-simplified-only-v1.txt": "a75bd032fb24c234686bc808ab1926cc502380f8421d2ba833bdceffb9dfafa5",
         "Sources/NutritionLabelParsing/TaiwanRowAliases.swift": "57d9a6ee8fc52c2f47880c3a56cc0a3dc164a15e91f9b96d1bcdbc5daec10b6d",
-        "Sources/UKNutritionLabelParsing/NutritionLabelTextParserUK.swift": "20facb6846d3e774e3fa445558d316bb08c0ca690f79e9fee0653dbd327e7a6d",
-        "Sources/UKNutritionLabelParsing/UKReadingGuard.swift": "b410386b2f976946778a56b71fe9aa7d061a7dd51c7d9855020792fbbaa3c210",
-        "Sources/UKNutritionLabelParsing/UKTextNormalisation.swift": "5694f5f0105678266ce282d4993835eb6f8b32e084fe526837fef57141e66e46",
-        "Sources/UKNutritionLabelParsing/UKVocabulary.swift": "4ea5f3c24d197f3d11f05de9fffa521e134c013024705fea8689841c6a9f17de",
+        "Sources/UKNutritionLabelParsing/NutritionLabelTextParserUK.swift": "9461df48118b16629f640f11c80afcf041651f1ce6161eb79a30d3c00cabedda",
+        "Sources/UKNutritionLabelParsing/UKReadingGuard.swift": "01f01f8f62447496b955a8bf68a25f38122b354ff355d2117920b5fbd03a92b1",
+        "Sources/UKNutritionLabelParsing/UKTableRegion.swift": "6df536d5c78dd2e7d3934080e4634fc399a3de0a7ea2f74faf89d04cc2bd2de3",
+        "Sources/UKNutritionLabelParsing/UKTextNormalisation.swift": "3880b1628f8062f88f21924a4bf007ea877c09fb5cec94c9aa4c0a762e9b7b35",
+        "Sources/UKNutritionLabelParsing/UKVocabulary.swift": "62c97a1cb4370c3652cc2362b4df854b9a96980e34909e27744fe87a8fddb90f",
         "Tests/FoodLabelTextCaptureTests/FreshSet/FreshSetProtocol.swift": "c2ad61b6ee3cc1d331d5c8d9c6fce64f520f6b52381a42c23549b5d1fe76b40a",
         "Tests/FoodLabelTextCaptureTests/FreshSet/FreshSetStepTests.swift": "42a5bf8d4c1bd2f96a3629f8a04c976ef7626027098b2f6ffef079dd2eaf4864",
-        "Tests/FoodLabelTextCaptureTests/UKFreshSet/UKFreshSetProtocol.swift": "11e5a346818bdeb1fbeb58f30f0a87a421f0ca308c8b06ea42afd9d5ab19d85d",
+        "Tests/FoodLabelTextCaptureTests/UKDevelopment/UKDevelopmentSet.swift": "dd1e2db2d7e20e2e1d09cd0ff3d4851bbf850c75924b26af40008d379ec27d6d",
+        "Tests/FoodLabelTextCaptureTests/UKFreshSet/UKFreshSetProtocol.swift": "c3917b0f019086dde2ffe918701605574a85bad27a91084bd79f0e2b7ca3435d",
         "Tests/FoodLabelTextCaptureTests/UKFreshSet/UKFreshSetStepTests.swift": "b14aa527624d1cb203e87f7866443d1d22c9f449f3c0782d82b6b7bef182498f",
     ]
 
     static let ukHarnessFiles = [
         "Tests/FoodLabelTextCaptureTests/UKFreshSet/UKFreshSetProtocol.swift",
         "Tests/FoodLabelTextCaptureTests/UKFreshSet/UKFreshSetStepTests.swift",
+        "Tests/FoodLabelTextCaptureTests/UKDevelopment/UKDevelopmentSet.swift",
     ]
     static let policyFiles = [
         "Sources/FoodLedgerApplication/PastedLabelBasisStateV2.swift",
+        "Sources/FoodLedgerApplication/PastedLabelBasisStateV3.swift",
         "Sources/FoodLedgerApplication/PastedLabelLaunchScope.swift",
     ]
     static let enumeratedModules = ["Sources/UKNutritionLabelParsing/", "Sources/FoodLabelTextCapture/"]
