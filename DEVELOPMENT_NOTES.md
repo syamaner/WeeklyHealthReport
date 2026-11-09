@@ -4164,6 +4164,30 @@ Excluded:
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
 
+## WHR-416-2026-11-09-A4: Claude Code A4 runner merge, held-out run and result (#416)
+
+The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) did three things in this window:
+- fixed the open Qodo findings on #446, merged `main` in, and merged #446 after green CI and a Qodo review at its head with only the three accepted limits open;
+- ran A4 once from merged `main` (`6e2fd69`);
+- read the bar and wrote the result (spec 5.6).
+
+There were no subagents. The window runs from `2026-11-09T10:30:04Z`, the end of WHR-416-2026-11-09-A4R, to `2026-11-09T12:52:11Z`.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| A4 runner merge, held-out run and result (#416), coordinator | 9,701,027 (9,567,856) | 133,061 | 30,761 | 9,731,788 | $3.59 |
+
+Method: `phase_usage.py --format claude --since 2026-11-09T10:30:04Z --include-subagents` on the session transcript. Exact USD 3.5937192. The cache-write tokens (none of them 5-minute writes) are part of the input figure, not added to it.
+
+Excluded:
+- the held-out run's own OpenRouter spend ($0.244, recorded in the evaluation's spend ledger, not here);
+- the separate dark chocolate session (its own transcript);
+- the Qodo review runs;
+- local builds and test loops, which use no API tokens;
+- this ledger edit, the commit, the push and the PR after the window.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a subscription, not a bill, and not evidence of productivity or quality.
+
 ## WHR-416-2026-11-09-V6: Claude Code scorer v6 field counts (#416, D37)
 
 The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) did two things in this window:
