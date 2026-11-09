@@ -4238,3 +4238,26 @@ Excluded:
 - this ledger edit, the commit, the push, the CI wait and the merge after the window.
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
+## WHR-416-2026-11-09-CLOSE: Claude Code #416 merges, A3 v6 re-score and not-shipped closure (#416, D38)
+
+The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) did four things in this window:
+- re-ran the two #448 and #449 CI jobs that never got a runner, read Qodo at each head, merged #448, brought `main` into #449 with both ledger rows kept, and merged #449;
+- scored every stored A3 tuning reply again offline under v5 and v6 against the same cases (no egress);
+- recorded the owner's not-shipped decision (D38) and the supplementary v6 figures in the spec;
+- wrote this PR.
+
+There were no subagents. The window runs from `2026-11-09T16:42:24Z`, the end of WHR-416-2026-11-09-V6, to `2026-11-09T20:22:43Z`.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| #416 merges, A3 v6 re-score and closure, coordinator | 8,623,155 (8,488,246) | 134,775 | 32,003 | 8,655,158 | $3.42 |
+
+Method: `phase_usage.py --format claude --since 2026-11-09T16:42:24Z --include-subagents` on the session transcript. Exact USD 3.4164452. The cache-write tokens are part of the input figure, so the total is input plus output.
+
+Excluded:
+- the Qodo review runs;
+- CI runs and local builds, which use no API tokens;
+- this ledger edit, the commit, the push and the PR after the window.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
