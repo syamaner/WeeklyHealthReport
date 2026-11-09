@@ -79,21 +79,40 @@ check_label_reader_edges() {
 
   while IFS= read -r file; do
     if [[ -z "$file" ]]; then continue; fi
-    if [[ ! "$file" =~ /(Sources/(NutritionLabelParsing|FoodLabelTextCapture|FoodLabelPhotoReading)|Tools/NutritionLabelTextParse|Tests/(NutritionLabelParsingTests|FoodLabelTextCaptureTests|FoodLabelPhotoReadingTests))/ ]]; then
+    if [[ ! "$file" =~ /(Sources/(NutritionLabelParsing|FoodLabelTextCapture|FoodLabelPhotoReading|FoodLabelTextAIReading|UKNutritionLabelParsing)|Tools/NutritionLabelTextParse|Tests/(NutritionLabelParsingTests|FoodLabelTextCaptureTests|FoodLabelPhotoReadingTests|FoodLabelTextAIReadingTests|UKNutritionLabelParsingTests))/ ]]; then
       violations+="NutritionLabelParsing imported by $file"$'\n'
     fi
   done < <(files_importing NutritionLabelParsing "${scanned[@]}")
 
+  # UK English reader (#371 P2a, docs/pasted-nutrition-label-uk-english-v1-p2.md section 1): only
+  # the text capture adapter, its tests and the target's own tests reach UKNutritionLabelParsing.
+  while IFS= read -r file; do
+    if [[ -z "$file" ]]; then continue; fi
+    if [[ ! "$file" =~ /(Sources/FoodLabelTextCapture|Tests/(FoodLabelTextCaptureTests|UKNutritionLabelParsingTests))/ ]]; then
+      violations+="UKNutritionLabelParsing imported by $file"$'\n'
+    fi
+  done < <(files_importing UKNutritionLabelParsing "${scanned[@]}")
+
   # Label photo reader (docs/label-photo-ai-prefill-v1.md 17.2): only its own tests and the
   # photo capture adapter (and that adapter's tests) reach FoodLabelPhotoReading. The app is never
   # linked to it directly (below), so the composition root reaches it through the adapter, and
-  # presentation and application never import it.
+  # presentation and application never import it. The text reader's tests import it for the
+  # mapping parity test (docs/pasted-label-ai-text-v1.md 11.1); the text reader itself never does.
   while IFS= read -r file; do
     if [[ -z "$file" ]]; then continue; fi
-    if [[ ! "$file" =~ /(Sources/FoodLabelPhotoCapture|Tests/(FoodLabelPhotoReadingTests|FoodLabelPhotoCaptureTests))/ ]]; then
+    if [[ ! "$file" =~ /(Sources/FoodLabelPhotoCapture|Tests/(FoodLabelPhotoReadingTests|FoodLabelPhotoCaptureTests|FoodLabelTextAIReadingTests))/ ]]; then
       violations+="FoodLabelPhotoReading imported by $file"$'\n'
     fi
   done < <(files_importing FoodLabelPhotoReading "${scanned[@]}")
+
+  # Pasted label AI text reader (#416 A2, docs/pasted-label-ai-text-v1.md 11.1): only the
+  # composition root and the target's own tests import it; application and presentation never do.
+  while IFS= read -r file; do
+    if [[ -z "$file" ]]; then continue; fi
+    if [[ "$file" != "$app/WeeklyHealthReport/FoodLedger/FoodLedgerCompositionRoot.swift" && ! "$file" =~ /Tests/FoodLabelTextAIReadingTests/ ]]; then
+      violations+="FoodLabelTextAIReading imported by $file"$'\n'
+    fi
+  done < <(files_importing FoodLabelTextAIReading "${scanned[@]}")
 
   # Label photo capture adapters (17.2): only the composition root and the target's own tests
   # import it, and presentation never does.
@@ -185,13 +204,15 @@ check_label_reader_edges() {
     if [[ -z "$line" ]]; then continue; fi
     name="$(sed -nE 's/^[^"]*name:[[:space:]]*"([A-Za-z0-9_]+)".*/\1/p' <<< "$line")"
     rest="$(sed -E 's/name:[[:space:]]*"[A-Za-z0-9_]+"//' <<< "$line")"
-    for dep in NutritionLabelParsing FoodLabelTextCapture FoodLabelPhotoReading FoodLabelPhotoCapture FoodLabelPhotoUI; do
+    for dep in NutritionLabelParsing UKNutritionLabelParsing FoodLabelTextCapture FoodLabelPhotoReading FoodLabelPhotoCapture FoodLabelPhotoUI FoodLabelTextAIReading; do
       if [[ "$rest" != *"\"$dep\""* ]]; then continue; fi
       case "$dep" in
-        NutritionLabelParsing) allowed='^(FoodLabelTextCapture|FoodLabelPhotoReading|NutritionLabelTextParse|NutritionLabelParsingTests|FoodLabelTextCaptureTests|FoodLabelPhotoReadingTests)$' ;;
-        FoodLabelPhotoReading) allowed='^(FoodLabelPhotoReadingTests|FoodLabelPhotoCapture|FoodLabelPhotoCaptureTests)$' ;;
+        NutritionLabelParsing) allowed='^(FoodLabelTextCapture|FoodLabelPhotoReading|FoodLabelTextAIReading|UKNutritionLabelParsing|NutritionLabelTextParse|NutritionLabelParsingTests|FoodLabelTextCaptureTests|FoodLabelPhotoReadingTests|FoodLabelTextAIReadingTests|UKNutritionLabelParsingTests)$' ;;
+        UKNutritionLabelParsing) allowed='^(FoodLabelTextCapture|FoodLabelTextCaptureTests|UKNutritionLabelParsingTests)$' ;;
+        FoodLabelPhotoReading) allowed='^(FoodLabelPhotoReadingTests|FoodLabelPhotoCapture|FoodLabelPhotoCaptureTests|FoodLabelTextAIReadingTests)$' ;;
         FoodLabelPhotoCapture) allowed='^(FoodLabelPhotoCaptureTests)$' ;;
         FoodLabelPhotoUI) allowed='^(FoodLabelPhotoUITests)$' ;;
+        FoodLabelTextAIReading) allowed='^(FoodLabelTextAIReadingTests)$' ;;
         *) allowed='^(FoodLabelTextCaptureTests)$' ;;
       esac
       if [[ ! "$name" =~ $allowed ]]; then violations+="Package.swift: $name depends on $dep"$'\n'; fi
@@ -202,6 +223,11 @@ check_label_reader_edges() {
     if [[ -f "$file" ]] && grep -q 'productName = NutritionLabelParsing;' "$file"; then
       violations+="$file links NutritionLabelParsing; the app reaches it only through FoodLabelTextCapture"$'\n'
     fi
+    if [[ -f "$file" ]] && grep -q 'productName = UKNutritionLabelParsing;' "$file"; then
+      violations+="$file links UKNutritionLabelParsing; the app reaches it only through FoodLabelTextCapture"$'\n'
+    fi
+    # The app may link FoodLabelTextAIReading (wired at the composition root); it still never
+    # links NutritionLabelParsing directly (above).
     if [[ -f "$file" ]] && grep -q 'productName = FoodLabelPhotoReading;' "$file"; then
       violations+="$file links FoodLabelPhotoReading; the app reaches it only through the composition root's adapter"$'\n'
     fi
@@ -224,6 +250,7 @@ self_test_label_reader_edges() {
     "$pkg/Sources/FoodLedgerPresentation" "$pkg/Sources/FoodGenericSearch" "$pkg/Tools/NutritionLabelTextParse" \
     "$pkg/Tests/NutritionLabelParsingTests" "$pkg/Tests/FoodLabelTextCaptureTests" "$pkg/Tests/FoodLedgerContractTests" \
     "$pkg/Sources/FoodLabelPhotoReading" "$pkg/Tests/FoodLabelPhotoReadingTests" \
+    "$pkg/Sources/FoodLabelTextAIReading" "$pkg/Tests/FoodLabelTextAIReadingTests" \
     "$base/WeeklyHealthReport/FoodLedger" "$base/WeeklyHealthReport.xcodeproj"
   cat > "$pkg/Package.swift" <<'SWIFT'
 let package = Package(
@@ -245,6 +272,8 @@ let package = Package(
         ),
         .target(name: "FoodLabelPhotoReading", dependencies: ["NutritionLabelParsing"]),
         .testTarget(name: "FoodLabelPhotoReadingTests", dependencies: ["FoodLabelPhotoReading"]),
+        .target(name: "FoodLabelTextAIReading", dependencies: ["FoodLedgerApplication", "NutritionLabelParsing"]),
+        .testTarget(name: "FoodLabelTextAIReadingTests", dependencies: ["FoodLabelTextAIReading", "FoodLabelPhotoReading", "NutritionLabelParsing"]),
         .testTarget(name: "NutritionLabelParsingTests", dependencies: ["NutritionLabelParsing"]),
         .testTarget(name: "FoodLabelTextCaptureTests", dependencies: ["FoodLabelTextCapture", "NutritionLabelParsing"])
     ]
@@ -255,12 +284,15 @@ SWIFT
   echo 'import Foundation' > "$pkg/Sources/FoodLedgerApplication/Port.swift"
   echo 'import NutritionLabelParsing' > "$pkg/Sources/FoodLabelPhotoReading/Matcher.swift"
   echo '@testable import FoodLabelPhotoReading' > "$pkg/Tests/FoodLabelPhotoReadingTests/MatcherTests.swift"
+  printf 'import FoodLedgerApplication\nimport NutritionLabelParsing\n' > "$pkg/Sources/FoodLabelTextAIReading/Reader.swift"
+  printf '@testable import FoodLabelTextAIReading\n@testable import FoodLabelPhotoReading\nimport NutritionLabelParsing\n' \
+    > "$pkg/Tests/FoodLabelTextAIReadingTests/ParityTests.swift"
   echo 'import SwiftUI' > "$pkg/Sources/FoodLedgerPresentation/View.swift"
   echo 'import NutritionLabelParsing' > "$pkg/Tools/NutritionLabelTextParse/main.swift"
   echo '@testable import NutritionLabelParsing' > "$pkg/Tests/NutritionLabelParsingTests/ParserTests.swift"
   printf '@testable import FoodLabelTextCapture\nimport NutritionLabelParsing\n' > "$pkg/Tests/FoodLabelTextCaptureTests/ReaderTests.swift"
-  echo 'import FoodLabelTextCapture' > "$base/WeeklyHealthReport/FoodLedger/FoodLedgerCompositionRoot.swift"
-  echo 'productName = FoodLabelTextCapture;' > "$base/WeeklyHealthReport.xcodeproj/project.pbxproj"
+  printf 'import FoodLabelTextCapture\nimport FoodLabelTextAIReading\n' > "$base/WeeklyHealthReport/FoodLedger/FoodLedgerCompositionRoot.swift"
+  printf 'productName = FoodLabelTextCapture;\nproductName = FoodLabelTextAIReading;\n' > "$base/WeeklyHealthReport.xcodeproj/project.pbxproj"
   if ! check_label_reader_edges "$pkg" "$base" 2>/dev/null; then
     echo "check-boundaries self-test: the baseline fixture must pass" >&2; status=1
   fi
@@ -268,7 +300,9 @@ SWIFT
   local fixture target fpkg
   for fixture in testable struct_form implementation_only package_edge package_target_edge package_byname_edge \
       package_product_edge package_adapter_edge package_unreadable app_import app_import_semicolon presentation_adapter app_link \
-      photo_presentation photo_application photo_app_import photo_package_edge photo_app_link; do
+      photo_presentation photo_application photo_app_import photo_package_edge photo_app_link \
+      uk_application uk_testable uk_app_import uk_package_edge uk_library uk_app_link \
+      text_application text_presentation text_imports_photo text_photo_package_edge text_package_edge text_app_import; do
     target="$scratch/$fixture"
     cp -R "$base" "$target"
     fpkg="$target/Packages/FoodLedgerKit"
@@ -303,6 +337,27 @@ SWIFT
         sed 's/dependencies: \["FoodLedgerDomain"\]/dependencies: ["FoodLedgerDomain", "FoodLabelPhotoReading"]/' \
           "$pkg/Package.swift" > "$fpkg/Package.swift" ;;
       photo_app_link) echo 'productName = FoodLabelPhotoReading;' >> "$target/WeeklyHealthReport.xcodeproj/project.pbxproj" ;;
+      uk_application) echo 'import UKNutritionLabelParsing' > "$fpkg/Sources/FoodLedgerApplication/Leak.swift" ;;
+      uk_testable) echo '@testable import UKNutritionLabelParsing' > "$fpkg/Tests/FoodLedgerContractTests/Leak.swift" ;;
+      uk_app_import) echo 'import UKNutritionLabelParsing' >> "$target/WeeklyHealthReport/FoodLedger/FoodLedgerCompositionRoot.swift" ;;
+      uk_package_edge)
+        sed 's/dependencies: \["FoodLedgerDomain"\]/dependencies: ["FoodLedgerDomain", "UKNutritionLabelParsing"]/' \
+          "$pkg/Package.swift" > "$fpkg/Package.swift" ;;
+      uk_library)
+        sed 's/dependencies: \["FoodLedgerDomain"\]/dependencies: ["FoodLedgerDomain", .product(name: "UKNutritionLabelParsing", package: "FoodLedgerKit")]/' \
+          "$pkg/Package.swift" > "$fpkg/Package.swift" ;;
+      uk_app_link) echo 'productName = UKNutritionLabelParsing;' >> "$target/WeeklyHealthReport.xcodeproj/project.pbxproj" ;;
+      # Pasted label AI text reader (#416 A2, docs/pasted-label-ai-text-v1.md 11.1).
+      text_application) echo 'import FoodLabelTextAIReading' > "$fpkg/Sources/FoodLedgerApplication/Leak.swift" ;;
+      text_presentation) echo '@testable import FoodLabelTextAIReading' > "$fpkg/Sources/FoodLedgerPresentation/Leak.swift" ;;
+      text_imports_photo) echo 'import struct FoodLabelPhotoReading.LabelPhotoWire' > "$fpkg/Sources/FoodLabelTextAIReading/Leak.swift" ;;
+      text_photo_package_edge)
+        sed 's/.target(name: "FoodLabelTextAIReading", dependencies: \["FoodLedgerApplication", "NutritionLabelParsing"\])/.target(name: "FoodLabelTextAIReading", dependencies: ["FoodLedgerApplication", "NutritionLabelParsing", "FoodLabelPhotoReading"])/' \
+          "$pkg/Package.swift" > "$fpkg/Package.swift" ;;
+      text_package_edge)
+        sed 's/dependencies: \["FoodLedgerDomain"\]/dependencies: ["FoodLedgerDomain", .product(name: "FoodLabelTextAIReading", package: "FoodLedgerKit")]/' \
+          "$pkg/Package.swift" > "$fpkg/Package.swift" ;;
+      text_app_import) echo 'import FoodLabelTextAIReading' > "$target/WeeklyHealthReport/Leak.swift" ;;
     esac
     if check_label_reader_edges "$fpkg" "$target" 2>/dev/null; then
       echo "check-boundaries self-test: the $fixture fixture must fail" >&2; status=1
@@ -315,9 +370,16 @@ SWIFT
 self_test_label_reader_edges
 check_label_reader_edges "$package_root" "$app_root"
 
-check_imports FoodLabelTextCapture '^(Foundation|FoodLedgerApplication|FoodLedgerDomain|NutritionLabelParsing)$'
+check_imports FoodLabelTextCapture '^(Foundation|FoodLedgerApplication|FoodLedgerDomain|NutritionLabelParsing|UKNutritionLabelParsing)$'
+# UK English reader (#371 P2a): pure, over the frozen parser's public API only.
+check_imports UKNutritionLabelParsing '^(Foundation|NutritionLabelParsing)$'
+if grep -qE '\.library\(name:[[:space:]]*"UKNutritionLabelParsing"' "$package_root/Package.swift"; then
+  echo "UKNutritionLabelParsing must not be a library product; it is reached only through FoodLabelTextCapture" >&2; exit 1
+fi
 # Label photo reader (#316, docs/label-photo-ai-prefill-v1.md 17.2): pure, no platform framework.
 check_imports FoodLabelPhotoReading '^(Foundation|FoodLedgerApplication|FoodLedgerDomain|NutritionLabelParsing)$'
+# Pasted label AI text reader (#416 A2, docs/pasted-label-ai-text-v1.md 11.1): pure, and never the photo reader.
+check_imports FoodLabelTextAIReading '^(Foundation|FoodLedgerApplication|FoodLedgerDomain|NutritionLabelParsing)$'
 # Label photo capture adapters (17.2): platform frameworks, each confined to its adapter file above.
 check_imports FoodLabelPhotoCapture '^(CoreGraphics|Foundation|ImageIO|Network|UniformTypeIdentifiers|Vision|FoodLedgerApplication|FoodLedgerDomain|FoodLabelPhotoReading)$'
 # Label photo UI (17.2, 17.19): camera, PhotosPicker, crop and the photo pane.
@@ -333,6 +395,126 @@ check_imports FoodBarcodeCapture '^(AVFoundation|FoodLedgerApplication|FoodLedge
 check_imports FoodLedgerArchive '^(Foundation|FoodLedgerApplication|FoodLedgerGRDB)$'
 check_imports FoodLedgerTestSupport '^(Foundation|FoodLedgerApplication|FoodLedgerDomain)$'
 check_imports FoodLedgerGRDB '^(Foundation|FoodLedgerApplication|FoodLedgerDomain|GRDB)$'
+
+# Pasted label AI text evaluation core (#416 A1, docs/pasted-label-ai-text-v1.md 5): the case
+# format, converters and bar tooling outside the package import Foundation and CryptoKit only.
+# The scan covers that one directory (every Swift file under it); the self-test proves a
+# forbidden import in any form fails.
+tool_import_violations() {
+  local dir="$1" allowed="$2"
+  if [[ ! -d "$dir" ]]; then echo "$dir: missing"; return 0; fi
+  find "$dir" -name '*.swift' -type f -print0 | xargs -0 sed -nE "s/${import_attributes}([A-Za-z0-9_]+).*$/\5/p" \
+    | sort -u | grep -Ev "$allowed" || true
+}
+eval_core_allowed='^(CryptoKit|Foundation)$'
+self_test_eval_core_imports() {
+  local scratch status=0 fixture
+  scratch="$(mktemp -d "${TMPDIR:-/tmp}/check-boundaries-eval.XXXXXX")"
+  mkdir -p "$scratch/base/Nested"
+  printf 'import Foundation\nimport CryptoKit\n' > "$scratch/base/Case.swift"
+  echo '@preconcurrency import Foundation // comment' > "$scratch/base/Nested/Strict.swift"
+  if [[ -n "$(tool_import_violations "$scratch/base" "$eval_core_allowed")" ]]; then
+    echo "check-boundaries self-test: the eval core baseline must pass" >&2; status=1
+  fi
+  for fixture in testable struct_form nested; do
+    cp -R "$scratch/base" "$scratch/$fixture"
+    case "$fixture" in
+      testable) echo '@testable import FoodLedgerApplication' > "$scratch/$fixture/Leak.swift" ;;
+      struct_form) echo 'import struct FoodLabelPhotoReading.LabelPhotoWire' > "$scratch/$fixture/Leak.swift" ;;
+      nested) echo 'import NutritionLabelParsing' > "$scratch/$fixture/Nested/Leak.swift" ;;
+    esac
+    if [[ -z "$(tool_import_violations "$scratch/$fixture" "$eval_core_allowed")" ]]; then
+      echo "check-boundaries self-test: the eval core $fixture fixture must fail" >&2; status=1
+    fi
+  done
+  rm -rf "$scratch"
+  return "$status"
+}
+self_test_eval_core_imports
+eval_core_unexpected="$(tool_import_violations "$app_root/Tools/PastedLabelAITextEval/Sources/PastedLabelAITextEvalCore" "$eval_core_allowed")"
+if [[ -n "$eval_core_unexpected" ]]; then
+  echo "PastedLabelAITextEvalCore has forbidden imports:" >&2
+  echo "$eval_core_unexpected" >&2
+  exit 1
+fi
+
+# Pasted label AI text evaluation harness, CLI and held-out runner (#416 A2 to A4,
+# docs/pasted-label-ai-text-v1.md 5.2 and 5.5): the shipped application, capture and text reader
+# modules plus the pure core, nothing else. The shipped live transport may be named in exactly one
+# file, PastedLabelAITextEvalHarness/LiveTransport.swift (A3's `send --live`, A4's held-out run); no
+# file in the tool, that one included, may load URLs itself.
+eval_harness_allowed='^(CryptoKit|Foundation|FoodLedgerApplication|FoodLabelPhotoCapture|FoodLabelTextAIReading|PastedLabelAITextEvalCore|PastedLabelAITextEvalHarness)$'
+url_loading_pattern='URLSession|NSURLConnection|CFNetwork|CFStream'
+live_transport_type_pattern='\bOpenRouterTransport\b'
+# Prints every file under SOURCES (the tool's Sources directory) that loads URLs, or that names the
+# live transport other than SOURCES/PastedLabelAITextEvalHarness/LiveTransport.swift.
+tool_live_transport() {
+  local sources="$1" allowed file
+  if [[ ! -d "$sources" ]]; then echo "$sources: missing"; return 0; fi
+  allowed="$sources/PastedLabelAITextEvalHarness/LiveTransport.swift"
+  grep -rlE --include='*.swift' "$url_loading_pattern" "$sources" || true
+  while IFS= read -r file; do
+    [[ -z "$file" || "$file" == "$allowed" ]] || echo "$file"
+  done < <(grep -rlE --include='*.swift' "$live_transport_type_pattern" "$sources" || true)
+}
+self_test_eval_harness() {
+  local scratch status=0 fixture
+  scratch="$(mktemp -d "${TMPDIR:-/tmp}/check-boundaries-harness.XXXXXX")"
+  mkdir -p "$scratch/base/PastedLabelAITextEvalHarness" "$scratch/base/PastedLabelAITextEval" "$scratch/base/PastedLabelAITextHeldOut"
+  printf 'import FoodLabelPhotoCapture\nimport FoodLabelTextAIReading\nimport PastedLabelAITextEvalCore\n' > "$scratch/base/PastedLabelAITextEvalHarness/Send.swift"
+  printf 'import FoodLabelPhotoCapture\nlet transport = OpenRouterTransport()\n' > "$scratch/base/PastedLabelAITextEvalHarness/LiveTransport.swift"
+  printf 'import PastedLabelAITextEvalHarness\n' > "$scratch/base/PastedLabelAITextEval/main.swift"
+  printf 'import PastedLabelAITextEvalHarness\nlet connection = LiveTransport.connection(key: key)\n' > "$scratch/base/PastedLabelAITextHeldOut/main.swift"
+  if [[ -n "$(tool_import_violations "$scratch/base" "$eval_harness_allowed")" || -n "$(tool_live_transport "$scratch/base")" ]]; then
+    echo "check-boundaries self-test: the eval harness baseline (the live transport in LiveTransport.swift only) must pass" >&2; status=1
+  fi
+  for fixture in parser photo_reader live_transport live_transport_type url_session cli_live_transport nested_live_transport \
+                 renamed_live_transport allowed_file_url_session allowed_file_configuration allowed_file_cfnetwork \
+                 heldout_parser heldout_photo_reader heldout_live_transport heldout_url_session; do
+    cp -R "$scratch/base" "$scratch/$fixture"
+    local harness="$scratch/$fixture/PastedLabelAITextEvalHarness"
+    case "$fixture" in
+      parser) echo 'import NutritionLabelParsing' > "$harness/Leak.swift" ;;
+      photo_reader) echo '@testable import FoodLabelPhotoReading' > "$harness/Leak.swift" ;;
+      live_transport) echo 'let transport = OpenRouterTransport()' > "$harness/Leak.swift" ;;
+      live_transport_type) echo 'let transport: OpenRouterTransport = .init()' > "$harness/Leak.swift" ;;
+      url_session) echo 'let session = URLSession.shared' > "$harness/Leak.swift" ;;
+      cli_live_transport) echo 'let transport = OpenRouterTransport()' > "$scratch/$fixture/PastedLabelAITextEval/LiveTransport.swift" ;;
+      nested_live_transport)
+        mkdir -p "$harness/Nested"; echo 'let transport = OpenRouterTransport()' > "$harness/Nested/LiveTransport.swift" ;;
+      renamed_live_transport)
+        mv "$harness/LiveTransport.swift" "$harness/LiveTransports.swift" ;;
+      allowed_file_url_session) echo 'let session = URLSession.shared' >> "$harness/LiveTransport.swift" ;;
+      allowed_file_configuration) echo 'let configuration = URLSessionConfiguration.ephemeral' >> "$harness/LiveTransport.swift" ;;
+      allowed_file_cfnetwork) echo 'import CFNetwork' >> "$harness/LiveTransport.swift" ;;
+      heldout_parser) echo 'import NutritionLabelParsing' > "$scratch/$fixture/PastedLabelAITextHeldOut/Leak.swift" ;;
+      heldout_photo_reader) echo '@testable import FoodLabelPhotoReading' >> "$scratch/$fixture/PastedLabelAITextHeldOut/main.swift" ;;
+      heldout_live_transport) echo 'let transport = OpenRouterTransport()' >> "$scratch/$fixture/PastedLabelAITextHeldOut/main.swift" ;;
+      heldout_url_session) echo 'let session = URLSession.shared' > "$scratch/$fixture/PastedLabelAITextHeldOut/Leak.swift" ;;
+    esac
+    if [[ -z "$(tool_import_violations "$scratch/$fixture" "$eval_harness_allowed")" && -z "$(tool_live_transport "$scratch/$fixture")" ]]; then
+      echo "check-boundaries self-test: the eval harness $fixture fixture must fail" >&2; status=1
+    fi
+  done
+  rm -rf "$scratch"
+  return "$status"
+}
+self_test_eval_harness
+for dir in PastedLabelAITextEvalHarness PastedLabelAITextEval PastedLabelAITextHeldOut; do
+  harness_dir="$app_root/Tools/PastedLabelAITextEval/Sources/$dir"
+  harness_unexpected="$(tool_import_violations "$harness_dir" "$eval_harness_allowed")"
+  if [[ -n "$harness_unexpected" ]]; then
+    echo "$dir has forbidden imports:" >&2
+    echo "$harness_unexpected" >&2
+    exit 1
+  fi
+done
+live_transport_files="$(tool_live_transport "$app_root/Tools/PastedLabelAITextEval/Sources")"
+if [[ -n "$live_transport_files" ]]; then
+  echo "PastedLabelAITextEval loads URLs, or names the live transport outside PastedLabelAITextEvalHarness/LiveTransport.swift:" >&2
+  echo "$live_transport_files" >&2
+  exit 1
+fi
 
 if grep -RnsE '^import (GRDB|SwiftUI|UIKit|HealthKit)$' \
   "$package_root/Sources/FoodLedgerDomain" \

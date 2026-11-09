@@ -255,7 +255,7 @@ final class FoodLogAppTests: XCTestCase {
     /// #288: today's fibre on Home's food card equals the Food Log strip's Fibre total for the same
     /// day, plain water adds 0 g, and both screens render at default and accessibility sizes in the
     /// simulator (renders attached).
-    func testHomeAndFoodLogShowTheSameFibreForToday() throws {
+    func testHomeAndFoodLogShowTheSameFibreForToday() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
         let defaults = isolatedDefaults()
@@ -275,7 +275,7 @@ final class FoodLogAppTests: XCTestCase {
         XCTAssertFalse(day.entries.contains { $0.unknownKeys.contains(.fiber) }, "no per-entry fibre flag (F10)")
 
         let home = FoodHomeModel(root: root)
-        home.reload()
+        await home.reload()
         guard case .logged(let logged) = home.state else { return XCTFail("Expected a logged card, got \(home.state)") }
         let row = try XCTUnwrap(logged.nutrients.last)
         XCTAssertEqual(row.label, "Fibre")
@@ -302,6 +302,136 @@ final class FoodLogAppTests: XCTestCase {
                 window.isHidden = true
             }
         }
+    }
+
+    /// #406: Today's off-main read gives the card and quick add exactly what the main-thread
+    /// reads gave, for food plus plain water.
+    func testHomeOffMainReadMatchesTheDirectReads() async throws {
+        let root = try makeIsolatedRoot()
+        _ = try saveClementine(root)
+        let water = root.quickAddSheetModel(try root.quickAddPreparation(.builtInWater))
+        water.log()
+        XCTAssertNotNil(water.savedResult)
+
+        let home = FoodHomeModel(root: root)
+        await home.reload()
+        let now = root.confirmationNow, calendar = root.confirmationDayCalendar
+        let expected = FoodHomeCardContent.make(projection: try root.intakeProjection(for: now, calendar: calendar),
+                                                plainWater: try root.plainWaterTotal(for: now, calendar: calendar))
+        guard case .logged = expected else { return XCTFail("Expected a logged card, got \(expected)") }
+        XCTAssertEqual(home.state, expected)
+        guard case .items(let items) = home.quickAdd else { return XCTFail("Expected quick add items, got \(home.quickAdd)") }
+        XCTAssertEqual(items, Array(try XCTUnwrap(root.quickAddItems()).prefix(FavouritesProjection.todayCount)))
+    }
+
+    /// #406: while a read is in flight the card keeps what it shows (never back to loading), and
+    /// of overlapping reads only the newest applies, even when an older one finishes last.
+    func testHomeKeepsShownValuesAndAppliesOnlyTheNewestRead() async throws {
+        final class Reads { var pending: [CheckedContinuation<FoodHomeRead, Never>] = [] }
+        let reads = Reads()
+        let home = FoodHomeModel(root: try movableDayRoot(MovableFoodLogClock())) { _ in
+            await withCheckedContinuation { reads.pending.append($0) }
+        }
+        func waitForReads(_ count: Int) async {
+            while reads.pending.count < count { await Task.yield() }
+        }
+        XCTAssertEqual(home.state, .loading)
+
+        let first = Task { await home.reload() }
+        await waitForReads(1)
+        reads.pending[0].resume(returning: FoodHomeRead(day: .failed("first"), quickAdd: []))
+        await first.value
+        XCTAssertEqual(home.state, .failed("first"))
+
+        let older = Task { await home.reload() }
+        await waitForReads(2)
+        let newer = Task { await home.reload() }
+        await waitForReads(3)
+        XCTAssertEqual(home.state, .failed("first"), "shown values stay while reads are in flight")
+
+        reads.pending[2].resume(returning: FoodHomeRead(day: .failed("newest"), quickAdd: nil))
+        await newer.value
+        reads.pending[1].resume(returning: FoodHomeRead(day: .failed("older"), quickAdd: []))
+        await older.value
+        XCTAssertEqual(home.state, .failed("newest"))
+        guard case .unreadable = home.quickAdd else { return XCTFail("Expected the newest quick add state, got \(home.quickAdd)") }
+    }
+
+    /// #406: once the reporting day changes, the card shows loading until the new day's read
+    /// lands, so Today's Full Page never pairs the new date with the previous day's totals.
+    func testHomeShowsLoadingInsteadOfThePreviousDaysTotals() async throws {
+        final class Reads { var pending: [CheckedContinuation<FoodHomeRead, Never>] = []; var dates: [Date] = [] }
+        let reads = Reads(), clock = MovableFoodLogClock()
+        let home = FoodHomeModel(root: try movableDayRoot(clock)) { now in
+            reads.dates.append(now)
+            return await withCheckedContinuation { reads.pending.append($0) }
+        }
+        func waitForReads(_ count: Int) async {
+            while reads.pending.count < count { await Task.yield() }
+        }
+
+        let first = Task { await home.reload() }
+        await waitForReads(1)
+        reads.pending[0].resume(returning: FoodHomeRead(day: .failed("day one"), quickAdd: []))
+        await first.value
+        XCTAssertEqual(home.state, .failed("day one"))
+
+        clock.date = clock.date.addingTimeInterval(24 * 60 * 60)
+        let next = Task { await home.reload() }
+        await waitForReads(2)
+        XCTAssertEqual(home.state, .loading, "a new day never shows the previous day's totals")
+        XCTAssertEqual(reads.dates.last, clock.date, "the read uses the time the day was taken from")
+        reads.pending[1].resume(returning: FoodHomeRead(day: .failed("day two"), quickAdd: []))
+        await next.value
+        XCTAssertEqual(home.state, .failed("day two"))
+    }
+
+    func testHomeFeatureDropsThePreviousDayBeforeItsReadStarts() async throws {
+        let clock = MovableFoodLogClock()
+        let home = FoodHomeModel(root: try movableDayRoot(clock)) { _ in
+            FoodHomeRead(day: .failed("read"), quickAdd: [])
+        }
+        await home.reload()
+        let feature = FoodHomeCards.feature(model: home)
+
+        feature.willRefresh(.calendarDayChanged)
+        XCTAssertEqual(home.state, .failed("read"), "the same day keeps its values")
+
+        clock.date = clock.date.addingTimeInterval(24 * 60 * 60)
+        feature.willRefresh(.calendarDayChanged)
+        XCTAssertEqual(home.state, .loading, "Home's new date never renders with the previous day's totals")
+        XCTAssertEqual(FoodHomeCardContent.fullPageSection(home.state), FoodHomeCardContent.fullPageSection(.loading))
+    }
+
+    func testAReadFromThePreviousDayNeverAppliesAfterTheDayChanges() async throws {
+        final class Reads { var pending: [CheckedContinuation<FoodHomeRead, Never>] = [] }
+        let reads = Reads(), clock = MovableFoodLogClock()
+        let home = FoodHomeModel(root: try movableDayRoot(clock)) { _ in
+            await withCheckedContinuation { reads.pending.append($0) }
+        }
+        let stale = Task { await home.reload() }
+        while reads.pending.isEmpty { await Task.yield() }
+
+        clock.date = clock.date.addingTimeInterval(24 * 60 * 60)
+        home.willRefresh()
+        reads.pending[0].resume(returning: FoodHomeRead(day: .failed("yesterday"), quickAdd: []))
+        await stale.value
+        XCTAssertEqual(home.state, .loading, "yesterday's read never returns after the day changed")
+    }
+
+    private func movableDayRoot(_ clock: MovableFoodLogClock) throws -> FoodLedgerCompositionRoot {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
+        var london = Calendar(identifier: .gregorian)
+        london.timeZone = try XCTUnwrap(TimeZone(identifier: "Europe/London"))
+        return try FoodLedgerCompositionRoot(fileManager: IntakeRenderFileManager(directory: directory), userDefaults: isolatedDefaults(),
+            confirmationClock: clock, confirmationCalendar: london)
+    }
+
+    private func makeIsolatedRoot() throws -> FoodLedgerCompositionRoot {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
+        return try FoodLedgerCompositionRoot(fileManager: IntakeRenderFileManager(directory: directory), userDefaults: isolatedDefaults())
     }
 
     /// A root on a fixed clock and calendar (09:42:17 BST on 14 October 2026), so the backdating
@@ -357,6 +487,53 @@ final class FoodLogAppTests: XCTestCase {
             XCTAssertEqual(image.size.width, 390)
             window.isHidden = true
         }
+    }
+
+    /// #363: the Add food label is centred in its button at every Dynamic Type size, as the Food
+    /// Log lays it out (a full-width row in a Form). Rendered dark, so the label is the only white
+    /// ink; its ink must sit evenly about the window's centre, as the row's margins are equal.
+    func testFoodLogAddFoodLabelIsCentredAtEverySize() throws {
+        let width: CGFloat = 390
+        for size in DynamicTypeSize.allCases {
+            let controller = UIHostingController(rootView: Form { Section { FoodLogAddFoodButton {} } }
+                .environment(\.dynamicTypeSize, size))
+            let window = UIWindow(frame: CGRect(x: 0, y: 0, width: width, height: 600))
+            window.overrideUserInterfaceStyle = .dark
+            window.rootViewController = controller
+            window.isHidden = false
+            RunLoop.main.run(until: Date().addingTimeInterval(0.6))
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format)
+                .image { window.layer.render(in: $0.cgContext) }
+            window.isHidden = true
+            let attachment = XCTAttachment(image: image)
+            attachment.name = "Food Log - Add food button - \(size)"
+            add(attachment)
+            let (left, right) = try XCTUnwrap(Self.whiteInkColumns(try XCTUnwrap(image.cgImage)), "\(size) draws no label")
+            let leading = CGFloat(left), trailing = width - 1 - CGFloat(right)
+            // Glyph side bearings and pixel rounding move the ink by a point or two; the defect
+            // moved it 18 pt (default) to 40 pt (AX5).
+            XCTAssertEqual((leading - trailing) / 2, 0, accuracy: 3,
+                           "Add food is off-centre at \(size): \(leading) pt left, \(trailing) pt right")
+        }
+    }
+
+    /// The first and last pixel columns with near-white ink.
+    private static func whiteInkColumns(_ image: CGImage) -> (Int, Int)? {
+        let width = image.width, height = image.height
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+        guard let context = CGContext(data: &pixels, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+                                      space: CGColorSpaceCreateDeviceRGB(),
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        func isWhite(_ x: Int, _ y: Int) -> Bool {
+            let i = (y * width + x) * 4
+            return pixels[i] > 200 && pixels[i + 1] > 200 && pixels[i + 2] > 200
+        }
+        let columns = (0..<width).filter { x in (0..<height).contains { isWhite(x, $0) } }
+        guard let first = columns.first, let last = columns.last else { return nil }
+        return (first, last)
     }
 
     // MARK: Single post-save exit
@@ -1018,6 +1195,50 @@ final class QuickAddAppTests: XCTestCase {
         XCTAssertEqual(AddFoodFavouritesState([.builtInWater], quickAdd: true), .items([.builtInWater]))
     }
 
+    /// #399: while favourites are read off the main actor the section is loading, never empty or failed.
+    func testAddFoodFavouritesStateIsLoadingUntilRead() {
+        XCTAssertEqual(AddFoodFavouritesState(nil, quickAdd: true, loading: true), .loading)
+        XCTAssertEqual(AddFoodFavouritesState([], quickAdd: true, loading: true), .loading)
+        XCTAssertEqual(AddFoodFavouritesState([.builtInWater], quickAdd: true, loading: false), .items([.builtInWater]))
+    }
+
+    /// #399: a failed recents read is shown as a failure, never as "No recent foods"; loading
+    /// comes first, and "No recent foods" only follows a successful empty read.
+    func testAddFoodRecentsStateDistinguishesLoadingFailureAndEmpty() {
+        XCTAssertEqual(AddFoodRecentsState([], loading: true, failed: true), .loading)
+        XCTAssertEqual(AddFoodRecentsState([], loading: false, failed: true), .failed)
+        XCTAssertEqual(AddFoodRecentsState([], loading: false, failed: false), .empty)
+        XCTAssertEqual(AddFoodRecentsState.failedText, "Recent foods could not be read.")
+        XCTAssertEqual(AddFoodRecentsState.emptyText, "No recent foods")
+    }
+
+    /// #399: Add food's off-main reads give the same recent foods, favourites and favourite
+    /// states as the main-actor reads they replace.
+    func testAddFoodOffMainReadsMatchTheSynchronousReads() async throws {
+        let root = try makeRoot()
+        let confirm = root.model(for: try exactInput("Skyr"), prefillSourceQuantity: false)
+        confirm.send(.setQuantity(170, .grams))
+        confirm.log()
+        let versionID = try XCTUnwrap(confirm.savedResult).logItemVersion.logItemVersionID
+        root.favouriteSaveModel().save(versionID)
+
+        let loadedRecents = await root.loadRecentFoods()
+        let recents = try XCTUnwrap(loadedRecents, "a readable ledger is not a failure")
+        XCTAssertEqual(recents, root.recentFoods())
+        XCTAssertEqual(recents.compactMap(\.logItemVersionID), [versionID])
+        let favourites = await root.loadQuickAddItems()
+        XCTAssertEqual(favourites.items, root.quickAddItems())
+        XCTAssertEqual(favourites.items?.count, 2, "built-in water and the saved favourite")
+        XCTAssertEqual(favourites.servings, (favourites.items ?? []).map { root.favouriteAmountIsServings($0) })
+
+        let ids = recents.compactMap(\.logItemVersionID)
+        let synchronous = root.favouriteSaveModel(), offMain = root.favouriteSaveModel()
+        synchronous.refresh(ids)
+        offMain.apply(ids, matches: await root.loadActiveFavourites(matching: ids))
+        XCTAssertEqual(offMain.states, synchronous.states)
+        XCTAssertEqual(offMain.state(for: versionID), .alreadyFavourite)
+    }
+
     /// Owner decision A: logging without Save as favourite, then saving from the saved entry and
     /// from "From what you’ve logged" pins the current version; a repeat shows Already a favourite.
     func testSaveAsFavouriteFromTheSavedEntryAndFromWhatYouLogged() throws {
@@ -1215,6 +1436,12 @@ private extension FoodConfirmationViewModel {
     }
 }
 
+/// A confirmation clock a test can move (#406), starting at 09:42:17 BST on 14 October 2026.
+private final class MovableFoodLogClock: LedgerClock, @unchecked Sendable {
+    var date = Date(timeIntervalSince1970: 1_791_967_337)
+    func now() -> Date { date }
+}
+
 private struct FixedFoodLogClock: LedgerClock {
     func now() -> Date { Date(timeIntervalSince1970: 1_791_967_337) } // 2026-10-14T08:42:17Z
 }
@@ -1327,6 +1554,23 @@ extension QuickAddAppTests {
         XCTAssertEqual(try root.foodLogService.day(reportingDate: day).entries.count, 2, "nothing removed")
     }
 
+    /// #361: changing day on the Food Log dismisses the banner after Log without undoing; the
+    /// logged entry stays and a later Undo writes nothing.
+    func testChangingDayDismissesTheBannerWithoutUndoing() async throws {
+        let root = try makeRoot()
+        let log = root.foodLogModel()
+        await log.load()
+        let model = try newEntry(root)
+        XCTAssertTrue(FoodConfirmationView.logTapped(model, leave: {}, logged: root.loggedBanner.show))
+        XCTAssertTrue(root.loggedBanner.content?.offersUndo == true)
+        await log.previousDay()
+        XCTAssertNil(root.loggedBanner.content, "no Undo beside another day's log")
+        await root.loggedBanner.undo()
+        let day = try XCTUnwrap(model.savedResult).logItemVersion.reportingDate.value
+        XCTAssertEqual(try root.foodLogService.day(reportingDate: day).entries.count, 1, "nothing removed")
+        XCTAssertEqual(root.loggedBanner.removals, 0)
+    }
+
     func testSaveFailureAndFavouriteFailureStayOnConfirm() throws {
         let root = try makeRoot()
         let state = try newEntry(root).state
@@ -1388,6 +1632,75 @@ extension QuickAddAppTests {
         await root.loggedBanner.undo()
         XCTAssertNil(try root.plainWaterTotal(for: root.confirmationNow, calendar: root.confirmationDayCalendar),
                      "the removed water leaves the day")
+    }
+
+    /// #355: the banner's Undo action (the closure both the visible Undo button and the VoiceOver
+    /// Undo action call, built from the live model) removes exactly the entry just logged, at the
+    /// standard and an accessibility text size, while the visible duration (5 s, or 10 s at
+    /// accessibility sizes) is still running, and signals the Food Log and Home to reload. The
+    /// banner is hosted in a window so its environment sets the duration; the expiry is held open,
+    /// so the result does not depend on tap timing, and the outcome is awaited with a 30 s bound
+    /// so it does not depend on runner speed either. Hit testing on device is checked in the
+    /// simulator, not here. A wrong expected version is rejected by the store (pinned by the
+    /// management service's stale-version contract tests), so it would show "Entry unchanged".
+    func testBannerUndoControlRemovesTheLoggedEntryAtStandardAndAccessibilitySizes() throws {
+        for size in [DynamicTypeSize.large, .accessibility5] {
+            let root = try makeRoot()
+            let sleeps = BannerSleeps()
+            let banner = FoodLoggedBannerModel(store: root.foodLogStore, sleep: { await sleeps.hold($0) }, announce: { _ in })
+            let host = UIHostingController(rootView: FoodLoggedBanner(model: banner).environment(\.dynamicTypeSize, size))
+            let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+            let window = UIWindow(windowScene: scene)
+            window.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
+            window.rootViewController = host
+            window.makeKeyAndVisible()
+            addTeardownBlock { window.isHidden = true }
+            Self.runUntil { banner.usesAccessibilityTextSize == size.isAccessibilitySize }
+            XCTAssertEqual(banner.visibleDuration, size.isAccessibilitySize ? .seconds(10) : .seconds(5), "\(size)")
+
+            let model = try newEntry(root, "Synthetic rice \(size)")
+            XCTAssertTrue(FoodConfirmationView.logTapped(model, leave: {}, logged: banner.show))
+            let saved = try XCTUnwrap(model.savedResult)
+            let day = saved.logItemVersion.reportingDate.value
+            XCTAssertEqual(try root.foodLogService.day(reportingDate: day).entries.map(\.logItemID), [saved.logItem.logItemID])
+            Self.runUntil { sleeps.values.contains(banner.visibleDuration) }
+            XCTAssertEqual(sleeps.values.filter { $0 == banner.visibleDuration }.count, 1, "\(size): one visible duration, still running")
+            let rendered = try XCTUnwrap(Self.renderedBanner(banner), "\(size): the banner renders")
+            XCTAssertTrue(rendered.content.offersUndo, "\(size): Undo is offered while the duration runs")
+            XCTAssertEqual(FoodLoggedBannerContent.accessibilityActionNames(rendered.content), ["Undo", "Dismiss"])
+
+            rendered.undo()
+            // #357: the tap itself starts Undo, before any await, so a timeout cannot overtake it.
+            guard case .removing = banner.content else {
+                return XCTFail("\(size): the tap moves the banner to removing at once, got \(String(describing: banner.content))")
+            }
+            // The remove runs off the main actor and resumes on it; a slow CI runner took longer
+            // than 5 s for that round trip (run 41176342159), so wait on the outcome generously.
+            Self.runUntil(seconds: 30) { banner.content == .result(FoodLoggedText.removed) }
+            XCTAssertEqual(banner.content, .result(FoodLoggedText.removed), "\(size)")
+            XCTAssertEqual(banner.removals, 1, "\(size): the Food Log and Home reload")
+            let after = try root.foodLogService.day(reportingDate: day)
+            XCTAssertTrue(after.entries.isEmpty, "\(size)")
+            XCTAssertEqual(after.removed.map(\.logItemID), [saved.logItem.logItemID], "\(size): only that entry")
+            XCTAssertEqual(try root.foodLogService.historyEvents(saved.logItem.logItemID).map(\.kind), [.removed, .logged],
+                           "\(size): one removed version over the logged one")
+            let afterUndo = try XCTUnwrap(Self.renderedBanner(banner), "\(size)")
+            XCTAssertFalse(afterUndo.content.offersUndo, "\(size): no second Undo")
+            afterUndo.undo()
+            Self.runUntil(seconds: 0.3) { false }
+            XCTAssertEqual(banner.removals, 1, "\(size): a second tap writes nothing")
+            XCTAssertEqual(try root.foodLogService.historyEvents(saved.logItem.logItemID).count, 2, "\(size)")
+            window.isHidden = true
+        }
+    }
+
+    /// The banner's rendered content and the Undo action it was built with: the one closure both
+    /// the visible Undo button and the VoiceOver Undo action call. Nil while no banner shows.
+    private static func renderedBanner(_ banner: FoodLoggedBannerModel) -> (content: FoodLoggedBannerModel.Content, undo: () -> Void)? {
+        guard let view = firstDescendant(of: FoodLoggedBanner(model: banner).body, ofType: FoodLoggedBannerContent.self),
+              let content = Mirror(reflecting: view).descendant("content") as? FoodLoggedBannerModel.Content,
+              let undo = Mirror(reflecting: view).descendant("undo") as? () -> Void else { return nil }
+        return (content, undo)
     }
 
     func testBannerRendersAtStandardAndAccessibilitySizesInLightAndDark() throws {
@@ -1468,6 +1781,24 @@ extension QuickAddAppTests {
             if let match = firstDescendant(of: child.value, ofType: T.self, depth: depth + 1) { return match }
         }
         return nil
+    }
+}
+
+/// Records each banner sleep and holds the visible durations open, so none ends during the test;
+/// shorter sleeps (the announcement delay) return at once.
+@MainActor
+private final class BannerSleeps {
+    private(set) var values: [Duration] = []
+
+    nonisolated func hold(_ duration: Duration) async {
+        guard await record(duration) else { return }
+        try? await Task.sleep(for: .seconds(3600))
+    }
+
+    /// True for a visible duration, which is held.
+    private func record(_ duration: Duration) -> Bool {
+        values.append(duration)
+        return duration >= FoodLoggedBannerModel.visibleDuration
     }
 }
 

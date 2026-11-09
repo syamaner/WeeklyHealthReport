@@ -33,10 +33,30 @@ public struct FoodLogReadingService: Sendable {
 
     /// Throws `FoodIntakeProjectionError` for competing versions, mixtures or missing references.
     public func day(reportingDate: String) throws -> FoodLogDayContent {
+        try day(reportingDate: reportingDate, records: try archive.archiveState().records)
+    }
+
+    /// The content `day(reportingDate:)` gives for each date, in order, from one archive read
+    /// (#399): a period costs one read, not one per day. No read for no dates.
+    public func days(reportingDates: [String]) throws -> [FoodLogDayContent] {
+        guard !reportingDates.isEmpty else { return [] }
         let records = try archive.archiveState().records
+        return try reportingDates.map { try day(reportingDate: $0, records: records) }
+    }
+
+    /// Whether the entry's current saved version is the app's plain water reference: the same
+    /// answer as `savedEntry(_:)?.isPlainWater == true`, without reading the entry's history
+    /// (#399). False when the entry is missing or removed.
+    public func isPlainWater(_ logItemID: LogItemID) throws -> Bool {
+        guard let stored = try confirmationReader.foodConfirmation(logItemID: logItemID) else { return false }
+        return PlainWaterReference.isPlainWater(stored.resolutionVersion)
+    }
+
+    private func day(reportingDate: String, records: LedgerMutation) throws -> FoodLogDayContent {
         let projection = try FoodIntakeProjection(records: records, reportingDate: reportingDate)
+        let status = statuses(projection.rows.map(\.logItemID))
         return FoodLogDayContent(projection: projection, reportingDate: reportingDate,
-                                 estimates: estimates(projection.rows.map(\.logItemID)),
+                                 estimates: status.estimates, partlyEstimated: status.partlyEstimated,
                                  plainWater: try PlainWaterDayTotal.total(records: records, reportingDate: reportingDate))
     }
 
@@ -51,10 +71,13 @@ public struct FoodLogReadingService: Sendable {
                                     history: try historyEvents(logItemID, isServings: servings))
     }
 
+    /// One archive read serves both the versions and the conversions they reference (#399): the
+    /// versions are the archive's own, as `ArchiveFoodLogHistoryReader` reads them.
     public func historyEvents(_ logItemID: LogItemID, isServings: Bool = false) throws -> [FoodEntryHistoryEvent] {
-        let versions = try history.versions(for: logItemID)
+        let records = try archive.archiveState().records
+        let versions = records.logItemVersions.filter { $0.logItemID == logItemID }
         let referenced = Set(versions.compactMap(\.quantityConversionVersionID))
-        let conversions = referenced.isEmpty ? [] : try archive.archiveState().records.quantityConversions
+        let conversions = referenced.isEmpty ? [] : records.quantityConversions
             .filter { referenced.contains($0.quantityConversionVersionID) }
         return FoodEntryHistory.events(versions: versions, conversions: conversions, isServings: isServings)
     }
@@ -67,12 +90,16 @@ public struct FoodLogReadingService: Sendable {
         change(logItemID, expected: expected, restoring: true)
     }
 
-    /// Entries whose current saved version is a labelled estimate. An unreadable entry is not labelled.
-    private func estimates(_ ids: [LogItemID]) -> Set<LogItemID> {
-        Set(ids.filter { id in
-            guard let stored = try? confirmationReader.foodConfirmation(logItemID: id) else { return false }
-            return (try? confirmations.isEstimate(stored)) == true
-        })
+    /// Entries whose current saved version is a labelled estimate, and those that carry a label
+    /// estimate layer ("partly estimated"). An unreadable entry is neither.
+    private func statuses(_ ids: [LogItemID]) -> (estimates: Set<LogItemID>, partlyEstimated: Set<LogItemID>) {
+        var estimates: Set<LogItemID> = [], partly: Set<LogItemID> = []
+        for id in ids {
+            guard let stored = try? confirmationReader.foodConfirmation(logItemID: id) else { continue }
+            if (try? confirmations.isEstimate(stored)) == true { estimates.insert(id) }
+            if FoodEntryEstimateStatus.isPartlyEstimated(stored) { partly.insert(id) }
+        }
+        return (estimates, partly)
     }
 
     private func change(_ logItemID: LogItemID, expected: LogItemVersionID, restoring: Bool) -> FoodLogChangeOutcome {

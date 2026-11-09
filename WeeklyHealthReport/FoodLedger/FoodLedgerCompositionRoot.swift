@@ -9,6 +9,7 @@ import FoodLabelPhotoCapture
 import FoodLabelPhotoUI
 import FoodLabelTextCapture
 import Foundation
+import OSLog
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -19,6 +20,8 @@ final class FoodLedgerCompositionRoot {
     private let favourites: FavouritesService
     private let ledger: FoodLedgerService
     private let genericFoodSearch: any GenericFoodSearching
+    /// Ciqual's French names and source literals, for search Developer tools lines only.
+    private let referenceRecordDetails: any GenericSourceRecordDetailing
     private let milkVolumeConversion: CoFIDWholeMilkVolumeConversion
     /// Count portion guides (count-portion-estimate-v1, #307): bundled, hash-pinned, no network.
     private let countPortionGuides: USDACountPortionGuides
@@ -128,17 +131,25 @@ final class FoodLedgerCompositionRoot {
             clock: confirmationClock, ids: ids, digester: SHA256Digester(), calendar: confirmationCalendar)
         // Taiwan rows follow UK and US rows unless the Settings market is Taiwan or the
         // query names Taiwan or contains Chinese characters (composite-generic-ranking-v9).
+        // Ciqual (French reference) rows follow every other row and are never promoted
+        // (composite-generic-ranking-v11); the label estimate pool searches this composite too.
         let market = foodMarket
+        let ciqual = try CiqualGenericFoodSearch(ids: ids)
+        referenceRecordDetails = ciqual
         genericFoodSearch = try CompositeGenericFoodSearch(sources: [
             CoFIDGenericFoodSearch(library: PersonalLibraryGenericFoodSearch(reader: store), ids: ids),
             USDAGenericFoodSearch(ids: ids)
-        ], regionalSources: [TFDAGenericFoodSearch(ids: ids)], promotesRegional: { request in
+        ], regionalSources: [TFDAGenericFoodSearch(ids: ids)], referenceSources: [ciqual], promotesRegional: { request in
             RegionalSourceOrderPolicy.promotesTaiwan(query: request.text.value, marketIsTaiwan: market.market == .taiwan)
         }, ids: ids)
         milkVolumeConversion = try CoFIDWholeMilkVolumeConversion()
     }
 
+    /// `saveEstimate` (pasted label and label photo routes only) offers Confirm's "Estimate
+    /// unprinted nutrients" section and saves a chosen estimate with the entry
+    /// (docs/label-estimate-merge-v1.md); without a chosen row Log uses `save` as before.
     func model(for input: PopulatedFoodConfirmation, queryQuantity: ParsedFoodQuery.Quantity? = nil, searchInterpretation: FoodQueryInterpretation? = nil, prefillSourceQuantity: Bool = true, savesFavourite: Bool = false, entryDay: String? = nil,
+               saveEstimate: (@MainActor (FoodConfirmationState, LabelEstimateChoice) throws -> StoredFoodConfirmation)? = nil,
                save: (@MainActor (FoodConfirmationState) throws -> StoredFoodConfirmation)? = nil) -> FoodConfirmationViewModel {
         let (prepared, offering) = withMilkVolumeSource(input)
         var state = FoodConfirmationState(input: prepared, queryQuantity: queryQuantity, prefillSourceQuantity: prefillSourceQuantity)
@@ -148,7 +159,9 @@ final class FoodLedgerCompositionRoot {
         return FoodConfirmationViewModel(state: state, volumeConversionOffering: offering, portionGuides: countPortionGuides, searchInterpretation: searchInterpretation,
                                          now: { clock.now() }, calendar: confirmationCalendar,
                                          savesFavourite: savesFavourite, favouriteAction: favouriteAction,
-                                         whenNotice: FoodLogText.whenNotice(when)) { [confirmations, ids] state in
+                                         whenNotice: FoodLogText.whenNotice(when),
+                                         labelEstimate: saveEstimate == nil ? nil : labelEstimateModel(),
+                                         estimateSaveAction: saveEstimate) { [confirmations, ids] state in
             if let save { return try save(state) }
             return try confirmations.save(
                 state,
@@ -156,6 +169,25 @@ final class FoodLedgerCompositionRoot {
                 idempotencyKey: nil
             )
         }
+    }
+
+    /// The label estimate section's model (rule 7): the bundled generic rows through the same
+    /// generic search port the search route uses, searched only when the user confirms a cocoa
+    /// percentage. No network; Open Food Facts is not part of this searcher.
+    func labelEstimateModel(locale: Locale = .current) -> LabelEstimateModel {
+        let pool = LabelEstimateCandidatePool(searcher: genericFoodSearch, ids: ids)
+        let clock = confirmationClock
+        let identifier = locale.identifier.isEmpty ? "und" : locale.identifier
+        return LabelEstimateModel { percent in
+            try pool.options(cocoaPercent: percent, capturedAt: clock.now(), locale: LedgerText(identifier))
+        }
+    }
+
+    /// Confirm for a pasted label reading: Log saves the label, with a chosen estimate when there is one.
+    func pastedLabelConfirmationModel(_ input: PopulatedFoodConfirmation, entryDay: String?) -> FoodConfirmationViewModel {
+        model(for: input, prefillSourceQuantity: false, entryDay: entryDay, saveEstimate: { [confirmations, ids] state, estimate in
+            try confirmations.save(state, operationID: ids.makeID(OperationTag.self), idempotencyKey: nil, estimate: estimate)
+        })
     }
 
     private func withMilkVolumeSource(_ input: PopulatedFoodConfirmation)
@@ -209,10 +241,12 @@ final class FoodLedgerCompositionRoot {
         let when = entryWhen(day: entryDay)
         state.occurredAt = when.occurredAt
         let clock = confirmationClock
+        // A layered entry logs again as its label only (section 8); Confirm says so.
+        let layered = (try? store.foodConfirmation(logItemID: logItemID)).map(FoodEntryEstimateStatus.isPartlyEstimated) ?? false
         return FoodConfirmationViewModel(state: state, volumeConversionOffering: offering, portionGuides: countPortionGuides,
                                          now: { clock.now() }, calendar: confirmationCalendar,
                                          favouriteAction: favouriteAction(unlessFavourite: state),
-                                         whenNotice: FoodLogText.whenNotice(when)) { [confirmations, ids] state in
+                                         whenNotice: FoodLogText.whenNotice(when), labelEstimateNotCarried: layered) { [confirmations, ids] state in
             try confirmations.save(state, operationID: ids.makeID(OperationTag.self), idempotencyKey: nil)
         }
     }
@@ -270,7 +304,9 @@ final class FoodLedgerCompositionRoot {
     func quickAddItems() -> [QuickAddItem]? { try? favourites.projection().quickAddItems }
 
     /// Whether a quick-add item's count amount means servings of a pasted label (#306).
-    func favouriteAmountIsServings(_ item: QuickAddItem) -> Bool {
+    func favouriteAmountIsServings(_ item: QuickAddItem) -> Bool { Self.amountIsServings(item, favourites: favourites) }
+
+    private nonisolated static func amountIsServings(_ item: QuickAddItem, favourites: FavouritesService) -> Bool {
         guard case let .favourite(version) = item else { return false }
         return favourites.amountIsServings(version)
     }
@@ -296,7 +332,7 @@ final class FoodLedgerCompositionRoot {
     /// confirmation through the same save path, with the offered volume source carried into Confirm.
     /// `entryDay` applies only when Confirm opens straight from a quick-add item; the sheet's Edit
     /// passes nil and keeps the When already chosen on the sheet.
-    func model(quickAdd state: FoodConfirmationState, entryDay: String? = nil) -> FoodConfirmationViewModel {
+    func model(quickAdd state: FoodConfirmationState, entryDay: String? = nil, labelEstimateNotCarried: Bool = false) -> FoodConfirmationViewModel {
         let clock = confirmationClock
         let enriched = withMilkVolumeSource(state)
         var prepared = enriched.state
@@ -309,7 +345,8 @@ final class FoodLedgerCompositionRoot {
         }
         return FoodConfirmationViewModel(state: prepared, volumeConversionOffering: offering, portionGuides: countPortionGuides, now: { clock.now() },
                                          calendar: confirmationCalendar,
-                                         favouriteAction: favouriteAction(unlessFavourite: prepared), whenNotice: whenNotice) { [confirmations, ids] state in
+                                         favouriteAction: favouriteAction(unlessFavourite: prepared), whenNotice: whenNotice,
+                                         labelEstimateNotCarried: labelEstimateNotCarried) { [confirmations, ids] state in
             try confirmations.save(state, operationID: ids.makeID(OperationTag.self), idempotencyKey: nil)
         }
     }
@@ -331,10 +368,69 @@ final class FoodLedgerCompositionRoot {
     }
 
     /// Recent foods for Add food: 10 items within 30 days, each source re-verified (P1, P3).
-    func recentFoods() -> [FoodRecentRelogItem] {
-        guard let records = try? store.archiveState().records else { return [] }
-        return FoodRecentItemsService(reader: store, confirmations: confirmations)
-            .items(records: records, now: confirmationClock.now(), calendar: confirmationCalendar)
+    /// Empty when the ledger cannot be read.
+    func recentFoods() -> [FoodRecentRelogItem] { recentFoodsRead()() ?? [] }
+
+    /// `recentFoods()` read off the main actor (#399), so a database read queued behind a Health
+    /// report refresh never freezes Add food. Same items in the same order; nil when the ledger
+    /// cannot be read, so a failure is never shown as "No recent foods".
+    func loadRecentFoods() async -> [FoodRecentRelogItem]? {
+        let read = recentFoodsRead()
+        return await Task.detached(priority: .userInitiated) {
+            FoodLedgerSignposts.signposter.withIntervalSignpost("addFood.recentFoods") { read() }
+        }.value
+    }
+
+    private func recentFoodsRead() -> @Sendable () -> [FoodRecentRelogItem]? {
+        let service = FoodRecentItemsService(reader: store, confirmations: confirmations)
+        let store = store, clock = confirmationClock, calendar = confirmationCalendar
+        return {
+            guard let records = try? store.archiveState().records else { return nil }
+            return service.items(records: records, now: clock.now(), calendar: calendar)
+        }
+    }
+
+    /// Add food's favourites read off the main actor (#399): `quickAddItems()` and each item's
+    /// `favouriteAmountIsServings(_:)`, in the same order. Items are nil when favourites cannot be read.
+    func loadQuickAddItems() async -> AddFoodFavourites {
+        let favourites = favourites
+        return await Task.detached(priority: .userInitiated) {
+            FoodLedgerSignposts.signposter.withIntervalSignpost("addFood.quickAddItems") {
+                let items = try? favourites.projection().quickAddItems
+                return AddFoodFavourites(items: items, servings: (items ?? []).map { Self.amountIsServings($0, favourites: favourites) })
+            }
+        }.value
+    }
+
+    /// `FavouriteSaveModel.refresh(_:)`'s read, off the main actor (#399); nil when favourites cannot be read.
+    func loadActiveFavourites(matching ids: [LogItemVersionID]) async -> [LogItemVersionID: FavouriteVersion]? {
+        let favourites = favourites
+        return await Task.detached(priority: .userInitiated) {
+            FoodLedgerSignposts.signposter.withIntervalSignpost("addFood.favouriteStates") { try? favourites.activeFavourites(matching: ids) }
+        }.value
+    }
+
+    /// Today's food card and quick add read off the main actor (#406), so returning to Today
+    /// never decodes the archive on the main thread. One archive read gives the same projection
+    /// and plain water total as `intakeProjection(for:calendar:)` and `plainWaterTotal(for:calendar:)`;
+    /// the quick add items are `quickAddItems()`. `now` is the confirmation clock's time read by the caller.
+    func loadHome(at now: Date) async -> FoodHomeRead {
+        let store = store, favourites = favourites
+        let calendar = confirmationCalendar
+        return await Task.detached(priority: .userInitiated) {
+            FoodLedgerSignposts.signposter.withIntervalSignpost("home.foodCard") {
+                let day: FoodHomeRead.Day
+                do {
+                    let records = try store.archiveState().records
+                    let reportingDate = FoodReportingDay.key(for: now, calendar: calendar)
+                    day = .read(try FoodIntakeProjection(records: records, reportingDate: reportingDate),
+                                water: try PlainWaterDayTotal.total(records: records, reportingDate: reportingDate))
+                } catch {
+                    day = .failed(FoodHomeCardContent.failureMessage(error))
+                }
+                return FoodHomeRead(day: day, quickAdd: try? favourites.projection().quickAddItems)
+            }
+        }.value
     }
 
     /// The confirmation clock and calendar, so Add food's "today" and "yesterday" match Confirm.
@@ -370,7 +466,8 @@ final class FoodLedgerCompositionRoot {
             locale: try LedgerText(locale.identifier),
             additionalEvidence: additionalEvidence,
             database: OpenFoodFactsSearch(transport: offSearchTransport, locale: try LedgerText(locale.identifier), ids: ids),
-            preferences: searchPreferences
+            preferences: searchPreferences,
+            recordDetails: referenceRecordDetails
         )
     }
 
@@ -531,7 +628,11 @@ final class FoodLedgerCompositionRoot {
 
     func foodLogModel() -> FoodLogViewModel {
         let clock = confirmationClock
-        return FoodLogViewModel(store: foodLogStore, now: { clock.now() }, calendar: confirmationCalendar)
+        let model = FoodLogViewModel(store: foodLogStore, now: { clock.now() }, calendar: confirmationCalendar)
+        // Changing day dismisses the banner after Log without undoing (#361), so Undo is never
+        // offered while another day's log is shown; an Undo already under way keeps its outcome.
+        model.userChangedDay = { [banner = loggedBanner] in banner.dismissUndoOffer() }
+        return model
     }
 
     func savedEntryModel(_ logItemID: LogItemID) -> SavedFoodEntryViewModel {
@@ -565,17 +666,26 @@ extension FoodLedgerCompositionRoot: DailyFoodLedgerSnapshotReading {
 /// entries only, never water in foods). Energy, and fibre (contract v1.2, #288), is the day's total under
 /// `food-intake-summary-v6` over its food entries (v6, #307: a typical-weight or whole-milk volume
 /// estimate marks the day as including estimates): plain water entries are identified by the saved
-/// entry's `isPlainWater` (the existing saved-entry read) and do not make a logged food day
+/// entry's `isPlainWater` rule (`FoodLogReadingService.isPlainWater`) and do not make a logged food day
 /// (contract v1.1). Under v5 (contract v1.3, #304) the day totals already leave plain water out of
 /// energy and fibre, scaled or not, so it neither adds a known 0 nor an incomplete contribution.
-/// Competing current versions throw, so the section reports a read failure.
+/// Competing current versions throw, so the section reports a read failure. The whole period
+/// costs one archive read (#399): plain water is read per entry from its current version only,
+/// never through its history.
+/// Points of Interest intervals for the Add food open path and the Health report's food refresh
+/// (#399), so a cold or warm open can be compared in Instruments without a code change.
+enum FoodLedgerSignposts {
+    static let signposter = OSSignposter(subsystem: Bundle.main.bundleIdentifier ?? "WeeklyHealthReport",
+                                         category: .pointsOfInterest)
+}
+
 struct FoodLogPeriodReader: FoodLogPeriodReading {
     let service: FoodLogReadingService
 
     func dayFacts(for reportingDates: [String]) async throws -> [FoodLogDayFacts] {
-        try reportingDates.map { date in
-            try Self.facts(try service.day(reportingDate: date)) { id in
-                try service.savedEntry(id)?.isPlainWater == true
+        try FoodLedgerSignposts.signposter.withIntervalSignpost("healthReport.foodLogDayFacts") {
+            try service.days(reportingDates: reportingDates).map { content in
+                try Self.facts(content) { id in try service.isPlainWater(id) }
             }
         }
     }
@@ -717,11 +827,40 @@ struct GenericFoodSearchFlowView: View {
     }
 }
 
+/// Today's food card read (#406): the day's projection and plain water, or the card's failure
+/// message; quick add items are nil when favourites cannot be read.
+struct FoodHomeRead: Sendable {
+    enum Day: Sendable {
+        case read(FoodIntakeProjection, water: FoodIntakeTotal?)
+        case failed(String)
+    }
+
+    let day: Day
+    let quickAdd: [QuickAddItem]?
+}
+
+/// Add food's favourites as read off the main actor (#399): the quick-add items (nil when they
+/// cannot be read) and, position by position, whether each count amount means servings.
+struct AddFoodFavourites: Sendable {
+    let items: [QuickAddItem]?
+    let servings: [Bool]
+
+    func amountIsServings(_ item: QuickAddItem) -> Bool {
+        guard let items, let index = items.firstIndex(of: item), servings.indices.contains(index) else { return false }
+        return servings[index]
+    }
+}
+
 /// Add food (#196): one field, the other entry routes and recent foods. Every route ends on Confirm.
+/// Recent foods and favourites are read off the main actor (#399) and shown as loading until the
+/// first read finishes; the field and the routes are usable at once. Later reloads keep the shown
+/// rows until the fresh ones arrive, and only the newest of overlapping reads applies. Favourite
+/// badges and Save actions on recent rows wait for their favourite states.
 struct AddFoodFlowView: View {
     private let finish: FoodEntryFinish?
     private let root: FoodLedgerCompositionRoot
-    @State private var recents: [FoodRecentRelogItem] = []
+    /// Loading, failed or loaded recent foods; never "No recent foods" for a failed read.
+    @StateObject private var recentsModel: AddFoodRecentsModel
     @State private var submittedQuery: String?
     @State private var showsSearch = false
     @State private var showsBarcode = false
@@ -733,37 +872,46 @@ struct AddFoodFlowView: View {
     @State private var showsConfirmation = false
     @State private var relogFailed = false
     @State private var now = Date()
-    /// Nil when favourites cannot be read (shown as a failure, never as empty).
-    @State private var quickAddItems: [QuickAddItem]? = []
+    /// Nil items when favourites cannot be read (shown as a failure, never as empty).
+    @State private var favouriteItems = AddFoodFavourites(items: [], servings: [])
+    @State private var favouritesLoaded = false
+    /// Only the newest favourites reload applies (#399).
+    @State private var favouritesGate = LatestReloadGate()
     @State private var quickAddRequest: QuickAddItem?
     @StateObject private var favouriteSaving: FavouriteSaveModel
 
     init(root: FoodLedgerCompositionRoot, finish: FoodEntryFinish? = nil) {
         self.root = root; self.finish = finish
         _favouriteSaving = StateObject(wrappedValue: root.favouriteSaveModel())
+        _recentsModel = StateObject(wrappedValue: AddFoodRecentsModel { [root] in await root.loadRecentFoods() })
     }
 
+    private var recents: [FoodRecentRelogItem] { recentsModel.recents }
+
     var body: some View {
-        AddFoodView(recents: recents, now: now, calendar: root.confirmationDayCalendar,
+        AddFoodView(recents: recents, recentsLoading: !recentsModel.loaded, recentsFailed: recentsModel.failed, now: now, calendar: root.confirmationDayCalendar,
                     search: { submittedQuery = $0; showsSearch = true },
                     scanBarcode: { showsBarcode = true },
                     pasteOrDictate: { showsList = true },
                     pasteLabel: { showsLabel = true },
                     photoLabel: root.labelPhotoEnabled ? { showsPhotoLabel = true } : nil,
                     favourites: { showsFavourites = true },
-                    favouriteItems: quickAddItems,
-                    favouriteAmountIsServings: { root.favouriteAmountIsServings($0) },
+                    favouriteItems: favouriteItems.items,
+                    favouritesLoading: !favouritesLoaded,
+                    favouriteAmountIsServings: { [favouriteItems] in favouriteItems.amountIsServings($0) },
                     quickAdd: { quickAddRequest = $0 },
                     favouriteSaving: favouriteSaving,
+                    favouriteStatesLoaded: favouriteSaving.hasStates(for: recents.compactMap(\.logItemVersionID)),
                     listImportNote: FoodLogText.listImportNote(entryDay: finish?.entryDay),
                     relog: { recent in
                         if let model = try? root.model(relogging: recent.item.logItemID, entryDay: finish?.entryDay) {
                             confirmationModel = model; showsConfirmation = true
                         } else { relogFailed = true }
                     })
-        .onAppear { now = root.confirmationNow; recents = root.recentFoods(); quickAddItems = root.quickAddItems() }
-        .onChange(of: recents.compactMap(\.logItemVersionID), initial: true) { _, ids in favouriteSaving.refresh(ids) }
-        .quickAdd(root: root, request: $quickAddRequest, finish: finish) { quickAddItems = root.quickAddItems() }
+        .task { await reloadRecents() }
+        .task { await reloadFavourites() }
+        .task(id: recents.compactMap(\.logItemVersionID)) { await refreshFavouriteStates(recents.compactMap(\.logItemVersionID)) }
+        .quickAdd(root: root, request: $quickAddRequest, finish: finish) { Task { await reloadFavourites() } }
         .alert("This food could not be opened", isPresented: $relogFailed) {
             Button("OK", role: .cancel) {}
         } message: { Text("Its saved source could not be verified. Search for it instead. Nothing was saved.") }
@@ -780,23 +928,44 @@ struct AddFoodFlowView: View {
         .navigationDestination(isPresented: $showsFavourites) { favouritesFlow }
         .navigationDestination(isPresented: $showsLabel) {
             PastedLabelFlowView(root: root, finish: finish) {
-                showsLabel = false; now = root.confirmationNow; recents = root.recentFoods()
+                showsLabel = false; Task { await reloadRecents() }
             }
         }
         .navigationDestination(isPresented: $showsPhotoLabel) {
             if let flow = LabelPhotoFlowView(root: root, finish: finish, close: {
-                showsPhotoLabel = false; now = root.confirmationNow; recents = root.recentFoods()
+                showsPhotoLabel = false; Task { await reloadRecents() }
             }) { flow } else { ContentUnavailableView("Label photo unavailable", systemImage: "exclamationmark.triangle") }
         }
         .navigationDestination(isPresented: $showsConfirmation) {
             if let confirmationModel {
                 root.singleFoodConfirmation(confirmationModel) {
                     if !FoodEntryFinish.complete(finish, saved: confirmationModel.savedResult) {
-                        showsConfirmation = false; now = root.confirmationNow; recents = root.recentFoods()
+                        showsConfirmation = false; Task { await reloadRecents() }
                     }
                 }
             }
         }
+    }
+
+    private func reloadRecents() async {
+        if await recentsModel.reload() { now = root.confirmationNow }
+    }
+
+    private func reloadFavourites() async {
+        let token = favouritesGate.begin()
+        let loaded = await root.loadQuickAddItems()
+        guard favouritesGate.isCurrent(token), !Task.isCancelled else { return }
+        favouriteItems = loaded; favouritesLoaded = true
+    }
+
+    /// Reads the shown rows' favourite states once per set of rows (a reappearance with the same
+    /// rows reads nothing). A save begun during the read keeps its state (`readGeneration`).
+    private func refreshFavouriteStates(_ ids: [LogItemVersionID]) async {
+        guard !favouriteSaving.hasStates(for: ids) else { return }
+        let generation = favouriteSaving.saveGeneration
+        let matches = await root.loadActiveFavourites(matching: ids)
+        guard !Task.isCancelled else { return }
+        favouriteSaving.apply(ids, matches: matches, readGeneration: generation)
     }
 
     /// Favourites opened from Add food carries Add food's finish, so a favourite created there
@@ -871,7 +1040,7 @@ struct PastedLabelFlowView: View {
         if source === sourceModel, let existing = confirmationModel, existing.savedResult == nil {
             existing.replaceSourceInput(input)
         } else {
-            confirmationModel = root.model(for: input, prefillSourceQuantity: false, entryDay: finish?.entryDay)
+            confirmationModel = root.pastedLabelConfirmationModel(input, entryDay: finish?.entryDay)
         }
         // Pasted label Confirm v1 (#306): an editable reading asks fortification on Confirm.
         confirmationModel?.answersLabelFortification(for: source)
@@ -1342,7 +1511,7 @@ struct QuickAddPresenter: ViewModifier {
                                                           notice: { [weak model] in model?.loggedNotice },
                                                           show: { [banner = root.loggedBanner] in banner.show($0) })
             sheetModel = model
-        case .confirm: openConfirm(preparation.state, entryDay: finish?.entryDay)
+        case .confirm: openConfirm(preparation.state, entryDay: finish?.entryDay, labelEstimateNotCarried: preparation.labelEstimateNotCarried)
         }
     }
 
@@ -1359,8 +1528,8 @@ struct QuickAddPresenter: ViewModifier {
         }
     }
 
-    private func openConfirm(_ state: FoodConfirmationState, entryDay: String? = nil) {
-        confirmModel = root.model(quickAdd: state, entryDay: entryDay)
+    private func openConfirm(_ state: FoodConfirmationState, entryDay: String? = nil, labelEstimateNotCarried: Bool = false) {
+        confirmModel = root.model(quickAdd: state, entryDay: entryDay, labelEstimateNotCarried: labelEstimateNotCarried)
         showsConfirm = true
     }
 }
@@ -1514,7 +1683,11 @@ extension FoodLedgerCompositionRoot {
     @MainActor
     func labelPhotoConfirmationModel(_ source: LabelPhotoSourceModel, entryDay: String?) -> FoodConfirmationViewModel {
         let confirmations = confirmations, store = store, ids = ids
-        let model = model(for: source.input, prefillSourceQuantity: false, entryDay: entryDay) { [weak source] state in
+        let model = model(for: source.input, prefillSourceQuantity: false, entryDay: entryDay, saveEstimate: { [weak source] state, estimate in
+            guard let source, source.canLog, state.input == source.input else { throw FoodConfirmationSaveError.invalidPastedLabelSource }
+            return try confirmations.saveLabelPhoto(state, imageBytes: source.imageBytes, attachmentStore: store,
+                                                     operationID: ids.makeID(OperationTag.self), estimate: estimate)
+        }) { [weak source] state in
             // Only the source's own verified input is logged: never a preview, and never an input
             // that no longer matches the source (invariant review of #327).
             guard let source, source.canLog, state.input == source.input else { throw FoodConfirmationSaveError.invalidPastedLabelSource }

@@ -75,6 +75,21 @@ public struct PopulatedFoodConfirmation: Codable, Equatable, Sendable {
     }
 }
 
+/// The optional estimate layer of a saved label entry (docs/label-estimate-merge-v1.md section 5):
+/// the generic row's decision, its evidence and its release. An aggregate value assembled by the
+/// reader from the resolution's second decision; it is never a stored record of its own.
+public struct StoredLabelEstimate: Codable, Equatable, Sendable {
+    public let candidateDecision: CandidateDecision
+    public let evidence: [CaptureEvidence]
+    public let sourceRelease: SourceRelease
+
+    public init(candidateDecision: CandidateDecision, evidence: [CaptureEvidence], sourceRelease: SourceRelease) {
+        self.candidateDecision = candidateDecision
+        self.evidence = evidence
+        self.sourceRelease = sourceRelease
+    }
+}
+
 public enum FoodQuantityValidationError: Error, Equatable, Sendable {
     case missingQuantity
     case missingConversion

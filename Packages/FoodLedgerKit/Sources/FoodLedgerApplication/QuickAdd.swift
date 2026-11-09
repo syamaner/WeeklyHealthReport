@@ -17,6 +17,9 @@ public enum QuickAddIneligibility: Equatable, Sendable {
     case corrected
     /// A requirement the sheet cannot resolve (for example a material difference).
     case requirement(FoodLogRequirement)
+    /// The pinned entry carries a label estimate layer that quick add does not save again
+    /// (docs/label-estimate-merge-v1.md section 8): Confirm says so before Log.
+    case labelEstimateNotCarried
 }
 
 public enum QuickAddEligibility: Equatable, Sendable {
@@ -61,6 +64,7 @@ public enum QuickAddPolicy {
     public static func eligibility(pinned: StoredFoodConfirmation?, pinnedIsEstimate: Bool,
                                    rebuilt: FoodConfirmationState, now: Date, calendar: Calendar) -> QuickAddEligibility {
         if pinnedIsEstimate || FoodLogPolicy.savesEstimate(rebuilt) { return .confirm(.estimate) }
+        if let pinned, FoodEntryEstimateStatus.isPartlyEstimated(pinned) { return .confirm(.labelEstimateNotCarried) }
         if let pinned, !pinnedIsUncorrected(pinned) { return .confirm(.corrected) }
         if let blocking = FoodLogPolicy.requirements(rebuilt, now: now, calendar: calendar).first(where: { placement($0) == .confirm }) {
             return .confirm(.requirement(blocking))

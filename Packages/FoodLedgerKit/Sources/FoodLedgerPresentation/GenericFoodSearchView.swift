@@ -20,6 +20,14 @@ public final class GenericFoodSearchViewModel: ObservableObject {
     @Published public var amountOverride: ParsedFoodQuery.Quantity?
     /// The amount handed to Confirm and used for energy in result rows.
     public var effectiveAmount: ParsedFoodQuery.Quantity? { amountOverride ?? parsedQuery?.quantity }
+    /// The named-dish review message for search results (#370): shown only while the dish has
+    /// results and no amount, so an exact amount in the description or one set with the amount
+    /// chip removes it. Its copy describes results, so it is never shown without any.
+    public var namedDishReviewMessage: String? {
+        guard parsedQuery?.requiresRecipeReview == true, effectiveAmount == nil,
+              case .results = phase else { return nil }
+        return FoodQueryDiscoveryPolicy.recipeReviewMessage
+    }
     /// The preparation actually constraining results (chip or parsed text), if any.
     public var effectivePreparation: PreparationKind? { preparationFilter ?? interpretation?.preparation }
     @Published public private(set) var phase: GenericFoodSearchPhase = .idle
@@ -65,6 +73,7 @@ public final class GenericFoodSearchViewModel: ObservableObject {
         if id.contains("cofid") { return "CoFID · on device" }
         if id.contains("usda") { return "USDA · on device" }
         if id == "tfda-taiwan" { return "TFDA · Taiwan · on device" }
+        if id == "ciqual" { return "Ciqual · on device" }
         if id.contains("openfoodfacts") || id.contains("open-food-facts") { return "Open Food Facts · online" }
         if stageReports.contains(where: { $0.stage == .gemini && $0.addedCandidateIDs.contains(match.searchID) }) { return "Web source" }
         if stageReports.contains(where: { $0.stage == .onlineDatabase && $0.addedCandidateIDs.contains(match.searchID) }) { return "Online food database" }
@@ -125,6 +134,7 @@ public final class GenericFoodSearchViewModel: ObservableObject {
     private let coordinator: ProgressiveFoodSearchCoordinator
     private let now: @MainActor () -> Date
     private let locale: LedgerText
+    private let recordDetails: (any GenericSourceRecordDetailing)?
     public let additionalEvidence: [CaptureEvidence]
 
     public init(
@@ -137,9 +147,11 @@ public final class GenericFoodSearchViewModel: ObservableObject {
         preferences: (any FoodSearchPreferences)? = nil,
         geminiCredentialReady: Bool = false,
         assessment: any FoodSearchCoverageAssessing = ConservativeFoodSearchCoverageAssessment(),
+        recordDetails: (any GenericSourceRecordDetailing)? = nil,
         now: @escaping @MainActor () -> Date = Date.init
     ) {
         self.preferences = preferences
+        self.recordDetails = recordDetails
         onlineDatabaseAvailable = database != nil
         geminiAvailable = gemini != nil
         geminiEnabled = preferences?.geminiEnabled ?? (services.gemini == .ready)
@@ -301,14 +313,13 @@ public final class GenericFoodSearchViewModel: ObservableObject {
         return route.matches.filter { !online.contains($0.searchID) }
     }
     /// "Best matches" keeps close name matches only; the rest of the ranked list keeps its
-    /// order under "Other matches" (#308). Presentation grouping, never ranking or identity.
-    public var closeMatches: [GenericFoodMatch] {
-        let food = parsedQuery?.food ?? query
-        return bestMatches.filter { Self.isCloseNameMatch($0, food: food) }
-    }
-    public var otherMatches: [GenericFoodMatch] {
-        let food = parsedQuery?.food ?? query
-        return bestMatches.filter { !Self.isCloseNameMatch($0, food: food) }
+    /// order under "Other matches" (#308). A row the cocoa policy admits by its band is close
+    /// too (#391). Presentation grouping, never ranking or identity.
+    public var closeMatches: [GenericFoodMatch] { bestMatches.filter(isCloseMatch) }
+    public var otherMatches: [GenericFoodMatch] { bestMatches.filter { !isCloseMatch($0) } }
+    private func isCloseMatch(_ match: GenericFoodMatch) -> Bool {
+        if Self.isCloseNameMatch(match, food: parsedQuery?.food ?? query) { return true }
+        return parsedQuery.map { CocoaPercentPolicy.isCocoaMatch(query: $0, candidate: match.candidate) } ?? false
     }
     /// A close name match is an exact name, or a primary name (before the first comma) whose
     /// lexical terms are all in the searched food, or that contains every searched term
@@ -340,6 +351,12 @@ public final class GenericFoodSearchViewModel: ObservableObject {
                 }
                 lines.append("Source: \(match.candidate.candidate.sourceReleaseID.value)")
                 lines.append("Record: \(match.candidate.candidate.recordID.value)")
+                // Reference-row details (French name, literals, codes) for Developer tools only.
+                let candidate = match.candidate.candidate
+                if let details = recordDetails?.details(recordID: candidate.recordID) {
+                    lines += GenericSourceDetailsText.lines(details, nutrients: candidate.nutrients,
+                        release: route.confirmation.sourceReleases.first { $0.sourceReleaseID == candidate.sourceReleaseID })
+                }
             }
         }
         return lines
@@ -413,6 +430,16 @@ public struct GenericFoodSearchView: View {
                             }
                         }.navigationTitle("Web sources")
                     }
+                }
+            }
+            if let message = model.namedDishReviewMessage {
+                Section {
+                    Label(message, systemImage: "info.circle")
+                        .font(.footnote)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(message)
+                        .accessibilityIdentifier("namedDishReviewMessage")
                 }
             }
             resultSection
@@ -544,6 +571,7 @@ public struct GenericFoodSearchView: View {
             }
         case let .noResult(route):
             Section(model.activeEnrichmentStage != nil ? "No matches yet" : model.stageReports.contains(where: { $0.failure != nil }) ? "Search incomplete" : "No match found") {
+                if let note = FoodSearchResultText.interpretationNote(model.parsedQuery) { Text(note) }
                 if model.activeEnrichmentStage == nil {
                     if model.searchRecoveryMessage == nil {
                         Text(route.suggestedQueries.isEmpty ? "No food matched this description." : route.guidance)
@@ -558,6 +586,9 @@ public struct GenericFoodSearchView: View {
         case .declined:
             Section("No food selected") { Text("Change the description to try again.") }
         case let .results(route):
+            if let note = FoodSearchResultText.interpretationNote(model.parsedQuery) {
+                Section { Label(note, systemImage: "info.circle") }
+            }
             if !model.closeMatches.isEmpty {
                 Section("Best matches") { ForEach(model.closeMatches, id: \.searchID) { row($0, route: route) } }
             }

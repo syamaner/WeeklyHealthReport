@@ -52,12 +52,14 @@ public enum QuickAddText {
         }
     }
 
-    /// "250 mL · plain water", "150 g · Estimate", "150 g".
-    public static func detail(_ item: QuickAddItem, isEstimate: Bool?, servings: Bool = false, locale: Locale = .current) -> String {
+    /// "250 mL · plain water", "150 g · Estimate", "25 g · Partly estimated", "150 g".
+    public static func detail(_ item: QuickAddItem, isEstimate: Bool?, servings: Bool = false, partlyEstimated: Bool = false,
+                              locale: Locale = .current) -> String {
         let amount = defaultAmount(item, servings: servings)
         if isPlainWater(item) { return "\(amount) · plain water" }
         guard let isEstimate else { return "\(amount) · \(unverifiable)" }
-        return isEstimate ? "\(amount) · Estimate" : amount
+        if isEstimate { return "\(amount) · Estimate" }
+        return partlyEstimated ? "\(amount) · \(FoodLogText.partlyEstimated)" : amount
     }
 }
 

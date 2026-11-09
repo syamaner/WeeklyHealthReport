@@ -73,6 +73,7 @@ jobs:
           python3 -m unittest discover -s Tools/NutritionAcceptanceReadiness/tests -v
           python3 -m unittest discover -s Tools/FoodSourceEvaluation/tests -v
           python3 -m unittest discover -s Tools/GenericFoodProposalEvaluation -p 'test_*.py' -v
+          python3 -m unittest discover -s Tools/PersonalFoodDatabaseEvaluation/tests -v
 
   food-healthkit-planning:
     name: HealthKit planning reference contracts
@@ -93,9 +94,11 @@ jobs:
     needs: changes
     # Fail closed: only an explicit documentation-only decision skips this job.
     if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
-    # 15, not 10: main already takes 8m08s-8m31s and the retrieval replay now
-    # also covers the production three-source composite (see "FoodLedgerKit job timeout" in the CI analysis doc).
-    timeout-minutes: 15
+    # 30, down from 40 (#405): the slowest cases now run concurrently, and on
+    # 9 Nov 2026 the job took 20m12s against 27m09s for main at the same base
+    # (see "FoodLedgerKit job timeout" in the CI analysis doc). Earlier: 40 after
+    # the 4 Nov runs of up to 24m39s, and 25 after the 31 Oct 2026 timeouts.
+    timeout-minutes: 30
 
     steps:
       - name: Check out repository
@@ -107,6 +110,8 @@ jobs:
           WHR_RETRIEVAL_REPORT_V4: ${{ runner.temp }}/retrieval-v4-current.json
           WHR_RETRIEVAL_REPORT_V5: ${{ runner.temp }}/retrieval-v5-current.json
           WHR_RETRIEVAL_REPORT_V6: ${{ runner.temp }}/retrieval-v6-current.json
+          WHR_RETRIEVAL_REPORT_V7: ${{ runner.temp }}/retrieval-v7-current.json
+          WHR_RETRIEVAL_REPORT_V8: ${{ runner.temp }}/retrieval-v8-current.json
         run: |
           set -euo pipefail
           swift test --package-path Packages/FoodLedgerKit
@@ -129,6 +134,17 @@ jobs:
             Tools/FoodSearchQuality/retrieval-scenarios-v6.json \
             "$WHR_RETRIEVAL_REPORT_V6" "$RUNNER_TEMP/retrieval-v6-metrics.json" \
             --verify-report Tools/FoodSearchQuality/retrieval-metrics-v6-final-lexical-v9.json
+          # cocoa-percent-policy-v1 (#382): v6 plus the dark chocolate cocoa cases.
+          python3 Tools/FoodSearchQuality/score_retrieval.py \
+            Tools/FoodSearchQuality/retrieval-scenarios-v7.json \
+            "$WHR_RETRIEVAL_REPORT_V7" "$RUNNER_TEMP/retrieval-v7-metrics.json" \
+            --verify-report Tools/FoodSearchQuality/retrieval-metrics-v7-final-cocoa-v1.json
+          # Ciqual 2025 admission (#384): v7 plus Ciqual rows through the production composite
+          # (composite-generic-ranking-v11) and the chocolate type cases.
+          python3 Tools/FoodSearchQuality/score_retrieval.py \
+            Tools/FoodSearchQuality/retrieval-scenarios-v8.json \
+            "$WHR_RETRIEVAL_REPORT_V8" "$RUNNER_TEMP/retrieval-v8-metrics.json" \
+            --verify-report Tools/FoodSearchQuality/retrieval-metrics-v8-final-ciqual-v1.json
 
   food-ledger-kit-isolation:
     name: FoodLedgerKit boundaries
@@ -265,6 +281,28 @@ jobs:
 
       - name: Build and test HealthKit-free DriveExportKit
         run: swift test --package-path Packages/DriveExportKit
+
+  pasted-label-ai-text-eval:
+    name: Pasted label AI text evaluation contracts
+    runs-on: macos-26
+    needs: changes
+    # Fail closed: only an explicit documentation-only decision skips this job.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    # #416 A2: the tool now builds the FoodLedgerKit modules it runs (the text reader and capture).
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # #416 A1 and A2: the converters, the bar's SHA-256 pin, the scorer, and send and score over
+      # the fake transport, on synthetic fixtures. No network beyond the package checkout.
+      - name: Verify converters, the committed held-out bar and the harness
+        run: swift test --package-path Tools/PastedLabelAITextEval
+
+      # #416 A2: the statistics script on synthetic results (standard library only, isolated mode).
+      - name: Verify the evaluation statistics
+        run: python3 -I -m unittest discover -s Tools/PastedLabelAITextEval/statistics/tests
 
   drive-export-kit-isolation:
     name: DriveExportKit isolation
@@ -437,11 +475,11 @@ jobs:
       - name: Verify food query development regressions
         run: |
           set -euo pipefail
-          python3 Tools/FoodQueryEvaluation/validate.py v9
+          python3 Tools/FoodQueryEvaluation/validate.py v10
           python3 -m unittest discover -s Tools/FoodQueryEvaluation/tests
           swiftc Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryParser.swift Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryDiscoveryPolicy.swift Tools/FoodQueryEvaluation/run.swift -o "$RUNNER_TEMP/food-query-eval"
-          "$RUNNER_TEMP/food-query-eval" Tools/FoodQueryEvaluation/synthetic-v9.json "$RUNNER_TEMP/food-query-results.json"
-          python3 Tools/FoodQueryEvaluation/score.py Tools/FoodQueryEvaluation/synthetic-v9.json "$RUNNER_TEMP/food-query-results.json" "$RUNNER_TEMP/food-query-report.json" --gate
+          "$RUNNER_TEMP/food-query-eval" Tools/FoodQueryEvaluation/synthetic-v10.json "$RUNNER_TEMP/food-query-results.json"
+          python3 Tools/FoodQueryEvaluation/score.py Tools/FoodQueryEvaluation/synthetic-v10.json "$RUNNER_TEMP/food-query-results.json" "$RUNNER_TEMP/food-query-report.json" --gate
 
       - name: Run Xcode static analysis
         run: |

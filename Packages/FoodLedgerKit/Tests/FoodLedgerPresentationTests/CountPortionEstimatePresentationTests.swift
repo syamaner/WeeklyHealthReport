@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import FoodGenericSearch
 import FoodLedgerApplication
 import FoodLedgerDomain
@@ -527,6 +528,26 @@ final class CountPortionEstimatePresentationTests: XCTestCase {
             return state
         }
         throw XCTSkip("Expected the CoFID record \(name)")
+    }
+
+    /// #337: every "How you got it" picker is a stacking menu picker, so at accessibility sizes the
+    /// title sits above a full-width value that wraps ("Kitchen scale", never "Kitch…scale"), and
+    /// the options keep the frozen v1 words in order.
+    func testHowYouGotItStacksItsValueAtAccessibilitySizesWithTheV1Words() throws {
+        for size in DynamicTypeSize.allCases {
+            XCTAssertEqual(StackingMenuPickerLayout.stacks(at: size), size.isAccessibilitySize, "\(size)")
+            XCTAssertEqual(FoodDetailsForm.stacksTitles(at: size), StackingMenuPickerLayout.stacks(at: size), "\(size)")
+        }
+        typealias Fields = FoodConfirmationView.ConversionFields
+        XCTAssertEqual(FoodConfirmationView.weightBasisOptions.map(\.0), [nil, .measured, .estimated])
+        XCTAssertEqual(FoodConfirmationView.weightBasisOptions.map(\.1), ["Choose one", "Kitchen scale", "Estimated by eye"])
+        XCTAssertEqual(Fields.methodOptions(current: nil).map(\.1),
+                       ["Choose one", "Kitchen scale", "Package weight", "Estimated by eye"])
+        XCTAssertEqual(Fields.methodOptions(current: .choice(.kitchenScale)).map(\.0),
+                       [nil, .choice(.kitchenScale), .choice(.packageWeight), .choice(.estimatedByEye)])
+        let recorded = try LedgerText("on the scale")
+        XCTAssertEqual(Fields.methodOptions(current: .recorded(recorded)).map(\.1),
+                       ["Choose one", "Recorded: on the scale", "Kitchen scale", "Package weight", "Estimated by eye"])
     }
 }
 

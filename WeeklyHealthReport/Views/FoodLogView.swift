@@ -28,7 +28,15 @@ struct FoodLogView: View {
             daySection
             switch model.phase {
             case .loading:
-                Section { ProgressView("Loading food log") }
+                Section {
+                    ProgressView("Loading food log")
+                        // The loading state starts a load itself if none is running (#354).
+                        .task { await model.ensureLoading() }
+                    if model.loadingIsSlow {
+                        Text(FoodLogText.slowLoading).fixedSize(horizontal: false, vertical: true)
+                        Button("Try again") { Task { await model.load() } }.frame(minHeight: 44)
+                    }
+                }
                 addFoodSection
             case let .failed(failure):
                 Section("Food log unavailable") {
@@ -72,7 +80,8 @@ struct FoodLogView: View {
         .foodLoggedBannerScreen(root.loggedBanner)
         .navigationDestination(item: $openedEntry) { id in
             SavedFoodEntryView(model: root.savedEntryModel(id), favourites: root.favouriteSaveModel(),
-                               calendar: model.calendar, now: { root.confirmationNow }, photoBytes: { root.labelPhotoBytes($0) })
+                               calendar: model.calendar, now: { root.confirmationNow }, photoBytes: { root.labelPhotoBytes($0) },
+                               developerTools: root.userDefaults.bool(forKey: FoodSearchDeveloperTools.storageKey))
         }
         .onChange(of: openedEntry) { _, entry in if entry == nil { Task { await model.load() } } }
         // `presenting` captures the entry when the alert appears; dismissal clears pendingRemoval
@@ -207,14 +216,7 @@ struct FoodLogView: View {
 
     private var addFoodButtonSection: some View {
         Section {
-            // A Button, not a NavigationLink: inside a Form a link ignores the button style.
-            Button { navigation.openAddFood(fromFoodLogDay: model.addFoodDayKey) } label: {
-                Label("Add food", systemImage: "plus").font(.headline)
-                    .frame(maxWidth: .infinity, minHeight: 50)
-            }
-            .buttonStyle(.borderedProminent)
-            .listRowInsets(EdgeInsets())
-            .listRowBackground(Color.clear)
+            FoodLogAddFoodButton { navigation.openAddFood(fromFoodLogDay: model.addFoodDayKey) }
         } footer: {
             if let footnote = model.addFoodFootnote { Text(footnote) }
         }
@@ -295,4 +297,32 @@ struct FoodLogView: View {
     }
 
     private func time(_ date: Date) -> String { FoodLogText.time(date, calendar: model.calendar) }
+}
+
+/// The Food Log's Add food button, a full-width row in its own section. Kept as its own view so
+/// its centring is tested at every text size (#363).
+struct FoodLogAddFoodButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        // A Button, not a NavigationLink: inside a Form a link ignores the button style.
+        Button(action: action) {
+            FoodLogAddFoodLabel().frame(maxWidth: .infinity, minHeight: 50)
+        }
+        .buttonStyle(.borderedProminent)
+        .listRowInsets(EdgeInsets())
+        .listRowBackground(Color.clear)
+    }
+}
+
+/// Icon and title drawn as one centred group (#363). A `Label` here takes the Form's row label
+/// style, which reserves the icon's column but drew no icon, so the title sat right of centre.
+struct FoodLogAddFoodLabel: View {
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "plus").accessibilityHidden(true)
+            Text("Add food").multilineTextAlignment(.center)
+        }
+        .font(.headline)
+    }
 }

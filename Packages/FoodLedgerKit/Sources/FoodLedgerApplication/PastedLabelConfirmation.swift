@@ -12,6 +12,9 @@ public enum PastedLabelConfirmationError: Error, Equatable, Sendable {
     case pipelineMismatch(String)
     /// The arrangement was not offered on the basis sheet.
     case notOffered(String)
+    /// The reading policy's identity mapping is not the one manifests record (identity v1); no
+    /// manifest records identity v2 before its contract (#371 P5).
+    case identityNotRecordable(String)
 }
 
 /// The identity fields the user enters on the label text screen (section 2.2).
@@ -38,10 +41,13 @@ public struct PastedLabelConfirmation: Sendable {
     private let encoder: any CanonicalEncoding
     private let digester: any Digesting
     private let conversions: (any PastedLabelConversionChecking)?
+    private let policy: PastedLabelReadingPolicy
 
+    /// `policy` defaults to `.product`; its launch scope is what new manifests record (#371 P2b seam).
     public init(ids: any LedgerIDGenerating, clock: any LedgerClock, encoder: any CanonicalEncoding,
-                digester: any Digesting, conversions: (any PastedLabelConversionChecking)?) {
+                digester: any Digesting, conversions: (any PastedLabelConversionChecking)?, policy: PastedLabelReadingPolicy = .product) {
         self.ids = ids; self.clock = clock; self.encoder = encoder; self.digester = digester; self.conversions = conversions
+        self.policy = policy
     }
 
     // MARK: Corrections and entries
@@ -129,6 +135,9 @@ public struct PastedLabelConfirmation: Sendable {
     /// pipeline must be the admitted one for its manifest version, or nothing is built.
     public func manifest(_ review: PastedLabelReview, details: PastedLabelDetails,
                          corrections: [PastedLabelManifest.Correction], capturedAt: Date? = nil) throws -> PastedLabelEvidenceManifest {
+        guard policy.identity.rawValue == PastedLabelIdentity.version else {
+            throw PastedLabelConfirmationError.identityNotRecordable(policy.identity.rawValue)
+        }
         let name = details.name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { throw PastedLabelConfirmationError.nameMissing }
         let brand = details.brand?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -143,7 +152,7 @@ public struct PastedLabelConfirmation: Sendable {
                 return .v1(PastedLabelManifest(pastedText: review.pastedText, pastedTextSHA256: reading.textSHA256,
                     parserVersion: reading.versions.parser, gateVersion: reading.versions.gate,
                     arithmeticVersion: reading.versions.arithmetic, conversionVersion: reading.versions.conversion,
-                    labelFormat: reading.format, launchScope: PastedLabelLaunchScope.enabledFormats, identityMapping: identity,
+                    labelFormat: reading.format, launchScope: policy.launchScope, identityMapping: identity,
                     candidate: reading.candidate, storedHeaderID: review.storedHeaderID, conversions: reading.conversions,
                     flagsShown: flags, corrections: corrections, warningsShown: review.warningCodes, name: name, brand: brand))
             }
@@ -155,7 +164,7 @@ public struct PastedLabelConfirmation: Sendable {
             return .v2(PastedLabelManifestV2(pastedText: review.pastedText, pastedTextSHA256: reading.textSHA256,
                 parserVersion: reading.versions.parser, gateVersion: reading.versions.gate,
                 arithmeticVersion: reading.versions.arithmetic, conversionVersion: reading.versions.conversion,
-                labelFormat: reading.format, launchScope: PastedLabelLaunchScope.enabledFormats, identityMapping: identity,
+                labelFormat: reading.format, launchScope: policy.launchScope, identityMapping: identity,
                 candidate: reading.candidate, storedHeaderID: review.storedHeaderID, conversions: reading.conversions,
                 flagsShown: flags, corrections: corrections, warningsShown: review.warningCodes, name: name, brand: brand,
                 basisChoices: records))

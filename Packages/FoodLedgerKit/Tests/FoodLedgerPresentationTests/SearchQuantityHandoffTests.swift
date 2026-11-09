@@ -49,6 +49,33 @@ final class SearchQuantityHandoffTests: XCTestCase {
             XCTAssertNil(search.confirmation(at: -1)); XCTAssertNil(search.confirmation(at: route.matches.count))
         }
     }
+    /// #370 (contract v73): a named dish with one exact leading or trailing amount reaches
+    /// Confirm with that amount, editable and unsaved, exactly as a plain search does. Without an
+    /// amount, or with one after a comma, Confirm opens with the amount empty.
+    func testNamedDishExactAmountPrefillsConfirmWithoutSaving() throws {
+        for (query, amount) in [("200g porridge made with milk", 200.0), ("porridge made with whole milk 200 g", 200),
+                                ("200 grams porridge made with water", 200), ("porridge made with milk", nil), ("porridge made with milk, 200 g", nil)] as [(String, Double?)] {
+            let search = try model(); search.query = query; search.search()
+            guard case let .results(route) = search.phase else { return XCTFail(query) }
+            let input = try XCTUnwrap(search.confirmation(at: min(1, route.matches.count - 1)), query)
+            XCTAssertEqual(input.evidence.first?.originalPayload, .text(try LedgerText(query)), query)
+            var saves = 0
+            let confirmation = FoodConfirmationViewModel(
+                // As the app's search route builds it (FoodLedgerCompositionRoot): no source default.
+                state: FoodConfirmationState(input: input, queryQuantity: search.effectiveAmount, prefillSourceQuantity: false)) { _ in
+                saves += 1; throw CocoaError(.fileWriteUnknown)
+            }
+            if FoodSourceServingPolicy.applies(input, candidate: input.candidates[0]) { continue }
+            XCTAssertEqual(confirmation.state.quantity.value, amount, query)
+            if amount != nil { XCTAssertEqual(confirmation.state.quantity.unit, .grams, query) }
+            XCTAssertNil(confirmation.state.quantity.conversion, query)
+            XCTAssertEqual(confirmation.state.decision, .undecided, query)
+            XCTAssertEqual(confirmation.state.phase, .editing, query)
+            confirmation.send(.setQuantity(250, .grams))
+            XCTAssertEqual(confirmation.state.quantity.value, 250, query)
+            XCTAssertEqual(saves, 0, query)
+        }
+    }
     /// #317 and the parse part of #315 (food-query-parser-v9): the count reaches Confirm as an
     /// editable count, not as a "Use N from your description" suggestion, and nothing is saved.
     func testHardBoiledEggsAndPiecesOfBananaPrefillTheCountOnConfirm() throws {

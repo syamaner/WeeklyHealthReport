@@ -1,0 +1,23 @@
+{
+  "files": {
+    ".agents/skills/personal-food-catalogue/scripts/workspace_guard.py": "9527d1416e17f87cd0c513f8d9ba29d70b44bb852a9f5e608b7dbba51af0ccb7",
+    "Tools/PersonalFoodDatabaseEvaluation/bars.py": "fcd7bf9a7771dd0a425356fec46c181d4a1f07bd7c8db43f31b549a66e06566e",
+    "Tools/PersonalFoodDatabaseEvaluation/formats.py": "96e05e0a32f51bbb8434bef4fab336f6d8ed5411fa89846f382fba0d8de3fedb",
+    "Tools/PersonalFoodDatabaseEvaluation/freeze.py": "04893befc5e8c3ca2d41619b8e9ef7551e97a0b599df18df215415f32dc1c227",
+    "Tools/PersonalFoodDatabaseEvaluation/pfd_eval.py": "bd85209d05ec3cd3d207235507948f8ba9c006532ebf14f503820f33ba29a744",
+    "Tools/PersonalFoodDatabaseEvaluation/queries.py": "82596ac9cb691a5712ecbde14f5095d9a5e8c11e990648e3be6d4fcb7ca8a6d9",
+    "Tools/PersonalFoodDatabaseEvaluation/results.py": "d39951c625559765271680b4e7e9d9d756bf1a2d7694e970db222aaecc6d4485",
+    "Tools/PersonalFoodDatabaseEvaluation/sample.py": "1464a5194dd25a2ad88d85a356e420276d4c9af1f586cff4fb7c68e39fb184b2",
+    "Tools/PersonalFoodDatabaseEvaluation/score_a.py": "7b2ebf355065709d7685d2a49d007b0e1f2bfdb0b64f8d39bb5e4a205bbda4c7",
+    "Tools/PersonalFoodDatabaseEvaluation/score_b.py": "43f7e5e63b090e12c0983a91b206b28ef3b1c74e9ce28aea4a80e17289fd972b",
+    "Tools/PersonalFoodDatabaseEvaluation/seals.py": "4c0290dafc9aad698222c2b351cdcfeeddb6cc3e096955767bafbb6897c09b57",
+    "Tools/PersonalFoodDatabaseEvaluation/split.py": "4c1799b864f6512e2447f08a2e2c7722056c78b778d0ddcce35c0b92cd3796d7",
+    "Tools/PersonalFoodDatabaseEvaluation/stats.py": "1fde63c18c23775e9092481826cd44e0ceef03e5b832dbd029bce2cb938e9b1b"
+  },
+  "heldout_sha256": "cf74b225882b681e66fa05e2c892f751d19d0f0ae850daf2aa2018bd76543aab",
+  "purchase_counts_sha256": "2f1dbfafdfd0eb31f8f5d420f9ca0405b6b413dc30185f985c365e38000f298f",
+  "release_id": "pfc:sha256:55caa60d11a9af23a0a7aff23f6a52b6390ef9d8da05c069b4b3f66295d5088d",
+  "sample_sha256": "074320a487f5587bbb939dc01120d97dcfeb86f8c1770a68e69b00b164229c19",
+  "schema": "pfd-freeze-v1",
+  "seed": 1072955911
+}

@@ -118,3 +118,69 @@ v9 replay to `build_retrieval_v6.py`. See `docs/food-lexical-terms-v9.md`,
 WHR_RETRIEVAL_REPORT=/private/tmp/retrieval-current.json WHR_RETRIEVAL_REPORT_V4=/private/tmp/retrieval-v4-current.json WHR_RETRIEVAL_REPORT_V5=/private/tmp/retrieval-v5-current.json WHR_RETRIEVAL_REPORT_V6=/private/tmp/retrieval-v6-current.json swift test --package-path Packages/FoodLedgerKit --filter RankedRetrievalDevelopmentTests/testReplay
 python3.12 Tools/FoodSearchQuality/score_retrieval.py Tools/FoodSearchQuality/retrieval-scenarios-v6.json /private/tmp/retrieval-v6-current.json /private/tmp/retrieval-v6-metrics.json --verify-report Tools/FoodSearchQuality/retrieval-metrics-v6-final-lexical-v9.json
 ```
+
+## Current CI replay: cocoa percent policy v1 (3 November 2026)
+
+The replay now reads `retrieval-scenarios-v7.json` (the 105 v6 cases plus 16 dark chocolate
+cases, `build_retrieval_v7.py`) and writes five reports from one run. The v3 to v6 rows are
+unchanged by `cocoa-percent-policy-v1`: the builder stops if any earlier case's records differ
+between the composite-generic-ranking-v9 and v10 replays, and the four earlier reports still
+verify against their lexical-v9 metrics files. v7 rows are verified against
+`retrieval-metrics-v7-final-cocoa-v1.json`; `retrieval-metrics-v7-baseline-composite-v9.json`
+scores the same labels on the v9 replay (origin/main f163e4a1). To rebuild the v7 labels, pass
+the ungraded v9 replay and then the v10 replay to `build_retrieval_v7.py`. See
+`docs/cocoa-aware-search-v1.md`.
+
+Composite rows for the 16 new cases (same-author development labels, not an independent
+holdout):
+
+| Replay | hit@1 | nDCG@5 (sum) | Wrong band at 1 | Wrong band in top 5 |
+|---|---:|---:|---:|---:|
+| composite v9 (before) | 13 | 10.50 | 3 | 19 |
+| composite v10 (after) | 16 | 16.00 | 0 | 43 |
+
+"Wrong band in top 5" rises because the policy admits every dark chocolate row that states a
+band, so other bands now follow the matching one as labelled alternatives; each carries a
+"you asked for N%" note and none is selected automatically.
+
+```sh
+WHR_RETRIEVAL_REPORT=/private/tmp/retrieval-current.json WHR_RETRIEVAL_REPORT_V4=/private/tmp/retrieval-v4-current.json WHR_RETRIEVAL_REPORT_V5=/private/tmp/retrieval-v5-current.json WHR_RETRIEVAL_REPORT_V6=/private/tmp/retrieval-v6-current.json WHR_RETRIEVAL_REPORT_V7=/private/tmp/retrieval-v7-current.json swift test --package-path Packages/FoodLedgerKit --filter RankedRetrievalDevelopmentTests/testReplay
+python3.12 Tools/FoodSearchQuality/score_retrieval.py Tools/FoodSearchQuality/retrieval-scenarios-v7.json /private/tmp/retrieval-v7-current.json /private/tmp/retrieval-v7-metrics.json --verify-report Tools/FoodSearchQuality/retrieval-metrics-v7-final-cocoa-v1.json
+```
+
+## Current CI replay: Ciqual 2025 admission (4 November 2026)
+
+The replay now reads `retrieval-scenarios-v8.json` (the 121 v7 cases plus three chocolate type
+cases, "milk chocolate", "white chocolate" and "chocolate spread", `build_retrieval_v8.py`) and
+writes six reports from one run. v8 composite rows come from the production composite, with
+Ciqual 2025 as a reference-only source (`composite-generic-ranking-v11`); the v3 to v7 rows keep
+their source lists, and their replays and four lexical-v9 and cocoa-v1 reports are byte-identical
+to those before the change. v8 keeps every v7 label, labels each Ciqual record a v7 case retrieves
+and labels the new cases across every source; v8 rows are verified against
+`retrieval-metrics-v8-final-ciqual-v1.json`. See `docs/ciqual-2025-admission-v1.md`.
+
+Ciqual rows follow every UK, US and Taiwan row by design (decision 5), so they never enter the
+top five where another row matches, and composite nDCG@5 for "dark chocolate 70%", "50%" and
+"dark chocolate" falls only because the ideal list now holds a further grade 3 row (31074 or
+31005). The milk and nut cases ("milk", "whole milk", "almonds", "hazelnuts", "peanuts") also
+retrieve Ciqual chocolate products by full word coverage, after every other row; they are
+labelled as mentions (grade 1). They sit at rank 14 and lower; the v7 replay has no precedent for
+a milk chocolate row under "milk".
+
+Which v8 labels are fixed and which are replay-derived: `build_retrieval_v8.py` `FIXED` holds
+labels written from the spec, applied whether or not a replay retrieves the record, for Ciqual
+31074, 31005, 31085 (on "dark chocolate 70%", "50%", "40%" and "dark chocolate"), 31004, 31010 and
+31032 (on "milk chocolate", "white chocolate" and "chocolate spread") and for the CoFID and USDA
+plain type rows of those three new cases ("Chocolate, milk", "Candies, milk chocolate", "Chocolate,
+white", "Candies, white chocolate", "Chocolate spread"). The plain CoFID and USDA rows of the dark
+chocolate cases are the frozen v7 labels. Every other v8 label is derived from the v8 replay by the
+name rules. On 4 November 2026 the fixed labels agreed with the name rules on every record, so
+the report did not change when they were added. Same-author development labels, not an
+independent holdout.
+
+```sh
+WHR_RETRIEVAL_REPORT=/private/tmp/retrieval-current.json WHR_RETRIEVAL_REPORT_V4=/private/tmp/retrieval-v4-current.json WHR_RETRIEVAL_REPORT_V5=/private/tmp/retrieval-v5-current.json WHR_RETRIEVAL_REPORT_V6=/private/tmp/retrieval-v6-current.json WHR_RETRIEVAL_REPORT_V7=/private/tmp/retrieval-v7-current.json WHR_RETRIEVAL_REPORT_V8=/private/tmp/retrieval-v8-current.json swift test --package-path Packages/FoodLedgerKit --filter RankedRetrievalDevelopmentTests/testReplay
+python3.12 Tools/FoodSearchQuality/score_retrieval.py Tools/FoodSearchQuality/retrieval-scenarios-v8.json /private/tmp/retrieval-v8-current.json /private/tmp/retrieval-v8-metrics.json --verify-report Tools/FoodSearchQuality/retrieval-metrics-v8-final-ciqual-v1.json
+```
+
+To rebuild the v8 labels, pass the ungraded v8 replay to `build_retrieval_v8.py`.

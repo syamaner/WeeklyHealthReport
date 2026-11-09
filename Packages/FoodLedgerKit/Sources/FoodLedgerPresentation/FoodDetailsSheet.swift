@@ -90,6 +90,7 @@ public struct FoodDetailsDraft: Equatable, Sendable {
     /// break keeps the previous text and reports `finishes`. Pasted line breaks become spaces.
     ///
     /// The returned text is what both the field shows and the draft stores, so they never drift.
+    /// The other text fields follow the same rule while they wrap at accessibility sizes (#346).
     /// Any inserted line break finishes the field:
     /// - Return, at the caret or over a selection, keeps the previous text unchanged;
     /// - a paste containing line breaks keeps the pasted text with each line break (and the spaces
@@ -130,6 +131,28 @@ public struct FoodDetailsDraft: Equatable, Sendable {
     }
 }
 
+/// The Food details answers across openings of the sheet (#352). As in the app's other editing
+/// sheets, closing without applying (Close, or swiping the sheet away) discards the unapplied
+/// answers, so the sheet reopens on the answers last applied, or on Confirm's details when none
+/// were; Apply keeps them. Presentation state only: nothing here is stored.
+public struct FoodDetailsDraftSession: Equatable, Sendable {
+    /// What the sheet shows and edits.
+    public var draft: FoodDetailsDraft
+    /// The answers the sheet reopens on.
+    public private(set) var kept: FoodDetailsDraft
+
+    public init(_ draft: FoodDetailsDraft) {
+        self.draft = draft
+        kept = draft
+    }
+
+    /// Apply recorded a correction on Confirm: keep the answers it applied.
+    public mutating func applied() { kept = draft }
+
+    /// The sheet closed: drop any answers that were not applied.
+    public mutating func closed() { draft = kept }
+}
+
 /// The Food details sheet's form. The host owns the draft and presentation; `applied` runs after
 /// a correction was recorded on Confirm, so the host can close the sheet and announce it.
 public struct FoodDetailsForm: View {
@@ -141,7 +164,6 @@ public struct FoodDetailsForm: View {
     /// and the draft, so the field and the stored reason stay identical (#285).
     @State private var reasonText: String
     @FocusState private var reasonFocused: Bool
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     public init(model: FoodConfirmationViewModel, draft: Binding<FoodDetailsDraft>, applied: @escaping () -> Void) {
         self.model = model
@@ -153,7 +175,7 @@ public struct FoodDetailsForm: View {
     public static let reasonTitle = "Reason for correction"
     public static let applyTitle = "Apply correction as a new version"
     /// Accessibility text sizes put each picker's title above its full-width, wrapping value.
-    public static func stacksTitles(at size: DynamicTypeSize) -> Bool { size.isAccessibilitySize }
+    public static func stacksTitles(at size: DynamicTypeSize) -> Bool { StackingMenuPickerLayout.stacks(at: size) }
 
     public static let basisOptions: [(FoodDetailsDraft.Basis, String)] = [
         (.keepPopulated, "Keep populated basis"), (.per100Grams, "Per 100 g"), (.per100Millilitres, "Per 100 mL")
@@ -202,23 +224,30 @@ public struct FoodDetailsForm: View {
     }
 
     /// One edit of the reason field: normalised once, then written to the field and the draft
-    /// alike; an inserted line break ends editing.
+    /// alike; an inserted line break ends editing. The draft takes the text at once; a finished
+    /// field takes it on the next update, once editing has ended, so it is measured again (#349).
     private func reasonChanged(_ new: String) {
         let edit = FoodDetailsDraft.reasonEdit(from: draft.reason, to: new)
-        if edit.text != new { reasonText = edit.text }
         if draft.reason != edit.text { draft.reason = edit.text }
-        if edit.finishes { reasonFocused = false }
+        if edit.finishes {
+            reasonFocused = false
+            afterEditingEnds { reasonText = edit.text }
+        } else if edit.text != new {
+            reasonText = edit.text
+        }
     }
+
+    /// At accessibility text sizes the single-line fields (Product name, Brand, Variant, Packing
+    /// medium) wrap a long value instead of truncating it ("USDA · US c…", #346); standard sizes
+    /// keep the one-line field.
+    public static func wrapsFields(at size: DynamicTypeSize) -> Bool { size.isAccessibilitySize }
+    /// Lines a wrapping field may grow to before it scrolls, as the search query field (#315).
+    public static let wrappedFieldLineLimit = 1...6
 
     /// A text field with its name shown above it, so a filled field keeps its label (and neither
     /// truncates at the largest text sizes); the field itself only holds a short prompt.
     private func labelledField(_ title: String, _ text: Binding<String>, prompt: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title).accessibilityHidden(true)
-            TextField(title, text: text, prompt: Text(prompt))
-                .frame(minHeight: 44)
-                .accessibilityLabel(title)
-        }
+        FoodDetailsTextField(title: title, text: text, prompt: prompt)
     }
 
     /// The reason keeps a visible label above the field, so neither truncates at the largest text
@@ -244,34 +273,10 @@ public struct FoodDetailsForm: View {
         }
     }
 
-    /// A menu picker. At accessibility text sizes the title sits above a full-width value that
-    /// wraps, since the standard row truncates long values such as "Keep populated basis" (#285).
-    @ViewBuilder
+    /// A menu picker whose title stacks above a full-width, wrapping value at accessibility
+    /// text sizes (#285), shared with Confirm's "How you got it" (#337).
     private func picker<Value: Hashable>(_ title: String, _ selection: Binding<Value>, _ options: [(Value, String)]) -> some View {
-        let choices = Picker(title, selection: selection) {
-            ForEach(options, id: \.0) { Text($0.1).tag($0.0) }
-        }
-        if Self.stacksTitles(at: dynamicTypeSize) {
-            let current = options.first { $0.0 == selection.wrappedValue }?.1 ?? ""
-            VStack(alignment: .leading, spacing: 6) {
-                Text(title).accessibilityHidden(true)
-                Menu {
-                    choices.pickerStyle(.inline).labelsHidden()
-                } label: {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text(current).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
-                        Spacer(minLength: 0)
-                        Image(systemName: "chevron.up.chevron.down").accessibilityHidden(true)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                    .contentShape(Rectangle())
-                }
-                .accessibilityLabel(title)
-                .accessibilityValue(current)
-            }
-        } else {
-            choices
-        }
+        StackingMenuPicker(title, selection: selection, options: options)
     }
 
     /// Sentence case for a stored value, matching the app's copy: "as_sold" reads "As sold".
@@ -279,4 +284,75 @@ public struct FoodDetailsForm: View {
         let words = value.replacingOccurrences(of: "_", with: " ").lowercased()
         return words.prefix(1).uppercased() + words.dropFirst()
     }
+}
+
+/// One Food details text field with its title shown above it (#285). At accessibility sizes the
+/// field wraps a long value (#346); a wrapping field takes Return as a line break, so a typed
+/// Return (labelled Done) finishes editing instead, and a pasted line break becomes a space, by
+/// the reason field's rule. VoiceOver reads the title as the label; the field keeps a 44 pt target.
+struct FoodDetailsTextField: View {
+    let title: String
+    @Binding var text: String
+    let prompt: String
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @FocusState private var focused: Bool
+    /// What a wrapping field shows. As with the reason field, each edit is normalised once and
+    /// written to the draft at once; a finished field takes the text on the next update (#349).
+    @State private var shown: String
+
+    init(title: String, text: Binding<String>, prompt: String) {
+        self.title = title
+        _text = text
+        self.prompt = prompt
+        _shown = State(initialValue: text.wrappedValue)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).accessibilityHidden(true)
+            field
+                .focused($focused)
+                .frame(minHeight: 44)
+                .accessibilityLabel(title)
+        }
+        // A value set from code is shown as given.
+        .onChange(of: text) { _, new in if shown != new { shown = new } }
+    }
+
+    @ViewBuilder
+    private var field: some View {
+        if FoodDetailsForm.wrapsFields(at: dynamicTypeSize) {
+            TextField(title, text: $shown, prompt: Text(prompt), axis: .vertical)
+                .lineLimit(FoodDetailsForm.wrappedFieldLineLimit)
+                .submitLabel(.done)
+                .onChange(of: shown) { _, new in shownChanged(new) }
+        } else {
+            // Done, like the wrapping fields and the reason, at every text size (#352).
+            TextField(title, text: $text, prompt: Text(prompt))
+                .submitLabel(.done)
+        }
+    }
+
+    /// One edit of a wrapping field. The shown text only differs from the draft after the
+    /// user's own edit; the draft never holds an inserted line break.
+    private func shownChanged(_ new: String) {
+        guard new != text else { return }
+        let edit = FoodDetailsDraft.reasonEdit(from: text, to: new)
+        if text != edit.text { text = edit.text }
+        if edit.finishes {
+            focused = false
+            afterEditingEnds { shown = edit.text }
+        } else if edit.text != new {
+            shown = edit.text
+        }
+    }
+}
+
+/// A wrapping field that is given its finished text while it is still handling Return keeps the
+/// height of the line break it was given, until the sheet is reopened (#349). Writing the shown text
+/// on the next update, after focus has been released, lets the field measure it again. The text
+/// written is the one `FoodDetailsDraft.reasonEdit` returned, so stored values are unchanged.
+@MainActor
+private func afterEditingEnds(_ write: @escaping @MainActor () -> Void) {
+    Task { @MainActor in write() }
 }

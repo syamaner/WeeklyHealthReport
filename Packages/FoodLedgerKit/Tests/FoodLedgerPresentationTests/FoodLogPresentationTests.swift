@@ -101,6 +101,55 @@ final class FoodLogPresentationTests: XCTestCase {
         XCTAssertEqual(reloaded.removed.count, 1)
     }
 
+    /// #354: the Food Log is never blank. It starts in `.loading` (shown with its indicator),
+    /// the loading state starts a load if none is running, a slow load says so and offers Try
+    /// again, and every load ends in `.loaded` or `.failed`.
+    func testLoadingIsAlwaysExplicitAndEndsInLoadedOrFailed() async throws {
+        let world = try World(now: now, calendar: calendar)
+        let gate = DayGate(service: world.store.service)
+        let slowTimer = DelayGate()
+        let model = FoodLogViewModel(store: gate, now: { [now] in now }, calendar: calendar,
+                                     sleep: { _ in await slowTimer.waitOnce() })
+        XCTAssertEqual(model.phase, .loading, "the first frame is the loading state, not blank")
+        XCTAssertFalse(model.loadingIsSlow)
+
+        // The appearance that should have loaded was missed: the loading state starts one load.
+        let first = Task { await model.ensureLoading() }
+        for _ in 0..<50 where gate.requests == 0 { await Task.yield() }
+        XCTAssertEqual(gate.requests, 1)
+        await model.ensureLoading()
+        XCTAssertEqual(gate.requests, 1, "no second load while one is running")
+
+        // The store is slow: the loading state says so and stays explicit.
+        slowTimer.release()
+        for _ in 0..<50 where !model.loadingIsSlow { await Task.yield() }
+        XCTAssertTrue(model.loadingIsSlow)
+        XCTAssertEqual(model.phase, .loading)
+
+        // Try again supersedes the stalled load; the stalled one finishing later changes nothing.
+        let retry = Task { await model.load() }
+        for _ in 0..<50 where gate.requests < 2 { await Task.yield() }
+        XCTAssertFalse(model.loadingIsSlow, "a new load starts its own wait")
+        gate.release()
+        await retry.value
+        await first.value
+        guard case .loaded = model.phase else { return XCTFail("loaded, got \(model.phase)") }
+        XCTAssertFalse(model.loadingIsSlow)
+        await model.ensureLoading()
+        XCTAssertEqual(gate.requests, 2, "a loaded log is not reloaded by the loading state")
+    }
+
+    /// #354: a store error or a cancelled read ends in the failed state, never an empty screen.
+    func testCancelledOrFailingReadEndsInTheFailedState() async {
+        for error in [CancellationError() as Error, FoodIntakeProjectionError.missingReference] {
+            let model = FoodLogViewModel(store: ThrowingStore(error: error), now: { [now] in now }, calendar: calendar,
+                                         sleep: { _ in })
+            await model.ensureLoading()
+            XCTAssertEqual(model.phase, .failed(.unreadable))
+            XCTAssertFalse(model.loadingIsSlow)
+        }
+    }
+
     func testFocusDaySelectsThatDay() async throws {
         let world = try World(now: now, calendar: calendar)
         let model = FoodLogViewModel(store: world.store, now: { [now] in now }, calendar: calendar)
@@ -108,6 +157,32 @@ final class FoodLogPresentationTests: XCTestCase {
         XCTAssertEqual(model.selectedKey, "2023-11-13")
         await model.showDay("2030-01-01")
         XCTAssertEqual(model.selectedKey, model.navigation.todayKey)
+    }
+
+    /// #361: only a day change the user asks for is reported (so the banner after Log can be
+    /// dismissed); the focus day Done selects, reloads, midnight re-anchors and no-op moves are not.
+    func testOnlyUserDayChangesAreReported() async throws {
+        let world = try World(now: now, calendar: calendar)
+        let model = FoodLogViewModel(store: world.store, now: { [now] in now }, calendar: calendar)
+        var reports = 0
+        model.userChangedDay = { reports += 1 }
+        await model.load()
+        await model.refreshAfterTimeChange()
+        await model.nextDay()
+        await model.returnToToday()
+        await model.choose(now.addingTimeInterval(5 * 86_400))
+        XCTAssertEqual(reports, 0, "a reload, a re-anchor, or a move that stays on today is not a day change")
+        await model.showDay("2023-11-10")
+        XCTAssertEqual(reports, 0, "the focus day after Done is not a user day change")
+        await model.previousDay()
+        XCTAssertEqual(reports, 1)
+        await model.nextDay()
+        XCTAssertEqual(reports, 2)
+        await model.choose(now.addingTimeInterval(-3 * 86_400))
+        XCTAssertEqual(reports, 3)
+        await model.returnToToday()
+        XCTAssertEqual(reports, 4)
+        XCTAssertTrue(model.isToday)
     }
 
     /// D9: the alert's dismissal clears the pending entry before the Remove task runs; the
@@ -161,6 +236,56 @@ final class FoodLogPresentationTests: XCTestCase {
         XCTAssertNil(model.beginEdit())
         XCTAssertTrue(model.editUnavailable)
         XCTAssertEqual(model.phase, .loaded, "read-only content stays")
+    }
+
+    /// #347: the pinned line beside a disabled Log says the same thing at every size for the same
+    /// state. An unchanged reopened entry reads "No changes to save" at the default size and AX5;
+    /// "Not ready to log" is only for a requirement that blocks Log. `canLog` is unchanged.
+    func testPinnedLineMatchesTheBarAtEverySize() throws {
+        let world = try World(now: now, calendar: calendar)
+        let saved = try world.save(grams: 120)
+        let edit = try XCTUnwrap(world.editModel(saved.logItem.logItemID))
+        XCTAssertFalse(edit.canLog)
+        XCTAssertEqual(edit.blockedReason, FoodConfirmationViewModel.noChangesReason)
+        XCTAssertTrue(edit.isBlockedOnlyByNoChanges)
+        for isAccessibilitySize in [false, true] {
+            XCTAssertEqual(FoodConfirmationView.pinnedReason(isAccessibilitySize: isAccessibilitySize,
+                                                             blockedOnlyByNoChanges: edit.isBlockedOnlyByNoChanges),
+                           "No changes to save", "accessibility size \(isAccessibilitySize)")
+        }
+        edit.send(.setQuantity(150, .grams))
+        XCTAssertTrue(edit.canLog)
+        XCTAssertFalse(edit.isBlockedOnlyByNoChanges, "a changed entry is not blocked")
+
+        let state = try world.newState(grams: 0)
+        let blocked = FoodConfirmationViewModel(state: state, now: { [now] in now }, calendar: calendar) { _ in
+            throw CocoaError(.fileWriteUnknown)
+        }
+        XCTAssertFalse(blocked.canLog)
+        XCTAssertEqual(blocked.requirements, [.amountMissing])
+        XCTAssertFalse(blocked.isBlockedOnlyByNoChanges)
+        XCTAssertEqual(FoodConfirmationView.pinnedReason(isAccessibilitySize: false, blockedOnlyByNoChanges: blocked.isBlockedOnlyByNoChanges),
+                       FoodConfirmationView.pinnedBlockedReason)
+        XCTAssertEqual(FoodConfirmationView.pinnedReason(isAccessibilitySize: true, blockedOnlyByNoChanges: blocked.isBlockedOnlyByNoChanges),
+                       "Not ready to log")
+    }
+
+    /// #350: a new entry keeps its Source footer; Edit food, already logged and without other
+    /// matches, points to its own Food details button instead of "after logging".
+    func testEditFoodSourceFooterPointsToFoodDetails() throws {
+        let world = try World(now: now, calendar: calendar)
+        let new = FoodConfirmationViewModel(state: try world.newState(grams: 120), now: { [now] in now }, calendar: calendar) { _ in
+            throw CocoaError(.fileWriteUnknown)
+        }
+        XCTAssertEqual(new.sourceFooter,
+                       "Need to correct the food itself? Choose a different match, or edit the details from the entry after logging.")
+
+        let saved = try world.save(grams: 120)
+        let edit = try XCTUnwrap(world.editModel(saved.logItem.logItemID))
+        let title = try XCTUnwrap(edit.foodDetailsActionTitle, "Edit food always offers Food details")
+        XCTAssertEqual(edit.sourceFooter, "Need to correct the food itself? Use \(title) above.")
+        XCTAssertFalse(edit.sourceFooter.contains("after logging"))
+        XCTAssertFalse(edit.sourceFooter.contains("different match"))
     }
 
     func testRemoveFromSavedEntryAndEditReloadsHistory() async throws {
@@ -616,6 +741,63 @@ private final class CountingStore: FoodLogStore, @unchecked Sendable {
         return service.remove(id, expected: expected)
     }
     func restore(_ id: LogItemID, expected: LogItemVersionID) async -> FoodLogChangeOutcome { service.restore(id, expected: expected) }
+}
+
+/// Holds every `day` read until released.
+private final class DayGate: FoodLogStore, @unchecked Sendable {
+    let service: FoodLogReadingService
+    let hold = DelayGate()
+    let counter = RequestCounter()
+    init(service: FoodLogReadingService) { self.service = service }
+    @MainActor var requests: Int { counter.value }
+    @MainActor func release() { hold.release() }
+    func day(_ reportingDate: String) async throws -> FoodLogDayContent {
+        await counter.increment()
+        await hold.wait()
+        return try service.day(reportingDate: reportingDate)
+    }
+    func savedEntry(_ id: LogItemID) async throws -> SavedFoodEntryDetail? { nil }
+    func remove(_ id: LogItemID, expected: LogItemVersionID) async -> FoodLogChangeOutcome { .notSaved }
+    func restore(_ id: LogItemID, expected: LogItemVersionID) async -> FoodLogChangeOutcome { .notSaved }
+}
+
+@MainActor
+private final class RequestCounter: @unchecked Sendable {
+    private(set) var value = 0
+    nonisolated init() {}
+    func increment() { value += 1 }
+}
+
+/// Holds the slow-load wait until released.
+@MainActor
+private final class DelayGate: @unchecked Sendable {
+    private var isOpen = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+    private var waited = false
+    nonisolated init() {}
+    func wait() async {
+        if isOpen { return }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+    /// The first wait is held until released; later waits do not end within a test.
+    func waitOnce() async {
+        guard !waited else { try? await Task.sleep(for: .seconds(3600)); return }
+        waited = true
+        await wait()
+    }
+    func release() {
+        isOpen = true
+        waiters.forEach { $0.resume() }
+        waiters = []
+    }
+}
+
+private struct ThrowingStore: FoodLogStore {
+    let error: Error
+    func day(_ reportingDate: String) async throws -> FoodLogDayContent { throw error }
+    func savedEntry(_ id: LogItemID) async throws -> SavedFoodEntryDetail? { nil }
+    func remove(_ id: LogItemID, expected: LogItemVersionID) async -> FoodLogChangeOutcome { .notSaved }
+    func restore(_ id: LogItemID, expected: LogItemVersionID) async -> FoodLogChangeOutcome { .notSaved }
 }
 
 private struct ScriptedStore: FoodLogStore {

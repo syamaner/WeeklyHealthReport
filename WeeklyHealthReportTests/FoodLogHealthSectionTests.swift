@@ -770,6 +770,36 @@ final class FoodLogHealthSectionTests: XCTestCase {
         )
     }
 
+    /// #399: the real adapter reads the whole archive once for a seven-day period, however many
+    /// entries it holds, so a per-entry saved-entry read here (one full decode per entry) fails.
+    /// The service runs over a counting wrapper of the same database the root writes.
+    func testRealAdapterReadsTheArchiveOncePerPeriod() async throws {
+        let ledger = try makeLedger()
+        let root = ledger.root
+        let dates = try (-7 ... -1).map { try ledger.key($0) }
+        for date in dates {
+            _ = try savedClementine(root, entryDay: date)
+            _ = try logWater(root, on: date)
+            _ = try logWater(root, on: date)
+        }
+        let store = try FoodLedgerGRDBStore(databaseURL: ledger.databaseURL)
+        let counting = CountingArchive(store)
+        let ids = RandomLedgerIDGenerator(), clock = SystemLedgerClock()
+        let service = FoodLedgerService(actorID: try ids.makeID(ActorTag.self), committer: store, clock: clock,
+                                        encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
+        let confirmations = FoodConfirmationService(ledger: service, reader: store, clock: clock, ids: ids, digester: SHA256Digester())
+        let reader = FoodLogPeriodReader(service: FoodLogReadingService(ledger: service, archive: counting,
+            confirmationReader: store, history: ArchiveFoodLogHistoryReader(archive: counting),
+            confirmations: confirmations, clock: clock, ids: ids))
+
+        let facts = try await reader.dayFacts(for: dates)
+        XCTAssertEqual(counting.reads, 1, "one archive read for seven days of entries")
+        XCTAssertEqual(facts.map(\.entryCount), Array(repeating: 3, count: 7))
+        XCTAssertEqual(facts.map(\.foodEntryCount), Array(repeating: 1, count: 7))
+        let fromRoot = try await root.foodLogPeriodReader.dayFacts(for: dates)
+        XCTAssertEqual(facts, fromRoot)
+    }
+
     /// Cancelling the caller of `refreshFoodLog()` (the Health report's `.task`)
     /// never publishes a failure.
     func testCancellingRefreshFoodLogNeverPublishesAFailure() async {
@@ -995,4 +1025,31 @@ actor FakeFoodLogReader: FoodLogPeriodReading {
         if let error { throw error }
         return facts.filter { reportingDates.contains($0.reportingDate) }
     }
+}
+
+/// Forwards every call to a real store and counts `archiveState()` reads (#399).
+final class CountingArchive: FoodArchiveLedgerAccess, @unchecked Sendable {
+    private let base: any FoodArchiveLedgerAccess
+    private let lock = NSLock()
+    private var count = 0
+
+    init(_ base: any FoodArchiveLedgerAccess) { self.base = base }
+
+    var reads: Int { lock.withLock { count } }
+
+    func archiveState() throws -> FoodArchiveState {
+        lock.withLock { count += 1 }
+        return try base.archiveState()
+    }
+    func commitAtomically(_ transactions: [LedgerTransaction]) throws -> [CommitOutcome] { try base.commitAtomically(transactions) }
+    func actorHead(for actorID: ActorID) throws -> ActorHead { try base.actorHead(for: actorID) }
+    func operation(id: OperationID) throws -> LedgerOperation? { try base.operation(id: id) }
+    func commit(_ transaction: LedgerTransaction) throws -> CommitOutcome { try base.commit(transaction) }
+    func counts() throws -> LedgerCounts { try base.counts() }
+    func productVersions(productID: ProductID) throws -> [ProductVersion] { try base.productVersions(productID: productID) }
+    func resolutionVersion(id: ResolutionVersionID) throws -> NutritionResolutionVersion? { try base.resolutionVersion(id: id) }
+    func exactLibraryEntries(alias: LedgerText) throws -> [LibraryEntryVersion] { try base.exactLibraryEntries(alias: alias) }
+    func barcodeLibraryRecords(alias: LedgerText) throws -> [BarcodeLibraryRecord] { try base.barcodeLibraryRecords(alias: alias) }
+    func conflicts() throws -> [LedgerConflict] { try base.conflicts() }
+    func sourceRelease(id: ExternalIdentifier) throws -> SourceRelease? { try base.sourceRelease(id: id) }
 }

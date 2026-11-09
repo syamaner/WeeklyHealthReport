@@ -583,3 +583,81 @@ extension FoodDailyExportContractTests {
         XCTAssertNil(FoodDailyExportBuilder.publicSourceURL("file:///etc/hosts"))
     }
 }
+
+/// #384 C3 (docs/ciqual-2025-admission-v1.md section 7): the export keys origins by source kind
+/// and copies `source_release_id` opaquely, so a saved Ciqual entry needs no new field. The
+/// frozen goldens (`testGoldenFilesAreByteStable`) show existing exports encode unchanged.
+extension FoodDailyExportContractTests {
+    private static let ciqualFrenchName = "Chocolat noir 70 % de cacao environ, de dégustation, tablette"
+
+    /// A real save of Ciqual 31074 (70% dark chocolate bar), 40 g, on an in-memory store.
+    private static func ciqualDay() throws -> LedgerMutation {
+        let memory = InMemoryFoodLedgerStore(encoder: LedgerFixtures.encoder, digester: LedgerFixtures.digester)
+        let context = try QuickAddContext(TestHarness(name: "memory", committer: memory, reader: memory, cleanup: {}))
+        let service = FoodConfirmationService(ledger: context.ledger, reader: memory, clock: LedgerFixtures.clock,
+            ids: context.ids, digester: LedgerFixtures.digester, calendar: QuickAddFixtures.london)
+        let search = try CiqualGenericFoodSearch(ids: context.ids)
+        let request = GenericFoodSearchRequest(text: try LedgerText("dark chocolate 70%"), identity: GenericFoodIdentityQuery(),
+                                               capturedAt: LedgerFixtures.date, locale: try LedgerText("en_GB"))
+        guard case let .confirmation(route) = try search.search(request),
+              let bar = route.matches.first(where: { $0.candidate.candidate.recordID.value.hasSuffix(":alim:31074") })?.candidate else {
+            throw FoodLedgerValidationError.invalidProvenance
+        }
+        let input = try PopulatedFoodConfirmation(evidence: route.confirmation.evidence, sourceReleases: route.confirmation.sourceReleases,
+            candidates: [bar], expectedIdentity: bar.candidate.identity, expectedEdibleQuantity: bar.candidate.edibleQuantity)
+        var state = FoodConfirmationState(input: input, prefillSourceQuantity: false)
+        FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(40, .grams))
+        FoodConfirmationReducer.reduce(state: &state, action: .accept)
+        _ = try service.save(state, operationID: context.ids.makeID(OperationTag.self))
+        return try context.records()
+    }
+
+    func testACiqualEntryExportsWithItsSourceKindReleaseAndProvenanceAndNoNewField() throws {
+        let records = try Self.ciqualDay()
+        let document = try FoodDailyExportBuilder.make(Self.request(records))
+        XCTAssertEqual(document.entries.count, 1)
+        let release = "ciqual:2025-11-19:sha256:3134f8dc9feb3e17e4d297fdc42f7711eff41af3210facb5d24c35194fa0d847"
+        let iron = try Self.value(document, entry: 0, .iron)
+        XCTAssertEqual(iron.state, "estimated")
+        XCTAssertEqual(try XCTUnwrap(iron.amount), 4.4, accuracy: 1e-9, "11 mg per 100 g, scaled to 40 g")
+        XCTAssertEqual(iron.origin, "food_database")
+        let provenance = try XCTUnwrap(iron.provenance?.first)
+        XCTAssertEqual(provenance.sourceKind, "generic_composition_dataset")
+        // The stored release carries the corpus projection suffix (as USDA); it starts with the release ID.
+        XCTAssertEqual(provenance.sourceReleaseID, "\(release):projection:\(CiqualGenericFoodSearch.corpusSHA256)")
+        XCTAssertNil(provenance.sourceURL)
+        XCTAssertNil(provenance.contentHash)
+        let chloride = try Self.value(document, entry: 0, .chloride)
+        XCTAssertEqual(chloride.state, "bounded", "\"< 20\" stays an open upper bound")
+        XCTAssertNil(chloride.lower)
+        XCTAssertEqual(try XCTUnwrap(chloride.upper), 8, accuracy: 1e-9)
+        XCTAssertEqual(chloride.provenance?.first?.sourceReleaseID, provenance.sourceReleaseID)
+        let vitaminA = try Self.value(document, entry: 0, .vitaminA)
+        XCTAssertEqual(vitaminA.state, "unknown")
+        XCTAssertEqual(vitaminA.reason, "no_compatible_source")
+        XCTAssertNil(vitaminA.amount, "unknown is never zero")
+        // Same fields as any other generic entry: the Ciqual entry's JSON keys are a subset of
+        // the frozen mixed-day golden's keys.
+        let bytes = try FoodDailyExportSerializer.encode(document)
+        XCTAssertEqual(try FoodDailyExportSerializer.encode(FoodDailyExportSerializer.decode(bytes)), bytes)
+        let directory = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("../../../../docs/fixtures/food-daily-v1").standardizedFileURL
+        let golden = try Data(contentsOf: directory.appendingPathComponent("food-daily-mixed-day.json"))
+        let ciqualKeys = try Self.keys(bytes), goldenKeys = try Self.keys(golden)
+        XCTAssertTrue(ciqualKeys.isSubset(of: goldenKeys), "\(ciqualKeys.subtracting(goldenKeys))")
+        // Developer tools material stays local: no French name, no manifest reference.
+        let text = String(decoding: bytes, as: UTF8.self)
+        XCTAssertFalse(text.contains(Self.ciqualFrenchName))
+        XCTAssertFalse(text.contains("compo_2025_11_03.xml"))
+        XCTAssertFalse(String(describing: records).contains(Self.ciqualFrenchName), "the saved records never carry the French name")
+    }
+
+    private static func keys(_ data: Data) throws -> Set<String> {
+        func walk(_ value: Any) -> Set<String> {
+            if let object = value as? [String: Any] { return Set(object.keys).union(object.values.flatMap(walk)) }
+            if let array = value as? [Any] { return Set(array.flatMap(walk)) }
+            return []
+        }
+        return walk(try JSONSerialization.jsonObject(with: data))
+    }
+}

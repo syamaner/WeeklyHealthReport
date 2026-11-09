@@ -188,6 +188,34 @@ final class FoodLoggedBannerPresentationTests: XCTestCase {
         XCTAssertEqual(announced.values, ["Entry removed."])
     }
 
+    /// #361: a context change (the Food Log moving to another day) dismisses a banner that still
+    /// offers Undo and writes nothing; an Undo already under way keeps its single remove and its
+    /// outcome, and the outcome itself stays.
+    func testContextChangeDismissesOnlyTheUndoOffer() async throws {
+        let recording = RecordingRemover(outcome: .applied)
+        let offered = FoodLoggedBannerModel(store: recording, sleep: { _ in await Self.never() }, announce: { _ in })
+        offered.show(try Self.notice())
+        offered.dismissUndoOffer()
+        XCTAssertNil(offered.content)
+        await offered.undo()
+        XCTAssertTrue(recording.removes.isEmpty, "dismissing writes nothing")
+
+        let removal = Gate()
+        let inFlight = FoodLoggedBannerModel(store: SuspendingRemover(gate: removal), sleep: { _ in await Self.never() },
+                                             announce: { _ in })
+        let notice = try Self.notice()
+        inFlight.show(notice)
+        let undo = try XCTUnwrap(inFlight.startUndo())
+        inFlight.dismissUndoOffer()
+        XCTAssertEqual(inFlight.content, .removing(notice), "Undo under way stays")
+        removal.release()
+        await undo.value
+        XCTAssertEqual(inFlight.content, .result(FoodLoggedText.removed))
+        XCTAssertEqual(inFlight.removals, 1)
+        inFlight.dismissUndoOffer()
+        XCTAssertEqual(inFlight.content, .result(FoodLoggedText.removed), "the outcome stays")
+    }
+
     func testAccessibilityTextSizesKeepTheBannerForTenSeconds() async throws {
         let sleeps = Recorder<Duration>()
         let model = FoodLoggedBannerModel(store: RecordingRemover(outcome: .applied),

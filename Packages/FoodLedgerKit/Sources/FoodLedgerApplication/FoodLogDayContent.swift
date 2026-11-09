@@ -34,6 +34,11 @@ public struct FoodLogDayContent: Sendable {
         public var quantityMethod: FoodQuantityMethod = .direct
         /// A count of servings, not pieces.
         public var amountIsServings: Bool = false
+        /// "Partly estimated" (docs/label-estimate-merge-v1.md section 8), under
+        /// `FoodEntryEstimateStatus.showsPartlyEstimated`: the current version carries a label
+        /// estimate layer and is not an estimate as a whole. `isEstimate` stays true for such an
+        /// entry, as its estimated values make it; the status only names it.
+        public var isPartlyEstimated: Bool = false
     }
 
     public struct RemovedEntry: Sendable, Equatable {
@@ -65,10 +70,11 @@ public struct FoodLogDayContent: Sendable {
     /// Whether the strip shows nutrient totals: some current entry is food.
     public var showsFoodTotals: Bool { totals != nil && foodEntryCount > 0 }
 
-    /// `estimates` is the set of entries whose current version is a labelled estimate; the caller
-    /// computes it from stored evidence (`FoodEntryEstimateStatus`).
+    /// `estimates` is the set of entries whose current version is a labelled estimate, and
+    /// `partlyEstimated` those whose current version carries a label estimate layer; the caller
+    /// computes both from stored records (`FoodEntryEstimateStatus`).
     public init(projection: FoodIntakeProjection, reportingDate: String, estimates: Set<LogItemID>,
-                plainWater: FoodIntakeTotal? = nil) {
+                partlyEstimated: Set<LogItemID> = [], plainWater: FoodIntakeTotal? = nil) {
         self.reportingDate = reportingDate
         self.plainWater = plainWater
         foodEntryCount = projection.summary.foodItemCount
@@ -77,7 +83,7 @@ public struct FoodLogDayContent: Sendable {
         }
         entries = projection.rows.map { row in
             let known = Dictionary(row.totals.map { ($0.key, $0.knownAmount) }, uniquingKeysWith: { first, _ in first })
-            return Entry(logItemID: row.logItemID, logItemVersionID: row.logItemVersionID, occurredAt: row.occurredAt,
+            var entry = Entry(logItemID: row.logItemID, logItemVersionID: row.logItemVersionID, occurredAt: row.occurredAt,
                          name: row.name, quantity: row.quantity,
                          energyKcal: known[.energyConsumed] ?? nil,
                          isEstimate: estimates.contains(row.logItemID) || row.totals.contains { $0.includesEstimates }
@@ -87,6 +93,10 @@ public struct FoodLogDayContent: Sendable {
                          energyUpperBound: row.energyUpperBound,
                          enteredAmount: row.enteredAmount, quantityMethod: row.quantityMethod,
                          amountIsServings: row.amountIsServings)
+            entry.isPartlyEstimated = FoodEntryEstimateStatus.showsPartlyEstimated(
+                isPartlyEstimated: partlyEstimated.contains(row.logItemID), isEstimate: estimates.contains(row.logItemID),
+                quantityIsEstimate: row.quantityMethod.isEstimate)
+            return entry
         }
         removed = projection.removedRows.map { row in
             RemovedEntry(logItemID: row.logItemID, logItemVersionID: row.logItemVersionID, occurredAt: row.occurredAt,

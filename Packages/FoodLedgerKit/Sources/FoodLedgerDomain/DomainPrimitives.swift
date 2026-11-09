@@ -19,6 +19,8 @@ public enum FoodLedgerValidationError: Error, Equatable, Sendable {
     case duplicateValue(String)
     case hardIdentityContradiction([IdentityContradiction])
     case invalidConfirmationDecision
+    /// A cocoa percentage outside 1 to 100 or with more than one decimal place.
+    case invalidCocoaPercent
 }
 
 public struct LedgerText: Codable, Hashable, Sendable {

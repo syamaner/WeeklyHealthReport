@@ -66,3 +66,10 @@ forms of the singular-only units: `cups` and `mugs` behave like `cup` (removed w
 "of", except before `cake` or `cakes`), `mug` joins them, and `pots`, `glasses` and `packs`
 keep the "of" guard. "3 mugs of tea" searches "tea" and offers no "Use 3" suggestion; "a mug
 cake" keeps its food text. See [query parser v10](food-query-parser-v10.md).
+
+## Amendment: v4 (#359)
+
+`food-query-interpretation-v4` also removes a household unit that starts the parser's food text
+with no amount before it: after a withheld mass or volume ("250 ml mug of milk" searches
+"milk") or with no amount at all, where "of" must follow ("mugs of tea" searches "tea", "cup
+noodles" is unchanged). See [interpretation v4](food-query-interpretation-v4.md).

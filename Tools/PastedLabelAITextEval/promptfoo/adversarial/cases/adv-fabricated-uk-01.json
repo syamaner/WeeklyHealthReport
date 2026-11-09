@@ -1,0 +1,128 @@
+{
+ "adversarial_class": "fabricated_values",
+ "copy_method": "synthetic",
+ "expected": {
+  "columns": [
+   {
+    "basis": "per_100g",
+    "heading": "Per 100g"
+   }
+  ],
+  "notes": [
+   "synthetic",
+   "adversarial: a claim line above the table prints 12g and 17g of sugar, outside the table"
+  ],
+  "panel": "uk_declaration",
+  "rows": [
+   {
+    "label": "Energy",
+    "nutrient": "energy_kj",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "1720",
+      "unit": "kJ"
+     }
+    ]
+   },
+   {
+    "label": "Energy",
+    "nutrient": "energy_kcal",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "410",
+      "unit": "kcal"
+     }
+    ]
+   },
+   {
+    "label": "Fat",
+    "nutrient": "fat",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "15",
+      "unit": "g"
+     }
+    ]
+   },
+   {
+    "label": "of which saturates",
+    "nutrient": "saturates",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "2.0",
+      "unit": "g"
+     }
+    ]
+   },
+   {
+    "label": "Carbohydrate",
+    "nutrient": "carbohydrate",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "60",
+      "unit": "g"
+     }
+    ]
+   },
+   {
+    "label": "of which sugars",
+    "nutrient": "sugars",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "12",
+      "unit": "g"
+     }
+    ]
+   },
+   {
+    "label": "Fibre",
+    "nutrient": "fibre",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "6.5",
+      "unit": "g"
+     }
+    ]
+   },
+   {
+    "label": "Protein",
+    "nutrient": "protein",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "9.0",
+      "unit": "g"
+     }
+    ]
+   },
+   {
+    "label": "Salt",
+    "nutrient": "salt",
+    "values": [
+     {
+      "comparator": "=",
+      "number": "0.30",
+      "unit": "g"
+     }
+    ]
+   }
+  ]
+ },
+ "format": "uk",
+ "label_id": "adv-fabricated-uk-01",
+ "role": "tuning",
+ "schema": "pasted-label-ai-text-eval-case-v1",
+ "set": "uk_v1_fresh",
+ "source": {
+  "schema": "uk-english-v1-fresh-transcription-v1",
+  "sha256": "382c610d850982546ea0c3abc558a6576c68b46e947734a516b29a8e8537dd56"
+ },
+ "text_sha256": "3e3a2690292da3f7e769de326e151c90f1e38337e910dcc7082d19555f40fcc8"
+}

@@ -7,9 +7,9 @@ Contract authority: [Food identity and nutrition provenance contract](food-ident
 
 This document records the evidence gathered for issue #87. It does not select an
 application architecture, change a production schema or authorise provider use.
-The research used public read-only sources. Nine public Ocado product pages, six
-supplement product cases and nineteen user-supplied food-package cases were inspected
-against public manufacturer or retailer pages; there was no automated collection,
+The research used public read-only sources. Nine public product pages from a UK
+online grocer, six supplement product cases and nineteen user-supplied
+food-package cases were inspected against public manufacturer or retailer pages; there was no automated collection,
 login, basket, subscription or order action. No provider was written to and no
 commercial party was contacted.
 
@@ -24,7 +24,7 @@ The evidence supports this provisional Phase 1 source stack:
    below. A numeric CoFID value becomes `augmented`, never `measured`.
 3. Do not depend on Open Food Facts (OFF) for Phase 1 identity or canonical
    resolution. A dated independent legacy cohort produced 17 hits from 49 GTINs.
-   A current nine-product Ocado page sample supplied useful label ground truth,
+   A current nine-product online grocer page sample supplied useful label ground truth,
    but eight pages exposed no public UPC/GTIN and none supplied an immutable
    source release or formulation-effective date, so it could not establish OFF
    exact-variant, reformulation or freshness accuracy. A later user-invoked
@@ -54,7 +54,7 @@ substituted as an OFF accuracy cohort.
 | CoFID workbook | 2021, GOV.UK asset | 4,629,542 bytes | SHA-256 `436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d` |
 | Tesco Grocery 1.0 food categories | Figshare v2; 2015 Greater London purchases | 1,375,434 bytes | SHA-256 `e79c86e1247408238d3062c7f78f18ca054d68d8d1e6def92ea70435347e3f15`; CC BY 4.0 |
 | OFF legacy-cohort observation | Live API v3.6 reads on 2026-09-20 | 49 product reads | Redacted aggregate and response-manifest hash in `tesco-off-public-cohort-result.json`; raw mutable responses not committed |
-| Ocado recurring-pantry observation | Nine public product pages read manually on 2026-09-20 | 9 page reads | Dated redacted result in `ocado-public-recurring-pantry-result.json`; purchase dates, quantities, frequency and prices not retained |
+| Online grocer recurring-pantry observation | Nine public product pages read manually on 2026-09-20 | 9 page reads | Dated redacted result in `recurring-pantry-public-pages-result.json`; purchase dates, quantities, frequency and prices not retained |
 | Supplement-label observation | Six public manufacturer or retailer product cases read manually on 2026-09-20 | 6 product cases | Dated redacted result in `supplement-public-label-result.json`; source screenshots, intake frequency, schedule and purpose not retained |
 | User-supplied package-label observation | Nineteen food package cases inspected on 2026-09-20 | 19 product cases | Evidence hashes and dated result in `user-supplied-package-label-result.json`; raw package images not committed |
 | OFF JSONL bulk export | HTTP headers observed 2026-09-19 22:05 UTC | 13,008,035,579 bytes compressed | S3 version `bRcbj75WCnZmGCTgPNW0kAQIss8e7rPN`; last modified 2026-09-19 06:47:26 GMT |
@@ -207,17 +207,17 @@ published values, while the rest remained from 2019. CoFID itself warns that
 values are typical rather than definitive and that processed-food formulations
 change. It cannot establish current product-label truth.
 
-## Ocado public recurring-pantry observation
+## Online grocer public recurring-pantry observation
 
-The user supplied a multi-order Ocado purchase list to make the validation less
-abstract. Duplicate purchases, one non-food item and an unavailable item that was
-substituted were excluded. The repository does not retain purchase dates, use-by
-dates, quantities, frequency or prices. Nine food products were deliberately
-selected to exercise the contract's difficult boundaries rather than to estimate
-market prevalence. Public pages were read manually in Safari while logged out;
-no basket, order, review or account state was changed.
+The user supplied a multi-order purchase list from a UK online grocer to make the
+validation less abstract. Duplicate purchases, one non-food item and an unavailable
+item that was substituted were excluded. The repository does not retain purchase
+dates, use-by dates, quantities, frequency or prices. Nine food products were
+deliberately selected to exercise the contract's difficult boundaries rather than
+to estimate market prevalence. Public pages were read manually in Safari while
+logged out; no basket, order, review or account state was changed.
 
-All 9/9 exact public product pages exposed an Ocado product ID, pack description
+All 9/9 exact public product pages exposed a grocer product ID, pack description
 and nutrition panel. Ingredient lists were present for 7/9. Only 1/9 exposed a
 public UPC or GTIN, and 0/9 exposed either an immutable source release or a
 formulation-effective date. Consequently these pages can corroborate a captured
@@ -228,15 +228,15 @@ The cases materially exercise the frozen contract:
 
 | Case | Public evidence | Contract consequence |
 | --- | --- | --- |
-| M&S sardines in olive oil | 120 g net, 90 g drained; nutrition per 100 g drained; small soft edible bones retained | Bone state, packing medium, drained quantity and basis are decisive identity, not descriptive garnish |
-| M&S mackerel in olive oil | 125 g net, 88 g drained; 44 g half-can serving; may contain bones | Net quantity cannot substitute for edible/drained quantity; “may contain” remains uncertainty, not `with_bone` |
-| Eat Wholesome black beans | 60% beans plus water; rinse before use; nutrition only says per 100 g; no drained weight | Packing medium is observable, but drained state, edible quantity and consumption basis remain unresolved |
-| Warburtons seeded brioche buns | Per 100 g and per 62.5 g bun; marketed “enriched with butter & egg”; no added vitamin/mineral declaration | Marketing “enriched” must not be mapped to the contract's nutrient-fortification state |
-| M&S soda water | Carbonated water plus sodium bicarbonate; per 100 mL and 250 mL; six `<` nutrient values; public UPC | Classify as `water`; preserve each `<` value as `bounded`, not zero; serving basis remains separate from container volume |
-| M&S beef burgers | Raw, needs cooking, two servings; two `<` nutrient values | Preparation state and label bounds survive resolution; cooked values must not be inferred from the raw label |
-| M&S frozen salmon | Frozen raw portions, defrost before cooking, may contain bones | Frozen/preparation and uncertain bone state prevent a silent generic fresh-salmon match |
-| Graham's organic whole milk | Pasteurised, unhomogenised; per 100 mL; no calcium value published | An unlisted nutrient remains `unknown` even when a generic composition source could later augment it |
-| M&S washed baby-leaf salad | Washed and ready to eat; mixed named leaves; 80 g bag | Prepared mixed produce is not interchangeable with any one raw leaf record |
+| Canned sardines in olive oil | 120 g net, 90 g drained; nutrition per 100 g drained; small soft edible bones retained | Bone state, packing medium, drained quantity and basis are decisive identity, not descriptive garnish |
+| Canned mackerel in olive oil | 125 g net, 88 g drained; 44 g half-can serving; may contain bones | Net quantity cannot substitute for edible/drained quantity; “may contain” remains uncertainty, not `with_bone` |
+| Canned organic black beans | 60% beans plus water; rinse before use; nutrition only says per 100 g; no drained weight | Packing medium is observable, but drained state, edible quantity and consumption basis remain unresolved |
+| Seeded brioche buns | Per 100 g and per 62.5 g bun; marketed “enriched with butter & egg”; no added vitamin/mineral declaration | Marketing “enriched” must not be mapped to the contract's nutrient-fortification state |
+| Soda water | Carbonated water plus sodium bicarbonate; per 100 mL and 250 mL; six `<` nutrient values; public UPC | Classify as `water`; preserve each `<` value as `bounded`, not zero; serving basis remains separate from container volume |
+| Beef burgers | Raw, needs cooking, two servings; two `<` nutrient values | Preparation state and label bounds survive resolution; cooked values must not be inferred from the raw label |
+| Frozen salmon portions | Frozen raw portions, defrost before cooking, may contain bones | Frozen/preparation and uncertain bone state prevent a silent generic fresh-salmon match |
+| Organic whole milk | Pasteurised, unhomogenised; per 100 mL; no calcium value published | An unlisted nutrient remains `unknown` even when a generic composition source could later augment it |
+| Washed baby-leaf salad | Washed and ready to eat; mixed named leaves; 80 g bag | Prepared mixed produce is not interchangeable with any one raw leaf record |
 
 The two canned fish pages publish drained weights and drained nutrition bases. The
 canned-pulse page does not, so liquid-packed cases are 2/3 complete for decisive
@@ -251,27 +251,27 @@ covers dose form, compound and serving-basis failures. A positive fortified-food
 example remains a fixture requirement for later evaluation; its absence does not
 weaken the negative source-adoption decision.
 
-The result is recorded in `ocado-public-recurring-pantry-result.json`. It stores
+The result is recorded in `recurring-pantry-public-pages-result.json`. It stores
 only the public product facts needed to reproduce the contract judgement. It is
 not a product catalogue, does not grant retailer reuse rights and does not admit
-Ocado as a canonical source. Any implementation-time use beyond manual evidence
-review would require a separate rights, update and source-release decision.
+the grocer's public product pages as a canonical source. Any implementation-time
+use beyond manual evidence review would require a separate rights, update and
+source-release decision.
 
 ## User-supplied food package observation
 
-### Olympus 10% strained Greek yoghurt
+### 10% fat strained Greek yoghurt
 
-A supplied Olympus yoghurt package image exposes EAN-13 `5202178085963`, a 1 kg
-net weight and establishment mark `GR 46.1 EC`. The check digit is valid. The raw
-image remains local-only; its SHA-256 identifies the evidence without adding the
-image to the repository.
+A supplied yoghurt package image exposes an EAN-13, a 1 kg net weight and an
+establishment mark. The check digit is valid. The raw image remains local-only;
+its SHA-256 identifies the evidence without adding the image to the repository.
 
-The GTIN has exact public matches to Olympus/Olympos 10% fat strained Greek
-yoghurt, 1 kg. Costco UK's current public page independently names the same product
-and pack as item `235777_BD`, although it does not publish the GTIN. An official
-Olympus 10% yoghurt page publishes per-100-g nutrition: 134 kcal, 10 g fat, 6.2 g
-saturates, 4 g carbohydrate, 4 g sugars, 7 g protein and 0.18 g salt. The page has
-neither an immutable release nor a formulation-effective date.
+The GTIN has exact public matches to a 10% fat strained Greek yoghurt, 1 kg. A
+warehouse retailer's current public page independently names the same product and
+pack under its own item code, although it does not publish the GTIN. An official
+manufacturer page for the 10% yoghurt publishes per-100-g nutrition: 134 kcal,
+10 g fat, 6.2 g saturates, 4 g carbohydrate, 4 g sugars, 7 g protein and 0.18 g
+salt. The page has neither an immutable release nor a formulation-effective date.
 
 A later user-supplied table, whose source URL and release were not provided, gives
 130 kcal, 10 g fat, 6.2 g saturates, 48 mg cholesterol, 4 g carbohydrate, 4 g
@@ -289,8 +289,8 @@ declared.
 This produces a deliberately split result:
 
 - GTIN and net weight are measured package facts;
-- product name, 10% variant, strained state and Costco item are strongly
-  corroborated identity candidates;
+- product name, 10% variant, strained state and the warehouse retailer's item are
+  strongly corroborated identity candidates;
 - “10% fat” in the title is not by itself a measured nutrient declaration;
 - the user-confirmed table is the effective manual declaration at its per-100-g
   basis; fibre remains `unknown` because the table itself shows `?`;
@@ -299,21 +299,22 @@ This produces a deliberately split result:
 - a later package panel may create stronger physical evidence without rewriting
   this assertion or its source table.
 
-### The Estate Dairy Jersey Milk Cottage Cheese
+### Jersey milk cottage cheese
 
-Two supplied package images establish EAN-13 `5065019089359` (valid check digit),
-450 g net weight, establishment mark `UK EB031`, The Estate Dairy at Wallstone
-Farm, and an exact `per 100 g` nutrition basis. Ingredients are Jersey milk,
-Jersey cream, live cultures and low-sodium sea salt. The printed panel declares
-135 kcal, 7.3 g fat, 5.0 g saturates, 4.1 g carbohydrate, 3.1 g sugars, 13.2 g
-protein and 0.64 g salt. `salt_to_sodium_v1` therefore derives 256 mg sodium per
-100 g while retaining salt as the source declaration.
+Two supplied package images establish an EAN-13 (valid check digit), 450 g net
+weight, an establishment mark, the producing dairy and an exact `per 100 g`
+nutrition basis. Ingredients are Jersey milk, Jersey cream, live cultures and
+low-sodium sea salt. The printed panel declares 135 kcal, 7.3 g fat, 5.0 g
+saturates, 4.1 g carbohydrate, 3.1 g sugars, 13.2 g protein and 0.64 g salt.
+`salt_to_sodium_v1` therefore derives 256 mg sodium per 100 g while retaining salt
+as the source declaration.
 
-The current Ocado page for the same named 450 g product publishes 123 kcal, 7.8 g
-fat, 6.9 g saturates, 3.6 g carbohydrate, 3.6 g sugars, 10.0 g protein and 0.9 g
-salt per 100 g. The producer's current page instead describes approximately 61 g
-protein per 450 g pot and 7.5% fat, closer to the supplied package but still not an
-exact versioned panel. Neither public page provides a formulation-effective date.
+The current online grocer page for the same named 450 g product publishes
+123 kcal, 7.8 g fat, 6.9 g saturates, 3.6 g carbohydrate, 3.6 g sugars, 10.0 g
+protein and 0.9 g salt per 100 g. The producer's current page instead describes
+approximately 61 g protein per 450 g pot and 7.5% fat, closer to the supplied
+package but still not an exact versioned panel. Neither public page provides a
+formulation-effective date.
 
 The package declaration takes precedence for this evidence-scoped product version.
 The public disagreement is retained as possible reformulation or retailer
@@ -321,15 +322,15 @@ staleness; the evidence does not choose between those causes. A later different
 panel under the same GTIN must create another product and resolution version rather
 than overwrite this package.
 
-### Lancashire Farm Greek Style Luxury Yogurt
+### 10% fat Greek-style yoghurt
 
-A barcode-only image supplies valid EAN-13 `5035251001310`. Independent current
-public GTIN listings resolve it as Lancashire Farm Greek Style Luxury Yogurt, 10%
-fat, 1 kg. The manufacturer, Ocado and Asda pages agree on a per-100-g panel:
-120 kcal, 10 g fat, 5.15 g saturates, 2.6 g monounsaturates, 0.46 g
-polyunsaturates, 6.5 g carbohydrate, 3.4 g sugars, 4.13 g protein, fibre `<0.5 g`,
-0.15 g salt and 0.14 g calcium. The salt declaration would derive 60 mg sodium,
-and calcium converts to the canonical 140 mg.
+A barcode-only image supplies a valid EAN-13. Independent current public GTIN
+listings resolve it as a Greek-style luxury yoghurt, 10% fat, 1 kg. The
+manufacturer page and two retailer pages agree on a per-100-g panel: 120 kcal,
+10 g fat, 5.15 g saturates, 2.6 g monounsaturates, 0.46 g polyunsaturates, 6.5 g
+carbohydrate, 3.4 g sugars, 4.13 g protein, fibre `<0.5 g`, 0.15 g salt and
+0.14 g calcium. The salt declaration would derive 60 mg sodium, and calcium
+converts to the canonical 140 mg.
 
 The agreement materially strengthens the product candidate but does not make the
 web values package-measured. None of the mutable pages provides an immutable source
@@ -338,13 +339,13 @@ nutrition panel. Fibre is preserved as the candidate interval `[0, 0.5)` g rathe
 than zero. Nutrition remains non-effective pending the exact package panel or a
 separately ratified compatible-source rule.
 
-### Co-op 10 Cheesy Singles
+### Processed cheese slices
 
-A barcode-only image supplies valid EAN-13 `5000128782661` and the visible
-packaging code `AW CODE: C51236/1/15 0421 20788439`. The exact Central Co-op GTIN
-page resolves the product as Co-op 10 Cheesy Singles, 200 g, containing ten 20 g
-slices. “Co-op American cheese” is retained as the user's personal alias, not used
-to replace the canonical product name or infer an American regulatory category.
+A barcode-only image supplies a valid EAN-13 and a visible packaging code. The
+exact retailer GTIN page resolves the product as a retailer own-brand pack of ten
+processed cheese slices, 200 g, containing ten 20 g slices. The user's personal
+alias for it (“American cheese”) is retained as an alias, not used to replace the
+canonical product name or infer an American regulatory category.
 
 The exact public page declares per 100 g: 247 kcal, 16 g fat, 8.2 g saturates,
 10 g carbohydrate, 7.6 g sugars, fibre `<0.5 g`, 15 g protein and 1.99 g salt.
@@ -368,12 +369,12 @@ that emulsifying-salt list does not by itself establish the contract's
 fortification claim. As the supplied image contains no nutrition panel, all web
 nutrition remains a non-effective candidate.
 
-### Co-op Ripe and Ready Twin Pack Hass Avocados
+### Twin pack of ripe and ready Hass avocados
 
-A produce sticker supplies valid EAN-13 `5000128606387`, Peru origin, Class I,
-packer code `M1799`, best-before text `21 SEP` without a printed year, and the
-marking `NOT FOR EU`. The exact Central Co-op GTIN page resolves the product name
-and proposes a two-avocado ripe-and-ready Hass pack.
+A produce sticker supplies a valid EAN-13, Peru origin, Class I, a packer code,
+best-before text `21 SEP` without a printed year, and the marking `NOT FOR EU`.
+The exact retailer GTIN page resolves the product name and proposes a two-avocado
+ripe-and-ready Hass pack.
 
 The public page currently says origin South Africa. For this captured package,
 that mutable seasonal-origin value is rejected and Peru remains authoritative.
@@ -394,13 +395,13 @@ The result is recorded in `user-supplied-package-label-result.json`. It
 demonstrates that barcode identity resolution and nutrition resolution are
 separate decisions even when the barcode match is strong.
 
-### Co-op British Raspberries 150g
+### British raspberries, 150 g
 
-A produce label supplies valid EAN-13 `5000128915618`, 150 g net weight, Kent UK
-origin, Lagorai variety, supplier Sean Charlton, supplier code `M150/SC/104`,
-printed code `L1`, best-before text `20 Sep` without a printed year, and the
-marking `Not for EU`. The exact Central Co-op GTIN page resolves the product as
-Co-op British Raspberries 150g and confirms the pack size.
+A produce label supplies a valid EAN-13, 150 g net weight, Kent UK origin, a
+named variety, a named supplier and supplier code, a printed lot code,
+best-before text `20 Sep` without a printed year, and the marking `Not for EU`.
+The exact retailer GTIN page resolves the product as a 150 g pack of British
+raspberries and confirms the pack size.
 
 The public page currently says origin Spain. For this captured punnet, Kent UK
 remains authoritative and Spain is retained only as incompatible seasonal
@@ -427,13 +428,13 @@ The result is recorded in `user-supplied-package-label-result.json`. It extends
 the conflict test beyond package-versus-page disagreement: one mutable exact-GTIN
 record can itself contain multiple unresolved product versions.
 
-### Co-op Irresistible Butter Basted Turkey Breast 120g
+### Butter-basted sliced turkey breast, 120 g
 
-Two package crops supply valid EAN-13 `5000128599450`, AW code `C51560/2/1`,
-three servings and a full nutrition panel at both per-100-g and per-slice (40 g)
-bases. The exact Central Co-op GTIN page resolves the current public identity as
-Co-op Irresistible Butter Basted Turkey Breast 120g: roasted, sliced turkey breast
-with a preparation identity that must not be collapsed into generic raw turkey.
+Two package crops supply a valid EAN-13, an AW code, three servings and a full
+nutrition panel at both per-100-g and per-slice (40 g) bases. The exact retailer
+GTIN page resolves the current public identity as a premium-range butter-basted
+turkey breast, 120 g: roasted, sliced turkey breast with a preparation identity
+that must not be collapsed into generic raw turkey.
 
 The photographed package panel is measured evidence. Per 100 g it declares
 517 kJ/122 kcal, 1.0 g fat, 0.4 g saturates, zero carbohydrate, zero sugars,
@@ -452,9 +453,9 @@ not silently made identical.
 The current exact-GTIN page is materially different: per 100 g it declares
 598 kJ/141 kcal, 1.3 g fat, 0.4 g saturates, carbohydrate `<0.5 g`, sugars
 `<0.5 g`, fibre `<0.5 g`, 32 g protein and 0.50 g salt (200 mg derived sodium).
-It also lists turkey, salted Jersey butter (4%), Cornish sea salt (1%) and
-dextrose, says 105 g raw turkey is used per 100 g finished product, identifies
-milk as an allergen and gives UK origin.
+It also lists turkey, salted butter (4%), sea salt (1%) and dextrose, says 105 g
+raw turkey is used per 100 g finished product, identifies milk as an allergen and
+gives UK origin.
 
 The public profile is retained as a separate possible formulation and rejected
 for the captured package. It has neither an immutable release nor an effective
@@ -468,15 +469,15 @@ The result is recorded in `user-supplied-package-label-result.json`. It exercise
 the contract's product-reformulation and retrospective-re-resolution rules with
 a directly measured package/public conflict.
 
-### Co-op Specially Selected Asparagus Tips 100g
+### Asparagus tips, 100 g
 
-Two package crops supply valid EAN-13 `5000128946834`, 100 g net weight, Peru
-origin, packer code `M244`, best-before text `22 SEP` without a printed year,
-additional code `SS 2 10:08`, and a complete per-100-g nutrition panel. The
-official Co-op page identifies a 100 g Specially Selected Asparagus Tips product;
-a current Southern Co-op retail listing independently matches the Peru origin and
-headline nutrition. Neither accessible page exposes the barcode, so this is not
-counted as an exact public GTIN match.
+Two package crops supply a valid EAN-13, 100 g net weight, Peru origin, a packer
+code, best-before text `22 SEP` without a printed year, an additional printed
+code, and a complete per-100-g nutrition panel. The retailer's official page
+identifies a 100 g premium-range asparagus tips product; a current listing from a
+second retail society independently matches the Peru origin and headline
+nutrition. Neither accessible page exposes the barcode, so this is not counted as
+an exact public GTIN match.
 
 The package panel is measured evidence. Per 100 g—and therefore per labelled
 100 g pack quantity—it declares 119 kJ/28 kcal, 0.6 g fat, saturates `<0.1 g`,
@@ -501,18 +502,18 @@ The result is recorded in `user-supplied-package-label-result.json`. It exercise
 bounded-value preservation, folic-acid-to-`folate_b9` mapping and explicit unit
 resolution without upgrading product-family corroboration to a barcode match.
 
-### Co-op Baby Spinach 100g candidate
+### Baby spinach, 100 g candidate
 
-Two package crops supply valid EAN-13 `5000129330328`, AW code `P51128/1/4`, and
-a complete panel at per-100-g and per-cereal-bowl (80 g) bases. The supplied crops
-do not show the front name, net weight, origin, date, or whether the leaves are
-washed and ready to eat. Those decisive identity attributes remain unknown.
+Two package crops supply a valid EAN-13, an AW code, and a complete panel at
+per-100-g and per-cereal-bowl (80 g) bases. The supplied crops do not show the
+front name, net weight, origin, date, or whether the leaves are washed and ready
+to eat. Those decisive identity attributes remain unknown.
 
 The user identifies the product as baby spinach. Secondary catalogue entries
-identify Co-op Baby Spinach 100g or Mild & Delicate Baby Spinach and reproduce the
-distinctive 15 kcal per 80 g cereal-bowl serving, but expose neither this barcode
-nor an immutable formulation date. The identity and 100 g pack are therefore
-strong candidates, not measured package facts or an exact public GTIN match.
+identify a retailer own-brand 100 g baby spinach and reproduce the distinctive
+15 kcal per 80 g cereal-bowl serving, but expose neither this barcode nor an
+immutable formulation date. The identity and 100 g pack are therefore strong
+candidates, not measured package facts or an exact public GTIN match.
 
 The package panel is measured evidence. Per 100 g it declares 78 kJ/19 kcal,
 0.6 g fat, saturates `<0.1 g`, carbohydrate `<0.5 g`, sugars `<0.5 g`, 1.0 g
@@ -532,12 +533,13 @@ The result is recorded in `user-supplied-package-label-result.json`. It exercise
 bounded serving projections, unknown preparation attributes and the rule that
 compatible secondary product-family data cannot silently become exact identity.
 
-### M&S Unwaxed Lemons
+### Unwaxed lemons
 
-The package prints `M 0806 336 S`, not an EAN-13. Normalising its numeric product
-component to `00806336` resolves the exact official M&S product code for M&S
-Unwaxed Lemons. The repository preserves the original marking and identifies it
-as an M&S retailer-code namespace rather than manufacturing a GTIN.
+The package prints a retailer marking, not an EAN-13. Normalising its numeric
+product component to eight digits resolves the exact official retailer product
+code for an own-brand pack of unwaxed lemons. The repository preserves the
+original marking and identifies it as a retailer-code namespace rather than
+manufacturing a GTIN.
 
 The package panel is measured evidence. Per 100 g it declares 79 kJ/19 kcal,
 0.3 g fat, 0.1 g saturates, 3.2 g carbohydrate, 3.2 g sugars, zero fibre, 1.0 g
@@ -545,17 +547,17 @@ protein, salt `<0.01 g`, and vitamin C 58 mg (73% RI). Vitamin C maps directly t
 `vitamin_c`; salt remains `[0, 0.01)` g and maps through `salt_to_sodium_v1` to
 `[0, 4)` mg sodium.
 
-The official M&S page reproduces the package nutrients and currently describes a
-640 g product. Ocado uses the same M&S code, describes four seedless unwaxed
-lemons, and also reproduces the label values. Neither count nor weight appears in
-the supplied crops, so both current catalogue quantities remain candidates rather
-than captured-package facts.
+The retailer's official page reproduces the package nutrients and currently
+describes a 640 g product. The online grocer uses the same retailer code,
+describes four seedless unwaxed lemons, and also reproduces the label values.
+Neither count nor weight appears in the supplied crops, so both current catalogue
+quantities remain candidates rather than captured-package facts.
 
-The M&S page additionally publishes sodium as 0.01 g (10 mg). That cannot coexist
-with total salt below 0.01 g and conflicts with the deterministic `[0, 4)` mg
-sodium bound. The direct package salt declaration wins; the official-page sodium
-field is retained as conflicting provenance and rejected rather than silently
-merged. Ocado omits that sodium field.
+The retailer's page additionally publishes sodium as 0.01 g (10 mg). That cannot
+coexist with total salt below 0.01 g and conflicts with the deterministic
+`[0, 4)` mg sodium bound. The direct package salt declaration wins; the
+official-page sodium field is retained as conflicting provenance and rejected
+rather than silently merged. The online grocer omits that sodium field.
 
 The per-100-g sources do not say whether their basis is whole fruit, flesh, juice
 or another edible portion. Pack count, captured weight and edible quantity are
@@ -566,13 +568,13 @@ The result is recorded in `user-supplied-package-label-result.json`. It exercise
 namespaced non-GTIN identifiers, exact retailer-code resolution, vitamin mapping,
 conflict rejection and edible-quantity boundaries.
 
-### Co-op tomato, exact variant unresolved
+### Tomatoes, exact variant unresolved
 
-Two package crops supply valid EAN-13 `5000128863186`, packaging code
-`P53944/1/2`, and a complete per-100-g nutrition panel. The user identifies the
-food as tomato, but the crops do not show a front name, variety, vine or organic
-status, pack quantity, origin or date. No accessible public source was found for
-the exact GTIN, so those identity attributes remain unknown.
+Two package crops supply a valid EAN-13, a packaging code, and a complete
+per-100-g nutrition panel. The user identifies the food as tomato, but the crops
+do not show a front name, variety, vine or organic status, pack quantity, origin
+or date. No accessible public source was found for the exact GTIN, so those
+identity attributes remain unknown.
 
 The package panel is measured evidence. Per 100 g it declares 71 kJ/17 kcal,
 0.1 g fat, saturates `<0.1 g`, 3.0 g carbohydrate, 3.0 g sugars, 1.0 g fibre,
@@ -580,8 +582,8 @@ The package panel is measured evidence. Per 100 g it declares 71 kJ/17 kcal,
 directly to `vitamin_c`; salt remains `[0, 0.1)` g and maps through
 `salt_to_sodium_v1` to `[0, 40)` mg sodium.
 
-Public search found a Co-op Organic Vine Tomatoes page with a different GTIN,
-`5000128721141`. It shares energy, carbohydrate, sugars and fibre, illustrating
+Public search found an organic vine tomatoes page from the same retailer with a
+different GTIN. It shares energy, carbohydrate, sugars and fibre, illustrating
 how generic produce panels collide across products. It cannot resolve this
 package: organic and vine identity are unevidenced, and it declares vitamin C
 22 mg rather than 17 mg, fat `<0.5 g` rather than 0.1 g, and protein `<0.5 g`
@@ -596,13 +598,12 @@ The result is recorded in `user-supplied-package-label-result.json`. It exercise
 valid-but-unresolved barcode identity, exact micronutrient preservation and
 rejection of a tempting different-GTIN generic-food match.
 
-### Co-op whole milk, pack unresolved
+### Whole milk, pack unresolved
 
-Two package crops supply valid EAN-13 `5000129393828`, AW code `C54935/1/1`, a
-per-100-g nutrition declaration and the statement `10 Servings`. The user
-identifies the product as whole milk. The crops do not show the front name,
-ingredients, pack mass or volume, serving size, origin, date, processing or
-fortification declarations.
+Two package crops supply a valid EAN-13, an AW code, a per-100-g nutrition
+declaration and the statement `10 Servings`. The user identifies the product as
+whole milk. The crops do not show the front name, ingredients, pack mass or
+volume, serving size, origin, date, processing or fortification declarations.
 
 The package panel is measured evidence at its printed mass basis. Per 100 g it
 declares 264 kJ/63 kcal, 3.5 g fat, 2.5 g saturates, 4.6 g carbohydrate, 4.6 g
@@ -610,12 +611,12 @@ sugars, zero fibre, 3.3 g protein and 0.04 g salt. Salt maps through
 `salt_to_sodium_v1` to 16 mg sodium. The contract does not silently rename this
 as per 100 mL or apply an assumed milk density.
 
-No accessible public exact-GTIN record was found. A historical official Co-op
-allergen catalogue confirms multiple British fresh whole-milk variants, including
-1 pint/568 mL and 2 pints/1.136 L, but does not identify this barcode. A current
-different-brand 1 L whole milk shares 63 kcal and 3.5 g fat but differs in basis,
-saturates, carbohydrate, protein and salt; it is retained as a rejected category
-near match, not used for identity or augmentation.
+No accessible public exact-GTIN record was found. A historical official allergen
+catalogue from the same retailer confirms multiple British fresh whole-milk
+variants, including 1 pint/568 mL and 2 pints/1.136 L, but does not identify this
+barcode. A current different-brand 1 L whole milk shares 63 kcal and 3.5 g fat
+but differs in basis, saturates, carbohydrate, protein and salt; it is retained as
+a rejected category near match, not used for identity or augmentation.
 
 The ten-servings statement lacks a visible serving size. It therefore cannot
 establish 1 L, 1 kg, ten 100-g portions, ten 100-mL portions or consumption.
@@ -626,13 +627,13 @@ The result is recorded in `user-supplied-package-label-result.json`. It exercise
 drink classification, mass-versus-volume basis preservation, unknown serving
 quantity and rejection of category-level micronutrient completion.
 
-### Co-op wheat and rye sourdough, exact public identity unresolved
+### Wheat and rye sourdough, exact public identity unresolved
 
-Two package crops supply valid EAN-13 `5000129399301`, AW code `B55033/1/1`,
-approximately eight servings and a complete nutrition panel at per-100-g and
-per-average-slice bases. The user identifies the product as wheat and rye
-sourdough. The crops do not show the front name, ingredients, net weight,
-fortification, origin, date, or whether the loaf was sold sliced.
+Two package crops supply a valid EAN-13, an AW code, approximately eight servings
+and a complete nutrition panel at per-100-g and per-average-slice bases. The user
+identifies the product as wheat and rye sourdough. The crops do not show the front
+name, ingredients, net weight, fortification, origin, date, or whether the loaf
+was sold sliced.
 
 The package panel is measured evidence. Per 100 g it declares 949 kJ/225 kcal,
 1.3 g fat, 0.2 g saturates, 41 g carbohydrate, 2.2 g sugars, 7.8 g fibre, 8.3 g
@@ -648,14 +649,14 @@ retained; the calculated value does not silently correct the directly printed
 one. Likewise, eight approximate 63 g slices suggest about 504 g but do not prove
 an exact pack weight.
 
-No indexed exact-GTIN product facts were found. A request to the expected Central
-Co-op product URL returned an anti-bot shell rather than a product record, so it
-does not establish a public identity or formulation. Ocado publishes a similarly
-named 500 g wheat-and-rye sourdough, but it is a different retailer product with
-approximately ten 45 g servings and materially different nutrition: 255 kcal,
-3.3 g fat, 4.9 g fibre and 0.87 g salt per 100 g. Its fortified wheat flour,
-18% wholemeal rye, rapeseed oil, soya flour and wheat gluten cannot be imported
-into the captured product.
+No indexed exact-GTIN product facts were found. A request to the expected
+retailer product URL returned an anti-bot shell rather than a product record, so
+it does not establish a public identity or formulation. The online grocer
+publishes a similarly named 500 g wheat-and-rye sourdough, but it is a different
+retailer product with approximately ten 45 g servings and materially different
+nutrition: 255 kcal, 3.3 g fat, 4.9 g fibre and 0.87 g salt per 100 g. Its
+fortified wheat flour, 18% wholemeal rye, rapeseed oil, soya flour and wheat
+gluten cannot be imported into the captured product.
 
 The result is recorded in `user-supplied-package-label-result.json`. It exercises
 approximate serving-basis preservation, source-versus-projection rounding and
@@ -663,22 +664,22 @@ rejection of a tempting same-name product match. Pack weight, exact slice mass,
 consumed amount, ingredients, fortification and every undeclared canonical
 nutrient remain unknown.
 
-### M&S Danish mackerel fillets in olive oil
+### Mackerel fillets in olive oil
 
-Two package crops supply the marking `M 0809 160 S`, the product description
-“mackerel fillets in olive oil (26%),” ingredients, a bone warning, two servings
-and a drained nutrition panel. The marking normalises to M&S product code
-`00809160`; it is a namespaced retailer code, not a GTIN.
+Two package crops supply a retailer marking, the product description “mackerel
+fillets in olive oil (26%),” ingredients, a bone warning, two servings and a
+drained nutrition panel. The marking normalises to an eight-digit retailer
+product code; it is a namespaced retailer code, not a GTIN.
 
-Current and historical public evidence resolves that exact code as M&S Danish
-Mackerel Fillets in Olive Oil. The current retail listing gives 125 g net and
-88 g drained weight, packed in Denmark with mackerel caught in the North East
-Atlantic. An exact-code M&S market page identifies common mackerel (`Scomber
-scombrus`), but the supplied crop itself says only mackerel, so the scientific
-species remains public candidate evidence. The package lists mackerel, olive oil
-and salt and says “may contain bones.” That warning leaves actual bone presence
-and bone-excluded edible mass unknown; the product must not be silently
-classified as boneless.
+Current and historical public evidence resolves that exact code as the retailer's
+own-brand mackerel fillets in olive oil. The current retail listing gives 125 g
+net and 88 g drained weight, packed in Denmark with mackerel caught in the North
+East Atlantic. An exact-code market page from the same retailer identifies common
+mackerel (`Scomber scombrus`), but the supplied crop itself says only mackerel, so
+the scientific species remains public candidate evidence. The package lists
+mackerel, olive oil and salt and says “may contain bones.” That warning leaves
+actual bone presence and bone-excluded edible mass unknown; the product must not
+be silently classified as boneless.
 
 The package panel is measured evidence per 100 g **drained**: 1104 kJ/266 kcal,
 19.9 g fat, 3.6 g saturates, 0.3 g carbohydrate, 0.1 g sugars, 0.4 g fibre,
@@ -694,9 +695,9 @@ direct panel values. The panel directly prints only omega 3 for both bases:
 rounding. Omega 3 remains a retained source fact outside the frozen 39-nutrient
 catalogue and is not aliased to total polyunsaturated fat.
 
-Public nutrition also supplies a conflict test. The exact-code M&S market page
-agrees with the package's 0.68 g salt, while the current Ocado page reports
-0.58 g. The package value remains effective for this captured version; the
+Public nutrition also supplies a conflict test. The retailer's exact-code market
+page agrees with the package's 0.68 g salt, while the current online grocer page
+reports 0.58 g. The package value remains effective for this captured version; the
 retailer assertions stay separate and are neither averaged nor resolved by
 last-write-wins.
 
@@ -706,14 +707,14 @@ non-GTIN retailer identity, noncanonical fatty-acid retention and explicit publi
 conflict handling. A consumed occurrence still requires the actual drained fish
 quantity and whether any packing oil was consumed.
 
-### Baymar Gourmet sardines in olive oil with chilli
+### Sardines in olive oil with chilli
 
-Two package crops supply valid EAN-13 `8425930142231` and a multilingual
-nutrition panel explicitly headed per 100 g **of product**. Exact official
-manufacturer evidence resolves the product as Baymar reference `SARG004`, baby
-sardines in olive oil with chilli pepper, containing 22–26 fish, with 120 g net
-and 84 g drained weight. Exact-EAN retail evidence identifies `Sprattus sprattus`
-at 70%, olive oil at 28.4%, salt and chilli pepper at 0.6%.
+Two package crops supply a valid EAN-13 and a multilingual nutrition panel
+explicitly headed per 100 g **of product**. Exact official manufacturer evidence
+resolves the product under a manufacturer reference as baby sardines in olive oil
+with chilli pepper, containing 22–26 fish, with 120 g net and 84 g drained weight.
+Exact-EAN retail evidence identifies `Sprattus sprattus` at 70%, olive oil at
+28.4%, salt and chilli pepper at 0.6%.
 
 The package panel is measured evidence per 100 g product: 1040 kJ/251 kcal,
 20 g fat, 4.3 g saturates, zero carbohydrate, zero sugars, 17 g protein and
@@ -729,72 +730,72 @@ sodium. Applying the same profile to the 84 g drained fish is not permitted:
 that would silently retain the wrong proportion of oil. Actual fish and oil
 consumption remain separate log quantities.
 
-Bone state also remains unresolved. An AECOC Baymar product-family entry describes
-boneless sardines, but it gives neither this EAN nor the `SARG004` chilli reference
-and appears to describe the plain-olive-oil sibling. It cannot make the captured
-product boneless. Bone-in and boneless sardines require distinct identity or
-version evidence; the 22–26-fish presentation is not enough to infer either.
+Bone state also remains unresolved. A trade product-family registry entry for the
+same manufacturer describes boneless sardines, but it gives neither this EAN nor
+the chilli product's manufacturer reference and appears to describe the
+plain-olive-oil sibling. It cannot make the captured product boneless. Bone-in and
+boneless sardines require distinct identity or version evidence; the 22–26-fish
+presentation is not enough to infer either.
 
-A retailer page for exact reference `SARG004` reports 4.7 g saturates, conflicting
-with the photographed 4.3 g. The package value remains effective for this evidence
-version. The retailer assertion is retained separately rather than averaged or
-selected by last-write-wins.
+A retailer page for the exact manufacturer reference reports 4.7 g saturates,
+conflicting with the photographed 4.3 g. The package value remains effective for
+this evidence version. The retailer assertion is retained separately rather than
+averaged or selected by last-write-wins.
 
 The result is recorded in `user-supplied-package-label-result.json`. Together with
 the mackerel case, it exercises both directions of the drained-state boundary:
 drained nutrition must not be applied to gross can weight, and oil-inclusive
 nutrition must not be applied to drained fish weight.
 
-### M&S Chopped Italian Tomatoes 400g
+### Chopped Italian tomatoes, 400 g
 
-The previously unidentified package is M&S Chopped Italian Tomatoes. Its marking
-`M 0821 964 S` normalises to M&S product code `00821964`; it is a namespaced
-retailer identifier, not a GTIN. The current official M&S page resolves a 400 g
-can produced in Foggia, Italy, containing Italian chopped tomatoes (65%), tomato
-juice and citric acid.
+The previously unidentified package is a retailer own-brand can of chopped
+Italian tomatoes. Its marking normalises to an eight-digit retailer product code;
+it is a namespaced retailer identifier, not a GTIN. The retailer's current
+official page resolves a 400 g can produced in Italy, containing Italian chopped
+tomatoes (65%), tomato juice and citric acid.
 
 The photographed panel is measured evidence per 100 g: 105 kJ/25 kcal, 0.2 g
 fat, 0.1 g saturates, 3.9 g carbohydrate, 3.8 g sugars, 1.2 g fibre, 1.3 g
 protein and 0.02 g salt. Salt maps through `salt_to_sodium_v1` to 8 mg sodium.
-The current official UK page and an exact-code M&S market page reproduce that
-profile and the ingredient identity.
+The current official UK page and an exact-code market page from the same retailer
+reproduce that profile and the ingredient identity.
 
 If a log explicitly records all 400 g as consumed, deterministic scaling gives
 100 kcal, 0.8 g fat, 15.6 g carbohydrate, 15.2 g sugars, 4.8 g fibre, 5.2 g
 protein and 32 mg sodium. Product identity and pack size alone do not establish
 that consumption.
 
-An exact-code M&S Cyprus page carries a materially different profile: 20 kcal,
-fat and saturates below 0.1 g, 2.7 g carbohydrate, 2.5 g sugars, 1.9 g fibre,
-1.4 g protein and 0.10 g salt per 100 g. That may be a market variant,
-reformulation or stale page, but no source provides an effective date. It remains
-a separate candidate version and cannot overwrite or be merged into the measured
-package.
+An exact-code page from the same retailer for another national market carries a
+materially different profile: 20 kcal, fat and saturates below 0.1 g, 2.7 g
+carbohydrate, 2.5 g sugars, 1.9 g fibre, 1.4 g protein and 0.10 g salt per
+100 g. That may be a market variant, reformulation or stale page, but no source
+provides an effective date. It remains a separate candidate version and cannot
+overwrite or be merged into the measured package.
 
 The result is recorded in `user-supplied-package-label-result.json`. It exercises
 anonymous-package resolution through a retailer namespace, product-basis quantity
 projection and exact-code cross-market conflict handling.
 
-### Eat Wholesome Organic Black Beans
+### Organic black beans
 
-The photographed UPC-A `628110454485` is structurally valid and normalises to
-GTIN-13 `0628110454485`. The user links it to Eat Wholesome Organic Black Beans,
-but no accessible public page was found that exposes this exact UPC. The product
-name and brand are therefore user-linked identity facts rather than facts visible
-in the supplied crops or an exact public barcode resolution.
+The photographed UPC-A is structurally valid and normalises to a GTIN-13 with a
+leading zero. The user links it to a named brand of organic black beans, but no
+accessible public page was found that exposes this exact UPC. The product name and
+brand are therefore user-linked identity facts rather than facts visible in the
+supplied crops or an exact public barcode resolution.
 
 The photographed panel is measured evidence per 100 g drained: 425 kJ/101 kcal,
 0.7 g fat, 0 g saturates, 13.1 g carbohydrate, 0 g sugars, 6.9 g fibre, 7.2 g
 protein and 0.08 g salt. Salt maps through `salt_to_sodium_v1` to 32 mg sodium.
 Neither net weight nor drained weight is visible.
 
-The current same-name [Ocado product page](https://www.ocado.com/products/eat-wholesome-organic-black-beans/430403011)
-describes a 400 g product containing 60% organic black beans and water, but its
-published profile is materially different: 240 kJ/57 kcal, 0.6 g fat, 6.3 g
-carbohydrate, 5.1 g fibre, 4.1 g protein and 0.05 g salt per 100 g. It does not
-expose the photographed UPC. The public profile therefore remains a separate
-candidate market, formulation, date or basis; it cannot overwrite or be merged
-with the package panel.
+The current same-name online grocer product page describes a 400 g product
+containing 60% organic black beans and water, but its published profile is
+materially different: 240 kJ/57 kcal, 0.6 g fat, 6.3 g carbohydrate, 5.1 g fibre,
+4.1 g protein and 0.05 g salt per 100 g. It does not expose the photographed UPC.
+The public profile therefore remains a separate candidate market, formulation,
+date or basis; it cannot overwrite or be merged with the package panel.
 
 No whole-can projection is made. The public 400 g gross weight is not a drained
 weight, and multiplying it by the public 60% bean ingredient proportion would not
@@ -805,14 +806,13 @@ The result is recorded in `user-supplied-package-label-result.json`. It exercise
 valid-but-publicly-unresolved barcode handling, explicit drained-state nutrition,
 same-name public-version conflict and refusal to manufacture edible quantity.
 
-### The Organic Protein Co Pure Unflavoured Organic Whey Protein
+### Unflavoured organic whey protein powder
 
-EAN-13 `0702403240297` is structurally valid and resolves exactly to The Organic
-Protein Co Pure Unflavoured Organic Whey Protein Powder, 400 g. An exact-barcode
-wholesale listing supplies the pack identity, ingredient as organic whey protein
-concentrate from organic milk and milk allergen. The current
-[manufacturer page](https://theorganicproteincompany.co.uk/products/organic-whey-protein)
-confirms that this is concentrate rather than isolate or hydrolysate.
+The photographed EAN-13 is structurally valid and resolves exactly to an
+unflavoured organic whey protein powder, 400 g. An exact-barcode wholesale listing
+supplies the pack identity, ingredient as organic whey protein concentrate from
+organic milk and milk allergen. The manufacturer's current page confirms that this
+is concentrate rather than isolate or hydrolysate.
 
 The photographed panel directly declares both per-100-g and per-25-g serving
 values. Per 100 g it contains 1672 kJ/395 kcal, 4.1 g fat, 3.1 g saturates,
@@ -843,15 +843,14 @@ The result is recorded in `user-supplied-package-label-result.json`. It exercise
 exact-GTIN food-powder resolution, independent serving-column rounding,
 non-catalogue amino-acid retention and package-versus-current micronutrient drift.
 
-### M&S Collection British Single Apiary Select Farm Honey
+### British single-apiary honey
 
-The marking `M 2916 1201 S` normalises to M&S product code `29161201`; it is a
-namespaced retailer identifier, not a GTIN. The current
-[official M&S page](https://www.marksandspencer.com/food/british-single-apiary-select-farm-honey/p/fdp60511170)
-resolves that code exactly to British Single Apiary Select Farm Honey, 250 g.
-M&S describes each jar as harvested from one apiary on one Select Farm. The
-supplied crops show “British honey”; the single-apiary, Select Farm and 250 g
-facts come from the exact-code public identity.
+The package marking normalises to an eight-digit retailer product code; it is a
+namespaced retailer identifier, not a GTIN. The retailer's current official page
+resolves that code exactly to a premium-range British single-apiary honey, 250 g.
+The retailer describes each jar as harvested from one apiary on one named farm.
+The supplied crops show “British honey”; the single-apiary, farm and 250 g facts
+come from the exact-code public identity.
 
 The photographed per-100-g panel declares 1306 kJ/307 kcal, less than 0.1 g fat,
 less than 0.1 g saturates, 76.4 g carbohydrate, 76.4 g sugars, less than 0.5 g
@@ -880,25 +879,26 @@ frequency, schedule, health purpose or other regimen history. Public pages were
 read manually without an account or any basket, order, subscription or review
 action.
 
-Four cases now have exact public product-identity matches. Anthony's matched the brand
-and product family but not a confirmed variant, while the abbreviated `AG` liquid
-entry had only a probable AG1 match. No case provided an immutable source release
-or a formulation-effective date. Six public pages exposed numeric candidates as
-accessible text, and four exact-product pages were conflict-free. Later
-user-supplied Centrum, Solgar fish oil, AG and Boots psyllium package panels
-provide evidence-scoped authority for their printed formulations but do not turn
-the public pages into a reusable supplement catalogue.
+Four cases now have exact public product-identity matches. One psyllium powder
+matched the brand and product family but not a confirmed variant, while the
+abbreviated entry for the vitamin D3 and K2 liquid had only a probable product
+match. No case provided an immutable source release or a formulation-effective
+date. Six public pages exposed numeric candidates as accessible text, and four
+exact-product pages were conflict-free. Later user-supplied package panels for the
+multivitamin, the fish oil, the vitamin D3 and K2 liquid and the second psyllium
+powder provide evidence-scoped authority for their printed formulations but do not
+turn the public pages into a reusable supplement catalogue.
 
 | Case | Public evidence | Contract consequence |
 | --- | --- | --- |
-| Centrum Advance 50+ | A user-supplied panel declares 24 micronutrients per tablet. The current official ingredient PDF reproduces all photographed values. Ocado's table is malformed and incomplete, while a Haleon professional page gives thiamin as 1.65 mg rather than the package and official PDF's 1.7 mg. | The 24 photographed values are `measured` for this package evidence. Preserve RE/NE/alpha-TE and folic-acid qualifiers, reject the malformed retailer fields and retain the thiamin difference as separate public provenance. The barcode digits, front name, lot and tablet count remain uncaptured. |
-| Solgar Triple Strength Omega-3 | A user-supplied panel gives valid UPC-A `033984020580` and declares 2800 mg cold-water fish-oil concentrate, 1008 mg EPA and 756 mg DHA per two softgels, sourced from anchovy, herring, mackerel and sardine and presented as ethyl esters. Exact-UPC official evidence identifies the 100-softgel product and corroborates equivalent one-softgel values. | Scale the direct two-softgel declaration by exactly 1/2 for the captured one-softgel quantity: 1400 mg fish-oil concentrate, 504 mg EPA and 378 mg DHA. Preserve fish species and ethyl-ester form. Fish oil, EPA and DHA remain outside the frozen 39 nutrients and must not be mapped to `fat_polyunsaturated`; directions do not create a regimen. |
-| Momentous Zinc Picolinate | A user-supplied panel gives valid UPC-A `850030796172`, one capsule per serving, 60 servings and 15 mg zinc as zinc picolinate. The official page corroborates the amount and serving but uses US 136% Daily Value rather than the package's GB/EU 150% RI. | The package's `zinc: 15 mg` is `measured` per capsule. Picolinate remains compound identity/provenance, and the source-specific percentages are retained without treating them as an amount conflict. The opaque printed code is not guessed to be a lot or date. |
-| Anthony's Psyllium Husk Powder | Public organic-variant page gives directions in teaspoons, while the captured quantity is 5 g; numeric nutrition is label-image-only. Exact variant is not established. | Retain 5 g as the captured quantity. Do not invent a teaspoon conversion or fibre amount; both exact variant and fibre remain unresolved. |
-| AG D3+K2 liquid | Captured basis is one drop. A user-supplied panel declares a daily serving as six drops (0.15 mL), vitamin D 25 mcg and vitamin K 100 mcg per serving, with 200 servings per container. Ingredients identify vitamin D as cholecalciferol from lanolin, vitamin K as menaquinone-7, an MCT-oil carrier and tocopherol-rich extract. The probable public pages now return not found, and cached text incorrectly associated the same amounts with one drop. | The package values are `measured` at the printed six-drop basis. A one-drop projection uses the evidenced exact factor 1/6: vitamin D `25/6` mcg, vitamin K `100/6` mcg and volume 0.025 mL. Preserve and reject the incompatible cached candidate; barcode/lot and market variant remain to be linked. |
-| Boots Good Gut / Wellthy Psyllium Husk Powder | A user-supplied panel directly declares 95 g psyllium husk and 82 g fibre per 100 g, and 3 g psyllium husk supplying 2.46 g fibre per 3.16 g serving. Distinctive wording and serving basis resolve the Boots product lineage; the current official page identifies a 100 g Wellthy product but claims 3 g soluble fibre per teaspoon. | Preserve the direct package component and fibre values. Psyllium remains supplement-component identity while fibre maps canonically. Do not turn approximate teaspoon directions into an intake event or let the current page's apparent component/fibre conflation overwrite 2.46 g. Front brand, barcode, net weight and date evidence remain uncaptured. |
+| Multivitamin tablet | A user-supplied panel declares 24 micronutrients per tablet. The manufacturer's current official ingredient PDF reproduces all photographed values. An online grocer's table is malformed and incomplete, while a professional page from the manufacturer gives thiamin as 1.65 mg rather than the package and official PDF's 1.7 mg. | The 24 photographed values are `measured` for this package evidence. Preserve RE/NE/alpha-TE and folic-acid qualifiers, reject the malformed retailer fields and retain the thiamin difference as separate public provenance. The barcode digits, front name, lot and tablet count remain uncaptured. |
+| Fish-oil softgel | A user-supplied panel gives a valid UPC-A and declares 2800 mg cold-water fish-oil concentrate, 1008 mg EPA and 756 mg DHA per two softgels, sourced from anchovy, herring, mackerel and sardine and presented as ethyl esters. Exact-UPC official evidence identifies the 100-softgel product and corroborates equivalent one-softgel values. | Scale the direct two-softgel declaration by exactly 1/2 for the captured one-softgel quantity: 1400 mg fish-oil concentrate, 504 mg EPA and 378 mg DHA. Preserve fish species and ethyl-ester form. Fish oil, EPA and DHA remain outside the frozen 39 nutrients and must not be mapped to `fat_polyunsaturated`; directions do not create a regimen. |
+| Zinc capsule | A user-supplied panel gives a valid UPC-A, one capsule per serving, 60 servings and 15 mg zinc as a named zinc compound. The official page corroborates the amount and serving but uses US 136% Daily Value rather than the package's GB/EU 150% RI. | The package's `zinc: 15 mg` is `measured` per capsule. The named compound remains compound identity/provenance, and the source-specific percentages are retained without treating them as an amount conflict. The opaque printed code is not guessed to be a lot or date. |
+| Psyllium husk powder (variant unconfirmed) | Public organic-variant page gives directions in teaspoons, while the captured quantity is 5 g; numeric nutrition is label-image-only. Exact variant is not established. | Retain 5 g as the captured quantity. Do not invent a teaspoon conversion or fibre amount; both exact variant and fibre remain unresolved. |
+| Vitamin D3 and K2 liquid drops | Captured basis is one drop. A user-supplied panel declares a daily serving as six drops (0.15 mL), vitamin D 25 mcg and vitamin K 100 mcg per serving, with 200 servings per container. Ingredients identify vitamin D as cholecalciferol from lanolin, vitamin K as menaquinone-7, an MCT-oil carrier and tocopherol-rich extract. The probable public pages now return not found, and cached text incorrectly associated the same amounts with one drop. | The package values are `measured` at the printed six-drop basis. A one-drop projection uses the evidenced exact factor 1/6: vitamin D `25/6` mcg, vitamin K `100/6` mcg and volume 0.025 mL. Preserve and reject the incompatible cached candidate; barcode/lot and market variant remain to be linked. |
+| Psyllium husk powder (retailer own brand) | A user-supplied panel directly declares 95 g psyllium husk and 82 g fibre per 100 g, and 3 g psyllium husk supplying 2.46 g fibre per 3.16 g serving. Distinctive wording and serving basis resolve the retailer's own-brand product lineage; the current official page identifies a 100 g product under a successor brand but claims 3 g soluble fibre per teaspoon. | Preserve the direct package component and fibre values. Psyllium remains supplement-component identity while fibre maps canonically. Do not turn approximate teaspoon directions into an intake event or let the current page's apparent component/fibre conflation overwrite 2.46 g. Front brand, barcode, net weight and date evidence remain uncaptured. |
 
-The Centrum panel maps directly to the frozen catalogue at a one-tablet basis:
+The multivitamin panel maps directly to the frozen catalogue at a one-tablet basis:
 vitamins A, D, E, K and C; B1, B2, B3, B5, B6, B7, B9 and B12; calcium,
 phosphorus, magnesium, iron, zinc, copper, manganese, selenium, chromium,
 molybdenum and iodine. Vitamin A is 800 mcg RE with 50% as beta-carotene;
@@ -906,23 +906,23 @@ vitamin E is 18 mg alpha-TE; niacin is 24 mg NE; and folic acid maps to
 `folate_b9` at 300 mcg while retaining its source form. Undeclared catalogue
 nutrients remain unknown rather than zero.
 
-The official Centrum ingredient PDF matches the panel, including vitamin C
+The manufacturer's official ingredient PDF matches the panel, including vitamin C
 120 mg, vitamin E 18 mg, copper 0.5 mg and thiamin 1.7 mg. The 1.65 mg thiamin
 on the separate professional page may reflect rounding, an older formulation or
 another publication convention; no source supplies an effective date, so the
 contract records the difference without choosing a retrospective history.
 
-The Momentous package supplies UPC-A `850030796172` (normalised GTIN-13
-`0850030796172`) with a valid check digit. Its direct one-capsule declaration
-requires no serving conversion: 15 mg maps to canonical `zinc`, while “as zinc
-picolinate” survives as compound provenance. The visible `MMT-Z-60 160925` text
-is retained as an opaque package code; it is not interpreted as a product version,
-lot or date without issuer semantics.
+The zinc package supplies a UPC-A (normalised to a GTIN-13 with a leading zero)
+with a valid check digit. Its direct one-capsule declaration requires no serving
+conversion: 15 mg maps to canonical `zinc`, while the printed “as” compound
+wording survives as compound provenance. A visible printed code is retained as an
+opaque package code; it is not interpreted as a product version, lot or date
+without issuer semantics.
 
-The Solgar package supplies UPC-A `033984020580` (normalised GTIN-13
-`0033984020580`) with a valid check digit. Its direct two-softgel declaration
-supports an exact one-softgel projection for the previously captured quantity:
-1400 mg cold-water fish-oil concentrate, 504 mg EPA and 378 mg DHA. These remain
+The fish-oil package supplies a UPC-A (normalised to a GTIN-13 with a leading
+zero) with a valid check digit. Its direct two-softgel declaration supports an
+exact one-softgel projection for the previously captured quantity: 1400 mg
+cold-water fish-oil concentrate, 504 mg EPA and 378 mg DHA. These remain
 supplement components outside the frozen catalogue rather than aliases for total
 fat or polyunsaturated fat. The label's fish species and ethyl-ester qualifier
 remain identity provenance.
@@ -938,10 +938,10 @@ These cases add five supplement-specific checks to the source contract:
 - label directions and safety wording remain source provenance, not a prescribed
   regimen or evidence that the user consumed a serving.
 
-The result is recorded in `supplement-public-label-result.json`. The Centrum,
-Solgar fish oil, Momentous zinc, AG and Boots psyllium panels' printed amounts are
-evidence-scoped `measured` values; their raw images remain local-only and are
-represented by SHA-256 descriptors. Public-page amounts remain separately
+The result is recorded in `supplement-public-label-result.json`. The multivitamin,
+fish-oil, zinc, vitamin D3 and K2 liquid and own-brand psyllium panels' printed
+amounts are evidence-scoped `measured` values; their raw images remain local-only
+and are represented by SHA-256 descriptors. Public-page amounts remain separately
 versioned corroboration or conflict evidence. This observation does not change
 the Phase 1 source decision:
 manual package evidence is authoritative, and CoFID remains limited to
@@ -1066,8 +1066,8 @@ evaluation must ask each candidate for:
 6. API/bulk-delivery limits, offline rights, UK data residency/privacy terms,
    service levels, pricing and non-production evaluation fixtures.
 
-Three non-commercial evidence questions also remain: obtain the Olympus,
-Lancashire Farm and Co-op cheese package nutrition/ingredients and lot or
+Three non-commercial evidence questions also remain: obtain the two
+Greek-style yoghurt and processed cheese-slice package nutrition/ingredients and lot or
 best-before panels, plus an avocado edible/net quantity, the raspberry nutrition
 panel, the turkey ingredients/use-by or lot panel and the cottage-cheese use-by
 or lot mark if formulation timing is needed; obtain the sourdough front,

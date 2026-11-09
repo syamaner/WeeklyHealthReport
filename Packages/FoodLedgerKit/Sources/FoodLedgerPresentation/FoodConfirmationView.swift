@@ -5,10 +5,24 @@ import SwiftUI
 @MainActor
 public final class FoodConfirmationViewModel: ObservableObject {
     @Published public private(set) var state: FoodConfirmationState {
-        didSet { if state.correction == nil && correctionAppliedOnConfirm { correctionAppliedOnConfirm = false } }
+        didSet {
+            if state.correction == nil && correctionAppliedOnConfirm { correctionAppliedOnConfirm = false }
+            labelEstimate?.prepare(state)
+        }
     }
     @Published public private(set) var savedResult: StoredFoodConfirmation?
     private let saveAction: @MainActor (FoodConfirmationState) throws -> StoredFoodConfirmation
+    /// The pasted label and label photo routes' "Estimate unprinted nutrients" section
+    /// (docs/label-estimate-merge-v1.md rule 7). Nil on every other route.
+    public let labelEstimate: LabelEstimateModel?
+    /// Log with a chosen label estimate. Without a chosen row Log always goes through
+    /// `saveAction`, so the save is exactly the label-only save.
+    private let estimateSaveAction: (@MainActor (FoodConfirmationState, LabelEstimateChoice) throws -> StoredFoodConfirmation)?
+    /// Logging again a saved entry that carries a label estimate layer (Recent foods, a
+    /// favourite): Log saves the label values only, and Confirm says so before Log.
+    public let labelEstimateNotCarried: Bool
+    public static let labelEstimateNotCarriedNotice =
+        "Logs the label values only. The estimated nutrients saved with the earlier entry are not logged again; missing nutrients stay unknown."
     /// Writes `save_favourite_v1` for the logged entry version (#198). Nil hides "Save as favourite".
     private let favouriteAction: (@MainActor (LogItemVersionID) throws -> Void)?
     /// "Save as favourite" (the v5 D4 slot). The log save is unchanged; the favourite is a
@@ -48,9 +62,15 @@ public final class FoodConfirmationViewModel: ObservableObject {
         savesFavourite: Bool = false,
         favouriteAction: (@MainActor (LogItemVersionID) throws -> Void)? = nil,
         whenNotice: String? = nil,
+        labelEstimate: LabelEstimateModel? = nil,
+        estimateSaveAction: (@MainActor (FoodConfirmationState, LabelEstimateChoice) throws -> StoredFoodConfirmation)? = nil,
+        labelEstimateNotCarried: Bool = false,
         saveAction: @escaping @MainActor (FoodConfirmationState) throws -> StoredFoodConfirmation
     ) {
         self.state = state
+        self.labelEstimate = estimateSaveAction == nil ? nil : labelEstimate
+        self.estimateSaveAction = estimateSaveAction
+        self.labelEstimateNotCarried = labelEstimateNotCarried && state.reopened == nil
         self.whenNotice = whenNotice
         self.savesFavourite = savesFavourite && favouriteAction != nil && !Self.isPlainWaterSource(state)
         self.favouriteAction = favouriteAction
@@ -68,6 +88,18 @@ public final class FoodConfirmationViewModel: ObservableObject {
             portionGuideDismissed = true
         }
         normalisePortionGuide()
+        self.labelEstimate?.prepare(state)
+    }
+
+    /// Whether Confirm shows "Estimate unprinted nutrients": a new pasted label or label photo
+    /// entry whose label admits an estimate (rule 1). It never blocks Log.
+    public var offersLabelEstimate: Bool {
+        labelEstimate != nil && LabelEstimateOffer.applies(state)
+    }
+
+    /// The estimate Log would save with the entry, or nil for the label-only save.
+    public var pendingLabelEstimate: LabelEstimateChoice? {
+        offersLabelEstimate ? labelEstimate?.choice(for: state) : nil
     }
 
     // MARK: Count portion guide (count-portion-estimate-v1, #307)
@@ -541,6 +573,12 @@ public final class FoodConfirmationViewModel: ObservableObject {
 
     public static let noChangesReason = "No changes to save"
 
+    /// Whether the only thing keeping Save changes disabled is that nothing has changed yet: no
+    /// requirement and no source blocker. Presentation only; `canLog` is unchanged (#347).
+    public var isBlockedOnlyByNoChanges: Bool {
+        !hasChangesToSave && requirements.isEmpty && sourceBlocker == nil
+    }
+
     /// Edit mode only: Save changes waits for a difference from the stored version. Presentation
     /// gating; the service still accepts an unchanged save (#197, F2).
     public var hasChangesToSave: Bool { state.reopened == nil || FoodLogPolicy.editChanges(state) }
@@ -628,9 +666,14 @@ public final class FoodConfirmationViewModel: ObservableObject {
 
     /// The Source footer. A pasted label never suggests another match: an editable reading points
     /// to Edit label text and corrections; a re-log or favourite to pasting the label again (D3).
+    /// Edit food has no other match and is already logged, so it points to its own Food details
+    /// button above (#350).
     public var sourceFooter: String {
+        if state.reopened != nil {
+            return "Need to correct the food itself? Use \(foodDetailsActionTitle ?? Self.correctFoodDetailsTitle) above."
+        }
         let pasted = PastedLabelFortificationPolicy.isPastedLabel(state.input, candidate: state.selectedCandidate)
-        guard pasted, state.reopened == nil else {
+        guard pasted else {
             return "Need to correct the food itself? Choose a different match, or edit the details from the entry after logging."
         }
         return state.answersLabelFortification ? PastedLabelText.sourceFooter : PastedLabelText.sourceFooterStored
@@ -907,7 +950,12 @@ public final class FoodConfirmationViewModel: ObservableObject {
         if case .saved = state.phase { return }
         send(.beginSaving)
         do {
-            let saved = try saveAction(state)
+            let saved: StoredFoodConfirmation
+            if let choice = pendingLabelEstimate, let estimateSaveAction {
+                saved = try estimateSaveAction(state, choice)
+            } else {
+                saved = try saveAction(state)
+            }
             savedResult = saved
             send(.saved(saved.logItem.logItemID))
         } catch {
@@ -945,6 +993,8 @@ public final class FoodConfirmationViewModel: ObservableObject {
             "The food changed after you answered. Answer the questions again, then log."
         case FoodConfirmationSaveError.invalidQuantity:
             "Enter an amount greater than zero."
+        case FoodConfirmationSaveError.invalidLabelEstimate:
+            "The chosen estimate no longer matches this label. Remove the estimate or choose another, then log again."
         case FoodConfirmationSaveError.invalidReviewedSource:
             "The reviewed source values or their serving basis changed. Return to the source review; identity corrections cannot change its nutrition."
         case FoodQuantityValidationError.missingConversion:
@@ -977,8 +1027,9 @@ public struct FoodConfirmationView: View {
     @FocusState private var editingAmount: AmountFieldFocus?
     @State private var showsCorrection = false
     @State private var showsMatches = false
-    /// The Food details sheet's answers; nil until Confirm appears and loads them.
-    @State private var correctionDraft: FoodDetailsDraft?
+    /// The Food details sheet's answers; nil until Confirm appears and loads them. Closing the
+    /// sheet without Apply discards unapplied answers (#352).
+    @State private var correctionDraft: FoodDetailsDraftSession?
     /// Set by Apply so the confirmation is announced once the sheet has closed (#276).
     @State private var announcesCorrection = false
     @State private var totalText = ""
@@ -1025,6 +1076,11 @@ public struct FoodConfirmationView: View {
         case .measured: ConversionFields.label(.choice(.kitchenScale))
         case .estimated: ConversionFields.label(.choice(.estimatedByEye))
         }
+    }
+
+    /// The measured-weight "How you got it" options: none chosen, then the count picker's words.
+    public static var weightBasisOptions: [(UserWeightBasis?, String)] {
+        [(nil, ConversionFields.chooseOne), (.measured, weightBasisLabel(.measured)), (.estimated, weightBasisLabel(.estimated))]
     }
 
     /// VoiceOver reads what the weight field holds, as its placeholder says (journey QA D2 of PR #331).
@@ -1082,6 +1138,16 @@ public struct FoodConfirmationView: View {
                 if let labelPhoto, let labelPhotoViews {
                     LabelPhotoSourceSections(model: labelPhoto, views: labelPhotoViews, retake: model.savedResult == nil ? retakePhoto : nil)
                 }
+                // Label plus generic estimate v1 (#383) rule 7: under the label values.
+                if model.offersLabelEstimate, let estimate = model.labelEstimate {
+                    LabelEstimateSection(estimate: estimate, model: model, focus: $editingAmount)
+                }
+                if model.labelEstimateNotCarried {
+                    Section {
+                        Label(FoodConfirmationViewModel.labelEstimateNotCarriedNotice, systemImage: "info.circle")
+                            .accessibilityLabel(FoodConfirmationViewModel.labelEstimateNotCarriedNotice)
+                    }
+                }
                 compactNutritionSection
             }
             .disabled(model.savedResult != nil)
@@ -1123,9 +1189,10 @@ public struct FoodConfirmationView: View {
             }
         }
         .safeAreaInset(edge: .bottom) { logBar }
-        .sheet(isPresented: $showsCorrection, onDismiss: announceCorrection) {
+        .sheet(isPresented: $showsCorrection, onDismiss: correctionSheetClosed) {
             NavigationStack {
                 FoodDetailsForm(model: model, draft: correctionDraftBinding) {
+                    correctionDraft?.applied()
                     announcesCorrection = true
                     showsCorrection = false
                 }
@@ -1160,7 +1227,7 @@ public struct FoodConfirmationView: View {
         }
         .animation(reduceMotion ? nil : .default, value: model.state.selectedCandidateIndex)
         .onAppear {
-            if correctionDraft == nil { correctionDraft = FoodDetailsDraft(model: model) }
+            if correctionDraft == nil { correctionDraft = FoodDetailsDraftSession(FoodDetailsDraft(model: model)) }
             if let value = model.state.quantity.value { totalText = editableNumber(value) }
             directWeightText = model.state.quantity.directWeight?.totalGrams.map(editableNumber) ?? ""
             if let conversion = model.state.quantity.conversion {
@@ -1174,7 +1241,11 @@ public struct FoodConfirmationView: View {
     private var foodSection: some View {
         Section("Food") {
             Text(model.displayedName.value).font(.headline)
-            if let line = sourceLine { Text(line).font(.subheadline).foregroundStyle(.secondary) }
+            if let line = sourceLine {
+                // VoiceOver reads "French reference, estimate", not the middle dot (ciqual-2025-admission-v1 section 7).
+                Text(line).font(.subheadline).foregroundStyle(.secondary)
+                    .accessibilityLabel(FoodSearchResultText.spokenSourceLine(line))
+            }
             if model.displayedName != model.state.selectedCandidate.name {
                 LabeledContent("Source food", value: model.state.selectedCandidate.name.value).font(.caption)
             }
@@ -1389,8 +1460,12 @@ public struct FoodConfirmationView: View {
     /// QA); the full reason is in "Before you log".
     public static let pinnedBlockedReasonCompact = "Not ready to log"
 
-    public static func pinnedReason(isAccessibilitySize: Bool) -> String {
-        isAccessibilitySize ? pinnedBlockedReasonCompact : pinnedBlockedReason
+    /// The pinned line beside a disabled Log. An unchanged reopened entry says "No changes to save"
+    /// at every size, as the default-size bar does; the "Not ready to log" lines are only for a
+    /// requirement or source that blocks Log (#347).
+    public static func pinnedReason(isAccessibilitySize: Bool, blockedOnlyByNoChanges: Bool) -> String {
+        if blockedOnlyByNoChanges { return FoodConfirmationViewModel.noChangesReason }
+        return isAccessibilitySize ? pinnedBlockedReasonCompact : pinnedBlockedReason
     }
 
     /// Whether "Before you log" has anything to show; an empty section is never rendered.
@@ -1398,9 +1473,12 @@ public struct FoodConfirmationView: View {
         pinsOnlyLog && (warningCount > 0 || hasBlockedReason || hasEstimate)
     }
 
+    /// "No changes to save" is already the whole pinned line, so "Before you log" does not repeat it.
+    private var beforeLogReason: String? { model.isBlockedOnlyByNoChanges ? nil : logBarReason }
+
     private var showsBeforeLog: Bool {
         Self.showsBeforeLog(pinsOnlyLog: pinsOnlyLog, warningCount: pastedLabel?.warnings.count ?? 0,
-                            hasBlockedReason: model.blockedReason != nil, hasEstimate: model.volumeEstimateLogBarAction != nil)
+                            hasBlockedReason: beforeLogReason != nil, hasEstimate: model.volumeEstimateLogBarAction != nil)
     }
 
     /// The bar's warnings, hint and estimate as the last content section when only Log is pinned.
@@ -1409,7 +1487,7 @@ public struct FoodConfirmationView: View {
         Section("Before you log") {
             logWarnings
             estimateButton
-            if let reason = logBarReason {
+            if let reason = beforeLogReason {
                 Label(reason, systemImage: "info.circle")
                     .font(.footnote)
                     .fixedSize(horizontal: false, vertical: true)
@@ -1450,7 +1528,8 @@ public struct FoodConfirmationView: View {
                     blockedReasonText
                 } else if model.blockedReason != nil {
                     // Beside the disabled Log, one short line (it may wrap); the full hint scrolls.
-                    Text(Self.pinnedReason(isAccessibilitySize: dynamicTypeSize.isAccessibilitySize)).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                    Text(Self.pinnedReason(isAccessibilitySize: dynamicTypeSize.isAccessibilitySize,
+                                           blockedOnlyByNoChanges: model.isBlockedOnlyByNoChanges)).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -1523,13 +1602,10 @@ public struct FoodConfirmationView: View {
                 // plate", so the two inputs of one subtraction stay together (#332).
                 if !usesPlate { directWeightField }
                 // The count picker's words for the same two meanings (#318); stored values unchanged.
-                Picker(ConversionFields.methodTitle, selection: Binding<UserWeightBasis?>(
+                // The value wraps under its title at accessibility sizes (#337).
+                StackingMenuPicker(ConversionFields.methodTitle, selection: Binding<UserWeightBasis?>(
                     get: { model.state.quantity.directWeight?.basis },
-                    set: { model.send(.setWeightBasis($0)) })) {
-                    Text("Choose one").tag(UserWeightBasis?.none)
-                    Text(Self.weightBasisLabel(.measured)).tag(UserWeightBasis?.some(.measured))
-                    Text(Self.weightBasisLabel(.estimated)).tag(UserWeightBasis?.some(.estimated))
-                }
+                    set: { model.send(.setWeightBasis($0)) }), options: Self.weightBasisOptions)
                 ForEach(model.directWeightRequirements, id: \.self) { Text($0).font(.caption) }
                 if model.state.quantity.directWeight?.needsReconfirmation == true {
                     Button("Keep this weight") { model.send(.confirmRetainedWeight) }.frame(minHeight: 44)
@@ -1572,15 +1648,8 @@ public struct FoodConfirmationView: View {
                 .onChange(of: conversionUnit) { _, _ in updateConversion() }
                 // A closed choice (count-conversion-method-v1, #299); "Estimated by eye" is an
                 // estimated direct weight, never a measured conversion.
-                Picker(ConversionFields.methodTitle, selection: $conversionMethod) {
-                    Text("Choose one").tag(ConversionFields.MethodSelection?.none)
-                    if case let .recorded(text)? = conversionMethod {
-                        Text(ConversionFields.label(.recorded(text))).tag(ConversionFields.MethodSelection?.some(.recorded(text)))
-                    }
-                    ForEach(CountConversionMethod.allCases, id: \.self) { method in
-                        Text(ConversionFields.label(.choice(method))).tag(ConversionFields.MethodSelection?.some(.choice(method)))
-                    }
-                }
+                StackingMenuPicker(ConversionFields.methodTitle, selection: $conversionMethod,
+                                   options: ConversionFields.methodOptions(current: conversionMethod))
                 .onChange(of: conversionMethod) { _, selection in
                     if case .choice(.estimatedByEye)? = selection { useEstimateByEye() } else { updateConversion() }
                 }
@@ -1827,13 +1896,10 @@ public struct FoodConfirmationView: View {
                 .onChange(of: directWeightText) { _, value in model.send(.setDirectWeight(FoodAmountFieldText.parse(value, locale: locale))) }
                 .accessibilityLabel("\(ConversionFields.amountTitle) in grams")
             LabeledContent(ConversionFields.unitTitle, value: "g")
-            Picker(ConversionFields.methodTitle, selection: Binding<CountConversionMethod>(
+            StackingMenuPicker(ConversionFields.methodTitle, selection: Binding<CountConversionMethod>(
                 get: { .estimatedByEye },
-                set: { method in leaveEstimateByEye(for: method) })) {
-                ForEach(CountConversionMethod.allCases, id: \.self) { method in
-                    Text(ConversionFields.label(.choice(method))).tag(method)
-                }
-            }
+                set: { method in leaveEstimateByEye(for: method) }),
+                options: CountConversionMethod.allCases.map { ($0, ConversionFields.label(.choice($0))) })
             .accessibilityIdentifier("confirm.conversionMethod")
             if estimateFromMillilitres && model.state.quantity.directWeight?.totalGrams == nil {
                 Label(Self.estimateInMillilitres, systemImage: "exclamationmark.triangle").font(.caption)
@@ -1922,7 +1988,16 @@ public struct FoodConfirmationView: View {
     }
 
     private var correctionDraftBinding: Binding<FoodDetailsDraft> {
-        Binding(get: { correctionDraft ?? FoodDetailsDraft(model: model) }, set: { correctionDraft = $0 })
+        Binding(get: { correctionDraft?.draft ?? FoodDetailsDraft(model: model) }, set: { draft in
+            if correctionDraft == nil { correctionDraft = FoodDetailsDraftSession(FoodDetailsDraft(model: model)) }
+            correctionDraft?.draft = draft
+        })
+    }
+
+    /// However the sheet closed, unapplied answers are discarded (Apply already kept its own).
+    private func correctionSheetClosed() {
+        correctionDraft?.closed()
+        announceCorrection()
     }
 
     /// After Apply closed the sheet: VoiceOver hears the confirmation that Confirm now shows.
@@ -1963,7 +2038,7 @@ public struct FoodConfirmationView: View {
             totalText = model.state.quantity.value.map(editableNumber) ?? ""
             directWeightText = model.state.quantity.directWeight?.totalGrams.map(editableNumber) ?? ""
             conversionText = model.state.quantity.conversion.map { editableNumber($0.convertedQuantity.value) } ?? ""
-            correctionDraft = FoodDetailsDraft(model: model, reason: correctionDraft?.reason ?? "")
+            correctionDraft = FoodDetailsDraftSession(FoodDetailsDraft(model: model, reason: correctionDraft?.kept.reason ?? ""))
         })
     }
 
@@ -2045,6 +2120,17 @@ public struct FoodConfirmationView: View {
             case .choice(.estimatedByEye): "Estimated by eye"
             case let .recorded(text): "Recorded: \(FoodLogText.conversionMethodLabel(text.value) ?? text.value)"
             }
+        }
+
+        public static let chooseOne = "Choose one"
+
+        /// The count "How you got it" options: none chosen, a recorded method only while it is the
+        /// current selection, then the v1 choices.
+        public static func methodOptions(current: MethodSelection?) -> [(MethodSelection?, String)] {
+            var options: [(MethodSelection?, String)] = [(nil, chooseOne)]
+            if case let .recorded(text)? = current { options.append((.recorded(text), label(.recorded(text)))) }
+            options += CountConversionMethod.allCases.map { (.choice($0), label(.choice($0))) }
+            return options
         }
 
         /// The label of a stored conversion method: the v1 label for a v1 code, else the stored text.

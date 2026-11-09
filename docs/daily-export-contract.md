@@ -223,6 +223,8 @@ Acceptance: synthetic fixtures cover morning/evening/bedtime replacement snapsho
 
 ### 3. Manual export UI and proven storage route
 
+**View exact file → Copy JSON** copies the exact preview text to the local iPhone clipboard only on request. The clipboard entry expires after ten minutes; copying does not upload or alter the file.
+
 Refresh daily data, preview the report date/cutoff and content, then save/replace using the proven mechanism. Preserve weekly UI behaviour. Update privacy documentation and repository scope to describe user-directed JSON file export and any narrowly required temporary storage or secure Google credentials and minimal destination/file identity metadata.
 
 Acceptance: focused tests during development, complete simulator suite once stable, static analysis, diff review, then real-device Apple Health comparisons and Drive replacement checks. Synthetic/simulator success is not personal HealthKit or remote-sync validation.

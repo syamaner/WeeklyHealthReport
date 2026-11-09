@@ -15,7 +15,7 @@ import FoodGenericSearch
 // All health values in this test file are synthetic fixtures.
 @MainActor
 final class WeeklyReportScreenshotTests: XCTestCase {
-    func testIntakeScreensRenderWithIsolatedSyntheticLedger() throws {
+    func testIntakeScreensRenderWithIsolatedSyntheticLedger() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let defaultsName = "intake-render-" + UUID().uuidString
@@ -26,7 +26,7 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         )
         XCTAssertEqual(try root.intakeProjection(for: Date()).summary.itemCount, 0)
         let emptyHome = FoodHomeModel(root: root)
-        emptyHome.reload()
+        await emptyHome.reload()
         XCTAssertEqual(emptyHome.state, .empty)
         renderFoodView(NavigationStack { Form { FoodHomeCard(model: emptyHome) } }, name: "Today - empty log")
         let navigation = AppNavigationCoordinator(defaults: defaults)
@@ -62,7 +62,7 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         let populated = try root.intakeProjection(for: Date())
         XCTAssertEqual(populated.summary.itemCount, 1)
         let populatedHome = FoodHomeModel(root: root)
-        populatedHome.reload()
+        await populatedHome.reload()
         guard case .logged = populatedHome.state else { return XCTFail("Expected a logged food card") }
         for size in [DynamicTypeSize.large, .accessibility3] {
             renderFoodView(NavigationStack {
@@ -1579,7 +1579,7 @@ extension WeeklyReportScreenshotTests {
     // MARK: Screen copy (UX copy pass, #140)
 
     /// The screen, tiles and Full Page reword a failed read and Title Case labels; Copy all
-    /// (the README's text contract) keeps its labels and says "Could not read Apple Health."
+    /// (the app reference's text contract) keeps its labels and says "Could not read Apple Health."
     /// for a failed read, with the technical message only in Developer tools.
     func testDisplayDocumentRewordsFailuresAndCopyAllUsesTheScreenLabels() throws {
         let calendar = testCalendar()

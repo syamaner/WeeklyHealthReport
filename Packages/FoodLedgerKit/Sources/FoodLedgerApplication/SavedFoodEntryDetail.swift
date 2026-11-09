@@ -63,6 +63,58 @@ public struct SavedFoodEntryDetail: Sendable {
     /// The serving size those servings went through and its origin; nil when they carry no
     /// weight or volume, or the amount is not in servings.
     public let servingSize: (quantity: PositiveQuantity, origin: NutrientValueOrigin)?
+    /// The label estimate layer of the current version (docs/label-estimate-merge-v1.md section 8),
+    /// or nil for every entry without one. Its keys are estimates and never "Printed".
+    public let labelEstimate: LabelEstimateDetail?
+    /// The current version carries a label estimate layer.
+    public var isPartlyEstimated: Bool { labelEstimate != nil }
+    /// The entry is marked "Partly estimated" (the shared `FoodEntryEstimateStatus` rule).
+    public var showsPartlyEstimated: Bool {
+        FoodEntryEstimateStatus.showsPartlyEstimated(isPartlyEstimated: isPartlyEstimated, isEstimate: isEstimate,
+                                                     quantityIsEstimate: weightIsEstimated)
+    }
+
+    /// A saved label estimate layer as facts for presentation: the chosen generic row, the
+    /// confirmed cocoa percentage, the keys it filled, and both releases and decisions.
+    public struct LabelEstimateDetail: Equatable, Sendable {
+        public let genericName: String
+        public let genericVariant: String?
+        public let cocoaPercent: Double
+        public let cocoaPercentOrigin: CocoaPercentOrigin
+        public let sourceFamily: FoodSearchResultSummary.SourceFamily
+        /// The label's release first, then the estimate's.
+        public let releases: [SourceRelease]
+        /// The label's decision first, then the estimate's (`selected_for_estimate`).
+        public let decisions: [CandidateDecision]
+        /// Keys whose saved value came from the estimate's release, in catalogue order.
+        public let estimatedKeys: [NutrientKey]
+        /// Those keys' saved values on the entry's basis, so a bound stays a bound.
+        public let estimatedValues: [NutrientKey: NutrientValue]
+        public let compatibilityVersion: String
+        public let mergeVersion: String
+
+        public var estimateRelease: SourceRelease { releases[releases.count - 1] }
+
+        init?(_ stored: StoredFoodConfirmation) {
+            guard let layer = stored.estimate, let assertion = stored.assertions.compactMap(\.labelEstimate).first else { return nil }
+            let generic = layer.candidateDecision.candidate
+            genericName = assertion.genericName.value
+            genericVariant = assertion.genericVariant?.value
+            cocoaPercent = assertion.cocoaPercent
+            cocoaPercentOrigin = assertion.cocoaPercentOrigin
+            compatibilityVersion = assertion.compatibilityVersion.value
+            mergeVersion = assertion.mergeVersion.value
+            sourceFamily = FoodSearchResultSummary.family(layer.sourceRelease.sourceID.value, recordID: generic.recordID.value)
+            let label = stored.sourceReleases.first { $0.sourceReleaseID == stored.candidateDecision.candidate.sourceReleaseID }
+            releases = (label.map { [$0] } ?? []) + [layer.sourceRelease]
+            decisions = [stored.candidateDecision, layer.candidateDecision]
+            let estimated = stored.resolutionVersion.nutrients.entries.filter { entry in
+                entry.value.provenance.contains { $0.sourceReleaseID == generic.sourceReleaseID }
+            }
+            estimatedKeys = estimated.map(\.key)
+            estimatedValues = Dictionary(estimated.map { ($0.key, $0.value) }, uniquingKeysWith: { first, _ in first })
+        }
+    }
 
     public init(stored: StoredFoodConfirmation, isEstimate: Bool, history: [FoodEntryHistoryEvent]) {
         let log = stored.logItemVersion
@@ -106,7 +158,12 @@ public struct SavedFoodEntryDetail: Sendable {
         }
         pastedLabelFortification = manifest.map { PastedLabelFortificationText.value(stored, manifest: $0) }
         labelPhotoFortification = labelPhoto.map { PastedLabelFortificationText.value(stored, manifest: LabelPhotoSource.projection($0)) }
-        valueOrigins = manifest.map { PastedLabelValueOrigins.origins(stored.resolutionVersion.nutrients, manifest: $0) } ?? [:]
+        let estimate = LabelEstimateDetail(stored)
+        labelEstimate = estimate
+        // An estimated value is not the label's: it keeps no label origin, so it reads "Estimated".
+        let estimated = Set(estimate?.estimatedKeys ?? [])
+        valueOrigins = (manifest.map { PastedLabelValueOrigins.origins(stored.resolutionVersion.nutrients, manifest: $0) } ?? [:])
+            .filter { !estimated.contains($0.key) }
         pastedLabelValues = manifest == nil ? [:]
             : Dictionary(stored.resolutionVersion.nutrients.entries.map { ($0.key, $0.value) }, uniquingKeysWith: { first, _ in first })
         amountIsServings = FoodAmountServings.isServings(enteredUnit: enteredAmount.unit, conversion: stored.quantityConversion,

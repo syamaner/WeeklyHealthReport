@@ -34,7 +34,7 @@ Source identity and nutrients are never changed by a decision; differences stay 
 | Nutrition for the amount | Energy, protein, carbohydrates, fat; "More nutrients" disclosure | `compactNutritionSection`, "More nutrients" |
 | Source | Source name with Details (release, record, basis) | "Source details" disclosure |
 | Save as favourite | Slot left empty; no library record (D4) | none |
-| Footnote | "Need to correct the food itself?" pointing to match or the saved entry | new |
+| Footnote | "Need to correct the food itself?" pointing to match or the saved entry; on Edit food, which is already logged and offers no other match, it points to that screen's Food details button instead (31 October 2026, #350, copy only; the owner delegated these UX backlog items, October 2026) | new |
 | Log bar | "Log 248 kcal" (or "Log" when energy is unknown); disabled with the first requirement | `actionSection` "Save food" |
 
 ## Existing Confirm states

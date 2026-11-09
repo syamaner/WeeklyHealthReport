@@ -1,0 +1,9 @@
+{
+ "data": [
+  {
+   "model_id": "google/gemini-4-argon",
+   "tag": "google-vertex/us",
+   "provider_name": "Google"
+  }
+ ]
+}

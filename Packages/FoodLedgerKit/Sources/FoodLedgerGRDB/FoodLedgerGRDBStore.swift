@@ -20,7 +20,7 @@ public struct ProtectedDataAvailability: Sendable {
 public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, FoodConfirmationReading,
     EvidenceAttachmentStoring, FoodArchiveLedgerAccess, FavouriteReading, @unchecked Sendable
 {
-    public static let schemaVersion = 7
+    public static let schemaVersion = 8
     public static let applicationID = 0x5748_5246 // WHRF
 
     private let databaseQueue: DatabaseQueue
@@ -38,7 +38,7 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
         protectedData: ProtectedDataAvailability = .available,
         encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder(),
         digester: any Digesting = SHA256Digester(),
-        operationRegistry: LedgerOperationRegistry = .builtInV6
+        operationRegistry: LedgerOperationRegistry = .builtInV8
     ) throws {
         try protectedData.requireAvailable()
         self.encoder = encoder
@@ -89,7 +89,7 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
         protectedData: ProtectedDataAvailability = .available,
         encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder(),
         digester: any Digesting = SHA256Digester(),
-        operationRegistry: LedgerOperationRegistry = .builtInV6
+        operationRegistry: LedgerOperationRegistry = .builtInV8
     ) throws -> FoodLedgerGRDBStore {
         try FoodLedgerGRDBStore(
             databaseURL: directory.appendingPathComponent("food-ledger-v1.sqlite"),
@@ -444,14 +444,23 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
                   let productVersion: ProductVersion = try decode(ProductVersion.self, table: "product_version", column: "version_id", id: productVersionID.rawValue),
                   let product: Product = try decode(Product.self, table: "product", column: "product_id", id: productVersion.productID.rawValue),
                   let resolutionVersion: NutritionResolutionVersion = try decode(NutritionResolutionVersion.self, table: "resolution_version", column: "version_id", id: logVersion.effectiveResolutionVersionID.rawValue),
-                  let resolution: NutritionResolution = try decode(NutritionResolution.self, table: "resolution", column: "resolution_id", id: resolutionVersion.resolutionID.rawValue),
-                  let decisionID = resolutionVersion.decisionIDs.first,
-                  let decision: CandidateDecision = try decode(CandidateDecision.self, table: "candidate_decision", column: "decision_id", id: decisionID.rawValue) else {
+                  let resolution: NutritionResolution = try decode(NutritionResolution.self, table: "resolution", column: "resolution_id", id: resolutionVersion.resolutionID.rawValue) else {
                 throw FoodLedgerStoreError.integrityFailure("incomplete food confirmation aggregate")
             }
-            let evidence: [CaptureEvidence] = try decision.candidate.evidenceIDs.compactMap {
-                try decode(CaptureEvidence.self, table: "capture_evidence", column: "evidence_id", id: $0.rawValue)
+            // Every decision in position order with its evidence: the label (or only) decision
+            // first, then an estimate layer's generic decision (label-estimate-merge-v1).
+            let decisions: [CandidateDecision] = try resolutionVersion.decisionIDs.compactMap {
+                try decode(CandidateDecision.self, table: "candidate_decision", column: "decision_id", id: $0.rawValue)
             }
+            let decisionEvidence: [[CaptureEvidence]] = try decisions.map { decision in
+                try decision.candidate.evidenceIDs.compactMap {
+                    try decode(CaptureEvidence.self, table: "capture_evidence", column: "evidence_id", id: $0.rawValue)
+                }
+            }
+            guard let decision = decisions.first, decisions.count == resolutionVersion.decisionIDs.count, decisions.count <= 2 else {
+                throw FoodLedgerStoreError.integrityFailure("incomplete food confirmation aggregate")
+            }
+            let evidence = decisionEvidence[0]
             var releases: [SourceRelease] = try resolutionVersion.sourceReleaseIDs.compactMap {
                 try decode(SourceRelease.self, table: "source_release", column: "source_release_id", id: $0.value)
             }
@@ -464,6 +473,7 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
                   assertions.count == assertionIDs.count else {
                 throw FoodLedgerStoreError.integrityFailure("incomplete food confirmation provenance")
             }
+            let estimate = try StoredLabelEstimate.assembled(decisions: decisions, evidence: decisionEvidence, releases: &releases)
             let conversion: QuantityConversionVersion? = try logVersion.quantityConversionVersionID.flatMap {
                 try decode(QuantityConversionVersion.self, table: "quantity_conversion_version", column: "version_id", id: $0.rawValue)
             }
@@ -494,7 +504,8 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
                 plate: plate,
                 plateWeightVersion: plateVersion,
                 candidateDecision: decision,
-                assertions: assertions
+                assertions: assertions,
+                estimate: estimate
             )
     }
 
@@ -1228,7 +1239,7 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
                   synchronous == 2,
                   application == applicationID,
                   version == schemaVersion,
-                  metadata == "food-ledger-v7",
+                  metadata == "food-ledger-v8",
                   check == "ok",
                   foreignKeyFailures.isEmpty else {
                 throw FoodLedgerStoreError.integrityFailure("database open policy")

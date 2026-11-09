@@ -1,0 +1,22 @@
+{
+ "adversarial_class": "non_label_paste",
+ "copy_method": "synthetic",
+ "expected": {
+  "columns": [],
+  "notes": [
+   "synthetic",
+   "adversarial: a food-safety news item with counts and no table"
+  ],
+  "rows": []
+ },
+ "format": "taiwan",
+ "label_id": "adv-nonlabel-tw-01",
+ "role": "tuning",
+ "schema": "pasted-label-ai-text-eval-case-v1",
+ "set": "taiwan_v3_fresh",
+ "source": {
+  "schema": "reader-v3-fresh-transcription-v1",
+  "sha256": "4268382ab108de2400d91257ee1854a1557e80443e98a4f9e7f8fb957fd58c42"
+ },
+ "text_sha256": "8e8f50d1a8db7eecc43b2014dbf6189cf9de5ccbad3ac26c1e20d2200ef96e41"
+}

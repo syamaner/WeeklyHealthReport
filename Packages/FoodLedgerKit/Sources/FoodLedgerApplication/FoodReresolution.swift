@@ -14,6 +14,8 @@ public struct FoodReresolutionTarget: Equatable, Sendable {
 
 public enum FoodReresolutionError: Error, Equatable {
     case unavailableTarget, noCompatibleCandidate, incompatibleIdentity, identityConfirmationRequired, staleProposal, missingLog, noChange
+    /// Re-resolution of an entry with a label estimate layer (label-estimate-merge-v1 section 5).
+    case labelEstimateLayer
 }
 
 public protocol FoodReresolutionProviding: Sendable {

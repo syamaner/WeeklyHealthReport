@@ -133,6 +133,20 @@ check. Locally the replay test took 70.1 s against 53.0 s, and the whole package
 suite 189 s of test time (250 s with the build), so the 15-minute timeout still
 leaves several minutes of margin on the hosted runner.
 
+That margin has gone. On 31 October 2026 passing runs on the hosted runner took
+11m39s to 13m48s (build 170 s to 185 s, XCTest about 700 s), and three pull
+request runs (41175539897, 41180161020 and 41180338859) were cancelled at 15m22s,
+15m07s and 15m18s. In 41180161020 the 1565 XCTest cases ran with 0 failures
+(8 skipped) and the 145 Swift Testing cases passed, and the job was cancelled
+seconds later, before the four retrieval scorers completed; 41175539897 was
+cancelled part-way through XCTest with no failure logged. These were timeouts,
+not hangs or failing tests. The timeout is now 25 minutes, about 1.8 times the
+slowest passing run, and stays below the 30 minutes of `Build and test`.
+
+That margin has gone again. On 4 November 2026 passing `main` runs of this job took 20m22s, 21m26s and 22m41s, and the Ciqual C2 pull request run (#401, which adds the Ciqual searcher, the composite v11 subsequence contract test and the FoodSearchQuality v8 replay) took 24m39s, 21 seconds under the limit. The timeout is now 40 minutes, about 1.6 times the slowest passing run, so a slow hosted runner does not cancel a passing suite. This is longer than the 30 minutes of `Build and test`; the two jobs run in parallel, so it does not lengthen a passing pipeline. Revisit it if the job's measured duration falls back below 15 minutes, or trim the suite if it approaches 30.
+
+The trim landed in #405. The slowest independent cases (the ranked retrieval replay, the label value sweep and the fruit plurals check) now run concurrently, each with its own caches, and their results are reassembled in order, so the frozen replay reports, the 6,592 sweep checks and the plural assertions are unchanged. On 9 November 2026 the job took 20m12s on the #405 pull request run (42585300950, test step 20m05s), against 27m09s for the `main` run at the same base (`2e16761`); passing `main` runs that day and the day before took 21m21s to 28m22s. The timeout is now 30 minutes, about 1.5 times the trimmed run and the same as `Build and test`. Revisit it if passing runs come within 5 minutes of the limit.
+
 ## Codecov disclosure boundary
 
 The pinned Codecov action runs only after the local coverage gate passes. Its

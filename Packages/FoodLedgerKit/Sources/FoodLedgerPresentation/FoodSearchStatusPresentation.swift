@@ -142,11 +142,16 @@ public enum FoodSearchResultText {
         if family == .otherSource { return "Generic food estimate" }
         return "\(self.family(family)) · estimate"
     }
+    /// The spoken form of a "·"-joined source line: VoiceOver reads "French reference, estimate".
+    public static func spokenSourceLine(_ line: String) -> String {
+        line.replacingOccurrences(of: " · ", with: ", ")
+    }
     public static func family(_ family: FoodSearchResultSummary.SourceFamily) -> String {
         switch family {
         case .ukReference: "UK reference"
         case .usReference: "US reference"
         case .taiwanReference: "Taiwan reference"
+        case .frenchReference: "French reference"
         case .packagedProduct: "Packaged product"
         case .webSource: "Web source"
         case .yourFoods: "Your foods"
@@ -183,6 +188,12 @@ public enum FoodSearchResultText {
         case .unknown: "basis not specified"
         }
     }
+    /// One visible line when the search text was interpreted beyond what was typed
+    /// ("100% cacao" searched as chocolate, cocoa-percent-policy-v1).
+    public static func interpretationNote(_ query: ParsedFoodQuery?) -> String? {
+        query.flatMap(CocoaPercentPolicy.searchedAsNote(query:))
+    }
+
     public static func caution(query: ParsedFoodQuery?, candidate: PopulatedFoodCandidate,
                                requestedPreparation: PreparationKind?, isRecipe: Bool) -> String? {
         if isRecipe { return "Representative recipe · cooked serving weight unknown" }
@@ -201,6 +212,7 @@ public enum FoodSearchResultText {
                     : "\(fat.formatted()) g fat / 100 g · requested \(percent)% fat")
             } else { notes.append("Requested \(percent)% fat not verified") }
         }
+        if let cocoa = CocoaPercentPolicy.caution(query: query, candidate: candidate) { notes.append(cocoa) }
         if let preparation = requestedPreparation ?? FoodQueryPreparationPolicy.kind(for: query), preparation != .unknown,
            candidate.candidate.identity.preparation.kind == .unknown {
             notes.append("\(preparation.rawValue.capitalized) preparation not verified")

@@ -1,7 +1,7 @@
 import Foundation
 
 extension ReportDocument {
-    /// The Copy all text (README "What gets copied", docs/health-copy-all-v2.md).
+    /// The Copy all text (docs/app-reference.md "What gets copied", docs/health-copy-all-v2.md).
     /// Since v2 (#308) it is the screen's own wording: the display document's
     /// section titles, row labels and footers (`forDisplay()`), so Copy all and
     /// the Health screen never name a metric two ways. Values and order are the

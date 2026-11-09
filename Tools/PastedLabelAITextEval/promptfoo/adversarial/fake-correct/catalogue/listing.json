@@ -1,0 +1,22 @@
+{
+ "data": {
+  "id": "google/gemini-4-argon",
+  "architecture": {
+   "input_modalities": [
+    "text",
+    "image"
+   ]
+  },
+  "endpoints": [
+   {
+    "tag": "google-vertex/us",
+    "provider_name": "Google",
+    "pricing": {
+     "prompt": "0.0000022",
+     "completion": "0.000011",
+     "internal_reasoning": "0.000011"
+    }
+   }
+  ]
+ }
+}

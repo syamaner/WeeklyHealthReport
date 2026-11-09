@@ -1,0 +1,623 @@
+# Weekly Health Report: app reference
+
+This is the full reference for the app: what each screen shows, the export workflow, privacy, setup and the metric-by-metric calculation rules. It was the repository README until the README became a short front page. Metric semantics referred to as "README semantics" in older notes and code comments now live here.
+
+## What it reports
+
+| Area | Included measurements |
+| --- | --- |
+| Body | Latest weight and recording time, weight trend, body fat and trend, waist circumference and four-week trend |
+| Daily activity | Average daily steps, active energy, Apple Exercise Time, workout count, type, duration and start time |
+| Food and water | From this app's own food log, not Apple Health: days logged, average logged energy per complete day, average logged fibre per complete fibre day and average plain water per day it was logged |
+| Heart and sleep | Blood pressure, resting heart rate, HRV, sleep and days with Apple Watch data |
+| Fitness estimates | Latest VO₂ max with four-week, three-month and six-month averages, plus blood oxygen |
+| Glucose | A weekly average calculated from daily values, observed range and days with data |
+| Medications | Taken medication events, dose and time on iOS 26 or later |
+| Daily JSON only | Source-filtered nutrition totals, completed-day averages and trends for all 39 Apple Health dietary quantity types, plus private date-bound notes you type and explicitly export |
+
+The app opens on **Today**, from which the **Health summaries** row on the **Health · today so far** card opens **Health**, the completed-day report: a period picker with its visible range, summary tiles that repeat a few section values, and collapsible sections. **Health → Export a day** opens the manual **Export** screen for the Daily JSON file; the Google Drive account and folder live in **Settings → Export**, and opening that screen sends no request. A separate Developer Diagnostics screen checks daily values against Apple Health. **Copy all** (in the toolbar or below the sections) puts a human-readable version of every section, with all details shown, on the iOS clipboard; the summary tiles are not copied.
+
+On the main report, a normal system screenshot also offers Apple's native **Full
+Page** representation. The app creates that report PDF in memory only when iOS
+requests it, using one stable snapshot and a document layout independent of the
+scrolling form. It always includes every report section with all blood-pressure
+details shown, whatever is expanded on screen, but not the summary tiles or the
+navigation, export, copy, refresh or diagnostics controls. Its wording is the
+screen's (sentence-case labels, and "Could not read Apple Health." for a failed
+read), and Copy all uses the same words ([Copy all v2](health-copy-all-v2.md)).
+**Today** offers Full Page too: a one-page PDF of its cards as text (the date, Food
+logged, quick-add favourites, Health · today so far with its footer and "As of" time,
+and today's notes count), built from the cards' current content when iOS asks. Buttons
+and links such as Add food are left out, and it is not offered while a sheet or a
+pushed confirmation covers Today. It is a separate document: the Health report's Full
+Page, Copy all and the Daily JSON export never include Today's strings.
+Other screens provide only the ordinary screenshot. Saving or sharing remains in
+the system screenshot editor; the app adds no screenshot or share button and keeps
+no generated file.
+
+<details>
+<summary>See a synthetic Full Page report</summary>
+
+<img src="images/weekly-health-report-full-page-synthetic.png" alt="Complete synthetic Full Page weekly health report containing every metric section" width="460">
+
+This mock-up shows the document structure returned to the iOS screenshot editor.
+Every value and name is invented.
+
+</details>
+
+## Export daily JSON to Google Drive
+
+Daily export is a separate, manual workflow. Opening **Export** (from
+**Health → Export a day**) restores any known account, destination and
+nutrition-source choices, then prepares a fresh immutable snapshot in memory.
+Nothing is uploaded until you review that snapshot and tap **Export**.
+
+1. In **Settings → Export**, connect the Google account that should receive the
+   file. Opening that screen sends no request. The app requests only
+   `drive.file`, which limits it to files and folders opened or created through
+   the app.
+2. Select an existing folder by its exact Drive ID, or explicitly create a
+   dedicated **WeeklyHealthReport Exports** folder. Folder names are labels, not
+   identity.
+3. Authorise and select the exact Apple Health nutrition source whose data should
+   be included, then save any date-bound notes you want to export. Draft notes are
+   excluded.
+4. Choose today or one of the previous seven local dates. Today freezes a partial
+   day at refresh; earlier dates use the full local day as currently visible in
+   Apple Health, not a reconstruction of what was visible at the original midnight.
+   Date selection binds notes to that exact date and time zone and clears the old
+   preview. Unverified notes are retained even outside the selectable range.
+   Today's picker label shows the refresh cutoff once a snapshot is prepared.
+   Review the **Included** list: Health data as of the cutoff, the nutrition
+   source, notes and the exact file's byte count. Tap **Exact file** to inspect
+   the actual bytes prepared for upload. With **Food log** on (the default
+   when Drive is connected), the same refresh also prepares a separate
+   `food-daily-YYYY-MM-DD.json` for the day: the foods you logged, their
+   amounts, nutrient values with their sources and the day's totals, with
+   unknown values left unknown. It goes to the same folder and has its own
+   result ([food-daily-export-contract-v1.md](food-daily-export-contract-v1.md)).
+5. Tap **Export**. The screen reports verified only from a verified Drive result. Refresh first if a saved note or relevant
+   selection changed, because the previous preview is deliberately made stale
+   rather than silently altered.
+
+Daily exports use schema 3 for basic detail, schema 7 for legacy workout enrichment and schema 8 for individual heart-rate readings. The JSON envelope records `schema_version`, `report_date`, `time_zone`,
+`data_as_of`, `exported_at` and `day_window`. Its `today` object contains the
+selected day's values through the frozen cutoff and an ordered `notes` array.
+`app_context` contains deterministic completed-day summaries and trends.
+Historical corrections replace only that date's canonical file: cutoff remains
+the next local midnight, while later encoding time orders replacements at the
+same cutoff. Identical ordering with different bytes and older cutoffs are still
+rejected. This uses versioned Drive identity metadata, not a JSON schema change;
+use this version or newer for historical-file replacement and recovery.
+Nutrition covers Apple's 39 supported dietary quantity types, restricted to the
+selected HealthKit source; missing or inaccessible values remain explicit states
+rather than becoming zero.
+
+Retrospective device validation remains a separate manual gate: select a prior
+date with known saved notes, compare the preview's daily values against Apple
+Health for that exact date and source, inspect the cutoff and exact JSON, then
+test a real lock/unlock cycle. Only with explicit account/destination approval,
+export two selected dates and correct one; verify distinct canonical file IDs,
+same-ID replacement and the reviewed bytes. Simulator tests do not establish
+historical HealthKit visibility or live Drive behaviour.
+
+An additive schema-v4 form can include a deterministic canonical food document
+and its matching daily food-nutrition summary. It preserves every v3 meaning,
+records all 39 food nutrient states and exact input log-version IDs, and excludes
+raw media and transient capture data. Creating schema v4 does not enable or call a
+provider; local food-archive export/import remains a separate explicit action.
+
+The app opens on **Today** ([phase 6 plan](ux-revamp-phase-6-home.md)): a food card
+with today's logged energy, protein, carbohydrates, fat, fibre and plain water (linking to the
+Food Log), **Add food**, quick-add chips, a provisional **Health · today so far** card
+(steps, active energy, last night's sleep, latest weight and blood pressure, with an
+"As of" time; its plain header is not a link, and its **Health summaries** row ("Completed days") opens Health, with
+Export one tap further) and today's notes. The Food Log
+([phase 4 plan](ux-revamp-phase-4-food-log.md)) has previous and next day buttons
+and a date picker; a totals strip for energy, protein, carbohydrates, fat and fibre, where "+"
+marks a known minimum, a nutrient no entry has reads "Unknown" (never 0) and an empty day shows no totals; entries by time with an
+estimate label and per-entry unknown flags; swipe to remove, with a collapsed Removed
+section and Restore; and a read-only saved entry with nutrition for the amount, source,
+history, Edit (which saves a new version and keeps the original as history) and Remove
+from log. Edits, removal and restoration never change an export already sent.
+The [intake projection contract](intake-home-projection-v1.md)
+keeps unknown/bounded contributions incomplete and current-day food intake separate
+from completed-day HealthKit reporting.
+Direct [edible-weight entry](direct-edible-weight-contract-v1.md) keeps original input separate from an explicitly declared measured or estimated gram total, with legacy archive compatibility.
+
+Generic-food matching is currently limited to deterministic local candidate
+ranking followed by explicit user selection or decline. The frozen
+[generic-food evaluation](archive/generic-food-match-evaluation.md) does not promote
+automatic acceptance and contains no personal-food validation.
+The delivered [offline generic-food search](archive/generic-food-search-delivery.md)
+uses bundled CoFID and separately labelled USDA US-composition candidates, shows
+source descriptions and differences, and records confirmed exact aliases for offline
+reuse. The [source expansion contract](archive/food-data-source-expansion-proposal-v1.md)
+pins Foundation/SR Legacy snapshots and preserves whole source records. The
+[narrow whole-milk volume rule](cofid-whole-milk-volume-admission-v1.md)
+offers a separately sourced 1.03 estimate only for the selected CoFID whole
+pasteurised milk record after an explicit tap; other volume gaps remain unavailable.
+The [bounded search repair](archive/food-search-usability-v2.md) provides component suggestions
+for unsupported combined meals. Captured multi-source replays exercise the actual app coordinator; they do not
+establish fresh live retrieval accuracy or independent acceptance.
+The [unified search contract](unified-food-search-contract-v1.md) now has an
+application coordinator and progressive search UI: one **Search** action, stable
+candidate rows, explicit selection or **None of these**, and cancellation when the
+query, preparation, selection, navigation or service availability changes. Eligible
+admitted providers can append results without replacing a selected food. Under
+**Search options (ellipsis) → Search services**, enable **Open Food Facts** to add
+packaged-food alternatives automatically when local matches need more evidence.
+It defaults off, needs no key, and sends only displayed food terms on a submitted
+search. Changing the setting cancels the current enrichment and applies on the next
+search. Each OFF stage uses at most one Search-a-licious request and two product-detail
+reads, spaced at least seven seconds apart and capped at 20 seconds overall. There
+are no automatic retries, pagination or search-as-you-type calls. Search-index
+nutrients are not admitted; product details must supply the source evidence.
+
+OFF results require an explicit package unit and one matching packaging panel: per
+100 g for mass or per 100 ml for volume. No density, serving-size conversion or
+cross-panel backfill is inferred. Ambiguous or unsupported records are omitted.
+A literal percentage can find candidates without establishing what it means or
+prefilling an intake quantity. Category-supported matches display the source type
+for review, including Greek versus Greek-style distinctions.
+Community records retain exact-product provenance, licences and unknown fields.
+Missing exact-product identity still blocks saving until resolved; a text match does
+not turn a branded product into a generic estimate. Runtime quality and device checks remain pending.
+
+The bundled [Taiwan food catalogue](taiwan-food-catalogue-v1.md) adds 63 reviewed
+TFDA records for everyday fruit, vegetables, mushrooms and staples. English,
+Traditional Chinese and selected romanised names retrieve labelled Taiwan
+composition estimates. Source varieties and preparation remain visible; frozen and
+dried variants require their descriptors. Values stay per 100 g edible portion,
+without a count weight or milk density. Unreviewed TFDA records are not shipped.
+
+**Web nutrition review** opens an explicit OpenRouter search and source-review flow.
+Add or revalidate your key under **API key and privacy**, then submit displayed food
+terms or a public HTTPS source URL. Typing, opening the screen and storing a key do
+not submit food terms. The key uses a separate ThisDeviceOnly Keychain namespace;
+an existing Gemini key cannot authorise OpenRouter requests. The food-market picker
+remembers your explicit choice on this device and remains editable per search;
+Unspecified clears it. The selected market accompanies displayed food terms.
+No IP geolocation is used.
+
+One review makes at most one discovery, two source-selection requests and two
+extraction requests, followed by at most one applicability request. A second offered
+source is considered only after empty extraction or unreadable capture; evidence is
+never merged across pages. Each capture permits three website connections including
+redirects. A supplied URL skips discovery and selection and is reviewed alone.
+The overall deadline is 150 seconds, with no automatic retries. The same OpenRouter key covers every model request.
+Luna searches, selects a source and checks applicability; Grok extracts from the
+captured document. Jev remains a separate evaluation option and is not composed
+in the app. Failed or declined source selection retains the leads without silently
+capturing the first result. These choices use development evidence and may fail.
+Food terms and captured public source text are sent to these services;
+saved foods, diary history and HealthKit data are excluded. Charges use your account.
+
+The generic parser accepts bounded UTF-8 HTML, plain text and text-bearing PDFs without a list of
+supported websites. It binds proposed values to exact captured quotes, units and
+basis. This establishes literal correspondence, not correct food identity or
+nutrient meaning. Review the original source and choose exact-product or
+representative-estimate scope, then enter your consumed amount in food confirmation.
+All bound proposals remain inspectable, but only the current recommended eligible
+proposal can continue to confirmation. A recommendation of none or clarification
+requires a refined query or another source; literal quotes alone cannot override it.
+Reviewed web values remain labelled estimates. Missing nutrients stay unknown;
+missing exact-product identity still blocks saving. No serving weight, density,
+salt-to-sodium or kJ conversion is inferred. A source-declared serving can be counted
+without inventing a gram weight.
+
+Acquisition or extraction failures retain discovered links for another explicit
+choice. A successful separate applicability check is required to continue to
+confirmation. Failed or unavailable checking leaves proposals inspectable but cannot
+approve them through extractor fallback. Categorical checks supply no numerical
+confidence and never authorise saving. The initial capture profile
+does not support scanned labels, image-only or encrypted PDFs, JavaScript rendering, compressed responses or
+IPv6-only sources. The [integration contract and runbook](generic-food-proposal-integration-v1.md)
+separates local implementation, live development probes and pending acceptance.
+The [repair evaluation](archive/generic-food-proposal-repair-results-20261004.md) reports
+fresh UK, Taiwan and general cases alongside retained failures and actual costs.
+
+The [delivery readiness and device checklist](archive/unified-food-search-delivery-readiness-v1.md)
+separates local evidence from live acceptance. Named sirloin cuts rank before incidental
+parenthetical mentions. Whole-cow's-milk wording offers an explicit broader milk
+search. A narrow lentil/tomato-soup and porridge-with-water/milk grammar can search
+without inventing a recipe or quantity. Unknown preparation is a labelled alternative
+only for these named-dish reviews; known compatible preparation ranks first. Current
+local data supplies porridge alternatives, but the four evaluated soup descriptions
+still have no local nutrition match.
+
+The former [Gemini citation discovery](archive/gemini-grounded-food-discovery-plan-v1.md)
+and manufacturer adapters remain in the package for regression coverage, but the
+app composition no longer instantiates Gemini. OpenRouter web review is a separate
+explicit action alongside local and optional OFF search. Live quality, device and
+TestFlight acceptance remain separate from compilation and synthetic tests.
+
+The [pasted food-list input](food-list-import.md) adds local quantity/unit
+parsing and a per-line review queue under **Today → Add food → Paste or dictate food list**.
+Every saved line still requires explicit candidate confirmation.
+The [food-dictation flow](archive/food-voice-delivery.md) adds an optional **Dictate**
+button to that editor. On supported devices it uses on-device speech, then requires
+editable text and numeric/unit review before entering the same food-review queue.
+It does not save audio or automatically log food; physical speech checks remain
+separate from synthetic lifecycle tests.
+The [barcode entry](archive/barcode-beta-delivery.md) checks the existing exact local
+library first and preserves the scan when falling back to generic search. On a GTIN
+miss, the approved [optional OFF lookup](off-barcode-candidate-plan-v1.md) offers
+a foreground barcode-only request after disclosure, with explicit review before
+saving source-attributed data. Its shared mapper supports declared mass and
+explicit modern volume panels; ambiguous or insufficient records stay unresolved. No OFF login is required. Physical
+camera validation remains deferred; label-photo OCR is not offered in this beta.
+The optional [local receipt review](local-inventory-contract.md) imports pasted
+text or user-selected text-bearing PDFs, keeps original evidence and requires
+explicit product review. Received purchases, dated remaining-stock assertions and
+consumed food stay separate. Google is not required; a Drive importer is a later
+feature. [Usual foods and draft recovery](food-drafts-and-common-foods.md)
+provide usual foods, aliases, usual portions and add-to-review to an explicit review.
+These usual foods are separate from source-bound **favourites** ([quick add contract](food-quick-add-contract-v1.md)):
+a favourite pins a logged entry (or the app's plain water reference) and a default amount, and a Home chip
+opens a one-step quick-add sheet; nothing is logged until Log, estimates and corrected entries open the full
+Confirm, and editing a favourite never changes logged entries. A favourite can also be saved later from a saved entry,
+a recent food on Add food, or **Favourites → From what you've logged**, pinning that entry's current version; removing
+the Water item is confirmed and **Add Water to quick add** brings it back. Home and the Food Log show **plain water
+logged** for the day (No data when none), separate from the dietary water nutrient total.
+Pasted lists resume after reopening the app. Inventory has its own versioned
+backup, available from **Settings → Backup and restore**; existing food-ledger
+archives and daily health exports remain separate.
+
+[Nutrition-update review](archive/food-reresolution-delivery.md) compares saved product
+entries against an explicitly chosen installed source and matcher. It shows all
+39 nutrient states and provenance, requires acceptance and a reason, and appends
+versions without changing original evidence or previous exports. Only the bundled
+CoFID 2021 target is available today; this does not imply a newer dataset exists.
+
+Each local reporting date has one canonical `health-daily-YYYY-MM-DD.json` file
+in the selected destination. The filename is a convention; the securely stored
+Drive file ID is its identity. A later export for the same date updates that
+exact file without deleting it first. The app reports success only after reading
+back the account, folder and file metadata and confirming that the remote bytes
+exactly match the reviewed snapshot.
+
+There is no automatic export, background sync or offline queue. Disconnecting
+Google or changing the app's destination does not delete files already stored in
+Drive. For the normative field and state rules, see the
+[daily export contract](daily-export-contract.md). Developers enabling Drive
+in a local build should also read the
+[product setup notes](google-drive-product-setup.md).
+
+## Privacy
+
+Read the [privacy policy](privacy-policy.txt), also available offline from **Today → Settings → Privacy policy**.
+
+All HealthKit reading and calculation happens on the iPhone. HealthKit report
+content leaves through a copy/share action you choose or when you open **Export**,
+review the prepared snapshot, and choose **Export**.
+Optional online food searches have separate consent and send the displayed food
+terms or barcode; they do not attach HealthKit records or diary history.
+
+The app-owned health-data directory is excluded from system backups before local
+notes and food stores are opened. Existing paths and records are preserved. A
+protection failure leaves the affected feature unavailable. This cannot remove
+copies made by older builds or files already exported to another destination.
+
+Daily JSON schema 7 includes visible workout and activity heart-rate minimum/average/maximum, HealthKit-estimated active energy, native workout distance and separately evidenced accepted PacePrompt distance, planned/executed interval metadata and observed interval-distance windows. Native heart-rate zone durations, thresholds and source are included when available on iOS 27 or later; older systems mark zones unsupported. Schema 8 additionally preserves individual workout-associated heart-rate series with timestamps, BPM, parent/source identities and executed interval references; arbitrary HealthKit metadata stays excluded. Native schema 8 timestamps use seconds since 1 January 2001 UTC to preserve their original precision; reporting timestamps remain text. See the [heart-rate readings contract](workout-heart-rate-readings-contract.md). Unavailable reads stay unavailable, and partial observation-window distance is not labelled a full interval distance. Independent workout and daily energy totals are never combined with interval totals.
+
+The optional Drive feature:
+
+- requests only Google's `drive.file` permission, never a whole-Drive scope;
+- sends the exact reviewed health JSON directly from the app to Google Drive;
+- stores OAuth credentials and minimal account, destination and canonical-file
+  identity in this-device-only Keychain items;
+- has no analytics, telemetry, backend, database, hosted component, automatic
+  export, background sync or offline queue;
+- never enumerates destination contents or treats limited Drive visibility as proof
+  that a folder is empty; and
+- supports one active exporting installation and blocks ambiguous identity recovery.
+
+Typed notes and unfinished drafts are stored in this app's Application Support
+directory with iOS file protection. Drafts are never exported. Saved notes enter
+only a newly refreshed JSON preview and remain on-device until you review and
+explicitly export those exact bytes. An edit or deletion makes an existing preview
+stale. Verified prior-day notes are removed lazily only when the same unchanged
+revision was remotely verified; drafts are retained.
+
+The note editor also offers a dedicated microphone path on supported devices and
+locales. Microphone and speech permissions are requested only after you tap it. The
+app starts capture only when `SFSpeechRecognizer` reports on-device support and every
+request requires on-device recognition; there is no server-recognition fallback.
+Audio is streamed only into the active recognition request and is never persisted,
+logged, exported or uploaded. Partial text stays separate until Speech finalises it.
+If a pause resets the live result, recognition fails, or Stop returns an empty,
+incomplete or no final result, the app assembles the affected recognised text once and
+keeps it as one editable candidate. The typed draft stays unchanged until that candidate
+is explicitly added, and a three-second Stop fallback prevents the editor remaining in
+an indefinite finishing state. Late callbacks from that capture are ignored. If the
+complete addition exceeds a note limit, the draft likewise stays unchanged and the
+candidate remains separately editable until it is accepted after editing or explicitly
+discarded. Ordinary keyboard Dictation is controlled separately by iOS and is not
+covered by this local guarantee.
+
+Google receives the selected JSON and applies its own storage/account terms. A
+successful app status means Drive metadata and content bytes were read back and
+matched; it does not prove that another consumer fetched the file. The separate
+synthetic harness remains development evidence and uses a different OAuth client.
+
+The app asks only for read access to the HealthKit types it uses. HealthKit does not tell an app whether read access was denied, so a successful query with no visible samples is shown as **No data**, not zero.
+
+<details>
+<summary>See the requested Health permissions</summary>
+
+The app requests read access to Body Mass, Body Fat Percentage, Waist Circumference, Blood Glucose, Blood Pressure Systolic, Blood Pressure Diastolic, VO₂ Max, Oxygen Saturation, Step Count, Walking/Running Distance, Heart Rate, Resting Heart Rate, Heart Rate Variability (SDNN), Sleep Analysis, Active Energy, Apple Exercise Time and Workouts. The Daily JSON Export flow separately requests read-only access to Apple's 39 dietary quantity types when you refresh visible nutrition sources. On iOS 26 or later, it can also request access to medications that you select individually.
+
+It never asks for write access, background delivery or clinical health records. If you installed an older build before a metric was added, iOS should offer the new read permission the next time the app runs.
+
+</details>
+
+Glucose is read from Apple Health. The app does not connect directly to Abbott, Lingo or another sensor account. The sensor's own app must write `bloodGlucose` samples to HealthKit first.
+
+Blood pressure is also read from Apple Health rather than directly from a cuff. A monitor's companion app, such as Omron Connect, must first save complete blood-pressure correlations to HealthKit.
+
+Nutrition is also an Apple Health feature rather than a direct provider integration. In Daily JSON Export, first-time nutrition authorisation and source selection are explicit. The app stores that choice by HealthKit bundle identifier; the source name is only a label. On later foreground visits it silently resolves only that exact source and prepares a fresh preview without presenting HealthKit authorisation. Every nutrition statistic is restricted to the selected source, and a missing or unavailable selection blocks preview refresh rather than falling back to combined nutrition data.
+
+## Run it on your iPhone
+
+You need a Mac with the current stable Xcode, an iPhone and an Apple development team for code signing. The deployment target is iOS 17. Medication reporting requires iOS 26 or later.
+
+The published app uses `com.otherweather.WeeklyHealthReport` as its canonical
+bundle identifier. Forks and local variants should override it with an identifier
+owned by their development team.
+
+1. Clone the repository and open `WeeklyHealthReport.xcodeproj` in Xcode.
+2. Copy `Config/Signing.local.xcconfig.example` to `Config/Signing.local.xcconfig`.
+3. In the local file, replace `YOUR_TEAM_ID` with your Apple development team ID and choose a bundle identifier that is unique to your team.
+4. Select the **WeeklyHealthReport** target and open **Signing & Capabilities**. Confirm that your team, bundle identifier and the **HealthKit** capability are present.
+5. Connect and trust your iPhone. Enable Developer Mode if iOS asks for it.
+6. Select the iPhone as the run destination and press Run.
+7. Approve the Health read permissions you want the app to use.
+
+`Config/Signing.local.xcconfig` is ignored by Git, so your personal signing values stay local. No App Store setup is required.
+
+### Optional Google Drive export setup
+
+The checked-in build fails closed with Drive controls disabled. To enable them,
+create a separate native iOS OAuth client for the product app's exact bundle
+identifier, then copy `Config/DriveOAuth.local.xcconfig.example` to the ignored
+`Config/DriveOAuth.local.xcconfig` and set the client ID and reversed redirect
+scheme. Do not reuse the synthetic-harness client and do not add a client secret,
+API key, web client, hosted origin or backend. See
+[the product setup notes](google-drive-product-setup.md).
+
+After explicit Google consent, an account with no prior destination binding must
+either choose an existing folder by its exact Drive ID or explicitly create one
+dedicated **WeeklyHealthReport Exports** folder. Folder names are never searched or
+treated as identity. Later foreground visits revalidate the secure session,
+account-specific folder and exact saved nutrition source, then prepare a new in-memory
+snapshot. Missing, inaccessible or trashed stored destinations are never silently
+replaced. Export remains a separate explicit action; account removal, destination
+changes and exact-file migration or recovery are contextual controls. Google's mobile
+Picker requires a consent step when granting access to another folder or file, but the
+app pins that flow to the already connected account rather than asking for a new
+account choice.
+
+On iOS 26 or later, Health presents a separate medication chooser. To change access later, open Health, tap your profile picture, then go to **Apps > WeeklyHealthReport**. When you add a new medication in Health, enable WeeklyHealthReport on the final screen if you want the app to read it.
+
+## Choose a reporting period
+
+All dates use the iPhone's local calendar and time zone. Date-and-time values use the shared `dd/MM/yy - HH:mm` 24-hour format throughout the app and copied report. The start is included and the end is excluded.
+
+The Health screen's period picker shows short titles; copied text and Full Page keep the full period name (for example "Last 7 Completed Days").
+
+- **Last 7 days** is the default. It runs from local midnight seven calendar days ago to local midnight today.
+- **This week** runs from the locale-aware start of this week to local midnight today. It excludes today's partial data.
+- **Last week** is the previous complete locale-aware calendar week.
+
+These are calendar periods, not a rolling 168-hour window. Last 7 days still contains seven calendar days when daylight-saving time changes.
+
+## What gets copied
+
+The copied report is plain text. Latest weight, waist, blood oxygen and blood pressure are selected independently of the weekly period, so a measurement recorded today can appear alongside a report of completed days.
+
+A failed Apple Health read is copied as "Could not read Apple Health.", whether it is one metric row (for example `Daily average: Could not read Apple Health.`) or a whole section such as Steps. The technical message is never copied; Developer tools lists it under "Health report read failures". The Food and water section reads this app's food log, not Apple Health, so a failed read there is copied as "Could not read the food log." No-data, unavailable and partial wording is copied unchanged.
+
+Sections are copied in the Health screen's group order ([section groups](health-report-section-groups-v1.md)): Daily activity (Steps, Activity), Food and water, Body (Weight, Body composition), Heart and sleep (Heart, Blood pressure, Sleep), Fitness and blood oxygen, Glucose, and Medications (Medications taken). Every group starts with its name in capitals on its own line. Section titles, row labels and footers are the Health screen's own wording ([Copy all v2](health-copy-all-v2.md), #308), so the copied text reads like the screen; values are unchanged.
+
+<details>
+<summary>See a synthetic copied report</summary>
+
+```text
+Weekly Health Report
+Last 7 Completed Days
+18–24 Aug 2026
+Generated: 26/08/26 - 09:00
+
+DAILY ACTIVITY
+
+Steps
+Average daily steps: 2,727
+Data coverage: 7 / 7 days
+Steps trend: Insufficient history
+Weekly total: 19,089
+
+Activity
+Active energy: 1,974 kcal
+Exercise: 89 min
+Workouts: 1
+Workout time: 30m
+Walking: 30m — 18/08/26 - 00:00
+
+FOOD AND WATER
+
+Food and water
+Days logged: 6 / 7 days
+Logged energy: 2,010 kcal per day (5 complete days)
+Incomplete energy days: 1
+Logged fibre: 24 g per day (4 complete days)
+Incomplete fibre days: 2
+Plain water: 1,750 mL per day (4 days)
+Logged in this app; not a measure of everything eaten or drunk.
+
+BODY
+
+Weight
+Latest weight: 100.6 kg
+Measured: 25/08/26 - 00:00
+Average, last 7 completed days: 100.8 kg
+Weight trend: -0.4 kg vs previous 7d
+Latest weight can include today. The average uses the last 7 completed days, and the trend compares them with the 7 days before, whichever period is selected.
+
+Body composition
+Body fat: 26.5% latest
+7-day average: 26.7%
+28-day average: 26.7%
+Body fat trend: ↓ 0.9 pp vs previous 28d
+Waist circumference: 101.4 cm
+Waist measured: 24/08/26 - 09:00
+4-week waist trend: -1.7 cm vs ~4 weeks earlier
+
+HEART AND SLEEP
+
+Heart
+Resting heart rate average: 73 bpm
+Resting heart rate trend: +3.0 bpm vs previous 7d
+HRV average: 42 ms
+HRV trend: -5.0 ms vs previous 7d
+Days with Apple Watch data: 4 / 7 days
+
+Blood pressure
+Latest reading: 123/78 mmHg
+Recorded: 24/08/26 - 20:14
+Morning average: 124.1/79.2 mmHg
+Latest batch: 125.3/79.7 mmHg
+Recorded: 24/08/26 - 08:11 · 3 readings
+Coverage: 5/7 days · 15 readings
+Evening average: 122.8/77.6 mmHg
+Latest batch: 122.7/77.3 mmHg
+Recorded: 24/08/26 - 20:14 · 3 readings
+Coverage: 4/7 days · 12 readings
+Period averages use completed days. Morning is before 14:00; evening is from 17:00. Mid-afternoon readings are excluded from both slot summaries.
+
+Sleep
+Average sleep: 6h 48m
+
+FITNESS AND BLOOD OXYGEN
+
+Fitness and blood oxygen
+Latest VO₂ max: 32.1 mL/kg/min
+VO₂ max measured: 24/08/26 - 09:00
+4-week average: 31.8 mL/kg/min (8 days)
+3-month average: 30.9 mL/kg/min (24 days)
+6-month average: 29.7 mL/kg/min (51 days)
+Latest blood oxygen: 97%
+Blood oxygen measured: 24/08/26 - 09:00
+Period typical: 97%
+Daily median range: 96–98%
+Blood oxygen coverage: 7 / 7 days
+Apple Watch blood-oxygen measurements are wellness estimates, not medical measurements.
+
+GLUCOSE
+
+Glucose
+Daily average: 5.8 mmol/L
+Observed range: 3.9–8.7 mmol/L
+Data coverage: 7 / 7 days
+
+MEDICATIONS
+
+Medications taken
+No taken medication events are visible for this period.
+```
+
+</details>
+
+## How the calculations work
+
+Correct HealthKit aggregation is the main reason this project exists. Cumulative measurements use HealthKit statistics rather than manually adding raw samples from an iPhone, Apple Watch and other sources. Measurements such as HRV are calculated per day first so that a day with more samples does not dominate the week.
+
+Three day rules stay separate. Health report summaries use completed days; the Daily JSON export uses its selected day (today up to the frozen refresh cutoff, or one of the previous seven complete days); Home's "today so far" highlights, specified in the [today-so-far projection](today-so-far-projection-v1.md) for #199, are provisional values from local midnight to the moment of refresh. By owner decision D10 they appear only on Home and in Developer Diagnostics ("Today so far (Home)") and never enter the report, copied text or export. An owner-approved clarification (13 October 2026) adds that Today's Full Page renders Home itself, still labelled "today so far"; it is not the report, Copy all or the export (see Full Page above).
+
+<details>
+<summary>Read the metric-by-metric rules</summary>
+
+- **Weight:** the latest visible body-mass sample in the preceding 30 days is shown independently. For trend, multiple readings on a day are averaged first; the mean of sampled days in the latest seven completed days is compared with the preceding seven completed days. Each side requires at least three sampled days. The signed difference is reported in kg.
+- **Body fat:** HealthKit percent values are fractional (`0.30` means `30.0%`) and are converted to percentage points at the query boundary. Up to 60 days of visible samples are read. The independent latest measurement may include today. The seven-day and current or previous 28-day averages use only completed local-calendar days, with an inclusive start and exclusive local-midnight end. Multiple readings on one completed day are averaged first, then sampled days receive equal weight. Each average requires at least two sampled days. Trend is the current 28-day daily mean minus the previous 28-day daily mean, in percentage points.
+- **Waist circumference:** the latest visible manual measurement from an eight-week lookback ending at refresh time is displayed in centimetres with its timestamp, independently of the selected weekly period. Sparse measurements are not averaged. For a four-week trend, the app compares it with the visible sample closest to 28 days earlier, but only when that sample is 21 to 35 days older. Otherwise it reports insufficient history. A measurement entered today can appear immediately.
+- **Blood glucose:** HealthKit's daily `discreteAverage`, `discreteMin` and `discreteMax` statistics are calculated for each complete local calendar day. Values are converted using HealthKit's blood-glucose molar mass and displayed in mmol/L. The weekly average is the arithmetic mean of valid daily averages, so days with more sensor readings do not dominate. The observed range is the minimum and maximum visible statistic across the period, and coverage reports days with data. The app does not apply a target range, time-in-range score, diagnosis or medical interpretation.
+- **VO₂ max:** the latest visible estimate and timestamp from the preceding six calendar months are displayed. Multiple estimates on one local calendar day are averaged first, then sampled days receive equal weight in rolling four-week, three-month and six-month averages ending at refresh time. Each average requires at least three sampled days and reports its sampled-day count. VO₂ max is a discrete Watch estimate, not a clinical exercise test. The app does not classify fitness or provide medical interpretation.
+- **Blood oxygen:** the latest visible oxygen-saturation sample from a 30-day lookback is displayed with its timestamp. For the selected completed-day period, visible discrete samples are converted from HealthKit fractions to percentage points. The median is calculated within each complete day, followed by the median and range of valid daily medians. This prevents days with more background measurements from dominating and reduces the effect of isolated outliers. Coverage reports valid days. Apple Watch blood-oxygen values are general wellness estimates, not medical measurements.
+- **Blood pressure:** HealthKit stores one blood-pressure reading as a correlation containing its systolic and diastolic quantity samples. The app requests read access to both quantity types and accepts only correlations containing exactly one visible sample of each type; it never joins independent samples. Complete pairs from a 30-day lookback ending at refresh time are converted to mmHg. The newest pair is shown with its timestamp, including a reading from today. For slot summaries, **morning** means before 14:00 local time and **evening** means 17:00 or later. Readings from 14:00 through 16:59 remain eligible to be the latest reading and remain visible in Diagnostics, but are excluded from both slot summaries rather than being guessed into one. Within each completed local day and slot, systolic and diastolic values are averaged separately over the same set of paired readings. The selected-period average is then the arithmetic mean of those daily batch averages, giving every sampled day equal weight. Coverage reports sampled days, reporting days and complete paired readings separately for morning and evening. Latest morning and evening batches use the latest qualifying day in the 30-day lookback and may include today. The app reports no blood-pressure trend, classification, target or interpretation.
+- **Steps:** a local-calendar-day `HKStatisticsCollectionQueryDescriptor` uses `cumulativeSum`. HealthKit resolves contributing sources; the app never manually sums raw iPhone and Watch samples. [Apple documents](https://developer.apple.com/documentation/healthkit/hkstatisticscollection/statistics()) that a statistics collection omits intervals with no matching samples, so the average is the sum of visible daily totals divided by sampled days, not every reporting day. Coverage always shows sampled days out of reporting days. A returned total of zero remains a visible sampled day; an absent statistic remains **No data**, not zero or proof that read access was denied.
+- **Steps trend:** the selected period's average daily steps is compared with the immediately preceding period containing the same number of completed days (`ReportPeriod.precedingEquivalent`, as for resting heart rate and HRV), read with the same daily step query. Both averages use sampled days only. A trend needs at least `max(3, ceil(5N/7))` sampled days on each side for N completed days (5 of 7 for a full week) and is never shown below three completed days. It is `(current − previous) / previous × 100` from the unrounded averages, rounded half away from zero to a whole percent, shown as for example `+6% vs previous 7d` and never `-0%`. Short coverage, a previous average of 0 or a failed previous read show **Insufficient history**; the current rows do not change. Policy `steps_trend_previous_equivalent_v1` ([contract](health-steps-trend-v1.md)). The Daily JSON export does not include it.
+- **Resting heart rate:** the app obtains one HealthKit `discreteAverage` statistic for each complete calendar day, then calculates the arithmetic mean of valid daily values. Days without a visible value are omitted and days with more samples receive no extra weight. The selected period is compared with the immediately preceding period containing the same number of complete days. A signed bpm trend requires at least three valid days on each side.
+- **HRV:** the app uses the same daily-first and equivalent-period comparison with `heartRateVariabilitySDNN`, converted to milliseconds. A signed trend requires at least three valid days on each side. HRV is not presented as a readiness score or medical interpretation.
+- **Apple Watch coverage:** coverage is the number of complete reporting days containing at least one heart-rate sample whose HealthKit device metadata identifies an Apple Watch. Day membership is start-inclusive and end-exclusive, so a sample exactly at local midnight belongs only to the following day. Coverage shows evidence of Watch data on a day, not continuous wear time. An empty query is shown as **No data** because it may also mean heart-rate read access was denied.
+- **Apple Exercise Time:** one HealthKit `cumulativeSum` statistic covers the exact report interval and is converted to minutes. Raw samples are not summed manually.
+- **Active energy:** one HealthKit `cumulativeSum` statistic covers the exact report interval and is converted to kcal. This is an activity measurement, not total energy expenditure.
+- **Workouts:** the app reads `HKWorkout` samples whose start date is inside the report interval. It shows the count, summed duration, activity type, duration and local start time in `dd/MM/yy - HH:mm` format. Functional Strength Training is shortened to `FST`. A workout crossing midnight belongs to the day on which it started. An empty result is shown as **No data** because HealthKit does not distinguish missing read access from an empty history.
+- **Food and water (logged in this app):** specified in [health-food-and-water-v1.md](health-food-and-water-v1.md) (policy `health_food_log_period_v1`). Each completed day maps to one food-log reporting date, and entries count on the date stored when they were logged or backdated; today is excluded. A day with no current food entry is not logged, never zero; a day with only plain water is not a logged food day either (contract v1.1), but its water counts towards the plain water average. Logged energy is the mean of complete days' totals, each day weighted equally; a day with any unknown energy contribution is left out of the mean and counted as an incomplete energy day. Logged fibre (contract v1.2, #288) uses the same rule: the mean of complete fibre days' totals in grams, each day weighted equally; a logged day with any unknown fibre contribution, or no known fibre at all, is left out and counted under "Incomplete Fibre Days", never shown as 0 g. Plain water contributes exactly 0 g fibre, and a water-only day stays outside the fibre mean. Home's Fibre row and the Food Log strip show the selected day's own total ("18 g", "18 g+" as a known minimum, or "Unknown"); Home's is the separate "today so far" projection and never enters the report. Plain water counts plain water entries only (the Home and Food Log figure, never water in foods), averaged over the days it was logged; no plain water is **No data**, never 0 mL. Values are rounded only for display. Logged energy is never netted against active energy, and Apple Health dietary data is not read for this section. Developer Diagnostics lists each date's inputs under "Food log (Health report)".
+- **Sleep:** only `asleepUnspecified`, `asleepCore`, `asleepDeep` and `asleepREM` samples are included. `awake` and `inBed` are excluded. Included intervals from all sources are clipped and combined so overlaps count once. Each report date is a local noon-to-noon night bucket ending on that wake date. Only nights with visible asleep time enter the average.
+- **Medications on iOS 26 or later:** the person chooses individual medications through Apple's medication access sheet. The app queries active and archived authorised concepts, then includes only `HKMedicationDoseEvent` samples with a `taken` status and a start time inside the selected completed-day period. Events are grouped by HealthKit's [stable medication concept identifier](https://developer.apple.com/documentation/healthkit/hkmedicationconcept/identifier), independently of query or display order, so a changed strength appears as a separate row and concepts with the same display name remain separate. When refreshes overlap, only the newest relevant full-report or medication-only refresh may publish medication state. Each row reports the latest logged quantity and time plus the number of taken events. Diagnostics lists every event. Medications without a visible taken event are omitted from copied text. Missing events are never treated as a missed dose or non-adherence.
+- **Nutrition in Daily JSON Export:** the app supports all 39 current HealthKit dietary quantity types through one fixed catalogue. It uses source-filtered HealthKit `cumulativeSum` statistics and converts energy to kcal, water to mL and nutrients to the catalogue's g, mg or mcg unit at the query boundary. Source discovery builds a complete local snapshot and replaces the previous snapshot atomically only after every query succeeds; concurrent source-filtered reads therefore see either the previous or the next complete selection map, while failure or cancellation preserves the previous map. The current schema v3 retains the nutrition payload introduced in schema v2: today's partial total through the captured cutoff and exactly seven chronological completed-day states per nutrient. Current and previous averages are arithmetic means over visible sampled days and state both sampled and reporting days. A signed current-minus-previous trend is available only with 7/7 visible days in both windows; otherwise it is `insufficient_data`. Missing source-filtered statistics remain `no_data_or_access`, never zero. Nutrition is not added to the weekly screen, copied report or Diagnostics and has no target, score or interpretation.
+- **Private notes in Daily JSON Export:** schema v3 always includes `today.notes` as an ordered array of strings, including `[]` when no notes are saved. Each string belongs to the envelope's reporting date and time zone. Local record identities and timestamps are not exported, and drafts never enter JSON. A preview freezes the saved-note revision alongside its HealthKit cutoff; later note changes invalidate it rather than being patched into reviewed bytes. Notes are user-authored context, not HealthKit data or medical interpretation, and are not added to the weekly screen, copied report or Developer Diagnostics.
+- **On-device note dictation:** the dedicated editor microphone uses the iOS 17 `SFSpeechRecognizer` live-audio path only when the active locale supports on-device recognition. Permission denial, restriction, unsupported locale/device and temporary unavailability leave typing available. A complete final transcript is appended once. If silence resets the live result, recognition fails, or explicit Stop produces an empty, incomplete or no final result, ordered recognised fragments are assembled once into a separate editable review candidate. Stop falls back after three seconds if Speech provides no terminal callback, and any later callback from that capture is ignored. A recovered or limit-rejected candidate blocks accidental editor dismissal until it is accepted or explicitly discarded; only acceptance changes the typed draft. Capture stops when the editor closes or the app backgrounds, and no audio artifact enters note storage or JSON.
+
+Apple does not fully document the sleep source precedence used by the Health app. Combining overlapping asleep intervals is the closest transparent and defensible calculation available through documented HealthKit data.
+
+</details>
+
+## Check the results against Apple Health
+
+Daily Steps totals have been compared successfully with Apple Health on a real iPhone. A one-step difference can still appear in the final average when two interfaces round the same daily inputs differently.
+
+For your own check, run a Debug build, select **Last 7 days** on the Health screen, and use the same dates and local time zone in both apps. Open **Settings → Developer tools → Developer Diagnostics** from Today to see daily values and exact totals.
+
+<details>
+<summary>See the complete validation checklist</summary>
+
+1. **Steps:** compare every daily diagnostic value, distinguish a visible zero from **No visible data**, then average only the visible daily totals. Confirm the same sampled-day coverage appears on the report, copied text, Full Page document, Diagnostics and Daily JSON.
+   For the steps trend, open **Steps** in Health, choose **W**, and read the daily totals for both the selected period and the same number of days immediately before it. Average the visible days of each period by hand, then compare both unrounded averages, both sampled-day counts, the required minimum and the unrounded change with the **Steps trend vs previous period** section in Diagnostics.
+2. **Weight:** compare the current and previous seven-day daily values. Today's partial day is excluded from averages, but the independent latest measurement can still be today.
+3. **Waist:** compare the latest measurement and timestamp with Health's Waist Circumference detail. For trend, confirm that Diagnostics selected the closest sample to 28 days earlier and that it is 21 to 35 days older than the latest sample.
+4. **Blood glucose:** first confirm that the sensor's samples appear in Health. Compare each daily diagnostic average and range with Health for the same complete day, then average the valid daily averages. Allow for vendor-to-Health synchronisation delay.
+5. **VO₂ max:** compare every raw diagnostic estimate and timestamp with Health's Cardio Fitness data. Recalculate the daily means, then compare the four-week, three-month and six-month windows. Confirm the sampled-day count before comparing rounded averages.
+6. **Blood oxygen:** compare each raw diagnostic value with Health, then independently calculate each completed day's median. Compare the median and range of those daily medians, not Health's raw-sample average or range. The latest value can be from today even though the period summary excludes today.
+7. **Blood pressure:** first let the monitor's companion app finish synchronising. In Health, open **Search > Heart > Blood Pressure**, then inspect the individual measurements for the same dates. In Diagnostics, confirm that every systolic/diastolic pair, timestamp and source matches one Health reading. Confirm that pre-14:00 readings enter Morning, readings from 17:00 enter Evening, and 14:00–16:59 readings appear only in the raw list. For each completed day and slot, average systolic and diastolic over the same paired readings. Then average those daily batch values across sampled days and compare the unrounded diagnostic result, sampled-day coverage and reading count. Finally confirm that the main-screen latest pair and latest batch timestamps can include today while the period averages do not.
+8. **Resting heart rate and HRV:** compare each valid day's diagnostic value with Health's daily view for the selected and immediately preceding equivalent periods. Average only the valid days.
+9. **Active energy and exercise:** compare the exact unrounded diagnostic totals over the selected dates before comparing rounded display values.
+10. **Workouts:** compare workout start dates, count and total duration. For Daily JSON schemas 7 and 8, follow [workout reader acceptance](archive/workout-reader-acceptance.md) to compare saved HealthKit activities, independent statistics, observed distance coverage and native zone availability. Synthetic simulator round trips establish only the tested simulator path; physical-device metadata survival and personal-data visibility remain separate acceptance.
+11. **Sleep:** compare each diagnostic night with the Health date on which you woke. If a night differs, check for overlapping third-party or manually entered records.
+12. **Medications:** compare every taken-event timestamp in Diagnostics with Health. Confirm that an unlogged medicine is absent and a changed strength appears as a separate row. Today's event enters the default report only after that day is complete.
+13. **Daily notes:** add, edit and delete invented text, then refresh the daily preview. Confirm `today.notes` matches the saved order exactly, a draft is absent, and any later saved-note change disables the old preview until refresh. On a separately authorised iPhone, test complete file protection with invented notes: lock during a pending draft save and after a prepared preview, confirm notes show temporary unavailability and export is disabled, then unlock and activate or tap Retry. Confirm the draft and last saved notes remain, the draft can be saved, and a new preview is required. Also verify the dedicated microphone in Airplane Mode for one supported locale, denial/restriction, interruption, backgrounding and editor dismissal; confirm typed and safely finalised text survives and that no audio file is retained.
+14. Tap **Copy all**, paste it into Notes, and compare it with the screen with every section expanded. Collapsing a section on screen must not change the copied text. Diagnostics, daily notes and the summary tiles are never included in copied text.
+
+</details>
+
+Simulator tests cover calendar boundaries, paired blood-pressure aggregation, daily-first averages, missing data, sleep overlap handling, workout totals, nutrition catalogue/schema semantics, date-bound note persistence and preview invalidation, synthetic speech state/transcript handling, formatting, clipboard output and the deterministic full-page screenshot document. A simulator cannot prove the native Full Page screenshot-editor flow, nutrition source visibility, provider coverage, iOS file-protection behaviour through a real lock cycle, representative personal HealthKit data or physical-device on-device speech behaviour and audio lifecycle, so those checks still require separately authorised iPhone testing.
+
+CI also enforces unsigned Xcode static analysis, publishes layer-aware simulator
+coverage in GitHub Actions and sends app-target coverage to Codecov. The
+reproducible baseline, pure-domain regression gate, external disclosure boundary
+and runtime evidence are documented in [CI static analysis and
+coverage](ci-analysis-and-coverage.md).
+
+Values can legitimately differ while Health or a sensor app is still synchronising, when historical read access is limited, when the selected dates differ, or because Apple has not documented part of its source precedence. Investigate material discrepancies through the daily and nightly diagnostics rather than hiding them through rounding.
+
+Glucose, blood pressure and other health values are informational. The app provides no medical classification, interpretation, target or treatment advice and must not be used to make treatment decisions.
+
+## Development notes
+
+[DEVELOPMENT_NOTES.md](../DEVELOPMENT_NOTES.md) records the agent-assisted development (Codex and Claude Code) and its bounded token and API-equivalent cost estimates.
+
+
+The subsequent [search-quality v3 development contract](food-search-quality-v3.md)
+prioritises main food names, interleaves separately attributed source records and
+offers explicit typo-search suggestions while retaining the original evidence.
+The [paired development diagnostics](../Tools/FoodSearchQuality/README.md) are tuning
+evidence, not independent retrieval-accuracy acceptance.
+
+
+The generic web-nutrition review also checks explicit market conflicts: recognised
+UK/GB, Ireland and Taiwan URL markers cannot silently override a different
+supported market named in the food request. Unknown geography still requires
+source review. This check is format/provider independent and introduces no
+website-specific nutrition parser. Current route, evaluation evidence and
+remaining reader limitations are recorded in
+[the generic proposal integration runbook](generic-food-proposal-integration-v1.md).
