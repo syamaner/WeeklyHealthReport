@@ -579,9 +579,12 @@ both stay private.
 
 ### 11.3 E1d held-out record (9 November 2026)
 
-After the owner approved the 160 queries, `split` divided them into 94 development and 66 held-out
-queries, each with 10 negatives. `seal-dev` and `seal-heldout` then sealed both sets, at
-`2026-11-09T08:25:06Z` and `2026-11-09T08:25:12Z`. The Freeze list records the `seal-heldout` bundle
+The owner approved the 160 agent-drafted queries in the separate query-exposed drafting session,
+before any split. That session then ran `split`, which divided them into 94 development and 66
+held-out queries, each with 10 negatives, and `seal-dev` and `seal-heldout` sealed both sets at
+`2026-11-09T08:25:06Z` and `2026-11-09T08:25:12Z`. This docs commit came later: the owner's
+"Yes, open it" at `2026-11-09T10:29:18Z` (the WHR-424-E1d ledger window) authorised only recording
+the hash, not the queries or the seals. The Freeze list records the `seal-heldout` bundle
 hash as `heldout_sha256`: `cf74b225882b681e66fa05e2c892f751d19d0f0ae850daf2aa2018bd76543aab`. It was
 copied from the private seal log, and the held-out contents were not read. A held-out Part B run
 refuses a bundle whose seal differs from this hash.

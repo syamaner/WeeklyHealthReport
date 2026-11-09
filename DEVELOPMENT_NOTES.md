@@ -4128,7 +4128,7 @@ Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base 
 
 ## WHR-424-E1d-2026-11-09: Claude Code held-out hash in the Freeze list (#424)
 
-The coordinator session (`claude-opus-5-5`, session `93e9e82e-ef3d-4d2f-9186-58c67056c1ca`) recorded the `seal-heldout` bundle hash in `freeze-v1.json` and added the plan's E1d record, after checking the hash against the private seal log. The window runs from the owner's "Yes, open it" at `2026-11-09T10:29:18Z` to `2026-11-09T10:30:31Z`.
+The coordinator session (`claude-opus-5-5`, session `93e9e82e-ef3d-4d2f-9186-58c67056c1ca`) recorded the `seal-heldout` bundle hash in `freeze-v1.json` and added the plan's E1d record, after checking the hash against the private seal log. The window runs from the owner's "Yes, open it" at `2026-11-09T10:29:18Z` (approval to open this docs PR; the query approval and the seals came earlier, in the drafting session) to `2026-11-09T10:30:31Z`.
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
