@@ -171,10 +171,23 @@ The "additive estimate release" rule:
    the bound release then does not ship, its Part B result does not carry over to the other
    release: that release needs its own Part B run on a fresh held-out set (plan section 4.3).
    Today the query set, the Part B runner and `score_b.py` all check the pinned release ID, so
-   Part B cannot run on R1 or R2 yet. The tool phase that adds the binding record must also make
-   the runner and the scorer take the bound release ID from it (answers are keyed by entry `id`,
-   which removal-only R1 and additive R2 keep), with synthetic tests, before the first development
-   run.
+   Part B cannot run on R1 or R2 yet. The tool phase that adds the binding, before the first
+   development run and with synthetic tests, must:
+   - **keep the sealed query sets as they are.** They are never reassembled, re-split or resealed,
+     and they keep naming the pinned release; their answers are keyed by entry `id`, which R1 and
+     R2 keep for every entry;
+   - **write a versioned binding record** (pinned release ID, bound release ID, the SHA-256 of the
+     bound file, and the R1 build record's hash when R1 or R2 is bound), added to a new freeze
+     record; `freeze-v1.json`, `freeze-v2.json` and the frozen scorers stay unchanged;
+   - **validate the answers against the bound release, counts only.** The evaluator's command
+     checks that every entry ID named by the development and held-out answers exists in the bound
+     file, refuses otherwise, and reports how many answer entries lost their merge or every value.
+     It reads the held-out set only inside that command and prints counts, so the implementing
+     session stays blind;
+   - **score through a new scorer version**, beside the frozen `score_b.py`. It accepts a query set
+     naming the pinned ID and a ranking output naming the bound ID only when the binding record
+     links the two, and refuses every other pair; the runner imports the bound file and names the
+     bound ID in its output.
 
 ## 6. Who does what
 
