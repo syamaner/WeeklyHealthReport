@@ -48,7 +48,7 @@ final class HeldOutRunTests: XCTestCase {
         XCTAssertEqual(counts["labels"], 24)
         XCTAssertEqual(counts["run"], 24)
         XCTAssertEqual(counts["not_run"], 0)
-        XCTAssertEqual(counts["tier_a_labels"], 12)
+        XCTAssertEqual(counts["tier_a_labels"], 9)
         XCTAssertEqual((counts["reached_confirm"] ?? 0) + (counts["declined"] ?? 0) + (counts["failed"] ?? 0), 24)
         // The bytes sent are the bytes sealed: one POST per label, in ID order, each the prompt-v2 request over that text.
         let request = try OpenRouterPastedLabelAITextRequest(route: PastedLabelAITextRoute.gpt61SolAzure4K, promptVersion: .v2)
@@ -67,9 +67,9 @@ final class HeldOutRunTests: XCTestCase {
             XCTAssertEqual(send["cell"] as? String, "v2__gpt-6.1-sol-azure-4k__a4-heldout")
             XCTAssertEqual(send["prompt_version"] as? String, "prompt-v2")
         }
-        XCTAssertEqual(try rows(paths.resultsTierA).map { Self.id($0) }, Array(Self.ids.prefix(12)))
+        XCTAssertEqual(try rows(paths.resultsTierA).map { Self.id($0) }, Array(Self.ids.prefix(9)))
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: paths.cases.path).count, 24)
-        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: paths.casesTierA.path).sorted(), Self.ids.prefix(12).map { "\($0).json" })
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: paths.casesTierA.path).sorted(), Self.ids.prefix(9).map { "\($0).json" })
         // The run record: the commit, the frozen configuration, the seals and the latency method.
         let record = try json(paths.runRecord)
         XCTAssertEqual(record["commit"] as? String, Self.commit)
@@ -89,10 +89,10 @@ final class HeldOutRunTests: XCTestCase {
         XCTAssertEqual(cell["labels"] as? Int, 24)
         XCTAssertEqual((cell["bar"] as? [String: Any])?["labels"] as? Int, 24)
         let tiers = try XCTUnwrap((cell["breakdowns"] as? [String: Any])?["tier"] as? [String: Any])
-        XCTAssertEqual((tiers["A"] as? [String: Any])?["labels"] as? Int, 12)
-        XCTAssertEqual((tiers["B"] as? [String: Any])?["labels"] as? Int, 12)
+        XCTAssertEqual((tiers["A"] as? [String: Any])?["labels"] as? Int, 9)
+        XCTAssertEqual((tiers["B"] as? [String: Any])?["labels"] as? Int, 15)
         let tierA = try Self.statistics(paths.resultsTierA, cases: paths.casesTierA)
-        XCTAssertEqual(((tierA["cells"] as? [String: Any])?["gpt-6.1-sol-azure-4k|prompt-v2"] as? [String: Any])?["labels"] as? Int, 12)
+        XCTAssertEqual(((tierA["cells"] as? [String: Any])?["gpt-6.1-sol-azure-4k|prompt-v2"] as? [String: Any])?["labels"] as? Int, 9)
     }
 
     /// `python3 -I pasted_label_ai_text_stats.py summary RESULTS --cases CASES`, the frozen script as committed.
@@ -209,6 +209,35 @@ final class HeldOutRunTests: XCTestCase {
         try await assertRefused(.idsDiffer)
         try FileManager.default.removeItem(at: collection.appendingPathComponent("H99"))
         try await assertRefused(.idsDiffer)
+    }
+
+    /// Qodo, A4: a linked folder on the fixed paths could move the run outside its root.
+    func testALinkedFixedFolderIsRefused() async throws {
+        let fm = FileManager.default
+        let runs = root.appendingPathComponent("ai-text-v1/runs")
+        let elsewhere = root.appendingPathComponent("elsewhere-runs")
+        try fm.moveItem(at: runs, to: elsewhere)
+        try fm.createSymbolicLink(at: runs, withDestinationURL: elsewhere)
+        try await assertRefused(.linkedFixedPath)
+        XCTAssertThrowsError(try HeldOutRun.check(privateRoot: root)) { XCTAssertEqual($0 as? HeldOutRun.Refusal, .linkedFixedPath) }
+    }
+
+    /// Qodo, A4: the per-call cap, total and unknown-cost allowance are fixed by the runner, not the ledger.
+    func testAWidenedLedgerLimitIsRefused() async throws {
+        let url = HeldOutRun.Paths(root: root).ledger
+        var ledger = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        var limits = try XCTUnwrap(ledger["limits"] as? [String: Any])
+        limits["per_call_usd"] = "0.50"
+        ledger["limits"] = limits
+        try JSONSerialization.data(withJSONObject: ledger, options: [.sortedKeys]).write(to: url)
+        try await assertRefused(.ledgerLimitsChanged)
+    }
+
+    /// Qodo, A4: tier is not under a seal, so an edit that changes the 9 and 15 split is refused.
+    func testAnEditedTierSplitIsRefused() async throws {
+        let text = try Data(contentsOf: fresh.appendingPathComponent("texts/H20.txt"))
+        try HeldOutFixtures.source(fresh, "H20", tier: "A", textSHA256: EvalCase.sha256(text))
+        try await assertRefused(.tierSplitChanged)
     }
 
     /// The real collection folder also keeps the skip log, search screens and recheck notes: only
@@ -475,7 +504,7 @@ enum HeldOutFixtures {
             let text = Data(text(id).utf8)
             try text.write(to: fresh.appendingPathComponent("texts/\(id).txt"))
             try transcription(id).write(to: fresh.appendingPathComponent("transcription/\(id).json"))
-            try source(fresh, id, tier: index < 12 ? "A" : "B", textSHA256: EvalCase.sha256(text))
+            try source(fresh, id, tier: index < 9 ? "A" : "B", textSHA256: EvalCase.sha256(text))
         }
         try writeSeals(fresh)
         try ledger(HeldOutRun.Paths(root: root).ledger, entries: [a3Entry()])

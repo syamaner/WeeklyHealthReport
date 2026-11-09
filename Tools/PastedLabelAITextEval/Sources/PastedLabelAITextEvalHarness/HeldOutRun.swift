@@ -38,6 +38,14 @@ public enum HeldOutRun {
     static let cellStop = Decimal(5)
     static let programmeStop = Decimal(25)
     static let labelCount = 24
+    /// The held-out set's tier split (5.1): 9 tier A labels from new sites and 15 tier B. Tier is
+    /// recorded in `source.json`, which no seal covers, so the split is checked against this.
+    static let tierACount = 9
+    static let tierBCount = 15
+    /// The ledger limits A4 runs under (D25, T5), fixed here so an edited ledger cannot widen them.
+    static let perCallCap = Decimal(string: "0.20")!
+    static let ledgerTotal = Decimal(25)
+    static let unknownCostCallsAllowed = 3
     static let attemptsPerLabel = SendRetryPolicy.maximumAttempts
     static let latencyMethod = "in_process_send_to_score_end"
     static let runSchema = "pasted-label-ai-text-a4-run-v1"
@@ -76,7 +84,7 @@ public enum HeldOutRun {
         case noRoomUnderCellStop, noRoomUnderProgrammeStop, overPerCallCap, promptBoundOverCeiling
         case freshFolderUnsafe, sealsMalformed, textSealMismatch, seal2Mismatch, wrongFileCount, idsDiffer, unsafeFile, unreadableFile
         case textNotUTF8, sourceRecordInvalid, textHashMismatch, conversionFailed, roundTripFailed
-        case keyMissing, catalogueFailed, outputUnwritable, runRecordMissing, casesIncomplete, badCommit
+        case keyMissing, catalogueFailed, linkedFixedPath, ledgerLimitsChanged, tierSplitChanged, outputUnwritable, runRecordMissing, casesIncomplete, badCommit
 
         package var description: String {
             switch self {
@@ -105,6 +113,9 @@ public enum HeldOutRun {
             case .textHashMismatch: "a text's SHA-256 is not the one its collection record holds"
             case .conversionFailed: "a transcription did not convert to a held-out case"
             case .roundTripFailed: "a held-out case did not round-trip to its transcription"
+            case .linkedFixedPath: "a folder or file on the runner's fixed paths under the private root is a symbolic link or not of its expected kind"
+            case .ledgerLimitsChanged: "the spend ledger's limits are not the $0.20 per call, $25 total and three unknown-cost calls A4 runs under"
+            case .tierSplitChanged: "the collection records do not give the held-out set's 9 tier A and 15 tier B labels"
             case .keyMissing: "no OpenRouter key is available"
             case .catalogueFailed: "the frozen route's catalogue entry could not be confirmed"
             case .outputUnwritable: "the A4 output folder could not be created or written"
@@ -153,6 +164,7 @@ public enum HeldOutRun {
     public static func run(privateRoot: URL, commit: String, connection: SendCommand.Connection, retry: SendRetryPolicy = .standard,
                            now: @escaping @Sendable () -> Date = { Date() }) async throws -> [String: Int] {
         let paths = Paths(root: privateRoot)
+        try checkFixedPaths(paths)
         guard commit.count == 40, commit.allSatisfy({ ("0"..."9").contains($0) || ("a"..."f").contains($0) }) else { throw Refusal.badCommit }
         // Once: the output folder and its cache must not exist (lstat, so a link counts as existing).
         if exists(paths.output) { throw Refusal.outputExists }
@@ -191,6 +203,7 @@ public enum HeldOutRun {
     /// the held-out set matches its seals and converts. Returns counts only.
     package static func check(privateRoot: URL) throws -> [String: Int] {
         let paths = Paths(root: privateRoot)
+        try checkFixedPaths(paths)
         if exists(paths.output) { throw Refusal.outputExists }
         if exists(paths.cache) { throw Refusal.cacheExists }
         _ = try checkLedger(paths)
@@ -355,7 +368,13 @@ public enum HeldOutRun {
         let stopped = Set(object["stopped_models"] as? [String] ?? [])
         if stopped.contains(route.model) || stopped.contains(EvalSpendLedger.cellKey(cell)) { throw Refusal.stoppedInLedger }
         let limits = object["limits"] as? [String: Any] ?? [:]
-        let allowed = (limits["unknown_cost_calls_allowed"] as? Int) ?? 3
+        let total = (limits["total_usd"] as? String).flatMap { Decimal(string: $0, locale: Locale(identifier: "en_US_POSIX")) }
+            ?? (limits["total_usd"] as? NSNumber).flatMap { Decimal(string: $0.stringValue, locale: Locale(identifier: "en_US_POSIX")) }
+        guard EvalSpendLedger.perCall(limits) == perCallCap, total == ledgerTotal,
+              (limits["unknown_cost_calls_allowed"] as? Int) == unknownCostCallsAllowed else {
+            throw Refusal.ledgerLimitsChanged
+        }
+        let allowed = unknownCostCallsAllowed
         if EvalSpendLedger.unknownCount(object["entries"] as? [[String: Any]] ?? []) >= allowed { throw Refusal.unknownCostStop }
         return LedgerState(cellCharge: entries.filter { $0["cell"] as? String == cell }.map(EvalSpendLedger.charge).reduce(0, +),
                            programmeCharge: entries.map(EvalSpendLedger.charge).reduce(0, +), perCall: EvalSpendLedger.perCall(limits))
@@ -372,7 +391,7 @@ public enum HeldOutRun {
                                                                  promptTokenBound: request.promptTokenBound(label.textString)) else {
                 throw Refusal.promptBoundOverCeiling
             }
-            if let perCall = ledger.perCall, w > perCall { throw Refusal.overPerCallCap }
+            if w > perCallCap { throw Refusal.overPerCallCap }
             total += w * Decimal(attemptsPerLabel)
         }
         if ledger.cellCharge + total > cellStop { throw Refusal.noRoomUnderCellStop }
@@ -405,6 +424,8 @@ public enum HeldOutRun {
             ] as [String: Any],
             "seals": sealed.seals.mapValues { ["sha256": $0.hash, "files": $0.files] as [String: Any] },
             "label_ids": labels.map(\.id),
+            // Tier is not under a seal (5.1), so the assignment the run used is recorded with it.
+            "tiers": Dictionary(uniqueKeysWithValues: labels.map { ($0.id, $0.evalCase.tier ?? "") }),
         ]
         guard let data = try? JSONSerialization.data(withJSONObject: record, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]) else {
             throw Refusal.outputUnwritable
@@ -457,6 +478,20 @@ public enum HeldOutRun {
     }
 
     /// A directory that is itself a directory, not a link to one.
+    /// Every folder on the fixed paths below the private root is a plain directory and the ledger a
+    /// regular file, never a symbolic link, so the run reads and writes only under the root it was
+    /// given (Qodo, A4). The output folder and cache must not exist at all; that is checked apart.
+    static func checkFixedPaths(_ paths: Paths) throws {
+        let root = paths.root
+        let folders = ["", "uk-english-v2", "uk-english-v2/fresh", "ai-text-v1", "ai-text-v1/runs", "ai-text-v1/runs/a3", "ai-text-v1/runs/a3/run"]
+        for folder in folders where !isPlainDirectory(folder.isEmpty ? root : root.appendingPathComponent(folder, isDirectory: true)) {
+            throw Refusal.linkedFixedPath
+        }
+        var status = stat()
+        guard lstat(paths.ledger.path, &status) == 0 else { throw Refusal.ledgerMissing }
+        guard status.st_mode & S_IFMT == S_IFREG else { throw Refusal.linkedFixedPath }
+    }
+
     static func isPlainDirectory(_ url: URL) -> Bool {
         var status = stat()
         return lstat(url.path, &status) == 0 && status.st_mode & S_IFMT == S_IFDIR
@@ -557,6 +592,9 @@ public enum HeldOutRun {
             do { try EvalCaseConverter.verifyRoundTrip(evalCase, source: source) } catch { throw Refusal.roundTripFailed }
             labels.append(SealedLabel(id: id, text: text, textString: textString, evalCase: evalCase))
         }
+        let tierA = labels.filter { $0.evalCase.tier == "A" }.count
+        let tierB = labels.filter { $0.evalCase.tier == "B" }.count
+        guard tierA == tierACount, tierB == tierBCount else { throw Refusal.tierSplitChanged }
         return SealedSet(labels: labels, seals: seals)
     }
 }
