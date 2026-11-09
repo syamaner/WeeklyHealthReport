@@ -367,6 +367,6 @@ private struct FoodLoggedBannerHost: View {
     var body: some View {
         FoodLoggedBanner(model: banner)
             .onAppear { banner.location = { [weak navigation] in navigation.map { AnyHashable($0.path) } } }
-            .onReceive(banner.$removals.dropFirst()) { _ in foodHome.reload() }
+            .onReceive(banner.$removals.dropFirst()) { _ in Task { await foodHome.reload() } }
     }
 }

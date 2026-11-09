@@ -244,9 +244,9 @@ final class HomeCardsTests: XCTestCase {
         }
     }
 
-    func testFoodModelWithoutLedgerIsUnavailableNotEmpty() {
+    func testFoodModelWithoutLedgerIsUnavailableNotEmpty() async {
         let model = FoodHomeModel(root: nil)
-        model.reload()
+        await model.reload()
         XCTAssertEqual(model.state, .unavailable)
         guard case .unavailable = model.quickAdd else { return XCTFail("quick add hidden without a ledger") }
     }
