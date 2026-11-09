@@ -100,7 +100,7 @@ final class ScorerTests: XCTestCase {
         XCTAssertEqual(PastedLabelAITextScorer.rowNumber("0,5", label: "Salt"), Decimal(string: "0.5"))
         XCTAssertNil(PastedLabelAITextScorer.rowNumber("0,5", label: "鹽"), "any comma on a CJK row (the documented deviation)")
         XCTAssertEqual(PastedLabelAITextScorer.version,
-                       "pasted-label-ai-text-scorer-v5 (rules of uk-fresh-scorer-v2; RI amount columns and unrecognised rows not printed fields; two or more %RI columns paired in printed order; a lone * a class marker)")
+                       "pasted-label-ai-text-scorer-v6 (rules of uk-fresh-scorer-v2; RI amount columns and unrecognised rows not printed fields; two or more %RI columns paired in printed order; a lone * a class marker; field counts only printed fields)")
     }
 
     /// Qodo finding 3: a UK development case from a Taiwan-schema file is scored by the UK rules.

@@ -486,7 +486,7 @@ final class HeldOutRunTests: XCTestCase {
         XCTAssertEqual(HeldOutRun.route.reasoning, .budget(500))
         XCTAssertEqual(HeldOutRun.promptVersion.rawValue, "prompt-v2")
         XCTAssertEqual(HeldOutRun.promptVersion.instructionSHA256, FreezePinTests.frozenPromptSHA256)
-        XCTAssertTrue(PastedLabelAITextScorer.version.hasPrefix("pasted-label-ai-text-scorer-v5 "))
+        XCTAssertTrue(PastedLabelAITextScorer.version.hasPrefix("pasted-label-ai-text-scorer-v6 "), "A4 ran v5 at 6e2fd69; v6 from D37")
         XCTAssertEqual(HeldOutRun.cell, "v2__gpt-6.1-sol-azure-4k__a4-heldout")
         XCTAssertEqual(HeldOutRun.cellStop, 5)
         XCTAssertEqual(HeldOutRun.programmeStop, 25)
