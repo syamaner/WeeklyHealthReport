@@ -438,10 +438,11 @@ if [[ -n "$eval_core_unexpected" ]]; then
   exit 1
 fi
 
-# Pasted label AI text evaluation harness and CLI (#416 A2 and A3, docs/pasted-label-ai-text-v1.md 5.2):
-# the shipped application, capture and text reader modules plus the pure core, nothing else. The
-# shipped live transport may be named in exactly one file, PastedLabelAITextEvalHarness/LiveTransport.swift
-# (A3's `send --live`); no file in the tool, that one included, may load URLs itself.
+# Pasted label AI text evaluation harness, CLI and held-out runner (#416 A2 to A4,
+# docs/pasted-label-ai-text-v1.md 5.2 and 5.5): the shipped application, capture and text reader
+# modules plus the pure core, nothing else. The shipped live transport may be named in exactly one
+# file, PastedLabelAITextEvalHarness/LiveTransport.swift (A3's `send --live`, A4's held-out run); no
+# file in the tool, that one included, may load URLs itself.
 eval_harness_allowed='^(CryptoKit|Foundation|FoodLedgerApplication|FoodLabelPhotoCapture|FoodLabelTextAIReading|PastedLabelAITextEvalCore|PastedLabelAITextEvalHarness)$'
 url_loading_pattern='URLSession|NSURLConnection|CFNetwork|CFStream'
 live_transport_type_pattern='\bOpenRouterTransport\b'
@@ -459,15 +460,17 @@ tool_live_transport() {
 self_test_eval_harness() {
   local scratch status=0 fixture
   scratch="$(mktemp -d "${TMPDIR:-/tmp}/check-boundaries-harness.XXXXXX")"
-  mkdir -p "$scratch/base/PastedLabelAITextEvalHarness" "$scratch/base/PastedLabelAITextEval"
+  mkdir -p "$scratch/base/PastedLabelAITextEvalHarness" "$scratch/base/PastedLabelAITextEval" "$scratch/base/PastedLabelAITextHeldOut"
   printf 'import FoodLabelPhotoCapture\nimport FoodLabelTextAIReading\nimport PastedLabelAITextEvalCore\n' > "$scratch/base/PastedLabelAITextEvalHarness/Send.swift"
   printf 'import FoodLabelPhotoCapture\nlet transport = OpenRouterTransport()\n' > "$scratch/base/PastedLabelAITextEvalHarness/LiveTransport.swift"
   printf 'import PastedLabelAITextEvalHarness\n' > "$scratch/base/PastedLabelAITextEval/main.swift"
+  printf 'import PastedLabelAITextEvalHarness\nlet connection = LiveTransport.connection(key: key)\n' > "$scratch/base/PastedLabelAITextHeldOut/main.swift"
   if [[ -n "$(tool_import_violations "$scratch/base" "$eval_harness_allowed")" || -n "$(tool_live_transport "$scratch/base")" ]]; then
     echo "check-boundaries self-test: the eval harness baseline (the live transport in LiveTransport.swift only) must pass" >&2; status=1
   fi
   for fixture in parser photo_reader live_transport live_transport_type url_session cli_live_transport nested_live_transport \
-                 renamed_live_transport allowed_file_url_session allowed_file_configuration allowed_file_cfnetwork; do
+                 renamed_live_transport allowed_file_url_session allowed_file_configuration allowed_file_cfnetwork \
+                 heldout_parser heldout_photo_reader heldout_live_transport heldout_url_session; do
     cp -R "$scratch/base" "$scratch/$fixture"
     local harness="$scratch/$fixture/PastedLabelAITextEvalHarness"
     case "$fixture" in
@@ -484,6 +487,10 @@ self_test_eval_harness() {
       allowed_file_url_session) echo 'let session = URLSession.shared' >> "$harness/LiveTransport.swift" ;;
       allowed_file_configuration) echo 'let configuration = URLSessionConfiguration.ephemeral' >> "$harness/LiveTransport.swift" ;;
       allowed_file_cfnetwork) echo 'import CFNetwork' >> "$harness/LiveTransport.swift" ;;
+      heldout_parser) echo 'import NutritionLabelParsing' > "$scratch/$fixture/PastedLabelAITextHeldOut/Leak.swift" ;;
+      heldout_photo_reader) echo '@testable import FoodLabelPhotoReading' >> "$scratch/$fixture/PastedLabelAITextHeldOut/main.swift" ;;
+      heldout_live_transport) echo 'let transport = OpenRouterTransport()' >> "$scratch/$fixture/PastedLabelAITextHeldOut/main.swift" ;;
+      heldout_url_session) echo 'let session = URLSession.shared' > "$scratch/$fixture/PastedLabelAITextHeldOut/Leak.swift" ;;
     esac
     if [[ -z "$(tool_import_violations "$scratch/$fixture" "$eval_harness_allowed")" && -z "$(tool_live_transport "$scratch/$fixture")" ]]; then
       echo "check-boundaries self-test: the eval harness $fixture fixture must fail" >&2; status=1
@@ -493,7 +500,7 @@ self_test_eval_harness() {
   return "$status"
 }
 self_test_eval_harness
-for dir in PastedLabelAITextEvalHarness PastedLabelAITextEval; do
+for dir in PastedLabelAITextEvalHarness PastedLabelAITextEval PastedLabelAITextHeldOut; do
   harness_dir="$app_root/Tools/PastedLabelAITextEval/Sources/$dir"
   harness_unexpected="$(tool_import_violations "$harness_dir" "$eval_harness_allowed")"
   if [[ -n "$harness_unexpected" ]]; then

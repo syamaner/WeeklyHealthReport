@@ -4101,6 +4101,28 @@ Excluded:
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
 
+## WHR-416-2026-11-09-A4R: Claude Code A3 merge and A4 held-out runner (#416)
+
+The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) did two things in this window:
+- merged `main` into the A3 PR, #444, and merged it after green CI and a clean Qodo review at the head;
+- built the A4 held-out runner (spec 5.5).
+
+The runner work had three subagents (an `architecture-gate`, a general-purpose implementer and a `validator`), followed by the coordinator's review and fixes and three local Qodo passes. The window runs from the owner's "Proceed" (`2026-11-09T06:46:51Z`) to `2026-11-09T10:30:04Z`. The held-out run itself is not in it: no held-out text was read and nothing was sent to OpenRouter.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| A3 merge and A4 runner (#416), coordinator and subagents | 40,091,382 (39,380,785) | 710,115 | 178,182 | 40,269,564 | $15.83 |
+
+Method: `phase_usage.py --format claude --since 2026-11-09T06:46:51Z --include-subagents` on the session transcript. Exact USD 15.834115. The cache-write tokens (429,510 of them 5-minute writes) are part of the input figure, not added to it.
+
+Excluded:
+- the separate dark chocolate session the owner asked for in this window (its own transcript);
+- the Qodo review runs;
+- local builds and test loops, which use no API tokens;
+- this ledger edit, the commit, the push and the PR after the window.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a subscription, not a bill, and not evidence of productivity or quality.
+
 ## WHR-405-2026-11-09: Claude Code FoodLedgerKit CI trim (#405)
 
 The trim itself (commit `71bfd48`, 5 November 2026, which runs the slowest FoodLedgerKit test cases concurrently) had no boundary captured, so its row is Unmeasured. On 9 November the coordinator session (`claude-opus-5-5`, session `0dabb926-21ba-45d7-b0c2-2ab29f9918fd`) finished the draft:

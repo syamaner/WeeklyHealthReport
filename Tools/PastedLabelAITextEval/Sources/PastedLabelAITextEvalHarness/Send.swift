@@ -73,6 +73,13 @@ public enum SendCommand {
             if let retry { self.retry = retry } else if case .fake = connection { self.retry = .single } else { self.retry = .standard }
         }
 
+        /// Everything the tap needs but the text path: what `send(textData:_:)` takes.
+        var tap: Tap {
+            Tap(labelID: labelID, route: route, cell: cell, ledgerURL: ledgerURL, cacheDirectory: cacheDirectory, connection: connection,
+                cellStop: cellStop, programmeStop: programmeStop, reasoningBilledSeparately: reasoningBilledSeparately, timeout: timeout,
+                retry: retry, promptVersion: promptVersion, freshRun: freshRun)
+        }
+
         /// The A2 form: the directory fake transport.
         public init(labelID: String, textURL: URL, route: PastedLabelAITextRoute.Route, cell: String, ledgerURL: URL, cacheDirectory: URL,
                     fakeTransportDirectory: URL, cellStop: Decimal = 5, programmeStop: Decimal = 25, reasoningBilledSeparately: Bool = true,
@@ -84,12 +91,56 @@ public enum SendCommand {
         }
     }
 
+    /// One tap's configuration without a text path (A4, docs/pasted-label-ai-text-v1.md 5.5 item 1):
+    /// the request building, reservation, retries, transport and cache of `send(textData:_:)` take
+    /// text bytes already read by their caller, never a path. The tuning `run(_:)` builds it from
+    /// its options after its own checks; the held-out runner builds it after its seal checks.
+    package struct Tap: Sendable {
+        package let labelID: String
+        package let route: PastedLabelAITextRoute.Route
+        package let cell: String
+        package let ledgerURL: URL
+        package let cacheDirectory: URL
+        package let connection: Connection
+        package let cellStop: Decimal
+        package let programmeStop: Decimal
+        package let reasoningBilledSeparately: Bool
+        package let timeout: TimeInterval
+        package let retry: SendRetryPolicy
+        package let promptVersion: OpenRouterPastedLabelAITextRequest.PromptVersion
+        package let freshRun: String?
+
+        package init(labelID: String, route: PastedLabelAITextRoute.Route, cell: String, ledgerURL: URL, cacheDirectory: URL, connection: Connection,
+                     cellStop: Decimal, programmeStop: Decimal, reasoningBilledSeparately: Bool, timeout: TimeInterval, retry: SendRetryPolicy,
+                     promptVersion: OpenRouterPastedLabelAITextRequest.PromptVersion, freshRun: String?) {
+            self.labelID = labelID; self.route = route; self.cell = cell; self.ledgerURL = ledgerURL; self.cacheDirectory = cacheDirectory
+            self.connection = connection; self.cellStop = cellStop; self.programmeStop = programmeStop
+            self.reasoningBilledSeparately = reasoningBilledSeparately; self.timeout = timeout; self.retry = retry
+            self.promptVersion = promptVersion; self.freshRun = freshRun
+        }
+    }
+
+    /// The suffix of the held-out run's cell (5.5 item 4): a tuning `send` refuses any cell ending in
+    /// it before anything is read, reserved or sent.
+    package static let heldOutCellSuffix = "__a4-heldout"
+
+    /// Whether a cell name is the held-out run's (5.5 item 4).
+    package static func isHeldOutCell(_ cell: String) -> Bool { cell.hasSuffix(heldOutCellSuffix) }
+
     /// The transport and key store `send` uses.
     public enum Connection: Sendable {
         /// `DirectoryFakeTransport` over the directory, with the placeholder key: nothing is sent.
         case fake(directory: URL)
         /// An injected transport and key store: the live one from `LiveTransport`, or a scripted one in tests.
         case transport(any LabelPhotoHTTPTransporting, keys: any FoodWebKeyStoring)
+
+        /// The transport and key store for one label's tap.
+        func resolved(labelID: String) -> (transport: any LabelPhotoHTTPTransporting, keys: any FoodWebKeyStoring) {
+            switch self {
+            case let .fake(directory): (DirectoryFakeTransport(directory: directory, labelID: labelID), FakeTransportKey())
+            case let .transport(injected, keys): (injected, keys)
+            }
+        }
     }
 
     /// What `send` prints: everything promptfoo and `score` need, and nothing secret.
@@ -151,9 +202,10 @@ public enum SendCommand {
     }
 
     public enum Failure: Error, CustomStringConvertible {
-        case unreadableText, textRefused(String), catalogue(String), cache(String), badFreshRun(String), sealedSet, outsideData
+        case unreadableText, textRefused(String), catalogue(String), cache(String), badFreshRun(String), sealedSet, outsideData, heldOutCell
         public var description: String {
             switch self {
+            case .heldOutCell: "the held-out run's cell (ending __a4-heldout) is never used by a tuning send (5.5); nothing was reserved or sent"
             case .sealedSet: "the sealed held-out set (uk-english-v2) is never used by a tuning run (T7); nothing was reserved or sent"
             case .outsideData: "the text file resolves outside the data directory; nothing was reserved or sent"
             case let .badFreshRun(name): "bad fresh run name \(name): a lower-case letter, then up to 15 lower-case letters, digits or single hyphens"
@@ -209,13 +261,23 @@ public enum SendCommand {
     /// data-directory checks; `fstat` must show a regular file; and the bytes are read from that same
     /// descriptor. Where the descriptor's path cannot be read (`F_GETPATH` is Darwin's), it fails closed.
     static func readCheckedText(atResolvedPath path: String, dataDirectory: URL?) throws -> Data {
+        try readSingleDescriptor(atPath: path, unreadable: Failure.unreadableText) { opened in
+            try checkTextLocation(opened, dataDirectory: dataDirectory)
+        }
+    }
+
+    /// The single-descriptor read under `readCheckedText` (A4 reads its texts and transcriptions
+    /// with it too, 5.5 item 3): `O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK`, the opened path from the
+    /// descriptor handed to `check`, a regular file by `fstat`, and the bytes from that descriptor.
+    /// Every failure but `check`'s own throws `unreadable`.
+    package static func readSingleDescriptor(atPath path: String, unreadable: any Error, check: (String) throws -> Void) throws -> Data {
         let descriptor = open(path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK)
-        guard descriptor >= 0 else { throw Failure.unreadableText }
+        guard descriptor >= 0 else { throw unreadable }
         defer { close(descriptor) }
-        guard let opened = openedPath(descriptor) else { throw Failure.unreadableText }
-        try checkTextLocation(opened, dataDirectory: dataDirectory)
+        guard let opened = openedPath(descriptor) else { throw unreadable }
+        try check(opened)
         var status = stat()
-        guard fstat(descriptor, &status) == 0, status.st_mode & S_IFMT == S_IFREG else { throw Failure.unreadableText }
+        guard fstat(descriptor, &status) == 0, status.st_mode & S_IFMT == S_IFREG else { throw unreadable }
         var bytes = Data()
         var buffer = [UInt8](repeating: 0, count: 64 * 1024)
         while true {
@@ -223,7 +285,7 @@ public enum SendCommand {
             if count == 0 { break }
             if count < 0 {
                 if errno == EINTR || errno == EAGAIN { continue }
-                throw Failure.unreadableText
+                throw unreadable
             }
             bytes.append(contentsOf: buffer[0 ..< count])
         }
@@ -244,12 +306,22 @@ public enum SendCommand {
     }
 
     public static func run(_ options: Options) async throws -> Output {
+        // The held-out run's cell is refused first, before anything is read, built, reserved or sent (5.5 item 4).
+        if isHeldOutCell(options.cell) { throw Failure.heldOutCell }
         // The run name is checked before the text is read or anything is built, reserved or sent.
         if let name = options.freshRun, !isFreshRunName(name) { throw Failure.badFreshRun(name) }
         // The text path is checked, symbolic links resolved, before it is opened (T7); the opened file
         // is checked again through its descriptor, and those bytes alone are sent and hashed.
         let textPath = try checkedTextPath(options)
         let textData = try readCheckedText(atResolvedPath: textPath, dataDirectory: options.dataDirectory)
+        return try await send(textData: textData, options.tap)
+    }
+
+    /// The tap over text bytes already read (A4, 5.5 item 1): the pre-send detector, the request,
+    /// the cache, the catalogue check, the reservations, the retries and the settlement, exactly as
+    /// `run(_:)` performs them after its checks. It never opens a path, so it applies none of the
+    /// path refusals; the caller has read and checked the bytes.
+    package static func send(textData: Data, _ options: Tap) async throws -> Output {
         guard let text = String(data: textData, encoding: .utf8) else { throw Failure.unreadableText }
         let request = try OpenRouterPastedLabelAITextRequest(route: options.route, promptVersion: options.promptVersion)
         let detector = PastedLabelAITextPanelDetector.detect(text: text)
@@ -298,17 +370,10 @@ public enum SendCommand {
         }
     }
 
-    static func sendOnce(_ options: Options, text: String, request: OpenRouterPastedLabelAITextRequest, cacheKey: String,
+    static func sendOnce(_ options: Tap, text: String, request: OpenRouterPastedLabelAITextRequest, cacheKey: String,
                          cache: ResponseCache, output start: Output) async throws -> Output {
         var output = start
-        let transport: any LabelPhotoHTTPTransporting
-        let keys: any FoodWebKeyStoring
-        switch options.connection {
-        case let .fake(directory):
-            transport = DirectoryFakeTransport(directory: directory, labelID: options.labelID); keys = FakeTransportKey()
-        case let .transport(injected, injectedKeys):
-            transport = injected; keys = injectedKeys
-        }
+        let (transport, keys) = options.connection.resolved(labelID: options.labelID)
         let checker = OpenRouterPastedLabelAITextRouteChecker(transport: transport, clock: SystemLedgerClock(),
                                                               reasoningBilledSeparately: options.reasoningBilledSeparately)
         let check: LabelPhotoManifest.CatalogueCheck

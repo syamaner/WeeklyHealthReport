@@ -9,7 +9,8 @@ import PackageDescription
 // the response cache and the legacy converter, over a directory fake transport. A3: `send --live`,
 // the shipped live transport (named only in `LiveTransport.swift`, check-boundaries.sh) with the key
 // from the environment only and retries under the spend ledger, for the tuning runs. A3 also commits
-// `bar-v2.json` (D34; `bar-v1.json` stays as history) and the freeze pins (D35, FreezePinTests). Every
+// `bar-v2.json` (D34; `bar-v1.json` stays as history) and the freeze pins (D35, FreezePinTests). A4:
+// `PastedLabelAITextHeldOut`, the single held-out run (5.5) over the frozen configuration. Every
 // real file stays in the private folder outside the repository.
 let package = Package(
     name: "PastedLabelAITextEval",
@@ -33,6 +34,11 @@ let package = Package(
             name: "PastedLabelAITextEval",
             dependencies: ["PastedLabelAITextEvalHarness", "PastedLabelAITextEvalCore",
                            .product(name: "FoodLabelPhotoCapture", package: "FoodLedgerKit")]
+        ),
+        // A4 (5.5): the single held-out run, with a closed configuration and fixed private paths.
+        .executableTarget(
+            name: "PastedLabelAITextHeldOut",
+            dependencies: ["PastedLabelAITextEvalHarness"]
         ),
         .testTarget(name: "PastedLabelAITextEvalCoreTests", dependencies: ["PastedLabelAITextEvalCore"]),
         .testTarget(

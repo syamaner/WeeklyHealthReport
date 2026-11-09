@@ -60,12 +60,28 @@ OPENROUTER_API_KEY=... ./run-live.sh /private/folder/a3-scratch /path/to/matrix-
 - The data directory (`texts/` and `cases/`) must be outside the repository (T6). The sealed held-out set (`uk-english-v2`) is refused: the held-out run (T7) is separate.
 - Telemetry, update checks, sharing and remote generation are off as in the smoke run. No dead proxy is set, since it would block the real call.
 
+## The held-out run (A4)
+
+The single held-out run (T7, docs/pasted-label-ai-text-v1.md 5.5) is not a promptfoo run: every tuning path here refuses the sealed set, and `send` refuses any cell ending `__a4-heldout`. The wrapper sits beside `run-live.sh` and runs the separate executable `PastedLabelAITextHeldOut`:
+
+```bash
+OPENROUTER_API_KEY=... ./run-heldout.sh [--private-root DIR]
+```
+
+- The wrapper refuses, before anything is built or sent, unless the key is set, `git fetch origin` succeeds, the checkout is clean and HEAD is `origin/main`, `FreezePinTests` and `SealedTextPathTests` pass, and `PastedLabelAITextHeldOut check` passes. `check` makes the runner's refusals that come before the key and the catalogue (seals, label IDs, conversion, the ledger, an existing output or cache) and creates, reserves and sends nothing. Every git call, the tests, the build and `check` run with the key unset; only `run` receives it.
+- The configuration is closed: `prompt-v2` on `gpt-6.1-sol-azure-4k`, scorer v5, the cell `v2__gpt-6.1-sol-azure-4k__a4-heldout` with its $5 stop, inside A3's ledger and the $25 programme stop. The only option is the private root (default `~/WHR-label-eval-private`); the held-out folder (`uk-english-v2/fresh`), the A3 ledger (`ai-text-v1/runs/a3/run/spend-ledger.json`), the output folder (`ai-text-v1/runs/a4/`) and the A4 cache (`ai-text-v1/runs/a4-response-cache/`) are fixed under it.
+- The runner reads every text, transcription and collection record once through one descriptor, checks the text seal and seal 2 against those bytes, and refuses a second run, an existing cache, a ledger with no A3 entry or with an A4 entry, a worst case past either stop, a key or catalogue check that fails, and any link or file outside its folder, all before anything is reserved or created. It then creates `a4-run.json` exclusively: from that moment the run has happened, and it is never resumed or repeated.
+- Each label's row is appended to `journal.jsonl` as it finishes. At the end the journal becomes `results.json` and `cases/`, plus `results-tier-a.json` and `cases-tier-a/`; after a crash, `PastedLabelAITextHeldOut finalise [--private-root DIR]` writes them from the journal, counting every label not run as failed. Read the bar with `python3 -I ../statistics/pasted_label_ai_text_stats.py summary results.json --cases cases`, and tier A with the same command on its subset.
+- Tap latency is measured in process, from the start of the send to the end of the score (`in_process_send_to_score_end`), so it is lower than A3's by the `send` and `score` process start-up; report it as a deviation beside A3's p90 of 15.0 s.
+- Standard output is one line of counts and standard error fixed reasons only; the raw records stay in the private output folder.
+
 ## Tests
 
 None of these runs promptfoo, builds the tool or sends anything:
 
 - `tests/test-scratch-path.sh` checks the scratch path refusal of both scripts (shared in `scratch-path.sh`), including a symbolic link outside the repository that points inside it.
 - `tests/test-run-live.sh` checks `run-live.sh`'s argument checks, its config and option checks and its refusal without a key; every case exits 2 before the build and creates nothing, and with a dummy key set, shims on `PATH` show that a refused config never reaches the build and that the key never reaches the config check.
+- `tests/test-run-heldout.sh` checks `run-heldout.sh`'s gates with `git` and `swift` shims and a stub runner: a missing key, a failed fetch, a dirty checkout, HEAD other than `origin/main` and failing pin tests each exit 2 without reaching the runner, git and swift never see the key, and the happy path runs the pin tests and the build first, then the runner with the key. The runner itself is tested in `Tests/PastedLabelAITextEvalHarnessTests/HeldOutRunTests.swift`, over synthetic folders and fake transports, including the statistics script reading its results.
 - `node tests/test-validate-config.js` checks that a generated config passes `validate-config.js` and that every other shape is refused for its own reason (a foreign provider, another assertion, a prompt or var script, a transform, extensions and other keys).
 - `node tests/test-provider-modes.js` checks with a stub binary that the key reaches the child only in live mode, and only through its environment, that the prompt version and fresh run are passed through, and that a record for another prompt version, cell or fresh run is refused.
 - `node tests/test-make-config.js` checks the generator's refusals and the shape of the config it writes, with and without a fresh run.
