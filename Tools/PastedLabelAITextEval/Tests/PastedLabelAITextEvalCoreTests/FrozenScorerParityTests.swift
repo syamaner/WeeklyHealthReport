@@ -44,7 +44,9 @@ final class FrozenScorerParityTests: XCTestCase {
         let result = PastedLabelAITextScorer.score(Self.evalCase, outcome: "reached_confirm", declineReasons: [], failure: nil,
                                                    table: .init(headers: Self.headers, cells: [cell] + others, servingSize: nil, servingsPerPack: nil,
                                                                 attentionItems: 0))
-        return result.byNutrient[cell.nutrient]?.correct == 1 && !result.wrong.contains { $0.hasPrefix("\(cell.rowID) \(cell.headerID)") }
+        // Every shown cell is correct or wrong; from v6 (D37) a correct cell that is not a printed
+        // field is counted apart from `fieldsCorrect`, so correctness is read from the wrong list.
+        return result.fieldsCorrect + result.fieldsCorrectNotPrinted >= 1 && !result.wrong.contains { $0.hasPrefix("\(cell.rowID) \(cell.headerID)") }
     }
 
     /// Scorer v3 (D28): the `RI` amount column's four values are not printed fields; scorer v4
