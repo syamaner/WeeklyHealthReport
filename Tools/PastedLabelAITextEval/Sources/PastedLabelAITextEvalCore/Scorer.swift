@@ -69,9 +69,18 @@ public struct LabelScore: Codable, Equatable, Sendable {
     /// amount columns: rows the app keeps as unrecognised and never logs, so not printed fields.
     /// `fieldsPrinted + fieldsReferenceAmounts + fieldsUnrecognisedRows` is every transcribed value.
     public let fieldsUnrecognisedRows: Int
-    /// Fields shown at Confirm (cells), correct and wrong under the scorer.
+    /// From v6 (D37): cells shown at Confirm that count towards field precision, that is every wrong
+    /// cell plus every printed field read correctly (`fieldsCorrect + fieldsWrong`). A correct cell
+    /// at a place that is not a printed field is left out and counted in `fieldsCorrectNotPrinted`.
     public let fieldsShown: Int
+    /// From v6 (D37): printed fields with a correct cell at their row and column, so never more
+    /// than `fieldsPrinted`. Up to v5 this counted every correct cell, including those on
+    /// unrecognised rows and in reference-intake amount columns, so recall could exceed 1.
     public let fieldsCorrect: Int
+    /// From v6 (D37): correct cells at a place that is not a printed field (an unrecognised row, a
+    /// reference-intake amount column, or a second correct cell for a field already read).
+    /// `fieldsShown + fieldsCorrectNotPrinted` is every cell shown at Confirm.
+    public let fieldsCorrectNotPrinted: Int
     public let fieldsWrong: Int
     /// Wrong values that carry an attention item, and those that do not (silent errors).
     public let wrongFlagged: Int
@@ -89,7 +98,7 @@ public struct LabelScore: Codable, Equatable, Sendable {
         case scorer, set, tier, format, outcome, failure, wrong
         case labelID = "label_id", copyMethod = "copy_method", declineReasons = "decline_reasons", fieldsPrinted = "fields_printed"
         case fieldsReferenceAmounts = "fields_reference_amounts", fieldsUnrecognisedRows = "fields_unrecognised_rows"
-        case fieldsShown = "fields_shown", fieldsCorrect = "fields_correct", fieldsWrong = "fields_wrong", wrongFlagged = "wrong_flagged"
+        case fieldsShown = "fields_shown", fieldsCorrect = "fields_correct", fieldsCorrectNotPrinted = "fields_correct_not_printed", fieldsWrong = "fields_wrong", wrongFlagged = "wrong_flagged"
         case wrongSilent = "wrong_silent", attentionItems = "attention_items", printedNotCorrect = "printed_not_correct"
         case exactMatch = "exact_match", noEdit = "no_edit", silentErrorTable = "silent_error_table", byNutrient = "by_nutrient"
     }
@@ -107,7 +116,7 @@ public struct LabelScore: Codable, Equatable, Sendable {
         return byNutrientScores.merging([
             "reached_confirm": b(outcome == "reached_confirm"), "declined": b(outcome == "declined"), "failed": b(outcome == "failed"),
             "fields_printed": Double(fieldsPrinted), "fields_reference_amounts": Double(fieldsReferenceAmounts), "fields_unrecognised_rows": Double(fieldsUnrecognisedRows), "fields_shown": Double(fieldsShown), "fields_correct": Double(fieldsCorrect),
-            "fields_wrong": Double(fieldsWrong), "wrong_flagged": Double(wrongFlagged), "wrong_silent": Double(wrongSilent),
+            "fields_correct_not_printed": Double(fieldsCorrectNotPrinted), "fields_wrong": Double(fieldsWrong), "wrong_flagged": Double(wrongFlagged), "wrong_silent": Double(wrongSilent),
             "attention_items": Double(attentionItems), "printed_not_correct": Double(printedNotCorrect), "exact_match": b(exactMatch),
             "no_edit": b(noEdit), "silent_error_table": b(silentErrorTable),
         ]) { first, _ in first }
@@ -178,8 +187,18 @@ public struct LabelScore: Codable, Equatable, Sendable {
 ///
 /// The comparison rules (R1 to R3 otherwise, R2's dash condition, `expected`, the product-amount
 /// pairing), the printed-field exclusions and silent-error scoring are as in v4.
+///
+/// Changed in v6 (D37, revision 23, after A4): the field counts agree with the printed-field
+/// exclusions. v3 and v4 took values in reference-intake amount columns and on unrecognised rows
+/// out of `fieldsPrinted` but still counted a correct cell there in `fieldsCorrect` and
+/// `fieldsShown`, so field recall could exceed 1. Now `fieldsCorrect` counts printed fields read
+/// correctly (by row and column, each at most once), a correct cell anywhere else is counted in
+/// `fieldsCorrectNotPrinted` and left out of `fieldsShown`, and every wrong cell stays in
+/// `fieldsShown`. The per-nutrient `shown` and `correct` counts follow the same rule. The
+/// comparison rules, the wrong-value, silent-error, exact-match and no-edit scoring, and so every
+/// bar, are as in v5.
 public enum PastedLabelAITextScorer {
-    public static let version = "pasted-label-ai-text-scorer-v5 (rules of uk-fresh-scorer-v2; RI amount columns and unrecognised rows not printed fields; two or more %RI columns paired in printed order; a lone * a class marker)"
+    public static let version = "pasted-label-ai-text-scorer-v6 (rules of uk-fresh-scorer-v2; RI amount columns and unrecognised rows not printed fields; two or more %RI columns paired in printed order; a lone * a class marker; field counts only printed fields)"
     /// The transcription's nutrient for a printed row the app keeps as unrecognised.
     static let unrecognisedNutrient = "other"
 
@@ -201,7 +220,7 @@ public enum PastedLabelAITextScorer {
         func ended() -> LabelScore {
             LabelScore(scorer: version, labelID: evalCase.labelID, set: evalCase.set.rawValue, tier: evalCase.tier, copyMethod: evalCase.copyMethod,
                        format: evalCase.format.rawValue, outcome: outcome, declineReasons: declineReasons, failure: failure,
-                       fieldsPrinted: fields.count, fieldsReferenceAmounts: referenceAmounts, fieldsUnrecognisedRows: unrecognisedRows, fieldsShown: 0, fieldsCorrect: 0, fieldsWrong: 0, wrongFlagged: 0, wrongSilent: 0,
+                       fieldsPrinted: fields.count, fieldsReferenceAmounts: referenceAmounts, fieldsUnrecognisedRows: unrecognisedRows, fieldsShown: 0, fieldsCorrect: 0, fieldsCorrectNotPrinted: 0, fieldsWrong: 0, wrongFlagged: 0, wrongSilent: 0,
                        attentionItems: 0, printedNotCorrect: fields.count, exactMatch: false, noEdit: false, silentErrorTable: false,
                        byNutrient: byNutrient, wrong: [])
         }
@@ -209,8 +228,11 @@ public enum PastedLabelAITextScorer {
         var correct = 0, wrongFlagged = 0, wrongSilent = 0
         var wrong: [String] = []
         var matched: Set<[Int]> = []
+        // v6 (D37): the printed fields by row and column, and those already read correctly.
+        let printedPositions = Set(fields.map { [$0.rowIndex, $0.columnIndex] })
+        var countedPositions: Set<[Int]> = []
+        var correctNotPrinted = 0
         for cell in table.cells {
-            byNutrient[cell.nutrient, default: .init()].shown += 1
             let place = "\(cell.rowID) \(cell.headerID)"
             var isCorrect = false
             switch expected(evalCase, table: table, cell: cell, schema: schema) {
@@ -220,15 +242,23 @@ public enum PastedLabelAITextScorer {
                 let reference = isReference(cell.headerID, table)
                 if same(cell, as: value, printedLabel: printedLabel, inReferenceColumn: reference, schema: schema) {
                     isCorrect = true
-                    if let position = position(evalCase, table: table, cell: cell, schema: schema) { matched.insert(position) }
+                    let position = position(evalCase, table: table, cell: cell, schema: schema)
+                    if let position { matched.insert(position) }
+                    // v6 (D37): a correct cell counts as a correct field only at a printed field not yet counted.
+                    if let position, printedPositions.contains(position), countedPositions.insert(position).inserted {
+                        byNutrient[cell.nutrient, default: .init()].shown += 1
+                        byNutrient[cell.nutrient, default: .init()].correct += 1
+                    } else {
+                        correctNotPrinted += 1
+                    }
                 } else {
                     wrong.append("\(place): read \(cell.comparator)\(cell.decimalText) \(cell.canonicalUnit)")
                 }
             }
             if isCorrect {
                 correct += 1
-                byNutrient[cell.nutrient, default: .init()].correct += 1
             } else {
+                byNutrient[cell.nutrient, default: .init()].shown += 1
                 byNutrient[cell.nutrient, default: .init()].wrong += 1
                 if cell.needsAttention { wrongFlagged += 1 } else { wrongSilent += 1 }
             }
@@ -252,7 +282,8 @@ public enum PastedLabelAITextScorer {
         let exact = wrongCount == 0 && printedNotCorrect == 0
         return LabelScore(scorer: version, labelID: evalCase.labelID, set: evalCase.set.rawValue, tier: evalCase.tier, copyMethod: evalCase.copyMethod,
                           format: evalCase.format.rawValue, outcome: outcome, declineReasons: declineReasons, failure: failure,
-                          fieldsPrinted: fields.count, fieldsReferenceAmounts: referenceAmounts, fieldsUnrecognisedRows: unrecognisedRows, fieldsShown: table.cells.count, fieldsCorrect: correct, fieldsWrong: wrongCount,
+                          fieldsPrinted: fields.count, fieldsReferenceAmounts: referenceAmounts, fieldsUnrecognisedRows: unrecognisedRows, fieldsShown: table.cells.count - correctNotPrinted, fieldsCorrect: correct - correctNotPrinted,
+                          fieldsCorrectNotPrinted: correctNotPrinted, fieldsWrong: wrongCount,
                           wrongFlagged: wrongFlagged, wrongSilent: wrongSilent, attentionItems: table.attentionItems,
                           printedNotCorrect: printedNotCorrect, exactMatch: exact, noEdit: exact && servingEdits == 0,
                           silentErrorTable: wrongSilent > 0, byNutrient: byNutrient, wrong: wrong)

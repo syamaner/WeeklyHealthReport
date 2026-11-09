@@ -4201,6 +4201,27 @@ Excluded:
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a subscription, not a bill, and not evidence of productivity or quality.
 
+## WHR-416-2026-11-09-V6: Claude Code scorer v6 field counts (#416, D37)
+
+The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) did two things in this window:
+- found why the A4 field F1 interval exceeded 1, and recorded the cause and the recognised-row figures in the A4 result PR (#448);
+- built `pasted-label-ai-text-scorer-v6` (D37) with its tests, the re-pin and the spec text, and ran a local Qodo review.
+
+There were no subagents. The window runs from `2026-11-09T12:52:11Z`, the end of WHR-416-2026-11-09-A4, to `2026-11-09T16:42:24Z`.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Scorer v6 field counts (#416), coordinator | 6,610,155 (6,409,515) | 200,572 | 31,060 | 6,641,215 | $3.51 |
+
+Method: `phase_usage.py --format claude --since 2026-11-09T12:52:11Z --include-subagents` on the session transcript. Exact USD 3.507951. The cache-write tokens (none of them 5-minute writes) are part of the input figure, not added to it.
+
+Excluded:
+- the Qodo review runs;
+- local builds and test loops, which use no API tokens;
+- this ledger edit, the commit, the push and the PR after the window.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a subscription, not a bill, and not evidence of productivity or quality.
+
 ## WHR-312-2026-11-09: Claude Code food daily export v2 contract refresh (#312)
 
 The coordinator session (`claude-opus-5-5`, session `0dabb926-21ba-45d7-b0c2-2ab29f9918fd`) brought the 31 October contract draft (#343) up to date with `main` and added the edge cases for the label estimate layer (#383) and Ciqual 2025 rows (#384), plus one extension axis. No field, code or rule changes. The window runs from the owner's go-ahead (`2026-11-09T19:18:21Z`) to `2026-11-09T19:19:45Z`.

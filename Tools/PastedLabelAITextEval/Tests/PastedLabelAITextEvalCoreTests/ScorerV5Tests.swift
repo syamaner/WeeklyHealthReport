@@ -14,7 +14,7 @@ final class ScorerV5Tests: XCTestCase {
 
     func testTheVersionNamesBothRules() {
         XCTAssertEqual(PastedLabelAITextScorer.version,
-                       "pasted-label-ai-text-scorer-v5 (rules of uk-fresh-scorer-v2; RI amount columns and unrecognised rows not printed fields; two or more %RI columns paired in printed order; a lone * a class marker)")
+                       "pasted-label-ai-text-scorer-v6 (rules of uk-fresh-scorer-v2; RI amount columns and unrecognised rows not printed fields; two or more %RI columns paired in printed order; a lone * a class marker; field counts only printed fields)")
     }
 
     // MARK: D31: two or more %RI columns
