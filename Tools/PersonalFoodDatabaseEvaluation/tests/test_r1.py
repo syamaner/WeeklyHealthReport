@@ -105,7 +105,7 @@ class Derive(unittest.TestCase):
     def run_r1(self, switches=SWITCH_OFF, e=None, u=None):
         e, u = e or excl(self.rel), u or unres(self.rel)
         doc, counts = R.derive(self.pinned, e, u, switches, NUTRIENTS)
-        self.assertEqual(R.check_applied(doc, e, u, switches), [])
+        self.assertEqual(R.check_applied(doc, e, u, switches, self.pinned), [])
         data = R.dumps(doc)
         self.assertEqual(export_v1.check_bytes(data), [])
         self.assertEqual(export_v1.check_export_conventions(doc), [])
@@ -127,7 +127,12 @@ class Derive(unittest.TestCase):
         self.assertEqual(by_title(doc, "Synthetic off food")["label_nutrients"], {})
         mixed = by_title(doc, "Synthetic mixed food")
         self.assertEqual(set(mixed["label_nutrients"]), {"protein"})
-        self.assertEqual(mixed["generic_reference"]["role"], "merge")  # pinned merge kept, never added
+        self.assertEqual(mixed["generic_reference"]["role"], "candidate")  # lost a label value: never a merge
+        self.assertEqual(by_title(doc, "Synthetic merge food")["generic_reference"]["role"], "merge")  # untouched
+        kept = copy.deepcopy(doc)
+        by_title(kept, "Synthetic mixed food")["generic_reference"]["role"] = "merge"
+        self.assertIn("merge-kept-after-label-drop",
+                      R.check_applied(kept, excl(self.rel), unres(self.rel), {"a1": True, "a2": False}, self.pinned))
 
     def test_withheld_entry_loses_values_and_reference(self):
         e = excl(self.rel, entries=[ident("Synthetic mixed food")])

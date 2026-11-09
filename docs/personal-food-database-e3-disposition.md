@@ -98,9 +98,9 @@ The evaluator produces R1 first. R1 is a complete, shippable result even if R2 i
 It is built by `Tools/PersonalFoodDatabaseEvaluation/r1/pfd_r1.py build-r1 --a1 on --a2 off`, which
 derives R1 from the pinned file by removal only and proves that it did. One rule there is a
 consequence of removal-only: a withheld or unresolved value that is not a label value of its entry
-came through the entry's generic reference, so that reference is removed. When a withheld or
-unresolved label value is removed, the entry's merge reference becomes a candidate, so the merged
-record never fills that nutrient in its place. The unresolved list
+came through the entry's generic reference, so that reference is removed. When any label value is
+removed (withheld, unresolved or an Open Food Facts value under A1), the entry's merge reference
+becomes a candidate, so the merged record never fills those nutrients in their place. The unresolved list
 covers every stratum, not only A1, because unresolved is never a pass; the evaluator reports it by
 stratum.
 

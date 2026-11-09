@@ -20,11 +20,10 @@ candidate. Sources no longer cited by any value are removed; `generated` and `ge
 are unchanged. `check_drops_only` proves the output only removes; `check_applied` proves every
 required removal happened.
 
-When a withheld or unresolved label value is removed, the entry's `merge` reference becomes a
-`candidate`, so the merged record never silently supplies that nutrient in its place: the plan
-says a reference is never a new merge after label values are removed (section 6). Open Food Facts
-values dropped by the `a1` switch do not demote: every A1 entry was reviewed (census), and the A1
-consequence keeps the checked references. Entries keep
+When any label value is removed (withheld, unresolved or by `a1`), the entry's `merge` reference
+becomes a `candidate`, so the merged record never silently supplies those nutrients in their
+place: the plan says a reference is never a new merge after label values are removed, including
+references attached to A1 entries (section 6). Entries keep
 their pinned `basis`, which the merge condition already met when the pinned file was built.
 """
 import hashlib
@@ -164,6 +163,7 @@ def derive(pinned: dict, exclusions: dict, unresolved: dict, switches: dict, nut
                 for key in [k for k, v in labels.items() if v["source_kind"] == OFF_KIND]:
                     del labels[key]
                     counts["values_dropped_a1"] += 1
+                    label_dropped = True
             if ref is not None and ref["role"] == "merge" and (switches["a2"] or it["id"] in demote or label_dropped):
                 ref = {**ref, "role": "candidate"}
                 counts["references_demoted_to_candidate"] += 1
@@ -210,8 +210,10 @@ def check_drops_only(pinned: dict, r1: dict) -> list:
     return errs
 
 
-def check_applied(r1: dict, exclusions: dict, unresolved: dict, switches: dict) -> list:
-    """Proves every required removal happened. Returns rule codes, empty when it holds."""
+def check_applied(r1: dict, exclusions: dict, unresolved: dict, switches: dict, pinned: dict = None) -> list:
+    """Proves every required removal happened. Returns rule codes, empty when it holds. With the
+    pinned document, also proves no entry that lost a label value keeps a merge."""
+    pinned_items = pinned["items"] if pinned is not None else None
     errs = set()
     items = {it["id"]: it for it in r1["items"]}
     for e in exclusions["withhold_entries"]:
@@ -227,9 +229,12 @@ def check_applied(r1: dict, exclusions: dict, unresolved: dict, switches: dict) 
         ref = items.get(e, {}).get("generic_reference")
         if ref is not None and ref["role"] == "merge":
             errs.add("candidate-still-merge")
-    for it in r1["items"]:
+    for it, before in zip(r1["items"], pinned_items or [None] * len(r1["items"])):
         if switches["a1"] and any(v["source_kind"] == OFF_KIND for v in it["label_nutrients"].values()):
             errs.add("a1-value-kept")
+        if before is not None and set(it["label_nutrients"]) != set(before["label_nutrients"]) \
+                and it["generic_reference"] is not None and it["generic_reference"]["role"] == "merge":
+            errs.add("merge-kept-after-label-drop")
         ref = it["generic_reference"]
         if switches["a2"] and ref is not None and ref["role"] == "merge":
             errs.add("a2-merge-kept")

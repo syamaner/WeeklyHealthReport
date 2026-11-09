@@ -97,7 +97,7 @@ def cmd_build_r1(a, root: Path):
     except r1_export.R1Error as e:
         sys.exit(f"refused: {e}")
     data = r1_export.dumps(doc)
-    errs = r1_export.check_drops_only(pinned, doc) + r1_export.check_applied(doc, excl, unresolved, switches) \
+    errs = r1_export.check_drops_only(pinned, doc) + r1_export.check_applied(doc, excl, unresolved, switches, pinned) \
         + export_v1.check_export_conventions(doc) + export_v1.check_bytes(data)
     if errs:
         sys.exit(f"refused: R1 fails {len(errs)} checks (drops-only, applied, conventions or importer rules); "
