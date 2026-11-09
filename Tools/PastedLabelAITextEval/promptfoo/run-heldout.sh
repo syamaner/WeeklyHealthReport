@@ -42,5 +42,10 @@ nokey swift test --package-path "$package" --filter 'FreezePinTests|SealedTextPa
 nokey swift build --package-path "$package" -c debug --product PastedLabelAITextHeldOut >&2 || refuse "the build failed"
 bin="$(nokey swift build --package-path "$package" -c debug --show-bin-path)/PastedLabelAITextHeldOut" || refuse "the build path could not be read"
 [[ -x "$bin" ]] || refuse "the held-out executable was not built"
+# The checkout is checked again just before the run, so a change made during the tests or the build
+# is refused (Qodo, A4). A change in the moment between this check and the exec is not covered: the
+# run is a single local operator's, on a checkout nothing else is writing to.
+[[ -z "$(nokey git -C "$repo" status --porcelain --untracked-files=all)" ]] || refuse "the checkout changed during the tests or the build"
+[[ "$(nokey git -C "$repo" rev-parse HEAD)" == "$head" ]] || refuse "HEAD moved during the tests or the build"
 nokey "$bin" check ${root_args[@]+"${root_args[@]}"} >&2 || refuse "the held-out check refused the run"
 exec "$bin" run ${root_args[@]+"${root_args[@]}"}

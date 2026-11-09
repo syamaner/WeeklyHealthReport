@@ -347,6 +347,17 @@ final class HeldOutRunTests: XCTestCase {
         XCTAssertThrowsError(try HeldOutRun.finalise(paths)) { XCTAssertEqual($0 as? HeldOutRun.Refusal, .runRecordInvalid) }
     }
 
+    /// Qodo, A4: finalise selects tier A from the tiers recorded at the start, and refuses an edited case.
+    func testFinaliseRefusesACaseWhoseTierWasEdited() async throws {
+        _ = try await run()
+        let url = paths.cases.appendingPathComponent("H20.json")
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        XCTAssertEqual(object["tier"] as? String, "B")
+        object["tier"] = "A"
+        try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]).write(to: url)
+        XCTAssertThrowsError(try HeldOutRun.finalise(paths)) { XCTAssertEqual($0 as? HeldOutRun.Refusal, .tierSplitChanged) }
+    }
+
     /// Qodo, A4: a linked cases-tier-a folder is refused, and nothing outside the run is removed.
     func testFinaliseRefusesALinkedTierAFolder() async throws {
         _ = try await run()

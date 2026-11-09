@@ -284,6 +284,11 @@ public enum HeldOutRun {
         guard ids.count == labelCount, Set(ids).count == ids.count, ids == ids.sorted(), ids.allSatisfy(ConvertCommand.isSafeLabelID) else {
             throw Refusal.runRecordInvalid
         }
+        // The tiers the run used, recorded at its start, select tier A; a case whose tier differs is refused (Qodo, A4).
+        guard let recordedTiers = record["tiers"] as? [String: String], Set(recordedTiers.keys) == Set(ids),
+              recordedTiers.values.filter({ $0 == "A" }).count == tierACount, recordedTiers.values.filter({ $0 == "B" }).count == tierBCount else {
+            throw Refusal.runRecordInvalid
+        }
         // Every folder finalise reads or writes is a plain directory, never a link (Qodo, A4).
         try checkFixedPaths(paths)
         guard isPlainDirectory(paths.runs), isPlainDirectory(paths.output) else { throw Refusal.linkedFixedPath }
@@ -317,7 +322,8 @@ public enum HeldOutRun {
             }
         }
         let rows = ids.map { journal[$0] ?? resultRow($0, send: nil, started: nil, grading: nil, error: "not_run") }
-        let tierA = ids.filter { cases[$0]?.tier == "A" }
+        guard ids.allSatisfy({ cases[$0]?.tier == recordedTiers[$0] }) else { throw Refusal.tierSplitChanged }
+        let tierA = ids.filter { recordedTiers[$0] == "A" }
         let tierARows = rows.filter { tierA.contains((($0["vars"] as? [String: Any])?["label_id"] as? String) ?? "") }
         do {
             try writeResults(rows, to: paths.results)
