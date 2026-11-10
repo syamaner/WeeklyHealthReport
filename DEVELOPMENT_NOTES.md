@@ -4306,3 +4306,22 @@ Excluded:
 - this ledger edit, the commit, the push and the PR after the window.
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
+## WHR-452-2026-11-10: Claude Code cocoa percentage phrasings (#452)
+
+A side session (`claude-opus-5-5`, session `ba5b9bdb-7454-4146-802e-71c326cae729`) started by the coordinator reproduced the owner's report that 90% to 95% dark chocolate searches still failed, found the two `FoodQueryInterpretation` rules and the Open Food Facts ordering rule that dropped the cocoa percentage, opened #452, and built `food-query-interpretation-v6` and `off-search-detail-transport-v5` with their tests and the contract amendment. There were no subagents. The window runs from the task's arrival (`2026-11-10T07:04:55Z`) to `2026-11-10T07:36:42Z`.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Cocoa percentage phrasings (#452), side session | 13,706,583 (13,506,668) | 199,753 | 43,920 | 13,750,503 | $5.18 |
+| Qodo follow-up fixes (#452), same session | 4,491,808 (4,452,487) | 39,249 | 16,643 | 4,508,451 | $1.54 |
+
+Method: `phase_usage.py --format claude --since 2026-11-10T07:04:55Z --include-subagents` on the session transcript. Exact USD 5.1784056. The follow-up row covers the owner's go-ahead to fix the three Qodo PR findings and one local Qodo finding, from `2026-11-10T12:28:48Z` to `2026-11-10T12:54:44Z` (`--until`), exact USD 1.5376374; the merge request and branch update between the two windows are not measured. The cache-write tokens (none of them 5-minute writes) are part of the input figure, not added to it.
+
+Excluded:
+- the coordinator session that started this one (its own transcript);
+- the Qodo review runs;
+- local builds, test loops and the live Open Food Facts checks, which use no API tokens;
+- this ledger edit, the commit, the push and the PR after the window.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.

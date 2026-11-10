@@ -60,6 +60,13 @@ final class CocoaCautionPresentationTests: XCTestCase {
             XCTAssertEqual(Set((model.closeMatches + model.otherMatches).map(\.searchID)), Set(order), query)
             XCTAssertFalse(model.closeMatches.contains { $0.candidate.name.value.lowercased().contains("milk") }, query)
         }
+        // #452: the comma and spaced phrasings keep the cocoa ranking and its Best matches split.
+        for query in ["dark chocolate, 90%", "90 % dark chocolate", "95 per cent dark chocolate", "dark chocolate, 95%"] {
+            XCTAssertEqual(close(query).prefix(2), [band, estimate], query)
+            XCTAssertNil(model.interpretation?.quantitySuggestion, query)
+        }
+        XCTAssertEqual(close("dark chocolate, 70%").first, band)
+        XCTAssertEqual(close("dark chocolate, 100%").first, estimate)
         // Without a cocoa percentage the #308 name rule alone decides.
         XCTAssertFalse(close("dark chocolate").contains(estimate))
         XCTAssertFalse(close("baking chocolate").isEmpty)
