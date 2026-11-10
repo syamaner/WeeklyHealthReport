@@ -112,12 +112,12 @@ and `manifest_sha256` both equal the hash inside its ID:
 
 | `source_id` | `schema_version` | `pipeline_version` | `licence` | `attribution` |
 |---|---|---|---|---|
-| `open-food-facts` | `off-v3.6-product-record` | `off-product-projection-v4` | exactly "ODbL 1.0 https://opendatacommons.org/licenses/odbl/1-0/; contents: https://opendatacommons.org/licenses/dbcl/1-0/" | exactly "Open Food Facts · https://world.openfoodfacts.org/product/" and the 8 to 14 digit code |
+| `open-food-facts` | `off-v3.6-product-record` | `off-product-projection-v4` or `off-product-projection-v5`, the same as in its ID | exactly "ODbL 1.0 https://opendatacommons.org/licenses/odbl/1-0/; contents: https://opendatacommons.org/licenses/dbcl/1-0/" | exactly "Open Food Facts · https://world.openfoodfacts.org/product/" and the 8 to 14 digit code |
 | `owner` | `pfc-intake-label-v1` | `personal-food-catalogue-skill-v1` | `private` | "Label values typed or confirmed by the owner" |
 
 Open Food Facts releases use a reduced form defined here, distinct from the app's own
 `off:snapshot:` releases so the two can never meet under one ID:
-`pfc-off:sha256:<product record hash>:projection:off-product-projection-v4:retrieved:<YYYY-MM-DD>`,
+`pfc-off:sha256:<product record hash>:projection:off-product-projection-v<4 or 5>:retrieved:<YYYY-MM-DD>`,
 with `released_at` that retrieved date and `source_id` `open-food-facts`. The record is the API v3.6
 product object the app reads, serialised with sorted keys. Owner label releases are opaque:
 `owner:sha256:<hash of title, values and capture date>`, with `released_at` the capture date and
@@ -173,7 +173,9 @@ Label nutrient value (exactly these keys; `transforms` and `source_value` togeth
   basis, or legacy `nutriments` only for mass products with `nutrition_data_per` 100g; legacy sodium
   unknown; a pack quantity that is mass or volume, not both; dietary supplements refused; the stored
   unit must be canonical, with sodium g to mg the only conversion. The one difference: a value the
-  app would bound is left out, because v1 has no bounds.
+  app would bound is left out, because v1 has no bounds. Since #458 both use `off-product-projection-v5`, which also
+  admits a product with no recognised pack quantity when its single label panel states its own
+  basis. New releases carry v5; releases built under v4 (a stricter subset) remain valid.
 
 Generic reference:
 

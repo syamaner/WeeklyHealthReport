@@ -116,14 +116,18 @@ public struct OpenFoodFactsLookup: PackagedFoodCandidateLookingUp {
         guard let name = product["product_name"] as? String, !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return .insufficientData }
         let pack = product["quantity"] as? String ?? ""
         let mass = pack.range(of: #"(?i)\d\s*(g|kg)\b"#, options: .regularExpression) != nil
-        let volume = pack.range(of: #"(?i)\d\s*(ml|cl|dl|l)\b"#, options: .regularExpression) != nil
-        guard mass != volume,
+        let liquid = pack.range(of: #"(?i)\d\s*(ml|cl|dl|l)\b"#, options: .regularExpression) != nil
+        // v5 (#458): a pack quantity that states a mass or a volume decides the basis as before; a
+        // missing or unrecognised one lets the single eligible label panel state its own basis.
+        let packBasis: Bool? = mass == liquid ? nil : liquid
+        guard !(mass && liquid),
               !(product["categories_tags"] as? [String] ?? []).contains("en:dietary-supplements"),
-              let sourceSet = Self.sourceNutrients(product, volume: volume) else { return .insufficientData }
+              let sourceSet = Self.sourceNutrients(product, volume: packBasis) else { return .insufficientData }
+        let volume = sourceSet.volume
         let basis: ResolutionBasis = volume ? .per100Millilitres : .per100Grams
         let nutrients = sourceSet.values
         let hash = SHA256.hash(data: artifact).map { String(format: "%02x", $0) }.joined()
-        let projectionVersion = "off-product-projection-v4"
+        let projectionVersion = "off-product-projection-v5"
         let schemaVersion = searchScore == nil ? "off-v3.6-explicit-basis-candidates-v4" : "off-search-explicit-basis-candidates-v5"
         let releaseID = try ExternalIdentifier("off:snapshot:sha256:\(hash):projection:\(projectionVersion):schema:\(schemaVersion):retrieved:\(now.timeIntervalSince1970)")
         let productURL = "https://world.openfoodfacts.org/product/\(returned)"
@@ -191,21 +195,25 @@ public struct OpenFoodFactsLookup: PackagedFoodCandidateLookingUp {
             recordID: ExternalIdentifier("off:gtin:\(gtin.value)"), identity: identity, edibleQuantity: quantity,
             nutrients: NutrientSet(entries: entries), evidenceIDs: [evidence.evidenceID], matchMetadata: metadata),
             name: LedgerText(name), brand: (product["brands"] as? String).flatMap { try? LedgerText($0) },
-            variant: LedgerText("Open Food Facts · source estimate · \(pack) · per 100 \(volume ? "ml" : "g")" + (searchCategory.map { "; source category: \($0). Review this type against your request." } ?? "")), barcode: gtin, itemClass: .food, packFacts: PackFacts())
+            variant: LedgerText("Open Food Facts · source estimate · \(pack.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "" : "\(pack) · ")per 100 \(volume ? "ml" : "g")" + (searchCategory.map { "; source category: \($0). Review this type against your request." } ?? "")), barcode: gtin, itemClass: .food, packFacts: PackFacts())
         return .candidate(try PopulatedFoodConfirmation(evidence: [evidence], sourceReleases: [release], candidates: [candidate],
             expectedIdentity: identity, expectedEdibleQuantity: quantity))
     }
     // Choose one source input set. OFF's aggregate may mix packaging, estimates and
     // preparations, so it is never used to backfill this candidate.
-    private static func sourceNutrients(_ product: [String: Any], volume: Bool) -> (values: [String: Any], path: String, isModern: Bool)? {
+    /// `volume` is the pack's basis, or nil when the pack states neither; then exactly one eligible
+    /// panel across both bases may state its own (v5, #458). Legacy values still need a mass pack.
+    private static func sourceNutrients(_ product: [String: Any], volume packBasis: Bool?) -> (values: [String: Any], path: String, isModern: Bool, volume: Bool)? {
         if product["nutrition"] != nil {
             guard let nutrition = product["nutrition"] as? [String: Any], let sets = nutrition["input_sets"] as? [[String: Any]] else { return nil }
+            let bases = packBasis.map { [$0 ? "100ml" : "100g"] } ?? ["100g", "100ml"]
             let eligible = sets.enumerated().filter {
-                $0.element["source"] as? String == "packaging" && $0.element["per"] as? String == (volume ? "100ml" : "100g")
+                $0.element["source"] as? String == "packaging" && bases.contains($0.element["per"] as? String ?? "")
                     && $0.element["preparation"] as? String == "as_sold"
             }
             guard eligible.count == 1, let values = eligible[0].element["nutrients"] as? [String: Any] else { return nil }
             let panel = eligible[0].element
+            let volume = panel["per"] as? String == "100ml"
             if let quantity = panel["per_quantity"] {
                 guard let number = quantity as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(), number.doubleValue == 100 else { return nil }
             }
@@ -219,12 +227,12 @@ public struct OpenFoodFactsLookup: PackagedFoodCandidateLookingUp {
                 result[field + "_unit"] = value["unit"]
                 result[field + "_modifier"] = value["modifier"]
             }
-            return (result, "nutrition/input_sets/\(eligible[0].offset)/nutrients", true)
+            return (result, "nutrition/input_sets/\(eligible[0].offset)/nutrients", true, volume)
         }
-        guard !volume else { return nil } // Legacy *_100g does not distinguish mass from volume.
+        guard packBasis == false else { return nil } // Legacy *_100g does not distinguish mass from volume.
         guard product["nutrition_data_per"] as? String == "100g" else { return nil }
         guard let values = product["nutriments"] as? [String: Any] else { return nil }
-        return (values, "nutriments", false)
+        return (values, "nutriments", false, false)
     }
 
 }
