@@ -1,7 +1,8 @@
 # Personal food database: E3 gate status and evidence audit disposition
 
-Status: **9 November 2026. D1 to D5 are decided (section 7). Plan revision 6 records them and was
-approved by the owner the same day; E3 is not final until the steps in section 1 are done.** Written by the
+Status: **10 November 2026. D1 to D5 are decided (section 7). Plan revision 6 records them and was
+approved by the owner on 9 November 2026. R1 is built and its release ID recorded (section 1.1);
+E3 is not final until the remaining steps in section 1 are done.** Written by the
 unexposed implementation session from the counts-only handover; it read no private query, expected
 answer, held-out file, review note, estimate companion or transcript. Every input count is copied
 from that handover; the only derived numbers are the bar arithmetic in section 2. Programme #424,
@@ -36,9 +37,58 @@ E3 is final when all of these hold (plan sections 2, 5 and 6):
    and its release ID recorded (counts and hashes only).
 4. The owner has accepted points 1 to 3 in a dated plan revision.
 
-None of the four is done. The owner approved plan revision 6 and the estimates contract on
-9 November 2026; that approval records the decisions, not point 4, which needs the results of
-points 2 and 3 first.
+Points 1 to 3 are done: point 1 in section 7 (D1 to D5), point 2 by
+[`part-a-results-v2.json`](../Tools/PersonalFoodDatabaseEvaluation/part-a-results-v2.json)
+(`pfd-results-v2`, bars `v2_proposed`, naming the pinned release; SHA-256
+`95715821858e41779432382ecb6aac51401ec3a18f6633279e1d208998e0e791`, the only results file in the
+evaluator's checkout, which `build-r1` accepts only when it equals the sealed review's result; its
+counts match section 1), and point 3 in section 1.1. Point 4, the owner's
+acceptance in a dated plan revision, is what remains. The owner approved plan revision 6 and the estimates contract on
+9 November 2026; that approval records the decisions, not point 4.
+
+### 1.1 R1 build (10 November 2026, counts only)
+
+The separate private-data evaluator ran `pfd_r1.py build-r1 --a1 on --a2 off` with the tool merged in PR #450 (the version that
+requires `--results`). The run passed every frozen check, the Part A results check, `check_drops_only`,
+`check_applied`, the export conventions and the importer's rules. The counts below are tabulated from its
+console output; this session saw nothing else from the run.
+
+| Count | Value |
+|---|---|
+| Entries | 844 |
+| Entries withheld | 6 |
+| Label values kept | 7 |
+| Values dropped under A1 (Open Food Facts) | 385 |
+| Values dropped with a withheld entry | 22 |
+| Values dropped as a withheld value | 0 |
+| Values dropped as unresolved | 2 |
+| References removed with a withheld entry | 2 |
+| References removed for a listed value | 0 |
+| Merge references demoted to candidate | 6 |
+| Entries with no nutrition ("No nutrition data yet") | 167 |
+| Sources removed (no longer cited) | 56 |
+| Unresolved values already unknown | 0 |
+| Unresolved values withheld, by stratum | 2 (A1 2) |
+
+**R1 release ID:** `pfc:sha256:b883d5c6c9be35825609da9cc0fdbafd148fc93601b1c58b87fc744c6355ed4e`.
+The pinned release it derives from is `pfc:sha256:55caa60d…` (freeze-v1.json).
+
+These agree with the handover: the 6 withheld entries are the 6 entries that lose values or
+references, the 2 references match, and the 22 values dropped with withheld entries plus the 2
+unresolved values are the 24 withheld values.
+
+**What R1 means for the product.** The A1 consequence removes almost every label value: 7 of 416
+remain (416 is the sum of the kept and dropped label values above, the only derived number here). R1 therefore offers nutrition mostly through generic references (merged where a merge
+survived, otherwise as candidates the user chooses on Confirm), and 167 entries show "No nutrition
+data yet". This is the conservative result the bars of record require, not a defect of the build;
+the approved estimates (R2, section 3) are the route to filling those gaps, under their own
+binding. R1 is still a complete, shippable result on its own.
+
+**Where the A1 errors are.** The results file shows that all 22 A1 value errors are
+`error_state` and the 5 failed entries all failed the state check (identity and variety passed
+for all 57): the numbers were given for a different state of the food, such as as sold rather
+than prepared, not mistranscribed or for a different food. That is the first issue to work on if
+Open Food Facts values are ever reconsidered.
 
 ## 2. A1: the outcome is already determined
 
