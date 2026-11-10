@@ -131,6 +131,11 @@ Counts, each entry counted at most once per measure:
 passes and never fails until they are resolved. Unresolved rows are never replaced: the owner's
 judgement, not the row, is missing.
 
+Amended 9 November 2026 by evaluation plan revision 6 (section 6, "A1 outcome determined"): a
+section 6 consequence may fire for a measure that fails under every possible resolution of its
+unresolved items, once the owner records that in a dated plan revision. It never applies to a pass,
+and the tool's verdict (`passes: null` and the unresolved count) is unchanged.
+
 **Mapping under `v1_accepted`.**
 
 | Accepted bar | v2 count used |

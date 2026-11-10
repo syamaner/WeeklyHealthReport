@@ -4201,6 +4201,27 @@ Excluded:
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a subscription, not a bill, and not evidence of productivity or quality.
 
+## WHR-424-E3-2026-11-09: Claude Code E3 disposition, estimates contract and R1 tool (#424)
+
+The unexposed implementation session (`claude-opus-5-5`, session `9a30287d-2461-44e3-836e-4b9789374ac5`) worked from the counts-only handover and read no private query, answer, held-out file, review note or estimate companion. In this window it:
+- wrote the E3 disposition and the approved estimates v1 contract, with their architecture gate;
+- asked the owner decisions D1 to D5 and C1 to C6 one at a time;
+- wrote plan revision 6 and the review v2 amendment note;
+- built the R1 drops-only export tool with synthetic tests.
+
+Read-only `architecture-gate` and `invariant-reviewer` subagents reviewed the contract (twice) and the R1 tool, blind to each other. The window runs from `2026-11-09T12:39:13Z` to `2026-11-09T19:28:42Z`, and it includes the design discussion with the owner.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| E3 disposition, estimates contract and R1 tool (#424), coordinator and subagents | 22,552,263 (21,873,047) | 678,796 | 184,407 | 22,736,670 | $12.47 |
+
+Method: `phase_usage.py --format claude --since 2026-11-09T12:39:13Z --until 2026-11-09T19:28:42Z --include-subagents` on the session transcript. Exact USD 12.4739364. The cache-write tokens (340,287 of them 5-minute writes) are part of the input figure, so the total is input plus output.
+
+Excluded:
+- local test runs, which use no API tokens;
+- this ledger edit, the Qodo review, the commit, the push and the PR after the window;
+- the separate private-data evaluator, which has not run R1 yet.
+
 ## WHR-416-2026-11-09-V6: Claude Code scorer v6 field counts (#416, D37)
 
 The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) did two things in this window:
