@@ -4283,6 +4283,28 @@ Excluded:
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
 
+## WHR-424-E3-2026-11-10-R1: Claude Code #450 review fixes and merge, R1 results docs (#424)
+
+The implementation session (`claude-opus-5-5`, session `9a30287d-2461-44e3-836e-4b9789374ac5`) did four things in this window:
+- kept #450 current with `main` and fixed four Qodo findings: Part A results now required, a linked output folder refused, the estimates egress line aligned, and unresolved values the entry does not show counted rather than refused;
+- merged #450 once CI and Qodo were clean at its head;
+- wrote the evaluator hand-off for `build-r1`;
+- recorded the evaluator's counts-only R1 report and committed the counts-only Part A results file (this PR).
+
+There were no subagents. The window runs from `2026-11-09T19:28:42Z`, the end of WHR-424-E3-2026-11-09, to `2026-11-10T10:49:56Z`. It includes waiting time between owner messages, which uses no tokens.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| #450 fixes and merge, R1 results docs, implementation session | 28,718,283 (28,396,168) | 321,805 | 82,817 | 28,801,100 | $9.91 |
+
+Method: `phase_usage.py --format claude --since 2026-11-09T19:28:42Z --until 2026-11-10T10:49:56Z --include-subagents` on the session transcript. Exact USD 9.9112536. The cache-write tokens are part of the input figure, so the total is input plus output.
+
+Excluded:
+- the separate evaluator's Codex session that ran `build-r1`;
+- the Qodo review runs;
+- CI runs, which use no API tokens;
+- this ledger edit, the commit, the push and the PR after the window.
+
 ## WHR-454-2026-11-10: Claude Code Nutrition label entry, spec to PR (#454)
 
 The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) did the following in this window:

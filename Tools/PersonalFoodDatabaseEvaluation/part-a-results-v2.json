@@ -1,0 +1,240 @@
+{
+  "measures": {
+    "a1_entries": 57,
+    "a1_identity_failed": 0,
+    "a1_identity_passed": 57,
+    "a1_identity_unresolved": 0,
+    "a1_macro_correct": 385,
+    "a1_macro_value_evidence_errors": {
+      "count": 22,
+      "interval": [
+        0.035964,
+        0.080483
+      ],
+      "of": 407
+    },
+    "a1_macro_value_evidence_errors_unresolved": 2,
+    "a1_micro_correct": 0,
+    "a1_micro_value_evidence_errors": {
+      "count": 0,
+      "interval": null,
+      "of": 0
+    },
+    "a1_micro_value_evidence_errors_unresolved": 0,
+    "a1_other_correct": 0,
+    "a1_other_value_errors": 0,
+    "a1_rows_complete_macro": 31,
+    "a1_rows_complete_micro": 0,
+    "a1_state_failed": 5,
+    "a1_state_passed": 52,
+    "a1_state_unresolved": 0,
+    "a1_value_evidence_errors": {
+      "allowed": 12,
+      "count": 22,
+      "interval": [
+        0.035964,
+        0.080483
+      ],
+      "of": 407,
+      "passes": null
+    },
+    "a1_value_evidence_errors_unresolved": 2,
+    "a1_values_candidate_only": 794,
+    "a1_values_correct": 385,
+    "a1_values_error_basis": 0,
+    "a1_values_error_derivation": 0,
+    "a1_values_error_source": 0,
+    "a1_values_error_state": 22,
+    "a1_values_error_transcription": 0,
+    "a1_values_missing": 893,
+    "a1_values_missing_source_available": 0,
+    "a1_values_present_unquantified": 127,
+    "a1_values_stated_assumption": 392,
+    "a1_values_unknown_state": 0,
+    "a1_values_unresolved": 2,
+    "a1_variety_failed": 0,
+    "a1_variety_passed": 57,
+    "a1_variety_unresolved": 0,
+    "a1_wrong_identity_state_or_variety": {
+      "allowed": 2,
+      "count": 5,
+      "interval": [
+        0.038052,
+        0.189449
+      ],
+      "of": 57,
+      "passes": null
+    },
+    "a1_wrong_identity_state_or_variety_unresolved": 0,
+    "a2_different_food_or_other_state": {
+      "allowed": 2,
+      "count": 0,
+      "interval": [
+        0.0,
+        0.087622
+      ],
+      "of": 40,
+      "passes": true
+    },
+    "a2_different_food_or_other_state_unresolved": 0,
+    "a2_entries": 40,
+    "a2_identity_failed": 0,
+    "a2_identity_passed": 40,
+    "a2_identity_unresolved": 0,
+    "a2_macro_correct": 292,
+    "a2_macro_value_evidence_errors": {
+      "count": 0,
+      "interval": [
+        0.0,
+        0.012985
+      ],
+      "of": 292
+    },
+    "a2_macro_value_evidence_errors_unresolved": 0,
+    "a2_micro_correct": 844,
+    "a2_micro_value_evidence_errors": {
+      "count": 0,
+      "interval": [
+        0.0,
+        0.004531
+      ],
+      "of": 844
+    },
+    "a2_micro_value_evidence_errors_unresolved": 0,
+    "a2_other_correct": 148,
+    "a2_other_value_errors": 0,
+    "a2_rows_complete_macro": 18,
+    "a2_rows_complete_micro": 0,
+    "a2_state_failed": 0,
+    "a2_state_passed": 40,
+    "a2_state_unresolved": 0,
+    "a2_values_candidate_only": 0,
+    "a2_values_correct": 1284,
+    "a2_values_error_basis": 0,
+    "a2_values_error_derivation": 0,
+    "a2_values_error_source": 0,
+    "a2_values_error_state": 0,
+    "a2_values_error_transcription": 0,
+    "a2_values_missing": 164,
+    "a2_values_missing_source_available": 0,
+    "a2_values_present_unquantified": 112,
+    "a2_values_stated_assumption": 413,
+    "a2_values_unknown_state": 0,
+    "a2_values_unresolved": 0,
+    "a2_variety_failed": 0,
+    "a2_variety_passed": 40,
+    "a2_variety_unresolved": 0,
+    "a3_entries": 40,
+    "a3_identity_failed": 1,
+    "a3_identity_passed": 39,
+    "a3_identity_unresolved": 0,
+    "a3_misleading": {
+      "allowed": 4,
+      "count": 1,
+      "interval": [
+        0.004427,
+        0.128814
+      ],
+      "of": 40,
+      "passes": true
+    },
+    "a3_misleading_close": 1,
+    "a3_misleading_other_state": 0,
+    "a3_misleading_unresolved": 0,
+    "a3_sensible": 39,
+    "a3_state_failed": 8,
+    "a3_state_passed": 32,
+    "a3_state_unresolved": 0,
+    "a3_variety_failed": 4,
+    "a3_variety_passed": 36,
+    "a3_variety_unresolved": 0,
+    "a4_entries": 20,
+    "a4_identity_failed": 0,
+    "a4_identity_passed": 20,
+    "a4_identity_unresolved": 0,
+    "a4_match_missed": {
+      "count": 20,
+      "interval": [
+        0.838875,
+        1.0
+      ],
+      "of": 20
+    },
+    "a4_match_missed_unresolved": 0,
+    "a4_nothing_suitable": 0,
+    "a4_state_failed": 0,
+    "a4_state_passed": 20,
+    "a4_state_unresolved": 0,
+    "a4_variety_failed": 0,
+    "a4_variety_passed": 20,
+    "a4_variety_unresolved": 0,
+    "a5_entries": 1,
+    "a5_identity_failed": 0,
+    "a5_identity_passed": 1,
+    "a5_identity_unresolved": 0,
+    "a5_macro_correct": 7,
+    "a5_macro_value_evidence_errors": {
+      "count": 0,
+      "interval": [
+        0.0,
+        0.35433
+      ],
+      "of": 7
+    },
+    "a5_macro_value_evidence_errors_unresolved": 0,
+    "a5_micro_correct": 0,
+    "a5_micro_value_evidence_errors": {
+      "count": 0,
+      "interval": null,
+      "of": 0
+    },
+    "a5_micro_value_evidence_errors_unresolved": 0,
+    "a5_other_correct": 0,
+    "a5_other_value_errors": 0,
+    "a5_rows_complete_macro": 0,
+    "a5_rows_complete_micro": 0,
+    "a5_state_failed": 0,
+    "a5_state_passed": 1,
+    "a5_state_unresolved": 0,
+    "a5_value_evidence_errors": {
+      "allowed": 0,
+      "count": 0,
+      "interval": [
+        0.0,
+        0.35433
+      ],
+      "of": 7,
+      "passes": true
+    },
+    "a5_value_evidence_errors_unresolved": 0,
+    "a5_values_candidate_only": 26,
+    "a5_values_correct": 7,
+    "a5_values_error_basis": 0,
+    "a5_values_error_derivation": 0,
+    "a5_values_error_source": 0,
+    "a5_values_error_state": 0,
+    "a5_values_error_transcription": 0,
+    "a5_values_missing": 6,
+    "a5_values_missing_source_available": 0,
+    "a5_values_present_unquantified": 0,
+    "a5_values_stated_assumption": 7,
+    "a5_values_unknown_state": 0,
+    "a5_values_unresolved": 0,
+    "a5_variety_failed": 0,
+    "a5_variety_passed": 1,
+    "a5_variety_unresolved": 0,
+    "a5_wrong_identity_state_or_variety": {
+      "count": 0,
+      "interval": [
+        0.0,
+        0.793451
+      ],
+      "of": 1
+    },
+    "a5_wrong_identity_state_or_variety_unresolved": 0
+  },
+  "part": "A",
+  "part_a_bars": "v2_proposed",
+  "release_id": "pfc:sha256:55caa60d11a9af23a0a7aff23f6a52b6390ef9d8da05c069b4b3f66295d5088d",
+  "schema": "pfd-results-v2"
+}
