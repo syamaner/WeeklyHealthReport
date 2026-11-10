@@ -1,8 +1,8 @@
 # Personal food database: E3 gate status and evidence audit disposition
 
-Status: **10 November 2026. D1 to D5 are decided (section 7). Plan revision 6 records them and was
-approved by the owner on 9 November 2026. R1 is built and its release ID recorded (section 1.1);
-E3 is not final until the remaining steps in section 1 are done.** Written by the
+Status: **10 November 2026. E3 is final: the owner accepted it in plan revision 7 (decision 11).
+D1 to D5 are decided (section 7), plan revision 6 records them, and R1 is built and its release ID
+recorded (section 1.1).** Written by the
 unexposed implementation session from the counts-only handover; it read no private query, expected
 answer, held-out file, review note, estimate companion or transcript. Every input count is copied
 from that handover; the only derived numbers are the bar arithmetic in section 2. Programme #424,
@@ -43,8 +43,7 @@ Points 1 to 3 are done: point 1 in section 7 (D1 to D5), point 2 by
 `95715821858e41779432382ecb6aac51401ec3a18f6633279e1d208998e0e791`, the only results file in the
 evaluator's checkout, which `build-r1` accepts only when it equals the sealed review's result; its
 counts match section 1), and point 3 in section 1.1. Point 4, the owner's
-acceptance in a dated plan revision, is what remains. The owner approved plan revision 6 and the estimates contract on
-9 November 2026; that approval records the decisions, not point 4.
+acceptance in a dated plan revision, is done: plan revision 7, decision 11, 10 November 2026.
 
 ### 1.1 R1 build (10 November 2026, counts only)
 
@@ -89,8 +88,9 @@ remain (416 is the sum of the kept and dropped label values above, the only deri
 survived, otherwise as candidates the user chooses on Confirm), and 167 entries show "No nutrition
 data yet". This is the conservative result the bars of record require, not a defect of the build;
 the approved estimates (R2, section 3) are the route to filling those gaps, under their own
-binding. R1 is complete on its own and does not depend on R2; shipping it is the owner's decision,
-recorded only through the dated acceptance in point 4.
+binding. R1 is complete on its own and does not depend on R2; in plan revision 7 (decision 11) the
+owner accepted it as the floor that ships first, with R2 as the planned next step to give every
+entry a labelled best estimate.
 
 **Where the A1 errors are.** The results file shows that all 22 A1 value errors are
 `error_state` and the 5 failed entries all failed the state check (identity and variety passed

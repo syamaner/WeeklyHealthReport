@@ -1,11 +1,10 @@
 # Personal food database evaluation v1
 
-Status: **draft, revision 6, 9 November 2026. Decisions 1 to 7 are settled. The owner has
-authorised the drafting workflow in decision 8; this does not approve any draft query, answer or
-review verdict. Every row still requires owner validation, and the plan is not yet marked accepted.
-Decisions 9 and 10 are also settled. Revision 6 records decision 10 (the E3 disposition) and was
-approved by the owner on 9 November 2026. E3 is not final until the steps of the
-[E3 disposition](personal-food-database-e3-disposition.md), section 1, are done.**
+Status: **revision 7, 10 November 2026. Decisions 1 to 11 are settled. The owner accepted E3 as
+final in decision 11, after the steps of the [E3 disposition](personal-food-database-e3-disposition.md),
+section 1, were done; implementation may start (section 5). Revision 6 (decision 10) was approved
+by the owner on 9 November 2026. Decision 8 authorised the drafting workflow, not any draft query,
+answer or review verdict.**
 Revision 2 added three clarifications to the bars after a Qodo review
 (section 9, decision 4). Revision 3 answers the architecture-gate review (PASS WITH CHANGES) and the
 invariant review (NEEDS WORK) of revision 2 with the mechanics they asked for (sections 2, 4, 5 and 8)
@@ -272,7 +271,8 @@ Three checks, all required:
 Implementation does not start until E3 is complete and its section 6 consequences are applied to the
 exported file. A failed Part A bar changes the export, not the implementation plan (decision 3).
 Under decision 10, E3 produces two files in order: R1, the drops-only export of the pinned release,
-and then R2, R1 plus approved estimates under the additive estimate binding.
+and then R2, R1 plus approved estimates under the additive estimate binding. Under decision 11, E3
+is complete with R1; R2 follows and does not gate implementation.
 
 ### 5.1 Running Part B against the real Swift code, privately
 
@@ -534,6 +534,26 @@ format is authorised; the existing sheet, pinned inputs and frozen tools remain 
        The choice is recorded in a freeze record before that run and never changed. If the bound
        release does not ship, the other needs its own Part B run on a fresh held-out set (section
        4.3).
+11. Decided 10 November 2026: the owner accepts E3 as final. The four steps of the
+    [E3 disposition](personal-food-database-e3-disposition.md), section 1, are done: D1 to D5
+    (decision 10); the counts-only results file `part-a-results-v2.json` (SHA-256
+    `95715821858e41779432382ecb6aac51401ec3a18f6633279e1d208998e0e791`); R1 built with release ID
+    `pfc:sha256:b883d5c6c9be35825609da9cc0fdbafd148fc93601b1c58b87fc744c6355ed4e`; and this
+    acceptance. No bar moves, and no tool, seal, freeze record or frozen hash changes. The
+    implementation session drafted this decision at the owner's request on 10 November 2026; the
+    owner's merge of the pull request that adds it (#457) is the acceptance of record, and nothing
+    here takes effect before that merge.
+    1. **R1 ships first, as the floor.** It keeps 7 of 416 label values and leaves 167 entries with
+       no nutrition data; that is the conservative result the bars require, accepted as it is.
+    2. **R2 is the planned next step.** Its aim is a labelled best estimate for every entry, under
+       decision 10 and the [estimates contract](personal-food-catalogue-estimates-v1.md): per-nutrient
+       evidence, always shown as an estimate, never from an Open Food Facts record and never sourced
+       from a value or record E3 withheld (contract section 3.1).
+       Unknown stays unknown only where no admissible source exists. R2 is not a condition for
+       implementation. Decision 10, point 5 is unchanged: Part B binds to R2 if it is built and checked before the first development
+       run, and to R1 otherwise.
+    3. **Implementation may start** (section 5), with the importer as its own phase and
+       architecture gate ([import contract](personal-food-catalogue-import-v1.md)).
 
 ## 10. Review record
 
@@ -568,6 +588,9 @@ the two-release order to section 5, and the "A1 outcome determined" rule to sect
 amends review v2 design section 3 by name for a failure determined under every resolution only. It
 moves no bar, changes no tool, seal or frozen hash, and adds a freeze row (section 11) that a later
 tool phase fills.
+
+Revision 7 (10 November 2026) records decision 11, the owner's acceptance of E3 (E3 disposition,
+section 1, point 4). It moves no bar and changes no tool, seal, freeze record or frozen hash.
 
 ## 11. Freeze list
 
