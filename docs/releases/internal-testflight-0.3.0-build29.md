@@ -1,6 +1,6 @@
 # TestFlight 0.2.0 (28) and 0.3.0 (29)
 
-Status: **0.3.0 (29) is the build testers should install.** It was uploaded on 30 October 2026, processed as VALID and added to the Internal Testing group (In Beta Testing). 0.2.0 (28) was uploaded on 28 October 2026 from the same source and is also VALID and In Beta Testing for Internal Testing, but TestFlight files it under the older 0.2.0 version (see [Why build 29](#why-build-29)). Neither build has been submitted to external testers or Beta App Review.
+Status: **superseded by [0.3.0 (30)](internal-testflight-0.3.0-build30.md) on 10 November 2026.** Until then, 0.3.0 (29) was the build testers should install. It was uploaded on 30 October 2026, processed as VALID and added to the Internal Testing group (In Beta Testing). 0.2.0 (28) was uploaded on 28 October 2026 from the same source and is also VALID and In Beta Testing for Internal Testing, but TestFlight files it under the older 0.2.0 version (see [Why build 29](#why-build-29)). Neither build has been submitted to external testers or Beta App Review.
 
 Builds 28 and 29 follow [0.2.0 (26)](internal-testflight-0.2.0-build25.md#build-26-for-external-testers). The changes below are listed since build 26.
 

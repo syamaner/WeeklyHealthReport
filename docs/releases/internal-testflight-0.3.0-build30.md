@@ -1,6 +1,6 @@
 # TestFlight 0.3.0 (30)
 
-Status: **uploaded on 10 November 2026; processing, What to Test and the Internal Testing group still to do.** The owner approved the archive and upload; What to Test and adding the build to Internal Testing each wait for the owner's explicit yes. This record covers what a tester of a Release build would notice since [0.3.0 (29)](internal-testflight-0.3.0-build29.md) (uploaded 30 October 2026, source `main` at `50a356c`). It was checked against `origin/main` at `da7d1ae`, which includes #459. Every entry was checked against the PR text and, where a switch or mode decides reachability, against the code at the composition root.
+Status: **0.3.0 (30) is the build testers should install.** It was uploaded on 10 November 2026, processed as VALID, given the What to Test text below (en-GB) and added to the Internal Testing group only, each step with the owner's explicit approval. No external group, Beta App Review submission or questionnaire change. This record covers what a tester of a Release build would notice since [0.3.0 (29)](internal-testflight-0.3.0-build29.md) (uploaded 30 October 2026, source `main` at `50a356c`). It was checked against `origin/main` at `da7d1ae`, which includes #459. Every entry was checked against the PR text and, where a switch or mode decides reachability, against the code at the composition root.
 
 **Older builds cannot open the food data after updating.** The label estimate layer (#396) adds the metadata-only migration `v8_label_estimate`, which runs when this build first opens the food log, whether or not an estimate is ever chosen. After that, builds 29 and earlier decline the store, so reinstalling an earlier build is not a safe way back; export or back up first. Existing records keep their bytes, and a contract 8 archive is rejected by older readers (#396 PR text).
 
@@ -19,6 +19,8 @@ HealthKit stays read-only. No new egress destination in this range. Label photo 
 | Executable UUID | `3432EFF6-B82A-3E07-BCB9-3495F2071E43` (arm64) |
 | Uploaded IPA SHA-256 | `c19148500693b88b12986908caa61a2c3f3b4d2eea9d28cd8313b87cfdc95f87` |
 | Delivery UUID | `91293427-b306-4686-8537-d2a57b457389` |
+| Processing | VALID (App Store Connect build id is the delivery UUID) |
+| TestFlight | What to Test set (en-GB, 1,732 characters); in Internal Testing, confirmed through `GET /v1/betaGroups/{id}/relationships/builds` |
 
 Method: as for [build 29](internal-testflight-0.3.0-build29.md#upload-method). `xcodebuild archive` (Release, automatic signing with `-allowProvisioningUpdates` and the App Store Connect API key, team `MDNYU95CGT`), then `xcodebuild -exportArchive` (`app-store-connect`, `destination` `export`, `manageAppVersionAndBuildNumber` false, `uploadSymbols` true, `testFlightInternalTestingOnly` not set), then `xcrun altool --upload-app`. The key stays in `~/.appstoreconnect/private_keys/` and never enters the repository, logs or this record. HealthKit stays read-only.
 
