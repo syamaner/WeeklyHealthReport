@@ -4355,6 +4355,26 @@ Excluded:
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
 
+## WHR-458-2026-11-10: Claude Code Open Food Facts panel-stated basis (#458)
+
+The same side session as WHR-452-2026-11-10 (`claude-opus-5-5`, session `ba5b9bdb-7454-4146-802e-71c326cae729`) built `off-product-projection-v5` after the owner approved loosening the pack quantity rule: the issue, the projection change, two synthetic test methods, an offline replay of five real Open Food Facts responses, and the contract amendments. There were no subagents. The window runs from the owner's go-ahead (`2026-11-10T21:33:41Z`) to `2026-11-10T21:49:59Z`; the diagnosis and proposal before it are not measured.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Open Food Facts panel-stated basis (#458), side session | 4,701,050 (4,663,529) | 37,473 | 17,995 | 4,719,045 | $1.59 |
+| Catalogue port aligned after Qodo (#458), same session | 4,518,079 (4,488,945) | 29,098 | 11,525 | 4,529,604 | $1.36 |
+| Malformed panel `per` fix after Qodo (#458), same session | 538,171 (535,657) | 2,510 | 1,589 | 539,760 | $0.16 |
+
+Method: `phase_usage.py --format claude --since 2026-11-10T21:33:41Z --until 2026-11-10T21:49:59Z --include-subagents` on the session transcript. Exact USD 1.5925818. The second row covers the Qodo PR finding that the personal food catalogue port still used v4: aligning `off_rules.py` and the export check, from `2026-11-10T22:07:23Z` to `2026-11-10T22:09:56Z` (`--until`), exact USD 1.361217. The third row covers Qodo's second PR finding (a list or object panel `per` raised in the Python port instead of declining), from `2026-11-10T22:13:55Z` to `2026-11-10T22:14:03Z`, exact USD 0.1590074; reading that review just before the window is not measured. The PR, Auto-fix, the merge of main and waiting between the windows are not measured either. The cache-write tokens are part of the input figure, not added to it.
+
+Excluded:
+- the coordinator session that started this one (its own transcript);
+- the Qodo review runs;
+- local builds and test loops, which use no API tokens;
+- this ledger edit, the commit, the push and the PR after the window.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
 ## WHR-424-R2A-2026-11-10: Claude Code R2 builder, spec to reviewed code (#424)
 
 The implementation session (`claude-opus-5-5`, session `9a30287d-2461-44e3-836e-4b9789374ac5`) did the following in this window:

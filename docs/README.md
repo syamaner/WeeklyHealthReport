@@ -52,7 +52,7 @@ Start with [`../AGENTS.md`](../AGENTS.md) for working rules and [privacy and egr
 - [Query parser v1](food-query-parser-plan-v1.md) and [query parser v8](food-query-parser-v8.md) (cooked egg counts), [query parser v9](food-query-parser-v9.md) (hard boiled eggs, numbered pieces), [query parser v10](food-query-parser-v10.md) (plural cups, mugs and other containers are portions), [input interpretation and nutrition review v1](food-input-interpretation-and-nutrition-review-v1.md), [query interpretation v2](food-query-interpretation-v2.md) (household portions leave the search text), [English street-food input v1](english-street-food-input-v1.md)
 - [Online search recovery v1](online-food-search-recovery-v1.md)
 - [Generic web proposal integration v1](generic-food-proposal-integration-v1.md) and [repair v2](generic-food-proposal-repair-v2.md)
-- [Open Food Facts barcode candidates v1](off-barcode-candidate-plan-v1.md)
+- [Open Food Facts barcode candidates v1](off-barcode-candidate-plan-v1.md), with the panel-stated basis amendment (`off-product-projection-v5`, #458)
 - [Taiwan food catalogue v1](taiwan-food-catalogue-v1.md) and [composite regional source order v9](composite-regional-order-v9.md) (Taiwan rows after UK and US unless the market or query indicates Taiwan)
 - [Source coverage and licence evaluation](food-source-coverage-and-licence-evaluation.md)
 - [Dark chocolate nutrient sources investigation](dark-chocolate-nutrient-sources-investigation.md) (#381): why 70% to 100% cocoa searches give poor nutrition, the source survey (CoFID, USDA, Ciqual 2025 and others) and the owner-approved phase plan A (#382), B (#383) and C (#384)

@@ -180,7 +180,7 @@ final class OpenFoodFactsLookupTests: XCTestCase {
         XCTAssertEqual(bound.upper, 0.1); XCTAssertFalse(bound.upperClosed); XCTAssertEqual(bound.origin, .augmented)
         XCTAssertEqual(entries.first(where: { $0.key == .fiber })?.value, .unknown(.notDeclared))
         XCTAssertEqual(entries.first(where: { $0.key == .sugar })?.value, .unknown(.noCompatibleSource))
-        XCTAssertEqual(input.sourceReleases[0].pipelineVersion.value, "off-product-projection-v4")
+        XCTAssertEqual(input.sourceReleases[0].pipelineVersion.value, "off-product-projection-v5")
     }
 
     func testModernAmbiguousPreparedOrVolumeSetsDeclineWithoutLegacyFallback() async throws {
@@ -226,7 +226,7 @@ final class OpenFoodFactsLookupTests: XCTestCase {
                 XCTAssertEqual(sodium.provenance[0].transforms[0].transformVersion.value, "v1")
             }
             XCTAssertTrue(try XCTUnwrap(sodium.provenance[0].manifestReference).value.hasSuffix("nutrition/input_sets/0/nutrients/sodium"))
-            XCTAssertTrue(input.sourceReleases[0].sourceReleaseID.value.contains("projection:off-product-projection-v4:schema:off-v3.6-explicit-basis-candidates-v4:"))
+            XCTAssertTrue(input.sourceReleases[0].sourceReleaseID.value.contains("projection:off-product-projection-v5:schema:off-v3.6-explicit-basis-candidates-v4:"))
             let repeated = try await sodiumCandidate(["value": value, "unit": unit, "value_computed": 999])
             XCTAssertEqual(input.sourceReleases, repeated.sourceReleases)
             XCTAssertFalse(FoodConfirmationState(input: input).unresolvedIdentity.isEmpty)
@@ -332,6 +332,68 @@ final class OpenFoodFactsLookupTests: XCTestCase {
         nutrition["input_sets"] = panels + [panels[1]]; product["nutrition"] = nutrition; envelope["product"] = product
         let source = OpenFoodFactsLookup(transport: OFFFixtureTransport(response: .init(status: 200, body: try JSONSerialization.data(withJSONObject: envelope))), clock: clock)
         let result = try await source.lookup(request()); XCTAssertEqual(result, .insufficientData)
+    }
+
+    /// off-product-projection-v5 (#458): with no pack quantity, or one that states neither a mass
+    /// nor a volume, the single eligible label panel states its own basis. Synthetic products.
+    func testPanelStatesItsBasisWhenThePackQuantityIsMissingOrUnrecognised() async throws {
+        let massPanel: [String: Any] = ["source": "packaging", "per": "100g", "per_quantity": 100, "per_unit": "g",
+            "preparation": "as_sold", "nutrients": ["energy-kcal": ["value": 579, "unit": "kcal"], "fat": ["value": 46.8, "unit": "g"]]]
+        let volumePanel: [String: Any] = ["source": "packaging", "per": "100ml", "preparation": "as_sold",
+            "nutrients": ["proteins": ["value": 3, "unit": "g"]]]
+        let packs: [String?] = [nil, "", "3 oz", "1 bar", "250 ounces"]
+        for (panel, basis) in [(massPanel, ResolutionBasis.per100Grams), (volumePanel, .per100Millilitres)] {
+            for pack in packs {
+                let body = try response { product in
+                    if let pack { product["quantity"] = pack } else { product.removeValue(forKey: "quantity") }
+                    product.removeValue(forKey: "nutrition_data_per"); product["nutriments"] = [:]
+                    product["nutrition"] = ["input_sets": [panel]]
+                }
+                let lookup = OpenFoodFactsLookup(transport: OFFFixtureTransport(response: .init(status: 200, body: body)), clock: clock)
+                guard case let .candidate(input) = try await lookup.lookup(request()) else { return XCTFail("\(pack ?? "nil") \(basis)") }
+                let candidate = input.candidates[0]
+                XCTAssertEqual(candidate.candidate.identity.servingBasis, basis)
+                let unit: QuantityUnit = basis == .per100Grams ? .grams : .millilitres
+                XCTAssertEqual(candidate.candidate.edibleQuantity, try .known(PositiveQuantity(value: 100, unit: unit), conversionVersionID: nil))
+                let variant = try XCTUnwrap(candidate.variant?.value)
+                XCTAssertTrue(variant.hasSuffix(basis == .per100Grams ? "per 100 g" : "per 100 ml"), variant)
+                XCTAssertFalse(variant.contains("·  ·"), variant)
+                if let pack, !pack.isEmpty { XCTAssertTrue(variant.contains("· \(pack) · per 100"), variant) }
+                XCTAssertEqual(input.sourceReleases[0].pipelineVersion.value, "off-product-projection-v5")
+            }
+        }
+    }
+
+    /// v5 keeps every other refusal: two eligible panels with no pack basis to choose between them,
+    /// an ineligible panel, a pack that contradicts the only panel, a pack stating both, and legacy
+    /// values without a mass pack. Synthetic products.
+    func testPanelBasisStillRefusesAmbiguousContradictingAndLegacyRecords() async throws {
+        let mass: [String: Any] = ["source": "packaging", "per": "100g", "preparation": "as_sold",
+            "nutrients": ["proteins": ["value": 8, "unit": "g"]]]
+        var volume = mass; volume["per"] = "100ml"
+        var serving = mass; serving["per"] = "serving"
+        var prepared = mass; prepared["preparation"] = "prepared"
+        var estimate = mass; estimate["source"] = "estimate"
+        var wrongUnit = mass; wrongUnit["per_unit"] = "ml"
+        let cases: [(String?, [[String: Any]])] = [
+            (nil, [mass, volume]), ("1 bar", [mass, volume]), (nil, [mass, mass]), (nil, [serving]), (nil, [prepared]),
+            (nil, [estimate]), (nil, [wrongUnit]), (nil, []), ("500 ml", [mass]), ("100 g", [volume]), ("250ml / 250g", [mass])
+        ]
+        for (pack, sets) in cases {
+            let body = try response { product in
+                if let pack { product["quantity"] = pack } else { product.removeValue(forKey: "quantity") }
+                product["nutrition"] = ["input_sets": sets]
+            }
+            let lookup = OpenFoodFactsLookup(transport: OFFFixtureTransport(response: .init(status: 200, body: body)), clock: clock)
+            let outcome = try await lookup.lookup(request())
+            XCTAssertEqual(outcome, .insufficientData, "\(pack ?? "nil") \(sets.count)")
+        }
+        for pack in [nil, "3 oz"] as [String?] {
+            let body = try response { product in if let pack { product["quantity"] = pack } else { product.removeValue(forKey: "quantity") } }
+            let lookup = OpenFoodFactsLookup(transport: OFFFixtureTransport(response: .init(status: 200, body: body)), clock: clock)
+            let outcome = try await lookup.lookup(request())
+            XCTAssertEqual(outcome, .insufficientData, "legacy \(pack ?? "nil")")
+        }
     }
 
     func testVolumeComputedSodiumDoesNotBorrowMassOrLegacyNutrition() async throws {
