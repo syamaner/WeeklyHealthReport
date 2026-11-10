@@ -55,14 +55,16 @@ GENERIC_SOURCES = {"cofid", "usda", "tfda"}
 GENERIC_MATCHES = {"same_food_same_state", "close"}
 SOURCE_IDS = {"open-food-facts", "owner"}
 SOURCE_PINS = {  # every release field except the hashes and date is fixed per source_id (contract section 4)
-    "open-food-facts": {"schema_version": "off-v3.6-product-record", "pipeline_version": "off-product-projection-v4",
+    "open-food-facts": {"schema_version": "off-v3.6-product-record", "pipeline_version": "off-product-projection-v4",  # the first pinned form; OFF_PROJECTIONS governs the check
                         "licence": "ODbL 1.0 https://opendatacommons.org/licenses/odbl/1-0/; contents: https://opendatacommons.org/licenses/dbcl/1-0/",
                         "attribution": "Open Food Facts"},
     "owner": {"schema_version": "pfc-intake-label-v1", "pipeline_version": "personal-food-catalogue-skill-v1",
               "licence": "private", "attribution": "Label values typed or confirmed by the owner"},
 }
+# #458: v5 entries are built under the panel-stated basis rule; v4 entries built before it stay valid.
+OFF_PROJECTIONS = {"off-product-projection-v4", "off-product-projection-v5"}
 RELEASE_PATTERNS = {
-    "open-food-facts": re.compile(r"pfc-off:sha256:[0-9a-f]{64}:projection:off-product-projection-v4:retrieved:[0-9]{4}-[0-9]{2}-[0-9]{2}"),
+    "open-food-facts": re.compile(r"pfc-off:sha256:[0-9a-f]{64}:projection:off-product-projection-v[45]:retrieved:[0-9]{4}-[0-9]{2}-[0-9]{2}"),
     "owner": re.compile(r"owner:sha256:[0-9a-f]{64}"),
 }
 SWIFT_PINS = {
@@ -325,7 +327,9 @@ def _check(doc, err):
         attribution_ok = (re.fullmatch(r"Open Food Facts · https://world\.openfoodfacts\.org/product/[0-9]{8,14}",
                                        s["attribution"]) is not None) if kind == "open-food-facts" \
             else s["attribution"] == pins["attribution"]
-        if any(s[f] != pins[f] for f in ("schema_version", "pipeline_version", "licence")) or not attribution_ok:
+        pipeline_ok = (s["pipeline_version"] in OFF_PROJECTIONS and sid.split(":")[4] == s["pipeline_version"]) \
+            if kind == "open-food-facts" else s["pipeline_version"] == pins["pipeline_version"]
+        if any(s[f] != pins[f] for f in ("schema_version", "licence")) or not pipeline_ok or not attribution_ok:
             err("source-pins", f"{sid[:40]}: schema, pipeline, licence or attribution off-pin")
         if sid in declared:
             err("source-duplicate", f"{sid[:40]}")

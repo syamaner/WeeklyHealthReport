@@ -65,6 +65,26 @@ check("non-canonical unit left out", (lambda x: x and "sodium" not in x[3])(run(
 check("boolean value refused", (lambda x: x is None or "energy_consumed" not in x[3])(
     run(legacy(nutriments={"energy-kcal_100g": True, "energy-kcal_unit": "kcal"}))))
 
+# off-product-projection-v5 (#458): with no recognised pack quantity, the single eligible panel
+# states its own basis; every v4 refusal stays.
+for qty in (None, "", "3 oz", "1 bar"):
+    for per, basis in (("100g", "per_100_g"), ("100ml", "per_100_ml_as_labelled")):
+        p = modern(per=per, qty=qty if qty is not None else "")
+        if qty is None:
+            p.pop("quantity")
+        r5 = run(p)
+        check(f"no recognised pack ({qty!r}) uses the panel's {per} basis", r5 and r5[0] == basis
+              and r5[2]["pipeline_version"] == "off-product-projection-v5" and ":off-product-projection-v5:" in r5[2]["source_release_id"])
+two = modern(qty="3 oz")
+two["nutrition"]["input_sets"].append(dict(two["nutrition"]["input_sets"][0], per="100ml"))
+check("two panels with no pack basis refused", run(two) is None)
+check("legacy record with no pack refused", run(legacy(quantity="")) is None)
+check("legacy record with an unrecognised pack refused", run(legacy(quantity="3 oz")) is None)
+check("mass pack still refuses a lone per 100 ml panel", run(modern(per="100ml", qty="500 g")) is None)
+wrong_unit = modern(qty="")
+wrong_unit["nutrition"]["input_sets"][0]["per_unit"] = "ml"
+check("panel unit that contradicts its per refused", run(wrong_unit) is None)
+
 import json as _json, os as _os, tempfile as _tempfile
 from pathlib import Path as _Path
 with _tempfile.TemporaryDirectory() as _d:

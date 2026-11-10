@@ -1,7 +1,7 @@
 """Open Food Facts admission rules, ported from the app's OpenFoodFactsLookup.project
 (Packages/FoodLedgerKit/Sources/FoodGenericSearch/OpenFoodFactsLookup.swift).
 
-Keep this in step with that file. One deliberate difference: the app turns a "<" or ">"
+Keep this in step with that file (off-product-projection-v5 since #458). One deliberate difference: the app turns a "<" or ">"
 value into a bound; the catalogue format has no bounded state in v1, so such a value is
 left out (unknown). Everything else (fields, basis, legacy sodium, supplements, record
 identity) follows the app.
@@ -18,28 +18,33 @@ FIELDS = {"energy_consumed": "energy-kcal", "protein": "proteins", "carbohydrate
 CANON = {"energy_consumed": "kcal", "protein": "g", "carbohydrates": "g", "fat_total": "g",
          "fat_saturated": "g", "fiber": "g", "sugar": "g", "sodium": "mg"}
 MODIFIERS = {"", "<", "<=", ">", ">="}
-PROJECTION_VERSION = "off-product-projection-v4"
+PROJECTION_VERSION = "off-product-projection-v5"  # #458: a panel may state its own basis
 
 
 def _number(v):
     return v if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) and v >= 0 else None
 
 
-def _source_nutrients(product, volume):
-    """OpenFoodFactsLookup.sourceNutrients: one input set, never OFF's aggregate."""
+def _source_nutrients(product, pack_volume):
+    """OpenFoodFactsLookup.sourceNutrients: one input set, never OFF's aggregate.
+
+    pack_volume is the pack's basis (True volume, False mass) or None when the pack states neither;
+    then exactly one eligible panel across both bases states its own basis (v5, #458).
+    Returns (values, modern, volume)."""
     if "nutrition" in product:
         nutrition = product.get("nutrition")
         sets = nutrition.get("input_sets") if isinstance(nutrition, dict) else None
         if not isinstance(sets, list):
             return None
-        per = "100ml" if volume else "100g"
+        pers = {"100ml" if pack_volume else "100g"} if pack_volume is not None else {"100g", "100ml"}
         if not all(isinstance(s, dict) for s in sets):
             return None  # the app's cast fails on a non-dictionary set
         eligible = [(i, s) for i, s in enumerate(sets) if s.get("source") == "packaging"
-                    and s.get("per") == per and s.get("preparation") == "as_sold"]
+                    and s.get("per") in pers and s.get("preparation") == "as_sold"]
         if len(eligible) != 1 or not isinstance(eligible[0][1].get("nutrients"), dict):
             return None
         panel = eligible[0][1]
+        volume = panel.get("per") == "100ml"
         if "per_quantity" in panel and _number(panel["per_quantity"]) != 100:
             return None
         if "per_unit" in panel and panel["per_unit"] != ("ml" if volume else "g"):
@@ -50,12 +55,12 @@ def _source_nutrients(product, volume):
                 out[field + "_100g"] = raw.get("value")
                 out[field + "_unit"] = raw.get("unit")
                 out[field + "_modifier"] = raw.get("modifier")
-        return out, True
-    if volume:  # legacy *_100g does not distinguish mass from volume
+        return out, True, volume
+    if pack_volume is not False:  # legacy *_100g does not distinguish mass from volume: needs a mass pack
         return None
     if product.get("nutrition_data_per") != "100g" or not isinstance(product.get("nutriments"), dict):
         return None
-    return product["nutriments"], False
+    return product["nutriments"], False, False
 
 
 def project(product, record_bytes, retrieved="unknown"):
@@ -70,15 +75,15 @@ def project(product, record_bytes, retrieved="unknown"):
         return None
     pack = product.get("quantity") if isinstance(product.get("quantity"), str) else ""
     mass = re.search(r"(?i)\d\s*(g|kg)\b", pack) is not None
-    volume = re.search(r"(?i)\d\s*(ml|cl|dl|l)\b", pack) is not None
+    liquid = re.search(r"(?i)\d\s*(ml|cl|dl|l)\b", pack) is not None
     tags = product.get("categories_tags")
     tags = tags if isinstance(tags, list) and all(isinstance(t, str) for t in tags) else []
-    if mass == volume or "en:dietary-supplements" in tags:
+    if (mass and liquid) or "en:dietary-supplements" in tags:
         return None
-    src = _source_nutrients(product, volume)
+    src = _source_nutrients(product, None if mass == liquid else liquid)
     if src is None:
         return None
-    nutrients, modern = src
+    nutrients, modern, volume = src
     values = {}
     for key, field in FIELDS.items():
         if key == "sodium" and not modern:

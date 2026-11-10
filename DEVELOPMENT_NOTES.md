@@ -4362,8 +4362,9 @@ The same side session as WHR-452-2026-11-10 (`claude-opus-5-5`, session `ba5b9bd
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Open Food Facts panel-stated basis (#458), side session | 4,701,050 (4,663,529) | 37,473 | 17,995 | 4,719,045 | $1.59 |
+| Catalogue port aligned after Qodo (#458), same session | 4,518,079 (4,488,945) | 29,098 | 11,525 | 4,529,604 | $1.36 |
 
-Method: `phase_usage.py --format claude --since 2026-11-10T21:33:41Z --until 2026-11-10T21:49:59Z --include-subagents` on the session transcript. Exact USD 1.5925818. The cache-write tokens are part of the input figure, not added to it.
+Method: `phase_usage.py --format claude --since 2026-11-10T21:33:41Z --until 2026-11-10T21:49:59Z --include-subagents` on the session transcript. Exact USD 1.5925818. The second row covers the Qodo PR finding that the personal food catalogue port still used v4: aligning `off_rules.py` and the export check, from `2026-11-10T22:07:23Z` to `2026-11-10T22:09:56Z` (`--until`), exact USD 1.361217; the PR, Auto-fix and waiting between the windows are not measured. The cache-write tokens are part of the input figure, not added to it.
 
 Excluded:
 - the coordinator session that started this one (its own transcript);

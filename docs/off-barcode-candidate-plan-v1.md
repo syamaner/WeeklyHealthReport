@@ -78,6 +78,6 @@ The rule, shared by barcode lookup and text search:
 - Legacy `nutriments` records still need `nutrition_data_per` 100g and a mass pack, because legacy values cannot tell grams from millilitres.
 - The source line omits the pack segment when there is no pack quantity ("Open Food Facts · source estimate · per 100 g").
 
-Nothing else changes: the same eight nutrient fields, units, bounds, unknowns, supplement refusal, provenance, attribution, hashes and confirmation before logging. Stored records keep their own projection version and decode unchanged. The personal food catalogue's `off_rules.py` stays on `off-product-projection-v4`, which admits a subset of what v5 admits; see `personal-food-catalogue-import-v1.md`.
+Nothing else changes: the same eight nutrient fields, units, bounds, unknowns, supplement refusal, provenance, attribution, hashes and confirmation before logging. Stored records keep their own projection version and decode unchanged. The personal food catalogue's `off_rules.py` port follows v5 in the same change, so search, barcode lookup and catalogue builds give the same answer. Its export check accepts v4 and v5 releases, each named the same in its ID and `pipeline_version`, so catalogue entries built under v4 stay valid; see `personal-food-catalogue-import-v1.md`.
 
 Out of scope: a search reads at most two product details, so one read can go to a product with no nutrition data at all (6001000006843 in the 85% case).

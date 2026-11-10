@@ -186,6 +186,17 @@ def verify(fixtures: Path):
     golden_bytes = (fixtures / manifest["golden"]).read_bytes()
     errs = E.check_bytes(golden_bytes) + E.check_export_conventions(json.loads(golden_bytes))
     assert errs == [], f"golden rejected: {errs}"
+    # #458: a release built under off-product-projection-v5 is accepted, and the pipeline version
+    # must name the same projection as the release ID.
+    v5 = json.loads(golden_bytes.decode("utf-8").replace("off-product-projection-v4", "off-product-projection-v5"))
+    v5_bytes = json.dumps(v5, ensure_ascii=False, indent=1, sort_keys=False).encode("utf-8")
+    assert "off-product-projection-v5" in v5_bytes.decode("utf-8")
+    errs = E.check_bytes(v5_bytes)
+    assert errs == [], f"v5 golden rejected: {errs}"
+    mixed = json.loads(golden_bytes)
+    mixed["sources"] = [dict(s, pipeline_version="off-product-projection-v5") if s["source_id"] == "open-food-facts" else s
+                        for s in mixed["sources"]]
+    assert "source-pins" in codes(json.dumps(mixed, ensure_ascii=False, indent=1).encode("utf-8")), "mismatched pipeline accepted"
     wrong = []
     for f, code in manifest["reject"].items():
         got = codes((fixtures / f).read_bytes())
