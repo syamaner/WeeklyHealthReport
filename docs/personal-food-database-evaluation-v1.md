@@ -271,7 +271,8 @@ Three checks, all required:
 Implementation does not start until E3 is complete and its section 6 consequences are applied to the
 exported file. A failed Part A bar changes the export, not the implementation plan (decision 3).
 Under decision 10, E3 produces two files in order: R1, the drops-only export of the pinned release,
-and then R2, R1 plus approved estimates under the additive estimate binding.
+and then R2, R1 plus approved estimates under the additive estimate binding. Under decision 11, E3
+is complete with R1; R2 follows and does not gate implementation.
 
 ### 5.1 Running Part B against the real Swift code, privately
 
