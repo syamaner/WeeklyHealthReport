@@ -77,6 +77,13 @@ These agree with the handover: the 6 withheld entries are the 6 entries that los
 references, the 2 references match, and the 22 values dropped with withheld entries plus the 2
 unresolved values are the 24 withheld values.
 
+The A3 state and variety failures in the results file (8 and 4) do not add withheld entries. A3
+rows are candidate references, never merges, and carry no value records. Review v2 design
+section 2.2 counts a candidate in another state or variety as `sensible` when it is labelled as an
+alternative that never supplies target-state values. The plan's per-entry exclusion covers an
+incompatible *merged* state, so an A3 entry is withheld only when its candidate is misleading or
+a different food (the frozen `exclusion_list`). Here that is 1 entry (`a3_misleading` 1 of 40).
+
 **What R1 means for the product.** The A1 consequence removes almost every label value: 7 of 416
 remain (416 is the sum of the kept and dropped label values above, the only derived number here). R1 therefore offers nutrition mostly through generic references (merged where a merge
 survived, otherwise as candidates the user chooses on Confirm), and 167 entries show "No nutrition
