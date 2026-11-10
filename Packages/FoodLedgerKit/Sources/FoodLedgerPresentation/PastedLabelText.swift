@@ -12,7 +12,6 @@ public enum PastedLabelText {
     /// The Change sheet's note (#308): the amount is not converted when the basis changes.
     public static let basisChangeKeepsAmount =
         "Your amount and its unit stay as they are. After changing, check the unit on Confirm: grams for per 100 g, millilitres for per 100 mL."
-    public static let addFoodRow = "Paste nutrition label"
     public static let nameField = "Name"
     public static let namePrompt = "For example Oat granola"
     public static let brandField = "Brand (optional)"

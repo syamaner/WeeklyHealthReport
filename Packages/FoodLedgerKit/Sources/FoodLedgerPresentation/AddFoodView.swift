@@ -58,10 +58,11 @@ public struct AddFoodView: View {
     private let search: (String) -> Void
     private let scanBarcode: (() -> Void)?
     private let pasteOrDictate: (() -> Void)?
-    /// Paste nutrition label (#93): its own row, separate from the food list (decision 1).
-    private let pasteLabel: (() -> Void)?
-    /// Photo of nutrition label (#316): shown only when the route is enabled (off until L5).
-    private let photoLabel: (() -> Void)?
+    /// Nutrition label (#454): one row for photo, screenshot and pasted or typed label text,
+    /// separate from the food list. Always offered by the app, since text entry is always available.
+    private let nutritionLabel: (() -> Void)?
+    /// The photo route's mode is not off: keys the row's subtitle only, never its blockers.
+    private let nutritionLabelPhotos: Bool
     private let favourites: (() -> Void)?
     /// Nil when favourites cannot be read: shown as a failure with a way to Favourites, never as empty.
     private let favouriteItems: [QuickAddItem]?
@@ -81,8 +82,8 @@ public struct AddFoodView: View {
     public init(recents: [FoodRecentRelogItem], recentsLoading: Bool = false, recentsFailed: Bool = false, now: Date = Date(), calendar: Calendar = .current,
                 initialText: String = "",
                 search: @escaping (String) -> Void, scanBarcode: (() -> Void)?, pasteOrDictate: (() -> Void)?,
-                pasteLabel: (() -> Void)? = nil,
-                photoLabel: (() -> Void)? = nil,
+                nutritionLabel: (() -> Void)? = nil,
+                nutritionLabelPhotos: Bool = false,
                 favourites: (() -> Void)?, favouriteItems: [QuickAddItem]? = [], favouritesLoading: Bool = false,
                 favouriteAmountIsServings: @escaping (QuickAddItem) -> Bool = { _ in false },
                 quickAdd: ((QuickAddItem) -> Void)? = nil,
@@ -96,8 +97,8 @@ public struct AddFoodView: View {
         self.now = now; self.calendar = calendar
         self.favouriteSaving = favouriteSaving
         self.favouriteStatesLoaded = favouriteStatesLoaded
-        self.search = search; self.scanBarcode = scanBarcode; self.pasteOrDictate = pasteOrDictate; self.pasteLabel = pasteLabel
-        self.photoLabel = photoLabel
+        self.search = search; self.scanBarcode = scanBarcode; self.pasteOrDictate = pasteOrDictate
+        self.nutritionLabel = nutritionLabel; self.nutritionLabelPhotos = nutritionLabelPhotos
         self.favourites = favourites; self.favouriteItems = favouriteItems; self.favouriteAmountIsServings = favouriteAmountIsServings; self.quickAdd = quickAdd; self.relog = relog
         _text = State(initialValue: initialText)
     }
@@ -123,12 +124,11 @@ public struct AddFoodView: View {
             Section {
                 if let scanBarcode { routeRow("Scan barcode", systemImage: "barcode.viewfinder", action: scanBarcode) }
                 if let pasteOrDictate { routeRow("Paste or dictate a list", systemImage: "list.bullet", action: pasteOrDictate) }
-                if let pasteLabel { routeRow(PastedLabelText.addFoodRow, systemImage: "doc.text.magnifyingglass", action: pasteLabel) }
-                if let photoLabel {
-                    Button(action: photoLabel) {
+                if let nutritionLabel {
+                    Button(action: nutritionLabel) {
                         HStack {
-                            RouteRowLabel(LabelPhotoText.addFoodRow, systemImage: "camera.viewfinder",
-                                          subtitle: LabelPhotoText.addFoodRowSubtitle)
+                            RouteRowLabel(NutritionLabelEntryText.addFoodRow, systemImage: "doc.text.viewfinder",
+                                          subtitle: NutritionLabelEntryText.addFoodRowSubtitle(photosEnabled: nutritionLabelPhotos))
                             .foregroundStyle(.primary)
                             Spacer(minLength: 0)
                             Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary).accessibilityHidden(true)
@@ -137,7 +137,7 @@ public struct AddFoodView: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .accessibilityIdentifier("addFood.photoLabel")
+                    .accessibilityIdentifier("addFood.nutritionLabel")
                 }
                 if let favourites { routeRow("Favourites", systemImage: "star", action: favourites) }
             } footer: {

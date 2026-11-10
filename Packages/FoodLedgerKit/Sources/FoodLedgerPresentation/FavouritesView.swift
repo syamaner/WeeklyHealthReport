@@ -236,7 +236,7 @@ public struct FavouritesView: View {
                 createRow("Food search", systemImage: "magnifyingglass", action: createFromSearch, hint: Self.logNowHint("food search"))
                 createRow("Barcode", systemImage: "barcode.viewfinder", action: createFromBarcode, hint: Self.logNowHint("barcode"))
                 createRow("Web lookup", systemImage: "globe", action: createFromWebLookup, hint: Self.logNowHint("web lookup"))
-                unavailableRow("Photo of nutrition label")
+                unavailableRow(NutritionLabelEntryText.addFoodRow)
                 unavailableRow("Photo of the food")
             } header: { Text(Self.logNowHeader) } footer: {
                 Text(Self.logNowFooter)

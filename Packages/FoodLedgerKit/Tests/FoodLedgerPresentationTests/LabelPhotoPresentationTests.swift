@@ -183,6 +183,7 @@ final class LabelPhotoPresentationTests: XCTestCase {
         var online = true
         var status = LabelPhotoReadSession.Status(day: .open(reads: 3), routeUnavailable: false)
         var hold = false
+        var finishedReads = 0
     }
 
     func screen(_ script: Script, prepare: LabelImagePreparationError? = nil) throws -> LabelPhotoScreenModel {
@@ -195,6 +196,7 @@ final class LabelPhotoPresentationTests: XCTestCase {
                 if script.hold {
                     progress(2)
                     while !Task.isCancelled { await Task.yield() }
+                    defer { script.finishedReads += 1 }
                     return .failed(.cancelled)
                 }
                 return script.outcome
@@ -300,6 +302,83 @@ final class LabelPhotoPresentationTests: XCTestCase {
         model.cancel()
         try await waitUntil { !model.isBusy }
         XCTAssertEqual(model.phase, .failed("Stopped. The photo may already have reached OpenRouter; nothing was saved."))
+    }
+
+    /// The Nutrition label visit shares one model across photo pushes: a read that ends after Back
+    /// and a new photo must not touch the new photo's screen (Qodo review of #454).
+    func testAReadThatEndsAfterANewPhotoLeavesTheNewPhotoAlone() async throws {
+        let script = Script(); script.consented = true; script.hold = true
+        let model = try screen(script)
+        await ready(model)
+        model.readTapped()
+        try await waitUntil { model.phase == .retrying(attempt: 2) }
+        model.leave()
+        model.choose(Data([2]))
+        try await waitUntil { script.finishedReads == 1 }
+        for _ in 0..<20 { await Task.yield() }
+        XCTAssertEqual(model.phase, .editing)
+        XCTAssertTrue(model.cropping)
+        XCTAssertEqual(model.photo, Data([2]))
+        XCTAssertNil(model.confirmSource)
+        XCTAssertFalse(model.isBusy)
+    }
+
+    /// A retry report from an earlier photo's read never shows on the next photo's read.
+    func testAnEarlierReadsRetryDoesNotShowOnTheNextRead() async throws {
+        let script = Script(); script.consented = true
+        var stale: (@Sendable (Int) -> Void)?
+        let source = try self.source()
+        let model = LabelPhotoScreenModel(environment: .init(
+            prepare: { _, _ in .success(Self.image) },
+            read: { _, progress in
+                script.reads += 1
+                if script.reads == 1 { stale = progress; return .failed(.timedOut) }
+                while !Task.isCancelled { await Task.yield() }
+                return .failed(.cancelled)
+            },
+            status: { script.status }, keyState: { script.key }, isOnline: { script.online },
+            hasConsented: { script.consented }, recordConsent: { script.consented = true },
+            makeConfirm: { _, _, _ in source }))
+        await ready(model)
+        model.readTapped()
+        try await waitUntil { !model.isBusy && script.reads == 1 }
+        model.leave()
+        await ready(model)
+        model.readTapped()
+        try await waitUntil { model.phase == .reading && script.reads == 2 }
+        stale?(2)
+        for _ in 0..<20 { await Task.yield() }
+        XCTAssertEqual(model.phase, .reading)
+        model.cancel()
+    }
+
+    /// A slow earlier refresh never replaces a newer count (Qodo review of #454).
+    func testAnEarlierRefreshNeverReplacesANewerCount() async throws {
+        let script = Script()
+        var calls = 0
+        var release = false
+        let source = try self.source()
+        let model = LabelPhotoScreenModel(environment: .init(
+            prepare: { _, _ in .success(Self.image) },
+            read: { _, _ in .failed(.timedOut) },
+            status: {
+                calls += 1
+                if calls == 1 {
+                    while !release { await Task.yield() }
+                    return .init(day: .open(reads: 3), routeUnavailable: false)
+                }
+                return .init(day: .open(reads: 4), routeUnavailable: false)
+            },
+            keyState: { script.key }, isOnline: { script.online },
+            hasConsented: { script.consented }, recordConsent: { script.consented = true },
+            makeConfirm: { _, _, _ in source }))
+        let slow = Task { await model.refresh() }
+        try await waitUntil { calls == 1 }
+        await model.refresh()
+        XCTAssertEqual(model.status?.day, .open(reads: 4))
+        release = true
+        await slow.value
+        XCTAssertEqual(model.status?.day, .open(reads: 4))
     }
 
     func testACropTooSmallIsRefusedWithItsCopy() throws {
