@@ -539,7 +539,10 @@ format is authorised; the existing sheet, pinned inputs and frozen tools remain 
     (decision 10); the counts-only results file `part-a-results-v2.json` (SHA-256
     `95715821858e41779432382ecb6aac51401ec3a18f6633279e1d208998e0e791`); R1 built with release ID
     `pfc:sha256:b883d5c6c9be35825609da9cc0fdbafd148fc93601b1c58b87fc744c6355ed4e`; and this
-    acceptance. No bar moves, and no tool, seal, freeze record or frozen hash changes.
+    acceptance. No bar moves, and no tool, seal, freeze record or frozen hash changes. The
+    implementation session drafted this decision at the owner's request on 10 November 2026; the
+    owner's merge of the pull request that adds it (#457) is the acceptance of record, and nothing
+    here takes effect before that merge.
     1. **R1 ships first, as the floor.** It keeps 7 of 416 label values and leaves 167 entries with
        no nutrition data; that is the conservative result the bars require, accepted as it is.
     2. **R2 is the planned next step.** Its aim is a labelled best estimate for every entry, under
