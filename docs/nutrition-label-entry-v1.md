@@ -1,6 +1,6 @@
 # Nutrition label entry v1 (#454)
 
-Status: **design spec and architecture gate, revision 3, 10 November 2026. Documents only; no production code.**
+Status: **design spec and architecture gate, revision 3, 10 November 2026; implemented in the #454 PR.**
 - Q1 to Q3 were decided by the owner on 10 November 2026 (section 9).
 - The architecture gate returned PASS WITH CHANGES on revision 1 (12 changes) and on revision 2 (N1 to N6). All are applied here, with their sections listed in section 11.
 - **The gate passed revision 3 on 10 November 2026.** Its one optional note, the DEBUG seam's loading event and gate, is applied in 6.2 test 10.

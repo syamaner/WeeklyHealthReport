@@ -101,20 +101,46 @@ public struct LabelPastePicker: View {
 
         func loadImage() async -> Data? {
             guard let image else { return nil }
-            return await withCheckedContinuation { continuation in
-                _ = image.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, _ in
-                    continuation.resume(returning: data)
+            let load = LoadHandle()
+            return await withTaskCancellationHandler {
+                await withCheckedContinuation { continuation in
+                    load.progress = image.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, _ in
+                        continuation.resume(returning: data)
+                    }
                 }
-            }
+            } onCancel: { load.cancel() }
         }
 
         func loadText() async -> String? {
             guard let text else { return nil }
-            return await withCheckedContinuation { continuation in
-                _ = text.loadObject(ofClass: NSString.self) { reading, _ in
-                    continuation.resume(returning: (reading as? NSString).map { String($0) })
+            let load = LoadHandle()
+            return await withTaskCancellationHandler {
+                await withCheckedContinuation { continuation in
+                    load.progress = text.loadObject(ofClass: NSString.self) { reading, _ in
+                        continuation.resume(returning: (reading as? NSString).map { String($0) })
+                    }
                 }
+            } onCancel: { load.cancel() }
+        }
+    }
+
+    /// The item provider's load, cancelled when the paste task is cancelled (leaving the screen or a
+    /// new paste), so the provider stops delivering and is released. A cancelled load still calls
+    /// its completion, with no data, so the continuation always resumes.
+    private final class LoadHandle: @unchecked Sendable {
+        private let lock = NSLock()
+        private var cancelled = false
+        private var _progress: Progress?
+        var progress: Progress? {
+            get { lock.withLock { _progress } }
+            set {
+                let cancelNow = lock.withLock { _progress = newValue; return cancelled }
+                if cancelNow { newValue?.cancel() }
             }
+        }
+        func cancel() {
+            let current = lock.withLock { cancelled = true; return _progress }
+            current?.cancel()
         }
     }
 }
