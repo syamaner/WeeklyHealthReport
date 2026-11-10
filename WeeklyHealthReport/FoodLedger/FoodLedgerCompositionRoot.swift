@@ -1905,7 +1905,11 @@ final class NutritionLabelVisit: ObservableObject {
     @Published var showsPhoto = false {
         didSet { if oldValue, !showsPhoto { photoModel?.leave() } }
     }
-    @Published var showsText = false
+    /// Closing the text screen drops the routed text, so the visit keeps no label text after Back
+    /// (pasted-label invariant 12; Qodo review of #454).
+    @Published var showsText = false {
+        didSet { if oldValue, !showsText { text = "" } }
+    }
     /// The text for the next pasted-label screen, byte for byte; "" for Type or paste text.
     private(set) var text = ""
     /// A new text screen per routing, so each starts from its own initial text.

@@ -119,6 +119,16 @@ final class LabelPhotoCompositionTests: XCTestCase {
         XCTAssertTrue(model.cropping)
     }
 
+    /// Closing the pasted-label screen drops the routed text from the visit.
+    func testClosingTheTextScreenDropsTheText() throws {
+        let (root, _) = try makeRoot(route: "answer")
+        let visit = NutritionLabelVisit(root: root)
+        visit.openText(" 營養標示\n")
+        XCTAssertEqual(visit.text, " 營養標示\n")
+        visit.showsText = false
+        XCTAssertEqual(visit.text, "")
+    }
+
     /// Going back from the photo screen by any means drops the photo from memory (E15), even though
     /// the visit keeps the one shared model for the next photo.
     func testPoppingThePhotoScreenDropsThePhoto() throws {
