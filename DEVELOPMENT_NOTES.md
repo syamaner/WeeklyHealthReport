@@ -4354,3 +4354,26 @@ Excluded:
 - this ledger edit, the commit, the push and the PR after the window.
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
+## WHR-424-R2A-2026-11-10: Claude Code R2 builder, spec to reviewed code (#424)
+
+The implementation session (`claude-opus-5-5`, session `9a30287d-2461-44e3-836e-4b9789374ac5`) did the following in this window:
+- wrote the R2 builder spec and architecture gate `docs/personal-food-database-r2-builder-v1.md`, including the `pfd-estimate-companion-v1` format;
+- wrote `r2/estimates_v1.py`, `r2/r2_export.py`, `r2/pfd_r2.py` and the synthetic tests `tests/test_r2.py`;
+- ran an architecture gate (PASS WITH CHANGES) and an invariant review (NEEDS WORK) blind to each other, and folded their findings;
+- ran local Qodo reviews.
+
+The subagents are included: the architecture gate and the invariant reviewer. The window runs from `2026-11-10T22:10:09Z`, the owner's "Yes, start R2a", to `2026-11-10T22:21:46Z`.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| R2 builder spec, code, tests and reviews, implementation session and subagents | 12,219,569 (11,961,859) | 257,562 | 94,797 | 12,314,366 | $5.91 |
+
+Method: `phase_usage.py --format claude --since 2026-11-10T22:10:09Z --include-subagents` on the session transcript. Exact USD 5.9117118. The cache-write tokens are part of the input figure, and 145,896 of them are 5-minute writes. The total is input plus output.
+
+Excluded:
+- the Qodo review runs;
+- local test runs, which use no API tokens;
+- any review fixes, this ledger edit, the commit, the push and the PR after the window.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison, not billing, and token totals do not measure quality or productivity.

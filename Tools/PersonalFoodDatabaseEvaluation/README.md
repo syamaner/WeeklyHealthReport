@@ -221,3 +221,23 @@ export conventions and the importer's rules, or nothing is written. All three fi
 prints counts and the R1 release ID only. The three files are the R1 file, the unresolved list and the build record.
 
 For the A1 consequence the evaluator runs it with `--a1 on --a2 off` (A2 passed), passing the committed Part A results file as `--results`.
+
+## R2, R1 plus owner-approved estimates (#424, plan decision 11)
+
+`r2/` builds R2 in the schema `personal-food-catalogue-estimates-v1` from R1 and an estimate companion
+(`pfd-estimate-companion-v1`). The format, the admission rules and the architecture gate are in
+[`docs/personal-food-database-r2-builder-v1.md`](../../docs/personal-food-database-r2-builder-v1.md).
+
+| File | Role |
+|---|---|
+| `r2/estimates_v1.py` | Pure. A builder-side mirror of the estimates contract's file rules (sections 2.1 to 2.3 and the section 6 transform arithmetic); the v1 part is checked with the unchanged v1 rules. The bundled-corpus value check stays the importer's. |
+| `r2/r2_export.py` | Pure. Parses the companion, admits or withholds each estimate (first rule wins: `label_kept`, `recipe_estimate`, `prior_release_unresolved`, `open_food_facts_source`, `e3_withheld_value`, `e3_withheld_source`, `own_reference`, `transform`, `basis`), assembles R2 and proves with `check_additive` that nothing outside the estimate fields differs from R1 and with `check_admitted` that the estimates are exactly the admitted companion rows. |
+| `r2/pfd_r2.py` | Command line and files only: `build-r2 --root DIR --release PINNED.json --companion COMPANION.json`. |
+
+**Fail closed.** `build-r2` refuses unless the pinned release has the ID in `freeze-v1.json`, the R1
+file has the ID its build record names, the unresolved and exclusion lists match that record's hashes
+and the companion names the R1 ID. It writes `personal-food-catalogue-estimates-v1.json` and
+`build-record.json` (`pfd-r2-build-v1`) to `<root>/r2/<R2 ID prefix>-<companion SHA-256 prefix>/` (16 hex digits each), all or
+nothing, never overwriting a different file, and prints counts and the R1 and R2 release IDs only (a
+refusal prints rule codes, never IDs). `entries_without_values` is the worklist for the next round of
+estimates; the companion is cumulative, and each rebuild is a new release in its own folder.
