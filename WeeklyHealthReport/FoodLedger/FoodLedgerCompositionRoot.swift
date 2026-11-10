@@ -599,16 +599,20 @@ final class FoodLedgerCompositionRoot {
 
     /// The label text screen's model (#93): reads on device through the application reader and
     /// builds Confirm's pasted-label source through the application builder. Its Developer tools
-    /// lines live only while the screen is open.
-    func pastedLabelTextModel(locale: Locale = .current) -> PastedLabelTextViewModel {
+    /// lines live only while the screen is open. `initialText` is the pasted text from the
+    /// Nutrition label screen (#454), set unchanged: no trim, normalisation or truncation. The
+    /// screen's own rules (the length limit, Read label, reader v3) apply to it as to typed text.
+    func pastedLabelTextModel(locale: Locale = .current, initialText: String = "") -> PastedLabelTextViewModel {
         let reader = pastedLabelReader, builder = pastedLabelConfirmation, diagnostics = searchDiagnostics
         let identifier = locale.identifier.isEmpty ? "und" : locale.identifier
-        return PastedLabelTextViewModel(read: { reader.read($0) }, makeConfirm: { review, details in
+        let model = PastedLabelTextViewModel(read: { reader.read($0) }, makeConfirm: { review, details in
             try PastedLabelSourceModel(review: review, details: details, builder: builder, locale: LedgerText(identifier))
         }, choose: { arrangement, request in
             // Reader v3 8.4.8: the choice is stamped by the confirmation clock.
             try builder.choose(arrangement, in: request)
         }, recordDiagnostics: { diagnostics.recordPastedLabel($0) })
+        model.text = initialText
+        return model
     }
 
     /// Confirm for a pasted label: the same Confirm, Log and banner as every single-food route,
@@ -866,8 +870,7 @@ struct AddFoodFlowView: View {
     @State private var showsBarcode = false
     @State private var showsList = false
     @State private var showsFavourites = false
-    @State private var showsLabel = false
-    @State private var showsPhotoLabel = false
+    @State private var showsNutritionLabel = false
     @State private var confirmationModel: FoodConfirmationViewModel?
     @State private var showsConfirmation = false
     @State private var relogFailed = false
@@ -893,8 +896,8 @@ struct AddFoodFlowView: View {
                     search: { submittedQuery = $0; showsSearch = true },
                     scanBarcode: { showsBarcode = true },
                     pasteOrDictate: { showsList = true },
-                    pasteLabel: { showsLabel = true },
-                    photoLabel: root.labelPhotoEnabled ? { showsPhotoLabel = true } : nil,
+                    nutritionLabel: { showsNutritionLabel = true },
+                    nutritionLabelPhotos: root.labelPhotoEnabled,
                     favourites: { showsFavourites = true },
                     favouriteItems: favouriteItems.items,
                     favouritesLoading: !favouritesLoaded,
@@ -926,15 +929,10 @@ struct AddFoodFlowView: View {
             else { ContentUnavailableView("Food list unavailable", systemImage: "exclamationmark.triangle") }
         }
         .navigationDestination(isPresented: $showsFavourites) { favouritesFlow }
-        .navigationDestination(isPresented: $showsLabel) {
-            PastedLabelFlowView(root: root, finish: finish) {
-                showsLabel = false; Task { await reloadRecents() }
+        .navigationDestination(isPresented: $showsNutritionLabel) {
+            NutritionLabelFlowView(root: root, finish: finish) {
+                showsNutritionLabel = false; Task { await reloadRecents() }
             }
-        }
-        .navigationDestination(isPresented: $showsPhotoLabel) {
-            if let flow = LabelPhotoFlowView(root: root, finish: finish, close: {
-                showsPhotoLabel = false; Task { await reloadRecents() }
-            }) { flow } else { ContentUnavailableView("Label photo unavailable", systemImage: "exclamationmark.triangle") }
         }
         .navigationDestination(isPresented: $showsConfirmation) {
             if let confirmationModel {
@@ -988,9 +986,11 @@ struct PastedLabelFlowView: View {
     @State private var showsSearch = false
     @State private var showsBarcode = false
 
-    init(root: FoodLedgerCompositionRoot, finish: FoodEntryFinish? = nil, close: @escaping () -> Void) {
+    /// `initialText` is pasted text from the Nutrition label screen (#454), byte for byte; empty
+    /// for Type or paste text and for the photo screen's Paste nutrition label buttons.
+    init(root: FoodLedgerCompositionRoot, finish: FoodEntryFinish? = nil, initialText: String = "", close: @escaping () -> Void) {
         self.root = root; self.finish = finish; self.close = close
-        _model = StateObject(wrappedValue: root.pastedLabelTextModel())
+        _model = StateObject(wrappedValue: root.pastedLabelTextModel(initialText: initialText))
     }
 
     var body: some View {
@@ -1748,14 +1748,17 @@ struct AppLabelPhotoViews: LabelPhotoViewFactory {
     }
 }
 
-/// Photo of nutrition label (#316): Label photo, then the shared Confirm with one Log action.
-/// Leaving, or logging, drops the photo from memory; it is kept only with a logged entry (E15).
+/// The label photo route (#316), reached from the Nutrition label screen (#454): Label photo, then
+/// the shared Confirm with one Log action. Leaving, or logging, drops the photo from memory; it is
+/// kept only with a logged entry (E15).
 struct LabelPhotoFlowView: View {
     private let root: FoodLedgerCompositionRoot
     private let finish: FoodEntryFinish?
     private let close: () -> Void
     private let views: AppLabelPhotoViews
-    @StateObject private var model: LabelPhotoScreenModel
+    /// The entry visit's one-shot photo (pasted or chosen on the Nutrition label screen).
+    private let pending: LabelPhotoPendingInput
+    @ObservedObject private var model: LabelPhotoScreenModel
     @State private var confirmationModel: FoodConfirmationViewModel?
     @State private var showsConfirmation = false
     @State private var showsPaste = false
@@ -1763,12 +1766,14 @@ struct LabelPhotoFlowView: View {
     @State private var showsKeySettings = false
     @Environment(\.openURL) private var openURL
 
+    /// `model` is the entry visit's one `LabelPhotoScreenModel` (docs/nutrition-label-entry-v1.md
+    /// 3.5), injected so a pasted image and a chosen photo share it; this view never builds its own.
     @MainActor
-    init?(root: FoodLedgerCompositionRoot, finish: FoodEntryFinish?, close: @escaping () -> Void) {
-        guard let model = root.labelPhotoScreenModel() else { return nil }
-        self.root = root; self.finish = finish; self.close = close
+    init(root: FoodLedgerCompositionRoot, model: LabelPhotoScreenModel, pending: LabelPhotoPendingInput, finish: FoodEntryFinish?,
+         close: @escaping () -> Void) {
+        self.root = root; self.finish = finish; self.close = close; self.pending = pending
         views = AppLabelPhotoViews(sample: root.labelPhotoSample)
-        _model = StateObject(wrappedValue: model)
+        _model = ObservedObject(wrappedValue: model)
     }
 
     var body: some View {
@@ -1777,6 +1782,10 @@ struct LabelPhotoFlowView: View {
                              openRouterSettings: { showsKeySettings = true },
                              pasteLabel: { showsPaste = true }, searchFoods: { showsSearch = true },
                              privacyPolicy: { openURL(PrivacyPolicy.publicURL) }, leave: close)
+            // The pending photo is consumed once, after the screen has appeared, so the crop cover
+            // is presented once, from the screen it is attached to (3.5). A return from Confirm
+            // finds nothing pending.
+            .onAppear { pending.consume(into: model) }
             .onChange(of: showsConfirmation) { _, shown in
                 if !shown { Task { await model.returnedFromConfirm() } }
             }
@@ -1801,6 +1810,158 @@ struct LabelPhotoFlowView: View {
             .navigationDestination(isPresented: $showsSearch) {
                 if let flow = GenericFoodSearchFlowView(root: root, finish: finish) { flow }
                 else { ContentUnavailableView("Food search unavailable", systemImage: "exclamationmark.triangle") }
+            }
+    }
+}
+
+// MARK: Nutrition label (#454, docs/nutrition-label-entry-v1.md)
+
+/// The entry visit's one-shot photo for the label photo screen (3.5): put by the Nutrition label
+/// screen, then handed to `choose(_:)` exactly once, after the photo screen has appeared.
+@MainActor
+final class LabelPhotoPendingInput {
+    private var data: Data?
+
+    var isPending: Bool { data != nil }
+
+    func put(_ data: Data) { self.data = data }
+
+    /// The one path into the photo route for a pasted or chosen image: `choose(_:)` once; later
+    /// calls do nothing.
+    func consume(into model: LabelPhotoScreenModel) {
+        guard let data else { return }
+        self.data = nil
+        model.choose(data)
+    }
+}
+
+/// `FoodLabelPhotoUI`'s Paste control behind presentation's port (section 6). Built in every photo
+/// route mode, off included, because the Paste section always shows; off asks for text only.
+struct AppNutritionLabelControls: NutritionLabelControlFactory {
+    /// The DEBUG-only synthetic payload, or nil to read the clipboard.
+    let sample: LabelPastePicker.Sample?
+
+    func pasteControl(acceptsImages: Bool, events: @escaping (NutritionLabelPasteEvent) -> Void) -> AnyView {
+        AnyView(LabelPastePicker(acceptsImages: acceptsImages, sample: sample) { events(Self.event($0)) })
+    }
+
+    /// The types the control requests: images and text when not off, plain text only when off.
+    static func contentTypes(acceptsImages: Bool) -> [UTType] { LabelPastePicker.contentTypes(acceptsImages: acceptsImages) }
+
+    static func event(_ event: LabelPastePicker.Event) -> NutritionLabelPasteEvent {
+        switch event {
+        case .loading: .loading
+        case let .loaded(imageData, text): .loaded(imageData: imageData, text: text)
+        case let .failed(text): .failed(text: text)
+        }
+    }
+}
+
+extension FoodLedgerCompositionRoot {
+    var nutritionLabelControls: AppNutritionLabelControls { AppNutritionLabelControls(sample: labelPasteSample) }
+
+    /// `-LabelPasteSample image|text|both|brokenImage` (6.2 test 10): a synthetic payload in place of
+    /// the clipboard, so journey QA reaches the loading, Both and failed-image states. Honoured
+    /// only with the fake route, and compiled out of Release, so a live or Release build never
+    /// emits a synthetic payload.
+    var labelPasteSample: LabelPastePicker.Sample? {
+        #if DEBUG
+        guard case .fake = labelPhotoMode, let raw = userDefaults.string(forKey: "LabelPasteSample") else { return nil }
+        let text = LabelPasteSampleText.taiwan
+        switch raw {
+        case "image": return .init(imageData: labelPhotoSample, text: nil)
+        case "text": return .init(imageData: nil, text: text)
+        case "both": return .init(imageData: labelPhotoSample, text: text)
+        case "brokenImage": return .init(imageData: Data("not an image".utf8), text: text)
+        default: return nil
+        }
+        #else
+        return nil
+        #endif
+    }
+}
+
+#if DEBUG
+/// The DEBUG seam's synthetic label text: the fake route's synthetic Taiwan label as text. Never a
+/// real label.
+enum LabelPasteSampleText {
+    static let taiwan = ["營養標示", "每一份量 30 公克", "本包裝含 10 份", "　　　　每份  每100公克", "熱量  111 大卡  370 大卡",
+                         "蛋白質  1.6 公克  5.2 公克", "脂肪  2.0 公克  6.7 公克", "碳水化合物  18.0 公克  60.1 公克",
+                         "鈉  80 毫克  267 毫克"].joined(separator: "\n") + "\n"
+}
+#endif
+
+/// One visit to the Nutrition label screen: its entry model, the one `LabelPhotoScreenModel` the
+/// pasted-image and source-button paths share (3.5), and what is routed next.
+@MainActor
+final class NutritionLabelVisit: ObservableObject {
+    /// Nil when the photo route is off: images are then never requested.
+    let photoModel: LabelPhotoScreenModel?
+    let photoViews: AppLabelPhotoViews?
+    let pending = LabelPhotoPendingInput()
+    /// Popping the photo screen (system Back or swipe as well as Leave without saving) drops its
+    /// photo, prepared bytes, details and any read under way, as the per-push model did before the
+    /// visit shared it (E15, invariant review of #454).
+    @Published var showsPhoto = false {
+        didSet { if oldValue, !showsPhoto { photoModel?.leave() } }
+    }
+    @Published var showsText = false
+    /// The text for the next pasted-label screen, byte for byte; "" for Type or paste text.
+    private(set) var text = ""
+    /// A new text screen per routing, so each starts from its own initial text.
+    private(set) var textVisit = 0
+    private let photosEnabled: Bool
+
+    private(set) lazy var entry = NutritionLabelEntryModel(photosEnabled: photosEnabled,
+                                                           openImage: { [weak self] in self?.openPhoto($0) },
+                                                           openText: { [weak self] in self?.openText($0) })
+
+    init(root: FoodLedgerCompositionRoot) {
+        let model = root.labelPhotoScreenModel()
+        photoModel = model
+        photoViews = model == nil ? nil : AppLabelPhotoViews(sample: root.labelPhotoSample)
+        photosEnabled = root.labelPhotoEnabled && model != nil
+    }
+
+    func openPhoto(_ data: Data) {
+        guard photoModel != nil else { return }
+        pending.put(data)
+        showsPhoto = true
+    }
+
+    func openText(_ text: String) {
+        self.text = text
+        textVisit += 1
+        showsText = true
+    }
+}
+
+/// Nutrition label (#454): one Add food entry for a photo, a screenshot, or pasted or typed label
+/// text. A pasted image goes to the label photo route through `choose(_:)`, pasted text to the
+/// pasted-label screen; every path ends on the shared Confirm with one Log action.
+struct NutritionLabelFlowView: View {
+    private let root: FoodLedgerCompositionRoot
+    private let finish: FoodEntryFinish?
+    /// Pops the entry after Log or Leave without saving when Add food carries no finish.
+    private let close: () -> Void
+    @StateObject private var visit: NutritionLabelVisit
+    @Environment(\.openURL) private var openURL
+
+    init(root: FoodLedgerCompositionRoot, finish: FoodEntryFinish? = nil, close: @escaping () -> Void) {
+        self.root = root; self.finish = finish; self.close = close
+        _visit = StateObject(wrappedValue: NutritionLabelVisit(root: root))
+    }
+
+    var body: some View {
+        NutritionLabelEntryView(model: visit.entry, controls: root.nutritionLabelControls, photoViews: visit.photoViews,
+                                openSettings: { if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) } })
+            .navigationDestination(isPresented: $visit.showsPhoto) {
+                if let model = visit.photoModel {
+                    LabelPhotoFlowView(root: root, model: model, pending: visit.pending, finish: finish, close: close)
+                }
+            }
+            .navigationDestination(isPresented: $visit.showsText) {
+                PastedLabelFlowView(root: root, finish: finish, initialText: visit.text, close: close).id(visit.textVisit)
             }
     }
 }

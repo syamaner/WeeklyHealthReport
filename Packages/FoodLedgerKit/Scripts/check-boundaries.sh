@@ -382,8 +382,69 @@ check_imports FoodLabelPhotoReading '^(Foundation|FoodLedgerApplication|FoodLedg
 check_imports FoodLabelTextAIReading '^(Foundation|FoodLedgerApplication|FoodLedgerDomain|NutritionLabelParsing)$'
 # Label photo capture adapters (17.2): platform frameworks, each confined to its adapter file above.
 check_imports FoodLabelPhotoCapture '^(CoreGraphics|Foundation|ImageIO|Network|UniformTypeIdentifiers|Vision|FoodLedgerApplication|FoodLedgerDomain|FoodLabelPhotoReading)$'
-# Label photo UI (17.2, 17.19): camera, PhotosPicker, crop and the photo pane.
-check_imports FoodLabelPhotoUI '^(AVFoundation|Foundation|FoodLedgerApplication|FoodLedgerDomain|PhotosUI|SwiftUI|UIKit)$'
+# Label photo UI (17.2, 17.19): camera, PhotosPicker, crop, the photo pane and the Paste control
+# (#454, docs/nutrition-label-entry-v1.md section 6).
+check_imports FoodLabelPhotoUI '^(AVFoundation|Foundation|FoodLedgerApplication|FoodLedgerDomain|PhotosUI|SwiftUI|UIKit|UniformTypeIdentifiers)$'
+
+# Clipboard reads (#454, docs/nutrition-label-entry-v1.md section 6): within the package sources,
+# PasteButton, NSItemProvider and UIPasteboard appear only in FoodLabelPhotoUI/LabelPastePicker.swift,
+# and FoodLedgerPresentation never names UTType, UniformTypeIdentifiers or NSItemProvider. Only
+# SOURCES (the package's Sources directory) is scanned, so the app target's clipboard writes, such
+# as Copy all, are out of scope. Prints each violation.
+clipboard_violations() {
+  local sources="$1" file
+  if [[ ! -d "$sources" ]]; then echo "$sources: missing"; return 0; fi
+  while IFS= read -r file; do
+    [[ -z "$file" || "$file" == "$sources/FoodLabelPhotoUI/LabelPastePicker.swift" ]] || echo "$file reads the clipboard outside LabelPastePicker.swift"
+  done < <(grep -rlE --include='*.swift' '\b(PasteButton|NSItemProvider|UIPasteboard)\b' "$sources" || true)
+  if [[ -d "$sources/FoodLedgerPresentation" ]]; then
+    while IFS= read -r file; do
+      [[ -z "$file" ]] || echo "$file names a content type or item provider in presentation"
+    done < <(grep -rlE --include='*.swift' '\b(UTType|UniformTypeIdentifiers|NSItemProvider)\b' "$sources/FoodLedgerPresentation" || true)
+  fi
+}
+self_test_clipboard() {
+  local scratch status=0 fixture
+  scratch="$(mktemp -d "${TMPDIR:-/tmp}/check-boundaries-clipboard.XXXXXX")"
+  local base="$scratch/base" sources
+  mkdir -p "$base/Packages/FoodLedgerKit/Sources/FoodLabelPhotoUI" "$base/Packages/FoodLedgerKit/Sources/FoodLedgerPresentation" \
+    "$base/Packages/FoodLedgerKit/Sources/FoodLedgerApplication" "$base/WeeklyHealthReport/Views"
+  sources="$base/Packages/FoodLedgerKit/Sources"
+  printf 'import UniformTypeIdentifiers\nlet types: [UTType] = [.image]\nlet button = PasteButton(supportedContentTypes: types) { (providers: [NSItemProvider]) in }\nlet board = UIPasteboard.general\n' \
+    > "$sources/FoodLabelPhotoUI/LabelPastePicker.swift"
+  printf 'import SwiftUI\nenum NutritionLabelPasteEvent { case loading }\n' > "$sources/FoodLedgerPresentation/NutritionLabelEntryModel.swift"
+  # The app target's existing clipboard writes are never flagged.
+  printf 'import UniformTypeIdentifiers\nUIPasteboard.general.setItems([[UTType.utf8PlainText.identifier: text]])\n' > "$base/WeeklyHealthReport/Views/DailyExportView.swift"
+  printf 'UIPasteboard.general.string = text\n' > "$base/WeeklyHealthReport/Views/HealthReportView.swift"
+  if [[ -n "$(clipboard_violations "$sources")" ]]; then
+    echo "check-boundaries self-test: the clipboard baseline (LabelPastePicker.swift and the app's writes) must pass" >&2; status=1
+  fi
+  for fixture in paste_button_ui item_provider_application pasteboard_presentation renamed_picker utype_presentation \
+                 uniform_types_presentation item_provider_presentation; do
+    cp -R "$base" "$scratch/$fixture"
+    sources="$scratch/$fixture/Packages/FoodLedgerKit/Sources"
+    case "$fixture" in
+      paste_button_ui) echo 'let button = PasteButton(payloadType: String.self) { _ in }' > "$sources/FoodLabelPhotoUI/LabelPhotoSourceButtons.swift" ;;
+      item_provider_application) echo 'let provider = NSItemProvider()' > "$sources/FoodLedgerApplication/Leak.swift" ;;
+      pasteboard_presentation) echo 'let text = UIPasteboard.general.string' > "$sources/FoodLedgerPresentation/NutritionLabelEntryView.swift" ;;
+      renamed_picker) mv "$sources/FoodLabelPhotoUI/LabelPastePicker.swift" "$sources/FoodLabelPhotoUI/LabelPastePickers.swift" ;;
+      utype_presentation) echo 'let types: [UTType] = []' > "$sources/FoodLedgerPresentation/Leak.swift" ;;
+      uniform_types_presentation) echo '@preconcurrency import UniformTypeIdentifiers' > "$sources/FoodLedgerPresentation/Leak.swift" ;;
+      item_provider_presentation) echo 'func load(_ provider: NSItemProvider) {}' >> "$sources/FoodLedgerPresentation/NutritionLabelEntryModel.swift" ;;
+    esac
+    if [[ -z "$(clipboard_violations "$sources")" ]]; then
+      echo "check-boundaries self-test: the clipboard $fixture fixture must fail" >&2; status=1
+    fi
+  done
+  rm -rf "$scratch"
+  return "$status"
+}
+self_test_clipboard
+clipboard_unexpected="$(clipboard_violations "$package_root/Sources")"
+if [[ -n "$clipboard_unexpected" ]]; then
+  echo "$clipboard_unexpected" >&2
+  exit 1
+fi
 check_imports FoodLedgerDomain '^(Foundation)$'
 # Pure label-text parser under evaluation (#255): no app, platform or hashing dependency.
 check_imports NutritionLabelParsing '^(Foundation)$'

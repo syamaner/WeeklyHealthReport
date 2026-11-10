@@ -520,7 +520,11 @@ final class PastedLabelPresentationTests: XCTestCase {
                                                                        includingPropertiesForKeys: nil)
         let pasted = presentation.filter { $0.lastPathComponent.hasPrefix("PastedLabel") }
         XCTAssertEqual(pasted.count, 4)
-        for file in pasted {
+        // The Nutrition label entry (#454): the clipboard is read only by the photo UI's Paste
+        // control, so no presentation file of the entry names the pasteboard either.
+        let entry = presentation.filter { $0.lastPathComponent.hasPrefix("NutritionLabel") }
+        XCTAssertEqual(entry.count, 4)
+        for file in pasted + entry {
             let text = try String(contentsOf: file, encoding: .utf8)
             for banned in ["@SceneStorage", "@AppStorage", "UIPasteboard", "NSPasteboard", "UserDefaults", "URLSession"] {
                 XCTAssertFalse(text.contains(banned), "\(file.lastPathComponent): \(banned)")
