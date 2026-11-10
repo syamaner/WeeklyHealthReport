@@ -62,14 +62,20 @@ public struct LabelPastePicker: View {
         task?.cancel()
         events(.loading)
         let acceptsImages = acceptsImages
-        let image = acceptsImages ? providers.first { $0.hasItemConformingToTypeIdentifier(UTType.image.identifier) } : nil
+        let images = acceptsImages ? providers.filter { $0.hasItemConformingToTypeIdentifier(UTType.image.identifier) } : []
         let text = providers.first { $0.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) }
-        let pending = Pending(image: image, text: text)
+        let pending = Pending(images: images, text: text)
         task = Task { @MainActor in
-            let imageData = await pending.loadImage()
+            // The first offered image that opens; a broken or oversized one does not hide a later
+            // usable one (Qodo review of #454).
+            var imageData: Data?
+            for index in pending.images.indices {
+                guard !Task.isCancelled else { return }
+                if let data = await pending.loadImage(at: index), Self.opens(data) { imageData = data; break }
+            }
             let text = await pending.loadText()
             guard !Task.isCancelled else { return }
-            events(Self.event(offeredImage: pending.image != nil, imageData: imageData, text: text))
+            events(Self.event(offeredImage: !pending.images.isEmpty, imageData: imageData, text: text))
         }
     }
 
@@ -85,27 +91,38 @@ public struct LabelPastePicker: View {
         }
     }
 
+    /// The largest pasted image accepted, checked before it is decoded, so another app's clipboard
+    /// item cannot hold an unbounded image in memory (Qodo review of #454). Far above a screenshot
+    /// or a camera photo; the crop and prepared-image limits apply afterwards as for any photo.
+    public static let maximumImageBytes = 50_000_000
+
+    /// Bytes that are within the limit and open as an image.
+    static func opens(_ data: Data) -> Bool {
+        !data.isEmpty && data.count <= maximumImageBytes && UIImage(data: data) != nil
+    }
+
     /// An offered image counts only when its bytes open as an image.
     static func event(offeredImage: Bool, imageData: Data?, text: String?) -> Event {
         guard offeredImage else { return .loaded(imageData: nil, text: text) }
-        guard let imageData, UIImage(data: imageData) != nil else { return .failed(text: text) }
+        guard let imageData, opens(imageData) else { return .failed(text: text) }
         return .loaded(imageData: imageData, text: text)
     }
 
     /// The providers chosen for loading. Item providers are not `Sendable`; they stay on the main
     /// actor, and only `Data` and `String` come back from their callbacks.
     @MainActor private final class Pending {
-        let image: NSItemProvider?
+        let images: [NSItemProvider]
         let text: NSItemProvider?
-        init(image: NSItemProvider?, text: NSItemProvider?) { self.image = image; self.text = text }
+        init(images: [NSItemProvider], text: NSItemProvider?) { self.images = images; self.text = text }
 
-        func loadImage() async -> Data? {
-            guard let image else { return nil }
+        func loadImage(at index: Int) async -> Data? {
+            let image = images[index]
             let load = LoadHandle()
             return await withTaskCancellationHandler {
                 await withCheckedContinuation { continuation in
                     load.progress = image.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, _ in
-                        continuation.resume(returning: data)
+                        // An oversized representation is released here rather than handed on.
+                        continuation.resume(returning: data.flatMap { $0.count <= LabelPastePicker.maximumImageBytes ? $0 : nil })
                     }
                 }
             } onCancel: { load.cancel() }

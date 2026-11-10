@@ -84,6 +84,10 @@ public final class LabelPhotoScreenModel: ObservableObject {
     @Published public var confirmSource: LabelPhotoSourceModel?
     /// A send attempted this tap, for the "Cancelled after sending" copy.
     private var readTask: Task<Void, Never>?
+    /// Bumped whenever the photo is replaced or dropped, so a read that finishes late (after Back,
+    /// Retake or a new photo on the visit's shared model) cannot change the screen or open Confirm
+    /// with the earlier photo's reading (Qodo review of #454).
+    private var photoGeneration = 0
     private let environment: Environment
 
     public init(environment: Environment) { self.environment = environment }
@@ -142,6 +146,7 @@ public final class LabelPhotoScreenModel: ObservableObject {
 
     /// A photo from the camera or the library: the crop screen opens over it.
     public func choose(_ data: Data) {
+        dropRead()
         photo = data; crop = .whole; prepared = nil; preparationFailure = nil; phase = .editing; cameraDenied = false
         cropping = true
     }
@@ -167,6 +172,7 @@ public final class LabelPhotoScreenModel: ObservableObject {
 
     /// Retake or Choose another: the photo and any outcome are dropped.
     public func retake() {
+        dropRead()
         photo = nil; prepared = nil; preparationFailure = nil; phase = .editing; confirmSource = nil
     }
 
@@ -189,8 +195,15 @@ public final class LabelPhotoScreenModel: ObservableObject {
 
     /// Leave without saving: the photo and every answer are discarded from memory.
     public func leave() {
-        readTask?.cancel()
+        dropRead()
         photo = nil; prepared = nil; confirmSource = nil; phase = .editing; name = ""; brand = ""
+    }
+
+    /// Stops any read under way and makes its late result stale.
+    private func dropRead() {
+        readTask?.cancel()
+        readTask = nil
+        photoGeneration += 1
     }
 
     private func startRead() {
@@ -205,15 +218,21 @@ public final class LabelPhotoScreenModel: ObservableObject {
                 if self?.isBusy == true { self?.phase = .retrying(attempt: attempt) }
             }
         }
+        let generation = photoGeneration
         readTask = Task { [weak self] in
             let outcome = await read(image, progress)
-            await self?.finish(outcome, image: image, details: details)
+            await self?.finish(outcome, image: image, details: details, generation: generation)
         }
     }
 
-    func finish(_ outcome: LabelPhotoReadFlow.Outcome, image: PreparedLabelImage, details: PastedLabelDetails) async {
-        readTask = nil
+    /// A read's outcome. `generation` is the photo it was started for; a stale one only refreshes
+    /// today's count, which the send may have changed.
+    func finish(_ outcome: LabelPhotoReadFlow.Outcome, image: PreparedLabelImage, details: PastedLabelDetails,
+                generation: Int? = nil) async {
+        let current = { generation == nil || generation == self.photoGeneration }
+        if current() { readTask = nil }
         await refresh()
+        guard current() else { return }
         switch outcome {
         case let .review(review):
             do {

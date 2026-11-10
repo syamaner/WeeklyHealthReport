@@ -183,6 +183,7 @@ final class LabelPhotoPresentationTests: XCTestCase {
         var online = true
         var status = LabelPhotoReadSession.Status(day: .open(reads: 3), routeUnavailable: false)
         var hold = false
+        var finishedReads = 0
     }
 
     func screen(_ script: Script, prepare: LabelImagePreparationError? = nil) throws -> LabelPhotoScreenModel {
@@ -195,6 +196,7 @@ final class LabelPhotoPresentationTests: XCTestCase {
                 if script.hold {
                     progress(2)
                     while !Task.isCancelled { await Task.yield() }
+                    defer { script.finishedReads += 1 }
                     return .failed(.cancelled)
                 }
                 return script.outcome
@@ -300,6 +302,25 @@ final class LabelPhotoPresentationTests: XCTestCase {
         model.cancel()
         try await waitUntil { !model.isBusy }
         XCTAssertEqual(model.phase, .failed("Stopped. The photo may already have reached OpenRouter; nothing was saved."))
+    }
+
+    /// The Nutrition label visit shares one model across photo pushes: a read that ends after Back
+    /// and a new photo must not touch the new photo's screen (Qodo review of #454).
+    func testAReadThatEndsAfterANewPhotoLeavesTheNewPhotoAlone() async throws {
+        let script = Script(); script.consented = true; script.hold = true
+        let model = try screen(script)
+        await ready(model)
+        model.readTapped()
+        try await waitUntil { model.phase == .retrying(attempt: 2) }
+        model.leave()
+        model.choose(Data([2]))
+        try await waitUntil { script.finishedReads == 1 }
+        for _ in 0..<20 { await Task.yield() }
+        XCTAssertEqual(model.phase, .editing)
+        XCTAssertTrue(model.cropping)
+        XCTAssertEqual(model.photo, Data([2]))
+        XCTAssertNil(model.confirmSource)
+        XCTAssertFalse(model.isBusy)
     }
 
     func testACropTooSmallIsRefusedWithItsCopy() throws {
