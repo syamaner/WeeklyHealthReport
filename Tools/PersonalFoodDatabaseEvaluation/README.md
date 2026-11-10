@@ -184,7 +184,7 @@ D1 and D2). It changes no frozen file: it imports the frozen review v2 modules a
 | Module | Responsibility |
 |---|---|
 | `r1/r1_export.py` | Pure. Derives R1 from the parsed pinned release, the frozen `pfd-exclusions-v1` list and a `pfd-unresolved-v1` list, under two explicit switches (`a1`: drop every Open Food Facts label value; `a2`: every merge becomes a candidate). `check_drops_only` proves the result only removes: same entries in the same order, every kept field, value, source and reference byte-equal, and a reference changed only from `merge` to `candidate`. `check_applied` proves every required removal happened. |
-| `r1/pfd_r1.py` | Command line and files only: `build-r1 --root DIR --release PINNED.json --a1 on|off --a2 on|off`. |
+| `r1/pfd_r1.py` | Command line and files only: `build-r1 --root DIR --release PINNED.json --results RESULTS.json --a1 on|off --a2 on|off`. |
 
 **How it decides.** R1 is never rebuilt from working files, so no merge can be created and a
 merge made newly eligible by dropped values stays a candidate by construction. A withheld entry
@@ -205,15 +205,17 @@ and `generic_corpora` stay as pinned.
 `(entry_id, nutrient)` order, written with sorted keys, no spaces and one trailing newline; any
 other byte form is refused. It holds entry IDs and inventory keys only. `pfd-r1-build-v1`, private,
 the same canonical form: the pinned and R1 release IDs, the switches and the SHA-256 of the
-exclusion and unresolved lists, so the stored R1 always says how it was built. A new field is a
+exclusion list, the unresolved list and the Part A results file, so the stored R1 always says how it was built. A new field is a
 new schema version.
 
 **Fail closed.** `build-r1` runs only when both freeze records, the bars lock and the review seal
-hold, the release file has the pinned ID and passes the importer's rules, and the exclusion list
+hold, the Part A results file (`--results`, the `score-a-v2 --out` file, inside this repository and
+not a link) holds exactly the result the sealed review gives (the bars lock is written before the
+scorer's files, so the lock alone does not prove scoring finished), the release file has the pinned ID and passes the importer's rules, and the exclusion list
 names the same release. The unresolved list is derived from the sealed review with the frozen
 parsers (values assessed `unresolved`). The output must pass `check_drops_only`, `check_applied`, the skill's
 export conventions and the importer's rules, or nothing is written. All three files go to
 `<root>/r1/`, all or nothing, and a different existing file is never overwritten. The console
 prints counts and the R1 release ID only. The three files are the R1 file, the unresolved list and the build record.
 
-For the A1 consequence the evaluator runs it with `--a1 on --a2 off` (A2 passed).
+For the A1 consequence the evaluator runs it with `--a1 on --a2 off` (A2 passed), passing the committed Part A results file as `--results`.

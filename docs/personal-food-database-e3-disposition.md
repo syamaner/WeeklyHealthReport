@@ -95,8 +95,8 @@ splits them:
 | **R2**, additive | R1 plus approved estimates, in the separate schema `personal-food-catalogue-estimates-v1` ([contract](personal-food-catalogue-estimates-v1.md)). | A new, versioned binding (section 5 below). It never reuses the pinned release ID, its seals or Part B answers as though they described R2. |
 
 The evaluator produces R1 first. R1 is a complete, shippable result even if R2 is never approved.
-It is built by `Tools/PersonalFoodDatabaseEvaluation/r1/pfd_r1.py build-r1 --a1 on --a2 off`, which
-derives R1 from the pinned file by removal only and proves that it did. One rule there is a
+It is built by `Tools/PersonalFoodDatabaseEvaluation/r1/pfd_r1.py build-r1 --a1 on --a2 off`, given the Part A
+results file the sealed review gives (it refuses a missing or different one), which derives R1 from the pinned file by removal only and proves that it did. One rule there is a
 consequence of removal-only: a withheld or unresolved value that is not a label value of its entry
 came through the entry's generic reference, so that reference is removed. When any label value is
 removed (withheld, unresolved or an Open Food Facts value under A1), the entry's merge reference

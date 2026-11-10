@@ -3,13 +3,15 @@
 
 Only this file touches files. It reuses the frozen review v2 checks without editing them: both
 freeze records and the review seal must hold, Part A must already be scored (the bars lock exists
-and matches), and the pinned release must have the ID in freeze-v1.json. It reads the exclusion
+and matches, and the Part A results file holds exactly the result the sealed review gives), and the
+pinned release must have the ID in freeze-v1.json. It reads the exclusion
 list and refuses it unless it equals the list the sealed review gives, derives the unresolved list from the
 sealed review with the frozen parsers, writes the R1 file, the unresolved list and a build record
 (switches and hashes) to the private folder (never overwriting a different file) and prints counts
 and the R1 release ID only.
 
-    pfd_r1.py build-r1 --root DIR --release PINNED.json --a1 {on,off} --a2 {on,off}
+    pfd_r1.py build-r1 --root DIR --release PINNED.json --results RESULTS.json \
+        --a1 {on,off} --a2 {on,off}
 """
 import argparse
 import json
@@ -32,6 +34,7 @@ import freeze_v2  # noqa: E402
 import export_v1  # noqa: E402  (the importer's rejection rules, unchanged)
 import pfd_eval_v2  # noqa: E402  (frozen checks and private-path rules, unchanged)
 import r1_export  # noqa: E402
+import results_v2  # noqa: E402
 import score_a_v2  # noqa: E402
 import seals  # noqa: E402
 import seals_v2  # noqa: E402
@@ -76,6 +79,18 @@ def cmd_build_r1(a, root: Path):
         sys.exit("refused: the pinned release fails the importer's rules")
     sample, rows, records, inventory = pfd_eval_v2.bundle(root, fz1)
     by_row = score_a_v2.validate(sample, rows, records, inventory)
+    # The bars lock is written before the scorer's files, so the results file itself is the proof
+    # that Part A finished; it must still hold the result the sealed review gives.
+    if Path(a.results).is_symlink():
+        sys.exit("refused: the Part A results file is a link")
+    results_path = pfd_eval_v2.repo_out(a.results)
+    if not results_path.is_file():
+        sys.exit("refused: the Part A results file does not exist; R1 is built only after score-a-v2 writes it")
+    results_bytes = results_path.read_bytes()
+    bar_set = fz2.get("part_a_bars")
+    if results_bytes != results_v2.build(fz1["release_id"], bar_set,
+                                         score_a_v2.score(sample, rows, records, inventory, bar_set)):
+        sys.exit("refused: the Part A results file differs from the one the sealed review gives")
     per_stratum = {}
     for r in rows:
         n = sum(rec["assessment"] == "unresolved" for rec in by_row[r["row"]])
@@ -105,6 +120,7 @@ def cmd_build_r1(a, root: Path):
     record = json.dumps({"schema": "pfd-r1-build-v1", "pinned_release_id": fz1["release_id"],
                          "r1_release_id": r1_export.release_id(data), "switches": switches,
                          "exclusions_sha256": formats.sha256(excl_bytes),
+                         "results_sha256": formats.sha256(results_bytes),
                          "unresolved_sha256": formats.sha256(unresolved_bytes)},
                         sort_keys=True, separators=(",", ":")).encode() + b"\n"
     _write_once([(pfd_eval_v2.private(root, root / UNRESOLVED_FILE), unresolved_bytes),
@@ -122,6 +138,7 @@ def main(argv=None):
     sp = sub.add_parser("build-r1")
     sp.add_argument("--root", required=True)
     sp.add_argument("--release", required=True)
+    sp.add_argument("--results", required=True)
     sp.add_argument("--a1", required=True, choices=("on", "off"))
     sp.add_argument("--a2", required=True, choices=("on", "off"))
     a = p.parse_args(argv)
@@ -129,7 +146,7 @@ def main(argv=None):
     try:
         cmd_build_r1(a, root)
     except (r1_export.R1Error, formats.FormatError, freeze.FreezeError, freeze_v2.FreezeError, seals.SealError,
-            seals_v2.SealError) as e:
+            seals_v2.SealError, results_v2.ResultsError) as e:
         sys.exit(f"refused: {e}")
 
 

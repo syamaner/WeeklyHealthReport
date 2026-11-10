@@ -1,6 +1,7 @@
 """R1, the drops-only export: synthetic contract tests (no private data)."""
 import contextlib
 import copy
+import hashlib
 import io
 import json
 import re
@@ -299,7 +300,10 @@ class CommandLine(unittest.TestCase):
         self.data = R.dumps(self.pinned)
         self.rel = R.release_id(self.data)
         self.saved = (pfd_r1.pfd_eval_v2.frozen, pfd_r1.pfd_eval_v2.bundle, pfd_r1.seals_v2.require_review,
-                      pfd_r1.score_a_v2.validate, pfd_r1.seals_v2.recorded, pfd_r1.score_a_v2.exclusion_list)
+                      pfd_r1.score_a_v2.validate, pfd_r1.seals_v2.recorded, pfd_r1.score_a_v2.exclusion_list,
+                      pfd_r1.pfd_eval_v2.repo_out, pfd_r1.score_a_v2.score, pfd_r1.results_v2.build)
+        self.results_data = b'{"synthetic":"results"}\n'
+        self.results_path = None
         self.excl_data = {"withhold_entries": [], "withhold_values": [],
                           "reference_candidates": [ident("Synthetic merge food")]}
         self.lock = {pfd_r1.seals_v2.LOCK: ("fz2sha", "v2_proposed")}
@@ -321,10 +325,14 @@ class CommandLine(unittest.TestCase):
         pfd_r1.pfd_eval_v2.bundle = gate("bundle", ({}, rows, [], {"group_of": {k: "macro" for k in NUTRIENTS}}))
         pfd_r1.seals_v2.require_review = gate("require_review", "sealed")
         pfd_r1.score_a_v2.validate = gate("validate", by_row)
+        pfd_r1.pfd_eval_v2.repo_out = lambda path: Path(path).resolve()  # the real one needs a path in the repository
+        pfd_r1.score_a_v2.score = lambda *a: {}
+        pfd_r1.results_v2.build = lambda release, bars, measures: self.results_data
 
     def tearDown(self):
         (pfd_r1.pfd_eval_v2.frozen, pfd_r1.pfd_eval_v2.bundle, pfd_r1.seals_v2.require_review,
-         pfd_r1.score_a_v2.validate, pfd_r1.seals_v2.recorded, pfd_r1.score_a_v2.exclusion_list) = self.saved
+         pfd_r1.score_a_v2.validate, pfd_r1.seals_v2.recorded, pfd_r1.score_a_v2.exclusion_list,
+         pfd_r1.pfd_eval_v2.repo_out, pfd_r1.score_a_v2.score, pfd_r1.results_v2.build) = self.saved
 
     def setup_root(self, root: Path, exclusion_release=None):
         (root / "exclusions-v2").mkdir()
@@ -332,13 +340,16 @@ class CommandLine(unittest.TestCase):
             exclusion_release or self.rel, self.excl_data))
         release = root / "pinned.json"
         release.write_bytes(self.data)
+        self.results_path = root / "results.json"
+        self.results_path.write_bytes(self.results_data)
         return release
 
     def run_cli(self, *argv):
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
             try:
-                pfd_r1.main(list(argv))
+                extra = ["--results", str(self.results_path)] if self.results_path and "--results" not in argv else []
+                pfd_r1.main(list(argv) + extra)
                 code = 0
             except SystemExit as e:
                 code = e.code if isinstance(e.code, int) else 1
@@ -362,8 +373,8 @@ class CommandLine(unittest.TestCase):
             self.assertIn("unresolved values withheld: 1 (by stratum: A1 1)", text)
             self.assertEqual(self.called, {"frozen", "bundle", "require_review", "validate"})
             record = json.loads((root / pfd_r1.RECORD_FILE).read_bytes())
-            self.assertEqual((record["switches"], record["r1_release_id"]),
-                             ({"a1": True, "a2": False}, R.release_id(r1)))
+            self.assertEqual((record["switches"], record["r1_release_id"], record["results_sha256"]),
+                             ({"a1": True, "a2": False}, R.release_id(r1), hashlib.sha256(self.results_data).hexdigest()))
             doc = json.loads(r1)
             self.assertEqual(R.check_drops_only(self.pinned, doc), [])
             self.assertEqual(by_title(doc, "Synthetic merge food")["generic_reference"]["role"], "candidate")
@@ -408,6 +419,35 @@ class CommandLine(unittest.TestCase):
             code, text = self.run_cli("build-r1", "--root", str(root), "--release", str(release), "--a1", "on", "--a2", "off")
             self.assertNotEqual(code, 0)
             self.assertIn("not been scored", text)
+            self.assertFalse((root / "r1").exists())
+
+    def test_refuses_missing_linked_or_changed_part_a_results(self):
+        argv = lambda root, release: ("build-r1", "--root", str(root), "--release", str(release), "--a1", "on", "--a2", "off")
+        with H.private_dir() as t:  # the bars lock and a matching exclusion list remain, but the results are gone
+            root = Path(t)
+            release = self.setup_root(root)
+            self.results_path.unlink()
+            code, text = self.run_cli(*argv(root, release))
+            self.assertNotEqual(code, 0)
+            self.assertIn("results file does not exist", text)
+            self.assertFalse((root / "r1").exists())
+        with H.private_dir() as t:
+            root = Path(t)
+            release = self.setup_root(root)
+            self.results_path.write_bytes(b'{"synthetic":"other"}\n')
+            code, text = self.run_cli(*argv(root, release))
+            self.assertNotEqual(code, 0)
+            self.assertIn("results file differs", text)
+            self.assertFalse((root / "r1").exists())
+        with H.private_dir() as t:
+            root = Path(t)
+            release = self.setup_root(root)
+            link = root / "results-link.json"
+            link.symlink_to(self.results_path)
+            self.results_path = link
+            code, text = self.run_cli(*argv(root, release))
+            self.assertNotEqual(code, 0)
+            self.assertIn("results file is a link", text)
             self.assertFalse((root / "r1").exists())
 
     def test_refuses_an_edited_exclusion_list(self):
