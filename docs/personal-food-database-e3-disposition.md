@@ -89,7 +89,8 @@ remain (416 is the sum of the kept and dropped label values above, the only deri
 survived, otherwise as candidates the user chooses on Confirm), and 167 entries show "No nutrition
 data yet". This is the conservative result the bars of record require, not a defect of the build;
 the approved estimates (R2, section 3) are the route to filling those gaps, under their own
-binding. R1 is still a complete, shippable result on its own.
+binding. R1 is complete on its own and does not depend on R2; shipping it is the owner's decision,
+recorded only through the dated acceptance in point 4.
 
 **Where the A1 errors are.** The results file shows that all 22 A1 value errors are
 `error_state` and the 5 failed entries all failed the state check (identity and variety passed
