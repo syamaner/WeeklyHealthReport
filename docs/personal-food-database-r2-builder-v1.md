@@ -53,7 +53,9 @@ composition estimate naming a corpus R1 does not declare.
 Inputs: the pinned release, the R1 file and R1 build record in the private folder, the R1 unresolved
 list and exclusion list the build record hashes, and the companion. It refuses unless the pinned
 release has the ID in `freeze-v1.json`, the R1 file has the ID in its build record, the companion
-names that R1 ID, and the two lists match the hashes in the build record.
+names that R1 ID, the two lists match the hashes in the build record, and re-deriving R1 from the
+pinned release, those lists and the recorded switches gives exactly the R1 bytes (so a substituted
+R1 with a self-consistent record is refused).
 
 Each estimate is then admitted or withheld, in this order (first rule wins, each withheld estimate
 counted under one reason):

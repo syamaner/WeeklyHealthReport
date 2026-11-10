@@ -71,6 +71,16 @@ def text_ok(s, limit) -> bool:
     return isinstance(s, str) and bool(s.strip()) and len(s) <= limit and not CONTROL.search(s)
 
 
+def derivation_shape_ok(d) -> bool:
+    """Exactly {transform_id, version, source_value: {value, unit}}, with strings and a valid value."""
+    return (isinstance(d, dict) and set(d) == {"transform_id", "version", "source_value"}
+            and isinstance(d["transform_id"], str) and bool(d["transform_id"])
+            and isinstance(d["version"], str) and bool(d["version"])
+            and isinstance(d["source_value"], dict) and set(d["source_value"]) == {"value", "unit"}
+            and export_v1._num(d["source_value"]["value"]) and isinstance(d["source_value"]["unit"], str)
+            and bool(d["source_value"]["unit"]))
+
+
 def transform_value(derivation, nutrient):
     """The recomputed value for a derivation, or None when it is outside the closed list or scope."""
     if not isinstance(derivation, dict) or set(derivation) != {"transform_id", "version", "source_value"}:
@@ -102,7 +112,8 @@ def check_record(rec, corpora, err, where):
     if rec["approved_as_estimate"] is not True:
         err("not-approved", where)
     st = rec["source_type"]
-    if st not in SOURCE_TYPES or rec["state_basis"] not in STATE_BASES or rec["method"] not in METHODS:
+    if not all(isinstance(rec[k], str) for k in ("source_type", "state_basis", "method")) \
+            or st not in SOURCE_TYPES or rec["state_basis"] not in STATE_BASES or rec["method"] not in METHODS:
         return err("token", where)
     if st == "national_composition":
         cs = rec["composition_source"]
@@ -133,6 +144,8 @@ def check_record(rec, corpora, err, where):
     if rec["method"] == "derived":
         if rec["derivation"] is None:
             err("derivation-missing", where)
+        elif not derivation_shape_ok(rec["derivation"]):
+            err("derivation-shape", where)
     elif rec["derivation"] is not None:
         err("derivation-unexpected", where)
 

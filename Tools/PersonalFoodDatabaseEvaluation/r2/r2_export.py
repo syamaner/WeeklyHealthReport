@@ -48,6 +48,14 @@ def _canonical(doc) -> bytes:
 # ---- pfd-estimate-companion-v1 -------------------------------------------------------------
 
 def _validate_companion(doc, corpora=None):
+    """Any value of an unexpected JSON type is a refusal, never a crash."""
+    try:
+        _validate_companion_fields(doc, corpora)
+    except (TypeError, KeyError, AttributeError):
+        raise R2Error("companion: a field has a value of the wrong type") from None
+
+
+def _validate_companion_fields(doc, corpora):
     if not isinstance(doc, dict) or set(doc) != {"schema", "r1_release_id", "estimates"} \
             or doc["schema"] != SCHEMA_COMPANION:
         raise R2Error("companion: not a pfd-estimate-companion-v1 document")

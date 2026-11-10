@@ -266,6 +266,8 @@ class FileRules(unittest.TestCase):
             "free-text": lambda d: self.record(d, "manufacturer_page").update(assumption="a\x07b"),
             "type-fields": lambda d: self.record(d, "national_composition").update(page_access="direct_read"),
             "corpus-undeclared": lambda d: self.record(d, "national_composition").update(composition_source="usda"),
+            "derivation-shape": lambda d: self.record(d, "manufacturer_page").update(
+                method="derived", derivation={"transform_id": "x", "version": "y", "source_value": {"value": 1}}),
             "derivation-unexpected": lambda d: self.record(d, "manufacturer_page").update(
                 derivation={"transform_id": "x", "version": "y", "source_value": {"value": 1, "unit": "g"}}),
             "label-and-estimate": lambda d: self.entry(d, "Synthetic owner food")["estimated_nutrients"].update(
@@ -366,6 +368,10 @@ class Companion(unittest.TestCase):
             "extra field": [{**self.est[0], "note": "x"}],
             "not approved": [{**self.est[0], "evidence": {**self.est[0]["evidence"], "approved_as_estimate": False}}],
             "bad url": [page("Synthetic off food", "protein", 1.0, url="http://maker.example/x")],
+            "malformed derivation": [page("Synthetic off food", "energy_consumed", 1.0, method="derived",
+                                          derivation={"bad": 1})],
+            "array basis": [{**self.est[0], "basis": ["per_100_g"]}],
+            "object source type": [{**self.est[0], "evidence": {**self.est[0]["evidence"], "source_type": {}}}],
             "localhost": [page("Synthetic off food", "protein", 1.0, url="https://localhost/x")],
             "ip literal": [page("Synthetic off food", "protein", 1.0, url="https://192.168.1.2/x")],
             "dotless host": [page("Synthetic off food", "protein", 1.0, url="https://intranet/x")],
@@ -533,6 +539,17 @@ class CommandLine(unittest.TestCase):
             code, text = self.run_cli(root)
             self.assertNotEqual(code, 0)
             self.assertIn("not the one its build record names", text)
+
+    def test_refuses_an_r1_that_is_not_the_pinned_derivation(self):
+        with H.private_dir() as t:
+            root = Path(t)
+            other, _ = R1.derive(self.pinned, self.excl, self.unres, {"a1": False, "a2": False},
+                                 set(export_v1.CANON_UNITS))
+            self.r1_bytes = R1.dumps(other)  # self-consistent file and record, but the record says a1 on
+            self.setup_root(root)
+            code, text = self.run_cli(root)
+            self.assertNotEqual(code, 0)
+            self.assertIn("not the drops-only export", text)
 
     def test_refuses_a_linked_output_folder(self):
         with H.private_dir() as t:

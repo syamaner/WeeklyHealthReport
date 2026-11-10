@@ -122,6 +122,14 @@ def cmd_build_r2(a, root: Path):
     for v in excl["withhold_values"] + unresolved["withhold_values"]:
         listed.setdefault(v["entry_id"], set()).add(v["nutrient"])
     pinned = json.loads(pinned_bytes.decode("utf-8"))
+    # R1 must be the derivation of the pinned release under the recorded lists and switches, not only
+    # a file whose build record names it.
+    switches = record.get("switches")
+    if not isinstance(switches, dict) or set(switches) != {"a1", "a2"}:
+        sys.exit("refused: the R1 build record has no valid switches")
+    expected_r1, _ = r1_export.derive(pinned, excl, unresolved, switches, set(inventory["group_of"]))
+    if r1_export.dumps(expected_r1) != r1_bytes:
+        sys.exit("refused: the R1 file is not the drops-only export of the pinned release under its build record")
     doc, counts = r2_export.derive(r1, pinned, companion, listed, excl["withhold_entries"], groups)
     data = r2_export.dumps(doc)
     written = json.loads(data.decode("utf-8"))  # the proofs run on the bytes that will be written
