@@ -4,7 +4,7 @@ import FoodLedgerDomain
 /// One deterministic application interpretation. No source identity, nutrition or
 /// conversion is asserted by language. The legacy parse remains available for diagnostics.
 public struct FoodQueryInterpretation: Equatable, Sendable {
-    public static let version = "food-query-interpretation-v5"
+    public static let version = "food-query-interpretation-v6"
     public struct Component: Equatable, Sendable {
         public let text: String
         /// UTF-16 offsets in originalText, not code-point or Character offsets.
@@ -61,6 +61,8 @@ public struct FoodQueryInterpretation: Equatable, Sendable {
                baseline.attributes["skin"] != nil || baseline.attributes["edible_portion"] != nil,
                descriptor.range(of: #"^(?:skin|seed)\b"#, options: .regularExpression) != nil { return false }
             if connector == ",", ["raw", "uncooked", "cooked", "boiled", "roasted", "drained", "whole", "pasteurised", "average"].contains(descriptor) { return false }
+            // v6 (#452): ", 90%" restates the cocoa percentage the whole text already names.
+            if connector == ",", Self.restatesCocoaPercent(descriptor, baseline: baseline) { return false }
             return true
         }
         var parts: [Component] = []
@@ -99,7 +101,9 @@ public struct FoodQueryInterpretation: Equatable, Sendable {
            let value = FoodAmountTextParser.parse(String(original[numberRange])) {
             let target = String(original[targetRange])
             let targetParse = FoodQueryParser.parse(target)
-            if targetParse.quantity == nil, targetParse.allowsCandidateDiscovery,
+            // v6 (#452): "90 % dark chocolate" and "90 per cent dark chocolate" lead with a
+            // percentage, not a count.
+            if targetParse.quantity == nil, targetParse.allowsCandidateDiscovery, !Self.startsWithPercentSign(target),
                target.range(of: #"\b(?:sugar|ice|fat|percent|price|g|kg|ml|l|mg|mcg|ug|oz|ounces?|lb|lbs|pounds?|cups?|mugs?|glass(?:es)?|bowls?|servings?|pieces?|kcal|kj|cm)\b"#, options: [.regularExpression, .caseInsensitive]) == nil {
                 suggestion = .init(value: value, unit: "count")
                 food = targetParse.food
@@ -113,6 +117,24 @@ public struct FoodQueryInterpretation: Equatable, Sendable {
         parsedQuery = ParsedFoodQuery(original: original, food: food, attributes: attributes,
             quantity: automatic, route: baseline.route, reasons: baseline.reasons)
         quantitySuggestion = suggestion
+    }
+
+    /// v6 (#452): a comma descriptor that is only the cocoa percentage the whole-text parse bound
+    /// ("90%", "90 %", "90 per cent", optionally "cocoa" or "cacao" and "solids"). It describes the
+    /// same food, so it is not a component separator.
+    static func restatesCocoaPercent(_ descriptor: String, baseline: ParsedFoodQuery) -> Bool {
+        guard let bound = baseline.attributes["cocoa_percent"].flatMap(Double.init) else { return false }
+        let text = descriptor.folding(options: .widthInsensitive, locale: Locale(identifier: "en_GB"))
+        guard let regex = try? NSRegularExpression(pattern: #"^(\d+(?:\.\d+)?)\s*(?:%|per[ -]?cent)(?:\s+(?:cocoa|cacao)(?:\s+solids)?)?$"#, options: .caseInsensitive),
+              let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              let range = Range(match.range(at: 1), in: text), let value = Double(text[range]) else { return false }
+        return value == bound
+    }
+
+    /// v6 (#452): text that starts with a percent sign (ASCII or full-width) or "per cent".
+    static func startsWithPercentSign(_ text: String) -> Bool {
+        text.folding(options: .widthInsensitive, locale: Locale(identifier: "en_GB"))
+            .range(of: #"^\s*(?:%|per[ -]?cent\b|percent\b)"#, options: [.regularExpression, .caseInsensitive]) != nil
     }
 
     /// The food text after one leading amount and household portion unit ("3 pieces cheese"

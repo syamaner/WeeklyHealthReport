@@ -65,6 +65,32 @@ final class OFFStagedRetrievalTests: XCTestCase {
         XCTAssertEqual(clock.elapsed, 14, accuracy: 0.01)
     }
 
+    /// off-search-detail-transport-v5 (#452): a cocoa percentage earns the two detail reads for
+    /// names that state the same cocoa percentage and the other food words. Synthetic hits.
+    func testNamedCocoaPercentageMovesAheadOfOtherStrengthsWithinBudget() async throws {
+        let wanted = "4006381333931", alsoWanted = "7612345678900"
+        for (p, other) in [("70", "85"), ("85", "70"), ("90", "85"), ("95", "90"), ("100", "95")] {
+            let hits: [[String: Any]] = [
+                ["code": first, "product_name": "Dark chocolate"],
+                ["code": second, "product_name": "Dark chocolate \(other)% cocoa"],
+                ["code": "50117468", "product_name": "Excellence \(p)% 100g", "brands": ["Synthetic"]],
+                ["code": wanted, "product_name": "\(p)% Cocoa Dark Chocolate", "brands": ["Synthetic"]],
+                ["code": alsoWanted, "product_name": "Dark Chocolate \(p)%"]
+            ]
+            StagedProtocol.store.reset(try [Reply(body: json(["timed_out": false, "hits": hits])), product(wanted), product(alsoWanted)])
+            let answer = try await transport(StageClock()).search(foodTerms: "dark chocolate \(p)% cocoa")
+            XCTAssertEqual(try products(answer).compactMap { $0["code"] as? String }, [wanted, alsoWanted], p)
+            XCTAssertEqual(StagedProtocol.store.requests.count, 3, p)
+        }
+        // Without a percentage the provider order is kept.
+        StagedProtocol.store.reset(try [Reply(body: json(["timed_out": false, "hits": [
+            ["code": first, "product_name": "Dark chocolate"], ["code": wanted, "product_name": "90% Cocoa Dark Chocolate"]]])),
+            product(first), product(wanted)])
+        let plain = try await transport(StageClock()).search(foodTerms: "dark chocolate")
+        XCTAssertEqual(try products(plain).compactMap { $0["code"] as? String }, [first, wanted])
+        XCTAssertEqual(OFFHTTPSearchTransport.version, "off-search-detail-transport-v5")
+    }
+
     func testPercentageAlonePartialTermsAndAmbiguousNamesCannotEarnPriority() async throws {
         let later = "5201054080610"
         let cases: [(String, Any, Any)] = [

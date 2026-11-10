@@ -62,7 +62,7 @@ final class FoodQueryInterpretationTests: XCTestCase {
             XCTAssertEqual(q.parsedQuery.food, q.baseline.food, text)
             if q.baseline.reasons.contains("portion_requires_confirmation") { XCTAssertNil(q.parsedQuery.quantity, text) }
         }
-        XCTAssertEqual(FoodQueryInterpretation.version, "food-query-interpretation-v5")
+        XCTAssertEqual(FoodQueryInterpretation.version, "food-query-interpretation-v6")
     }
     /// #335 (food-query-interpretation-v3, parser v10): mugs and the plural containers clarify like
     /// cups. Search uses the food text, and no "Use N" suggestion or quantity is offered.
@@ -233,5 +233,41 @@ final class FoodQueryInterpretationTests: XCTestCase {
             let text = try XCTUnwrap(row["query"] as? String)
             XCTAssertEqual(FoodQueryInterpretation(text).parsedQuery.quantity, FoodQueryParser.parse(text).quantity, text)
         }
+    }
+}
+
+/// food-query-interpretation-v6 (#452): every phrasing of a cocoa percentage keeps the parser's
+/// `cocoa_percent` and food text. Synthetic query text.
+final class FoodQueryInterpretationCocoaTests: XCTestCase {
+    static func phrasings(_ p: String) -> [String] {
+        ["dark chocolate \(p)%", "\(p)% dark chocolate", "\(p) % dark chocolate", "dark chocolate \(p) %",
+         "dark chocolate, \(p)%", "dark chocolate, \(p) %", "dark chocolate, \(p)% cocoa", "\(p) per cent dark chocolate",
+         "\(p) percent dark chocolate", "dark chocolate \(p) per cent", "Dark Chocolate, \(p)%", "\(p)％ dark chocolate"]
+    }
+
+    func testEveryPhrasingKeepsTheCocoaPercentage() {
+        for p in ["70", "85", "90", "95", "100"] {
+            for text in Self.phrasings(p) {
+                let q = FoodQueryInterpretation(text)
+                XCTAssertEqual(q.baseline.attributes["cocoa_percent"], p, "parser: \(text)")
+                XCTAssertEqual(q.parsedQuery.attributes["cocoa_percent"], p, text)
+                XCTAssertEqual(q.parsedQuery.food, "dark chocolate", text)
+                XCTAssertEqual(q.retrievalText, "dark chocolate", text)
+                XCTAssertTrue(q.components.isEmpty, text)
+                XCTAssertFalse(q.needsCompositionReview, text)
+                XCTAssertNil(q.quantitySuggestion, text)
+                XCTAssertNil(q.parsedQuery.quantity, text)
+                XCTAssertTrue(q.allowsDiscovery, text)
+                XCTAssertEqual(CocoaPercentPolicy.requested(q.parsedQuery), Double(p), text)
+            }
+        }
+    }
+
+    func testOtherCommasAndLeadingCountsKeepV5Behaviour() {
+        // A percentage the parser did not bind to cocoa, and other descriptors, still split.
+        XCTAssertFalse(FoodQueryInterpretation("yoghurt, 2%").components.isEmpty)
+        XCTAssertFalse(FoodQueryInterpretation("dark chocolate, almonds").components.isEmpty)
+        // A leading count before a food word is still a review-only suggestion.
+        XCTAssertEqual(FoodQueryInterpretation("0.5 scallion pancake").quantitySuggestion?.value, 0.5)
     }
 }
