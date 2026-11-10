@@ -1,10 +1,26 @@
 # TestFlight 0.3.0 (30)
 
-Status: **prepared, not uploaded.** The archive and upload, What to Test and the Internal Testing group each wait for the owner's explicit yes. This record covers what a tester of a Release build would notice since [0.3.0 (29)](internal-testflight-0.3.0-build29.md) (uploaded 30 October 2026, source `main` at `50a356c`). It was checked against `origin/main` at `da7d1ae`, which includes #459. Every entry was checked against the PR text and, where a switch or mode decides reachability, against the code at the composition root.
+Status: **uploaded on 10 November 2026; processing, What to Test and the Internal Testing group still to do.** The owner approved the archive and upload; What to Test and adding the build to Internal Testing each wait for the owner's explicit yes. This record covers what a tester of a Release build would notice since [0.3.0 (29)](internal-testflight-0.3.0-build29.md) (uploaded 30 October 2026, source `main` at `50a356c`). It was checked against `origin/main` at `da7d1ae`, which includes #459. Every entry was checked against the PR text and, where a switch or mode decides reachability, against the code at the composition root.
 
 **Older builds cannot open the food data after updating.** The label estimate layer (#396) adds the metadata-only migration `v8_label_estimate`, which runs when this build first opens the food log, whether or not an estimate is ever chosen. After that, builds 29 and earlier decline the store, so reinstalling an earlier build is not a safe way back; export or back up first. Existing records keep their bytes, and a contract 8 archive is rejected by older readers (#396 PR text).
 
 HealthKit stays read-only. No new egress destination in this range. Label photo reading is still off in Release (`LabelPhotoRouteMode` returns `.off` without a launch argument, and `live` is compiled into Debug only), and the pasted-label AI text route has no shipped route (`PastedLabelAITextRoute.current` is nil).
+
+
+## Upload receipt
+
+| Item | 0.3.0 (30) |
+| --- | --- |
+| Uploaded | 10 November 2026 |
+| Source | `main` at `da7d1aecafef77de47597bd12e01b3f560198844` ([PR459](https://github.com/syamaner/WeeklyHealthReport/pull/459)); archived tree `d9d5aec027731b72e94a016cd8ce6fc5c445cef4` |
+| Bundle and version | `com.otherweather.ReportWeeklyHealth`, 0.3.0 (30) |
+| Version overrides | `MARKETING_VERSION=0.3.0`, `CURRENT_PROJECT_VERSION=30` |
+| Signing team | `MDNYU95CGT` |
+| Executable UUID | `3432EFF6-B82A-3E07-BCB9-3495F2071E43` (arm64) |
+| Uploaded IPA SHA-256 | `c19148500693b88b12986908caa61a2c3f3b4d2eea9d28cd8313b87cfdc95f87` |
+| Delivery UUID | `91293427-b306-4686-8537-d2a57b457389` |
+
+Method: as for [build 29](internal-testflight-0.3.0-build29.md#upload-method). `xcodebuild archive` (Release, automatic signing with `-allowProvisioningUpdates` and the App Store Connect API key, team `MDNYU95CGT`), then `xcodebuild -exportArchive` (`app-store-connect`, `destination` `export`, `manageAppVersionAndBuildNumber` false, `uploadSymbols` true, `testFlightInternalTestingOnly` not set), then `xcrun altool --upload-app`. The key stays in `~/.appstoreconnect/private_keys/` and never enters the repository, logs or this record. HealthKit stays read-only.
 
 ## Nutrition label
 
