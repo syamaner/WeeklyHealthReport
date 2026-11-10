@@ -1,12 +1,10 @@
 # Personal food database evaluation v1
 
-Status: **revision 7, 10 November 2026. E3 is final (decision 11); implementation may start
-(section 5).** Revision 6 status, unchanged below: **draft, revision 6, 9 November 2026. Decisions 1 to 7 are settled. The owner has
-authorised the drafting workflow in decision 8; this does not approve any draft query, answer or
-review verdict. Every row still requires owner validation, and the plan is not yet marked accepted.
-Decisions 9 and 10 are also settled. Revision 6 records decision 10 (the E3 disposition) and was
-approved by the owner on 9 November 2026. E3 is not final until the steps of the
-[E3 disposition](personal-food-database-e3-disposition.md), section 1, are done.**
+Status: **revision 7, 10 November 2026. Decisions 1 to 11 are settled. The owner accepted E3 as
+final in decision 11, after the steps of the [E3 disposition](personal-food-database-e3-disposition.md),
+section 1, were done; implementation may start (section 5). Revision 6 (decision 10) was approved
+by the owner on 9 November 2026. Decision 8 authorised the drafting workflow, not any draft query,
+answer or review verdict.**
 Revision 2 added three clarifications to the bars after a Qodo review
 (section 9, decision 4). Revision 3 answers the architecture-gate review (PASS WITH CHANGES) and the
 invariant review (NEEDS WORK) of revision 2 with the mechanics they asked for (sections 2, 4, 5 and 8)
@@ -545,8 +543,8 @@ format is authorised; the existing sheet, pinned inputs and frozen tools remain 
        no nutrition data; that is the conservative result the bars require, accepted as it is.
     2. **R2 is the planned next step.** Its aim is a labelled best estimate for every entry, under
        decision 10 and the [estimates contract](personal-food-catalogue-estimates-v1.md): per-nutrient
-       evidence, always shown as an estimate, never from an Open Food Facts record while the A1
-       consequence stands and never sourced from a value or record E3 withheld (contract section 3.1).
+       evidence, always shown as an estimate, never from an Open Food Facts record and never sourced
+       from a value or record E3 withheld (contract section 3.1).
        Unknown stays unknown only where no admissible source exists. R2 is not a condition for
        implementation. Decision 10, point 5 is unchanged: Part B binds to R2 if it is built and checked before the first development
        run, and to R1 otherwise.
