@@ -88,6 +88,7 @@ public final class LabelPhotoScreenModel: ObservableObject {
     /// Retake or a new photo on the visit's shared model) cannot change the screen or open Confirm
     /// with the earlier photo's reading (Qodo review of #454).
     private var photoGeneration = 0
+    private var refreshes = 0
     private let environment: Environment
 
     public init(environment: Environment) { self.environment = environment }
@@ -138,7 +139,14 @@ public final class LabelPhotoScreenModel: ObservableObject {
 
     // MARK: Actions
 
-    public func refresh() async { status = await environment.status() }
+    /// Only the latest refresh publishes, so a slow earlier one (a stale read's, say) cannot put
+    /// back an older count or blocker (Qodo review of #454).
+    public func refresh() async {
+        refreshes += 1
+        let mine = refreshes
+        let fetched = await environment.status()
+        if mine == refreshes { status = fetched }
+    }
 
     /// Back from Confirm (Retake, back, or a failed save): today's count is read again, so it is
     /// never one behind (#327 journey QA). Every read outcome refreshes it too (`finish`).

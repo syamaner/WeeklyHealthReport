@@ -10,6 +10,8 @@ public enum NutritionLabelPasteEvent: Equatable, Sendable {
     case loaded(imageData: Data?, text: String?)
     /// An image was offered but could not be loaded or opened; the first plain-text item, if any.
     case failed(text: String?)
+    /// The load stopped before it finished (the control left the screen); nothing was loaded.
+    case cancelled
 }
 
 /// The paste control behind a consumer-owned port, provided by the composition root in every
@@ -116,6 +118,10 @@ public final class NutritionLabelEntryModel: ObservableObject {
             let usableText = NutritionLabelPasteKind.hasUsableText(text) ? text : nil
             pendingText = usableText
             pasteState = .failed(offersText: usableText != nil)
+        case .cancelled:
+            // The screen is not left showing "Reading the clipboard…" (Qodo review of #454).
+            guard pasteState == .loading else { return }
+            drop(); pasteState = .idle
         }
     }
 

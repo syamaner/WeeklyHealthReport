@@ -17,6 +17,8 @@ public struct LabelPastePicker: View {
         case loaded(imageData: Data?, text: String?)
         /// An image was offered but could not be loaded or opened.
         case failed(text: String?)
+        /// A load under way stopped because the control left the screen; nothing was loaded.
+        case cancelled
     }
 
     /// A DEBUG-only synthetic payload (6.2 test 10): tapping emits `.loading`, then this payload
@@ -31,6 +33,9 @@ public struct LabelPastePicker: View {
     private let sample: Sample?
     private let events: (Event) -> Void
     @State private var task: Task<Void, Never>?
+    /// False once the control has left the screen, so a tap whose action runs late loads nothing
+    /// (Qodo review of #454).
+    @State private var isShown = false
 
     public init(acceptsImages: Bool, sample: Sample? = nil, events: @escaping (Event) -> Void) {
         self.acceptsImages = acceptsImages; self.sample = sample; self.events = events
@@ -55,10 +60,17 @@ public struct LabelPastePicker: View {
             }
         }
         .accessibilityIdentifier("nutritionLabel.paste")
-        .onDisappear { task?.cancel(); task = nil }
+        .onAppear { isShown = true }
+        .onDisappear {
+            isShown = false
+            guard let running = task else { return }
+            running.cancel(); task = nil
+            events(.cancelled)
+        }
     }
 
     @MainActor private func paste(_ providers: [NSItemProvider]) {
+        guard isShown else { return }
         task?.cancel()
         events(.loading)
         let acceptsImages = acceptsImages
@@ -80,6 +92,7 @@ public struct LabelPastePicker: View {
     }
 
     @MainActor private func paste(_ sample: Sample) {
+        guard isShown else { return }
         task?.cancel()
         events(.loading)
         task = Task { @MainActor in

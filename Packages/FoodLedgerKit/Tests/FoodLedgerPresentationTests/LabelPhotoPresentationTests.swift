@@ -352,6 +352,35 @@ final class LabelPhotoPresentationTests: XCTestCase {
         model.cancel()
     }
 
+    /// A slow earlier refresh never replaces a newer count (Qodo review of #454).
+    func testAnEarlierRefreshNeverReplacesANewerCount() async throws {
+        let script = Script()
+        var calls = 0
+        var release = false
+        let source = try self.source()
+        let model = LabelPhotoScreenModel(environment: .init(
+            prepare: { _, _ in .success(Self.image) },
+            read: { _, _ in .failed(.timedOut) },
+            status: {
+                calls += 1
+                if calls == 1 {
+                    while !release { await Task.yield() }
+                    return .init(day: .open(reads: 3), routeUnavailable: false)
+                }
+                return .init(day: .open(reads: 4), routeUnavailable: false)
+            },
+            keyState: { script.key }, isOnline: { script.online },
+            hasConsented: { script.consented }, recordConsent: { script.consented = true },
+            makeConfirm: { _, _, _ in source }))
+        let slow = Task { await model.refresh() }
+        try await waitUntil { calls == 1 }
+        await model.refresh()
+        XCTAssertEqual(model.status?.day, .open(reads: 4))
+        release = true
+        await slow.value
+        XCTAssertEqual(model.status?.day, .open(reads: 4))
+    }
+
     func testACropTooSmallIsRefusedWithItsCopy() throws {
         let model = try screen(Script(), prepare: .cropTooSmall)
         model.choose(Data([1]))

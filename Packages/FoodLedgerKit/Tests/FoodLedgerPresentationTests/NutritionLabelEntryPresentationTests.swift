@@ -113,6 +113,25 @@ final class NutritionLabelEntryPresentationTests: XCTestCase {
         XCTAssertEqual(routes.count, 0, "Type or paste text does nothing while loading")
     }
 
+    /// A load stopped by the control leaving the screen returns to idle rather than leaving every
+    /// row disabled; a late cancel after a result changes nothing (Qodo review of #454).
+    func testACancelledLoadReturnsToIdle() {
+        let routes = Routes()
+        let model = entry(photos: true, routes)
+        model.handle(.loading)
+        model.handle(.cancelled)
+        XCTAssertEqual(model.pasteState, .idle)
+        XCTAssertFalse(model.pasteDisabled)
+        XCTAssertFalse(model.typeOrPasteDisabled)
+        XCTAssertFalse(model.holdsPayload)
+        model.handle(.loading)
+        model.handle(.loaded(imageData: Self.image, text: Self.text))
+        XCTAssertEqual(model.pasteState, .both)
+        model.handle(.cancelled)
+        XCTAssertEqual(model.pasteState, .both, "a cancel after the result does not drop the choice")
+        XCTAssertEqual(routes.count, 0)
+    }
+
     func testAFailedImageShowsItsCopyAndCallsNeitherRoute() {
         let routes = Routes()
         let model = entry(photos: true, routes)

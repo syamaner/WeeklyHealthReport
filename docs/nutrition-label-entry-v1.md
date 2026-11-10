@@ -153,7 +153,7 @@ In the same PR, `docs/privacy-policy.txt` says the label photo may be one you to
   - `NutritionLabelEntryView`, the screen.
   The view gets the paste control through a consumer-owned port that uses presentation-owned types only:
   - `NutritionLabelControlFactory.pasteControl(acceptsImages: Bool, events: @escaping (NutritionLabelPasteEvent) -> Void) -> AnyView`;
-  - `NutritionLabelPasteEvent` is `.loading`, `.loaded(imageData: Data?, text: String?)` or `.failed(text: String?)`.
+  - `NutritionLabelPasteEvent` is `.loading`, `.loaded(imageData: Data?, text: String?)`, `.failed(text: String?)` or `.cancelled` (a load stopped because the control left the screen; the screen returns to idle, added after Qodo's review of the PR).
 
   No `UTType`, `NSItemProvider` or FoodLabelPhotoUI type crosses into presentation. The photo source buttons come from the existing `LabelPhotoViewFactory.sourceButtons` (`LabelPhotoViews.swift:44`), used only when the mode is not off. In off mode the entry model hides the photo section from the mode, and no factory is asked for source buttons.
 - **Photo UI (`FoodLabelPhotoUI`):**

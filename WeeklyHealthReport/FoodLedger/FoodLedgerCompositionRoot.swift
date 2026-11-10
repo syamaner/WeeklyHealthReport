@@ -1853,6 +1853,7 @@ struct AppNutritionLabelControls: NutritionLabelControlFactory {
         case .loading: .loading
         case let .loaded(imageData, text): .loaded(imageData: imageData, text: text)
         case let .failed(text): .failed(text: text)
+        case .cancelled: .cancelled
         }
     }
 }
