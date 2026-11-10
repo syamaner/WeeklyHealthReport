@@ -267,6 +267,10 @@ final class FoodQueryInterpretationCocoaTests: XCTestCase {
         // A percentage the parser did not bind to cocoa, and other descriptors, still split.
         XCTAssertFalse(FoodQueryInterpretation("yoghurt, 2%").components.isEmpty)
         XCTAssertFalse(FoodQueryInterpretation("dark chocolate, almonds").components.isEmpty)
+        // A food the cocoa policy excludes keeps the v5 split and gains no cocoa percentage.
+        let milk = FoodQueryInterpretation("chocolate milk, 2%")
+        XCTAssertFalse(milk.components.isEmpty)
+        XCTAssertNil(milk.parsedQuery.attributes["cocoa_percent"])
         // A leading count before a food word is still a review-only suggestion.
         XCTAssertEqual(FoodQueryInterpretation("0.5 scallion pancake").quantitySuggestion?.value, 0.5)
     }

@@ -4290,8 +4290,9 @@ A side session (`claude-opus-5-5`, session `ba5b9bdb-7454-4146-802e-71c326cae729
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Cocoa percentage phrasings (#452), side session | 13,706,583 (13,506,668) | 199,753 | 43,920 | 13,750,503 | $5.18 |
+| Qodo follow-up fixes (#452), same session | 4,491,808 (4,452,487) | 39,249 | 16,643 | 4,508,451 | $1.54 |
 
-Method: `phase_usage.py --format claude --since 2026-11-10T07:04:55Z --include-subagents` on the session transcript. Exact USD 5.1784056. The cache-write tokens (none of them 5-minute writes) are part of the input figure, not added to it.
+Method: `phase_usage.py --format claude --since 2026-11-10T07:04:55Z --include-subagents` on the session transcript. Exact USD 5.1784056. The follow-up row covers the owner's go-ahead to fix the three Qodo PR findings and one local Qodo finding, from `2026-11-10T12:28:48Z` to `2026-11-10T12:54:44Z` (`--until`), exact USD 1.5376374; the merge request and branch update between the two windows are not measured. The cache-write tokens (none of them 5-minute writes) are part of the input figure, not added to it.
 
 Excluded:
 - the coordinator session that started this one (its own transcript);

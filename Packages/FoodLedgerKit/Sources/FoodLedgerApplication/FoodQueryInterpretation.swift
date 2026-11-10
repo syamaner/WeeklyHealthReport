@@ -123,7 +123,8 @@ public struct FoodQueryInterpretation: Equatable, Sendable {
     /// ("90%", "90 %", "90 per cent", optionally "cocoa" or "cacao" and "solids"). It describes the
     /// same food, so it is not a component separator.
     static func restatesCocoaPercent(_ descriptor: String, baseline: ParsedFoodQuery) -> Bool {
-        guard let bound = baseline.attributes["cocoa_percent"].flatMap(Double.init) else { return false }
+        // Only a plain chocolate request restates its strength ("chocolate milk, 2%" still splits).
+        guard let bound = CocoaPercentPolicy.requested(baseline) else { return false }
         let text = descriptor.folding(options: .widthInsensitive, locale: Locale(identifier: "en_GB"))
         guard let regex = try? NSRegularExpression(pattern: #"^(\d+(?:\.\d+)?)\s*(?:%|per[ -]?cent)(?:\s+(?:cocoa|cacao)(?:\s+solids)?)?$"#, options: .caseInsensitive),
               let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
