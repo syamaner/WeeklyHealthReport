@@ -60,6 +60,21 @@ final class CocoaAwareSearchTests: XCTestCase {
         XCTAssertTrue(try matches(search, "salmon chocolate").isEmpty)
     }
 
+    /// #452 (food-query-interpretation-v6): the comma and spaced phrasings rank like
+    /// "dark chocolate N%" for 70%, 85%, 90%, 95% and 100% cocoa.
+    func testCommaAndSpacedPercentagePhrasingsRankTheCocoaBandFirst() throws {
+        let search = try composite()
+        for (p, first) in [("70", "Chocolate, dark, 70-85% cacao solids"), ("85", "Chocolate, dark, 70-85% cacao solids"),
+                           ("90", "Chocolate, dark, 70-85% cacao solids"), ("95", "Chocolate, dark, 70-85% cacao solids"),
+                           ("100", "Baking chocolate, unsweetened, squares")] {
+            for query in ["dark chocolate, \(p)%", "\(p) % dark chocolate", "\(p) per cent dark chocolate"] {
+                let names = try matches(search, query).map(\.candidate.name.value)
+                XCTAssertEqual(names.first, first, query)
+                XCTAssertEqual(names, try matches(search, "dark chocolate \(p)%").map(\.candidate.name.value), query)
+            }
+        }
+    }
+
     func testEachSourceAloneKeepsTheTargetRowInsideItsOwnCut() throws {
         let ids = CocoaIDs()
         let usda = try USDAGenericFoodSearch(ids: ids), cofid = try CoFIDGenericFoodSearch(ids: ids)

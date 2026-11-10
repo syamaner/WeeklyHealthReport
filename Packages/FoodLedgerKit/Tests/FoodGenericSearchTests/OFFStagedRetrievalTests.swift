@@ -65,6 +65,60 @@ final class OFFStagedRetrievalTests: XCTestCase {
         XCTAssertEqual(clock.elapsed, 14, accuracy: 0.01)
     }
 
+    /// off-search-detail-transport-v5 (#452): a cocoa percentage earns the two detail reads for
+    /// names that state the same cocoa percentage and the other food words. Synthetic hits.
+    func testNamedCocoaPercentageMovesAheadOfOtherStrengthsWithinBudget() async throws {
+        let wanted = "4006381333931", alsoWanted = "7612345678900"
+        for (p, other) in [("70", "85"), ("85", "70"), ("90", "85"), ("95", "90"), ("100", "95")] {
+            let hits: [[String: Any]] = [
+                ["code": first, "product_name": "Dark chocolate"],
+                ["code": second, "product_name": "Dark chocolate \(other)% cocoa"],
+                ["code": "50117468", "product_name": "Excellence \(p)% 100g", "brands": ["Synthetic"]],
+                ["code": wanted, "product_name": "\(p)% Cocoa Dark Chocolate", "brands": ["Synthetic"]],
+                ["code": alsoWanted, "product_name": "Dark Chocolate \(p)%"]
+            ]
+            let phrasings = ["dark chocolate \(p)% cocoa", "dark chocolate \(p)%", "\(p)% dark chocolate",
+                             "\(p) % dark chocolate", "dark chocolate, \(p)%", "\(p) per cent dark chocolate"]
+            for phrasing in phrasings {
+                StagedProtocol.store.reset(try [Reply(body: json(["timed_out": false, "hits": hits])), product(wanted), product(alsoWanted)])
+                let answer = try await transport(StageClock()).search(foodTerms: phrasing)
+                XCTAssertEqual(try products(answer).compactMap { $0["code"] as? String }, [wanted, alsoWanted], phrasing)
+                XCTAssertEqual(StagedProtocol.store.requests.count, 3, phrasing)
+            }
+        }
+        // Without a percentage the provider order is kept.
+        StagedProtocol.store.reset(try [Reply(body: json(["timed_out": false, "hits": [
+            ["code": first, "product_name": "Dark chocolate"], ["code": wanted, "product_name": "90% Cocoa Dark Chocolate"]]])),
+            product(first), product(wanted)])
+        let plain = try await transport(StageClock()).search(foodTerms: "dark chocolate")
+        XCTAssertEqual(try products(plain).compactMap { $0["code"] as? String }, [first, wanted])
+        XCTAssertEqual(OFFHTTPSearchTransport.version, "off-search-detail-transport-v5")
+    }
+
+    /// off-search-detail-transport-v5 (#452): only a name that itself describes plain chocolate of
+    /// the requested strength earns a read. An ingredient percentage, a contradicting cocoa band
+    /// and a cocoa reading of a request the cocoa policy excludes ("chocolate milk 2%") keep the
+    /// provider order. Synthetic hits.
+    func testIngredientPercentagesAndExcludedFoodsDoNotEarnCocoaPriority() async throws {
+        let wanted = "4006381333931", later = "5201054080610"
+        for impostor in ["Dark chocolate 90% cocoa butter", "Dark chocolate 90% (70% cocoa solids)",
+                         "Dark chocolate 90% cocoa powder"] {
+            StagedProtocol.store.reset(try [Reply(body: json(["timed_out": false, "hits": [
+                ["code": first, "product_name": "Dark chocolate"],
+                ["code": second, "product_name": "Dark chocolate 85% cocoa"],
+                ["code": later, "product_name": impostor],
+                ["code": wanted, "product_name": "90% Dark Chocolate"]]])), product(wanted), product(first)])
+            let answer = try await transport(StageClock()).search(foodTerms: "dark chocolate 90%")
+            XCTAssertEqual(try products(answer).compactMap { $0["code"] as? String }, [wanted, first], impostor)
+        }
+        StagedProtocol.store.reset(try [Reply(body: json(["timed_out": false, "hits": [
+            ["code": first, "product_name": "Chocolate milk"],
+            ["code": second, "product_name": "Chocolate milk 1%"],
+            ["code": later, "product_name": "Chocolate milk 2%"]]])), product(first), product(second)])
+        let milk = try await transport(StageClock()).search(foodTerms: "chocolate milk 2%")
+        XCTAssertEqual(try products(milk).compactMap { $0["code"] as? String }, [first, second])
+    }
+
     func testPercentageAlonePartialTermsAndAmbiguousNamesCannotEarnPriority() async throws {
         let later = "5201054080610"
         let cases: [(String, Any, Any)] = [

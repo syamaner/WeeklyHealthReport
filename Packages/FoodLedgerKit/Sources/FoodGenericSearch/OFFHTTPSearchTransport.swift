@@ -6,7 +6,7 @@ import FoodLedgerDomain
 /// One submitted OFF stage: discovery followed by at most two detail reads.
 /// Only detail records cross the existing product-admission boundary.
 public actor OFFHTTPSearchTransport: OFFSearchTransport {
-    public static let version = "off-search-detail-transport-v4"
+    public static let version = "off-search-detail-transport-v5"
     public static let maximumBytes = 500_000
     public static let productLimit = 10
     public static let detailLimit = 2
@@ -126,18 +126,35 @@ public actor OFFHTTPSearchTransport: OFFSearchTransport {
     /// establish identity or nutrition. Unproven hits keep their provider order.
     private static func prioritisedHits(_ hits: [[String: Any]], terms: String) -> [[String: Any]] {
         let query = FoodQueryParser.parse(terms)
-        guard query.allowsCandidateDiscovery,
-              let percentage = query.attributes["unspecified_percent"] ?? query.attributes["fat_percent"] else { return hits }
-        // Retain every other literal descriptor, including brand, flavour and preparation.
+        // v5 (#452): a cocoa strength earns an earlier read as the other percentages do, but only
+        // for a plain chocolate request under CocoaPercentPolicy ("chocolate milk 2%" is not one).
+        let cocoa = query.attributes["unspecified_percent"] == nil && query.attributes["fat_percent"] == nil
+            ? CocoaPercentPolicy.requested(query) : nil
+        let other = query.attributes["unspecified_percent"] ?? query.attributes["fat_percent"]
+        guard query.allowsCandidateDiscovery, other != nil || cocoa != nil else { return hits }
+        // Retain every other literal descriptor, including brand, flavour and preparation. The
+        // cocoa wording that names the percentage ("90% cocoa") is part of the percentage.
         let withoutPercentage = terms.replacingOccurrences(
-            of: #"(-?\d+(?:\.\d+)?)\s*(?:%|per[ -]?cent)"#, with: " ", options: [.regularExpression, .caseInsensitive])
+            of: cocoa == nil ? #"(-?\d+(?:\.\d+)?)\s*(?:%|per[ -]?cent)"# : #"(-?\d+(?:\.\d+)?)\s*(?:%|per[ -]?cent)(?:\s*(?:cocoa|cacao)(?:\s+solids)?)?"#,
+            with: " ", options: [.regularExpression, .caseInsensitive])
         let required = GenericFoodSearchTerms.literalTokens(withoutPercentage)
         guard !required.isEmpty else { return hits }
         func isExplicitMatch(_ hit: [String: Any]) -> Bool {
             guard let name = hit["product_name"] as? String else { return false }
             let named = FoodQueryParser.parse(name)
-            guard named.allowsCandidateDiscovery,
-                  (named.attributes["unspecified_percent"] ?? named.attributes["fat_percent"]) == percentage else { return false }
+            guard named.allowsCandidateDiscovery else { return false }
+            if let cocoa {
+                // The name must itself describe plain chocolate of that strength, so an ingredient
+                // percentage ("90% cocoa butter") or a contradicting cocoa band earns nothing.
+                guard CocoaPercentPolicy.requested(named) == cocoa else { return false }
+                switch CocoaPercentPolicy.band(name: name, description: nil, recordID: nil) {
+                case nil: break
+                case let .declared(lower, upper) where lower == cocoa && upper == cocoa: break
+                default: return false
+                }
+            } else {
+                guard named.attributes["unspecified_percent"] ?? named.attributes["fat_percent"] == other else { return false }
+            }
             let brands = (hit["brands"] as? [String])?.joined(separator: " ") ?? (hit["brands"] as? String ?? "")
             return required.isSubset(of: GenericFoodSearchTerms.literalTokens(name + " " + brands))
         }
