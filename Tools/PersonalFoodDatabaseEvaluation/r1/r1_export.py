@@ -9,8 +9,10 @@ entry, field and value it keeps is byte-for-byte what the pinned release held:
   stratum: unresolved is never a pass): the value is removed. A listed key must be in the frozen
   nutrient inventory. When it is not a label value of the entry, the reviewed value came from the
   entry's generic reference, so that reference is removed instead, whether `merge` or `candidate`
-  (a known error or an unresolved value is never offered through a reference). A listed key on an
-  entry with neither is refused.
+  (a known error or an unresolved value is never offered through a reference). On an entry with
+  neither, an unresolved key is already unknown and is only counted (a full-coverage review records
+  every inventory key, including ones the entry does not show); a withheld key is refused, since an
+  `error_*` assessment is only ever made on a supplied value.
 - `reference_candidates` (pfd-exclusions-v1): a merge reference becomes `candidate`.
 - Switch `a1`: every Open Food Facts label value (`exact_product_dataset`) is removed.
 - Switch `a2`: every merge reference becomes `candidate`.
@@ -133,7 +135,8 @@ def derive(pinned: dict, exclusions: dict, unresolved: dict, switches: dict, nut
                              "values_dropped_withheld_entry", "values_dropped_withheld_value",
                              "values_dropped_unresolved", "references_removed_withheld_entry",
                              "references_removed_for_value", "references_demoted_to_candidate",
-                             "entries_with_no_nutrition", "sources_removed")}
+                             "entries_with_no_nutrition", "sources_removed",
+                             "unresolved_already_unknown")}
     out_items = []
     for it in pinned["items"]:
         new = dict(it)
@@ -157,8 +160,10 @@ def derive(pinned: dict, exclusions: dict, unresolved: dict, switches: dict, nut
                     if ref is not None:  # several listed keys may come through one reference
                         ref = None
                         counts["references_removed_for_value"] += 1
+                elif why == "unresolved":
+                    counts["unresolved_already_unknown"] += 1  # nothing shown, so nothing to withhold
                 else:
-                    raise R1Error("a listed value is neither a label value nor reachable through a reference")
+                    raise R1Error("a withheld value is neither a label value nor reachable through a reference")
             if switches["a1"]:
                 for key in [k for k, v in labels.items() if v["source_kind"] == OFF_KIND]:
                     del labels[key]

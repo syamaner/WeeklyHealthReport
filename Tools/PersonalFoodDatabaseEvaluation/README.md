@@ -191,8 +191,10 @@ merge made newly eligible by dropped values stays a candidate by construction. A
 keeps no value and no reference and stays listed ("No nutrition data yet"). A withheld or
 unresolved value is removed. Its key must be in the frozen nutrient inventory; when it is not a
 label value of the entry, the reviewed value came from the entry's generic reference, so that
-reference is removed instead, whether `merge` or `candidate`, and a listed key on an entry with
-neither is refused. Unresolved values are taken from every stratum (unresolved is never a pass),
+reference is removed instead, whether `merge` or `candidate`. On an entry with neither, an
+unresolved key is already unknown and is only counted (`unresolved_already_unknown`; a
+full-coverage review records every inventory key), while a withheld key is refused, since an
+`error_*` assessment is only made on a supplied value. Unresolved values are taken from every stratum (unresolved is never a pass),
 and the console reports them by stratum. When any label value is removed
 (withheld, unresolved or by `a1`), the entry's `merge` reference becomes a `candidate`, so the
 merged record never silently supplies those nutrients in their place (plan section 6: never a new

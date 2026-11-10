@@ -179,10 +179,18 @@ class Derive(unittest.TestCase):
         _, counts = self.run_r1(e=excl(self.rel, values=[key]), u=unres(self.rel, [key]))
         self.assertEqual((counts["values_dropped_withheld_value"], counts["values_dropped_unresolved"]), (1, 0))
 
-    def test_unreachable_listed_value_is_refused(self):
-        u = unres(self.rel, [(ident("Synthetic bare food"), "protein")])
+    def test_unreachable_withheld_value_is_refused(self):
+        e = excl(self.rel, values=[(ident("Synthetic bare food"), "protein")])
         with self.assertRaises(R.R1Error):
-            R.derive(self.pinned, excl(self.rel), u, SWITCH_OFF, NUTRIENTS)
+            R.derive(self.pinned, e, unres(self.rel), SWITCH_OFF, NUTRIENTS)
+
+    def test_unresolved_value_the_entry_does_not_show_is_counted_not_refused(self):
+        u = unres(self.rel, [(ident("Synthetic bare food"), "protein")])
+        doc, counts = self.run_r1(u=u)
+        self.assertEqual((counts["unresolved_already_unknown"], counts["values_dropped_unresolved"]), (1, 0))
+        self.assertEqual(R.check_drops_only(self.pinned, doc), [])
+        self.assertEqual(R.check_applied(doc, excl(self.rel), u, SWITCH_OFF, self.pinned), [])
+        self.assertEqual(by_title(doc, "Synthetic bare food"), by_title(self.pinned, "Synthetic bare food"))
 
     def test_reference_candidates_and_a2_demote_merges_never_promote(self):
         doc, counts = self.run_r1(e=excl(self.rel, candidates=[ident("Synthetic merge food")]))
