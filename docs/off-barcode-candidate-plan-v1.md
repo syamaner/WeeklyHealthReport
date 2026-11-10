@@ -65,3 +65,19 @@ The user authorised at most 30 public production reads, at <=5/minute, no person
 Actual Swift adapter replay: 28 legacy cases, 11 HTTP 200 products, 17 observed HTTP 404s, 2 populated candidates, 9 insufficient-data declines and no remaining adapter failures among the HTTP 200 responses. The 404 bodies were not retained by the probe, so they are not counted as adapter-level `notFound` evidence; synthetic contracts separately prove that route. Source-supported candidates are 2/28 in this deliberately historical sample; exact present-day variants, label freshness and reformulations remain unadjudicated. Report: `Tools/FoodSourceEvaluation/off-public-uk-legacy-replay-2026-09-27.json`. Source: https://doi.org/10.6084/m9.figshare.8668265.v2 (CC BY 4.0; dataset authors). No raw product response, contributor metadata or image is bundled.
 
 Recommendation: retain OFF as an optional reviewed source, with truthful misses/insufficient-data recovery and no coverage promise. It is unsuitable as a universal or automatically trusted UK food catalogue. USDA and CoFID remain whole-record offline generic sources; exact saved reuse remains independent of OFF. Further current-UK/volume coverage is a separately scoped extension, not a model-generated nutrition substitute.
+
+## Panel-stated basis, `off-product-projection-v5` (#458), 10 November 2026
+
+Owner approved on 10 November 2026. Online searches for "dark chocolate 85%" and "85% dark chocolate" found no product, although Open Food Facts lists many. In a live check that day, the hits read in detail (19280432 and 0850686003358) each had one packaging panel, as sold, per 100 g, but no pack quantity, so v4 declined them. Pack quantities such as "3 oz" or "1 bar" were declined the same way. The pack quantity only chose per 100 g or per 100 ml, and the v3.6 panel already states its own basis.
+
+The rule, shared by barcode lookup and text search:
+
+- A pack quantity that states a mass (g, kg) or a volume (ml, cl, dl, l) chooses the basis exactly as in v4: only panels for that basis are eligible, and exactly one must be.
+- A pack quantity that states both still declines.
+- A missing, empty or unrecognised pack quantity no longer declines. Exactly one `packaging`, `as_sold` panel per 100 g or per 100 ml, across both bases, must exist, and its own `per` decides the basis. Its `per_quantity` (100) and `per_unit` (g or ml) are checked as before. A per 100 g and a per 100 ml panel together decline, because nothing chooses between them.
+- Legacy `nutriments` records still need `nutrition_data_per` 100g and a mass pack, because legacy values cannot tell grams from millilitres.
+- The source line omits the pack segment when there is no pack quantity ("Open Food Facts · source estimate · per 100 g").
+
+Nothing else changes: the same eight nutrient fields, units, bounds, unknowns, supplement refusal, provenance, attribution, hashes and confirmation before logging. Stored records keep their own projection version and decode unchanged. The personal food catalogue's `off_rules.py` stays on `off-product-projection-v4`, which admits a subset of what v5 admits; see `personal-food-catalogue-import-v1.md`.
+
+Out of scope: a search reads at most two product details, so one read can go to a product with no nutrition data at all (6001000006843 in the 85% case).

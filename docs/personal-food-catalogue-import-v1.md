@@ -167,13 +167,15 @@ Label nutrient value (exactly these keys; `transforms` and `source_value` togeth
   Each applies to one nutrient, one source unit and one source kind. `transforms` holds exactly one `{transform_id, version}` and `source_value` exactly
   `{value, unit}` with the printed value; the importer recomputes the value from `source_value` and
   rejects a difference above 0.5 per cent. Unknown pairs are rejected.
-- Open Food Facts values follow the app's `OpenFoodFactsLookup.project` rules exactly, read from
+- Open Food Facts values follow the app's `OpenFoodFactsLookup.project` rules as of `off-product-projection-v4`, read from
   the same API v3.6 product endpoint with the same status and returned-code checks (the skill's
   `off_rules.py` is a cited port): the same eight fields; one packaging input set for the product's
   basis, or legacy `nutriments` only for mass products with `nutrition_data_per` 100g; legacy sodium
   unknown; a pack quantity that is mass or volume, not both; dietary supplements refused; the stored
   unit must be canonical, with sodium g to mg the only conversion. The one difference: a value the
-  app would bound is left out, because v1 has no bounds.
+  app would bound is left out, because v1 has no bounds. Since #458 the app uses `off-product-projection-v5`, which
+  also admits a product with no recognised pack quantity when its single label panel states its own
+  basis; the catalogue keeps v4, a stricter subset, so its pinned version is unchanged.
 
 Generic reference:
 
