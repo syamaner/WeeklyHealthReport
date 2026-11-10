@@ -4,6 +4,8 @@ Status: **owner-approved, gate passed with changes, assisted-UX principle applie
 
 **Reader v3 (20 October 2026).** The reader is amended by [pasted nutrition label reader v3](pasted-nutrition-label-reader-v3.md) (parser `nutrition-label-text-parser-v3`, manifest `pasted-nutrition-label-v2` for a chosen basis, serving `pasted-label-serving-v3`, and a fresh-set release check), owner-approved 20 October 2026; where the two differ for the reader, v3 governs.
 
+**Nutrition label entry (10 November 2026).** Section 7 and invariant 12 (8.3) are amended by [nutrition label entry v1](nutrition-label-entry-v1.md) (#454, owner decisions Q1 to Q3): the system paste control on the Nutrition label screen may also read the clipboard, only when tapped, and opens this screen with the pasted text, byte for byte, as its initial text. The clipboard is still never read unprompted, and the text is still never kept outside a logged entry's manifest.
+
 **Confirm (24 October 2026).** Sections 2.2, 2.3 and 6.5 are amended by [pasted label Confirm v1](pasted-label-confirm-v1.md) (#306): fortification is asked once, on Confirm, as Yes / No / Not stated; Not stated is recorded as the existing typed `not_sure` decision; Amount eaten comes before the label values; and the unit opens on servings when the label states one.
 
 **Launch scope (decisions 3, 4 and 11):** Taiwan 營養標示 text ships first. UK English ships only after at least 20 real public UK label texts read with zero wrong values. US "Nutrition Facts" layouts decline in v1.
@@ -356,7 +358,7 @@ The enum cases already exist (`CaptureKind.labelText`, `ProvenanceSourceKind.use
 
 - Reading uses only `NutritionLabelParsing` and the ported gate, checks and conversions, with no network, provider, model or OCR call.
 - The pasted text is stored only in the local food ledger, inside the manifest of the entry it produced, under the existing rule that the food log stays local. It leaves the device only inside an inventory backup file the user explicitly exports, which [`privacy-and-egress.md`](privacy-and-egress.md) already covers for the whole food log, or inside a misread report the user chooses to share. It is never in Daily JSON, Copy all, Full Page or any report.
-- Reading the clipboard happens only when the user pastes into the field (the system paste control); the app never reads the pasteboard on its own.
+- Reading the clipboard happens only when the user pastes into the field (the system paste control); the app never reads the pasteboard on its own. (Amended by #454, owner decisions Q1 to Q3, 10 November 2026: also when the user taps the system paste control on the Nutrition label screen, which passes plain text to this screen in memory, unchanged; nothing is read unprompted and nothing is kept outside a logged entry's manifest.)
 - **Report a misread** (section 9.1) opens the iOS share sheet only when the user taps it. The user sees and can edit the report first, picks the destination in the share sheet, and can cancel at any point. The app has no destination of its own for it: no prefilled address, no endpoint, no upload, no background collection, no retry and no record that a report was made.
 - **Required privacy document changes, shipped in the implementation PR together with the feature.** They ship in **PR 4 (presentation and UI)**, in that PR or folded in alongside it (section 8.6), and are **not** made by this contract's PR: the app bundles `privacy-policy.txt` (`PrivacyPolicyView`), and neither document may describe the route before it exists. The owner's approval of this contract covers the exact wording below; the implementation PR applies it verbatim, and any change to it needs owner approval again. Both are user-initiated shares under the existing row; no row and no destination is added.
 
@@ -422,7 +424,7 @@ Hashing (SHA-256 of the text and the manifest) uses the injected digester, as `R
 9. No medical classification, targets or interpretation in any copy.
 10. Older records and archives decode and re-encode unchanged.
 11. "Calculated" has one definition (`NutrientDerivation.calculatedTransform`) and one renderer; every total that includes a calculated contribution says it includes estimates.
-12. Label text is never kept outside a logged entry's manifest: not in scene or app storage, not in logs, not read from the pasteboard by the app.
+12. Label text is never kept outside a logged entry's manifest: not in scene or app storage, not in logs, not read from the pasteboard by the app. (Amended by #454, owner decisions Q1 to Q3, 10 November 2026: except by the system paste control on the Nutrition label screen, only when tapped, which hands the text to this screen in memory.)
 
 ### 8.4 Contract tests (written first)
 

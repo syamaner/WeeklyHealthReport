@@ -232,19 +232,65 @@ final class PastedLabelRouteTests: XCTestCase {
         XCTAssertEqual(model.text, Self.supplement, "the text stays for a return to the label screen")
     }
 
-    func testAddFoodOffersThePasteNutritionLabelRow() throws {
+    /// Nutrition label (#454, docs/nutrition-label-entry-v1.md 6.1 and 6.2 test 8): one row replaces
+    /// Paste nutrition label and Photo of nutrition label, with the subtitle keyed on the mode.
+    func testAddFoodOffersOneNutritionLabelRow() throws {
         let root = try makeRoot()
         var opened = false
-        let view = AddFoodView(recents: [], search: { _ in }, scanBarcode: {}, pasteOrDictate: {}, pasteLabel: { opened = true },
-                               favourites: {}, relog: { _ in })
-        let action = try XCTUnwrap(Mirror(reflecting: view).descendant("pasteLabel") as? () -> Void)
+        let view = AddFoodView(recents: [], search: { _ in }, scanBarcode: {}, pasteOrDictate: {}, nutritionLabel: { opened = true },
+                               nutritionLabelPhotos: root.labelPhotoEnabled, favourites: {}, relog: { _ in })
+        let action = try XCTUnwrap(Mirror(reflecting: view).descendant("nutritionLabel") as? () -> Void)
         action()
         XCTAssertTrue(opened)
-        XCTAssertEqual(PastedLabelText.addFoodRow, "Paste nutrition label")
+        XCTAssertNil(Mirror(reflecting: view).descendant("pasteLabel"), "no Paste nutrition label route")
+        XCTAssertNil(Mirror(reflecting: view).descendant("photoLabel"), "no Photo of nutrition label route")
+        XCTAssertEqual(Mirror(reflecting: view).descendant("nutritionLabelPhotos") as? Bool, false, "off in every Release build today")
+        XCTAssertEqual(NutritionLabelEntryText.addFoodRow, "Nutrition label")
         XCTAssertNotNil(Mirror(reflecting: AddFoodFlowView(root: root)).descendant("root"))
         for (size, name) in [(DynamicTypeSize.large, "standard"), (.accessibility3, "accessibility3")] {
-            render(NavigationStack { view }.environment(\.dynamicTypeSize, size), "Add food - paste nutrition label row \(name)")
+            render(NavigationStack { view }.environment(\.dynamicTypeSize, size), "Add food - nutrition label row \(name)")
         }
+    }
+
+    // MARK: Nutrition label (#454, 6.2 tests 5 and 6): pasted and empty text
+
+    func testPastedTextReachesTheTextScreenByteForByte() throws {
+        let root = try makeRoot()
+        let padded = "\n\t " + Self.base + " \u{3000}\r\n"
+        let model = root.pastedLabelTextModel(locale: Locale(identifier: "en_GB"), initialText: padded)
+        XCTAssertEqual(Array(model.text.utf8), Array(padded.utf8), "no trim, normalisation or truncation")
+        let flow = PastedLabelFlowView(root: root, initialText: padded) {}
+        XCTAssertNotNil(Mirror(reflecting: flow).descendant("_model"))
+        let long = String(repeating: "熱", count: PastedLabelManifest.maximumTextScalars + 1)
+        let tooLong = root.pastedLabelTextModel(initialText: long)
+        tooLong.name = "Synthetic crackers"
+        XCTAssertEqual(tooLong.text, long)
+        XCTAssertTrue(tooLong.isTooLong, "a text over the limit reaches the screen and is blocked there")
+        XCTAssertFalse(tooLong.canRead)
+    }
+
+    func testAPastedReadGivesTheSameManifestAsTypedText() throws {
+        let root = try makeRoot()
+        let pasted = root.pastedLabelTextModel(locale: Locale(identifier: "en_GB"), initialText: Self.base)
+        let typed = root.pastedLabelTextModel(locale: Locale(identifier: "en_GB"))
+        typed.text = Self.base
+        for model in [pasted, typed] { model.name = "Synthetic oat crackers" }
+        let pastedSource = try XCTUnwrap(pasted.readLabel(), "\(pasted.declineMessages)")
+        let typedSource = try XCTUnwrap(typed.readLabel(), "\(typed.declineMessages)")
+        XCTAssertEqual(pastedSource.pastedText, typedSource.pastedText)
+        XCTAssertEqual(pastedSource.manifest, typedSource.manifest, "the same reading and manifest")
+        XCTAssertEqual(pastedSource.rows.map(\.value), typedSource.rows.map(\.value), "the same values; only evidence IDs differ")
+    }
+
+    func testTypeOrPasteTextOpensTheTextScreenEmpty() throws {
+        let root = try makeRoot()
+        let model = root.pastedLabelTextModel()
+        XCTAssertEqual(model.text, "")
+        let visit = NutritionLabelVisit(root: root)
+        visit.entry.typeOrPaste()
+        XCTAssertTrue(visit.showsText)
+        XCTAssertEqual(visit.text, "")
+        XCTAssertFalse(visit.showsPhoto)
     }
 
     // MARK: Helpers

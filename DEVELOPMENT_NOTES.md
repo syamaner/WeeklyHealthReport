@@ -4305,6 +4305,35 @@ Excluded:
 - CI runs, which use no API tokens;
 - this ledger edit, the commit, the push and the PR after the window.
 
+## WHR-454-2026-11-10: Claude Code Nutrition label entry, spec to PR (#454)
+
+The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) did the following in this window:
+- wrote the spec `docs/nutrition-label-entry-v1.md` and opened #454;
+- put owner questions Q1 to Q3 to the owner one at a time;
+- ran three architecture-gate passes (revisions 1 to 3, the last a PASS);
+- delegated the implementation;
+- ran the invariant review, fixed its one Medium finding (a photo kept in memory after Back) with a test, and ran the validator and journey QA;
+- wrote this PR.
+
+The subagents are included: the architecture gate, the implementer, the invariant reviewer, the validator and journey QA. The window runs from `2026-11-10T07:40:40Z`, the owner's "proceed as suggested", to `2026-11-10T10:22:07Z`. It also covers some unrelated work interleaved with this phase:
+- two prompts for collecting UK label photos (Codex did the collection, outside this session);
+- a check of the collected set;
+- relaying the separate dark chocolate session's notes.
+These could not be separated by time.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| #454 spec, gate, implementation, reviews and QA, coordinator and subagents | 56,758,026 (55,508,355) | 1,248,835 | 243,959 | 57,001,985 | $22.69 |
+
+Method: `phase_usage.py --format claude --since 2026-11-10T07:40:40Z --include-subagents` on the session transcript. Exact USD 22.692608. The cache-write tokens are part of the input figure, and 1,094,089 of them are 5-minute writes. The total is input plus output.
+
+Excluded:
+- the Codex UK photo collection session;
+- the separate dark chocolate session (#453);
+- the Qodo review runs;
+- CI runs and local builds, which use no API tokens;
+- this ledger edit, the push and the PR after the window.
+
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
 
 ## WHR-452-2026-11-10: Claude Code cocoa percentage phrasings (#452)

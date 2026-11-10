@@ -10,8 +10,6 @@ public enum LabelPhotoText {
 
     // MARK: 7.1 Label photo screen
 
-    public static let addFoodRow = "Photo of nutrition label"
-    public static let addFoodRowSubtitle = "Taiwan labels (營養標示). Read by AI; you check every value."
     public static let takePhoto = "Take photo"
     public static let chooseFromLibrary = "Choose from library"
     public static let screenTitle = "Label photo"

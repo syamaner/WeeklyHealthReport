@@ -67,6 +67,8 @@ CODE_READ_DOCS = {
     # Cited by parser v3, the serving v3 policy and their tests (reader v3, #93).
     "docs/pasted-nutrition-label-reader-v3.md",
     "docs/healthkit-day-bucketing-v1.md",
+    # Cited by the Nutrition label entry, its composition root and tests (#454).
+    "docs/nutrition-label-entry-v1.md",
     # Cited by the pasted-label fortification policy, Confirm copy and their tests (#306).
     "docs/pasted-label-confirm-v1.md",
     # Cited by the Copy all renderer and its golden tests (#308).
