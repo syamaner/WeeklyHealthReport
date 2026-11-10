@@ -323,6 +323,35 @@ final class LabelPhotoPresentationTests: XCTestCase {
         XCTAssertFalse(model.isBusy)
     }
 
+    /// A retry report from an earlier photo's read never shows on the next photo's read.
+    func testAnEarlierReadsRetryDoesNotShowOnTheNextRead() async throws {
+        let script = Script(); script.consented = true
+        var stale: (@Sendable (Int) -> Void)?
+        let source = try self.source()
+        let model = LabelPhotoScreenModel(environment: .init(
+            prepare: { _, _ in .success(Self.image) },
+            read: { _, progress in
+                script.reads += 1
+                if script.reads == 1 { stale = progress; return .failed(.timedOut) }
+                while !Task.isCancelled { await Task.yield() }
+                return .failed(.cancelled)
+            },
+            status: { script.status }, keyState: { script.key }, isOnline: { script.online },
+            hasConsented: { script.consented }, recordConsent: { script.consented = true },
+            makeConfirm: { _, _, _ in source }))
+        await ready(model)
+        model.readTapped()
+        try await waitUntil { !model.isBusy && script.reads == 1 }
+        model.leave()
+        await ready(model)
+        model.readTapped()
+        try await waitUntil { model.phase == .reading && script.reads == 2 }
+        stale?(2)
+        for _ in 0..<20 { await Task.yield() }
+        XCTAssertEqual(model.phase, .reading)
+        model.cancel()
+    }
+
     func testACropTooSmallIsRefusedWithItsCopy() throws {
         let model = try screen(Script(), prepare: .cropTooSmall)
         model.choose(Data([1]))

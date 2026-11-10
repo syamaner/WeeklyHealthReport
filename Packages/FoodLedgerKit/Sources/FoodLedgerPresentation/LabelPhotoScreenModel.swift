@@ -212,13 +212,15 @@ public final class LabelPhotoScreenModel: ObservableObject {
         let details = PastedLabelDetails(name: name.trimmingCharacters(in: .whitespacesAndNewlines),
                                          brand: brand.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : brand)
         let read = environment.read
+        let generation = photoGeneration
+        // Only the current photo's read may show its retry attempt (Qodo review of #454).
         let progress: @Sendable (Int) -> Void = { [weak self] attempt in
             guard attempt > 1 else { return }
             Task { @MainActor in
-                if self?.isBusy == true { self?.phase = .retrying(attempt: attempt) }
+                guard let self, self.photoGeneration == generation, self.isBusy else { return }
+                self.phase = .retrying(attempt: attempt)
             }
         }
-        let generation = photoGeneration
         readTask = Task { [weak self] in
             let outcome = await read(image, progress)
             await self?.finish(outcome, image: image, details: details, generation: generation)
