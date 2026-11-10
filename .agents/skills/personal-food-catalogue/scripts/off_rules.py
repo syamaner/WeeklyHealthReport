@@ -40,7 +40,7 @@ def _source_nutrients(product, pack_volume):
         if not all(isinstance(s, dict) for s in sets):
             return None  # the app's cast fails on a non-dictionary set
         eligible = [(i, s) for i, s in enumerate(sets) if s.get("source") == "packaging"
-                    and s.get("per") in pers and s.get("preparation") == "as_sold"]
+                    and isinstance(s.get("per"), str) and s["per"] in pers and s.get("preparation") == "as_sold"]
         if len(eligible) != 1 or not isinstance(eligible[0][1].get("nutrients"), dict):
             return None
         panel = eligible[0][1]

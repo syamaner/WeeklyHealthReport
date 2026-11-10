@@ -81,6 +81,14 @@ check("two panels with no pack basis refused", run(two) is None)
 check("legacy record with no pack refused", run(legacy(quantity="")) is None)
 check("legacy record with an unrecognised pack refused", run(legacy(quantity="3 oz")) is None)
 check("mass pack still refuses a lone per 100 ml panel", run(modern(per="100ml", qty="500 g")) is None)
+for bad in ([], ["100g"], {}, {"per": "100g"}, 100):
+    malformed = modern(qty="")
+    malformed["nutrition"]["input_sets"][0]["per"] = bad
+    try:
+        refused = run(malformed) is None
+    except TypeError:
+        refused = False
+    check(f"malformed panel per {bad!r} is declined, not raised", refused)
 wrong_unit = modern(qty="")
 wrong_unit["nutrition"]["input_sets"][0]["per_unit"] = "ml"
 check("panel unit that contradicts its per refused", run(wrong_unit) is None)
