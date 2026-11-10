@@ -123,6 +123,9 @@ def cmd_build_r1(a, root: Path):
                          "results_sha256": formats.sha256(results_bytes),
                          "unresolved_sha256": formats.sha256(unresolved_bytes)},
                         sort_keys=True, separators=(",", ":")).encode() + b"\n"
+    out_dir = root / OUT_DIR
+    if out_dir.is_symlink() or (out_dir.exists() and not out_dir.is_dir()):
+        sys.exit("refused: the R1 output folder is a link or not a folder; nothing written")
     _write_once([(pfd_eval_v2.private(root, root / UNRESOLVED_FILE), unresolved_bytes),
                  (pfd_eval_v2.private(root, root / R1_FILE), data),
                  (pfd_eval_v2.private(root, root / RECORD_FILE), record)])

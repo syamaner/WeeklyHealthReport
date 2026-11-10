@@ -460,6 +460,18 @@ class CommandLine(unittest.TestCase):
             self.assertIn("was changed", text)
             self.assertFalse((root / "r1").exists())
 
+    def test_linked_output_folder_is_refused(self):
+        with H.private_dir() as t:
+            root = Path(t)
+            release = self.setup_root(root)
+            elsewhere = root / "elsewhere"
+            elsewhere.mkdir()
+            (root / "r1").symlink_to(elsewhere)
+            code, text = self.run_cli("build-r1", "--root", str(root), "--release", str(release), "--a1", "on", "--a2", "off")
+            self.assertNotEqual(code, 0)
+            self.assertIn("output folder is a link", text)
+            self.assertEqual(list(elsewhere.iterdir()), [])
+
     def test_linked_release_is_refused(self):
         with H.private_dir() as t:
             root = Path(t)

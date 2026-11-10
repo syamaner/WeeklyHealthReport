@@ -25,7 +25,10 @@ supplement schema is not used here.
   No density, cooking yield or portion conversion is inferred; a value on another basis is refused.
 - **Approval is not logging.** A database entry still reaches the shared Confirm screen with one Log
   action, and the quantity is always the user's.
-- **No egress.** The file, source URLs and assumptions stay on the device. Import never fetches a URL.
+- **No new egress.** Import never fetches a URL. The file, the assumptions and the free-text states
+  stay on the device. The one exception is section 7: the public page URL of an approved estimate
+  (query string and fragment dropped) appears in the daily export the user sends to an existing
+  destination, and food archives the user exports or backs up carry the capture manifests.
 
 ## 2. File format `personal-food-catalogue-estimates-v1`
 

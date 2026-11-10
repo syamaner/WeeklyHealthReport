@@ -215,7 +215,7 @@ scorer's files, so the lock alone does not prove scoring finished), the release 
 names the same release. The unresolved list is derived from the sealed review with the frozen
 parsers (values assessed `unresolved`). The output must pass `check_drops_only`, `check_applied`, the skill's
 export conventions and the importer's rules, or nothing is written. All three files go to
-`<root>/r1/`, all or nothing, and a different existing file is never overwritten. The console
+`<root>/r1/` (refused when it is a link or not a folder), all or nothing, and a different existing file is never overwritten. The console
 prints counts and the R1 release ID only. The three files are the R1 file, the unresolved list and the build record.
 
 For the A1 consequence the evaluator runs it with `--a1 on --a2 off` (A2 passed), passing the committed Part A results file as `--results`.
