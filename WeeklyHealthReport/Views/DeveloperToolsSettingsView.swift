@@ -83,6 +83,15 @@ private struct DailyExportRecordRows: View {
         } else {
             LabeledContent("Selected day record", value: "No account or folder")
         }
+        // The prepared health file's glucose readings, for the Apple Health
+        // comparison (#469). Counts and times only; no reading value.
+        ForEach(
+            DailyExportGlucoseReadingsText.developerFields(session.preview?.envelope.today.glucoseReadings),
+            id: \.label
+        ) { field in
+            LabeledContent(field.label, value: field.value)
+                .textSelection(.enabled)
+        }
     }
 }
 

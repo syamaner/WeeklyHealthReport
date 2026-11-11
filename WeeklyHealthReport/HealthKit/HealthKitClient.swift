@@ -749,7 +749,8 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
     func fetchDailyHealthExportInputs(
         for window: DailyExportWindow,
         nutritionSourceBundleIdentifier: String,
-        includeWorkoutEnrichment: Bool
+        includeWorkoutEnrichment: Bool,
+        includeGlucoseReadings: Bool
     ) async throws -> DailyHealthExportInputs {
         // Tag the export's daily reads, and tell Developer tools when they end.
         defer {
@@ -759,7 +760,8 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
             try await readDailyHealthExportInputs(
                 for: window,
                 nutritionSourceBundleIdentifier: nutritionSourceBundleIdentifier,
-                includeWorkoutEnrichment: includeWorkoutEnrichment
+                includeWorkoutEnrichment: includeWorkoutEnrichment,
+                includeGlucoseReadings: includeGlucoseReadings
             )
         }
     }
@@ -767,7 +769,8 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
     private func readDailyHealthExportInputs(
         for window: DailyExportWindow,
         nutritionSourceBundleIdentifier: String,
-        includeWorkoutEnrichment: Bool
+        includeWorkoutEnrichment: Bool,
+        includeGlucoseReadings: Bool
     ) async throws -> DailyHealthExportInputs {
         guard isHealthDataAvailable else { throw HealthDataError.unavailable }
         guard let previous = window.context.precedingEquivalent(
@@ -822,7 +825,13 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
         var todayActiveEnergy: Double?
         var todayExercise: Double?
         var todayWorkouts: [WorkoutRecord] = []
+        // Nil means readings were not requested; an empty list is a
+        // successful read with nothing visible.
+        var glucoseReadingSamples: [GlucoseReadingSample]? = includeGlucoseReadings ? [] : nil
         if window.day.duration > 0 {
+            if includeGlucoseReadings {
+                glucoseReadingSamples = try await fetchGlucoseReadingSamples(in: window.day)
+            }
             todaySteps = try await fetchStepTotal(in: window.day)
             todayGlucose = try await fetchGlucoseStatistics(in: [window.day]).first
                 ?? todayGlucose
@@ -918,8 +927,47 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
             contextWorkouts: contextWorkouts,
             contextAsleepIntervals: contextSleep,
             contextMedicationDoses: contextMedications,
-            nutrition: nutrition
+            nutrition: nutrition,
+            glucoseReadingSamples: glucoseReadingSamples
         )
+    }
+
+    /// Every visible glucose sample whose start is inside `interval`, from
+    /// every source, as plain values (#469). No source predicate: readings
+    /// are grouped by source later and never merged. The limit is the bound
+    /// plus one, so the pure model can tell "too many" from "all of them".
+    private func fetchGlucoseReadingSamples(
+        in interval: DateInterval
+    ) async throws -> [GlucoseReadingSample] {
+        guard isHealthDataAvailable else { throw HealthDataError.unavailable }
+        guard let type = HKObjectType.quantityType(forIdentifier: .bloodGlucose) else {
+            throw HealthDataError.missingType("blood-glucose")
+        }
+        // HealthKit may store glucose as mg/dL or mmol/L; convert here.
+        let unit = HKUnit
+            .moleUnit(with: .milli, molarMass: HKUnitMolarMassBloodGlucose)
+            .unitDivided(by: .liter())
+        let predicate = HKQuery.predicateForSamples(
+            withStart: interval.start,
+            end: interval.end,
+            options: .strictStartDate
+        )
+        let descriptor = HKSampleQueryDescriptor(
+            predicates: [.quantitySample(type: type, predicate: predicate)],
+            sortDescriptors: [SortDescriptor(\.startDate, order: .forward)],
+            limit: GlucoseReadingsPolicy.maximumReadingsPerDay + 1
+        )
+        return try await descriptor.result(for: store).map {
+            GlucoseReadingSample(
+                id: $0.uuid,
+                start: $0.startDate,
+                end: $0.endDate,
+                quantityCount: $0.count,
+                millimolesPerLiter: $0.quantity.doubleValue(for: unit),
+                sourceName: $0.sourceRevision.source.name,
+                sourceBundleIdentifier: $0.sourceRevision.source.bundleIdentifier
+            )
+        }
     }
 
     private func nutritionQuantityTypes() throws -> [(

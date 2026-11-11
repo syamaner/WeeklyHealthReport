@@ -193,3 +193,46 @@ enum DailyExportLastExportFormatter {
         return formatter.date(from: timestamp)
     }
 }
+
+/// Export screen and Developer tools text for the health file's individual
+/// glucose readings (#469). Derived only from the prepared envelope's block;
+/// the block is not a metric and never changes the metric counts above.
+enum DailyExportGlucoseReadingsText {
+    static let title = "Glucose readings"
+    static let includedLabel = "Readings in this file"
+    static let disclosure = "Each glucose reading Apple Health shows for this day, with its time and source. Readings can reach Apple Health some hours late, so export the day again to include them. Gaps are never filled in."
+
+    /// The reading count, or the state in plain words. An empty read is
+    /// never shown as zero readings.
+    static func includedValue(_ block: ExportGlucoseReadings) -> String {
+        switch block.state {
+        // An available block always has a count; without one nothing is claimed.
+        case .available: return block.count.map { "\($0)" } ?? "Readings could not be included"
+        case .noDataOrAccess: return "No visible data or no access"
+        case .limitExceeded: return "Too many readings to include"
+        case .invalidEvidence: return "Readings could not be included"
+        }
+    }
+
+    /// Per-source count and first and last reading time of the prepared
+    /// file, for the Apple Health comparison. No reading value is shown.
+    static func developerFields(
+        _ block: ExportGlucoseReadings?
+    ) -> [DailyExportLastExportFormatter.DeveloperField] {
+        typealias Field = DailyExportLastExportFormatter.DeveloperField
+        guard let block else {
+            return [Field(label: "Glucose readings", value: "Not in the prepared file")]
+        }
+        var fields = [Field(label: "Glucose readings state", value: block.state.rawValue)]
+        guard let series = block.series else { return fields }
+        fields.append(Field(label: "Glucose readings count", value: block.count.map { "\($0)" } ?? "Missing"))
+        for (index, item) in series.enumerated() {
+            let name = "Glucose source \(index + 1)"
+            fields.append(Field(label: name, value: "\(item.sourceName) · \(item.sourceBundleIdentifier)"))
+            fields.append(Field(label: "\(name) count", value: "\(item.count)"))
+            fields.append(Field(label: "\(name) first", value: item.readings.first?.time ?? "None"))
+            fields.append(Field(label: "\(name) last", value: item.readings.last?.time ?? "None"))
+        }
+        return fields
+    }
+}

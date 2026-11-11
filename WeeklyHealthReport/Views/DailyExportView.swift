@@ -354,11 +354,41 @@ struct DailyExportView: View {
                     .font(.caption)
                     .accessibilityIdentifier("export.lastExportOfDay")
             }
+            glucoseReadingsRows
             foodLogRows
         } header: {
             Text("Included")
         } footer: {
             Text("Drafts stay on this device. After you save a note change, the file is prepared again before you can export. The exact file is built only when you view it.")
+        }
+    }
+
+    /// Glucose readings (#469): an opt-in block of individual readings in the health file.
+    @ViewBuilder
+    private var glucoseReadingsRows: some View {
+        if driveAvailability == .unavailableInBuild {
+            // Nothing can be sent in this build, so no choice is offered, as for Food log.
+            EmptyView()
+        } else {
+            Toggle(DailyExportGlucoseReadingsText.title, isOn: Binding(
+                get: { session.glucoseReadingsEnabled },
+                set: { session.setGlucoseReadingsEnabled($0) }
+            ))
+            .disabled(session.busy)
+            .accessibilityHint(DailyExportGlucoseReadingsText.disclosure)
+            .accessibilityIdentifier("export.glucoseReadings")
+            // VoiceOver reads this as the toggle's hint, so it is not read twice.
+            Text(DailyExportGlucoseReadingsText.disclosure)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            if let block = session.preview?.envelope.today.glucoseReadings {
+                LabeledContent(
+                    DailyExportGlucoseReadingsText.includedLabel,
+                    value: DailyExportGlucoseReadingsText.includedValue(block)
+                )
+                .accessibilityIdentifier("export.glucoseReadingsIncluded")
+            }
         }
     }
 

@@ -272,3 +272,9 @@ Legacy recovery is the narrow exception to the earlier no-sample-fan-out scope: 
 ## Schema 8 amendment: individual heart-rate readings
 
 The versioned [heart-rate readings contract](workout-heart-rate-readings-contract.md) adds enrichment version 3 and individual associated quantity-series readings. Earlier versions retain their original exclusions and byte representation. Schema 8 native timestamps use reference-epoch seconds to preserve sub-millisecond interval boundaries; report timestamps remain text.
+
+## Schema 9 amendment: individual glucose readings
+
+The versioned [glucose readings contract](glucose-readings-export-contract-v1.md) (#469, owner decisions D1 to D8 and egress terms E1 to E4, 11 November 2026) adds an opt-in `today.glucose_readings` block. Schema 9 is schema 8 plus that block: workout detail, when present, is enrichment version 3 with schema 8's numeric native dates, and a day without workout detail differs from its schema 7 bytes only by `schema_version` and the block. With the Glucose readings choice off the app emits exactly the bytes it emitted before. Schemas 3, 6, 7 and 8 keep their meaning and bytes, and a `glucose_readings` key in any of them fails admission.
+
+Drive admits schema 9 with the reviewed exact-byte and `historical-v2` ordering rules, requires the block and checks it for self-consistency, and still rejects both canonical-food fields. The daily and hourly glucose statistics in the metric contract above are unchanged and are still queried through HealthKit statistics; the readings are a separate sample read, grouped by source and never merged by hand.
