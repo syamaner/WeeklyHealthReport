@@ -1,7 +1,10 @@
+import Combine
 import FoodLedgerApplication
+import FoodLedgerDomain
 import FoodLedgerPresentation
 import Foundation
 import SwiftUI
+import UIKit
 import UniformTypeIdentifiers
 
 /// The single accessor for the remembered web lookup market.
@@ -61,13 +64,20 @@ enum FoodSearchSettingsContribution {
 }
 
 enum DataSettingsContribution {
-    static func section() -> SettingsSection {
-        SettingsSection(
+    @MainActor
+    static func section(personalFoodDatabase: PersonalFoodDatabaseSettingsViewModel? = nil) -> SettingsSection {
+        var databaseRows: [SettingsRow] = []
+        if let personalFoodDatabase {
+            databaseRows = [.link(PersonalFoodDatabaseSettingsText.title, route: .personalFoodDatabase, detail: { [weak personalFoodDatabase] in
+                personalFoodDatabase?.rowDetail
+            }, changes: personalFoodDatabase.$state.map { _ in () }.eraseToAnyPublisher())]
+        }
+        return SettingsSection(
             id: .data,
             title: "Data",
             footer: nil,
             rows: [
-                .link("Backup and restore", route: .dataBackup),
+                .link("Backup and restore", route: .dataBackup)] + databaseRows + [
                 .link("Receipts and food inventory", route: .inventoryReview),
                 .link("Usual foods", route: .commonFoods),
                 .link("Nutrition updates", route: .foodReresolution)
@@ -85,7 +95,7 @@ extension FoodLedgerCompositionRoot {
                 webLookup: webDiscovery,
                 market: foodMarket
             ),
-            DataSettingsContribution.section()
+            DataSettingsContribution.section(personalFoodDatabase: personalFoodDatabase)
         ]
     }
 }
@@ -176,6 +186,99 @@ struct InventoryBackupView: View {
                 try root.restoreInventoryBackup(InventoryBackupFile.read(try result.get()))
             } catch let error as CocoaError where error.code == .userCancelled { }
             catch { model.report(error) }
+        }
+    }
+}
+
+/// Whether protected data is readable, read live from `UIApplication` for the file stores that
+/// run off the main actor (a cached value can miss the launch-time state). Constraint: off the main
+/// thread it waits on the main queue, so main-thread code must never wait synchronously on a store
+/// that calls it (the importer is an actor reached only with `await`).
+enum ProtectedDataAvailability {
+    @Sendable static func isAvailable() -> Bool {
+        if Thread.isMainThread { return MainActor.assumeIsolated { UIApplication.shared.isProtectedDataAvailable } }
+        return DispatchQueue.main.sync { MainActor.assumeIsolated { UIApplication.shared.isProtectedDataAvailable } }
+    }
+}
+
+/// Reads a picked file within security-scoped access, refusing it before reading when it is over
+/// the import v1 size limit.
+enum PersonalFoodDatabasePickedFile {
+    enum Failure: Error { case tooLarge, unreadable }
+
+    static func read(_ url: URL) throws(Failure) -> Data {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        guard let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize else { throw .unreadable }
+        guard size <= PersonalFoodDatabaseCodec.limitBytes else { throw .tooLarge }
+        guard let data = try? Data(contentsOf: url) else { throw .unreadable }
+        return data
+    }
+}
+
+/// Settings, Data, Your food database (#424 P1b): import, replace and remove.
+struct PersonalFoodDatabaseSettingsView: View {
+    @ObservedObject var model: PersonalFoodDatabaseSettingsViewModel
+    @State private var showsImport = false
+    @State private var confirmsRemove = false
+
+    private static let generatedStyle = Date.FormatStyle(date: .long, time: .omitted, timeZone: TimeZone(identifier: "UTC") ?? .gmt)
+
+    var body: some View {
+        Form {
+            Section {
+                switch model.state {
+                case .loading:
+                    ProgressView("Checking Your food database")
+                case .none:
+                    Text(PersonalFoodDatabaseSettingsText.none)
+                case let .installed(summary):
+                    LabeledContent("Foods", value: PersonalFoodDatabaseSettingsText.foods(summary.entryCount))
+                    LabeledContent("Built", value: summary.generated.utcMidnight.formatted(Self.generatedStyle))
+                    LabeledContent("Imported", value: summary.importedAt.formatted(date: .long, time: .shortened))
+                case .locked:
+                    Label(PersonalFoodDatabaseSettingsText.locked, systemImage: "lock")
+                case .damaged:
+                    Label(PersonalFoodDatabaseSettingsText.damaged, systemImage: "exclamationmark.triangle")
+                }
+            }
+            Section {
+                Button(model.importTitle) { showsImport = true }
+                    .disabled(model.isWorking || model.state == .loading || model.state == .locked)
+                if model.canRemove {
+                    Button("Remove", role: .destructive) { confirmsRemove = true }
+                }
+            } footer: {
+                Text(PersonalFoodDatabaseSettingsText.notSearchedYet)
+            }
+            if model.isWorking {
+                Section { ProgressView("Working") }
+            }
+            if let message = model.message {
+                Section { Text(message) }
+            }
+        }
+        .navigationTitle(PersonalFoodDatabaseSettingsText.title)
+        .task { await model.load() }
+        .fileImporter(isPresented: $showsImport, allowedContentTypes: [.json]) { result in
+            guard case let .success(url) = result else { return }
+            // Up to 25 MB: read off the main thread.
+            Task {
+                let read = await Task.detached { () -> Result<Data, PersonalFoodDatabasePickedFile.Failure> in
+                    do throws(PersonalFoodDatabasePickedFile.Failure) { return .success(try PersonalFoodDatabasePickedFile.read(url)) }
+                    catch { return .failure(error) }
+                }.value
+                switch read {
+                case let .success(data): await model.importFile(data)
+                case let .failure(error): model.reportUnreadableFile(tooLarge: error == .tooLarge)
+                }
+            }
+        }
+        .onChange(of: model.message) { _, message in
+            if let message { AccessibilityNotification.Announcement(message).post() }
+        }
+        .confirmationDialog(PersonalFoodDatabaseSettingsText.removeConfirmation, isPresented: $confirmsRemove, titleVisibility: .visible) {
+            Button("Remove", role: .destructive) { Task { await model.remove() } }
         }
     }
 }

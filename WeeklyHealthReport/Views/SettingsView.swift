@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 
 /// A deliberately closed ordering. Adding a section is a reviewed change to
@@ -61,13 +62,16 @@ struct SettingsRow: Identifiable {
     let id: String
     let title: String
     let kind: Kind
+    /// Emits when the row's detail may have changed while Settings is open.
+    var changes: AnyPublisher<Void, Never>? = nil
 
     static func link(
         _ title: String,
         route: AppRoute,
-        detail: @escaping @MainActor () -> String? = { nil }
+        detail: @escaping @MainActor () -> String? = { nil },
+        changes: AnyPublisher<Void, Never>? = nil
     ) -> SettingsRow {
-        SettingsRow(id: "route." + route.rawValue, title: title, kind: .link(detail: detail, route: route))
+        SettingsRow(id: "route." + route.rawValue, title: title, kind: .link(detail: detail, route: route), changes: changes)
     }
 
     static func text(_ id: String, _ title: String, detail: String?) -> SettingsRow {
@@ -158,6 +162,9 @@ struct SettingsView: View {
         .navigationTitle("Settings")
         .onAppear {
             settings.toggles.forEach { $0.reload() }
+            refresh += 1
+        }
+        .onReceive(Publishers.MergeMany(settings.sections.flatMap(\.rows).compactMap(\.changes)).receive(on: RunLoop.main)) {
             refresh += 1
         }
     }

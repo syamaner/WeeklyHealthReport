@@ -24,6 +24,7 @@ let package = Package(
         .library(name: "FoodLabelPhotoUI", targets: ["FoodLabelPhotoUI"]),
         .library(name: "FoodLedgerArchive", targets: ["FoodLedgerArchive"]),
         .library(name: "FoodLedgerGRDB", targets: ["FoodLedgerGRDB"]),
+        .library(name: "FoodLedgerPersonalDatabase", targets: ["FoodLedgerPersonalDatabase"]),
         .library(name: "FoodLedgerTestSupport", targets: ["FoodLedgerTestSupport"])
     ],
     dependencies: [
@@ -94,6 +95,9 @@ let package = Package(
                 .product(name: "GRDB", package: "GRDB.swift")
             ]
         ),
+        // Your food database store (#424 P1b, docs/personal-food-database-import-v1-phase-1.md 3):
+        // Foundation file APIs only, no network; imported only by the composition root.
+        .target(name: "FoodLedgerPersonalDatabase", dependencies: ["FoodLedgerApplication", "FoodLedgerDomain"]),
         .target(
             name: "FoodLedgerArchive",
             dependencies: ["FoodLedgerApplication", "FoodLedgerGRDB"]
@@ -137,6 +141,10 @@ let package = Package(
         .testTarget(
             name: "UKNutritionLabelParsingTests",
             dependencies: ["NutritionLabelParsing", "UKNutritionLabelParsing"]
+        ),
+        .testTarget(
+            name: "FoodLedgerPersonalDatabaseTests",
+            dependencies: ["FoodLedgerApplication", "FoodLedgerDomain", "FoodLedgerPersonalDatabase", "FoodLedgerTestSupport"]
         ),
         .testTarget(
             name: "FoodLedgerDomainTests",

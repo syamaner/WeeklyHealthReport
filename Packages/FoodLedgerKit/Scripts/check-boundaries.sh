@@ -440,6 +440,93 @@ self_test_clipboard() {
   return "$status"
 }
 self_test_clipboard
+
+# Your food database store (#424 P1b, docs/personal-food-database-import-v1-phase-1.md 3.1, change 9):
+# Foundation, the application and the domain only; no network API; imported only by the
+# composition root and the target's own tests; no other package target depends on it.
+check_personal_database_edges() {
+  local pkg="$1" app="$2" violations="" file line
+  local dir="$pkg/Sources/FoodLedgerPersonalDatabase"
+  if [[ -d "$dir" ]]; then
+    while IFS= read -r line; do
+      if [[ -n "$line" ]]; then violations+="FoodLedgerPersonalDatabase imports $line"$'\n'; fi
+    done < <(find "$dir" -name '*.swift' -exec sed -nE "s/${import_attributes}([A-Za-z0-9_]+).*$/\5/p" {} + \
+      | sort -u | grep -Ev '^(Foundation|FoodLedgerApplication|FoodLedgerDomain)$' || true)
+    while IFS= read -r file; do
+      if [[ -n "$file" ]]; then violations+="FoodLedgerPersonalDatabase names a network API in $file"$'\n'; fi
+    done < <(grep -rlE --include='*.swift' '(URLSession|URLRequest|NWConnection|NWPathMonitor)' "$dir" || true)
+  fi
+  local scanned=("$pkg/Sources" "$pkg/Tests" "$pkg/Tools" "$app/WeeklyHealthReport" "$app/WeeklyHealthReportTests")
+  while IFS= read -r file; do
+    if [[ -z "$file" ]]; then continue; fi
+    if [[ "$file" != "$app/WeeklyHealthReport/FoodLedger/FoodLedgerCompositionRoot.swift" && ! "$file" =~ /Tests/FoodLedgerPersonalDatabaseTests/ ]]; then
+      violations+="FoodLedgerPersonalDatabase imported by $file"$'\n'
+    fi
+  done < <(files_importing FoodLedgerPersonalDatabase "${scanned[@]}")
+  while IFS= read -r line; do
+    if [[ -z "$line" ]]; then continue; fi
+    if [[ "$line" != *'name: "FoodLedgerPersonalDatabase"'* && "$line" != *'name: "FoodLedgerPersonalDatabaseTests"'* ]]; then
+      violations+="a package target depends on FoodLedgerPersonalDatabase: ${line:0:80}"$'\n'
+    fi
+  done < <(package_targets "$pkg/Package.swift" | grep -E '"FoodLedgerPersonalDatabase"' || true)
+  if [[ -n "$violations" ]]; then
+    printf '%s' "$violations" >&2
+    return 1
+  fi
+}
+
+self_test_personal_database_edges() {
+  local scratch status=0
+  scratch="$(mktemp -d "${TMPDIR:-/tmp}/check-boundaries-pfd.XXXXXX")"
+  local base="$scratch/base" pkg="$scratch/base/Packages/FoodLedgerKit"
+  mkdir -p "$pkg/Sources/FoodLedgerPersonalDatabase" "$pkg/Sources/FoodLedgerApplication" "$pkg/Sources/FoodLedgerPresentation" \
+    "$pkg/Tests/FoodLedgerPersonalDatabaseTests" "$base/WeeklyHealthReport/FoodLedger" "$base/WeeklyHealthReportTests"
+  cat > "$pkg/Package.swift" <<'SWIFT'
+let package = Package(
+    name: "FoodLedgerKit",
+    targets: [
+        .target(name: "FoodLedgerApplication", dependencies: ["FoodLedgerDomain"]),
+        .target(name: "FoodLedgerPersonalDatabase", dependencies: ["FoodLedgerApplication", "FoodLedgerDomain"]),
+        .target(name: "FoodLedgerPresentation", dependencies: ["FoodLedgerApplication"]),
+        .testTarget(name: "FoodLedgerPersonalDatabaseTests", dependencies: ["FoodLedgerPersonalDatabase"])
+    ]
+)
+SWIFT
+  printf 'import FoodLedgerApplication\nimport FoodLedgerDomain\nimport Foundation\n' > "$pkg/Sources/FoodLedgerPersonalDatabase/Store.swift"
+  echo 'import FoodLedgerDomain' > "$pkg/Sources/FoodLedgerApplication/Port.swift"
+  echo 'import SwiftUI' > "$pkg/Sources/FoodLedgerPresentation/View.swift"
+  echo '@testable import FoodLedgerPersonalDatabase' > "$pkg/Tests/FoodLedgerPersonalDatabaseTests/StoreTests.swift"
+  echo 'import FoodLedgerPersonalDatabase' > "$base/WeeklyHealthReport/FoodLedger/FoodLedgerCompositionRoot.swift"
+  if ! check_personal_database_edges "$pkg" "$base" 2>/dev/null; then
+    echo "check-boundaries self-test: the personal database baseline must pass" >&2; status=1
+  fi
+  local fixture target fpkg
+  for fixture in grdb_import network_import url_session application_import presentation_import app_import app_test_import package_edge; do
+    target="$scratch/$fixture"
+    rm -rf "$target"; cp -R "$base" "$target"
+    fpkg="$target/Packages/FoodLedgerKit"
+    case "$fixture" in
+      grdb_import) echo 'import GRDB' >> "$fpkg/Sources/FoodLedgerPersonalDatabase/Store.swift" ;;
+      network_import) echo '@preconcurrency import Network' >> "$fpkg/Sources/FoodLedgerPersonalDatabase/Store.swift" ;;
+      url_session) echo 'let session = URLSession.shared' >> "$fpkg/Sources/FoodLedgerPersonalDatabase/Store.swift" ;;
+      application_import) echo 'import FoodLedgerPersonalDatabase' > "$fpkg/Sources/FoodLedgerApplication/Leak.swift" ;;
+      presentation_import) echo 'import struct FoodLedgerPersonalDatabase.FilePersonalFoodDatabaseStore' > "$fpkg/Sources/FoodLedgerPresentation/Leak.swift" ;;
+      app_import) echo 'import FoodLedgerPersonalDatabase' > "$target/WeeklyHealthReport/Leak.swift" ;;
+      app_test_import) echo '@testable import FoodLedgerPersonalDatabase' > "$target/WeeklyHealthReportTests/Leak.swift" ;;
+      package_edge)
+        sed 's/.target(name: "FoodLedgerPresentation", dependencies: \["FoodLedgerApplication"\])/.target(name: "FoodLedgerPresentation", dependencies: ["FoodLedgerApplication", "FoodLedgerPersonalDatabase"])/' \
+          "$pkg/Package.swift" > "$fpkg/Package.swift" ;;
+    esac
+    if check_personal_database_edges "$fpkg" "$target" 2>/dev/null; then
+      echo "check-boundaries self-test: the personal database $fixture fixture must fail" >&2; status=1
+    fi
+  done
+  rm -rf "$scratch"
+  return "$status"
+}
+
+self_test_personal_database_edges
+check_personal_database_edges "$package_root" "$app_root"
 clipboard_unexpected="$(clipboard_violations "$package_root/Sources")"
 if [[ -n "$clipboard_unexpected" ]]; then
   echo "$clipboard_unexpected" >&2

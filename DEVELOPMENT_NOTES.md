@@ -4421,3 +4421,25 @@ Excluded:
 - this ledger edit, the commit, the push and the PR after the window.
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison, not billing, and token totals do not measure quality or productivity.
+
+## WHR-424-IMPORT-P1B-2026-11-11: Claude Code import v1 P1b store, importer and Settings row (#424)
+
+The implementation session (`claude-opus-5-5`, session `9a30287d-2461-44e3-836e-4b9789374ac5`) did the following in this window:
+- wrote the P1b architecture gate in `docs/personal-food-database-import-v1-phase-1.md` section 3, ran an architecture gate (PASS WITH CHANGES) and bound its eleven changes in section 3.1, with a dated layout clarification in import v1 section 3 pending owner sign-off;
+- wrote `PersonalFoodDatabaseImporting` and the `PersonalFoodDatabaseImporter` actor in `FoodLedgerApplication`, the new `FoodLedgerPersonalDatabase` target (`FilePersonalFoodDatabaseStore`), the in-memory test store, the Settings view model and copy, the "Your food database" Settings row and screen, and the boundary rules with eight failing self-test fixtures;
+- ran an invariant review (PASS, six Low items fixed) and a local Qodo review (six findings fixed), and the full gates.
+
+The subagents are included: the architecture gate and the invariant reviewer. The window runs from `2026-11-11T18:25:37Z`, the owner's "Yes, start P1b", to `2026-11-11T19:36:46Z`.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Import v1 P1b gate, store, importer, Settings row, tests and reviews, implementation session and subagents | 26,666,262 (26,372,441) | 293,557 | 129,513 | 26,795,775 | $9.93 |
+
+Method: `phase_usage.py --format claude --since 2026-11-11T18:25:37Z --until 2026-11-11T19:36:46Z --include-subagents` on the session transcript. Exact USD 9.9259152. The cache-write tokens are part of the input figure, and 96,115 of them are 5-minute writes. The total is input plus output.
+
+Excluded:
+- the Qodo review run;
+- local test and gate runs, which use no API tokens;
+- this ledger edit, the commit, the push and the PR after the window.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison, not billing, and token totals do not measure quality or productivity.

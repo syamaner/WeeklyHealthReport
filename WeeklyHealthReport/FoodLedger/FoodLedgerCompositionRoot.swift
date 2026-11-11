@@ -2,6 +2,7 @@ import FoodLedgerApplication
 import FoodLedgerDomain
 import FoodGenericSearch
 import FoodLedgerGRDB
+import FoodLedgerPersonalDatabase
 import FoodLedgerPresentation
 import FoodBarcodeCapture
 import FoodInventoryImport
@@ -33,6 +34,9 @@ final class FoodLedgerCompositionRoot {
     /// The last search and web lookup diagnostics for Settings › Developer tools. In memory only.
     let searchDiagnostics = FoodSearchDiagnosticsLog()
     let webDiscovery: FoodWebDiscoveryViewModel
+    /// Your food database in Settings (#424 P1b). The store touches no file until it is used.
+    let personalFoodDatabase: PersonalFoodDatabaseSettingsViewModel
+    private var personalFoodDatabaseObserver: NSObjectProtocol?
     private let proposalReviewer: GenericFoodProposalReviewer
     private let proposalConfirmation: ReviewedFoodProposalConfirmation
     private let offLookup: OpenFoodFactsLookup
@@ -85,10 +89,22 @@ final class FoodLedgerCompositionRoot {
         labelPhotoSpendLedgerURL = root.appendingPathComponent("label-photo-spend-v1.json")
         labelPhotoLiveSpendLedgerURL = root.appendingPathComponent("label-photo-spend-live-v1.json")
         self.healthDirectory = healthDirectory
-        store = try FoodLedgerGRDBStore(
+        let ledgerStore = try FoodLedgerGRDBStore(
             databaseURL: root.appendingPathComponent("food-ledger.sqlite"),
             attachmentsRoot: root.appendingPathComponent("Attachments", isDirectory: true)
         )
+        store = ledgerStore
+        personalFoodDatabase = PersonalFoodDatabaseSettingsViewModel(importer: PersonalFoodDatabaseImporter(
+            store: FilePersonalFoodDatabaseStore(root: root, digester: SHA256Digester(),
+                isProtectedDataAvailable: ProtectedDataAvailability.isAvailable),
+            digester: SHA256Digester(), clock: SystemLedgerClock(), releases: ledgerStore))
+        let databaseModel = personalFoodDatabase
+        Task { await databaseModel.load() }
+        // A launch before first unlock loads `locked`; reload when protected data returns so the
+        // Settings row does not stay "Locked".
+        personalFoodDatabaseObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.protectedDataDidBecomeAvailableNotification, object: nil, queue: .main
+        ) { _ in Task { @MainActor in await databaseModel.load() } }
         ids = RandomLedgerIDGenerator()
         offLookup = OpenFoodFactsLookup(transport: OFFHTTPSProductTransport(userAgent: "WeeklyHealthReport/0.1.1 (proxy@sertan.com)"))
         offSearchTransport = OFFHTTPSearchTransport(userAgent: "WeeklyHealthReport/0.1.1 (proxy@sertan.com)")
