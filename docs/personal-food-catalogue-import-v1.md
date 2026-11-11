@@ -73,8 +73,7 @@ change to HealthKit, Drive or the exports beyond what an ordinary saved log alre
   Application, holding the protected store in the dataset layout of
   `food-library-storage-and-backup-decision.md` (`FoodLedger/Datasets/<release_id>/` with the file
   and a manifest), one active release. Protected data unavailable is reported as unavailable.
-  *Clarification, 11 November 2026 (P1b gate, no rule change; pending owner sign-off with the P1b
-  PR):* every food ledger file lives under
+  *Clarification, 11 November 2026 (P1b gate, no rule change; approved by the owner the same day):* every food ledger file lives under
   the versioned root `FoodLedger/v1/`, so the release folder is
   `FoodLedger/v1/Datasets/personal-food-database/pfc-sha256-<hex>/` (`:` replaced, as a path
   separator in Finder) beside an `active.json` pointer; see
