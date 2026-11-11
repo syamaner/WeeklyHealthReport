@@ -11,7 +11,7 @@ final class CocoaPercentPolicyTests: XCTestCase {
         func band(_ name: String, _ description: String? = nil) -> CocoaPercentPolicy.Band? {
             CocoaPercentPolicy.band(name: name, description: description, recordID: nil)
         }
-        XCTAssertEqual(CocoaPercentPolicy.version, "cocoa-percent-policy-v2")
+        XCTAssertEqual(CocoaPercentPolicy.version, "cocoa-percent-policy-v3")
         XCTAssertEqual(band("Chocolate, dark, 45- 59% cacao solids"), .declared(lower: 45, upper: 59))
         XCTAssertEqual(band("Chocolate, dark, 70-85% cacao solids"), .declared(lower: 70, upper: 85))
         XCTAssertEqual(band("Chocolate, dark, 70\u{2013}85% cocoa solids"), .declared(lower: 70, upper: 85))
@@ -58,6 +58,45 @@ final class CocoaPercentPolicyTests: XCTestCase {
         // Without a qualifier, v1's point band is unchanged.
         XCTAssertEqual(band("Dark chocolate, 70% cocoa, bar"), .declared(lower: 70, upper: 70))
         XCTAssertEqual(band("Dark chocolate, overall 70% cocoa"), .declared(lower: 70, upper: 70), "a word boundary, not a prefix")
+    }
+
+    /// docs/cocoa-exact-match-v1.md rule 1: the v3 display reading of "N% dark chocolate" names.
+    func testV3DisplayReadsAWholeDarkChocolateNameAndNothingElse() {
+        func display(_ name: String, _ description: String? = nil) -> CocoaPercentPolicy.Band? {
+            CocoaPercentPolicy.displayBand(name: name, description: description, recordID: nil)
+        }
+        for name in ["95% Dark Chocolate", "95 % dark chocolate", "Dark chocolate 95%", "95% dark chocolate bar",
+                     "95% Dark Chocolate, organic", "  95%  Dark   Chocolate  ", "Dark Chocolate 95 % Block", "95%dark chocolate"] {
+            XCTAssertEqual(display(name), .declared(lower: 95, upper: 95), name)
+            XCTAssertNil(CocoaPercentPolicy.band(name: name, description: nil, recordID: nil), "v2 band unchanged: \(name)")
+        }
+        XCTAssertEqual(display("72.5% dark chocolate"), .declared(lower: 72.5, upper: 72.5))
+        for name in ["Digestive biscuits with 70% dark chocolate", "Almonds in 70% dark chocolate", "70% dark chocolate chips",
+                     "Brand 70% dark chocolate", "110% dark chocolate", "Extra dark chocolate 85%", "70% milk chocolate",
+                     "Biscuits, 70% dark chocolate"] {
+            XCTAssertNil(display(name), name)
+        }
+        XCTAssertNil(display("Chocolate bar", "95% dark chocolate"), "the description is never read by the phrase")
+        // A cocoa reading of the row's own wins; a different one in the description refuses the phrase.
+        XCTAssertEqual(display("90% Cocoa Dark Chocolate"), .declared(lower: 90, upper: 90))
+        XCTAssertNil(display("95% dark chocolate", "at least 50% cocoa, 85% cocoa"))
+        XCTAssertEqual(display("95% dark chocolate", "Open Food Facts · source estimate · 100 g · per 100 g"), .declared(lower: 95, upper: 95))
+        XCTAssertEqual(display("95% dark chocolate", "70% cocoa"), .declared(lower: 70, upper: 70), "v2's own reading is kept")
+    }
+
+    /// Rule 1.4: ranking, admission and pre-fill keep the v2 band; only notes read the display band.
+    func testV3DisplayReadingChangesNotesOnlyNotRankingAdmissionOrPrefill() throws {
+        let name = "95% Dark Chocolate"
+        let query = FoodQueryParser.parse("dark chocolate 95%")
+        XCTAssertFalse(CocoaPercentPolicy.admits(name: name, description: nil, recordID: nil, query: query, foodTerms: ["dark", "chocolate"]))
+        XCTAssertNil(CocoaPercentPolicy.prefillBand(text: name))
+        XCTAssertNil(CocoaPercentPolicy.prefillBand(text: "Ingredients: 95% dark chocolate"))
+        XCTAssertNil(LabelEstimateCompatibility.prefill(name: name, pastedText: nil))
+        XCTAssertNil(LabelEstimateCompatibility.prefill(name: "Bar", pastedText: name))
+        // A personal row with the phrase cannot take tier 2 from a bundled band: its tier key reads v2.
+        let bands = [CocoaPercentPolicy.band(name: name, description: nil, recordID: nil), .declared(lower: 70, upper: 85)]
+        XCTAssertEqual(CocoaPercentPolicy.tierKeys(bands, requested: 96),
+                       CocoaPercentPolicy.tierKeys([nil, .declared(lower: 70, upper: 85)], requested: 96))
     }
 
     func testAnOpenEndedBandIsTierFourNeverAdmittedAndNotedAsSpecified() throws {

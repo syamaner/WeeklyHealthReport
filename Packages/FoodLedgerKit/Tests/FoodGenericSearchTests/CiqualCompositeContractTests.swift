@@ -157,6 +157,34 @@ final class CiqualCompositeContractTests: XCTestCase {
         XCTAssertEqual(mismatches, [])
     }
 
+    /// docs/cocoa-exact-match-v1.md rule 1.5: the v3 display reading equals the band for every
+    /// bundled CoFID, USDA and TFDA input above, so bundled row notes and Search sections are unchanged.
+    func testV3DisplayBandEqualsBandForEveryCoFIDUSDAAndTFDARecord() throws {
+        func json(_ name: String) throws -> [String: Any] {
+            let url = Self.packageRoot.appendingPathComponent("Sources/FoodGenericSearch/Resources/\(name)")
+            return try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        }
+        var inputs: [(name: String, description: String?, recordID: String?)] = []
+        for record in try XCTUnwrap(try json("cofid-2021-generic-search-v1.json")["records"] as? [[String: Any]]) {
+            let name = try XCTUnwrap(record["name"] as? String), description = record["description"] as? String
+            inputs += [(name, description, nil), (name, nil, nil)]
+        }
+        for record in try XCTUnwrap(try json("usda-generic-v1.json")["records"] as? [[String: Any]]) {
+            inputs += [(try XCTUnwrap(record["name"] as? String), nil, try XCTUnwrap(record["id"] as? String))]
+        }
+        for record in try XCTUnwrap(try json("tfda-generic-v1.json")["records"] as? [[String: Any]]) {
+            let name = try XCTUnwrap(record["name"] as? String), sourceName = try XCTUnwrap(record["sourceName"] as? String)
+            inputs += [(name, nil, nil), (name + " · " + sourceName, nil, nil), (sourceName, record["description"] as? String, nil)]
+            inputs += (record["aliases"] as? [String] ?? []).map { ($0, nil, nil) }
+        }
+        XCTAssertGreaterThan(inputs.count, 10_000)
+        let mismatches = inputs.filter {
+            CocoaPercentPolicy.displayBand(name: $0.name, description: $0.description, recordID: $0.recordID)
+                != CocoaPercentPolicy.band(name: $0.name, description: $0.description, recordID: $0.recordID)
+        }.map(\.name)
+        XCTAssertEqual(mismatches, [])
+    }
+
     /// The v2 bands of all 29 Ciqual rows, pinned to the spec's table (section 4).
     func testTheTwentyNineCiqualBandsArePinned() throws {
         let url = Self.packageRoot.appendingPathComponent("Sources/FoodGenericSearch/Resources/ciqual-2025-generic-v1.json")
@@ -170,6 +198,7 @@ final class CiqualCompositeContractTests: XCTestCase {
             let id = try XCTUnwrap(record["recordID"] as? String)
             XCTAssertEqual(CocoaPercentPolicy.band(name: name, description: variant, recordID: id), pinned[code], code)
             XCTAssertEqual(CocoaPercentPolicy.band(name: name, description: nil, recordID: id), pinned[code], code)
+            XCTAssertEqual(CocoaPercentPolicy.displayBand(name: name, description: variant, recordID: id), pinned[code], code)
             // Only the qualified row reads differently from v1, which read it as a wrong point band.
             XCTAssertEqual(V1BandReader.band(name: name, description: variant, recordID: id),
                            code == "31085" ? .declared(lower: 40, upper: 40) : pinned[code], code)

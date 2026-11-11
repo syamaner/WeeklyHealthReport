@@ -6,8 +6,11 @@ import FoodLedgerDomain
 /// only: no nutrient, identity, provenance or selection changes.
 /// v2 (#384, docs/ciqual-2025-admission-v1.md section 4.1) adds open-ended bands, `.atLeast`,
 /// and changes nothing else: every bundled CoFID, USDA and TFDA row reads as under v1.
+/// v3 (docs/cocoa-exact-match-v1.md rule 1) adds `displayBand`, which also reads a product
+/// named "N% dark chocolate" or "dark chocolate N%". Only Search row notes and the exact online
+/// section read it; `band` (ranking, discovery, admission, pre-fill, compatibility) is unchanged.
 public enum CocoaPercentPolicy {
-    public static let version = "cocoa-percent-policy-v2"
+    public static let version = "cocoa-percent-policy-v3"
 
     public enum Band: Hashable, Sendable {
         /// Read from the source name or description: `L-U% cocoa solids` or `N% cocoa`.
@@ -112,6 +115,38 @@ public enum CocoaPercentPolicy {
              recordID: candidate.candidate.recordID.value)
     }
 
+    /// v3 display reading (rule 1.3): the v2 band when v2 reads one; otherwise, when the primary
+    /// name is exactly "N% dark chocolate" or "dark chocolate N%" and the description gives no
+    /// cocoa reading of its own, the point band [N, N]. Never used for ranking or estimates.
+    public static func displayBand(name: String, description: String?, recordID: String?) -> Band? {
+        if let stated = band(name: name, description: description, recordID: recordID) { return stated }
+        guard let value = namePhrasePercent(name),
+              (description ?? "").lowercased().range(of: #"\d\s*%\s*(?:cacao|cocoa)"#, options: .regularExpression) == nil
+        else { return nil }
+        return .declared(lower: value, upper: value)
+    }
+
+    public static func displayBand(_ candidate: PopulatedFoodCandidate) -> Band? {
+        displayBand(name: candidate.name.value, description: candidate.variant?.value,
+                    recordID: candidate.candidate.recordID.value)
+    }
+
+    /// Rule 1.1 and 1.2: the whole primary name (before the first comma, one trailing "bar" or
+    /// "block" removed) must be the phrase, so "biscuits with 70% dark chocolate" is not read.
+    static func namePhrasePercent(_ name: String) -> Double? {
+        var head = String(name.split(separator: ",", maxSplits: 1, omittingEmptySubsequences: false).first ?? "")
+            .lowercased()
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespaces)
+        head = head.replacingOccurrences(of: #" (?:bar|block)$"#, with: "", options: .regularExpression)
+        for pattern in [#"^(\d+(?:\.\d+)?) ?% ?dark chocolate$"#, #"^dark chocolate (\d+(?:\.\d+)?) ?%$"#] {
+            if let match = captures(pattern, head).first, let value = Double(match[0]), (0...100).contains(value) {
+                return value
+            }
+        }
+        return nil
+    }
+
     /// The two closed exceptions to full query-word coverage. Other source guards still apply.
     public static func admits(name: String, description: String?, recordID: String?,
                               query: ParsedFoodQuery, foodTerms: Set<String>) -> Bool {
@@ -164,7 +199,13 @@ public enum CocoaPercentPolicy {
     public static func note(query: ParsedFoodQuery, candidate: PopulatedFoodCandidate) -> String? {
         guard let value = requested(query), let literal = query.attributes["cocoa_percent"] else { return nil }
         let text: String
-        switch band(candidate) {
+        let fromNameOnly = band(candidate) == nil
+        switch displayBand(candidate) {
+        case let .declared(lower, _)? where fromNameOnly:
+            // v3 rule 1: the reading comes from the product name, so the note says so.
+            text = value == lower
+                ? "The product name states \(number(lower))% dark chocolate."
+                : "The product name states \(number(lower))% dark chocolate; you asked for \(literal)%."
         case let .declared(lower, upper)?:
             text = (lower...upper).contains(value)
                 ? "Source covers \(span(lower, upper)) cocoa."
@@ -182,7 +223,7 @@ public enum CocoaPercentPolicy {
 
     public static func caution(query: ParsedFoodQuery, candidate: PopulatedFoodCandidate) -> String? {
         guard let value = requested(query), let literal = query.attributes["cocoa_percent"] else { return nil }
-        switch band(candidate) {
+        switch displayBand(candidate) {
         case let .declared(lower, upper)?:
             return (lower...upper).contains(value) ? "\(span(lower, upper)) cocoa" : "\(span(lower, upper)) cocoa · requested \(literal)%"
         case .estimate100?:
