@@ -565,14 +565,14 @@ final class DailyHealthExportTests: XCTestCase {
         let summary = CanonicalFoodNutritionSummary(
             summaryVersionID: try LedgerText("summary-fixture-v1"), reportingDate: try LedgerText("2026-09-06"),
             nutrients: nutrientSet, inputLogItemVersionIDs: [], hasUnknownContribution: true)
-        XCTAssertEqual(CanonicalFoodProjection.foodContractVersion, 8)
+        XCTAssertEqual(CanonicalFoodProjection.foodContractVersion, 9)
         XCTAssertEqual(DailyHealthExportBuilder.maximumExportedFoodContractVersion, 3)
         let three = try CanonicalFoodDocument(projection: CanonicalFoodProjection(
             records: LedgerMutation(), summaries: [summary], foodContractVersion: 3))
         XCTAssertNoThrow(try DailyHealthExportBuilder.addingFoodProjection(three, summary: summary, to: schemaV3))
-        // Contracts 4 (decisions), 5 (review manifest v2), 6 (favourites, #198), 7 (pasted label, #93) and 8 (label
-        // estimate layer, #383) are rejected; the pin stays literal 3.
-        for contract in [4, 5, 6, 7, 8] {
+        // Contracts 4 (decisions), 5 (review manifest v2), 6 (favourites, #198), 7 (pasted label, #93), 8 (label
+        // estimate layer, #383) and 9 (Open Food Facts estimate layer, #464) are rejected; the pin stays literal 3.
+        for contract in [4, 5, 6, 7, 8, 9] {
             let document = try CanonicalFoodDocument(projection: CanonicalFoodProjection(
                 records: LedgerMutation(), summaries: [summary], foodContractVersion: contract))
             XCTAssertThrowsError(try DailyHealthExportBuilder.addingFoodProjection(document, summary: summary, to: schemaV3), "contract \(contract)")

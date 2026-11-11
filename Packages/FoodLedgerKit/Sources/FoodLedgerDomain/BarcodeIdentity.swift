@@ -129,13 +129,18 @@ public struct BarcodeLibraryRecord: Codable, Equatable, Sendable {
     public let resolution: NutritionResolution
     public let resolutionVersion: NutritionResolutionVersion
     public let sourceReleases: [SourceRelease]
+    /// The source candidate's own nutrients from the resolution's first decision, so a rescan of
+    /// an entry with an estimate layer returns the product values only, never the merged ones
+    /// (docs/off-label-estimate-v1.md rule 5). Nil when the resolution cites no decision.
+    public let candidateNutrients: NutrientSet?
 
     public init(
         libraryEntryVersion: LibraryEntryVersion,
         productVersion: ProductVersion,
         resolution: NutritionResolution,
         resolutionVersion: NutritionResolutionVersion,
-        sourceReleases: [SourceRelease]
+        sourceReleases: [SourceRelease],
+        candidateNutrients: NutrientSet? = nil
     ) throws {
         guard libraryEntryVersion.productVersionID == productVersion.productVersionID,
               resolution.productVersionID == productVersion.productVersionID,
@@ -149,5 +154,6 @@ public struct BarcodeLibraryRecord: Codable, Equatable, Sendable {
         self.resolution = resolution
         self.resolutionVersion = resolutionVersion
         self.sourceReleases = sourceReleases
+        self.candidateNutrients = candidateNutrients
     }
 }

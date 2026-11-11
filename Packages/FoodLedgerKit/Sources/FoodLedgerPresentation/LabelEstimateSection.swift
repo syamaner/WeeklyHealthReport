@@ -146,10 +146,11 @@ public final class LabelEstimateModel: ObservableObject {
         return chosen.choice(cocoaPercent: confirmed.value, origin: confirmed.origin)
     }
 
-    /// The preview of the chosen row: only the keys that change, then the label's own values.
+    /// The preview of the chosen row: only the keys that change, then the source's own values.
     public func preview(for state: FoodConfirmationState) -> LabelEstimateText.Preview? {
-        guard LabelEstimateOffer.admitsChoice(state), let chosen, let result = LabelEstimateOffer.merge(state, option: chosen) else { return nil }
-        return LabelEstimateText.preview(result, label: state.selectedCandidate.candidate, option: chosen)
+        guard LabelEstimateOffer.admitsChoice(state), let route = LabelEstimateOffer.route(state), let chosen,
+              let result = LabelEstimateOffer.merge(state, option: chosen) else { return nil }
+        return LabelEstimateText.preview(result, label: state.selectedCandidate.candidate, option: chosen, route: route)
     }
 
     /// Accepts "72", "72.5", "72,5" and "72 %".
@@ -176,9 +177,30 @@ public enum LabelEstimateText {
     public static let invalidPercent = "Enter a cocoa percentage from 1 to 100, with up to one decimal place."
     public static let unavailableAfterCorrection =
         "Estimates are not available after food details are corrected. Missing nutrients stay unknown."
+    /// On an Open Food Facts product, filling in food details keeps the estimate (off-label-estimate-v1
+    /// decision 6); only a changed name, brand or value withdraws it.
+    public static let openFoodFactsUnavailableAfterCorrection =
+        "Estimates are not available after the name, brand or values are changed, or the product is marked fortified or as something other than a food. Missing nutrients stay unknown."
+
+    public static func unavailableAfterCorrection(_ route: LabelEstimateRoute) -> String {
+        route == .openFoodFacts ? openFoodFactsUnavailableAfterCorrection : unavailableAfterCorrection
+    }
     public static let footer =
         "Optional. Label values stay as they are; a generic row only fills nutrients the label does not state, as estimates."
     public static let chooseHint = "Choose a row to preview the nutrients it would add. Nothing is chosen for you."
+    /// The Open Food Facts forms (docs/off-label-estimate-v1.md rule 6): true for every reason a
+    /// product value is unknown, so they say "missing", never "unprinted".
+    public static let openFoodFactsSectionTitle = "Estimate missing nutrients"
+    public static let openFoodFactsFooter =
+        "Optional. Open Food Facts values stay as they are; a generic row only fills nutrients not read from Open Food Facts, as estimates."
+
+    public static func sectionTitle(_ route: LabelEstimateRoute) -> String {
+        route == .openFoodFacts ? openFoodFactsSectionTitle : sectionTitle
+    }
+
+    public static func footer(_ route: LabelEstimateRoute) -> String {
+        route == .openFoodFacts ? openFoodFactsFooter : footer
+    }
 
     public static func suggestion(_ origin: CocoaPercentOrigin) -> String {
         switch origin {
@@ -244,7 +266,7 @@ public enum LabelEstimateText {
     }
 
     public static func preview(_ result: LabelEstimateMerge.Result, label: ProviderNeutralCandidate,
-                               option: LabelEstimateOption) -> Preview {
+                               option: LabelEstimateOption, route: LabelEstimateRoute = .label) -> Preview {
         let release = release(option.sourceRelease)
         let lines = result.filledKeys.compactMap { key -> Preview.Line? in
             guard let entry = result.nutrients.entries.first(where: { $0.key == key }) else { return nil }
@@ -256,7 +278,9 @@ public enum LabelEstimateText {
         let known = label.nutrients.entries.filter { if case .unknown = $0.value { false } else { true } }
             .map { FoodNutritionReviewPresentation.label($0.key) }
         return Preview(basis: FoodNutritionReviewPresentation.basisLabel(label.identity.servingBasis), lines: lines,
-                       unchanged: known.isEmpty ? nil : "Unchanged from the label: " + known.joined(separator: ", ") + ".")
+                       unchanged: known.isEmpty ? nil
+                           : (route == .openFoodFacts ? "Unchanged from the product: " : "Unchanged from the label: ")
+                               + known.joined(separator: ", ") + ".")
     }
 }
 
@@ -266,6 +290,20 @@ public enum LabelEstimateSavedEntryText {
     public static let sectionTitle = "Estimated nutrients"
     /// A label value left unknown that the estimate filled (photo route state lines).
     public static let estimatedState = "Not on the label · Estimated"
+    /// An Open Food Facts value the estimate filled, whatever the reason it was unknown: not
+    /// listed, in a unit the app cannot convert, or unreadable (docs/off-label-estimate-v1.md rule 6).
+    public static let openFoodFactsEstimatedState = "Not read from Open Food Facts · Estimated"
+
+    public static func estimatedState(_ route: LabelEstimateRoute) -> String {
+        route == .openFoodFacts ? openFoodFactsEstimatedState : estimatedState
+    }
+
+    /// One line per estimated key of an Open Food Facts entry: "Fibre: Not read from Open Food
+    /// Facts · Estimated". Empty for a label entry, whose photo states carry the label form.
+    public static func stateLines(_ estimate: SavedFoodEntryDetail.LabelEstimateDetail) -> [String] {
+        guard estimate.route == .openFoodFacts else { return [] }
+        return estimate.estimatedKeys.map { "\(FoodNutritionReviewPresentation.label($0)): \(openFoodFactsEstimatedState)" }
+    }
 
     /// An estimated bound for the amount's basis: "Less than 0.5 g per 100 g · Estimated". An
     /// exact value has its consumed amount instead; nil for anything else.
@@ -297,12 +335,17 @@ public enum LabelEstimateSavedEntryText {
     }
 
     /// Developer tools: the policy versions, then both releases and both decisions, label first.
+    /// An Open Food Facts entry then lists each estimated key's original unknown reason, read from
+    /// the stored product candidate (docs/off-label-estimate-v1.md rule 3).
     public static func developerLines(_ estimate: SavedFoodEntryDetail.LabelEstimateDetail) -> [String] {
         ["Policies: \(estimate.compatibilityVersion), \(estimate.mergeVersion)"]
             + estimate.releases.enumerated().map { "Release \($0.offset + 1): \($0.element.sourceReleaseID.value)" }
             + estimate.decisions.enumerated().map {
                 "Decision \($0.offset + 1): \($0.element.candidateDecisionID.rawValue) · \($0.element.outcome.rawValue) · \($0.element.candidate.recordID.value)"
             }
+            + (estimate.route == .openFoodFacts ? estimate.estimatedKeys.compactMap { key in
+                estimate.originalReasons[key].map { "Original reason, \(FoodNutritionReviewPresentation.label(key)): \($0.rawValue)" }
+            } : [])
     }
 }
 
@@ -315,17 +358,21 @@ struct LabelEstimateSection: View {
     var body: some View {
         Section {
             if estimate.isUnavailableAfterCorrection {
-                Text(LabelEstimateText.unavailableAfterCorrection).font(.subheadline)
+                Text(LabelEstimateText.unavailableAfterCorrection(route)).font(.subheadline)
             } else {
                 percentField
                 rowsContent
                 if let preview = estimate.preview(for: model.state) { previewContent(preview) }
             }
         } header: {
-            Text(LabelEstimateText.sectionTitle)
+            Text(LabelEstimateText.sectionTitle(route))
         } footer: {
-            Text(LabelEstimateText.footer)
+            Text(LabelEstimateText.footer(route))
         }
+    }
+
+    private var route: LabelEstimateRoute {
+        LabelEstimateOffer.route(model.state) ?? .label
     }
 
     @ViewBuilder
