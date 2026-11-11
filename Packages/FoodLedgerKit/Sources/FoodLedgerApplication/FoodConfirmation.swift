@@ -127,7 +127,8 @@ public struct StoredFoodConfirmation: Codable, Equatable, Sendable {
     public let plateWeightVersion: PlateWeightVersion?
     public let candidateDecision: CandidateDecision
     public let assertions: [UserAssertion]
-    /// The estimate layer of a label entry (label-estimate-merge-v1): assembled by the reader from
+    /// The estimate layer of a label or Open Food Facts entry (label-estimate-merge-v1,
+    /// off-label-estimate-v1): assembled by the reader from
     /// the resolution's second decision, never stored on its own. `evidence` and `sourceReleases`
     /// stay the label's.
     public let estimate: StoredLabelEstimate?
@@ -506,8 +507,8 @@ public final class FoodConfirmationService: @unchecked Sendable {
         self.calendar = calendar
     }
 
-    /// `estimate` is an optional label estimate chosen on Confirm (pasted label and label photo
-    /// routes only, docs/label-estimate-merge-v1.md); without one every save writes what it wrote
+    /// `estimate` is an optional label estimate chosen on Confirm (pasted label, label photo and
+    /// Open Food Facts routes only, docs/label-estimate-merge-v1.md, docs/off-label-estimate-v1.md); without one every save writes what it wrote
     /// before contract 8.
     public func save(
         _ state: FoodConfirmationState,
@@ -613,12 +614,28 @@ public final class FoodConfirmationService: @unchecked Sendable {
                   (state.correction?.nutrients ?? state.reopened?.resolutionVersion.nutrients ?? selected.candidate.nutrients) == expected else {
                 throw FoodConfirmationSaveError.invalidPastedLabelSource
             }
+        } else if state.correction == nil, let reopened = state.reopened,
+                  reopened.estimate != nil || reopened.assertions.contains(where: { $0.labelEstimate != nil }) {
+            // An edit of a layered Open Food Facts entry (off-label-estimate-v1 rule 2): the stored
+            // candidate is the evidence of record, so the layer is rechecked against it as the label
+            // branch does. Entries without a layer never reach this branch.
+            guard OpenFoodFactsEstimateSource.applies(state.input, candidate: selected),
+                  identity.servingBasis == selected.candidate.identity.servingBasis,
+                  let expected = try LabelEstimateLayer.expectedNutrients(reopened, label: selected),
+                  reopened.resolutionVersion.nutrients == expected else {
+                throw FoodConfirmationSaveError.invalidLabelEstimate
+            }
         }
-        // Label estimate layer (label-estimate-merge-v1): a new, uncorrected label entry only, a row
-        // that rule 3 admits for the confirmed percentage, and a merge on the label's basis.
+        // Label estimate layer (label-estimate-merge-v1, and off-label-estimate-v1 for an Open Food
+        // Facts product): a new, uncorrected entry of an admitted route only, a row that rule 3
+        // admits for the confirmed percentage, and a merge on the source's basis.
         let layer: (choice: LabelEstimateChoice, nutrients: NutrientSet, assertion: LabelEstimateAssertion)?
         if let estimate {
-            guard state.reopened == nil, state.correction == nil, LabelSourceAdmission.applies(state.input, candidate: selected),
+            // An identity-only correction keeps an Open Food Facts estimate (decision 6); labels
+            // admit none after a correction.
+            guard state.reopened == nil,
+                  (state.correction == nil && LabelSourceAdmission.applies(state.input, candidate: selected))
+                    || OpenFoodFactsEstimateSource.admitsLayer(state),
                   LabelEstimateCompatibility.isCompatible(estimate.generic, cocoaPercent: estimate.cocoaPercent),
                   estimate.evidence.map(\.evidenceID) == estimate.generic.candidate.evidenceIDs,
                   let nutrients = try LabelEstimateLayer.merged(label: selected, generic: estimate.generic.candidate,
@@ -708,6 +725,10 @@ public final class FoodConfirmationService: @unchecked Sendable {
                 expectedEdibleQuantity: state.input.expectedEdibleQuantity,
                 // An unknown-identity estimate (generic, or a pasted label's Not stated, #306) is
                 // recorded `rejected` with its contradiction reasons, as v2 records generic ones.
+                // An identity-only correction of an Open Food Facts product that keeps its estimate
+                // (off-label-estimate-v1 decision 6) is also recorded `rejected`, as every corrected
+                // save is: intended. The layer's own decision records the estimate use, and reopen,
+                // the commit rules and `isEstimate` never read this outcome.
                 requestedOutcome: state.correction == nil && ((!state.isGenericEstimate && !PastedLabelFortificationPolicy.applies(state))
                     || IdentityCompatibility.contradictions(
                     between: identity, and: selected.candidate.identity,
@@ -987,10 +1008,18 @@ public final class FoodConfirmationService: @unchecked Sendable {
                 conversionVersionID: saved.logItemVersion.quantityConversionVersionID
             )
         )
-        // An estimate layer or a cocoa assertion exists only on a label entry (rule 1).
+        // An estimate layer or a cocoa assertion exists only on a label entry (rule 1) or an Open
+        // Food Facts product (off-label-estimate-v1 rules 1 and 2). For the product, the stored
+        // candidate is the evidence of record: the resolution must be its merge with the stored
+        // layer. An entry without a layer keeps exactly the path it had before.
         if !LabelSourceAdmission.applies(input, candidate: populated),
            saved.estimate != nil || saved.assertions.contains(where: { $0.labelEstimate != nil }) {
-            throw FoodLedgerStoreError.integrityFailure("label estimate layer on an entry that is not a label")
+            guard OpenFoodFactsEstimateSource.applies(input, candidate: populated),
+                  saved.productVersion.identity.servingBasis == populated.candidate.identity.servingBasis,
+                  let expected = try? LabelEstimateLayer.expectedNutrients(saved, label: populated),
+                  saved.resolutionVersion.nutrients == expected else {
+                throw FoodLedgerStoreError.integrityFailure("label estimate layer on an entry that is not a label or a matching Open Food Facts product")
+            }
         }
         if FoodReviewedWebProposalPolicy.applies(input, candidate: populated) {
             guard FoodReviewedWebProposalPolicy.manifestDigestIsValid(evidence: input.evidence,
@@ -1178,7 +1207,9 @@ public final class FoodConfirmationService: @unchecked Sendable {
             reason: reason,
             claim: claim,
             confirmation: state.correction == nil ? record : nil,
-            labelEstimate: state.correction == nil ? labelEstimate : nil
+            // Only a layer the save admitted reaches here: none after a label correction, and an
+            // identity-only correction of an Open Food Facts product keeps it (decision 6).
+            labelEstimate: labelEstimate
         )
     }
 

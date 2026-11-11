@@ -336,6 +336,7 @@ final class LabelEstimatePresentationTests: XCTestCase {
         XCTAssertTrue(relog.labelEstimateNotCarried)
         XCTAssertFalse(relog.offersLabelEstimate)
         XCTAssertTrue(FoodConfirmationViewModel.labelEstimateNotCarriedNotice.hasPrefix("Logs the label values only."))
+        XCTAssertEqual(relog.estimateNotCarriedNotice, FoodConfirmationViewModel.labelEstimateNotCarriedNotice, "a label re-log keeps the label notice")
         relog.log()
         let again = try XCTUnwrap(relog.savedResult, relog.blockedReason ?? "")
         XCTAssertNil(again.estimate, "re-estimation is out of scope: the label values only")

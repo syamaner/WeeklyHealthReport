@@ -166,7 +166,8 @@ final class FoodLedgerCompositionRoot {
         milkVolumeConversion = try CoFIDWholeMilkVolumeConversion()
     }
 
-    /// `saveEstimate` (pasted label and label photo routes only) offers Confirm's "Estimate
+    /// `saveEstimate` (pasted label, label photo and Open Food Facts routes; never re-log or quick
+    /// add) offers Confirm's "Estimate
     /// unprinted nutrients" section and saves a chosen estimate with the entry
     /// (docs/label-estimate-merge-v1.md); without a chosen row Log uses `save` as before.
     func model(for input: PopulatedFoodConfirmation, queryQuantity: ParsedFoodQuery.Quantity? = nil, searchInterpretation: FoodQueryInterpretation? = nil, prefillSourceQuantity: Bool = true, savesFavourite: Bool = false, entryDay: String? = nil,
@@ -206,9 +207,16 @@ final class FoodLedgerCompositionRoot {
 
     /// Confirm for a pasted label reading: Log saves the label, with a chosen estimate when there is one.
     func pastedLabelConfirmationModel(_ input: PopulatedFoodConfirmation, entryDay: String?) -> FoodConfirmationViewModel {
-        model(for: input, prefillSourceQuantity: false, entryDay: entryDay, saveEstimate: { [confirmations, ids] state, estimate in
+        model(for: input, prefillSourceQuantity: false, entryDay: entryDay, saveEstimate: saveEstimate)
+    }
+
+    /// Log with a chosen estimate, for the routes that may offer one: pasted label, and the Open
+    /// Food Facts search route, barcode lookup and library rescan (docs/off-label-estimate-v1.md
+    /// rule 6a). Whether the section shows is `LabelEstimateOffer.applies`, never this wiring.
+    var saveEstimate: @MainActor (FoodConfirmationState, LabelEstimateChoice) throws -> StoredFoodConfirmation {
+        { [confirmations, ids] state, estimate in
             try confirmations.save(state, operationID: ids.makeID(OperationTag.self), idempotencyKey: nil, estimate: estimate)
-        })
+        }
     }
 
     private func withMilkVolumeSource(_ input: PopulatedFoodConfirmation)
@@ -827,7 +835,8 @@ struct GenericFoodSearchFlowView: View {
                               recordDiagnostics: { [diagnostics = root.searchDiagnostics] in diagnostics.recordSearch($0) }) { input in
             // Snapshot selection and amount once; navigation renders reuse this model.
             confirmationModel = root.model(for: input, queryQuantity: searchModel.effectiveAmount, searchInterpretation: searchModel.interpretation,
-                                           prefillSourceQuantity: false, savesFavourite: savesFavourite, entryDay: finish?.entryDay)
+                                           prefillSourceQuantity: false, savesFavourite: savesFavourite, entryDay: finish?.entryDay,
+                                           saveEstimate: root.saveEstimate)
             showsConfirmation = true
         }
         .onAppear {
@@ -1338,7 +1347,8 @@ struct BarcodeFoodFlowView: View {
             Section("Saved food found") {
                 Text(route.confirmation.candidates[0].name.value)
                 Button("Review and confirm") {
-                    confirmationModel = root.model(for: route.confirmation, savesFavourite: savesFavourite, entryDay: finish?.entryDay)
+                    confirmationModel = root.model(for: route.confirmation, savesFavourite: savesFavourite, entryDay: finish?.entryDay,
+                                                   saveEstimate: root.saveEstimate)
                     showsConfirmation = true
                 }
             }
@@ -1373,7 +1383,8 @@ struct BarcodeFoodFlowView: View {
                 guard !Task.isCancelled, generation == offGeneration else { return }
                 switch outcome {
                 case let .candidate(confirmation):
-                    confirmationModel = root.model(for: confirmation, savesFavourite: savesFavourite, entryDay: finish?.entryDay)
+                    confirmationModel = root.model(for: confirmation, savesFavourite: savesFavourite, entryDay: finish?.entryDay,
+                                                   saveEstimate: root.saveEstimate)
                     showsConfirmation = true
                 case .notFound: offMessage = "No product found. Your barcode is retained; you can use generic search."
                 case .insufficientData: offMessage = "The product has insufficient nutrition or an ambiguous basis. Use generic search; nothing was selected or saved."

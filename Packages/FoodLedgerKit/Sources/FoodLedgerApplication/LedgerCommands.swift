@@ -152,8 +152,9 @@ public struct LedgerOperationType: RawRepresentable, Codable, Hashable, Sendable
     public static let confirmFoodV2 = Self(rawValue: "confirm_food_v2")!
     /// Confirmation carrying typed inline decisions (food_confirmation_v5).
     public static let confirmFoodV3 = Self(rawValue: "confirm_food_v3")!
-    /// Confirmation of a label entry with an estimate layer (label-estimate-merge-v1, food
-    /// contract 8): any V1 to V3 case plus the layer, or an edit that keeps it.
+    /// Confirmation of an entry with an estimate layer (label-estimate-merge-v1, food contract 8; an
+    /// Open Food Facts entry under off-label-estimate-v1, contract 9): any V1 to V3 case plus the
+    /// layer, or an edit that keeps it.
     public static let confirmFoodV4 = Self(rawValue: "confirm_food_v4")!
     public static let recordLogItemV2 = Self(rawValue: "record_log_item_v2")!
     public static let correctLogItemV2 = Self(rawValue: "correct_log_item_v2")!

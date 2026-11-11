@@ -192,6 +192,17 @@ public final class BarcodeCaptureCoordinator: @unchecked Sendable {
         }
     }
 
+    /// The single source release named by every stated value of a layered entry's first-decision
+    /// candidate; nil when the values name none or more than one.
+    static func candidateReleaseID(_ nutrients: NutrientSet?) -> ExternalIdentifier? {
+        guard let nutrients else { return nil }
+        let ids = Set(nutrients.entries.flatMap { entry -> [ExternalIdentifier] in
+            if case .unknown = entry.value { return [] }
+            return entry.value.provenance.map(\.sourceReleaseID)
+        })
+        return ids.count == 1 ? ids.first : nil
+    }
+
     public func route(scan: BarcodeScan) throws -> BarcodeCaptureOutcome {
         let evidence = try CaptureEvidence(
             evidenceID: ids.makeID(EvidenceTag.self),
@@ -245,8 +256,17 @@ public final class BarcodeCaptureCoordinator: @unchecked Sendable {
                 $0,
                 conversionVersionID: record.libraryEntryVersion.quantityConversionVersionID
             ) } ?? .unknown
-        let sourceRelease = record.sourceReleases.first
-        guard let sourceRelease else {
+        // An entry with an estimate layer (off-label-estimate-v1 rule 5, owner decision 3): the
+        // rescan row is the product's own values under the product's release, never an estimated
+        // value or the generic release, so Confirm can offer the estimate again. The product's
+        // release is the one its own stated values name, never a position in the release list.
+        let layered = record.resolutionVersion.decisionIDs.count > 1
+        let sourceRelease = layered
+            ? Self.candidateReleaseID(record.candidateNutrients).flatMap { id in
+                record.sourceReleases.first { $0.sourceReleaseID == id }
+            }
+            : record.sourceReleases.first
+        guard let sourceRelease, let nutrients = layered ? record.candidateNutrients : record.resolutionVersion.nutrients else {
             throw FoodLedgerValidationError.missingProvenance
         }
         let candidate = try PopulatedFoodCandidate(
@@ -257,7 +277,7 @@ public final class BarcodeCaptureCoordinator: @unchecked Sendable {
                 ),
                 identity: record.productVersion.identity,
                 edibleQuantity: quantity,
-                nutrients: record.resolutionVersion.nutrients,
+                nutrients: nutrients,
                 evidenceIDs: [evidence.evidenceID]
             ),
             name: record.productVersion.name,
