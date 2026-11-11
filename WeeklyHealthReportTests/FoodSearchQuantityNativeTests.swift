@@ -904,8 +904,8 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
         }
     }
 
-    /// #352: every Food details text field (Product name, Brand, Variant, Packing medium and the
-    /// reason) offers Done rather than Return, at the default text size and at AX5, read from the
+    /// #352: every Food details text field (Product name, Brand, Variant, Packing medium details
+    /// when Other is chosen, and the reason) offers Done rather than Return, at the default text size and at AX5, read from the
     /// hosted UIKit fields' return key.
     func testFoodDetailsFieldsOfferDoneAtEverySize() async throws {
         for size in [DynamicTypeSize.large, .accessibility5] {
@@ -915,8 +915,11 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
             let model = FoodConfirmationViewModel(state: FoodConfirmationState(input: input, queryQuantity: nil)) { _ in
                 throw CocoaError(.fileWriteUnknown)
             }
+            // Packing medium is a picker since #470; its text field shows for Other, chosen here.
+            var draft = FoodDetailsDraft(model: model)
+            draft.packingChoice = .other
             let host = NativeHostingController(rootView: NavigationStack {
-                FoodDetailsForm(model: model, draft: .constant(FoodDetailsDraft(model: model)), applied: {})
+                FoodDetailsForm(model: model, draft: .constant(draft), applied: {})
                     .environment(\.dynamicTypeSize, size)
             })
             let scene = try testScene()
