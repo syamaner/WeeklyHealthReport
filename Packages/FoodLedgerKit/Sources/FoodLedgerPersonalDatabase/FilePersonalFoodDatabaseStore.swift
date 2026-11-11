@@ -91,7 +91,10 @@ public struct FilePersonalFoodDatabaseStore: PersonalFoodDatabaseStoring {
     public func install(bytes: Data, manifest: PersonalFoodDatabaseManifest) throws {
         guard isProtectedDataAvailable() else { throw PersonalFoodDatabaseStoreError.locked }
         guard manifest.releaseID == PersonalFoodDatabaseRelease.releaseID(fileSHA256: manifest.fileSHA256),
-              (try? digester.sha256(bytes)) == manifest.fileSHA256 else {
+              (try? digester.sha256(bytes)) == manifest.fileSHA256,
+              // Only a manifest this store's own reader accepts back unchanged is written, so a
+              // successful install never reads as damaged.
+              PersonalFoodDatabaseStoredManifest(manifest).manifest == manifest else {
             throw PersonalFoodDatabaseStoreError.writeFailed
         }
         let folderName = Self.folderName(manifest.fileSHA256)

@@ -112,16 +112,36 @@ public final class PersonalFoodDatabaseSettingsViewModel: ObservableObject {
     private var startedLoads = 0
     private var shownLoad = 0
 
+    public enum PickedFileFailure: Error, Sendable { case tooLarge, unreadable }
+
     public func importFile(_ bytes: Data) async {
-        guard !isWorking else { return }
+        await importFile(reading: { .success(bytes) })
+    }
+
+    /// Imports a picked file, reading it off the main actor. The screen is busy from before the
+    /// read, so a second pick or a remove cannot start until this one has finished and spoken.
+    public func importFile(reading: @escaping @Sendable () -> Result<Data, PickedFileFailure>) async {
+        guard !isWorking else {
+            message = "An import or removal is already in progress. \(PersonalFoodDatabaseSettingsText.notChanged)"
+            return
+        }
         isWorking = true
         defer { isWorking = false }
-        message = PersonalFoodDatabaseSettingsText.message(for: await importer.importFile(bytes))
+        switch await Task.detached(operation: reading).value {
+        case let .failure(failure):
+            reportUnreadableFile(tooLarge: failure == .tooLarge)
+            return
+        case let .success(bytes):
+            message = PersonalFoodDatabaseSettingsText.message(for: await importer.importFile(bytes))
+        }
         await load()
     }
 
     public func remove() async {
-        guard !isWorking else { return }
+        guard !isWorking else {
+            message = "An import or removal is already in progress. Nothing was removed."
+            return
+        }
         isWorking = true
         defer { isWorking = false }
         message = PersonalFoodDatabaseSettingsText.message(for: await importer.remove())

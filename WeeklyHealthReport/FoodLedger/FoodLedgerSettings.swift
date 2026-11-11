@@ -204,15 +204,20 @@ enum ProtectedDataAvailability {
 /// Reads a picked file within security-scoped access, refusing it before reading when it is over
 /// the import v1 size limit.
 enum PersonalFoodDatabasePickedFile {
-    enum Failure: Error { case tooLarge, unreadable }
+    typealias Failure = PersonalFoodDatabaseSettingsViewModel.PickedFileFailure
 
-    static func read(_ url: URL) throws(Failure) -> Data {
+    /// Never holds more than the limit plus one byte, even if the provider changes the file after
+    /// its size was reported.
+    static func read(_ url: URL) -> Result<Data, Failure> {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-        guard let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize else { throw .unreadable }
-        guard size <= PersonalFoodDatabaseCodec.limitBytes else { throw .tooLarge }
-        guard let data = try? Data(contentsOf: url) else { throw .unreadable }
-        return data
+        if let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize, size > PersonalFoodDatabaseCodec.limitBytes {
+            return .failure(.tooLarge)
+        }
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return .failure(.unreadable) }
+        defer { try? handle.close() }
+        guard let data = try? handle.read(upToCount: PersonalFoodDatabaseCodec.limitBytes + 1) else { return .failure(.unreadable) }
+        return data.count > PersonalFoodDatabaseCodec.limitBytes ? .failure(.tooLarge) : .success(data)
     }
 }
 
@@ -262,17 +267,8 @@ struct PersonalFoodDatabaseSettingsView: View {
         .task { await model.load() }
         .fileImporter(isPresented: $showsImport, allowedContentTypes: [.json]) { result in
             guard case let .success(url) = result else { return }
-            // Up to 25 MB: read off the main thread.
-            Task {
-                let read = await Task.detached { () -> Result<Data, PersonalFoodDatabasePickedFile.Failure> in
-                    do throws(PersonalFoodDatabasePickedFile.Failure) { return .success(try PersonalFoodDatabasePickedFile.read(url)) }
-                    catch { return .failure(error) }
-                }.value
-                switch read {
-                case let .success(data): await model.importFile(data)
-                case let .failure(error): model.reportUnreadableFile(tooLarge: error == .tooLarge)
-                }
-            }
+            // Up to 25 MB: the model reads it off the main thread, busy from before the read.
+            Task { await model.importFile(reading: { PersonalFoodDatabasePickedFile.read(url) }) }
         }
         .onChange(of: model.messageSerial) {
             if let message = model.message { AccessibilityNotification.Announcement(message).post() }

@@ -164,6 +164,20 @@ final class FilePersonalFoodDatabaseStoreTests: XCTestCase {
         XCTAssertNil(try store.activeRelease())
     }
 
+    func testInstallRefusesAManifestItsReaderWouldReject() throws {
+        let store = makeStore(), a = try Self.release("first")
+        let m = a.manifest
+        for bad in [
+            PersonalFoodDatabaseManifest(schema: m.schema, releaseID: m.releaseID, fileSHA256: m.fileSHA256, generated: m.generated, importedAt: m.importedAt, entryCount: -1),
+            PersonalFoodDatabaseManifest(schema: "other", releaseID: m.releaseID, fileSHA256: m.fileSHA256, generated: m.generated, importedAt: m.importedAt, entryCount: 3),
+            PersonalFoodDatabaseManifest(schema: m.schema, releaseID: m.releaseID, fileSHA256: m.fileSHA256, generated: m.generated,
+                                         importedAt: m.importedAt.addingTimeInterval(0.5), entryCount: 3)
+        ] {
+            assertThrows(.writeFailed) { try store.install(bytes: a.bytes, manifest: bad) }
+        }
+        XCTAssertNil(try store.activeRelease())
+    }
+
     func testInstallRefusesBytesThatDoNotMatchTheManifest() throws {
         let store = makeStore(), a = try Self.release("first"), b = try Self.release("second")
         try store.install(bytes: a.bytes, manifest: a.manifest)

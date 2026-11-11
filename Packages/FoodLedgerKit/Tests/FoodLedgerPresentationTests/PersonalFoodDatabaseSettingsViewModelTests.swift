@@ -90,6 +90,18 @@ final class PersonalFoodDatabaseSettingsViewModelTests: XCTestCase {
         XCTAssertGreaterThan(model.messageSerial, first)
     }
 
+    func testAPickedFileIsReadWhileBusyAndFailuresAreReported() async throws {
+        let model = makeModel(InMemoryPersonalFoodDatabaseStore())
+        await model.importFile(reading: { .failure(.tooLarge) })
+        XCTAssertEqual(model.message, "This file is too large for Your food database. Your food database was not changed.")
+        await model.importFile(reading: { .failure(.unreadable) })
+        XCTAssertEqual(model.message, "The file could not be opened. Your food database was not changed.")
+        XCTAssertFalse(model.isWorking)
+        let bytes = try Data(contentsOf: Self.fixtures.appendingPathComponent("golden.json"))
+        await model.importFile(reading: { .success(bytes) })
+        XCTAssertEqual(model.rowDetail, "3 foods")
+    }
+
     func testUnreadableFileMessages() {
         let model = makeModel(InMemoryPersonalFoodDatabaseStore())
         model.reportUnreadableFile(tooLarge: false)
