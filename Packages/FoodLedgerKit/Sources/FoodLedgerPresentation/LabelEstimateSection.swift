@@ -180,7 +180,7 @@ public enum LabelEstimateText {
     /// On an Open Food Facts product, filling in food details keeps the estimate (off-label-estimate-v1
     /// decision 6); only a changed name, brand or value withdraws it.
     public static let openFoodFactsUnavailableAfterCorrection =
-        "Estimates are not available after the name, brand or values are changed. Missing nutrients stay unknown."
+        "Estimates are not available after the name, brand or values are changed, or the product is marked fortified or as something other than a food. Missing nutrients stay unknown."
 
     public static func unavailableAfterCorrection(_ route: LabelEstimateRoute) -> String {
         route == .openFoodFacts ? openFoodFactsUnavailableAfterCorrection : unavailableAfterCorrection

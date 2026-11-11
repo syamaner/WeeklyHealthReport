@@ -184,7 +184,7 @@ final class OpenFoodFactsEstimatePresentationTests: XCTestCase {
         renamed.send(.applyCorrection(try correction(name: LedgerText("90% Cocoa Dark Chocolate Bar"))))
         XCTAssertTrue(renamedEstimate.isUnavailableAfterCorrection)
         XCTAssertEqual(LabelEstimateText.unavailableAfterCorrection(.openFoodFacts),
-                       "Estimates are not available after the name, brand or values are changed. Missing nutrients stay unknown.")
+                       "Estimates are not available after the name, brand or values are changed, or the product is marked fortified or as something other than a food. Missing nutrients stay unknown.")
         XCTAssertEqual(LabelEstimateText.unavailableAfterCorrection(.label),
                        "Estimates are not available after food details are corrected. Missing nutrients stay unknown.", "label copy unchanged")
         XCTAssertNil(renamedEstimate.chosenID)

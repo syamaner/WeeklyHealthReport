@@ -568,6 +568,22 @@ final class OpenFoodFactsEstimateContractTests: XCTestCase {
         }
     }
 
+    /// Qodo review of PR #466: the rescan takes the product's release from the release its own
+    /// values name, not from the position of that release in the resolution's list.
+    func testARescanPicksTheProductReleaseWhateverTheReleaseOrder() throws {
+        for harness in try LedgerFixtures.harnesses() {
+            defer { harness.cleanup() }
+            let input = try Self.input(.barcode)
+            let service = try Self.service(harness)
+            _ = try service.save(Self.state(input), operationID: LedgerFixtures.operationID(9_460), estimate: Self.choice())
+            let base = PersonalLibraryBarcodeSearch(reader: harness.reader)
+            let coordinator = BarcodeCaptureCoordinator(search: ReversedReleaseBarcodeSearch(base: base), ids: RandomLedgerIDGenerator())
+            guard case let .confirmation(route) = try coordinator.route(scan: Self.scan()) else { return XCTFail("rescan (\(harness.name))") }
+            XCTAssertEqual(route.confirmation.sourceReleases.map(\.sourceReleaseID.value), [Self.releaseID], harness.name)
+            XCTAssertTrue(OpenFoodFactsEstimateSource.applies(route.confirmation, candidate: route.confirmation.candidates[0]), harness.name)
+        }
+    }
+
     /// Local Qodo review: a product first logged as fortified or as a supplement keeps those
     /// details on its personal-library alias, and a rescan has no correction to drop the estimate,
     /// so the route rule itself refuses it.
@@ -747,4 +763,31 @@ private struct OneStoredReader: FoodConfirmationReading {
         logItemVersionID == saved.logItemVersion.logItemVersionID ? saved : nil
     }
     func evidence(id: EvidenceID) throws -> CaptureEvidence? { saved.evidence.first { $0.evidenceID == id } }
+}
+
+/// Returns the stored records with their release lists in reverse order (a valid record, since
+/// the record only requires the same set of releases).
+private struct ReversedReleaseBarcodeSearch: BarcodeLibrarySearching {
+    let base: PersonalLibraryBarcodeSearch
+    func matches(alias: LedgerText) throws -> [BarcodeLibraryMatch] {
+        try base.matches(alias: alias).map { match in
+            let record = match.record
+            let version = record.resolutionVersion
+            XCTAssertGreaterThan(version.sourceReleaseIDs.count, 1, "a layered entry")
+            let reversed = try BarcodeLibraryRecord(
+                libraryEntryVersion: record.libraryEntryVersion,
+                productVersion: record.productVersion,
+                resolution: record.resolution,
+                resolutionVersion: NutritionResolutionVersion(
+                    resolutionVersionID: version.resolutionVersionID, resolutionID: version.resolutionID,
+                    ordinal: version.ordinal, supersedesResolutionVersionID: version.supersedesResolutionVersionID,
+                    methodVersion: version.methodVersion, sourceReleaseIDs: version.sourceReleaseIDs.reversed(),
+                    nutrients: version.nutrients, decisionIDs: version.decisionIDs,
+                    assertionIDs: version.assertionIDs, createdAt: version.createdAt),
+                sourceReleases: record.sourceReleases.reversed(),
+                candidateNutrients: record.candidateNutrients
+            )
+            return BarcodeLibraryMatch(record: reversed, strength: match.strength)
+        }
+    }
 }
