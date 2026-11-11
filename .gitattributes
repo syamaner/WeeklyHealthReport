@@ -3,3 +3,6 @@ docs/designs/*.html -diff
 Packages/FoodLedgerKit/Tests/NutritionLabelParsingTests/Fixtures/*.jsonl linguist-generated -diff
 Packages/FoodLedgerKit/Tests/NutritionLabelParsingTests/Fixtures/*.json linguist-generated -diff
 Packages/FoodLedgerKit/Sources/NutritionLabelParsing/Resources/*.txt linguist-generated
+# Shared import v1 fixtures (#424): byte-exact, because tests pin the golden file's SHA-256 and
+# both checkers read the same bytes.
+docs/fixtures/personal-food-database-v1/* -text

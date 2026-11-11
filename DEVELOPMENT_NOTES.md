@@ -4398,6 +4398,30 @@ Excluded:
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison, not billing, and token totals do not measure quality or productivity.
 
+## WHR-424-IMPORT-P1A-2026-11-11: Claude Code import v1 phase 1 plan and P1a codec (#424)
+
+The implementation session (`claude-opus-5-5`, session `9a30287d-2461-44e3-836e-4b9789374ac5`) did the following in this window:
+- read import v1 and the estimates contract, found that the estimates importer depends on the unimplemented import v1 app code, and wrote `docs/personal-food-database-import-v1-phase-1.md` (the P1a, P1b and P1c split and the P1a architecture gate);
+- ran an architecture gate (PASS WITH CHANGES) and folded its eleven changes into the plan;
+- wrote the pure `FoodLedgerDomain` codec (`PersonalFoodDatabaseJSON.swift`, `PersonalFoodDatabaseCodec.swift`, `PersonalFoodDatabaseModel.swift`) and `PersonalFoodDatabaseCodecTests`;
+- tightened the skill's `export_v1.check_bytes` (explicit depth limit, unpaired surrogates, two `malformed` paths now given their rule codes), extended the fixture generator and regenerated the shared fixtures, with a CI step that verifies them;
+- ran the validator on the full gates and a local Qodo review.
+
+The subagents are included: the architecture gate and the validator. The window runs from `2026-11-11T13:04:36Z`, the owner's "Yes, start importer", to `2026-11-11T13:39:16Z`.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Import v1 phase 1 plan, P1a gate, codec, tests and reviews, implementation session and subagents | 11,937,066 (11,630,497) | 306,375 | 103,078 | 12,040,144 | $6.40 |
+
+Method: `phase_usage.py --format claude --since 2026-11-11T13:04:36Z --include-subagents` on the session transcript. Exact USD 6.3997914. The cache-write tokens are part of the input figure, and 146,548 of them are 5-minute writes. The total is input plus output.
+
+Excluded:
+- the Qodo review run;
+- local test and gate runs, which use no API tokens;
+- this ledger edit, the commit, the push and the PR after the window.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison, not billing, and token totals do not measure quality or productivity.
+
 ## WHR-462-2026-11-11: Claude Code cocoa exact match (#462)
 
 The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) took the owner's device check of 0.3.0 (30), drafted `cocoa-exact-match-v1.md` with three owner decisions, ran the architecture gate and applied its five findings, built the `displayBand` reading and the exact online section with their tests, and ran the validation gates. Subagents are included: two architecture gates, one read-only Open Food Facts investigation and one validator. The window runs from the owner's "Draft it" (`2026-11-11T07:23:25Z`) to `2026-11-11T13:02:45Z`, and also covers drafting the separate Open Food Facts estimate contract (`off-label-estimate-v1.md`, its gate and five owner decisions), which ran alongside and is not split out.
