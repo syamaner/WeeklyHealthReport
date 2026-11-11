@@ -55,6 +55,7 @@ CODE_READ_DOCS = {
     # Cited by the personal food database evaluation tool and its tests.
     "docs/personal-food-database-evaluation-v1.md",
     "docs/personal-food-database-review-v2-design.md",
+    "docs/personal-food-database-r2-builder-v1.md",
     # Cited by the Health follow-ups (#214 to #217), their tests and Developer tools.
     "docs/health-report-section-groups-v1.md",
     "docs/health-steps-trend-v1.md",
