@@ -92,10 +92,11 @@ final class OpenFoodFactsEstimateContractTests: XCTestCase {
 
     static func input(_ route: Route, name: String = "90% Cocoa Dark Chocolate", basis: ResolutionBasis = .per100Grams,
                       sourceID: String = "open-food-facts", nutrients: NutrientSet? = nil,
-                      evidence: CaptureEvidence? = nil) throws -> PopulatedFoodConfirmation {
+                      evidence: CaptureEvidence? = nil, fortification: FortificationState = .unfortified,
+                      itemClass: ItemClass = .food) throws -> PopulatedFoodConfirmation {
         let evidence = try evidence ?? Self.evidence(route)
         let identity = try DecisiveIdentity(preparation: PreparationState(kind: .asSold), bone: .notApplicable, skin: .notApplicable,
-            drained: .notApplicable, packingMedium: .named(LedgerText("none")), fortification: .unfortified, servingBasis: basis)
+            drained: .notApplicable, packingMedium: .named(LedgerText("none")), fortification: fortification, servingBasis: basis)
         let quantity = try EdibleQuantityIdentity.known(PositiveQuantity(value: 100, unit: basis == .per100Millilitres ? .millilitres : .grams),
                                                         conversionVersionID: nil)
         let metadata = try CandidateMatchMetadata(methodVersion: LedgerText(route == .search ? "off-search-candidates-v5" : "off-product-candidates-v4"),
@@ -106,7 +107,7 @@ final class OpenFoodFactsEstimateContractTests: XCTestCase {
             evidenceIDs: [evidence.evidenceID], matchMetadata: metadata),
             name: LedgerText(name), brand: LedgerText("Synthetic Chocolatier"),
             variant: LedgerText("Open Food Facts · source estimate · 100 g · per 100 g; 85% cocoa in the source text"),
-            barcode: gtin, itemClass: .food, packFacts: PackFacts())
+            barcode: gtin, itemClass: itemClass, packFacts: PackFacts())
         var release = try release()
         if sourceID != "open-food-facts" {
             release = SourceRelease(sourceReleaseID: release.sourceReleaseID, sourceID: try ExternalIdentifier(sourceID), releasedAt: release.releasedAt,
@@ -564,6 +565,31 @@ final class OpenFoodFactsEstimateContractTests: XCTestCase {
             let again = try service.save(rescan, operationID: LedgerFixtures.operationID(9_451), estimate: Self.choice())
             XCTAssertNotNil(again.estimate, harness.name)
             XCTAssertNotNil(try service.reopen(logItemID: again.logItem.logItemID), harness.name)
+        }
+    }
+
+    /// Local Qodo review: a product first logged as fortified or as a supplement keeps those
+    /// details on its personal-library alias, and a rescan has no correction to drop the estimate,
+    /// so the route rule itself refuses it.
+    func testARescanOfAFortifiedOrSupplementProductOffersNoEstimate() throws {
+        for (label, fortification, itemClass) in [("fortified food", FortificationState.fortified, ItemClass.fortifiedFood),
+                                                   ("supplement", .unfortified, .supplement),
+                                                   ("fortified supplement", .fortified, .supplement)] {
+            for harness in try LedgerFixtures.harnesses() {
+                defer { harness.cleanup() }
+                let input = try Self.input(.barcode, fortification: fortification, itemClass: itemClass)
+                XCTAssertFalse(OpenFoodFactsEstimateSource.applies(input, candidate: input.candidates[0]), "\(label) lookup (\(harness.name))")
+                let service = try Self.service(harness)
+                _ = try service.save(Self.state(input), operationID: LedgerFixtures.operationID(9_455))
+                let coordinator = BarcodeCaptureCoordinator(search: PersonalLibraryBarcodeSearch(reader: harness.reader), ids: RandomLedgerIDGenerator())
+                guard case let .confirmation(route) = try coordinator.route(scan: Self.scan()) else { return XCTFail("rescan \(label) (\(harness.name))") }
+                XCTAssertFalse(OpenFoodFactsEstimateSource.applies(route.confirmation, candidate: route.confirmation.candidates[0]),
+                               "\(label) rescan (\(harness.name))")
+                XCTAssertThrowsError(try service.save(Self.state(route.confirmation), operationID: LedgerFixtures.operationID(9_456),
+                                                      estimate: Self.choice()), "\(label) (\(harness.name))") {
+                    XCTAssertEqual($0 as? FoodConfirmationSaveError, .invalidLabelEstimate)
+                }
+            }
         }
     }
 

@@ -12,4 +12,4 @@ Release notes to carry into the next TestFlight build. Each entry names the merg
 
 ## Before installing
 
-- **Back up or export your food log first (#464).** Once a food log holds an estimated Open Food Facts entry, the store moves to version 9, and builds before this one cannot open it.
+- **Back up or export your food log first (#464).** This build moves the food log to store version 9 the first time it opens it, and builds before this one cannot open it afterwards. Archives and exports stay at their earlier contract unless they hold an estimated Open Food Facts entry.

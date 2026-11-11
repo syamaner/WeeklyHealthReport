@@ -12,11 +12,16 @@ public enum OpenFoodFactsEstimateSource {
     static let libraryRecordPrefix = "personal-library:"
 
     /// Rule 1: an Open Food Facts search or barcode candidate, or a personal-library rescan row of
-    /// one, named as a plain dark chocolate on a per 100 g basis. Per 100 ml products, mixed
+    /// one, named as a plain dark chocolate on a per 100 g basis, not fortified and of the food
+    /// item class. Per 100 ml products, fortified products, supplements and other classes, mixed
     /// provenance and any other source are refused; a correction is the caller's (`admitsChoice`).
     public static func applies(_ input: PopulatedFoodConfirmation, candidate: PopulatedFoodCandidate) -> Bool {
         let source = candidate.candidate
+        // A fortified product or another item class is refused here too, not only on a correction:
+        // a personal-library rescan row carries the details saved with it (local Qodo review).
         guard source.identity.servingBasis == .per100Grams,
+              source.identity.fortification != .fortified,
+              (candidate.itemClass ?? .food) == .food,
               let release = input.sourceReleases.first(where: { $0.sourceReleaseID == source.sourceReleaseID }),
               release.sourceID.value == sourceID,
               isProductCandidate(source),
