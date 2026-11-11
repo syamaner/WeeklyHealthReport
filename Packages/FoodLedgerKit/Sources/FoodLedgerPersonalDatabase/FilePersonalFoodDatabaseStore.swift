@@ -65,7 +65,14 @@ public struct FilePersonalFoodDatabaseStore: PersonalFoodDatabaseStoring {
 
     public func activeRelease() throws -> PersonalFoodDatabaseInstalledRelease? {
         guard isProtectedDataAvailable() else { throw PersonalFoodDatabaseStoreError.locked }
-        guard FileManager.default.fileExists(atPath: pointerURL.path) else { return nil }
+        // Only a pointer that does not exist means no release; one that exists but cannot be
+        // reached is damaged (or locked), never absent.
+        do { _ = try FileManager.default.attributesOfItem(atPath: pointerURL.path) } catch let error as CocoaError
+            where error.code == .fileReadNoSuchFile || error.code == .fileNoSuchFile {
+            return nil
+        } catch {
+            throw isProtectedDataAvailable() ? PersonalFoodDatabaseStoreError.damaged : .locked
+        }
         let pointer = try read(pointerURL, as: PersonalFoodDatabaseStoredPointer.self)
         guard pointer.version == PersonalFoodDatabaseStoredPointer.currentVersion,
               Self.isFolderName(pointer.folder) else { throw PersonalFoodDatabaseStoreError.damaged }
@@ -193,7 +200,8 @@ public struct FilePersonalFoodDatabaseStore: PersonalFoodDatabaseStoring {
         guard let bytes = FileManager.default.contents(atPath: folder.appendingPathComponent(Self.fileName).path),
               let stored = try? JSONDecoder().decode(PersonalFoodDatabaseStoredManifest.self,
                   from: FileManager.default.contents(atPath: folder.appendingPathComponent(Self.manifestName).path) ?? Data()),
-              stored.manifest?.fileSHA256 == digest else { return false }
+              let storedManifest = stored.manifest, storedManifest.fileSHA256 == digest,
+              storedManifest.releaseID == PersonalFoodDatabaseRelease.releaseID(fileSHA256: digest) else { return false }
         return (try? digester.sha256(bytes)) == digest
     }
 

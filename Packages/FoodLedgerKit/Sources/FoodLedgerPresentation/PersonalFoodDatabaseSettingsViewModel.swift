@@ -99,9 +99,18 @@ public final class PersonalFoodDatabaseSettingsViewModel: ObservableObject {
         }
     }
 
+    /// Loads can overlap (launch, the Settings screen, an operation's follow-up). A result is shown
+    /// unless a load started later has already been shown, so an older read never replaces a newer one.
     public func load() async {
-        state = Self.state(await importer.status())
+        startedLoads += 1
+        let generation = startedLoads
+        let status = await importer.status()
+        guard generation > shownLoad else { return }
+        shownLoad = generation
+        state = Self.state(status)
     }
+    private var startedLoads = 0
+    private var shownLoad = 0
 
     public func importFile(_ bytes: Data) async {
         guard !isWorking else { return }
@@ -121,8 +130,8 @@ public final class PersonalFoodDatabaseSettingsViewModel: ObservableObject {
 
     /// A picked file that could not be read or is over the size limit, before any import.
     public func reportUnreadableFile(tooLarge: Bool) {
-        message = PersonalFoodDatabaseSettingsText.message(for: tooLarge ? .tooLarge : .writeFailed)
-        if !tooLarge { message = "The file could not be opened. \(PersonalFoodDatabaseSettingsText.notChanged)" }
+        message = tooLarge ? PersonalFoodDatabaseSettingsText.message(for: .tooLarge)
+            : "The file could not be opened. \(PersonalFoodDatabaseSettingsText.notChanged)"
     }
 
     static func state(_ status: PersonalFoodDatabaseStatus) -> State {

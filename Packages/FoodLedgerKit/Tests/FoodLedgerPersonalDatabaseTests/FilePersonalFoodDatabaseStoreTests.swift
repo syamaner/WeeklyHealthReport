@@ -200,6 +200,29 @@ final class FilePersonalFoodDatabaseStoreTests: XCTestCase {
         XCTAssertEqual(try makeStore().activeRelease(), a)
     }
 
+    /// A same-release folder whose manifest names the wrong release is damaged, so re-importing the
+    /// same bytes replaces it rather than reusing it.
+    func testAWrongReleaseIDIsRepairedNotReused() throws {
+        let a = try Self.release("first")
+        try makeStore().install(bytes: a.bytes, manifest: a.manifest)
+        let manifestURL = folder(a).appendingPathComponent("manifest.json")
+        let wrong = String(decoding: try Data(contentsOf: manifestURL), as: UTF8.self)
+            .replacingOccurrences(of: "pfc:sha256:", with: "pfc:sha256:0")
+        try Data(wrong.utf8).write(to: manifestURL)
+        assertThrows(.damaged) { _ = try makeStore().activeRelease() }
+        try makeStore().install(bytes: a.bytes, manifest: a.manifest)
+        XCTAssertEqual(try makeStore().activeRelease(), a)
+    }
+
+    /// A pointer that exists but cannot be read is damaged, never absent.
+    func testAnUnreadablePointerIsDamagedNotNone() throws {
+        let a = try Self.release("first")
+        try makeStore().install(bytes: a.bytes, manifest: a.manifest)
+        try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: base.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: base.path) }
+        assertThrows(.damaged) { _ = try makeStore().activeRelease() }
+    }
+
     // MARK: Damaged
 
     func testDamagedStates() throws {

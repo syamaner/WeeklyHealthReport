@@ -90,6 +90,14 @@ final class PersonalFoodDatabaseSettingsViewModelTests: XCTestCase {
         XCTAssertGreaterThan(model.messageSerial, first)
     }
 
+    func testUnreadableFileMessages() {
+        let model = makeModel(InMemoryPersonalFoodDatabaseStore())
+        model.reportUnreadableFile(tooLarge: false)
+        XCTAssertEqual(model.message, "The file could not be opened. Your food database was not changed.")
+        model.reportUnreadableFile(tooLarge: true)
+        XCTAssertEqual(model.message, "This file is too large for Your food database. Your food database was not changed.")
+    }
+
     func testRuleGroups() {
         XCTAssertEqual(PersonalFoodDatabaseSettingsText.reason(for: [.json]), "This file is not readable JSON. Export it again from your Mac.")
         XCTAssertEqual(PersonalFoodDatabaseSettingsText.reason(for: [.schema]), "This file is not a food database file from your Mac.")

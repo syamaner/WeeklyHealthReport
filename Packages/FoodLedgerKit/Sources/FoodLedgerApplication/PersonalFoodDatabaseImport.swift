@@ -124,6 +124,8 @@ public actor PersonalFoodDatabaseImporter: PersonalFoodDatabaseImporting {
         self.releases = releases
     }
 
+    /// Verifies the active file's hash on every read, deliberately: a release that fails its hash is
+    /// disabled (storage decision section 3), so Settings never shows a damaged file as installed.
     public func status() async -> PersonalFoodDatabaseStatus {
         switch Self.loadActive(store) {
         case let .present(active): .installed(PersonalFoodDatabaseSummary(active.manifest))
@@ -135,30 +137,22 @@ public actor PersonalFoodDatabaseImporter: PersonalFoodDatabaseImporting {
 
     public func importFile(_ bytes: Data) async -> PersonalFoodDatabaseImportOutcome {
         guard bytes.count <= PersonalFoodDatabaseCodec.limitBytes else { return .tooLarge }
-        let file: PersonalFoodDatabaseFile
-        switch PersonalFoodDatabaseCodec.decode(bytes) {
-        case let .success(decoded): file = decoded
-        case let .failure(rejection): return .rejected(rejection.codes)
+        // Only what the import needs is kept from each decoded file, so at most one typed file is
+        // in memory at a time and the active file's bytes are released before the comparison.
+        let prepared: Prepared
+        switch prepare(bytes) {
+        case let .success(value): prepared = value
+        case let .failure(outcome): return outcome.value
         }
-        guard let digest = try? digester.sha256(bytes) else { return .writeFailed }
-        let candidates: [SourceRelease]
-        do {
-            candidates = try [PersonalFoodDatabaseRelease.sourceRelease(fileSHA256: digest, generated: file.generated)]
-                + file.sources.map { try $0.sourceRelease() }
-        } catch {
-            return .rejected([.malformed])
-        }
+        let digest = prepared.digest, candidates = prepared.candidates
 
-        var activeSources: [SourceRelease] = []
-        switch Self.loadActive(store) {
+        let activeSources: [SourceRelease]
+        switch Self.activeComparison(store, digest: digest) {
         case .locked: return .locked
         case .unreadable: return .writeFailed
-        case .absent, .damaged: break // over a damaged release the active comparison is skipped (3.1, change 3)
-        case let .present(active):
-            if active.manifest.fileSHA256 == digest { return .unchanged(PersonalFoodDatabaseSummary(active.manifest)) }
-            if case let .success(activeFile) = PersonalFoodDatabaseCodec.decode(active.bytes) {
-                activeSources = (try? activeFile.sources.map { try $0.sourceRelease() }) ?? []
-            }
+        case let .same(summary): return .unchanged(summary)
+        case let .other(sources): activeSources = sources
+        case .none: activeSources = [] // absent, or damaged: the active comparison is skipped (3.1, change 3)
         }
 
         for release in candidates {
@@ -174,9 +168,9 @@ public actor PersonalFoodDatabaseImporter: PersonalFoodDatabaseImporting {
             schema: PersonalFoodDatabaseFile.schema,
             releaseID: PersonalFoodDatabaseRelease.releaseID(fileSHA256: digest),
             fileSHA256: digest,
-            generated: file.generated,
+            generated: prepared.generated,
             importedAt: Date(timeIntervalSince1970: clock.now().timeIntervalSince1970.rounded(.down)),
-            entryCount: file.entries.count
+            entryCount: prepared.entryCount
         )
         do {
             try store.install(bytes: bytes, manifest: manifest)
@@ -195,6 +189,52 @@ public actor PersonalFoodDatabaseImporter: PersonalFoodDatabaseImporting {
             return .locked
         } catch {
             return .writeFailed
+        }
+    }
+
+    private struct Prepared {
+        let digest: SHA256Digest
+        let generated: PersonalFoodDatabaseDate
+        let entryCount: Int
+        let candidates: [SourceRelease]
+    }
+
+    private struct OutcomeBox: Error { let value: PersonalFoodDatabaseImportOutcome }
+
+    /// Decodes the new file and keeps only the digest, date, count and releases.
+    private func prepare(_ bytes: Data) -> Result<Prepared, OutcomeBox> {
+        let file: PersonalFoodDatabaseFile
+        switch PersonalFoodDatabaseCodec.decode(bytes) {
+        case let .success(decoded): file = decoded
+        case let .failure(rejection): return .failure(OutcomeBox(value: .rejected(rejection.codes)))
+        }
+        guard let digest = try? digester.sha256(bytes) else { return .failure(OutcomeBox(value: .writeFailed)) }
+        do {
+            let candidates = try [PersonalFoodDatabaseRelease.sourceRelease(fileSHA256: digest, generated: file.generated)]
+                + file.sources.map { try $0.sourceRelease() }
+            return .success(Prepared(digest: digest, generated: file.generated, entryCount: file.entries.count, candidates: candidates))
+        } catch {
+            return .failure(OutcomeBox(value: .rejected([.malformed])))
+        }
+    }
+
+    private enum ActiveComparison {
+        case locked, unreadable, none
+        case same(PersonalFoodDatabaseSummary)
+        case other([SourceRelease])
+    }
+
+    /// The active release reduced to what the comparison needs; its bytes and decoded file are
+    /// released when this returns.
+    private static func activeComparison(_ store: any PersonalFoodDatabaseStoring, digest: SHA256Digest) -> ActiveComparison {
+        switch loadActive(store) {
+        case .locked: return .locked
+        case .unreadable: return .unreadable
+        case .absent, .damaged: return .none
+        case let .present(active):
+            if active.manifest.fileSHA256 == digest { return .same(PersonalFoodDatabaseSummary(active.manifest)) }
+            guard case let .success(file) = PersonalFoodDatabaseCodec.decode(active.bytes) else { return .none }
+            return .other((try? file.sources.map { try $0.sourceRelease() }) ?? [])
         }
     }
 

@@ -4442,7 +4442,7 @@ Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base 
 ## WHR-424-IMPORT-P1B-2026-11-11: Claude Code import v1 P1b store, importer and Settings row (#424)
 
 The implementation session (`claude-opus-5-5`, session `9a30287d-2461-44e3-836e-4b9789374ac5`) did the following in this window:
-- wrote the P1b architecture gate in `docs/personal-food-database-import-v1-phase-1.md` section 3, ran an architecture gate (PASS WITH CHANGES) and bound its eleven changes in section 3.1, with a dated layout clarification in import v1 section 3 pending owner sign-off;
+- wrote the P1b architecture gate in `docs/personal-food-database-import-v1-phase-1.md` section 3, ran an architecture gate (PASS WITH CHANGES) and bound its eleven changes in section 3.1, with a dated layout clarification in import v1 section 3 that the owner approved the same day;
 - wrote `PersonalFoodDatabaseImporting` and the `PersonalFoodDatabaseImporter` actor in `FoodLedgerApplication`, the new `FoodLedgerPersonalDatabase` target (`FilePersonalFoodDatabaseStore`), the in-memory test store, the Settings view model and copy, the "Your food database" Settings row and screen, and the boundary rules with eight failing self-test fixtures;
 - ran an invariant review (PASS, six Low items fixed) and a local Qodo review (six findings fixed), and the full gates.
 
