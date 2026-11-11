@@ -20,7 +20,7 @@ public struct ProtectedDataAvailability: Sendable {
 public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, FoodConfirmationReading,
     EvidenceAttachmentStoring, FoodArchiveLedgerAccess, FavouriteReading, @unchecked Sendable
 {
-    public static let schemaVersion = 8
+    public static let schemaVersion = 9
     public static let applicationID = 0x5748_5246 // WHRF
 
     private let databaseQueue: DatabaseQueue
@@ -382,12 +382,18 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
                         }
                         return release
                     }
+                    // The first decision's candidate: the product values a rescan returns when the
+                    // entry carries an estimate layer (off-label-estimate-v1 rule 5).
+                    let firstDecision: CandidateDecision? = try version.decisionIDs.first.flatMap {
+                        try decode(CandidateDecision.self, table: "candidate_decision", column: "decision_id", id: $0.rawValue)
+                    }
                     return try BarcodeLibraryRecord(
                         libraryEntryVersion: entry,
                         productVersion: product,
                         resolution: resolution,
                         resolutionVersion: version,
-                        sourceReleases: releases
+                        sourceReleases: releases,
+                        candidateNutrients: firstDecision?.candidate.nutrients
                     )
                 }
             }
@@ -1239,7 +1245,7 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
                   synchronous == 2,
                   application == applicationID,
                   version == schemaVersion,
-                  metadata == "food-ledger-v8",
+                  metadata == "food-ledger-v9",
                   check == "ok",
                   foreignKeyFailures.isEmpty else {
                 throw FoodLedgerStoreError.integrityFailure("database open policy")

@@ -92,6 +92,12 @@ public struct SavedFoodEntryDetail: Sendable {
         public let estimatedValues: [NutrientKey: NutrientValue]
         public let compatibilityVersion: String
         public let mergeVersion: String
+        /// Which source the estimate sits on, from the first decision's candidate
+        /// (docs/off-label-estimate-v1.md rule 6): it chooses the copy only.
+        public let route: LabelEstimateRoute
+        /// Each estimated key's unknown reason in the stored first-decision candidate (rule 3), so
+        /// Developer tools can show why the source left it unknown. Read, never stored.
+        public let originalReasons: [NutrientKey: UnknownReason]
 
         public var estimateRelease: SourceRelease { releases[releases.count - 1] }
 
@@ -113,6 +119,13 @@ public struct SavedFoodEntryDetail: Sendable {
             }
             estimatedKeys = estimated.map(\.key)
             estimatedValues = Dictionary(estimated.map { ($0.key, $0.value) }, uniquingKeysWith: { first, _ in first })
+            let source = stored.candidateDecision.candidate
+            route = OpenFoodFactsEstimateSource.isProductCandidate(source) ? .openFoodFacts : .label
+            let keys = Set(estimatedKeys)
+            originalReasons = Dictionary(source.nutrients.entries.compactMap { entry -> (NutrientKey, UnknownReason)? in
+                guard keys.contains(entry.key), case let .unknown(reason) = entry.value else { return nil }
+                return (entry.key, reason)
+            }, uniquingKeysWith: { first, _ in first })
         }
     }
 

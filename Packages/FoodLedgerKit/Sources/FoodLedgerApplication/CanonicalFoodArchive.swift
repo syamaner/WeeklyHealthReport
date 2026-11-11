@@ -37,15 +37,16 @@ public struct CanonicalFoodNutritionSummary: Codable, Equatable, Sendable {
 }
 
 public struct CanonicalFoodProjection: Codable, Equatable, Sendable {
-    /// The highest contract this binary reads and writes (8: label estimate layers).
-    public static let foodContractVersion = 8
+    /// The highest contract this binary reads and writes (9: estimate layers on Open Food Facts
+    /// products, off-label-estimate-v1; 8: label estimate layers).
+    public static let foodContractVersion = 9
     /// The contract an export carries when its records need no more: unchanged from contract 6,
     /// so a store without pasted-label evidence exports exactly the bytes it did before contract 7.
     public static let exportFloorContractVersion = 6
     public static let dailySchemaVersion = 4
 
-    /// The contract an export of these records carries: contract 8 only with an estimate layer,
-    /// contract 7 only when pasted-label evidence exists, otherwise the contract-6 floor as before.
+    /// The contract an export of these records carries: contract 9 only with an estimate layer on
+    /// an Open Food Facts product, contract 8 only with another estimate layer, contract 7 only when pasted-label evidence exists, otherwise the contract-6 floor as before.
     public static func exportContractVersion(for records: LedgerMutation, favourites: FavouriteMutation = FavouriteMutation()) -> Int {
         max(exportFloorContractVersion, minimumContractVersion(for: records, favourites: favourites))
     }
@@ -108,6 +109,14 @@ public struct CanonicalFoodProjection: Codable, Equatable, Sendable {
     /// and a pasted label is never reported as contract 6. Then contract 6: any favourite
     /// record, app reference provenance or reference definition evidence.
     public static func minimumContractVersion(for records: LedgerMutation, favourites: FavouriteMutation = FavouriteMutation()) -> Int {
+        // Contract 9 (off-label-estimate-v1, owner decision 5): a layered resolution version whose
+        // first decision is an Open Food Facts product. Read from the candidate's own provenance,
+        // so it holds when the product's release was stored by an earlier operation.
+        let decisions = Dictionary(records.candidateDecisions.map { ($0.candidateDecisionID, $0) }, uniquingKeysWith: { first, _ in first })
+        if records.resolutionVersions.contains(where: { version in
+            version.decisionIDs.count > 1
+                && version.decisionIDs.first.flatMap { decisions[$0] }.map { OpenFoodFactsEstimateSource.isProductCandidate($0.candidate) } == true
+        }) { return 9 }
         // Contract 8 (label estimate layer, label-estimate-merge-v1): a typed cocoa assertion or a
         // resolution version citing more than one decision. Checked before every other rule.
         if records.assertions.contains(where: { $0.labelEstimate != nil })

@@ -12,8 +12,9 @@ public final class FoodConfirmationViewModel: ObservableObject {
     }
     @Published public private(set) var savedResult: StoredFoodConfirmation?
     private let saveAction: @MainActor (FoodConfirmationState) throws -> StoredFoodConfirmation
-    /// The pasted label and label photo routes' "Estimate unprinted nutrients" section
-    /// (docs/label-estimate-merge-v1.md rule 7). Nil on every other route.
+    /// The "Estimate unprinted nutrients" section of the pasted label, label photo and Open Food
+    /// Facts routes (docs/label-estimate-merge-v1.md rule 7, docs/off-label-estimate-v1.md). Nil
+    /// on every route that does not wire it; shown only where `LabelEstimateOffer.applies`.
     public let labelEstimate: LabelEstimateModel?
     /// Log with a chosen label estimate. Without a chosen row Log always goes through
     /// `saveAction`, so the save is exactly the label-only save.
@@ -23,6 +24,14 @@ public final class FoodConfirmationViewModel: ObservableObject {
     public let labelEstimateNotCarried: Bool
     public static let labelEstimateNotCarriedNotice =
         "Logs the label values only. The estimated nutrients saved with the earlier entry are not logged again; missing nutrients stay unknown."
+    /// The same notice for an Open Food Facts entry (docs/off-label-estimate-v1.md rule 6).
+    public static let openFoodFactsEstimateNotCarriedNotice =
+        "Logs the Open Food Facts values only. The estimated nutrients saved with the earlier entry are not logged again; missing nutrients stay unknown."
+    /// The notice for this re-log, by the source being logged again.
+    public var estimateNotCarriedNotice: String {
+        OpenFoodFactsEstimateSource.isProductCandidate(state.selectedCandidate.candidate)
+            ? Self.openFoodFactsEstimateNotCarriedNotice : Self.labelEstimateNotCarriedNotice
+    }
     /// Writes `save_favourite_v1` for the logged entry version (#198). Nil hides "Save as favourite".
     private let favouriteAction: (@MainActor (LogItemVersionID) throws -> Void)?
     /// "Save as favourite" (the v5 D4 slot). The log save is unchanged; the favourite is a
@@ -91,8 +100,9 @@ public final class FoodConfirmationViewModel: ObservableObject {
         self.labelEstimate?.prepare(state)
     }
 
-    /// Whether Confirm shows "Estimate unprinted nutrients": a new pasted label or label photo
-    /// entry whose label admits an estimate (rule 1). It never blocks Log.
+    /// Whether Confirm shows the estimate section: a new pasted label or label photo entry whose
+    /// label admits an estimate (rule 1), or an Open Food Facts product admitted by
+    /// `OpenFoodFactsEstimateSource.applies` (off-label-estimate-v1). It never blocks Log.
     public var offersLabelEstimate: Bool {
         labelEstimate != nil && LabelEstimateOffer.applies(state)
     }
@@ -1144,8 +1154,8 @@ public struct FoodConfirmationView: View {
                 }
                 if model.labelEstimateNotCarried {
                     Section {
-                        Label(FoodConfirmationViewModel.labelEstimateNotCarriedNotice, systemImage: "info.circle")
-                            .accessibilityLabel(FoodConfirmationViewModel.labelEstimateNotCarriedNotice)
+                        Label(model.estimateNotCarriedNotice, systemImage: "info.circle")
+                            .accessibilityLabel(model.estimateNotCarriedNotice)
                     }
                 }
                 compactNutritionSection

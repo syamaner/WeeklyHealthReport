@@ -167,6 +167,8 @@ struct SavedFoodEntryView: View {
             Text(LabelEstimateSavedEntryText.sourceLine(estimate)).font(.subheadline)
             Text(LabelEstimateSavedEntryText.cocoaLine(estimate)).font(.caption)
             if let keys = LabelEstimateSavedEntryText.keysLine(estimate) { Text(keys).font(.caption) }
+            // An Open Food Facts entry names each filled value's state (docs/off-label-estimate-v1.md rule 6).
+            ForEach(LabelEstimateSavedEntryText.stateLines(estimate), id: \.self) { Text($0).font(.caption) }
             if developerTools {
                 ForEach(LabelEstimateSavedEntryText.developerLines(estimate), id: \.self) {
                     Text($0).font(.caption.monospaced()).textSelection(.enabled)

@@ -245,8 +245,14 @@ public final class BarcodeCaptureCoordinator: @unchecked Sendable {
                 $0,
                 conversionVersionID: record.libraryEntryVersion.quantityConversionVersionID
             ) } ?? .unknown
-        let sourceRelease = record.sourceReleases.first
-        guard let sourceRelease else {
+        // An entry with an estimate layer (off-label-estimate-v1 rule 5, owner decision 3): the
+        // rescan row is the product's own values under the product's release, never an estimated
+        // value or the generic release, so Confirm can offer the estimate again.
+        let layered = record.resolutionVersion.decisionIDs.count > 1
+        let sourceRelease = layered
+            ? record.sourceReleases.first { $0.sourceReleaseID == record.resolutionVersion.sourceReleaseIDs.first }
+            : record.sourceReleases.first
+        guard let sourceRelease, let nutrients = layered ? record.candidateNutrients : record.resolutionVersion.nutrients else {
             throw FoodLedgerValidationError.missingProvenance
         }
         let candidate = try PopulatedFoodCandidate(
@@ -257,7 +263,7 @@ public final class BarcodeCaptureCoordinator: @unchecked Sendable {
                 ),
                 identity: record.productVersion.identity,
                 edibleQuantity: quantity,
-                nutrients: record.resolutionVersion.nutrients,
+                nutrients: nutrients,
                 evidenceIDs: [evidence.evidenceID]
             ),
             name: record.productVersion.name,

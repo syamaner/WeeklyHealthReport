@@ -375,9 +375,14 @@ public enum FoodLogText {
     /// The entry status of a saved entry with a label estimate layer (docs/label-estimate-merge-v1.md section 8).
     public static let partlyEstimated = "Partly estimated"
 
-    /// "Label values, with unprinted nutrients estimated from US reference".
+    /// "Label values, with unprinted nutrients estimated from US reference"; on an Open Food Facts
+    /// entry "Open Food Facts values, with missing nutrients estimated from US reference".
     public static func partlyEstimatedNotice(_ estimate: SavedFoodEntryDetail.LabelEstimateDetail) -> String {
-        "Label values, with unprinted nutrients estimated from \(FoodSearchResultText.family(estimate.sourceFamily))"
+        let family = FoodSearchResultText.family(estimate.sourceFamily)
+        return switch estimate.route {
+        case .label: "Label values, with unprinted nutrients estimated from \(family)"
+        case .openFoodFacts: "Open Food Facts values, with missing nutrients estimated from \(family)"
+        }
     }
 
     public static let plainWaterSourceName = "Plain water"

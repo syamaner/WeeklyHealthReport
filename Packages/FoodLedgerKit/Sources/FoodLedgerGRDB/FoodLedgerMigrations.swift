@@ -57,6 +57,14 @@ extension FoodLedgerGRDBStore {
             try db.execute(sql: "UPDATE ledger_metadata SET value = 'food-ledger-v8' WHERE key = 'schema_identity'")
             try db.execute(sql: "PRAGMA user_version = 8")
         }
+        migrator.registerMigration("v9_off_label_estimate") { db in
+            // Estimate layers on Open Food Facts products (off-label-estimate-v1, food contract 9,
+            // owner decision 5): stored exactly as label layers already are. Metadata only: no
+            // table is created and no immutable row is rewritten. Older binaries decline schema 9
+            // instead of failing the integrity check on such an entry.
+            try db.execute(sql: "UPDATE ledger_metadata SET value = 'food-ledger-v9' WHERE key = 'schema_identity'")
+            try db.execute(sql: "PRAGMA user_version = 9")
+        }
         return migrator
     }
 

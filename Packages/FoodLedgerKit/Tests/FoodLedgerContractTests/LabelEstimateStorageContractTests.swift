@@ -269,6 +269,24 @@ final class LabelEstimateStorageContractTests: XCTestCase {
         }
     }
 
+    /// off-label-estimate-v1 decision 6 is Open Food Facts only: on a new label entry even a
+    /// correction that keeps the name, brand and values admits no estimate.
+    func testALabelCorrectionStillAdmitsNoEstimateEvenWhenOnlyFoodDetailsChange() throws {
+        for harness in try LedgerFixtures.harnesses() {
+            defer { harness.cleanup() }
+            var state = F.state(try Self.chocolateInput())
+            let source = state.selectedCandidate
+            FoodConfirmationReducer.reduce(state: &state, action: .applyCorrection(try FoodCorrection(name: source.name, brand: source.brand,
+                variant: source.variant, identity: source.candidate.identity, itemClass: source.itemClass, nutrients: source.candidate.nutrients,
+                reason: LedgerText("Synthetic food details only"))))
+            XCTAssertTrue(LabelEstimateOffer.applies(state), harness.name)
+            XCTAssertFalse(LabelEstimateOffer.admitsChoice(state), harness.name)
+            XCTAssertThrowsError(try F.service(harness).save(state, operationID: LedgerFixtures.operationID(9_958), estimate: Self.choice())) {
+                XCTAssertEqual($0 as? FoodConfirmationSaveError, .invalidLabelEstimate, harness.name)
+            }
+        }
+    }
+
     func testAlteredLabelGenericDecisionMergedEntryOrCocoaAssertionFailsReopen() throws {
         for harness in try LedgerFixtures.harnesses() {
             defer { harness.cleanup() }
@@ -471,7 +489,7 @@ final class LabelEstimateStorageContractTests: XCTestCase {
     // MARK: GRDB
 
     func testMigrationFromAPopulatedV7StoreChangesOnlyLedgerMetadata() throws {
-        XCTAssertEqual(FoodLedgerGRDBStore.schemaVersion, 8)
+        XCTAssertEqual(FoodLedgerGRDBStore.schemaVersion, 9)
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("estimate-v8-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -484,6 +502,7 @@ final class LabelEstimateStorageContractTests: XCTestCase {
         let queue = try DatabaseQueue(path: database.path)
         try queue.write { db in
             try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v8_label_estimate'")
+            try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v9_off_label_estimate'")
             try db.execute(sql: "UPDATE ledger_metadata SET value = 'food-ledger-v7' WHERE key = 'schema_identity'")
             try db.execute(sql: "PRAGMA user_version = 7")
         }
@@ -498,9 +517,10 @@ final class LabelEstimateStorageContractTests: XCTestCase {
         XCTAssertEqual(try check.read { try String.fetchAll($0, sql: "SELECT sql FROM sqlite_master WHERE sql IS NOT NULL ORDER BY name") },
                        schemaBefore, "No table, index or trigger definition changes")
         try check.read { db in
-            XCTAssertEqual(try Int.fetchOne(db, sql: "PRAGMA user_version"), 8)
-            XCTAssertEqual(try String.fetchOne(db, sql: "SELECT value FROM ledger_metadata WHERE key = 'schema_identity'"), "food-ledger-v8")
-            XCTAssertEqual(try String.fetchAll(db, sql: "SELECT identifier FROM grdb_migrations ORDER BY rowid").last, "v8_label_estimate")
+            XCTAssertEqual(try Int.fetchOne(db, sql: "PRAGMA user_version"), 9)
+            XCTAssertEqual(try String.fetchOne(db, sql: "SELECT value FROM ledger_metadata WHERE key = 'schema_identity'"), "food-ledger-v9")
+            XCTAssertEqual(try String.fetchAll(db, sql: "SELECT identifier FROM grdb_migrations ORDER BY rowid").suffix(2),
+                           ["v8_label_estimate", "v9_off_label_estimate"])
         }
     }
 
