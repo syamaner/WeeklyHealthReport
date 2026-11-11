@@ -66,7 +66,7 @@ final class CocoaPercentPolicyTests: XCTestCase {
             CocoaPercentPolicy.displayBand(name: name, description: description, recordID: nil)
         }
         for name in ["95% Dark Chocolate", "95 % dark chocolate", "Dark chocolate 95%", "95% dark chocolate bar",
-                     "95% Dark Chocolate, organic", "  95%  Dark   Chocolate  ", "Dark Chocolate 95 % Block"] {
+                     "95% Dark Chocolate, organic", "  95%  Dark   Chocolate  ", "Dark Chocolate 95 % Block", "95%dark chocolate"] {
             XCTAssertEqual(display(name), .declared(lower: 95, upper: 95), name)
             XCTAssertNil(CocoaPercentPolicy.band(name: name, description: nil, recordID: nil), "v2 band unchanged: \(name)")
         }

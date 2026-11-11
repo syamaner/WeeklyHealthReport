@@ -139,7 +139,7 @@ public enum CocoaPercentPolicy {
             .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
             .trimmingCharacters(in: .whitespaces)
         head = head.replacingOccurrences(of: #" (?:bar|block)$"#, with: "", options: .regularExpression)
-        for pattern in [#"^(\d+(?:\.\d+)?) ?% dark chocolate$"#, #"^dark chocolate (\d+(?:\.\d+)?) ?%$"#] {
+        for pattern in [#"^(\d+(?:\.\d+)?) ?% ?dark chocolate$"#, #"^dark chocolate (\d+(?:\.\d+)?) ?%$"#] {
             if let match = captures(pattern, head).first, let value = Double(match[0]), (0...100).contains(value) {
                 return value
             }
