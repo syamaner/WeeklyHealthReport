@@ -53,7 +53,7 @@ Food details being known before Log is an app policy (`food_confirmation_v1` to 
 
 1. **Carried.** When the stored fill-only test holds for a saved entry, re-log and favourite quick add start with its food details filled, shown as "Food details from your last entry" with a Change link. The new save records the fixed reason "Food details from your last entry".
 2. **Not carried.** A correction that changed a stated detail or a value is not carried (its food details are dropped, as today). Decisions ("matches source", "Not sure"), fortified fills and estimate layers are not carried.
-3. **Never bypasses a difference.** A carried fill is applied only when the rebuilt candidate has no material difference against what was asked for; otherwise those differences are decided first, as today (gate finding 5). On re-log and quick add the expectation is the source's own, so this normally holds.
+3. **Never bypasses a difference.** A carried fill is applied only when every difference still to decide on the rebuilt state is about a food detail the source left unknown and the saved entry filled in (for example a pasted label's fortification question on re-log, which the earlier answer settles). A basis or quantity difference, or one about a detail the source states, is decided first, as today (gate finding 5). Details that are only missing are not differences to decide, as on Confirm.
 4. **Order on re-log.** The carried fill is applied before the last amount, unit and portion guide are restored (re-log restores no conversion today), so it never clears them.
 5. **Quick add.** Rule 3 of the quick add contract is rewritten: a pinned entry is eligible when it carried no correction, or when the stored fill-only test holds and its effective resolution equals the original. Eligibility is computed on the rebuilt state with the carried fill applied. A layered entry, or one with a fortified fill, still opens the full Confirm. Rule 2 (quick adds never grow the personal library) is unchanged.
 6. **Favourite label.** Quick add v1 says the label defaults to the source name, "not a corrected product name", but the code restores the saved name. v2 records what the code does: the saved product name.
@@ -84,7 +84,7 @@ Food details being known before Log is an app policy (`food_confirmation_v1` to 
 - `FoodDetailsFillPolicy` and the rule 1 answer are pure `FoodLedgerApplication` code; the as-sold identity may reuse the domain constructor `PastedLabelDomain.identity`; Confirm gains one action. No port, store, migration or schema change. Boundaries unchanged (`check-boundaries.sh`).
 - Rule 2 changes `FoodDetailsSheet.canApply`, the reason default and the packing medium choices (presentation), and the `applyCorrection` reducer branch (application).
 - Rule 3 changes `relogInput`, `relogState`, `favouriteInput` and `QuickAddPolicy`. Reads only; each new entry is written exactly as a Confirm save writes it today.
-- **Versions.** `FoodConfirmationPolicy.version` becomes `food_confirmation_v6` (written to resolution method versions and assertion reasons, read by nothing). `FoodLogDecisionRecord.currentPolicyVersion` stays `food_confirmation_v5`, because its decoder refuses any other value and changing it would make every stored decision undecodable (gate finding 9). Quick add contract v1 becomes v2. Operation types stay `confirmFood`, `V2` and `V4`. No food contract, schema or archive version change.
+- **Versions.** `FoodConfirmationPolicy.version` stays `food_confirmation_v5` (amended while implementing, 11 November 2026). It is written into persisted resolution method versions and assertion reason strings and pinned by golden archive bytes, and these rules change no record a save writes, so bumping it would change saved bytes for no reader. This contract identifies the new behaviour. `FoodLogDecisionRecord.currentPolicyVersion` also stays `food_confirmation_v5` (its decoder refuses any other value; gate finding 9). Quick add contract v1 becomes v2. Operation types stay `confirmFood`, `V2` and `V4`. No food contract, schema or archive version change.
 
 ## Tests (to be fixed before code)
 
@@ -97,7 +97,7 @@ Food details being known before Log is an app policy (`food_confirmation_v1` to 
 7. Re-log and quick add carry a fill and need only an amount; a stated-detail or value correction is not carried; the carried fill is visible; layers are not carried; quick add rule 2 holds; quick add pinned-binding tests 6 and B still pass; eligibility uses the rebuilt state with the carried fill, and a fortified fill is not eligible.
 8. A carried fill never bypasses a material difference.
 9. Packing medium "as sold" and "not applicable" are stored as named values and decode on the previous build.
-10. Stores and archives written before and after decode and re-encode byte for byte; a decision record with "food_confirmation_v5" still decodes after the version bump.
+10. Stores and archives written before and after decode and re-encode byte for byte; saved reason strings and golden archive bytes are unchanged (the policy version is not bumped).
 11. Journey: scan or search an Open Food Facts chocolate, tap "Packaged product, eaten as sold", answer No, Log; favourite it; quick add it with one amount and Log.
 
 ## Decisions for the owner
