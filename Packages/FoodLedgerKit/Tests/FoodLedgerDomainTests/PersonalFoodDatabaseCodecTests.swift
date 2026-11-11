@@ -22,6 +22,7 @@ final class PersonalFoodDatabaseCodecTests: XCTestCase {
         let rule_codes: [String]
         let canonical_units: [String: String]
         let max_depth: Int
+        let max_values: Int
     }
 
     func manifest() throws -> Manifest {
@@ -62,12 +63,36 @@ final class PersonalFoodDatabaseCodecTests: XCTestCase {
 
     func testGeneratedLargeCases() throws {
         let m = try manifest()
-        XCTAssertEqual(m.generated_at_test_time, ["over-size-limit": "size", "too-many-items": "count"])
+        XCTAssertEqual(m.generated_at_test_time, ["over-size-limit": "size", "too-many-items": "count", "too-many-values": "count"])
         XCTAssertEqual(codes(Data(repeating: 0x20, count: PersonalFoodDatabaseJSON.limitBytes + 1)), ["size"])
         var doc = try XCTUnwrap(JSONSerialization.jsonObject(with: try fixture(m.golden)) as? [String: Any])
         let first = try XCTUnwrap((doc["items"] as? [Any])?.first)
         doc["items"] = Array(repeating: first, count: PersonalFoodDatabaseCodec.limitItems + 1)
         XCTAssertTrue(codes(try JSONSerialization.data(withJSONObject: doc)).contains("count"))
+        // The value budget: one array of 4,000,001 zeros (4,000,002 values with the array itself).
+        var dense = [UInt8(ascii: "[")]
+        dense.reserveCapacity(2 * PersonalFoodDatabaseJSON.maxValues + 3)
+        for _ in 0..<PersonalFoodDatabaseJSON.maxValues { dense += [UInt8(ascii: "0"), UInt8(ascii: ",")] }
+        dense += [UInt8(ascii: "0"), UInt8(ascii: "]")]
+        XCTAssertEqual(codes(Data(dense)), ["count"])
+    }
+
+    func testValueBudgetIsExactAndKeepsPythonOrder() {
+        // The rules with a small budget; testGeneratedLargeCases checks the real one.
+        let n = 10
+        func read(_ count: Int, tail: String = "") -> PersonalFoodDatabaseRuleCode? {
+            let text = "[" + Array(repeating: "0", count: count).joined(separator: ",") + tail + "]"
+            if case let .failure(code) = PersonalFoodDatabaseJSON.read(Data(text.utf8), valueBudget: n) { return code }
+            return nil
+        }
+        XCTAssertNil(read(n - 1), "the array and its elements fit exactly")
+        XCTAssertEqual(read(n), .count)
+        XCTAssertEqual(read(2, tail: ",{\"a\":{\"b\":[1,2,3,4,5,6]}}"), .count, "keys do not count, nested values do")
+        // A syntax error or repeated key after the budget is passed is still reported first, as in Python.
+        XCTAssertEqual(read(n, tail: ",NaN"), .json)
+        XCTAssertEqual(read(n, tail: ",{\"a\":1,\"a\":2}"), .duplicateKey)
+        // The budget is checked before unpaired surrogates, as in export_v1.
+        XCTAssertEqual(read(n, tail: ",\"\\ud800\""), .count)
     }
 
     func testRuleCodesEqualThePythonChecker() throws {
@@ -79,6 +104,7 @@ final class PersonalFoodDatabaseCodecTests: XCTestCase {
         XCTAssertEqual(Dictionary(uniqueKeysWithValues: NutrientKey.allCases.map { ($0.rawValue, $0.canonicalUnit.rawValue) }),
                        m.canonical_units)
         XCTAssertEqual(PersonalFoodDatabaseJSON.maxDepth, m.max_depth)
+        XCTAssertEqual(PersonalFoodDatabaseJSON.maxValues, m.max_values)
     }
 
     // MARK: Typed model
@@ -116,6 +142,24 @@ final class PersonalFoodDatabaseCodecTests: XCTestCase {
         XCTAssertTrue(tofu.labelNutrients.isEmpty)
         XCTAssertEqual(tofu.genericReference?.role, .candidate)
         XCTAssertEqual(tofu.genericReference?.recordID, "tfda:X0001")
+    }
+
+    func testEntryEqualityCoversEveryField() throws {
+        func entry(_ mutate: (inout [String: Any]) -> Void) throws -> PersonalFoodDatabaseEntry {
+            var doc = try XCTUnwrap(JSONSerialization.jsonObject(with: try fixture("golden.json")) as? [String: Any])
+            var items = try XCTUnwrap(doc["items"] as? [[String: Any]])
+            let i = try XCTUnwrap(items.firstIndex { $0["title"] as? String == "合成豆腐" })
+            mutate(&items[i])
+            doc["items"] = items
+            let file = try PersonalFoodDatabaseCodec.decode(try JSONSerialization.data(withJSONObject: doc)).get()
+            return try XCTUnwrap(file.entries.first { $0.id == items[i]["id"] as? String })
+        }
+        let base = try entry { _ in }
+        XCTAssertEqual(base, try entry { _ in })
+        XCTAssertNotEqual(base, try entry { $0["state"] = "frozen" })
+        XCTAssertNotEqual(base, try entry { $0["basis"] = "per_100_ml_as_labelled" })
+        XCTAssertNotEqual(base, try entry { $0["category"] = "other" })
+        XCTAssertNotEqual(base, try entry { $0["aliases"] = ["x"] })
     }
 
     func testNegativeZeroBecomesZeroAndEmptyBrandStays() throws {
@@ -214,19 +258,17 @@ final class PersonalFoodDatabaseCodecTests: XCTestCase {
         XCTAssertNotNil(try? read("[\"\\\"" + String(repeating: "{", count: 100) + "\"]").get())
     }
 
-    func testNumbersKeepTheirTextAndRange() throws {
+    func testNumbersAndTheirRange() throws {
         XCTAssertNotNil(try? read(String(repeating: "9", count: 4300)).get())
         XCTAssertNotNil(try? read("-" + String(repeating: "9", count: 4300)).get(), "the sign is not a digit")
         XCTAssertEqual(code(String(repeating: "9", count: 4301)), .json)
         XCTAssertNotNil(try? read("1." + String(repeating: "9", count: 5000)).get(), "the digit limit is for integers")
         guard case let .array(values) = try read("[1e400, -0, 4e2, 1E+2, 0.5e-3]").get() else { return XCTFail() }
-        let doubles = values.compactMap { if case let .number(_, d) = $0 { d } else { nil } }
+        let doubles = values.compactMap { if case let .number(d) = $0 { d } else { nil } }
         XCTAssertEqual(doubles.first, .infinity)
         XCTAssertEqual(Array(doubles.dropFirst()), [0, 400, 100, 0.0005])
-        guard case let .number(text, _) = values[2] else { return XCTFail() }
-        XCTAssertEqual(text, Array("4e2".utf8))
-        XCTAssertNil(PFDValue.number(text: [], double: 1e15).nutrientNumber)
-        XCTAssertEqual(PFDValue.number(text: [], double: 999_999_999_999_999).nutrientNumber, 999_999_999_999_999)
+        XCTAssertNil(PFDValue.number(1e15).nutrientNumber)
+        XCTAssertEqual(PFDValue.number(999_999_999_999_999).nutrientNumber, 999_999_999_999_999)
         XCTAssertNil(PFDValue.bool(true).nutrientNumber)
     }
 

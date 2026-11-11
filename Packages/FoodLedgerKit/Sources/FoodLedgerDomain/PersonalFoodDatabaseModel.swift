@@ -164,18 +164,15 @@ public struct PersonalFoodDatabaseEntry: Equatable, Sendable {
     public let state: PersonalFoodDatabaseState
     public let basis: PersonalFoodDatabaseBasis
     /// In file order; possibly empty.
-    public let labelNutrients: [(key: NutrientKey, value: PersonalFoodDatabaseLabelValue)]
+    public let labelNutrients: [PersonalFoodDatabaseLabelNutrient]
     public let genericReference: PersonalFoodDatabaseGenericReference?
+}
 
-    public static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.id == rhs.id && lhs.brand == rhs.brand && lhs.title == rhs.title && lhs.titles == rhs.titles
-            && lhs.aliases == rhs.aliases && lhs.concept == rhs.concept && lhs.variety == rhs.variety
-            && lhs.fallbackChain == rhs.fallbackChain && lhs.category == rhs.category
-            && lhs.productType == rhs.productType && lhs.state == rhs.state && lhs.basis == rhs.basis
-            && lhs.labelNutrients.map(\.key) == rhs.labelNutrients.map(\.key)
-            && lhs.labelNutrients.map(\.value) == rhs.labelNutrients.map(\.value)
-            && lhs.genericReference == rhs.genericReference
-    }
+/// One label value under its nutrient key, kept in file order. A struct (not a tuple) so the
+/// entry's equality is synthesised over every field.
+public struct PersonalFoodDatabaseLabelNutrient: Equatable, Sendable {
+    public let key: NutrientKey
+    public let value: PersonalFoodDatabaseLabelValue
 }
 
 public enum PersonalFoodDatabaseSourceID: String, CaseIterable, Sendable {

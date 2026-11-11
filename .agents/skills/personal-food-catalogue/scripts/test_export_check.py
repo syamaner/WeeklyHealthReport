@@ -199,7 +199,8 @@ def rule_codes():
     found = set(re.findall(r'err\("([a-z0-9-]+)"', src)) | set(re.findall(r'_Reject\("([a-z0-9-]+)"\)', src))
     found |= set(re.findall(r'return \[f?"([a-z0-9-]+):', src))
     return sorted(found)
-GENERATED = {"over-size-limit", "too-many-items"}  # large: built at test time, never committed
+RAW["too-many-values"] = ("count", lambda: b"[" + b"0," * E.MAX_VALUES + b"0]")
+GENERATED = {"over-size-limit", "too-many-items", "too-many-values"}  # large: built at test time, never committed
 
 
 def write(fixtures: Path):
@@ -228,6 +229,7 @@ def write(fixtures: Path):
     manifest["rule_codes"] = rule_codes()
     manifest["canonical_units"] = E.CANON_UNITS
     manifest["max_depth"] = E.MAX_DEPTH
+    manifest["max_values"] = E.MAX_VALUES
     (fixtures / "manifest.json").write_text(json.dumps(manifest, indent=1) + "\n")
     print(f"wrote golden.json and {len(manifest['reject'])} rejection fixtures to {fixtures}")
 
@@ -253,7 +255,8 @@ def verify(fixtures: Path):
                         for s in mixed["sources"]]
     assert "source-pins" in codes(json.dumps(mixed, ensure_ascii=False, indent=1).encode("utf-8")), "mismatched pipeline accepted"
     assert manifest["rule_codes"] == rule_codes(), "manifest rule codes differ from export_v1"
-    assert manifest["canonical_units"] == E.CANON_UNITS and manifest["max_depth"] == E.MAX_DEPTH
+    assert manifest["canonical_units"] == E.CANON_UNITS and manifest["max_depth"] == E.MAX_DEPTH \
+        and manifest["max_values"] == E.MAX_VALUES
     for f in manifest["accept"]:
         errs = E.check_bytes((fixtures / f).read_bytes())
         assert errs == [], f"{f} rejected: {errs}"

@@ -122,6 +122,16 @@ Verdict PASS WITH CHANGES. Each change below binds P1a and overrides any looser 
     integer value, a transform exactly at the tolerance, an empty brand, empty `label_nutrients` and
     `titles`, and an `off-product-projection-v5` release.
 
+12. **Value budget** (from the Qodo review of PR #465). A file below the byte limit can still hold
+    millions of tiny values, and the parsed tree would exhaust the phone's memory before any count
+    rule ran. Both checkers refuse a file of more than 4,000,000 JSON values (object keys not
+    counted) as `count`, checked after parsing and before unpaired surrogates. The Swift reader stops
+    storing values once past the budget but keeps parsing, so a later syntax error or repeated key
+    is still reported first, as in Python; its nodes keep no number text and are not boxed. This
+    refines the "size or count limits" of import v1 section 4.2: a real file holds far fewer values
+    than its bytes allow (the 20,000-entry limit stays the binding one), so only a dense or hostile
+    file reaches it. The manifest carries `max_values`, and a generated case checks it on both sides.
+
 Added contract tests: the rule-code set equality; stage order; lone surrogates, depth limit plus
 one, an integer over 4,300 digits, `1e400`, `1e15` and a U+001C title; NFC and NFD keys distinct;
 full-width digits rejected in GTIN, hex and dates; the tolerance boundary both ways; declared Open

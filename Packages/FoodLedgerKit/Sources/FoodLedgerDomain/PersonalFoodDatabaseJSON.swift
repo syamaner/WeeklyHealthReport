@@ -19,13 +19,14 @@ struct PersonalFoodDatabaseText: Hashable, Comparable, Sendable {
     func hasSuffix(_ suffix: [UInt8]) -> Bool { bytes.count >= suffix.count && Array(bytes.suffix(suffix.count)) == suffix }
 }
 
-/// A parsed JSON value. Objects keep their members in file order; numbers keep their source text.
-indirect enum PersonalFoodDatabaseJSONValue: Sendable {
+/// A parsed JSON value. Objects keep their members in file order. Not `indirect`: containers hold
+/// their children in arrays already, so scalars stay inline and a dense file stays small in memory.
+enum PersonalFoodDatabaseJSONValue: Sendable {
     case object([(key: PersonalFoodDatabaseText, value: PersonalFoodDatabaseJSONValue)])
     case array([PersonalFoodDatabaseJSONValue])
     case string(PersonalFoodDatabaseText)
-    /// `double` may be infinite (a literal beyond the `Double` range); the codec decides what that means.
-    case number(text: [UInt8], double: Double)
+    /// May be infinite (a literal beyond the `Double` range); the codec decides what that means.
+    case number(Double)
     case bool(Bool)
     case null
 }
@@ -41,14 +42,19 @@ enum PersonalFoodDatabaseJSON {
     static let maxDepth = 64
     /// Python refuses to convert an integer literal of more digits than this.
     static let maxIntegerDigits = 4_300
+    /// Most JSON values (object keys not counted) a file may hold, the same constant as
+    /// `export_v1.MAX_VALUES`. It bounds the parsed tree's memory on the phone: a real file holds far
+    /// fewer values than its bytes allow, so only a dense or hostile file reaches it.
+    static let maxValues = 4_000_000
 
-    static func read(_ data: Data) -> Result<PersonalFoodDatabaseJSONValue, PersonalFoodDatabaseRuleCode> {
+    /// `valueBudget` exists for tests; production always uses `maxValues`.
+    static func read(_ data: Data, valueBudget: Int = maxValues) -> Result<PersonalFoodDatabaseJSONValue, PersonalFoodDatabaseRuleCode> {
         if data.count > limitBytes { return .failure(.size) }
         let bytes = [UInt8](data)
         if bytes.starts(with: [0xEF, 0xBB, 0xBF]) { return .failure(.bom) }
         guard isValidUTF8(bytes) else { return .failure(.encoding) }
         guard depthWithinLimit(bytes) else { return .failure(.json) }
-        var parser = Parser(bytes: bytes)
+        var parser = Parser(bytes: bytes, valueBudget: valueBudget)
         let value: PersonalFoodDatabaseJSONValue
         do {
             parser.skipSpace()
@@ -60,6 +66,8 @@ enum PersonalFoodDatabaseJSON {
         } catch {
             return .failure(.json)
         }
+        // After a successful parse, as export_v1 checks them: the value budget, then surrogates.
+        if parser.overBudget { return .failure(.count) }
         return parser.sawLoneSurrogate ? .failure(.json) : .success(value)
     }
 
@@ -126,8 +134,16 @@ enum PersonalFoodDatabaseJSON {
         let bytes: [UInt8]
         var index = 0
         var sawLoneSurrogate = false
+        /// Every value parsed. Past the budget nothing more is stored, but parsing goes on so a
+        /// later syntax error or repeated key is still reported first, as in Python.
+        var valueCount = 0
+        let valueBudget: Int
+        var overBudget: Bool { valueCount > valueBudget }
 
-        init(bytes: [UInt8]) { self.bytes = bytes }
+        init(bytes: [UInt8], valueBudget: Int) {
+            self.bytes = bytes
+            self.valueBudget = valueBudget
+        }
 
         mutating func skipSpace() {
             while index < bytes.count, [0x20, 0x09, 0x0A, 0x0D].contains(bytes[index]) { index += 1 }
@@ -144,6 +160,7 @@ enum PersonalFoodDatabaseJSON {
 
         mutating func value() throws -> PersonalFoodDatabaseJSONValue {
             guard let byte = peek() else { throw ParseFailure.json }
+            valueCount += 1
             switch byte {
             case UInt8(ascii: "{"): return try object()
             case UInt8(ascii: "["): return try array()
@@ -172,7 +189,7 @@ enum PersonalFoodDatabaseJSON {
                 skipSpace()
                 let item = try value()
                 if !seen.insert(key).inserted { repeated = true }
-                members.append((key, item))
+                if !overBudget { members.append((key, item)) }
                 skipSpace()
                 guard let next = peek() else { throw ParseFailure.json }
                 index += 1
@@ -192,7 +209,8 @@ enum PersonalFoodDatabaseJSON {
             if peek() == UInt8(ascii: "]") { index += 1; return .array(items) }
             while true {
                 skipSpace()
-                items.append(try value())
+                let item = try value()
+                if !overBudget { items.append(item) }
                 skipSpace()
                 guard let next = peek() else { throw ParseFailure.json }
                 index += 1
@@ -314,11 +332,10 @@ enum PersonalFoodDatabaseJSON {
                 }
             }
             if isInteger, intDigits > maxIntegerDigits { throw ParseFailure.json }
-            let text = Array(bytes[start..<index])
-            // The text is plain ASCII JSON number syntax, which `Double` parses with correct rounding;
-            // a literal out of range becomes ±infinity.
-            let double = Double(String(decoding: text, as: UTF8.self)) ?? .nan
-            return .number(text: text, double: double)
+            // Plain ASCII JSON number syntax, which `Double` parses with correct rounding; a literal
+            // out of range becomes ±infinity.
+            let double = Double(String(decoding: bytes[start..<index], as: UTF8.self)) ?? .nan
+            return .number(double)
         }
     }
 }

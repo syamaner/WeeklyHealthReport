@@ -57,7 +57,7 @@ extension PersonalFoodDatabaseJSONValue {
 
     /// `export_v1._num`: a finite, non-negative number below 1e15, never a boolean.
     var nutrientNumber: Double? {
-        guard case let .number(_, d) = self, d.isFinite, d >= 0, abs(d) < 1e15 else { return nil }
+        guard case let .number(d) = self, d.isFinite, d >= 0, abs(d) < 1e15 else { return nil }
         return d + 0.0  // normalises -0 to 0
     }
 
@@ -452,10 +452,10 @@ enum PersonalFoodDatabaseBuilder {
               let basis = item["basis"]?.text.flatMap({ PersonalFoodDatabaseBasis(rawValue: $0.string) }),
               let nutrientMembers = item["label_nutrients"]?.members, let refValue = item["generic_reference"]
         else { return nil }
-        var nutrients: [(key: NutrientKey, value: PersonalFoodDatabaseLabelValue)] = []
+        var nutrients: [PersonalFoodDatabaseLabelNutrient] = []
         for (key, value) in nutrientMembers {
             guard let canonical = R.canonicalUnits[key], let label = labelValue(value, unit: canonical.unit) else { return nil }
-            nutrients.append((canonical.key, label))
+            nutrients.append(PersonalFoodDatabaseLabelNutrient(key: canonical.key, value: label))
         }
         var reference: PersonalFoodDatabaseGenericReference?
         if !refValue.isNull {

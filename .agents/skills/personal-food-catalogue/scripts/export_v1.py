@@ -27,6 +27,9 @@ LIMIT_BYTES, LIMIT_ITEMS = 26_214_400, 20000  # 25 MiB exactly
 # Deepest array or object nesting accepted. Explicit, so the Swift importer gives the same verdict;
 # Python's own recursion limit depends on the call stack (real files nest about five deep).
 MAX_DEPTH = 64
+# Most JSON values (object keys not counted) a file may hold, as the Swift reader: it bounds the
+# parsed tree's memory on the phone, and a real file holds far fewer values than its bytes allow.
+MAX_VALUES = 4_000_000
 CANON_UNITS = {
     "energy_consumed": "kcal", "protein": "g", "fat_total": "g", "fat_saturated": "g",
     "fat_monounsaturated": "g", "fat_polyunsaturated": "g", "fiber": "g", "sugar": "g",
@@ -272,6 +275,14 @@ def _depth_ok(text):
     return True
 
 
+def _value_count(v):
+    if isinstance(v, list):
+        return 1 + sum(_value_count(x) for x in v)
+    if isinstance(v, dict):
+        return 1 + sum(_value_count(x) for x in v.values())
+    return 1
+
+
 def _lone_surrogate(v):
     """Python decodes an unpaired \\ud800 escape into a string; Swift cannot hold one, so both refuse it."""
     if isinstance(v, str):
@@ -448,6 +459,8 @@ def check_bytes(data: bytes):
         return [f"{r}: a JSON object repeats a key" if str(r) == "duplicate-key" else f"{r}: NaN or Infinity token"]
     except Exception as e:  # ValueError (including integers over 4,300 digits), anything else
         return [f"json: {type(e).__name__}"]
+    if _value_count(doc) > MAX_VALUES:
+        return [f"count: more than {MAX_VALUES:,} JSON values"]
     if _lone_surrogate(doc):
         return ["json: unpaired surrogate escape"]
     try:

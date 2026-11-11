@@ -89,7 +89,8 @@
  },
  "generated_at_test_time": {
   "over-size-limit": "size",
-  "too-many-items": "count"
+  "too-many-items": "count",
+  "too-many-values": "count"
  },
  "accept": [
   "accept-negative-zero.json",
@@ -187,5 +188,6 @@
   "water": "mL",
   "caffeine": "mg"
  },
- "max_depth": 64
+ "max_depth": 64,
+ "max_values": 4000000
 }
