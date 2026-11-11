@@ -111,6 +111,7 @@ final class ConfirmRulesReviewContractTests: XCTestCase {
                 XCTAssertEqual(saved.candidateDecision.outcome, .rejected, "as every corrected save")
                 XCTAssertTrue(saved.assertions.contains { $0.claim.value.hasPrefix("Corrected populated confirmation") })
                 XCTAssertEqual(saved.resolutionVersion.methodVersion.value, "food_confirmation_v5")
+                XCTAssertFalse(try OFF.service(harness).isEstimate(saved), "an exact product with known details is not an estimate")
             }
         }
     }

@@ -1354,16 +1354,27 @@ public struct FoodConfirmationView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(FoodConfirmationViewModel.packagedAsSoldTitle).font(.subheadline.weight(.semibold))
             Text(FoodConfirmationViewModel.packagedAsSoldQuestion).font(.subheadline)
-            Button(FoodConfirmationViewModel.packagedNotFortifiedTitle) { model.applyPackagedAsSold(fortified: false) }
+            // Borderless: several buttons in one Form row, so each keeps its own tap target (in a
+            // plain row a tap anywhere runs every button's action, journey QA of #470).
+            Button(FoodConfirmationViewModel.packagedNotFortifiedTitle) { answerPackaged(fortified: false) }
+                .buttonStyle(.borderless)
                 .frame(minHeight: 44)
                 .accessibilityLabel("\(FoodConfirmationViewModel.packagedAsSoldTitle), not fortified")
-            Button(FoodConfirmationViewModel.packagedFortifiedTitle) { model.applyPackagedAsSold(fortified: true) }
+            Button(FoodConfirmationViewModel.packagedFortifiedTitle) { answerPackaged(fortified: true) }
+                .buttonStyle(.borderless)
                 .frame(minHeight: 44)
                 .accessibilityLabel("\(FoodConfirmationViewModel.packagedAsSoldTitle), fortified")
             Button(FoodConfirmationViewModel.packagedNotSureTitle) { showsCorrection = true }
+                .buttonStyle(.borderless)
                 .frame(minHeight: 44)
         }
         .accessibilityElement(children: .contain)
+    }
+
+    /// The one tap, then the Food details sheet reopens on the answer just recorded.
+    private func answerPackaged(fortified: Bool) {
+        guard model.applyPackagedAsSold(fortified: fortified) else { return }
+        correctionDraft = FoodDetailsDraftSession(FoodDetailsDraft(model: model))
     }
 
     private var sourceLine: String? {
