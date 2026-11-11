@@ -32,7 +32,7 @@ FavouriteArrangement  { arrangementVersionID, ordinal, supersedes?, order: [Favo
 
 - **Binding by log item version only.** `.savedEntry` stores one `LogItemVersionID`. Product version, resolution version and evidence are read through that immutable version (a read-only reader addition, `foodConfirmation(logItemVersionID:)`), so the binding cannot hold inconsistent IDs. The store and strict decoding reject a binding to a version that does not exist or whose composition is not `.product` (for example a `.removed` version).
 - **Default amount.** Value and unit only, as `FoodConfirmationService.lastEnteredAmount` reads them. No conversion, plate or decision is carried.
-- **Label.** Display name, defaulting to the **source candidate** name (what `favouriteInput` rebuilds, not a corrected product name); never alters identity, nutrients or provenance.
+- **Label.** Display name, defaulting to the **source candidate** name (what `favouriteInput` rebuilds, not a corrected product name); never alters identity, nutrients or provenance. Quick add v2 (#470 rule 3.6) records what the code does: the default is the saved product name, which `favouriteInput` restores.
 - **Estimate status is derived, never stored**, from `FoodEntryEstimateStatus` over the pinned stored confirmation. A favourite made from an estimate keeps the estimate label and provenance.
 - **Display order.** One `FavouriteArrangement` lists favourites in quick-add order. The first four are the Home chips and "On Today's quick add"; the rest are "Other favourites". Reordering writes one arrangement version and no favourite version. Removed favourites are dropped even if listed; active favourites missing from the arrangement are appended by `createdAt`.
 - **Competing heads** of any `FavouriteVersion` chain **or** of the `FavouriteArrangement` chain stop the Favourites projection with an explicit failed state, as the intake projection does for log heads. Nothing chooses by ordinal or time.
@@ -77,6 +77,7 @@ The one-step sheet is offered only when all hold:
 1. the input rebuilds and re-verifies; otherwise the favourite shows "Source can no longer be verified" and offers removal;
 2. the pinned entry's derived `FoodEntryEstimateStatus` is **not** estimate, **and** `FoodLogPolicy.savesEstimate` for the rebuilt state is false;
 3. the pinned entry carried **no correction or re-resolution**: its product version ordinal is 1, no correction assertion is attached, its candidate decision outcome is not `.rejected`, and its effective resolution version equals the original one. Any of these opens Confirm, because the rebuilt source candidate drops the correction;
+   - **Quick add v2** ([`confirm-rules-review-v1.md`](confirm-rules-review-v1.md) rule 3.5, #470): a pinned entry whose only correction filled in food details its source left unknown (typed fields only, not fortified) and whose effective resolution is the original one is also eligible; quick add applies those details to the rebuilt state before this check.
 4. `FoodLogPolicy.requirements` for the state with the default amount and Now contains only the sheet-resolvable cases below.
 
 | May appear in the sheet (blocks Log, fixed inline) | Never in the sheet: opens the full Confirm |

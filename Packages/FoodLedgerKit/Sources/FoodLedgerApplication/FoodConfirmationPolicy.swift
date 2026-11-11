@@ -2,6 +2,9 @@ import FoodLedgerDomain
 
 /// Versioned explicit confirmation of a composition estimate, never provider compatibility.
 public enum FoodConfirmationPolicy {
+    /// Stays "food_confirmation_v5" under docs/confirm-rules-review-v1.md (#470): it is written into
+    /// persisted assertion reasons and pinned by golden archive bytes, and the #470 rules change
+    /// no record a save writes, so the string is not bumped.
     public static let version = "food_confirmation_v5"
 
     public static func isGenericEstimate(_ input: PopulatedFoodConfirmation, candidate: PopulatedFoodCandidate) -> Bool {

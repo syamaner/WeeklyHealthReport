@@ -53,6 +53,60 @@ public struct FoodDetailsDraft: Equatable, Sendable {
             && !reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    /// Confirm rules review v1 (#470 rule 2.2): when the answers only fill in blanks, the reason is
+    /// optional and an empty one is stored as "Food details added". Changing anything the source
+    /// states still needs a typed reason.
+    public func canApply(in state: FoodConfirmationState) -> Bool {
+        canApply || (!name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && fillsOnly(in: state))
+    }
+
+    /// Whether these answers only fill in blanks on this Confirm.
+    public func fillsOnly(in state: FoodConfirmationState) -> Bool {
+        var probe = self
+        if probe.reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { probe.reason = FoodDetailsFillPolicy.filledReason }
+        guard let correction = probe.correction(for: state.selectedCandidate) else { return false }
+        // Something must be filled in: unchanged answers still need a reason to apply.
+        return correction.identity != FoodDetailsFillPolicy.currentIdentity(state) && FoodDetailsFillPolicy.isFill(correction, in: state)
+    }
+
+    /// The correction to apply on this Confirm: the typed reason, or for a fill-only answer with
+    /// no reason, the fixed "Food details added".
+    public func correction(in state: FoodConfirmationState) -> FoodCorrection? {
+        guard canApply(in: state) else { return nil }
+        var draft = self
+        if draft.reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { draft.reason = FoodDetailsFillPolicy.filledReason }
+        return draft.correction(for: state.selectedCandidate)
+    }
+
+    /// Packing medium choices (#470 rule 2.3): the frozen named values, or the user's own text.
+    public enum PackingChoice: String, CaseIterable, Hashable, Sendable {
+        case unknown, asSold, notApplicable, other
+    }
+
+    public var packingChoice: PackingChoice {
+        get {
+            switch packingMedium.trimmingCharacters(in: .whitespacesAndNewlines) {
+            case "": packingIsOther ? .other : .unknown
+            case FoodDetailsFillPolicy.packingAsSold: .asSold
+            case FoodDetailsFillPolicy.packingNotApplicable: .notApplicable
+            default: .other
+            }
+        }
+        set {
+            packingIsOther = newValue == .other
+            switch newValue {
+            case .unknown: packingMedium = ""
+            case .asSold: packingMedium = FoodDetailsFillPolicy.packingAsSold
+            case .notApplicable: packingMedium = FoodDetailsFillPolicy.packingNotApplicable
+            case .other:
+                if [FoodDetailsFillPolicy.packingAsSold, FoodDetailsFillPolicy.packingNotApplicable].contains(packingMedium) { packingMedium = "" }
+            }
+        }
+    }
+
+    /// Set while "Other" is chosen with no text yet, so the field stays shown.
+    public var packingIsOther = false
+
     /// The correction these answers describe for the selected source, or nil when an answer is
     /// invalid (for example a named preparation without its method). Nutrients are the source's.
     public func correction(for selected: PopulatedFoodCandidate) -> FoodCorrection? {
@@ -177,6 +231,10 @@ public struct FoodDetailsForm: View {
     /// Accessibility text sizes put each picker's title above its full-width, wrapping value.
     public static func stacksTitles(at size: DynamicTypeSize) -> Bool { StackingMenuPickerLayout.stacks(at: size) }
 
+    public static let packingOptions: [(FoodDetailsDraft.PackingChoice, String)] = [
+        (.unknown, "Unknown"), (.asSold, "As sold"), (.notApplicable, "Not applicable"), (.other, "Other")
+    ]
+
     public static let basisOptions: [(FoodDetailsDraft.Basis, String)] = [
         (.keepPopulated, "Keep populated basis"), (.per100Grams, "Per 100 g"), (.per100Millilitres, "Per 100 mL")
     ]
@@ -200,15 +258,18 @@ public struct FoodDetailsForm: View {
                        [SkinState.skinOn, .skinless, .notApplicable, .unknown].map { ($0.rawValue, Self.label($0.rawValue)) })
                 picker("Drained state", $draft.drained,
                        [DrainedState.drained, .undrained, .notApplicable, .unknown].map { ($0.rawValue, Self.label($0.rawValue)) })
-                labelledField("Packing medium", $draft.packingMedium, prompt: "Optional")
-                    .accessibilityHint("A blank packing medium remains unresolved")
+                picker("Packing medium", $draft.packingChoice, Self.packingOptions)
+                if draft.packingChoice == .other {
+                    labelledField("Packing medium details", $draft.packingMedium, prompt: "Optional")
+                        .accessibilityHint("A blank packing medium remains unresolved")
+                }
                 picker("Fortification", $draft.fortification,
                        [FortificationState.fortified, .unfortified, .unknown].map { ($0.rawValue, Self.label($0.rawValue)) })
                 picker("Nutrition basis", $draft.basis, Self.basisOptions)
                 reasonField
                 Button(Self.applyTitle, action: apply)
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                    .disabled(!draft.canApply)
+                    .disabled(!draft.canApply(in: model.state))
                 if let failure {
                     Label(failure, systemImage: "exclamationmark.triangle").font(.subheadline)
                 }
@@ -255,7 +316,9 @@ public struct FoodDetailsForm: View {
     private var reasonField: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(Self.reasonTitle).accessibilityHidden(true)
-            TextField(Self.reasonTitle, text: $reasonText, prompt: Text("Required"), axis: .vertical)
+            TextField(Self.reasonTitle, text: $reasonText,
+                      prompt: Text(draft.fillsOnly(in: model.state) ? "Optional when only filling in blanks" : "Required"),
+                      axis: .vertical)
                 .focused($reasonFocused)
                 .submitLabel(.done)
                 .frame(minHeight: 44)

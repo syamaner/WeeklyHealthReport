@@ -83,7 +83,7 @@ Search result; Web lookup via `prepare(review:proposal:scope:)`; barcode direct 
 - **Spec gap:** "favourites listed" depends on #198; P2 keeps the slot honest.
 - **Gate regressions:** the gate moves into the application and is recorded; tests cover each blocking outcome at preparation and from the record.
 - **Older binaries:** contract 5 and schema 5 prevent downgrade and restore into the phase 2 build; release note.
-- **Corrections on re-log:** a corrected exact product asks for identity details again; carrying corrections is #198.
+- **Corrections on re-log:** a corrected exact product asks for identity details again; carrying corrections is #198. Since [`confirm-rules-review-v1.md`](confirm-rules-review-v1.md) rule 3 (#470), food details that only filled in blanks carry on re-log; other corrections still do not.
 - **Accidental egress:** no per-keystroke search; restored routes never search; web lookup stays explicit.
 - **Raw and cooked:** chips change the filter before ranking; stale responses stay rejected by the coordinator token.
 - **Accessibility:** 44 pt chips and rows, progress announced once, Stop reachable by VoiceOver.
