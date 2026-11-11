@@ -62,6 +62,8 @@ public struct FoodDetailsDraft: Equatable, Sendable {
 
     /// Whether these answers only fill in blanks on this Confirm.
     public func fillsOnly(in state: FoodConfirmationState) -> Bool {
+        // Decided differences are cleared by a correction, so it then needs a typed reason.
+        guard state.decisions.isEmpty else { return false }
         var probe = self
         if probe.reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { probe.reason = FoodDetailsFillPolicy.filledReason }
         guard let correction = probe.correction(for: state.selectedCandidate) else { return false }

@@ -182,6 +182,10 @@ public struct FoodConfirmationState: Codable, Equatable, Sendable {
     /// Pasted label Confirm v1 (#306) C4: set only through the presentation entry point for an
     /// editable pasted-label source (a new reading). Transient: never encoded, decodes as false.
     public var answersLabelFortification = false
+    /// Where the current correction came from, for Confirm's wording only (#470): the one tap or
+    /// details carried from the last entry. Never stored with the entry; any other correction
+    /// clears it.
+    public var correctionOrigin: FoodCorrectionOrigin?
 
     private enum CodingKeys: String, CodingKey {
         case input, selectedCandidateIndex, decision, correction, quantity, phase, reopened, decisions, occurredAt
@@ -342,6 +346,12 @@ public enum FoodConfirmationAction: Sendable {
     case saved(LogItemID)
 }
 
+/// Where a correction on Confirm came from (presentation wording only, #470).
+public enum FoodCorrectionOrigin: String, Codable, Equatable, Sendable {
+    case packagedAsSold
+    case carried
+}
+
 public enum FoodConfirmationReducer {
     public static func reduce(state: inout FoodConfirmationState, action: FoodConfirmationAction) {
         switch action {
@@ -385,6 +395,7 @@ public enum FoodConfirmationReducer {
             // entered weight, conversion and portion guide; any other correction clears them as v5 did.
             let fill = FoodDetailsFillPolicy.isFill(correction, of: state.selectedCandidate, current: previousIdentity)
             state.correction = correction
+            state.correctionOrigin = nil
             state.decisions = [:]
             state.decision = .accepted
             if !fill {
@@ -969,6 +980,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
         FoodConfirmationReducer.reduce(state: &state, action: .applyCorrection(carried))
         // Carrying is not acceptance: Log stays the explicit action.
         state.decision = decision
+        state.correctionOrigin = .carried
     }
 
     /// The amount as the user entered it: the original input of a weight declaration, the source

@@ -219,6 +219,7 @@ extension OpenFoodFactsEstimatePresentationTests {
         XCTAssertTrue(draft.canApply(in: model.state), "a fill needs no reason")
         XCTAssertTrue(model.applyFoodDetails(draft))
         XCTAssertEqual(model.state.correction?.reason.value, "Food details added")
+        XCTAssertNil(model.foodDetailsSummary, "a typed sheet fill keeps the ordinary correction notice")
         XCTAssertTrue(model.missingSourceDetails.isEmpty)
 
         var renamed = FoodDetailsDraft(model: model)

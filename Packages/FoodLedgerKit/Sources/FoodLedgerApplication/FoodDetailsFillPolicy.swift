@@ -129,7 +129,9 @@ public enum PackagedAsSoldPolicy {
               OpenFoodFactsEstimateSource.isProductCandidate(state.selectedCandidate.candidate),
               state.input.evidence.contains(where: OpenFoodFactsEstimateSource.isProductEvidence),
               !state.unresolvedIdentity.isEmpty else { return false }
-        return FoodLogPolicy.pendingDifferences(state).allSatisfy { state.decisions[$0] != nil }
+        // Only while no difference is pending at all: applying a correction clears decided answers,
+        // so a decided Not sure (an estimate) must never be dropped by the tap (invariant review).
+        return FoodLogPolicy.pendingDifferences(state).isEmpty
     }
 
     /// As sold; bone, skin and drained not applicable; packing medium "as sold"; fortified Yes or

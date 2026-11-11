@@ -951,6 +951,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
     public func applyPackagedAsSold(fortified: Bool) -> Bool {
         guard offersPackagedAsSold, let correction = try? PackagedAsSoldPolicy.correction(for: state, fortified: fortified) else { return false }
         send(.applyCorrection(correction))
+        state.correctionOrigin = .packagedAsSold
         return true
     }
 
@@ -963,14 +964,10 @@ public final class FoodConfirmationViewModel: ObservableObject {
     /// What Confirm says about food details it is using that the user did not type on this screen
     /// or that came from the one tap: shown with "Correct food details" to change them.
     public var foodDetailsSummary: String? {
-        guard let correction = state.correction else { return nil }
-        switch correction.reason.value {
-        case FoodDetailsFillPolicy.carriedReason:
-            return "Food details from your last entry: \(Self.detailsPhrase(correction.identity))."
-        case FoodDetailsFillPolicy.packagedAsSoldReason:
-            return "Food details: \(Self.detailsPhrase(correction.identity))."
-        default:
-            return nil
+        guard let correction = state.correction, let origin = state.correctionOrigin else { return nil }
+        switch origin {
+        case .carried: return "Food details from your last entry: \(Self.detailsPhrase(correction.identity))."
+        case .packagedAsSold: return "Food details: \(Self.detailsPhrase(correction.identity))."
         }
     }
 

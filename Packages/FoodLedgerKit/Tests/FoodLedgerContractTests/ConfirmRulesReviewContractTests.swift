@@ -10,7 +10,7 @@ final class ConfirmRulesReviewContractTests: XCTestCase {
     typealias OFF = OpenFoodFactsEstimateContractTests
 
     /// An Open Food Facts product as the lookup builds it: every food detail unknown.
-    static func unknownInput(_ route: OFF.Route = .barcode) throws -> PopulatedFoodConfirmation {
+    static func unknownInput(_ route: OFF.Route = .barcode, expectedBasis: ResolutionBasis? = nil) throws -> PopulatedFoodConfirmation {
         let base = try OFF.input(route)
         let source = base.candidates[0]
         let identity = try DecisiveIdentity(preparation: PreparationState(kind: .unknown), bone: .unknown, skin: .unknown,
@@ -21,8 +21,10 @@ final class ConfirmRulesReviewContractTests: XCTestCase {
             evidenceIDs: source.candidate.evidenceIDs, matchMetadata: source.candidate.matchMetadata),
             name: source.name, brand: source.brand, variant: source.variant, barcode: source.barcode,
             itemClass: source.itemClass, packFacts: source.packFacts)
+        let expected = try expectedBasis.map { try DecisiveIdentity(preparation: identity.preparation, bone: .unknown, skin: .unknown,
+            drained: .unknown, packingMedium: .unknown, fortification: .unknown, servingBasis: $0) } ?? identity
         return try PopulatedFoodConfirmation(evidence: base.evidence, sourceReleases: base.sourceReleases, candidates: [candidate],
-            expectedIdentity: identity, expectedEdibleQuantity: base.expectedEdibleQuantity)
+            expectedIdentity: expected, expectedEdibleQuantity: base.expectedEdibleQuantity)
     }
 
     static func newState(_ input: PopulatedFoodConfirmation) -> FoodConfirmationState {
@@ -191,5 +193,31 @@ final class ConfirmRulesReviewContractTests: XCTestCase {
         XCTAssertFalse(FoodDetailsFillPolicy.answersOnlyBlank(.servingBasis, source: unknown, saved: filled))
         XCTAssertFalse(FoodDetailsFillPolicy.answersOnlyBlank(.edibleQuantity, source: unknown, saved: filled))
         XCTAssertFalse(FoodDetailsFillPolicy.answersOnlyBlank(.skin, source: unknown, saved: unknown), "nothing filled")
+    }
+
+    /// Invariant review: a decided difference (here Not sure on the basis, an estimate) is never
+    /// dropped by the one tap or by a reason-free sheet fill, since a correction clears decisions.
+    func testTheOneTapIsNotOfferedOnceADifferenceIsPendingOrDecided() throws {
+        var state = Self.newState(try Self.unknownInput(expectedBasis: .per100Millilitres))
+        XCTAssertFalse(FoodLogPolicy.pendingDifferences(state).isEmpty, "a basis difference to decide")
+        XCTAssertFalse(PackagedAsSoldPolicy.offers(state), "pending")
+        state.answerPendingDifferences()
+        XCTAssertFalse(state.decisions.isEmpty)
+        XCTAssertFalse(PackagedAsSoldPolicy.offers(state), "decided")
+    }
+
+    /// Rule 3.4 and 2.4: a re-log keeps its portion guide alongside the carried details.
+    func testARelogKeepsItsPortionGuideWithTheCarriedDetails() throws {
+        for harness in try LedgerFixtures.harnesses() {
+            defer { harness.cleanup() }
+            let context = try QuickAddContext(harness)
+            var state = Self.newState(try Self.unknownInput(.search))
+            FoodConfirmationReducer.reduce(state: &state, action: .applyCorrection(try PackagedAsSoldPolicy.correction(for: state, fortified: false)))
+            FoodConfirmationReducer.reduce(state: &state, action: .accept)
+            let saved = try context.confirmations.save(state, operationID: context.ids.makeID(OperationTag.self))
+            let relog = try XCTUnwrap(try context.confirmations.relogState(logItemID: saved.logItem.logItemID))
+            XCTAssertEqual(relog.correctionOrigin, .carried, harness.name)
+            XCTAssertEqual(relog.quantity.value, 25, "the last amount (\(harness.name))")
+        }
     }
 }
