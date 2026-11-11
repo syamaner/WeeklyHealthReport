@@ -375,6 +375,10 @@ class Companion(unittest.TestCase):
             "localhost": [page("Synthetic off food", "protein", 1.0, url="https://localhost/x")],
             "ip literal": [page("Synthetic off food", "protein", 1.0, url="https://192.168.1.2/x")],
             "dotless host": [page("Synthetic off food", "protein", 1.0, url="https://intranet/x")],
+            "leading-zero ip": [page("Synthetic off food", "protein", 1.0, url="https://127.0.0.01/x")],
+            "short ip": [page("Synthetic off food", "protein", 1.0, url="https://127.1/x")],
+            "hex ip": [page("Synthetic off food", "protein", 1.0, url="https://0x7f.1/x")],
+            "ipv6 literal": [page("Synthetic off food", "protein", 1.0, url="https://[::1]/x")],
         }
         for name, est in bad_cases.items():
             with self.subTest(name=name), self.assertRaises(R2.R2Error):

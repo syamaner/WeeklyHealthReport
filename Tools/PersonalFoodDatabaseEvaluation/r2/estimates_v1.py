@@ -28,6 +28,7 @@ METHODS = {"direct", "derived", "carried_from_same_food", "carried_from_similar_
 HEX64 = re.compile(r"[0-9a-f]{64}")
 CONTROL = re.compile(r"[\x00-\x1f\x7f-\x9f]")
 URL_LIMIT = 2048
+NUMERIC_LABEL = re.compile(r"[0-9]+|0x[0-9a-f]*")
 # Contract section 6: the app's own pairs, each limited to its nutrient and source unit as in import v1
 # section 4. Built from the v1 checker's table so the two cannot drift; the source-kind column of that
 # table does not apply to estimates. (transform_id, version) -> (nutrient, source unit, function)
@@ -44,6 +45,10 @@ def public_host(host) -> bool:
     """A named host with a dot; not an IP literal, localhost or a single-label name."""
     host = (host or "").lower().rstrip(".")
     if not host or "." not in host or host == "localhost" or host.endswith(".localhost"):
+        return False
+    # A real top-level label is never numeric, so this also refuses the IP spellings ipaddress does not
+    # parse but resolvers do (127.0.0.01, 127.1, 0x7f.1, 2130706433.x.0).
+    if ":" in host or NUMERIC_LABEL.fullmatch(host.rsplit(".", 1)[-1]):
         return False
     try:
         ipaddress.ip_address(host)

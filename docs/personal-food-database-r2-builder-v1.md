@@ -45,7 +45,7 @@ no spaces, one trailing newline):
 
 Every estimate in the companion is one the owner approved (`evidence.approved_as_estimate` is
 `true`). A structurally invalid companion is refused whole, with no output; so is a page URL that is
-not a public HTTPS address (an IP literal, `localhost` or a name without a dot), and a national
+not a public HTTPS address (an IP literal in any spelling, including forms such as `127.0.0.01` or `127.1` whose last label is numeric, `localhost` or a name without a dot), and a national
 composition estimate naming a corpus R1 does not declare.
 
 ## 3. What `build-r2` does
