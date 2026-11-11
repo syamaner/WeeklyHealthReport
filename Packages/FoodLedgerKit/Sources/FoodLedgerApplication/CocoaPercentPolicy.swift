@@ -199,7 +199,13 @@ public enum CocoaPercentPolicy {
     public static func note(query: ParsedFoodQuery, candidate: PopulatedFoodCandidate) -> String? {
         guard let value = requested(query), let literal = query.attributes["cocoa_percent"] else { return nil }
         let text: String
+        let fromNameOnly = band(candidate) == nil
         switch displayBand(candidate) {
+        case let .declared(lower, _)? where fromNameOnly:
+            // v3 rule 1: the reading comes from the product name, so the note says so.
+            text = value == lower
+                ? "The product name states \(number(lower))% dark chocolate."
+                : "The product name states \(number(lower))% dark chocolate; you asked for \(literal)%."
         case let .declared(lower, upper)?:
             text = (lower...upper).contains(value)
                 ? "Source covers \(span(lower, upper)) cocoa."

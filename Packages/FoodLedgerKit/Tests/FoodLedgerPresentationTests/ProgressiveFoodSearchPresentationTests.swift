@@ -398,6 +398,13 @@ final class ProgressiveFoodSearchPresentationTests: XCTestCase {
             let tops = try XCTUnwrap(online.first { $0.candidate.name.value == "95% Dark Chocolate" }, query)
             XCTAssertEqual(FoodSearchResultText.caution(query: model.parsedQuery, candidate: tops.candidate, requestedPreparation: nil, isRecipe: false),
                            percent == "95" ? "95% cocoa" : "95% cocoa · requested 90%", query)
+            // The detail note names the product name as the evidence, never "Source covers".
+            XCTAssertEqual(CocoaPercentPolicy.note(query: try XCTUnwrap(model.parsedQuery), candidate: tops.candidate),
+                           percent == "95" ? "The product name states 95% dark chocolate."
+                                           : "The product name states 95% dark chocolate; you asked for 90%.", query)
+            let godiva = try XCTUnwrap(online.first { $0.candidate.name.value == "90% Cocoa Dark Chocolate" }, query)
+            XCTAssertEqual(CocoaPercentPolicy.note(query: try XCTUnwrap(model.parsedQuery), candidate: godiva.candidate),
+                           percent == "90" ? "Source covers 90% cocoa." : "Source covers 90% cocoa; you asked for 95%. Estimate only.", query)
         }
         let plain = try await search("dark chocolate")
         XCTAssertEqual(plain.exactOnlineCocoaMatches.count, 0, "no cocoa percentage, no section")
