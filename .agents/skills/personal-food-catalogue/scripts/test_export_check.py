@@ -4,13 +4,15 @@
   python3 -I test_export_check.py <scripts_dir> --write <fixtures_dir>   regenerate the files
   python3 -I test_export_check.py <scripts_dir> <fixtures_dir>           check every file's verdict
 
-The fixtures directory holds golden.json (must be accepted), one reject-*.json per rule, and
-manifest.json with the expected verdict for each. The Swift importer tests read the same files
+The fixtures directory holds golden.json and accept-*.json (must be accepted), one reject-*.json
+per rule, and manifest.json with the expected verdict for each, the checker's full rule-code set,
+its canonical units and its nesting limit. The Swift importer tests read the same files
 (contract section 9). Every value here is synthetic.
 """
 import copy
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -138,6 +140,20 @@ CASES = {  # name: (expected rule code, mutation)
     "record-id-non-ascii-digits": ("record-id", lambda d: sod(d).update(record_id="off:gtin:" + "\u0660" * 14)),
     "reference-record-id-null": ("reference", lambda d: ref(d).update(record_id=None)),
     "duplicate-entry": ("id-duplicate", lambda d: d["items"].append(copy.deepcopy(oats(d)))),
+    # Added with the Swift importer gate (11 November 2026): one fixture per remaining rule code,
+    # and the edges where Python and Swift could disagree.
+    "sources-not-a-list": ("sources", lambda d: d.update(sources={})),
+    "item-not-an-object": ("item-keys", lambda d: d["items"].append(7)),
+    "item-missing-key": ("item-keys", lambda d: oats(d).pop("aliases")),
+    "label-nutrients-not-an-object": ("label-nutrients", lambda d: oats(d).update(label_nutrients=[])),
+    "value-not-an-object": ("value-shape", lambda d: oats(d)["label_nutrients"].update(protein=5)),
+    "corpus-source-not-a-string": ("corpus", lambda d: d["generic_corpora"].append({"source": ["cofid"], "corpus_sha256": PIN})),
+    "value-at-1e15": ("value", lambda d: kcal(d).update(value=1e15)),
+    "title-only-separator-whitespace": ("title", lambda d: oats(d).update(title="\u001c\u3000")),
+    "id-full-width-hex": ("id-form", lambda d: oats(d).update(id="pfc:" + "\uff10" * 12)),
+    "generated-full-width-digits": ("generated", lambda d: d.update(generated="\uff12\uff10\uff12\uff16-11-07")),
+    "transform-just-above-tolerance": ("transform-arithmetic", lambda d: sod(d).update(value=5.0251)),
+    "unknown-source-kind-with-null-match": ("kind-match", lambda d: kcal(d).update(source_kind="guess", match=None)),
 }
 RAW = {  # name: (expected rule code, bytes)
     "not-json": ("json", lambda: b"not json\n"),
@@ -150,13 +166,45 @@ RAW = {  # name: (expected rule code, bytes)
     "over-size-limit": ("size", lambda: b" " * (E.LIMIT_BYTES + 1)),
     "too-many-items": ("count", lambda: json.dumps({**golden(), "items": [golden()["items"][0]] * (E.LIMIT_ITEMS + 1)},
                                                      ensure_ascii=False).encode()),
+    "lone-surrogate": ("json", lambda: json.dumps(golden(), ensure_ascii=False).replace(
+        '"aliases": []', '"aliases": ["\\ud800"]', 1).encode()),
+    "depth-over-limit": ("json", lambda: b"[" * (E.MAX_DEPTH + 1) + b"]" * (E.MAX_DEPTH + 1)),
+    "integer-over-4300-digits": ("json", lambda: json.dumps(golden(), ensure_ascii=False).replace(
+        '"value": 370', '"value": ' + "9" * 4301).encode()),
+    "value-1e400": ("value", lambda: json.dumps(golden(), ensure_ascii=False).replace('"value": 370', '"value": 1e400').encode()),
+    # Python compares keys by code point, so NFC and NFD spellings of one key are two keys, not a repeat.
+    "nfc-nfd-keys-distinct": ("top-keys", lambda: json.dumps(golden(), ensure_ascii=False)[:-1].encode()
+                              + ', "\u00e9": 1, "e\u0301": 1}'.encode()),
 }
+ACCEPT = {  # name: bytes that both checkers must accept
+    "negative-zero": lambda: json.dumps(golden(), ensure_ascii=False).replace('"value": 370', '"value": -0').encode(),
+    "exponent-value": lambda: json.dumps(golden(), ensure_ascii=False).replace('"value": 370', '"value": 4e2').encode(),
+    "transform-at-tolerance": lambda: _mutated(lambda d: sod(d).update(value=5.025)),
+    "empty-brand": lambda: _mutated(lambda d: oats(d).update(brand="")),
+    "empty-titles-and-aliases": lambda: _mutated(lambda d: oats(d).update(titles=[], aliases=[])),
+    "projection-v5": lambda: json.dumps(golden(), ensure_ascii=False).replace(
+        "off-product-projection-v4", "off-product-projection-v5").encode(),
+}
+
+
+def _mutated(f):
+    d = copy.deepcopy(golden())
+    f(d)
+    return json.dumps(d, ensure_ascii=False).encode()
+
+
+def rule_codes():
+    """Every rule code export_v1.check_bytes can emit, read from its source so the list cannot drift."""
+    src = Path(E.__file__).read_text()
+    found = set(re.findall(r'err\("([a-z0-9-]+)"', src)) | set(re.findall(r'_Reject\("([a-z0-9-]+)"\)', src))
+    found |= set(re.findall(r'return \[f?"([a-z0-9-]+):', src))
+    return sorted(found)
 GENERATED = {"over-size-limit", "too-many-items"}  # large: built at test time, never committed
 
 
 def write(fixtures: Path):
     fixtures.mkdir(parents=True, exist_ok=True)
-    for old_file in fixtures.glob("reject-*.json"):
+    for old_file in [*fixtures.glob("reject-*.json"), *fixtures.glob("accept-*.json")]:
         old_file.unlink()
     manifest = {"contract": "docs/personal-food-catalogue-import-v1.md", "golden": "golden.json",
                 "note": "each reject file must be rejected with the listed rule code among its errors",
@@ -173,6 +221,13 @@ def write(fixtures: Path):
         (fixtures / f"reject-{name}.json").write_bytes(make())
         manifest["reject"][f"reject-{name}.json"] = code
     manifest["generated_at_test_time"] = {n: RAW[n][0] for n in sorted(GENERATED)}
+    manifest["accept"] = []
+    for name, make in ACCEPT.items():
+        (fixtures / f"accept-{name}.json").write_bytes(make() + b"\n")
+        manifest["accept"].append(f"accept-{name}.json")
+    manifest["rule_codes"] = rule_codes()
+    manifest["canonical_units"] = E.CANON_UNITS
+    manifest["max_depth"] = E.MAX_DEPTH
     (fixtures / "manifest.json").write_text(json.dumps(manifest, indent=1) + "\n")
     print(f"wrote golden.json and {len(manifest['reject'])} rejection fixtures to {fixtures}")
 
@@ -197,6 +252,11 @@ def verify(fixtures: Path):
     mixed["sources"] = [dict(s, pipeline_version="off-product-projection-v5") if s["source_id"] == "open-food-facts" else s
                         for s in mixed["sources"]]
     assert "source-pins" in codes(json.dumps(mixed, ensure_ascii=False, indent=1).encode("utf-8")), "mismatched pipeline accepted"
+    assert manifest["rule_codes"] == rule_codes(), "manifest rule codes differ from export_v1"
+    assert manifest["canonical_units"] == E.CANON_UNITS and manifest["max_depth"] == E.MAX_DEPTH
+    for f in manifest["accept"]:
+        errs = E.check_bytes((fixtures / f).read_bytes())
+        assert errs == [], f"{f} rejected: {errs}"
     wrong = []
     for f, code in manifest["reject"].items():
         got = codes((fixtures / f).read_bytes())

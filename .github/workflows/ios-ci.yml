@@ -74,6 +74,10 @@ jobs:
           python3 -m unittest discover -s Tools/FoodSourceEvaluation/tests -v
           python3 -m unittest discover -s Tools/GenericFoodProposalEvaluation -p 'test_*.py' -v
           python3 -m unittest discover -s Tools/PersonalFoodDatabaseEvaluation/tests -v
+          # The shared import v1 fixtures: every committed file still gets its expected verdict from
+          # the skill's checker (the Swift codec tests read the same manifest).
+          python3 -I .agents/skills/personal-food-catalogue/scripts/test_export_check.py \
+            .agents/skills/personal-food-catalogue/scripts docs/fixtures/personal-food-database-v1
 
   food-healthkit-planning:
     name: HealthKit planning reference contracts
