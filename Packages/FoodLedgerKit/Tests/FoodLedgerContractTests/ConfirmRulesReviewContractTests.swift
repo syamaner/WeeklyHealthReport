@@ -221,4 +221,16 @@ final class ConfirmRulesReviewContractTests: XCTestCase {
             XCTAssertEqual(relog.quantity.value, 25, "the last amount (\(harness.name))")
         }
     }
+
+    /// Local Qodo review: resetting a filled detail to unknown, then filling a different value, is
+    /// not a fill, so the guide is cleared and a reason is needed.
+    func testResettingAFilledDetailAndRefillingItIsNotAFill() throws {
+        var state = Self.newState(try Self.unknownInput())
+        FoodConfirmationReducer.reduce(state: &state, action: .applyCorrection(try PackagedAsSoldPolicy.correction(for: state, fortified: false)))
+        let source = state.selectedCandidate
+        let reset = FoodCorrection(name: source.name, brand: source.brand, variant: source.variant,
+            identity: source.candidate.identity, itemClass: source.itemClass, nutrients: source.candidate.nutrients,
+            reason: try LedgerText("typed"))
+        XCTAssertFalse(FoodDetailsFillPolicy.isFill(reset, in: state), "back to unknown is a change")
+    }
 }
