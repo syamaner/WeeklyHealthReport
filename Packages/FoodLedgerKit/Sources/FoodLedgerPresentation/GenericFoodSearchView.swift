@@ -332,10 +332,29 @@ public final class GenericFoodSearchViewModel: ObservableObject {
         guard !requested.isEmpty, !head.isEmpty else { return false }
         return head.isSubset(of: requested) || requested.isSubset(of: head)
     }
+    /// Online rows that are not exact cocoa matches; they keep "Added from online database".
     public var onlineMatches: [GenericFoodMatch] {
+        allOnlineMatches.filter { !isExactOnlineCocoaMatch($0) }
+    }
+    /// Online rows whose display band is exactly the requested cocoa percentage, shown first
+    /// (docs/cocoa-exact-match-v1.md rule 2). Presentation grouping only: `route.matches` and its
+    /// order are unchanged, and Confirm finds rows by `searchID` as before.
+    public var exactOnlineCocoaMatches: [GenericFoodMatch] { allOnlineMatches.filter(isExactOnlineCocoaMatch) }
+    /// The section heading for `exactOnlineCocoaMatches`, with the percentage as the user typed it.
+    public var exactOnlineCocoaHeading: String? {
+        guard let query = parsedQuery, CocoaPercentPolicy.requested(query) != nil,
+              let literal = query.attributes["cocoa_percent"] else { return nil }
+        return "Online products with \(literal)% cocoa"
+    }
+    private var allOnlineMatches: [GenericFoodMatch] {
         guard case let .results(route) = phase else { return [] }
         let online = Set(onlineAddedIDs)
         return route.matches.filter { online.contains($0.searchID) }
+    }
+    private func isExactOnlineCocoaMatch(_ match: GenericFoodMatch) -> Bool {
+        guard let query = parsedQuery, let value = CocoaPercentPolicy.requested(query),
+              case let .declared(lower, upper)? = CocoaPercentPolicy.displayBand(match.candidate) else { return false }
+        return lower == value && upper == value
     }
     /// Developer tools lines for the last search: terms, stage details, lexical scores and
     /// identifiers. Held in memory only; contains no credential.
@@ -588,6 +607,9 @@ public struct GenericFoodSearchView: View {
         case let .results(route):
             if let note = FoodSearchResultText.interpretationNote(model.parsedQuery) {
                 Section { Label(note, systemImage: "info.circle") }
+            }
+            if !model.exactOnlineCocoaMatches.isEmpty, let heading = model.exactOnlineCocoaHeading {
+                Section(heading) { ForEach(model.exactOnlineCocoaMatches, id: \.searchID) { row($0, route: route) } }
             }
             if !model.closeMatches.isEmpty {
                 Section("Best matches") { ForEach(model.closeMatches, id: \.searchID) { row($0, route: route) } }

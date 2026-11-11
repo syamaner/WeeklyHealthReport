@@ -4421,3 +4421,20 @@ Excluded:
 - this ledger edit, the commit, the push and the PR after the window.
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison, not billing, and token totals do not measure quality or productivity.
+
+## WHR-462-2026-11-11: Claude Code cocoa exact match (#462)
+
+The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) took the owner's device check of 0.3.0 (30), drafted `cocoa-exact-match-v1.md` with three owner decisions, ran the architecture gate and applied its five findings, built the `displayBand` reading and the exact online section with their tests, and ran the validation gates. Subagents are included: two architecture gates, one read-only Open Food Facts investigation and one validator. The window runs from the owner's "Draft it" (`2026-11-11T07:23:25Z`) to `2026-11-11T13:02:45Z`, and also covers drafting the separate Open Food Facts estimate contract (`off-label-estimate-v1.md`, its gate and five owner decisions), which ran alongside and is not split out.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Cocoa exact match (#462) and the Open Food Facts estimate draft, with subagents | 21,511,270 (20,703,258) | 807,656 | 115,004 | 21,626,274 | $11.56 |
+
+Method: `phase_usage.py --format claude --since 2026-11-11T07:23:25Z --include-subagents` on the session transcript. Exact USD 11.5558576. The cache-write tokens (449,182 of them 5-minute writes) are part of the input figure, not added to it.
+
+Excluded:
+- the Qodo review runs;
+- local builds, test loops and xcodebuild gates, which use no API tokens;
+- this ledger edit, the commit, the push and the PR after the window.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
