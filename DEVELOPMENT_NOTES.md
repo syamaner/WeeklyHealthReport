@@ -4439,6 +4439,23 @@ Excluded:
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
 
+## WHR-464-2026-11-11: Claude Code Open Food Facts estimate (#464)
+
+The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) took the owner's go-ahead to build `off-label-estimate-v1.md` on top of #462: the issue, the stacked branch, owner decision 6 (identity-only corrections keep the estimate) found during implementation, and delivery. Subagents are included: one implementer (three rounds), one invariant reviewer, one validator and one journey QA run in the simulator. The window runs from the owner's "Start now" (`2026-11-11T13:43:15Z`) to `2026-11-11T16:05:14Z`. The contract drafting, its gate and decisions 1 to 5 are in WHR-462-2026-11-11.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Open Food Facts estimate (#464), with subagents | 69,437,078 (67,441,602) | 1,994,784 | 210,102 | 69,647,180 | $27.80 |
+
+Method: `phase_usage.py --format claude --since 2026-11-11T13:43:15Z --until 2026-11-11T16:05:14Z --include-subagents` on the session transcript. Exact USD 27.7976474. The cache-write tokens (1,951,251 of them 5-minute writes) are part of the input figure, not added to it. The #463 merge-conflict fix ran inside this window and is not split out.
+
+Excluded:
+- the Qodo review runs;
+- local builds, test loops, xcodebuild gates and simulator time, which use no API tokens;
+- this ledger edit, the commit, the push and the PR after the window.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
 ## WHR-469-2026-11-11: Claude Code glucose readings in the Daily JSON export, contract to reviewed code (#469)
 
 The coordinator session (`claude-fable-5-2`, session `13ce3330-ab42-40c1-a9cb-7531ea566380`) drafted `glucose-readings-export-contract-v1.md`, ran the architecture gate and folded in its eight changes, took the owner's decisions D1 to D8 and egress terms E1 to E4 (E3 amended the same day), built the schema 9 readings block with its HealthKit read, Drive admission, Export screen toggle and Developer tools rows, wrote the tests, amended the privacy and export documents, ran the invariant review and applied its findings, and ran the validation gates. Subagents are included: one architecture gate and one invariant review. The window runs from the start of the contract proposal (`2026-11-11T21:45:11Z`) to `2026-11-11T22:28:43Z`.

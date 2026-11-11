@@ -196,7 +196,8 @@ public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReadi
                         productVersion: product,
                         resolution: resolution,
                         resolutionVersion: version,
-                        sourceReleases: releases
+                        sourceReleases: releases,
+                        candidateNutrients: version.decisionIDs.first.flatMap { state.candidateDecisions[$0.rawValue] }?.candidate.nutrients
                     )
                 }
             }

@@ -20,7 +20,7 @@ A real dark chocolate bar is best recorded from its label: the label gives exact
 
 The "Estimate unprinted nutrients" row appears only when all hold:
 
-- The selected candidate comes from the pasted label or label photo route. Open Food Facts and reviewed manufacturer pages are deferred: Open Food Facts has no reopen verifier and is a remote source that can change, and manufacturer entries require resolution nutrients to equal the candidate at save and reopen (gate finding, open question 2).
+- The selected candidate comes from the pasted label or label photo route, or is an Open Food Facts product admitted by [`off-label-estimate-v1.md`](off-label-estimate-v1.md) (#464), which takes the stored candidate as the evidence of record and checks it through one closed predicate, `OpenFoodFactsEstimateSource.applies`. Reviewed manufacturer pages are deferred: manufacturer entries require resolution nutrients to equal the candidate at save and reopen (gate finding, open question 2).
 - Its name contains "chocolate" and none of milk, white or ruby (`CocoaPercentPolicy.chocolateTypes`). A milk chocolate bar states cocoa solids too, and no bundled row is a compatible estimate for it.
 - Its basis has a known mass (per 100 g, or a serving with a stated mass). The resolution keeps the label's basis; generic per-100 g values are scaled to it with a named transform. A label basis with no mass offers no estimate.
 
@@ -123,7 +123,7 @@ The daily JSON export is unchanged: each estimated nutrient already carries its 
 
 ## Not in scope
 
-- Open Food Facts and reviewed manufacturer pages (deferred; rule 1).
+- Reviewed manufacturer pages (deferred; rule 1). Open Food Facts is admitted by [`off-label-estimate-v1.md`](off-label-estimate-v1.md).
 - Ciqual (phase C); it becomes another compatible generic source through the same compatibility rule once admitted.
 - Other foods than plain dark chocolate.
 - Re-estimating saved entries after logging.
