@@ -70,7 +70,7 @@ enum DataSettingsContribution {
         if let personalFoodDatabase {
             databaseRows = [.link(PersonalFoodDatabaseSettingsText.title, route: .personalFoodDatabase, detail: { [weak personalFoodDatabase] in
                 personalFoodDatabase?.rowDetail
-            }, changes: personalFoodDatabase.$state.map { _ in () }.eraseToAnyPublisher())]
+            }, changes: personalFoodDatabase.$state.removeDuplicates().dropFirst().map { _ in () }.eraseToAnyPublisher())]
         }
         return SettingsSection(
             id: .data,
@@ -274,8 +274,8 @@ struct PersonalFoodDatabaseSettingsView: View {
                 }
             }
         }
-        .onChange(of: model.message) { _, message in
-            if let message { AccessibilityNotification.Announcement(message).post() }
+        .onChange(of: model.messageSerial) {
+            if let message = model.message { AccessibilityNotification.Announcement(message).post() }
         }
         .confirmationDialog(PersonalFoodDatabaseSettingsText.removeConfirmation, isPresented: $confirmsRemove, titleVisibility: .visible) {
             Button("Remove", role: .destructive) { Task { await model.remove() } }

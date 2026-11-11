@@ -89,7 +89,6 @@ public struct FilePersonalFoodDatabaseStore: PersonalFoodDatabaseStoring {
         }
         let folderName = Self.folderName(manifest.fileSHA256)
         let stage = staging.appendingPathComponent(Self.stagingPrefix + UUID().uuidString, isDirectory: true)
-        let displaced = staging.appendingPathComponent(Self.stagingPrefix + "displaced-" + UUID().uuidString, isDirectory: true)
         let pending = base.appendingPathComponent(Self.pointerName + ".pending")
         // A failed install removes its own staging copy at once; anything older is swept later.
         defer {
@@ -106,24 +105,24 @@ public struct FilePersonalFoodDatabaseStore: PersonalFoodDatabaseStoring {
             try write(PersonalFoodDatabaseStoredManifest(manifest).encoded(), to: stage.appendingPathComponent(Self.manifestName))
             try fault?(.staging)
 
-            // An orphan of a crashed install, or a damaged copy of the same bytes, is replaced. It is
-            // first moved aside and moved back if the new copy cannot take its place, so a pointer
-            // that names it never loses its folder to a failed install.
+            // A folder of the same release already in place is never changed while the current
+            // pointer names it and it verifies: it is reused as it is. Otherwise it is an orphan of a
+            // crashed install (no pointer names it) or a damaged copy (nothing valid to lose), and the
+            // new copy replaces it. So no failure before the commit point changes a valid release.
             let target = base.appendingPathComponent(folderName, isDirectory: true)
-            let replacing = fileManager.fileExists(atPath: target.path)
-            if replacing { try fileManager.moveItem(at: target, to: displaced) }
-            do {
+            var reuse = false
+            if fileManager.fileExists(atPath: target.path) {
+                let named = (try? Self.decodePointer(fileManager.contents(atPath: pointerURL.path)))?.folder == folderName
+                if named, verifies(target, digest: manifest.fileSHA256) { reuse = true } else { try fileManager.removeItem(at: target) }
+            }
+            if !reuse {
                 try fault?(.rename)
                 try fileManager.moveItem(at: stage, to: target)
-            } catch {
-                if replacing { try? fileManager.moveItem(at: displaced, to: target) }
-                throw error
-            }
-            try? fileManager.removeItem(at: displaced)
-            // Protection travels with a move; applying it again at the final paths keeps the rule
-            // checkable path by path.
-            for url in [target, target.appendingPathComponent(Self.fileName), target.appendingPathComponent(Self.manifestName)] {
-                try protect(url)
+                // Protection travels with a move; applying it again at the final paths keeps the rule
+                // checkable path by path.
+                for url in [target, target.appendingPathComponent(Self.fileName), target.appendingPathComponent(Self.manifestName)] {
+                    try protect(url)
+                }
             }
 
             // The pointer is written and protected beside its final name, then renamed over it: the
@@ -182,10 +181,25 @@ public struct FilePersonalFoodDatabaseStore: PersonalFoodDatabaseStoring {
     }
 
     /// A read failure while protected data is unavailable is `locked`; otherwise the release is `damaged`.
+    /// Local file reads only, by path (no URL loading API is reachable from this store).
     private func readData(_ url: URL) throws -> Data {
-        do { return try Data(contentsOf: url) } catch {
+        guard let data = FileManager.default.contents(atPath: url.path) else {
             throw isProtectedDataAvailable() ? PersonalFoodDatabaseStoreError.damaged : .locked
         }
+        return data
+    }
+
+    private func verifies(_ folder: URL, digest: SHA256Digest) -> Bool {
+        guard let bytes = FileManager.default.contents(atPath: folder.appendingPathComponent(Self.fileName).path),
+              let stored = try? JSONDecoder().decode(PersonalFoodDatabaseStoredManifest.self,
+                  from: FileManager.default.contents(atPath: folder.appendingPathComponent(Self.manifestName).path) ?? Data()),
+              stored.manifest?.fileSHA256 == digest else { return false }
+        return (try? digester.sha256(bytes)) == digest
+    }
+
+    static func decodePointer(_ data: Data?) throws -> PersonalFoodDatabaseStoredPointer? {
+        guard let data else { return nil }
+        return try JSONDecoder().decode(PersonalFoodDatabaseStoredPointer.self, from: data)
     }
 
     private func read<T: Decodable>(_ url: URL, as type: T.Type) throws -> T {

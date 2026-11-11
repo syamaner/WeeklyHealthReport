@@ -454,7 +454,8 @@ check_personal_database_edges() {
       | sort -u | grep -Ev '^(Foundation|FoodLedgerApplication|FoodLedgerDomain)$' || true)
     while IFS= read -r file; do
       if [[ -n "$file" ]]; then violations+="FoodLedgerPersonalDatabase names a network API in $file"$'\n'; fi
-    done < <(grep -rlE --include='*.swift' '(URLSession|URLRequest|NWConnection|NWPathMonitor)' "$dir" || true)
+    # `contentsOf:` covers Foundation's URL-loading initialisers (Data, String); local reads go by path.
+    done < <(grep -rlE --include='*.swift' '(URLSession|URLRequest|NWConnection|NWPathMonitor|contentsOf:)' "$dir" || true)
   fi
   local scanned=("$pkg/Sources" "$pkg/Tests" "$pkg/Tools" "$app/WeeklyHealthReport" "$app/WeeklyHealthReportTests")
   while IFS= read -r file; do
@@ -463,9 +464,13 @@ check_personal_database_edges() {
       violations+="FoodLedgerPersonalDatabase imported by $file"$'\n'
     fi
   done < <(files_importing FoodLedgerPersonalDatabase "${scanned[@]}")
+  # The declaration's own name is its first `name:`; only the target itself and its tests are
+  # exempt, whatever dependency form (string or nested `.target(name:)`) another target uses.
+  local own
   while IFS= read -r line; do
     if [[ -z "$line" ]]; then continue; fi
-    if [[ "$line" != *'name: "FoodLedgerPersonalDatabase"'* && "$line" != *'name: "FoodLedgerPersonalDatabaseTests"'* ]]; then
+    own="$(sed -nE 's/^[^"]*name:[[:space:]]*"([^"]+)".*$/\1/p' <<<"$line")"
+    if [[ "$own" != "FoodLedgerPersonalDatabase" && "$own" != "FoodLedgerPersonalDatabaseTests" ]]; then
       violations+="a package target depends on FoodLedgerPersonalDatabase: ${line:0:80}"$'\n'
     fi
   done < <(package_targets "$pkg/Package.swift" | grep -E '"FoodLedgerPersonalDatabase"' || true)
@@ -501,7 +506,7 @@ SWIFT
     echo "check-boundaries self-test: the personal database baseline must pass" >&2; status=1
   fi
   local fixture target fpkg
-  for fixture in grdb_import network_import url_session application_import presentation_import app_import app_test_import package_edge; do
+  for fixture in grdb_import network_import url_session url_load application_import presentation_import app_import app_test_import package_edge nested_package_edge; do
     target="$scratch/$fixture"
     rm -rf "$target"; cp -R "$base" "$target"
     fpkg="$target/Packages/FoodLedgerKit"
@@ -509,12 +514,16 @@ SWIFT
       grdb_import) echo 'import GRDB' >> "$fpkg/Sources/FoodLedgerPersonalDatabase/Store.swift" ;;
       network_import) echo '@preconcurrency import Network' >> "$fpkg/Sources/FoodLedgerPersonalDatabase/Store.swift" ;;
       url_session) echo 'let session = URLSession.shared' >> "$fpkg/Sources/FoodLedgerPersonalDatabase/Store.swift" ;;
+      url_load) echo 'let page = try Data(contentsOf: URL(string: "https://example.invalid")!)' >> "$fpkg/Sources/FoodLedgerPersonalDatabase/Store.swift" ;;
       application_import) echo 'import FoodLedgerPersonalDatabase' > "$fpkg/Sources/FoodLedgerApplication/Leak.swift" ;;
       presentation_import) echo 'import struct FoodLedgerPersonalDatabase.FilePersonalFoodDatabaseStore' > "$fpkg/Sources/FoodLedgerPresentation/Leak.swift" ;;
       app_import) echo 'import FoodLedgerPersonalDatabase' > "$target/WeeklyHealthReport/Leak.swift" ;;
       app_test_import) echo '@testable import FoodLedgerPersonalDatabase' > "$target/WeeklyHealthReportTests/Leak.swift" ;;
       package_edge)
         sed 's/.target(name: "FoodLedgerPresentation", dependencies: \["FoodLedgerApplication"\])/.target(name: "FoodLedgerPresentation", dependencies: ["FoodLedgerApplication", "FoodLedgerPersonalDatabase"])/' \
+          "$pkg/Package.swift" > "$fpkg/Package.swift" ;;
+      nested_package_edge)
+        sed 's/.target(name: "FoodLedgerPresentation", dependencies: \["FoodLedgerApplication"\])/.target(name: "FoodLedgerPresentation", dependencies: ["FoodLedgerApplication", .target(name: "FoodLedgerPersonalDatabase")])/' \
           "$pkg/Package.swift" > "$fpkg/Package.swift" ;;
     esac
     if check_personal_database_edges "$fpkg" "$target" 2>/dev/null; then

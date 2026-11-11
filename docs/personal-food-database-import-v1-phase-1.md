@@ -261,12 +261,14 @@ Verdict PASS WITH CHANGES. Each change binds P1b and overrides looser wording ab
    the import fails as `locked` before any comparison.
 4. **Crash sequence.**
    - Install: refuse bytes whose SHA-256 is not the manifest's; stage into
-     `ImportStaging/personal-food-database-<uuid>/`; if the target release folder already exists (an
-     orphan, or a damaged copy of the same bytes), move it aside and move it back if the new copy
-     cannot take its place; rename staging into place; write and protect `active.json.pending`, then
+     `ImportStaging/personal-food-database-<uuid>/`; if the target release folder already exists, keep it
+     untouched when the current pointer names it and it verifies, otherwise (an orphan no pointer
+     names, or a damaged copy with nothing valid to lose) replace it; rename staging into place; write and protect `active.json.pending`, then
      rename it over the pointer (commit point; nothing that can fail runs after it); then sweep. A
      failed install deletes its own staging and pending files at once.
    - Remove: delete the pointer first (commit point), then the release folder, then sweep.
+   - Reads go by path through `FileManager`; no URL-loading API (`contentsOf:`) is reachable, which
+     the boundaries script checks.
    - Sweep: only after a pointer write or delete in this call succeeded, never while locked or damaged;
      it deletes release folders other than the one the pointer names and only
      `ImportStaging/personal-food-database-*` (other features share `ImportStaging`).

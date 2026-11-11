@@ -67,7 +67,11 @@ public final class PersonalFoodDatabaseSettingsViewModel: ObservableObject {
 
     @Published public private(set) var state: State = .loading
     @Published public private(set) var isWorking = false
-    @Published public private(set) var message: String?
+    @Published public private(set) var message: String? {
+        didSet { messageSerial += 1 }
+    }
+    /// Changes with every outcome, even when its text repeats, so each one can be announced.
+    @Published public private(set) var messageSerial = 0
     private let importer: any PersonalFoodDatabaseImporting
 
     public init(importer: any PersonalFoodDatabaseImporting) { self.importer = importer }

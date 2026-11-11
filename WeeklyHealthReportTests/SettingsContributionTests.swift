@@ -1,3 +1,4 @@
+import Combine
 import XCTest
 import FoodLedgerApplication
 import FoodLedgerPresentation
@@ -193,6 +194,24 @@ final class SettingsContributionTests: XCTestCase {
         await model.remove()
         XCTAssertEqual(model.rowDetail, "Not added")
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: folder.path), [])
+    }
+
+    /// The Settings detail publisher is built once and emits nothing on subscription, so the view's
+    /// `onReceive` cannot re-render itself in a loop; a real state change emits once.
+    func testSettingsDetailChangesAreQuietUntilAStateChange() async throws {
+        let (root, defaults) = try makeFoodLedger()
+        let settings = WeeklyHealthReportApp.makeSettings(foodLedger: root, defaults: defaults, medicationAccessAvailable: true)
+        await root.personalFoodDatabase.load()
+        var count = 0
+        let subscription = settings.detailChanges.sink { count += 1 }
+        defer { subscription.cancel() }
+        try await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(count, 0, "no emission on subscription")
+        let fixtures = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("docs/fixtures/personal-food-database-v1")
+        await root.personalFoodDatabase.importFile(try Data(contentsOf: fixtures.appendingPathComponent("golden.json")))
+        try await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(count, 1)
     }
 
     private func makeFoodLedger() throws -> (FoodLedgerCompositionRoot, UserDefaults) {

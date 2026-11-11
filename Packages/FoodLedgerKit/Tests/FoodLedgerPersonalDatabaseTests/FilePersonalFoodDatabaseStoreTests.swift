@@ -171,12 +171,33 @@ final class FilePersonalFoodDatabaseStoreTests: XCTestCase {
         XCTAssertEqual(try store.activeRelease(), a)
     }
 
-    func testAFailedReinstallOfTheActiveReleaseKeepsIt() throws {
+    /// A verified folder that the pointer names is reused untouched, so neither a fault nor a later
+    /// pointer failure can change or remove it.
+    func testReinstallingTheActiveReleaseNeverTouchesItsFolder() throws {
         let a = try Self.release("first")
         try makeStore().install(bytes: a.bytes, manifest: a.manifest)
+        let manifestURL = folder(a).appendingPathComponent("manifest.json")
+        let before = try Data(contentsOf: manifestURL)
+        let later = try Self.release("first", importedAt: 1_794_000_500)
+        let renameFault = makeStore(fault: { if $0 == .rename { throw Fault() } })
+        XCTAssertNoThrow(try renameFault.install(bytes: later.bytes, manifest: later.manifest), "no rename is needed")
+        let pointerFault = makeStore(fault: { if $0 == .pointer { throw Fault() } })
+        assertThrows(.writeFailed) { try pointerFault.install(bytes: later.bytes, manifest: later.manifest) }
+        XCTAssertEqual(try Data(contentsOf: manifestURL), before)
+        XCTAssertEqual(try makeStore().activeRelease(), a)
+    }
+
+    /// A damaged folder of the same release is replaced: a failure before the commit leaves it
+    /// damaged or missing, never a different valid release.
+    func testAFailedRepairLeavesTheReleaseDamagedNotReplaced() throws {
+        let a = try Self.release("first")
+        try makeStore().install(bytes: a.bytes, manifest: a.manifest)
+        try Data("first!".utf8).write(to: folder(a).appendingPathComponent("personal-food-catalogue-v1.json"))
         let failing = makeStore(fault: { if $0 == .rename { throw Fault() } })
         assertThrows(.writeFailed) { try failing.install(bytes: a.bytes, manifest: a.manifest) }
-        XCTAssertEqual(try makeStore().activeRelease(), a, "the displaced folder is moved back")
+        assertThrows(.damaged) { _ = try makeStore().activeRelease() }
+        try makeStore().install(bytes: a.bytes, manifest: a.manifest)
+        XCTAssertEqual(try makeStore().activeRelease(), a)
     }
 
     // MARK: Damaged

@@ -36,7 +36,8 @@ final class FoodLedgerCompositionRoot {
     let webDiscovery: FoodWebDiscoveryViewModel
     /// Your food database in Settings (#424 P1b). The store touches no file until it is used.
     let personalFoodDatabase: PersonalFoodDatabaseSettingsViewModel
-    private var personalFoodDatabaseObserver: NSObjectProtocol?
+    /// Removed in `deinit`, so a discarded root keeps no model alive and handles no notification.
+    nonisolated(unsafe) private var personalFoodDatabaseObserver: NSObjectProtocol?
     private let proposalReviewer: GenericFoodProposalReviewer
     private let proposalConfirmation: ReviewedFoodProposalConfirmation
     private let offLookup: OpenFoodFactsLookup
@@ -64,6 +65,10 @@ final class FoodLedgerCompositionRoot {
 
     /// `confirmationClock` and `confirmationCalendar` are injectable so tests can fix the day
     /// rules (the backdating window) instead of racing the live clock.
+    deinit {
+        if let personalFoodDatabaseObserver { NotificationCenter.default.removeObserver(personalFoodDatabaseObserver) }
+    }
+
     init(
         fileManager: FileManager = .default,
         userDefaults: UserDefaults = .standard,
@@ -104,7 +109,7 @@ final class FoodLedgerCompositionRoot {
         // Settings row does not stay "Locked".
         personalFoodDatabaseObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.protectedDataDidBecomeAvailableNotification, object: nil, queue: .main
-        ) { _ in Task { @MainActor in await databaseModel.load() } }
+        ) { [weak databaseModel] _ in Task { @MainActor in await databaseModel?.load() } }
         ids = RandomLedgerIDGenerator()
         offLookup = OpenFoodFactsLookup(transport: OFFHTTPSProductTransport(userAgent: "WeeklyHealthReport/0.1.1 (proxy@sertan.com)"))
         offSearchTransport = OFFHTTPSearchTransport(userAgent: "WeeklyHealthReport/0.1.1 (proxy@sertan.com)")

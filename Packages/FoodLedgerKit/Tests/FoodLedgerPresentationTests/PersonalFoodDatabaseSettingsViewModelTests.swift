@@ -78,6 +78,18 @@ final class PersonalFoodDatabaseSettingsViewModelTests: XCTestCase {
         }
     }
 
+    /// A repeated outcome with the same text still changes the serial, so VoiceOver hears it again.
+    func testRepeatedOutcomesAdvanceTheMessageSerial() async throws {
+        let model = makeModel(InMemoryPersonalFoodDatabaseStore())
+        let bytes = try Data(contentsOf: Self.fixtures.appendingPathComponent("reject-unknown-schema.json"))
+        await model.importFile(bytes)
+        let first = model.messageSerial
+        let text = model.message
+        await model.importFile(bytes)
+        XCTAssertEqual(model.message, text)
+        XCTAssertGreaterThan(model.messageSerial, first)
+    }
+
     func testRuleGroups() {
         XCTAssertEqual(PersonalFoodDatabaseSettingsText.reason(for: [.json]), "This file is not readable JSON. Export it again from your Mac.")
         XCTAssertEqual(PersonalFoodDatabaseSettingsText.reason(for: [.schema]), "This file is not a food database file from your Mac.")
