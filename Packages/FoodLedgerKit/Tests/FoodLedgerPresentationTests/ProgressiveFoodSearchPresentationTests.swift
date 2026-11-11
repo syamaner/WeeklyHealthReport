@@ -350,6 +350,60 @@ final class ProgressiveFoodSearchPresentationTests: XCTestCase {
         XCTAssertFalse(FoodConfirmationState(input: chosen).unresolvedIdentity.isEmpty)
     }
 
+    /// docs/cocoa-exact-match-v1.md rule 2: an online row stating exactly the requested cocoa %
+    /// moves to a top section; the ranked list, its order and the other sections are unchanged.
+    func testExactOnlineCocoaMatchesMoveToTheirOwnSectionOnly() async throws {
+        func product(_ code: String, _ name: String) -> [String: Any] {
+            ["code": code, "product_name": name, "brands": "Acme", "quantity": "100 g",
+             "categories_tags": ["en:dark-chocolates"], "nutrition_data_per": "100g",
+             "nutriments": ["energy-kcal_100g": 600, "energy-kcal_unit": "kcal", "fat_100g": 50, "fat_unit": "g",
+                            "proteins_100g": 10, "proteins_unit": "g"]]
+        }
+        let body = try JSONSerialization.data(withJSONObject: ["products": [
+            product("5000000000012", "90% Cocoa Dark Chocolate"), product("5000000000029", "95% Dark Chocolate"),
+            product("5000000000036", "Dark Chocolate 85-95% cocoa solids"), product("5000000000043", "Dark chocolate with almonds")]])
+        func search(_ query: String) async throws -> GenericFoodSearchViewModel {
+            let finished = expectation(description: "OFF discovery finished: \(query)")
+            let database = try OpenFoodFactsSearch(transport: PercentageSearchTransport(body: body), locale: LedgerText("en_GB"))
+            let model = try GenericFoodSearchViewModel(searcher: CoFIDGenericFoodSearch(ids: RandomLedgerIDGenerator()), locale: LedgerText("en_GB"),
+                database: database, services: .init(onlineDatabase: .ready, gemini: .disabled))
+            model.query = query
+            model.search()
+            let subscription = model.$activeEnrichmentStage.dropFirst().sink { if $0 == nil { finished.fulfill() } }
+            await fulfillment(of: [finished], timeout: 3)
+            subscription.cancel()
+            return model
+        }
+        func names(_ matches: [GenericFoodMatch]) -> [String] { matches.map(\.candidate.name.value) }
+
+        for (query, exact, percent) in [("dark chocolate 90%", "90% Cocoa Dark Chocolate", "90"), ("dark chocolate 95%", "95% Dark Chocolate", "95")] {
+            let model = try await search(query)
+            guard case let .results(route) = model.phase else { return XCTFail(query) }
+            let online = route.matches.filter { Set(model.onlineAddedIDs).contains($0.searchID) }
+            XCTAssertFalse(online.isEmpty, query)
+            XCTAssertEqual(names(model.exactOnlineCocoaMatches), [exact], query)
+            XCTAssertEqual(model.exactOnlineCocoaHeading, "Online products with \(percent)% cocoa", query)
+            XCTAssertFalse(names(model.onlineMatches).contains(exact), query)
+            // The two lists partition today's online list, in order, with no overlap.
+            XCTAssertEqual(Set(model.exactOnlineCocoaMatches.map(\.searchID)).union(model.onlineMatches.map(\.searchID)),
+                           Set(online.map(\.searchID)), query)
+            XCTAssertEqual(model.exactOnlineCocoaMatches.count + model.onlineMatches.count, online.count, query)
+            XCTAssertEqual(model.onlineMatches.map(\.searchID), online.map(\.searchID).filter { id in
+                !model.exactOnlineCocoaMatches.contains { $0.searchID == id } }, query)
+            // A range that contains the request never enters the section; bundled rows never do.
+            XCTAssertFalse(names(model.exactOnlineCocoaMatches).contains("Dark Chocolate 85-95% cocoa solids"), query)
+            XCTAssertEqual(model.closeMatches.count + model.otherMatches.count, route.matches.count - online.count, query)
+            XCTAssertNotNil(model.confirmation(id: model.exactOnlineCocoaMatches[0].searchID), "Confirm still finds the row")
+            // Rule 1.6: the "95% Dark Chocolate" row states its cocoa instead of "Cocoa % not stated".
+            let tops = try XCTUnwrap(online.first { $0.candidate.name.value == "95% Dark Chocolate" }, query)
+            XCTAssertEqual(FoodSearchResultText.caution(query: model.parsedQuery, candidate: tops.candidate, requestedPreparation: nil, isRecipe: false),
+                           percent == "95" ? "95% cocoa" : "95% cocoa · requested 90%", query)
+        }
+        let plain = try await search("dark chocolate")
+        XCTAssertEqual(plain.exactOnlineCocoaMatches.count, 0, "no cocoa percentage, no section")
+        XCTAssertNil(plain.exactOnlineCocoaHeading)
+    }
+
     func testGeminiConsentAndValidatedKeyAreBothRequiredAndDisableRejectsLateResult() async throws {
         let started = expectation(description: "Gemini starts only after submitted consent and key")
         let returned = expectation(description: "late Gemini returns")
