@@ -24,6 +24,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from workspace_guard import check as guard_workspace  # noqa: E402
 
 LIMIT_BYTES, LIMIT_ITEMS = 26_214_400, 20000  # 25 MiB exactly
+# Deepest array or object nesting accepted. Explicit, so the Swift importer gives the same verdict;
+# Python's own recursion limit depends on the call stack (real files nest about five deep).
+MAX_DEPTH = 64
+# Most JSON values (object keys not counted) a file may hold, as the Swift reader: it bounds the
+# parsed tree's memory on the phone, and a real file holds far fewer values than its bytes allow.
+MAX_VALUES = 4_000_000
 CANON_UNITS = {
     "energy_consumed": "kcal", "protein": "g", "fat_total": "g", "fat_saturated": "g",
     "fat_monounsaturated": "g", "fat_polyunsaturated": "g", "fiber": "g", "sugar": "g",
@@ -251,6 +257,43 @@ class _Reject(Exception):
     pass
 
 
+# Strings are skipped whole (escapes included), so a bracket inside a string never counts.
+_STRUCTURE = re.compile(r'"(?:[^"\\]|\\.)*"?|[\[\]{}]', re.S)
+_SURROGATE = re.compile("[\ud800-\udfff]")
+
+
+def _depth_ok(text):
+    depth = 0
+    for m in _STRUCTURE.finditer(text):
+        c = m.group()
+        if c in "[{":
+            depth += 1
+            if depth > MAX_DEPTH:
+                return False
+        elif c in "]}":
+            depth -= 1
+    return True
+
+
+def _value_count(v):
+    if isinstance(v, list):
+        return 1 + sum(_value_count(x) for x in v)
+    if isinstance(v, dict):
+        return 1 + sum(_value_count(x) for x in v.values())
+    return 1
+
+
+def _lone_surrogate(v):
+    """Python decodes an unpaired \\ud800 escape into a string; Swift cannot hold one, so both refuse it."""
+    if isinstance(v, str):
+        return _SURROGATE.search(v) is not None
+    if isinstance(v, list):
+        return any(_lone_surrogate(x) for x in v)
+    if isinstance(v, dict):
+        return any(_lone_surrogate(k) or _lone_surrogate(x) for k, x in v.items())
+    return False
+
+
 def _no_duplicate_keys(pairs):
     keys = [k for k, _ in pairs]
     if len(keys) != len(set(keys)):
@@ -271,7 +314,7 @@ def _check_value(where, k, v, declared, err):
     if not _num(v["value"]):
         err("value", f"{where}: {k}")
     kind = v["source_kind"]
-    if not isinstance(kind, str) or KIND_MATCH.get(kind) != v["match"]:
+    if not isinstance(kind, str) or kind not in KIND_MATCH or KIND_MATCH[kind] != v["match"]:
         return err("kind-match", f"{where}: {k}")
     if kind == "manual_declaration" and v["record_id"] is not None:
         err("record-id", f"{where}: {k} owner value must have record_id null")
@@ -336,7 +379,8 @@ def _check(doc, err):
         declared[sid] = s
     corpora = {}
     for c in doc["generic_corpora"] if isinstance(doc["generic_corpora"], list) else [None]:
-        if not isinstance(c, dict) or set(c) != {"source", "corpus_sha256"} or c["source"] not in GENERIC_SOURCES \
+        if not isinstance(c, dict) or set(c) != {"source", "corpus_sha256"} or not isinstance(c["source"], str) \
+                or c["source"] not in GENERIC_SOURCES \
                 or not isinstance(c["corpus_sha256"], str) or not HEX64.fullmatch(c["corpus_sha256"]) or c["source"] in corpora:
             err("corpus", "invalid or duplicate generic corpus entry")
             continue
@@ -405,14 +449,20 @@ def check_bytes(data: bytes):
     try:
         def _no_constants(token):
             raise _Reject("json")  # NaN, Infinity and -Infinity are not JSON (Swift rejects them too)
-        doc = json.loads(data.decode("utf-8", errors="strict"), object_pairs_hook=_no_duplicate_keys,
-                         parse_constant=_no_constants)
+        text = data.decode("utf-8", errors="strict")
+        if not _depth_ok(text):
+            return [f"json: nesting deeper than {MAX_DEPTH}"]
+        doc = json.loads(text, object_pairs_hook=_no_duplicate_keys, parse_constant=_no_constants)
     except UnicodeDecodeError:
         return ["encoding: not UTF-8"]
     except _Reject as r:
         return [f"{r}: a JSON object repeats a key" if str(r) == "duplicate-key" else f"{r}: NaN or Infinity token"]
-    except Exception as e:  # ValueError, RecursionError on deep nesting, anything else
+    except Exception as e:  # ValueError (including integers over 4,300 digits), anything else
         return [f"json: {type(e).__name__}"]
+    if _value_count(doc) > MAX_VALUES:
+        return [f"count: more than {MAX_VALUES:,} JSON values"]
+    if _lone_surrogate(doc):
+        return ["json: unpaired surrogate escape"]
     try:
         _check(doc, err)
     except Exception as e:  # a type the rules did not anticipate is a rejection, never a crash
