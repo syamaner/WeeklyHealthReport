@@ -100,6 +100,10 @@ CODE_READ_DOCS = {
     "docs/pasted-label-ai-text-v1.md",
     # Cited by the personal-food-catalogue skill's export and fixtures, and later the importer (#419).
     "docs/personal-food-catalogue-import-v1.md",
+    # Cited by the cocoa percent policy v3, the search view model and their tests (#462).
+    "docs/cocoa-exact-match-v1.md",
+    # Cited by the import v1 codec, its tests and the fixture generator (#424 phase 1).
+    "docs/personal-food-database-import-v1-phase-1.md",
 }
 CODE_READ_DOC_PREFIXES = ("docs/fixtures/",)
 # Never documentation, whatever the lists above say: CI, its scripts and this
