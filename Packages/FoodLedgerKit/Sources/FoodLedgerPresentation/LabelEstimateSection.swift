@@ -305,12 +305,13 @@ public enum LabelEstimateSavedEntryText {
         return estimate.estimatedKeys.map { "\(FoodNutritionReviewPresentation.label($0)): \(openFoodFactsEstimatedState)" }
     }
 
-    /// An estimated bound for the amount's basis: "Less than 0.5 g per 100 g · Estimated". An
-    /// exact value has its consumed amount instead; nil for anything else.
-    public static func boundedValue(_ value: NutrientValue, basis: ResolutionBasis) -> String? {
+    /// An estimated bound for the amount's basis: "Less than 0.5 g per 100 g · Estimated", or with
+    /// another marking ("· Open Food Facts estimate"). An exact value has its consumed amount
+    /// instead; nil for anything else.
+    public static func boundedValue(_ value: NutrientValue, basis: ResolutionBasis, marking: String = "Estimated") -> String? {
         guard case .bounded = value else { return nil }
         let shown = FoodNutritionReviewPresentation.basisLabel(basis)
-        return "\(NutrientOriginText.amount(value, origin: .printed)) \(shown.prefix(1).lowercased() + shown.dropFirst()) · Estimated"
+        return "\(NutrientOriginText.amount(value, origin: .printed)) \(shown.prefix(1).lowercased() + shown.dropFirst()) · \(marking)"
     }
 
     /// "Chocolate, dark, 70-85% cacao solids · US reference · USDA SR Legacy 2018-04-01".
