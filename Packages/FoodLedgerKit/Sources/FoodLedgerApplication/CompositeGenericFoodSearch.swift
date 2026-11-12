@@ -6,11 +6,15 @@ import FoodLedgerDomain
 /// v11 (docs/ciqual-2025-admission-v1.md section 5): a reference-only group (Ciqual) follows
 /// every other row, is never promoted and gets its own cocoa tier keys, so removing its rows
 /// from any v11 output gives the v10 output exactly.
+/// Your food database (import v1, phase 1 plan section 5.1): an optional route searched after the
+/// default sources and before the regional ones, always group 0, whose no-result route never
+/// supplies guidance or suggestions. With no database rows the output is v11 exactly.
 public final class CompositeGenericFoodSearch: GenericFoodSearching, @unchecked Sendable {
     public static let version = "composite-generic-ranking-v11"
     private let sources: [any GenericFoodSearching]
     private let regionalSources: [any GenericFoodSearching]
     private let referenceSources: [any GenericFoodSearching]
+    private let databaseSource: (any GenericFoodSearching)?
     private let promotesRegional: (GenericFoodSearchRequest) -> Bool
     private let ids: any LedgerIDGenerating
     /// `regionalSources` (Taiwan TFDA) are searched after `sources`. Their rows follow
@@ -20,11 +24,13 @@ public final class CompositeGenericFoodSearch: GenericFoodSearching, @unchecked 
     /// each preparation and fat tier whatever `promotesRegional` returns.
     public init(sources: [any GenericFoodSearching], regionalSources: [any GenericFoodSearching] = [],
                 referenceSources: [any GenericFoodSearching] = [],
+                databaseSource: (any GenericFoodSearching)? = nil,
                 promotesRegional: @escaping (GenericFoodSearchRequest) -> Bool = { _ in false },
                 ids: any LedgerIDGenerating) {
         self.sources = sources
         self.regionalSources = regionalSources
         self.referenceSources = referenceSources
+        self.databaseSource = databaseSource
         self.promotesRegional = promotesRegional
         self.ids = ids
     }
@@ -43,14 +49,21 @@ public final class CompositeGenericFoodSearch: GenericFoodSearching, @unchecked 
         var fallback: GenericFoodNoResultRoute?
         var suggestions: [String] = []
         let deferRegional = !promotesRegional(request)
-        let regionalEnd = sources.count + regionalSources.count
-        for (index, source) in (sources + regionalSources + referenceSources).enumerated() {
+        // (source, group, is the database route), in search order.
+        var ordered: [(any GenericFoodSearching, Int, Bool)] = sources.map { ($0, 0, false) }
+        if let databaseSource { ordered.append((databaseSource, 0, true)) }
+        ordered += regionalSources.map { ($0, deferRegional ? 1 : 0, false) }
+        ordered += referenceSources.map { ($0, 2, false) }
+        for (source, routeGroup, isDatabase) in ordered {
             switch try source.search(shared) {
             case let .confirmation(route):
-                if route.reuse != nil { return .confirmation(route) }
-                routeGroups.append(index >= regionalEnd ? 2 : index >= sources.count && deferRegional ? 1 : 0)
+                // The database route never carries reuse; a reuse short-circuit is a source's own.
+                if route.reuse != nil && !isDatabase { return .confirmation(route) }
+                routeGroups.append(routeGroup)
                 routes.append(route)
             case let .noResult(route):
+                // A database no-result (none installed, locked, no match) is never guidance.
+                guard !isDatabase else { continue }
                 if fallback == nil { fallback = route }
                 for query in route.suggestedQueries where !suggestions.contains(query) { suggestions.append(query) }
             }
@@ -94,8 +107,9 @@ public final class CompositeGenericFoodSearch: GenericFoodSearching, @unchecked 
             return a == b ? lhs.offset < rhs.offset : GenericFoodRankingPolicy.prefers(a, over: b)
         }.map(\.element)
         let fatRanked = lexical.filter { FoodQueryCandidateAssessment.matchesFat(query: request.parsedQuery, candidate: $0.candidate) } + lexical.filter { !FoodQueryCandidateAssessment.matchesFat(query: request.parsedQuery, candidate: $0.candidate) }
-        let matches = fatRanked.filter { !FoodPreparationDiscoveryPolicy.isUnverified(requested: request.identity.preparation, actual: $0.candidate.candidate.identity.preparation.kind) }
+        let partitioned = fatRanked.filter { !FoodPreparationDiscoveryPolicy.isUnverified(requested: request.identity.preparation, actual: $0.candidate.candidate.identity.preparation.kind) }
             + fatRanked.filter { FoodPreparationDiscoveryPolicy.isUnverified(requested: request.identity.preparation, actual: $0.candidate.candidate.identity.preparation.kind) }
+        let matches = try Self.dedupeDatabaseRows(partitioned)
         var releases: [SourceRelease] = []
         for release in routes.flatMap({ $0.confirmation.sourceReleases }) {
             if let existing = releases.first(where: { $0.sourceReleaseID == release.sourceReleaseID }) {
@@ -108,6 +122,24 @@ public final class CompositeGenericFoodSearch: GenericFoodSearching, @unchecked 
                 expectedIdentity: matches[0].candidate.candidate.identity, expectedEdibleQuantity: matches[0].candidate.candidate.edibleQuantity
             ), matches: matches
         ))
+    }
+
+    /// Import v1 section 5 under v11 (phase 1 plan section 5.1 item 4): only a pair where exactly one
+    /// row came from the database route is deduped. The database copy, with its context and
+    /// `pfc-resolution-v1` metadata, takes the position of whichever copy sorted first; the other
+    /// is dropped when the record facts agree, and differing facts throw. Other rows are untouched.
+    static func dedupeDatabaseRows(_ rows: [GenericFoodMatch]) throws -> [GenericFoodMatch] {
+        var result: [GenericFoodMatch] = []
+        for row in rows {
+            guard let index = result.firstIndex(where: {
+                $0.searchID == row.searchID && ($0.personalDatabase == nil) != (row.personalDatabase == nil)
+            }) else { result.append(row); continue }
+            guard FoodSearchRecordEquality.sameSourceRecord(result[index].candidate, row.candidate) else {
+                throw FoodLedgerValidationError.duplicateValue("conflicting source record")
+            }
+            if row.personalDatabase != nil { result[index] = row }
+        }
+        return result
     }
 
     /// Tier keys for the non-reference rows over those rows only (the v10 pool), and for the

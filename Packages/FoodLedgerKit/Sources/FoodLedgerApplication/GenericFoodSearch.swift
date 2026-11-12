@@ -86,13 +86,34 @@ public struct GenericFoodSearchRequest: Equatable, Sendable {
     }
 }
 
+/// How a Your food database row matched (import v1 section 5). Presentation and ordering only;
+/// never part of the Codable candidate.
+public struct PersonalFoodDatabaseMatchContext: Equatable, Sendable {
+    public enum Step: Int, Comparable, Sendable {
+        case titleOrAlias = 1, variety = 2, concept = 3
+        public static func < (lhs: Step, rhs: Step) -> Bool { lhs.rawValue < rhs.rawValue }
+    }
+    public let step: Step
+    /// The referenced generic record offered as its own row ("Generic: <name>").
+    public let isGenericReference: Bool
+
+    public init(step: Step, isGenericReference: Bool) {
+        self.step = step
+        self.isGenericReference = isGenericReference
+    }
+}
+
 public struct GenericFoodMatch: Equatable, Sendable {
     public let candidate: PopulatedFoodCandidate
     public let isExactName: Bool
+    /// Set only on rows from the Your food database route.
+    public let personalDatabase: PersonalFoodDatabaseMatchContext?
 
-    public init(candidate: PopulatedFoodCandidate, isExactName: Bool) {
+    public init(candidate: PopulatedFoodCandidate, isExactName: Bool,
+                personalDatabase: PersonalFoodDatabaseMatchContext? = nil) {
         self.candidate = candidate
         self.isExactName = isExactName
+        self.personalDatabase = personalDatabase
     }
 }
 

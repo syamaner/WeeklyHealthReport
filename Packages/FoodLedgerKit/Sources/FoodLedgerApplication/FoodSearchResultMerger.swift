@@ -45,7 +45,7 @@ public enum FoodSearchResultMerger {
                 if matches.isEmpty { reuse = route.reuse }
                 for match in route.matches {
                     if let existing = matches.first(where: { FoodSearchCandidateID($0) == FoodSearchCandidateID(match) }) {
-                        guard sameSourceRecord(existing.candidate, match.candidate) else {
+                        guard FoodSearchRecordEquality.sameSourceRecord(existing.candidate, match.candidate) else {
                             throw FoodLedgerValidationError.duplicateValue("conflicting source record")
                         }
                     } else { matches.append(match) }
@@ -65,18 +65,6 @@ public enum FoodSearchResultMerger {
             guidance: fallback.guidance, suggestedQueries: Array(suggestions.prefix(3)), sourceDiscovery: sourceDiscovery, sourceReviewFailure: sourceReviewFailure))
     }
 
-    /// Capture occurrences and ranking hints may differ for the same immutable record.
-    /// Keep the first row and its candidate evidence links; retain all batch evidence.
-    /// Nutrient provenance and every source fact must still agree exactly.
-    private static func sameSourceRecord(_ lhs: PopulatedFoodCandidate, _ rhs: PopulatedFoodCandidate) -> Bool {
-        let a = lhs.candidate
-        let b = rhs.candidate
-        return lhs.name == rhs.name && lhs.brand == rhs.brand && lhs.variant == rhs.variant
-            && lhs.barcode == rhs.barcode && lhs.itemClass == rhs.itemClass && lhs.packFacts == rhs.packFacts
-            && a.sourceReleaseID == b.sourceReleaseID && a.recordID == b.recordID
-            && a.identity == b.identity && a.edibleQuantity == b.edibleQuantity && a.nutrients == b.nutrients
-    }
-
     private static func appendUnique<T: Equatable, ID: Equatable>(
         _ values: [T], to result: inout [T], id: KeyPath<T, ID>
     ) throws {
@@ -90,4 +78,19 @@ public enum FoodSearchResultMerger {
 
 public extension GenericFoodMatch {
     var searchID: FoodSearchCandidateID { FoodSearchCandidateID(self) }
+}
+
+/// The one record-equality rule for search rows (import v1 section 5), shared by the merger and
+/// the composite's database dedupe.
+enum FoodSearchRecordEquality {
+    /// Capture occurrences and ranking hints may differ for the same immutable record.
+    /// Nutrient provenance and every source fact must still agree exactly.
+    static func sameSourceRecord(_ lhs: PopulatedFoodCandidate, _ rhs: PopulatedFoodCandidate) -> Bool {
+        let a = lhs.candidate
+        let b = rhs.candidate
+        return lhs.name == rhs.name && lhs.brand == rhs.brand && lhs.variant == rhs.variant
+            && lhs.barcode == rhs.barcode && lhs.itemClass == rhs.itemClass && lhs.packFacts == rhs.packFacts
+            && a.sourceReleaseID == b.sourceReleaseID && a.recordID == b.recordID
+            && a.identity == b.identity && a.edibleQuantity == b.edibleQuantity && a.nutrients == b.nutrients
+    }
 }
