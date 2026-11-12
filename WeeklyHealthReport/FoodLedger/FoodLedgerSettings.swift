@@ -266,9 +266,15 @@ struct PersonalFoodDatabaseSettingsView: View {
         .navigationTitle(PersonalFoodDatabaseSettingsText.title)
         .task { await model.load() }
         .fileImporter(isPresented: $showsImport, allowedContentTypes: [.json]) { result in
-            guard case let .success(url) = result else { return }
-            // Up to 25 MB: the model reads it off the main thread, busy from before the read.
-            Task { await model.importFile(reading: { PersonalFoodDatabasePickedFile.read(url) }) }
+            switch result {
+            case let .success(url):
+                // Up to 25 MB: the model reads it off the main thread, busy from before the read.
+                Task { await model.importFile(reading: { PersonalFoodDatabasePickedFile.read(url) }) }
+            case let .failure(error):
+                // Cancelling is not a failure; any other picker or provider error is said aloud.
+                if (error as? CocoaError)?.code == .userCancelled { return }
+                Task { await model.importFile(reading: { .failure(.unreadable) }) }
+            }
         }
         .onChange(of: model.messageSerial) {
             if let message = model.message { AccessibilityNotification.Announcement(message).post() }

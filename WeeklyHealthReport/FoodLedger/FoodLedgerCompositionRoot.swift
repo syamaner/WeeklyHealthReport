@@ -63,12 +63,12 @@ final class FoodLedgerCompositionRoot {
     let pastedLabelReader: PastedLabelReader
     let pastedLabelConfirmation: PastedLabelConfirmation
 
-    /// `confirmationClock` and `confirmationCalendar` are injectable so tests can fix the day
-    /// rules (the backdating window) instead of racing the live clock.
     deinit {
         if let personalFoodDatabaseObserver { NotificationCenter.default.removeObserver(personalFoodDatabaseObserver) }
     }
 
+    /// `confirmationClock` and `confirmationCalendar` are injectable so tests can fix the day
+    /// rules (the backdating window) instead of racing the live clock.
     init(
         fileManager: FileManager = .default,
         userDefaults: UserDefaults = .standard,

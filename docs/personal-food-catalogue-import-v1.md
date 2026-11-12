@@ -2,9 +2,11 @@
 
 Status: accepted by the owner on 7 November 2026 (revision 5, twelve owner decisions in section 2).
 Revisions 2 to 5 answered five rounds of architecture-gate and invariant review and three Qodo local
-reviews. Implementation has not started: it is a separate phase with its own architecture gate, and
-the amendment rows for A1 in `unified-food-search-contract-v1.md` and identity contract section 8 are
-added in that change. Issue: [#419](https://github.com/syamaner/WeeklyHealthReport/issues/419).
+reviews. Implementation is in progress in phases, each with its own architecture gate, under
+[the phase 1 plan](personal-food-database-import-v1-phase-1.md): the codec landed first, P1b adds the
+protected store, the importer and the Settings row, and P1c (search and Confirm) and phase 2
+(estimates) are still to come. The amendment rows for A1 in `unified-food-search-contract-v1.md` and
+identity contract section 8 are added in the phase that changes search. Issue: [#419](https://github.com/syamaner/WeeklyHealthReport/issues/419).
 
 ## 1. Purpose and scope
 

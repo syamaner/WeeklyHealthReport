@@ -34,6 +34,12 @@ public struct FilePersonalFoodDatabaseStore: PersonalFoodDatabaseStoring {
     static let folderPrefix = "pfc-sha256-"
     static let stagingPrefix = "personal-food-database-"
 
+    /// Serialises every install and remove in the process, across store instances: they share one
+    /// pending pointer and each sweep keeps only its own release, so two at once could delete or
+    /// replace the other's work after both reported success. Reads need no lock, because the
+    /// pointer changes only by an atomic rename.
+    static let writeLock = NSLock()
+
     let base: URL
     let staging: URL
     private let digester: any Digesting
@@ -89,6 +95,8 @@ public struct FilePersonalFoodDatabaseStore: PersonalFoodDatabaseStoring {
     // MARK: Install and remove
 
     public func install(bytes: Data, manifest: PersonalFoodDatabaseManifest) throws {
+        Self.writeLock.lock()
+        defer { Self.writeLock.unlock() }
         guard isProtectedDataAvailable() else { throw PersonalFoodDatabaseStoreError.locked }
         guard manifest.releaseID == PersonalFoodDatabaseRelease.releaseID(fileSHA256: manifest.fileSHA256),
               (try? digester.sha256(bytes)) == manifest.fileSHA256,
@@ -150,6 +158,8 @@ public struct FilePersonalFoodDatabaseStore: PersonalFoodDatabaseStoring {
 
     @discardableResult
     public func remove() throws -> Bool {
+        Self.writeLock.lock()
+        defer { Self.writeLock.unlock() }
         guard isProtectedDataAvailable() else { throw PersonalFoodDatabaseStoreError.locked }
         let fileManager = FileManager.default
         let present = fileManager.fileExists(atPath: pointerURL.path)

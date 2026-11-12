@@ -103,6 +103,23 @@ final class FilePersonalFoodDatabaseStoreTests: XCTestCase {
         XCTAssertEqual(contents(base), [])
     }
 
+    /// Two store instances on one root, installing different releases at once, always leave the
+    /// release the final pointer names on disk and readable, with only that release kept.
+    func testConcurrentInstallsFromTwoStoresLeaveTheNamedReleaseIntact() throws {
+        let first = makeStore(), second = makeStore()
+        let a = try Self.release("first"), b = try Self.release("second")
+        let failures = Flags()
+        DispatchQueue.concurrentPerform(iterations: 40) { index in
+            let (store, release) = index.isMultiple(of: 2) ? (first, a) : (second, b)
+            do { try store.install(bytes: release.bytes, manifest: release.manifest) } catch { failures.record(URL(fileURLWithPath: "/\(index)")) }
+        }
+        XCTAssertEqual(failures.protected, [], "every install succeeds")
+        let active = try XCTUnwrap(try makeStore().activeRelease())
+        XCTAssertTrue(active == a || active == b)
+        XCTAssertEqual(contents(base), ["active.json", folder(active).lastPathComponent])
+        XCTAssertEqual(contents(staging), [])
+    }
+
     func testEveryCreatedPathIsProtected() throws {
         let store = makeStore(), a = try Self.release("first")
         try store.install(bytes: a.bytes, manifest: a.manifest)
