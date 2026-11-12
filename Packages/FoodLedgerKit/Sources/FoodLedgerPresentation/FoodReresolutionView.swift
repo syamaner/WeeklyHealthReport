@@ -18,7 +18,7 @@ public struct FoodReresolutionView: View {
                     }
                 }
                 Text("Only accepted installed targets are offered. CoFID 2021 is currently bundled; this is not a claim that a newer release or model exists.").font(.caption)
-                Button("Reload saved foods and versions") { model.load() }
+                Button("Reload saved foods and versions") { Task { await model.loadInBackground() } }
             }.disabled(model.pending != nil)
             if let message = model.message {
                 Section("Status") {
@@ -27,8 +27,12 @@ public struct FoodReresolutionView: View {
                 }
             }
             Section("Saved food history") {
-                if model.records.isEmpty { Text("No saved product entries available for re-resolution.") }
-                ForEach(model.records, id: \.logItem.logItemID) { record in
+                switch model.historyState {
+                case .loading: ProgressView("Loading saved foods")
+                case .failed: Text("Saved foods could not be read. Nothing was changed.")
+                case .loaded: if model.records.isEmpty { Text("No saved product entries available for re-resolution.") }
+                }
+                ForEach(model.historyState == .loaded ? model.records : [], id: \.logItem.logItemID) { record in
                     VStack(alignment: .leading, spacing: 6) {
                         Text(record.productVersion.name.value).font(.headline)
                         Text("\(record.logItemVersion.reportingDate.value) · \(record.logItemVersion.edibleQuantity.value.formatted()) \(FoodAmountNoun.unit(record.logItemVersion.edibleQuantity.unit, value: record.logItemVersion.edibleQuantity.value))")
@@ -93,7 +97,7 @@ public struct FoodReresolutionView: View {
             }
         }
         .navigationTitle("Review nutrition updates")
-        .task { model.load() }
+        .task { await model.loadInBackground() }
         .onChange(of: model.selectedTargetID) { _, _ in model.clearReview() }
     }
 

@@ -104,6 +104,21 @@ final class FoodReresolutionContractTests: XCTestCase {
         }
     }
 
+    /// Opening Review nutrition updates reads the archive once, not once per record: the per-record
+    /// reads made the screen quadratic in the history and tripped the launch watchdog on a phone.
+    func testCurrentRecordsReadsTheArchiveOnce() throws {
+        for harness in try LedgerFixtures.harnesses() {
+            defer { harness.cleanup() }
+            let fixture = try seed(harness)
+            let counting = CountingArchive(fixture.archive)
+            let history = FoodReresolutionHistory(archive: counting, confirmations: fixture.reader)
+            let records = try history.currentRecords()
+            XCTAssertEqual(counting.archiveReads, 1)
+            XCTAssertEqual(records.map(\.logItemVersion.logItemVersionID), [fixture.record.logItemVersion.logItemVersionID])
+            XCTAssertEqual(records.first?.logItemVersion, try history.foodConfirmation(logItemID: fixture.record.logItem.logItemID)?.logItemVersion)
+        }
+    }
+
     private struct Fixture {
         let record: StoredFoodConfirmation
         let ledger: FoodLedgerService
@@ -147,4 +162,25 @@ private final class UpgradeProvider: FoodReresolutionProviding, @unchecked Senda
         guard available, target == self.target else { throw FoodReresolutionError.unavailableTarget }
         return .confirmation(GenericFoodConfirmationRoute(confirmation: input, matches: []))
     }
+}
+
+/// Forwards every call and counts full archive reads.
+private final class CountingArchive: FoodArchiveLedgerAccess, @unchecked Sendable {
+    private let base: any FoodArchiveLedgerAccess
+    private let lock = NSLock()
+    private var reads = 0
+    var archiveReads: Int { lock.withLock { reads } }
+    init(_ base: any FoodArchiveLedgerAccess) { self.base = base }
+    func archiveState() throws -> FoodArchiveState { lock.withLock { reads += 1 }; return try base.archiveState() }
+    func commitAtomically(_ transactions: [LedgerTransaction]) throws -> [CommitOutcome] { try base.commitAtomically(transactions) }
+    func actorHead(for actorID: ActorID) throws -> ActorHead { try base.actorHead(for: actorID) }
+    func operation(id: OperationID) throws -> LedgerOperation? { try base.operation(id: id) }
+    func commit(_ transaction: LedgerTransaction) throws -> CommitOutcome { try base.commit(transaction) }
+    func counts() throws -> LedgerCounts { try base.counts() }
+    func productVersions(productID: ProductID) throws -> [ProductVersion] { try base.productVersions(productID: productID) }
+    func resolutionVersion(id: ResolutionVersionID) throws -> NutritionResolutionVersion? { try base.resolutionVersion(id: id) }
+    func exactLibraryEntries(alias: LedgerText) throws -> [LibraryEntryVersion] { try base.exactLibraryEntries(alias: alias) }
+    func barcodeLibraryRecords(alias: LedgerText) throws -> [BarcodeLibraryRecord] { try base.barcodeLibraryRecords(alias: alias) }
+    func conflicts() throws -> [LedgerConflict] { try base.conflicts() }
+    func sourceRelease(id: ExternalIdentifier) throws -> SourceRelease? { try base.sourceRelease(id: id) }
 }
