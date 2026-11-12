@@ -1,6 +1,6 @@
 # Glucose readings in the Daily JSON export, v1 (#469)
 
-Status: **owner-decided 11 November 2026 (D1 to D8, section 11) and 12 November 2026 (D9); implemented in the PR for #469.** No device action, personal-data transfer or release is authorised by this document; the device acceptance in section 12 is the owner's and is outstanding.
+Status: **owner-decided 11 November 2026 (D1 to D8, section 11) and 12 November 2026 (D9, D10); implemented in the PR for #469.** No device action, personal-data transfer or release is authorised by this document; the device acceptance in section 12 is the owner's and is outstanding.
 
 Architecture gate: **PASS WITH CHANGES**, 11 November 2026 (read-only `architecture-gate` review against the code at `03510ae`). Its eight changes are folded in below: whole-second timestamp text, schema 9 layered on schema 8 only, the admission rules, the toggle's own setter and preference, the service and port rows, no duplicate window, the wider document amendments and ten further contract tests.
 
@@ -118,7 +118,9 @@ A query error or cancellation blocks the export, as for every other metric.
 
 ## 8. Developer tools
 
-For the selected export day, per source: reading count, first and last reading time, and the block's state. This is what the owner compares with Health's "All Recorded Data" list. No readings are logged.
+For the selected export day, per source: reading count, first and last reading time, most common interval, and the block's state. This is what the owner compares with Health's "All Recorded Data" list. No readings are logged.
+
+The most common interval (decision D10) is the interval that occurs most often between one listed reading and the next in that source, worked out from the times in the prepared file: whole minutes as "5 min", anything else in seconds, "Not enough readings" for fewer than two, and the shortest interval when two are equally common. It is a fact about the listed records. No expected cadence is assumed, a gap is one interval like any other, and nothing is derived from a reading value.
 
 ## 9. Tests (synthetic fixtures only)
 
@@ -129,7 +131,7 @@ For the selected export day, per source: reading count, first and last reading t
 - **View model and UI:** toggling clears the preview and last outcome; toggling while busy is ignored; a preview made before a toggle cannot be exported; the preference persists; the Included line for each state; the metric denominator stays 15; the disclosure copy; VoiceOver label and 44 pt target for the toggle.
 - **Gates:** the full list in `AGENTS.md`. Search evaluation is not affected.
 
-## 10. Egress amendment (owner-approved 11 November 2026, E3 amended the same day)
+## 10. Egress amendment (owner-approved 11 November 2026, E3 amended the same day and on 12 November 2026)
 
 The owner approved terms E1 to E4 on 11 November 2026 ("Approve E1 to E4"). They take effect from the implementation PR that ships the behaviour and amends the documents named in E4; until then no build sends a glucose reading.
 
@@ -137,7 +139,7 @@ Terms:
 
 - **E1** The destination, scope and trigger are unchanged: Google Drive (`drive.file`), only when the user chooses Export, only the exact reviewed bytes.
 - **E2** The Daily JSON may additionally contain each visible glucose reading for the selected day with its time, value, source name and source bundle identifier, only while the Glucose readings choice is on.
-- **E3** Off by default. Readings are part of the Daily JSON wherever the user takes that file: the Drive export, and the existing View exact file with its Copy JSON, which shows the exact text on screen and copies it to this iPhone's clipboard only, where the entry expires after ten minutes. Developer tools shows each source's name and bundle identifier, the reading count and the first and last reading time of the prepared file, and never a reading value. No reading leaves by any other route, and nothing here authorises background or automatic export. *Amended by the owner on 11 November 2026 ("amend wording"): the wording first approved, "No reading leaves through any other route", overlooked Copy JSON and the Developer tools rows, which the invariant review found.*
+- **E3** Off by default. Readings are part of the Daily JSON wherever the user takes that file: the Drive export, and the existing View exact file with its Copy JSON, which shows the exact text on screen and copies it to this iPhone's clipboard only, where the entry expires after ten minutes. Developer tools shows each source's name and bundle identifier, the reading count, the first and last reading time and the most common interval between readings of the prepared file (the interval added by the owner on 12 November 2026, decision D10), and never a reading value. No reading leaves by any other route, and nothing here authorises background or automatic export. *Amended by the owner on 11 November 2026 ("amend wording"): the wording first approved, "No reading leaves through any other route", overlooked Copy JSON and the Developer tools rows, which the invariant review found.*
 - **E4** `docs/privacy-and-egress.md` (the HealthKit bullet and the Google Drive row) and `docs/privacy-policy.txt` are amended in the implementation PR, so the documents change in the same release as the behaviour. The same PR adds a schema 9 amendment to [daily-export-contract.md](daily-export-contract.md) (envelope versions, historical ordering and the glucose row) and the "not counted as a metric" entry to [daily-export-included-summary-v1.md](daily-export-included-summary-v1.md). The egress table's Clipboard row keeps its existing wording, which a test pins word for word and which does not mention Copy JSON; the Copy JSON route is stated in the HealthKit bullet of the same document.
 
 ## 11. Owner decisions
@@ -153,10 +155,11 @@ Terms:
 | D7 | Egress terms E1 to E4 | **Approved by the owner, 11 November 2026** |
 | D8 | Priority | **Decided by the owner, 11 November 2026:** start now, alongside the two features in progress |
 | D9 | Reading time precision | **Decided by the owner, 12 November 2026: whole seconds.** Issue #469 asked for a check in code of whether stored timestamps carry a sub-second part, with text used only if nothing is lost. No such check was made: the only observation is the Health app's whole-second display, which does not show the stored value. The owner keeps whole-second text as in section 6, so a sub-second part, if a source ever stores one, is truncated and not exported. Exporting milliseconds when present was the alternative and was not chosen |
+| D10 | Cadence in Developer tools | **Decided by the owner, 12 November 2026: add it.** Issue #469 listed cadence among the comparison rows and the first draft of section 8 left it out. Developer tools shows each source's most common interval as in section 8, and E3 is amended to name it. Leaving it out was the alternative and was not chosen |
 
 ## 12. Device acceptance (owner)
 
-Simulator runs prove software behaviour only. On the iPhone, for one complete past day and for today: compare the Developer tools count, first and last time and source with Health's "All Recorded Data"; confirm a re-export on the following morning contains the evening readings; confirm the exact file in Drive matches the preview. Report the build and the dates compared.
+Simulator runs prove software behaviour only. On the iPhone, for one complete past day and for today: compare the Developer tools count, first and last time, most common interval and source with Health's "All Recorded Data"; confirm a re-export on the following morning contains the evening readings; confirm the exact file in Drive matches the preview. Report the build and the dates compared.
 
 ## 13. Out of scope
 

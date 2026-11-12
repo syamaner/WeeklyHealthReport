@@ -73,7 +73,7 @@ Start with [`../AGENTS.md`](../AGENTS.md) for working rules and [privacy and egr
 
 - [Workout interval enrichment contract](workout-interval-enrichment-contract.md), [accepted distance amendment](accepted-workout-distance-amendment.md), [heart-rate readings contract](workout-heart-rate-readings-contract.md)
 - [Daily export contract](daily-export-contract.md) and [Google Drive export plan](google-drive-export-plan.md)
-- [Glucose readings in the Daily JSON export v1](glucose-readings-export-contract-v1.md) (#469): individual timestamped readings as an opt-in schema 9 block (owner decisions D1 to D8 and egress terms E1 to E4, 11 November 2026, and D9, 12 November 2026; device acceptance outstanding)
+- [Glucose readings in the Daily JSON export v1](glucose-readings-export-contract-v1.md) (#469): individual timestamped readings as an opt-in schema 9 block (owner decisions D1 to D8 and egress terms E1 to E4, 11 November 2026, and D9 and D10, 12 November 2026; device acceptance outstanding)
 - [Food daily export v1](food-daily-export-contract-v1.md) (#287): the food log as a separate daily JSON file in the same Drive folder (owner-approved 23 October 2026)
 - [Food daily export v2](food-daily-export-contract-v2.md) (#312): entry-level quantity method, estimate flag and entered amount for typical-weight and whole-milk volume estimates; v1 files stay valid (decided under owner delegation and gate PASS WITH CHANGES folded in, 31 October 2026; not implemented)
 - [Google Cloud setup](google-drive-cloud-setup.md) and [product setup](google-drive-product-setup.md)

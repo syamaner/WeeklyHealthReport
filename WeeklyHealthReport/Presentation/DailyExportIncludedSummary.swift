@@ -214,8 +214,9 @@ enum DailyExportGlucoseReadingsText {
         }
     }
 
-    /// Per-source count and first and last reading time of the prepared
-    /// file, for the Apple Health comparison. No reading value is shown.
+    /// Per-source count, first and last reading time and most common interval
+    /// of the prepared file, for the Apple Health comparison. No reading value
+    /// is shown.
     static func developerFields(
         _ block: ExportGlucoseReadings?
     ) -> [DailyExportLastExportFormatter.DeveloperField] {
@@ -232,7 +233,32 @@ enum DailyExportGlucoseReadingsText {
             fields.append(Field(label: "\(name) count", value: "\(item.count)"))
             fields.append(Field(label: "\(name) first", value: item.readings.first?.time ?? "None"))
             fields.append(Field(label: "\(name) last", value: item.readings.last?.time ?? "None"))
+            fields.append(Field(label: "\(name) most common interval", value: mostCommonInterval(item.readings)))
         }
         return fields
+    }
+
+    /// The interval that occurs most often between one reading and the next
+    /// in a source's list, for comparing the cadence with Apple Health. A
+    /// fact about the listed records only: no expected cadence is assumed and
+    /// a gap is one interval like any other. Equal counts resolve to the
+    /// shortest interval so the text is stable.
+    static func mostCommonInterval(_ readings: [ExportGlucoseReading]) -> String {
+        guard readings.count > 1 else { return "Not enough readings" }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        var times: [Date] = []
+        for reading in readings {
+            guard let time = formatter.date(from: reading.time) else { return "Unknown" }
+            times.append(time)
+        }
+        var occurrences: [Int: Int] = [:]
+        for (earlier, later) in zip(times, times.dropFirst()) {
+            occurrences[Int(later.timeIntervalSince(earlier).rounded()), default: 0] += 1
+        }
+        guard let seconds = occurrences.max(by: { ($0.value, -$0.key) < ($1.value, -$1.key) })?.key else {
+            return "Unknown"
+        }
+        return seconds > 0 && seconds % 60 == 0 ? "\(seconds / 60) min" : "\(seconds) s"
     }
 }

@@ -5154,10 +5154,39 @@ extension DailyHealthExportTests {
             .init(label: "Glucose source 1", value: "Fixture Sensor A · example.sensor.a"),
             .init(label: "Glucose source 1 count", value: "2"),
             .init(label: "Glucose source 1 first", value: "2026-09-10T08:00:00+01:00"),
-            .init(label: "Glucose source 1 last", value: "2026-09-10T08:05:00+01:00")
+            .init(label: "Glucose source 1 last", value: "2026-09-10T08:05:00+01:00"),
+            .init(label: "Glucose source 1 most common interval", value: "5 min")
         ])
         let fields = DailyExportGlucoseReadingsText.developerFields(block)
         XCTAssertFalse(fields.contains { $0.value.contains("5.2") }, "no reading value is shown")
+    }
+
+    func testMostCommonIntervalIsAFactAboutTheListedReadings() throws {
+        func interval(_ offsets: [TimeInterval]) -> String {
+            let start = Date(timeIntervalSince1970: 1_789_000_000)
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime]
+            return DailyExportGlucoseReadingsText.mostCommonInterval(offsets.map {
+                ExportGlucoseReading(time: formatter.string(from: start.addingTimeInterval($0)), value: 5.2)
+            })
+        }
+        XCTAssertEqual(interval([]), "Not enough readings")
+        XCTAssertEqual(interval([0]), "Not enough readings")
+        // A gap of 50 minutes is one interval among the five-minute ones.
+        XCTAssertEqual(interval([0, 300, 600, 3600, 3900]), "5 min")
+        // Equal counts resolve to the shortest interval.
+        XCTAssertEqual(interval([0, 300, 900]), "5 min")
+        XCTAssertEqual(interval([0, 600, 900]), "5 min")
+        // Not a whole number of minutes, and two readings in one second.
+        XCTAssertEqual(interval([0, 90, 180]), "90 s")
+        XCTAssertEqual(interval([0, 0]), "0 s")
+        XCTAssertEqual(
+            DailyExportGlucoseReadingsText.mostCommonInterval([
+                ExportGlucoseReading(time: "2026-09-10T08:00:00+01:00", value: 5.2),
+                ExportGlucoseReading(time: "not a time", value: 5.2)
+            ]),
+            "Unknown"
+        )
     }
 }
 
