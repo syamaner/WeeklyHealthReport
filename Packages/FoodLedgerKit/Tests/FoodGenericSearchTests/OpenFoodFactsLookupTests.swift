@@ -410,11 +410,13 @@ final class OpenFoodFactsLookupTests: XCTestCase {
             if let unit { panel["per_unit"] = unit }
             return panel
         }
-        for (quantity, unit, pack) in [(100.0, "g", nil), (28.0, "g", "640 g"), (250.0, "ml", nil)] as [(Double, String, String?)] {
+        // The last two state the size as text, as Open Food Facts often does ("112").
+        for (quantity, unit, pack, asText) in [(100.0, "g", nil, false), (28.0, "g", "640 g", false), (250.0, "ml", nil, false),
+                                               (112.0, "g", nil, true), (12.5, "g", "142 g", true)] as [(Double, String, String?, Bool)] {
             let body = try response { product in
                 if let pack { product["quantity"] = pack } else { product.removeValue(forKey: "quantity") }
                 product.removeValue(forKey: "nutrition_data_per"); product["nutriments"] = [:]
-                product["nutrition"] = ["input_sets": [panel(quantity, unit),
+                product["nutrition"] = ["input_sets": [panel(asText ? (quantity == quantity.rounded() ? String(Int(quantity)) : String(quantity)) : quantity, unit),
                     ["source": "estimate", "per": "100g", "preparation": "as_sold", "nutrients": ["fiber": ["value": 9, "unit": "g"]]]]]
             }
             let lookup = OpenFoodFactsLookup(transport: OFFFixtureTransport(response: .init(status: 200, body: body)), clock: clock)
@@ -436,7 +438,7 @@ final class OpenFoodFactsLookupTests: XCTestCase {
             XCTAssertEqual(entries[.fiber], .unknown(.notDeclared), "the estimate panel never backfills")
             XCTAssertFalse(NutrientDerivation.isCalculated(.augmented(energy)), "scaling is not a calculated label value")
             let variant = try XCTUnwrap(candidate.variant?.value)
-            XCTAssertTrue(variant.contains("scaled from a \(Int(quantity)) \(unit) serving"), variant)
+            XCTAssertTrue(variant.contains("scaled from a \(quantity == quantity.rounded() ? String(Int(quantity)) : String(quantity)) \(unit) serving"), variant)
         }
     }
 
@@ -453,7 +455,8 @@ final class OpenFoodFactsLookupTests: XCTestCase {
         }
         let cases: [(String?, [[String: Any]])] = [
             (nil, [with(nil, "g")]), (nil, [with(30, nil)]), (nil, [with(0, "g")]), (nil, [with(true, "g")]),
-            (nil, [with("30", "g")]), (nil, [with(30, "oz")]), (nil, [with(30, "g"), with(40, "g")]),
+            (nil, [with("30 g", "g")]), (nil, [with("-30", "g")]), (nil, [with("1e2", "g")]), (nil, [with("", "g")]),
+            (nil, [with("0", "g")]), (nil, [with(30, "oz")]), (nil, [with(30, "g"), with(40, "g")]),
             ("500 ml", [with(30, "g")]), ("500 g", [with(250, "ml")]),
             // Implausible once scaled: 8 g protein in a 0.1 g serving is 8,000 g per 100 g.
             (nil, [with(0.1, "g")]),

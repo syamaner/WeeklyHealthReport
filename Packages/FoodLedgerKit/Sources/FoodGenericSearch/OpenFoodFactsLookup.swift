@@ -296,8 +296,7 @@ public struct OpenFoodFactsLookup: PackagedFoodCandidateLookingUp {
                 && $0.element["preparation"] as? String == "as_sold"
         }
         guard panels.count == 1, let values = panels[0].element["nutrients"] as? [String: Any],
-              let quantity = panels[0].element["per_quantity"] as? NSNumber, CFGetTypeID(quantity) != CFBooleanGetTypeID(),
-              quantity.doubleValue.isFinite, quantity.doubleValue > 0,
+              let serving = servingQuantity(panels[0].element["per_quantity"]), serving.isFinite, serving > 0,
               let unit = panels[0].element["per_unit"] as? String, unit == "g" || unit == "ml" else { return nil }
         let volume = unit == "ml"
         if let packBasis, packBasis != volume { return nil }
@@ -308,7 +307,15 @@ public struct OpenFoodFactsLookup: PackagedFoodCandidateLookingUp {
             result[field + "_unit"] = value["unit"]
             result[field + "_modifier"] = value["modifier"]
         }
-        return (result, "nutrition/input_sets/\(panels[0].offset)/nutrients", true, volume, quantity.doubleValue)
+        return (result, "nutrition/input_sets/\(panels[0].offset)/nutrients", true, volume, serving)
+    }
+
+    /// A serving size as a number, or as text holding only a plain decimal ("112", "12.5"), which
+    /// Open Food Facts often stores; a boolean, a signed or exponent form, or anything else is nil.
+    static func servingQuantity(_ raw: Any?) -> Double? {
+        if let number = raw as? NSNumber { return CFGetTypeID(number) == CFBooleanGetTypeID() ? nil : number.doubleValue }
+        guard let text = raw as? String, text.range(of: #"^[0-9]{1,6}(\.[0-9]{1,3})?$"#, options: .regularExpression) != nil else { return nil }
+        return Double(text)
     }
 
 }
