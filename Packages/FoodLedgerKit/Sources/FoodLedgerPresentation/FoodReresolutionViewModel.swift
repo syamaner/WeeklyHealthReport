@@ -12,11 +12,7 @@ public final class FoodReresolutionViewModel: ObservableObject {
     @Published public var reason = ""
     @Published public var confirmsIdentityGaps = false
     @Published public private(set) var message: String?
-    @Published public private(set) var pending: PreparedFoodReresolution? {
-        // A background load that finished while a save was pending was discarded; read again once
-        // the save settles, so the list never stays on loading.
-        didSet { if pending == nil, oldValue != nil, historyState == .loading { load() } }
-    }
+    @Published public private(set) var pending: PreparedFoodReresolution?
     @Published public private(set) var audit: FoodReresolutionAudit?
     /// What the history list may claim: it is empty only once a read has succeeded.
     public enum HistoryState: Equatable, Sendable { case loading, loaded, failed }
@@ -44,6 +40,8 @@ public final class FoodReresolutionViewModel: ObservableObject {
         loadSerial += 1
         let serial = loadSerial
         historyState = .loading
+        // Rows are hidden while reading, so no proposal from the older read stays acceptable.
+        clearReview()
         let service = service
         let result = await Task.detached { Result { (try service.history(), try service.targets()) } }.value
         guard pending == nil, serial == loadSerial else { return }
@@ -63,6 +61,7 @@ public final class FoodReresolutionViewModel: ObservableObject {
             // A failed read never leaves older rows actionable.
             historyState = .failed
             records = []
+            clearReview()
             message = "History or source versions could not be read. No resolution was changed."
         }
     }
@@ -121,6 +120,14 @@ public final class FoodReresolutionViewModel: ObservableObject {
         }
     }
 
+    /// A background load that finished while this save was pending was discarded. A successful save
+    /// reloads directly (superseding it); the other ways a save clears read once more off the main
+    /// actor, so the list never stays on loading.
+    private func reloadIfDiscarded() {
+        guard historyState == .loading else { return }
+        Task { await loadInBackground() }
+    }
+
     public func retry() {
         guard let pending else { return }
         do {
@@ -133,10 +140,12 @@ public final class FoodReresolutionViewModel: ObservableObject {
             self.pending = nil
             clearReview()
             message = "The log or resolution history changed. This proposal was not saved; reload and compare again."
+            reloadIfDiscarded()
         } catch FoodReresolutionError.unavailableTarget {
             self.pending = nil
             clearReview()
             message = "The selected source version is no longer available. Nothing was changed."
+            reloadIfDiscarded()
         } catch {
             message = "Save failed or its result is uncertain. Retry this same update before making another change."
         }

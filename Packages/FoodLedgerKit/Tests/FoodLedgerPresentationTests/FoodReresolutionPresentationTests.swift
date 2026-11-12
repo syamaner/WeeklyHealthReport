@@ -39,6 +39,20 @@ final class FoodReresolutionPresentationTests: XCTestCase {
         XCTAssertEqual(model.records.map(\.logItemVersion.logItemVersionID), loaded)
     }
 
+    func testReloadClearsProposalsFromTheOlderRead() async throws {
+        let fixture = try Fixture()
+        let model = fixture.model
+        model.load()
+        model.selectedTargetID = fixture.provider.target.identifier
+        model.preview(fixture.record)
+        model.select(0)
+        XCTAssertNotNil(model.selected)
+        await model.loadInBackground()
+        XCTAssertTrue(model.proposals.isEmpty, "no proposal from the older read stays acceptable")
+        XCTAssertNil(model.selected)
+        XCTAssertEqual(model.historyState, .loaded)
+    }
+
     func testLostResponseCannotBeDiscardedOrDuplicated() throws {
         let fixture = try Fixture()
         let model = fixture.model
