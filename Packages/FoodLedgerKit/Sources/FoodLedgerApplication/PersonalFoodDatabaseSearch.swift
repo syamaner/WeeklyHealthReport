@@ -195,9 +195,9 @@ public struct PersonalFoodDatabaseFoodSearch: GenericFoodSearching {
             }
             if let generic {
                 cited.append(generic.release)
-                // Exact when the record's own name, folded, is the query (as the adapters judge it).
-                let exact = Set(GenericFoodRankingPolicy.terms(generic.candidate.name.value))
-                    == Set(GenericFoodRankingPolicy.terms(request.retrievalText))
+                // Exact when the record's own name, folded and in order, is the query, as the adapters
+                // judge it: "Beans, baked" is not an exact name for "baked beans".
+                let exact = Self.isExactName(generic.candidate.name.value, query: request.retrievalText)
                 rows.append(GenericFoodMatch(candidate: generic.candidate, isExactName: exact,
                     personalDatabase: PersonalFoodDatabaseMatchContext(step: hit.step, isGenericReference: true)))
             }
@@ -211,6 +211,11 @@ public struct PersonalFoodDatabaseFoodSearch: GenericFoodSearching {
             evidence: evidence, sourceReleases: releases, candidates: matches.map(\.candidate),
             expectedIdentity: first.candidate.candidate.identity,
             expectedEdibleQuantity: first.candidate.candidate.edibleQuantity), matches: matches))
+    }
+
+    static func isExactName(_ name: String, query: String) -> Bool {
+        let terms = GenericFoodRankingPolicy.terms(name)
+        return !terms.isEmpty && terms == GenericFoodRankingPolicy.terms(query)
     }
 
     /// Presentation only; never compared with another source's score.

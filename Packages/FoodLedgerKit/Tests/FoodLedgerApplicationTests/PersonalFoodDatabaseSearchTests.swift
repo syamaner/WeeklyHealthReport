@@ -465,4 +465,11 @@ final class PersonalFoodDatabaseSearchTests: XCTestCase {
         XCTAssertTrue(kept[0].isExactName)
         XCTAssertEqual(kept[0].personalDatabase?.isGenericReference, true)
     }
+
+    /// Qodo (PR #478): a reordered name is not exact, as the CoFID and USDA routes judge it.
+    func testReorderedGenericNameIsNotExact() {
+        XCTAssertFalse(PersonalFoodDatabaseFoodSearch.isExactName("Beans, baked", query: "baked beans"))
+        XCTAssertTrue(PersonalFoodDatabaseFoodSearch.isExactName("Baked beans", query: "baked beans"))
+        XCTAssertFalse(PersonalFoodDatabaseFoodSearch.isExactName("", query: ""))
+    }
 }
