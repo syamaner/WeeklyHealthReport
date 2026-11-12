@@ -1,0 +1,178 @@
+import FoodLedgerApplication
+import FoodLedgerDomain
+import FoodLedgerTestSupport
+import Foundation
+import XCTest
+
+/// The importer's contract (phase 1 plan sections 3 and 3.1): synthetic fixtures only.
+final class PersonalFoodDatabaseImporterTests: XCTestCase {
+    static let fixtures = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        .deletingLastPathComponent().deletingLastPathComponent()
+        .appendingPathComponent("docs/fixtures/personal-food-database-v1")
+
+    static func fixture(_ name: String) throws -> Data { try Data(contentsOf: fixtures.appendingPathComponent(name)) }
+
+    /// The golden file with one Open Food Facts attribution changed: still valid, so its release ID
+    /// is the golden file's with different fields.
+    static func conflictingGolden() throws -> Data {
+        let golden = try String(decoding: fixture("golden.json"), as: UTF8.self)
+        return Data(golden.replacingOccurrences(of: "product/00000017", with: "product/00000018").utf8)
+    }
+
+    struct FixedClock: LedgerClock {
+        let date: Date
+        func now() -> Date { date }
+    }
+
+    final class Releases: FoodConfirmationReading, @unchecked Sendable {
+        var stored: [SourceRelease] = []
+        var fails = false
+        func sourceRelease(id: ExternalIdentifier) throws -> SourceRelease? {
+            if fails { throw FoodLedgerValidationError.invalidDigest }
+            return stored.first { $0.sourceReleaseID == id }
+        }
+        func foodConfirmation(logItemID: LogItemID) throws -> StoredFoodConfirmation? { nil }
+        func foodConfirmation(logItemVersionID: LogItemVersionID) throws -> StoredFoodConfirmation? { nil }
+        func evidence(id: EvidenceID) throws -> CaptureEvidence? { nil }
+    }
+
+    let now = Date(timeIntervalSince1970: 1_794_000_000.75)
+    var store: InMemoryPersonalFoodDatabaseStore!
+    var releases: Releases!
+    var importer: PersonalFoodDatabaseImporter!
+
+    override func setUp() {
+        store = InMemoryPersonalFoodDatabaseStore()
+        releases = Releases()
+        importer = PersonalFoodDatabaseImporter(store: store, digester: SHA256Digester(), clock: FixedClock(date: now), releases: releases)
+    }
+
+    func summary(_ outcome: PersonalFoodDatabaseImportOutcome) -> PersonalFoodDatabaseSummary? {
+        if case let .installed(summary) = outcome { return summary }
+        return nil
+    }
+
+    func testGoldenInstallsWithItsReleaseIdentity() async throws {
+        let bytes = try Self.fixture("golden.json")
+        let digest = try SHA256Digester().sha256(bytes)
+        let file = try PersonalFoodDatabaseCodec.decode(bytes).get()
+        let i1 = await importer.importFile(bytes)
+        let installed = try XCTUnwrap(summary(i1))
+        XCTAssertEqual(installed.releaseID, "pfc:sha256:\(digest.value)")
+        XCTAssertEqual(installed.entryCount, file.entries.count)
+        XCTAssertEqual(installed.generated, file.generated)
+        XCTAssertEqual(installed.importedAt, Date(timeIntervalSince1970: 1_794_000_000), "whole seconds")
+        XCTAssertEqual(try store.activeRelease()?.bytes, bytes)
+        let status = await importer.status()
+        XCTAssertEqual(status, .installed(installed))
+    }
+
+    func testRejectedFileInstallsNothingAndKeepsTheActiveRelease() async throws {
+        let golden = try Self.fixture("golden.json")
+        _ = await importer.importFile(golden)
+        let outcome = await importer.importFile(try Self.fixture("reject-unknown-schema.json"))
+        guard case let .rejected(codes) = outcome else { return XCTFail("\(outcome)") }
+        XCTAssertTrue(codes.contains(.schema))
+        XCTAssertEqual(try store.activeRelease()?.bytes, golden)
+    }
+
+    func testSameBytesTwiceIsUnchanged() async throws {
+        let bytes = try Self.fixture("golden.json")
+        let i2 = await importer.importFile(bytes)
+        let first = try XCTUnwrap(summary(i2))
+        let again = await importer.importFile(bytes)
+        XCTAssertEqual(again, .unchanged(first))
+    }
+
+    func testSameBytesOverADamagedReleaseReinstall() async throws {
+        let bytes = try Self.fixture("golden.json")
+        _ = await importer.importFile(bytes)
+        store.damaged = true
+        let damaged = await importer.status()
+        XCTAssertEqual(damaged, .damaged)
+        let i3 = await importer.importFile(bytes)
+        XCTAssertNotNil(summary(i3))
+        XCTAssertEqual(try store.activeRelease()?.bytes, bytes)
+    }
+
+    func testLedgerReleaseWithDifferentFieldsIsAConflict() async throws {
+        let golden = try Self.fixture("golden.json")
+        _ = await importer.importFile(try Self.fixture("accept-empty-brand.json"))
+        let before = try store.activeRelease()
+        let variant = try PersonalFoodDatabaseCodec.decode(try Self.conflictingGolden()).get()
+        releases.stored = try variant.sources.map { try $0.sourceRelease() }
+        let outcome = await importer.importFile(golden)
+        XCTAssertEqual(outcome, .releaseConflict)
+        XCTAssertEqual(try store.activeRelease(), before)
+    }
+
+    func testActiveFileReleaseWithDifferentFieldsIsAConflict() async throws {
+        let variant = try Self.conflictingGolden()
+        let i4 = await importer.importFile(variant)
+        XCTAssertNotNil(summary(i4))
+        let outcome = await importer.importFile(try Self.fixture("golden.json"))
+        XCTAssertEqual(outcome, .releaseConflict)
+        XCTAssertEqual(try store.activeRelease()?.bytes, variant)
+    }
+
+    func testDamagedActiveFileSkipsOnlyTheActiveComparison() async throws {
+        _ = await importer.importFile(try Self.conflictingGolden())
+        store.damaged = true
+        let i5 = await importer.importFile(try Self.fixture("golden.json"))
+        XCTAssertNotNil(summary(i5))
+        // The ledger comparison still applies over a damaged release.
+        store.damaged = true
+        let variant = try PersonalFoodDatabaseCodec.decode(try Self.fixture("golden.json")).get()
+        releases.stored = try variant.sources.map { try $0.sourceRelease() }
+        let outcome = await importer.importFile(try Self.conflictingGolden())
+        XCTAssertEqual(outcome, .releaseConflict)
+    }
+
+    func testEqualStoredReleasesPass() async throws {
+        let bytes = try Self.fixture("golden.json")
+        let file = try PersonalFoodDatabaseCodec.decode(bytes).get()
+        releases.stored = try file.sources.map { try $0.sourceRelease() }
+            + [PersonalFoodDatabaseRelease.sourceRelease(fileSHA256: SHA256Digester().sha256(bytes), generated: file.generated)]
+        let i6 = await importer.importFile(bytes)
+        XCTAssertNotNil(summary(i6))
+    }
+
+    func testFailureOutcomes() async throws {
+        let bytes = try Self.fixture("golden.json")
+        let tooLarge = await importer.importFile(Data(count: PersonalFoodDatabaseCodec.limitBytes + 1))
+        XCTAssertEqual(tooLarge, .tooLarge)
+        releases.fails = true
+        let ledger = await importer.importFile(bytes)
+        XCTAssertEqual(ledger, .ledgerUnavailable)
+        releases.fails = false
+        store.failWrites = true
+        let write = await importer.importFile(bytes)
+        XCTAssertEqual(write, .writeFailed)
+        store.failWrites = false
+        store.locked = true
+        let locked = await importer.importFile(bytes)
+        XCTAssertEqual(locked, .locked)
+        let lockedStatus = await importer.status()
+        XCTAssertEqual(lockedStatus, .locked)
+        let lockedRemove = await importer.remove()
+        XCTAssertEqual(lockedRemove, .locked)
+        store.locked = false
+        let none = await importer.status()
+        XCTAssertEqual(none, .none)
+    }
+
+    func testRemove() async throws {
+        let bytes = try Self.fixture("golden.json")
+        let file = try PersonalFoodDatabaseCodec.decode(bytes).get()
+        releases.stored = try file.sources.map { try $0.sourceRelease() }
+        _ = await importer.importFile(bytes)
+        let removed = await importer.remove()
+        XCTAssertEqual(removed, .removed)
+        let again = await importer.remove()
+        XCTAssertEqual(again, .nothingToRemove)
+        let status = await importer.status()
+        XCTAssertEqual(status, .none)
+        XCTAssertEqual(releases.stored.count, file.sources.count, "remove never touches release records")
+    }
+}

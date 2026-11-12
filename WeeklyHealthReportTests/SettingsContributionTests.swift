@@ -1,3 +1,4 @@
+import Combine
 import XCTest
 import FoodLedgerApplication
 import FoodLedgerPresentation
@@ -11,7 +12,7 @@ final class SettingsContributionTests: XCTestCase {
 
         XCTAssertEqual(settings.sections.map(\.id), [.foodSearch, .export, .data, .appleHealth, .about])
         XCTAssertEqual(settings.linkedRoutes, [
-            .webLookupKey, .foodMarket, .exportDestination, .dataBackup, .inventoryReview,
+            .webLookupKey, .foodMarket, .exportDestination, .dataBackup, .personalFoodDatabase, .inventoryReview,
             .commonFoods, .foodReresolution, .medicationAccess, .privacy, .developerTools
         ])
         XCTAssertEqual(Set(settings.linkedRoutes).count, settings.linkedRoutes.count)
@@ -159,6 +160,58 @@ final class SettingsContributionTests: XCTestCase {
         let defaults = UserDefaults(suiteName: name)!
         addTeardownBlock { defaults.removePersistentDomain(forName: name) }
         return defaults
+    }
+
+    /// #424 P1b: the Settings row and screen model import, replace and remove a synthetic file in
+    /// the simulator; the folder sits under the backup-excluded root and its files are protected.
+    func testYourFoodDatabaseImportAndRemoveThroughTheRoot() async throws {
+        let (root, _) = try makeFoodLedger()
+        let model = root.personalFoodDatabase
+        let row = try XCTUnwrap(WeeklyHealthReportApp.makeSettings(foodLedger: root, defaults: isolatedDefaults(), medicationAccessAvailable: true)
+            .sections.flatMap(\.rows).first { $0.route == .personalFoodDatabase })
+        XCTAssertEqual(row.title, "Your food database")
+        await model.load()
+        XCTAssertEqual(model.rowDetail, "Not added")
+
+        let fixtures = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("docs/fixtures/personal-food-database-v1")
+        await model.importFile(try Data(contentsOf: fixtures.appendingPathComponent("golden.json")))
+        XCTAssertEqual(model.message, "Your food database was updated.")
+        XCTAssertEqual(model.rowDetail, "3 foods")
+        if case let .link(detail, _) = row.kind { XCTAssertEqual(detail(), "3 foods") } else { XCTFail("link row") }
+
+        let folder = root.healthDirectory.appendingPathComponent("FoodLedger/v1/Datasets/personal-food-database", isDirectory: true)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: folder.appendingPathComponent("active.json").path))
+        XCTAssertEqual(try root.healthDirectory.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup, true)
+        XCTAssertNotNil(try FileManager.default.contentsOfDirectory(atPath: folder.path).first { $0.hasPrefix("pfc-sha256-") })
+        // The simulator has no data protection (it reports no protection attribute), so complete
+        // protection is checked by the package's applier test and on the device, not here.
+
+        await model.importFile(try Data(contentsOf: fixtures.appendingPathComponent("reject-unknown-schema.json")))
+        XCTAssertEqual(model.message, "This file is not a food database file from your Mac. Your food database was not changed.")
+        XCTAssertEqual(model.rowDetail, "3 foods")
+
+        await model.remove()
+        XCTAssertEqual(model.rowDetail, "Not added")
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: folder.path), [])
+    }
+
+    /// The Settings detail publisher is built once and emits nothing on subscription, so the view's
+    /// `onReceive` cannot re-render itself in a loop; a real state change emits once.
+    func testSettingsDetailChangesAreQuietUntilAStateChange() async throws {
+        let (root, defaults) = try makeFoodLedger()
+        let settings = WeeklyHealthReportApp.makeSettings(foodLedger: root, defaults: defaults, medicationAccessAvailable: true)
+        await root.personalFoodDatabase.load()
+        var count = 0
+        let subscription = settings.detailChanges.sink { count += 1 }
+        defer { subscription.cancel() }
+        try await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(count, 0, "no emission on subscription")
+        let fixtures = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("docs/fixtures/personal-food-database-v1")
+        await root.personalFoodDatabase.importFile(try Data(contentsOf: fixtures.appendingPathComponent("golden.json")))
+        try await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(count, 1)
     }
 
     private func makeFoodLedger() throws -> (FoodLedgerCompositionRoot, UserDefaults) {

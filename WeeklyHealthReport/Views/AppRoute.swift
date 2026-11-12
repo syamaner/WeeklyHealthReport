@@ -28,10 +28,12 @@ enum AppRoute: String, Codable, Hashable, CaseIterable {
     /// Home's notes row (#199, D11): today's notes, pinned to today.
     case todayNotes
     case todayNoteEditor
+    /// Settings, Data: Your food database (#424 P1b).
+    case personalFoodDatabase
 
     /// Settings children that exist only when their feature is composed.
     static let composedSettingsRoutes: Set<AppRoute> = [
-        .webLookupKey, .foodMarket, .dataBackup, .medicationAccess, .developerTools
+        .webLookupKey, .foodMarket, .dataBackup, .medicationAccess, .developerTools, .personalFoodDatabase
     ]
 
     /// Google Drive export screens. They always have a destination, but a build
@@ -87,7 +89,7 @@ enum AppRoute: String, Codable, Hashable, CaseIterable {
         case .exportDestination:
             return availableRoutes.contains(.exportDestination) ? [.settings, .exportDestination] : [.settings]
         case .privacy, .inventoryReview, .foodReresolution, .webLookupKey,
-             .foodMarket, .dataBackup, .medicationAccess, .developerTools:
+             .foodMarket, .dataBackup, .medicationAccess, .developerTools, .personalFoodDatabase:
             return availableRoutes.contains(destination) ? [.settings, destination] : [.settings]
         }
     }

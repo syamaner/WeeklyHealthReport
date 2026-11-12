@@ -4456,6 +4456,28 @@ Excluded:
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
 
+## WHR-424-IMPORT-P1B-2026-11-11: Claude Code import v1 P1b store, importer and Settings row (#424)
+
+The implementation session (`claude-opus-5-5`, session `9a30287d-2461-44e3-836e-4b9789374ac5`) did the following in this window:
+- wrote the P1b architecture gate in `docs/personal-food-database-import-v1-phase-1.md` section 3, ran an architecture gate (PASS WITH CHANGES) and bound its eleven changes in section 3.1, with a dated layout clarification in import v1 section 3 that the owner approved the same day;
+- wrote `PersonalFoodDatabaseImporting` and the `PersonalFoodDatabaseImporter` actor in `FoodLedgerApplication`, the new `FoodLedgerPersonalDatabase` target (`FilePersonalFoodDatabaseStore`), the in-memory test store, the Settings view model and copy, the "Your food database" Settings row and screen, and the boundary rules with eight failing self-test fixtures;
+- ran an invariant review (PASS, six Low items fixed) and a local Qodo review (six findings fixed), and the full gates.
+
+The subagents are included: the architecture gate and the invariant reviewer. The window runs from `2026-11-11T18:25:37Z`, the owner's "Yes, start P1b", to `2026-11-11T19:36:46Z`.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Import v1 P1b gate, store, importer, Settings row, tests and reviews, implementation session and subagents | 26,666,262 (26,372,441) | 293,557 | 129,513 | 26,795,775 | $9.93 |
+
+Method: `phase_usage.py --format claude --since 2026-11-11T18:25:37Z --until 2026-11-11T19:36:46Z --include-subagents` on the session transcript. Exact USD 9.9259152. The cache-write tokens are part of the input figure, and 96,115 of them are 5-minute writes. The total is input plus output.
+
+Excluded:
+- the Qodo review run;
+- local test and gate runs, which use no API tokens;
+- this ledger edit, the commit, the push and the PR after the window.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison, not billing, and token totals do not measure quality or productivity.
+
 ## WHR-469-2026-11-11: Claude Code glucose readings in the Daily JSON export, contract to reviewed code (#469)
 
 The coordinator session (`claude-fable-5-2`, session `13ce3330-ab42-40c1-a9cb-7531ea566380`) drafted `glucose-readings-export-contract-v1.md`, ran the architecture gate and folded in its eight changes, took the owner's decisions D1 to D8 and egress terms E1 to E4 (E3 amended the same day), built the schema 9 readings block with its HealthKit read, Drive admission, Export screen toggle and Developer tools rows, wrote the tests, amended the privacy and export documents, ran the invariant review and applied its findings, and ran the validation gates. Subagents are included: one architecture gate and one invariant review. The window runs from the start of the contract proposal (`2026-11-11T21:45:11Z`) to `2026-11-11T22:28:43Z`.
