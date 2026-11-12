@@ -14,6 +14,9 @@ public final class FoodReresolutionViewModel: ObservableObject {
     @Published public private(set) var message: String?
     @Published public private(set) var pending: PreparedFoodReresolution?
     @Published public private(set) var audit: FoodReresolutionAudit?
+    /// What the history list may claim: it is empty only once a read has succeeded.
+    public enum HistoryState: Equatable, Sendable { case loading, loaded, failed }
+    @Published public private(set) var historyState: HistoryState = .loading
     private let service: FoodReresolutionService
 
     public init(service: FoodReresolutionService) { self.service = service }
@@ -24,11 +27,43 @@ public final class FoodReresolutionViewModel: ObservableObject {
 
     public func load() {
         guard pending == nil else { return }
-        do {
-            records = try service.history()
-            targets = try service.targets()
+        loadSerial += 1
+        apply(Result { (try service.history(), try service.targets()) })
+    }
+
+    /// The screen's own load: the whole history is read off the main actor, so a long ledger cannot
+    /// block the interface (or trip the launch watchdog when the screen is restored at launch).
+    /// While it runs the list shows loading, so rows from an older read cannot be acted on, and
+    /// only the most recent load (this or a later direct one) may change what is shown.
+    public func loadInBackground() async {
+        guard pending == nil else { return }
+        loadSerial += 1
+        let serial = loadSerial
+        historyState = .loading
+        // Rows are hidden while reading, so no proposal from the older read stays acceptable.
+        clearReview()
+        let service = service
+        let result = await Task.detached { Result { (try service.history(), try service.targets()) } }.value
+        guard pending == nil, serial == loadSerial else { return }
+        apply(result)
+    }
+
+    private var loadSerial = 0
+
+    private func apply(_ result: Result<([StoredFoodConfirmation], [FoodReresolutionTarget]), any Error>) {
+        switch result {
+        case let .success((history, installed)):
+            historyState = .loaded
+            records = history
+            targets = installed
             if !targets.contains(where: { $0.identifier == selectedTargetID }) { selectedTargetID = nil }
-        } catch { message = "History or source versions could not be read. No resolution was changed." }
+        case .failure:
+            // A failed read never leaves older rows actionable.
+            historyState = .failed
+            records = []
+            clearReview()
+            message = "History or source versions could not be read. No resolution was changed."
+        }
     }
 
     public func clearReview() {
@@ -85,6 +120,14 @@ public final class FoodReresolutionViewModel: ObservableObject {
         }
     }
 
+    /// A background load that finished while this save was pending was discarded. A successful save
+    /// reloads directly (superseding it); the other ways a save clears read once more off the main
+    /// actor, so the list never stays on loading.
+    private func reloadIfDiscarded() {
+        guard historyState == .loading else { return }
+        Task { await loadInBackground() }
+    }
+
     public func retry() {
         guard let pending else { return }
         do {
@@ -97,10 +140,12 @@ public final class FoodReresolutionViewModel: ObservableObject {
             self.pending = nil
             clearReview()
             message = "The log or resolution history changed. This proposal was not saved; reload and compare again."
+            reloadIfDiscarded()
         } catch FoodReresolutionError.unavailableTarget {
             self.pending = nil
             clearReview()
             message = "The selected source version is no longer available. Nothing was changed."
+            reloadIfDiscarded()
         } catch {
             message = "Save failed or its result is uncertain. Retry this same update before making another change."
         }

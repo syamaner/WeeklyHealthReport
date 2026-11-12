@@ -25,13 +25,29 @@ public struct FoodReresolutionHistory: FoodReresolutionReading {
         self.confirmations = confirmations
     }
 
+    /// Reads the archive once for the whole list. Reading it again per record made opening the
+    /// screen grow with the square of the history, enough to trip the launch watchdog on a phone.
+    /// A save that lands between the snapshot and a record's lookup makes that record look stale;
+    /// the list is then read once more from a fresh snapshot rather than failing outright.
     public func currentRecords() throws -> [StoredFoodConfirmation] {
-        try archive.archiveState().records.logItems.sorted { $0.logItemID.rawValue < $1.logItemID.rawValue }
-            .compactMap { try foodConfirmation(logItemID: $0.logItemID) }
+        do { return try currentRecordsFromOneSnapshot() } catch FoodReresolutionError.staleProposal {
+            return try currentRecordsFromOneSnapshot()
+        }
+    }
+
+    private func currentRecordsFromOneSnapshot() throws -> [StoredFoodConfirmation] {
+        let records = try archive.archiveState().records
+        let versionsByItem = Dictionary(grouping: records.logItemVersions, by: \.logItemID)
+        return try records.logItems.sorted { $0.logItemID.rawValue < $1.logItemID.rawValue }
+            .compactMap { try foodConfirmation(logItemID: $0.logItemID, versions: versionsByItem[$0.logItemID] ?? []) }
     }
 
     public func foodConfirmation(logItemID: LogItemID) throws -> StoredFoodConfirmation? {
         let versions = try archive.archiveState().records.logItemVersions.filter { $0.logItemID == logItemID }
+        return try foodConfirmation(logItemID: logItemID, versions: versions)
+    }
+
+    private func foodConfirmation(logItemID: LogItemID, versions: [LogItemVersion]) throws -> StoredFoodConfirmation? {
         let superseded = Set(versions.compactMap(\.supersedesLogItemVersionID))
         let heads = versions.filter { !superseded.contains($0.logItemVersionID) }
         guard heads.count <= 1 else { throw FoodReresolutionError.staleProposal }
