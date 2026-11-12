@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 
 /// A deliberately closed ordering. Adding a section is a reviewed change to
@@ -61,13 +62,16 @@ struct SettingsRow: Identifiable {
     let id: String
     let title: String
     let kind: Kind
+    /// Emits when the row's detail may have changed while Settings is open.
+    var changes: AnyPublisher<Void, Never>? = nil
 
     static func link(
         _ title: String,
         route: AppRoute,
-        detail: @escaping @MainActor () -> String? = { nil }
+        detail: @escaping @MainActor () -> String? = { nil },
+        changes: AnyPublisher<Void, Never>? = nil
     ) -> SettingsRow {
-        SettingsRow(id: "route." + route.rawValue, title: title, kind: .link(detail: detail, route: route))
+        SettingsRow(id: "route." + route.rawValue, title: title, kind: .link(detail: detail, route: route), changes: changes)
     }
 
     static func text(_ id: String, _ title: String, detail: String?) -> SettingsRow {
@@ -105,10 +109,16 @@ struct AppSettings {
     /// False in a build without Google Drive configuration (#305).
     let driveExportAvailable: Bool
 
+    /// Every row's detail changes, merged once here so the view subscribes to one stable publisher
+    /// (a publisher built in `body` would be re-subscribed on every render).
+    let detailChanges: AnyPublisher<Void, Never>
+
     init(sections: [SettingsSection], developerTools: SettingsToggle, driveExportAvailable: Bool = true) {
         self.sections = sections.sorted { $0.id < $1.id }
         self.developerTools = developerTools
         self.driveExportAvailable = driveExportAvailable
+        detailChanges = Publishers.MergeMany(sections.flatMap(\.rows).compactMap(\.changes))
+            .receive(on: RunLoop.main).eraseToAnyPublisher()
     }
 
     var linkedRoutes: [AppRoute] {
@@ -158,6 +168,9 @@ struct SettingsView: View {
         .navigationTitle("Settings")
         .onAppear {
             settings.toggles.forEach { $0.reload() }
+            refresh += 1
+        }
+        .onReceive(settings.detailChanges) {
             refresh += 1
         }
     }

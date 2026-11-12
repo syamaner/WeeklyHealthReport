@@ -34,7 +34,8 @@ final class AppNavigationTests: XCTestCase {
             .exportDestination: ([.settings, .exportDestination], [.settings, .exportDestination]),
             .favourites: ([.favourites], [.favourites]),
             .todayNotes: ([.todayNotes], [.todayNotes]),
-            .todayNoteEditor: ([.todayNotes, .todayNoteEditor], [.todayNotes])
+            .todayNoteEditor: ([.todayNotes, .todayNoteEditor], [.todayNotes]),
+            .personalFoodDatabase: ([.settings, .personalFoodDatabase], [.settings, .personalFoodDatabase])
         ]
         XCTAssertEqual(Set(expected.keys), Set(AppRoute.allCases))
         for (route, paths) in expected {
@@ -56,8 +57,8 @@ final class AppNavigationTests: XCTestCase {
     /// still restores to Export alone, and opening it is the only preparation.
     func testExportDestinationRestoresInsideSettingsAndDailyExportIsUnchanged() {
         // Phase 7 appended exportDestination after addFood; phase 5 (#198) appends favourites after it;
-        // phase 6 (#199) appends Home's today notes routes.
-        XCTAssertEqual(Array(AppRoute.allCases.suffix(5)), [.addFood, .exportDestination, .favourites, .todayNotes, .todayNoteEditor])
+        // phase 6 (#199) appends Home's today notes routes; #424 P1b appends Your food database.
+        XCTAssertEqual(Array(AppRoute.allCases.suffix(6)), [.addFood, .exportDestination, .favourites, .todayNotes, .todayNoteEditor, .personalFoodDatabase])
         XCTAssertEqual(AppRoute.exportDestination.rawValue, "exportDestination")
         XCTAssertTrue(AppRoute.fixedRoutes.contains(.exportDestination))
         for available in [allAvailable, withoutComposedSettings] {

@@ -9,6 +9,8 @@ import Foundation
 /// (`PersonalFoodDatabaseRules`), so the two schemas cannot drift.
 public enum PersonalFoodDatabaseCodec {
     public static let limitItems = 20_000
+    /// The file size limit of import v1 section 4, for a caller's check before reading a picked file.
+    public static let limitBytes = PersonalFoodDatabaseJSON.limitBytes
 
     public static func decode(_ data: Data) -> Result<PersonalFoodDatabaseFile, PersonalFoodDatabaseRejection> {
         let root: PersonalFoodDatabaseJSONValue

@@ -1,0 +1,257 @@
+import FoodLedgerDomain
+import Foundation
+
+// Your food database: install, replace and remove (import v1 sections 3, 4 and 7; phase 1 plan
+// section 3). Nothing here searches the file or writes the ledger.
+
+/// What the store keeps beside the file. The import time lives only here (import v1 section 4),
+/// never in a `SourceRelease`. A plain value: the file store owns its on-disk JSON shape.
+public struct PersonalFoodDatabaseManifest: Equatable, Sendable {
+    public static let version = 1
+    public let schema: String
+    public let releaseID: String
+    public let fileSHA256: SHA256Digest
+    public let generated: PersonalFoodDatabaseDate
+    /// Whole seconds, so the stored form round-trips exactly.
+    public let importedAt: Date
+    public let entryCount: Int
+
+    public init(schema: String, releaseID: String, fileSHA256: SHA256Digest, generated: PersonalFoodDatabaseDate,
+                importedAt: Date, entryCount: Int) {
+        self.schema = schema
+        self.releaseID = releaseID
+        self.fileSHA256 = fileSHA256
+        self.generated = generated
+        self.importedAt = importedAt
+        self.entryCount = entryCount
+    }
+}
+
+public struct PersonalFoodDatabaseInstalledRelease: Equatable, Sendable {
+    public let bytes: Data
+    public let manifest: PersonalFoodDatabaseManifest
+
+    public init(bytes: Data, manifest: PersonalFoodDatabaseManifest) {
+        self.bytes = bytes
+        self.manifest = manifest
+    }
+}
+
+public enum PersonalFoodDatabaseStoreError: Error, Equatable, Sendable {
+    /// Protected data is unavailable (the iPhone is locked). Never reported as empty.
+    case locked
+    /// The pointer, manifest or file does not verify; the release is disabled until replaced.
+    case damaged
+    case writeFailed
+}
+
+/// The protected store of the one active release. Implementations throw only
+/// `PersonalFoodDatabaseStoreError`; no file-system type crosses this port.
+public protocol PersonalFoodDatabaseStoring: Sendable {
+    /// The verified active release, nil when none is installed.
+    func activeRelease() throws -> PersonalFoodDatabaseInstalledRelease?
+    /// Replaces the active release atomically: on any failure the previous one stays active.
+    func install(bytes: Data, manifest: PersonalFoodDatabaseManifest) throws
+    /// Removes the active release; true when one (possibly damaged) was present.
+    @discardableResult func remove() throws -> Bool
+}
+
+/// What Settings shows. It never carries entry content.
+public struct PersonalFoodDatabaseSummary: Equatable, Sendable {
+    public let releaseID: String
+    public let generated: PersonalFoodDatabaseDate
+    public let importedAt: Date
+    public let entryCount: Int
+
+    public init(_ manifest: PersonalFoodDatabaseManifest) {
+        releaseID = manifest.releaseID
+        generated = manifest.generated
+        importedAt = manifest.importedAt
+        entryCount = manifest.entryCount
+    }
+}
+
+public enum PersonalFoodDatabaseStatus: Equatable, Sendable {
+    case none
+    case installed(PersonalFoodDatabaseSummary)
+    case locked
+    case damaged
+}
+
+/// The closed set of import outcomes (phase 1 plan section 3.1, change 8). None carries an entry
+/// ID, title, value or source field.
+public enum PersonalFoodDatabaseImportOutcome: Equatable, Sendable {
+    case installed(PersonalFoodDatabaseSummary)
+    /// The same bytes are already the verified active release.
+    case unchanged(PersonalFoodDatabaseSummary)
+    case rejected([PersonalFoodDatabaseRuleCode])
+    /// A declared or database release ID is already known with different fields.
+    case releaseConflict
+    case locked
+    case writeFailed
+    case tooLarge
+    /// The saved release records could not be read, so immutability could not be checked.
+    case ledgerUnavailable
+}
+
+public enum PersonalFoodDatabaseRemoveOutcome: Equatable, Sendable {
+    case removed
+    case nothingToRemove
+    case locked
+    case writeFailed
+}
+
+/// The Settings view model's seam.
+public protocol PersonalFoodDatabaseImporting: Sendable {
+    func status() async -> PersonalFoodDatabaseStatus
+    func importFile(_ bytes: Data) async -> PersonalFoodDatabaseImportOutcome
+    func remove() async -> PersonalFoodDatabaseRemoveOutcome
+}
+
+/// Validates, derives the release from the bytes, checks release immutability against the ledger
+/// and the active file, then installs. An actor, so install and remove run one at a time.
+public actor PersonalFoodDatabaseImporter: PersonalFoodDatabaseImporting {
+    private let store: any PersonalFoodDatabaseStoring
+    private let digester: any Digesting
+    private let clock: any LedgerClock
+    private let releases: any FoodConfirmationReading
+
+    public init(store: any PersonalFoodDatabaseStoring, digester: any Digesting, clock: any LedgerClock,
+                releases: any FoodConfirmationReading) {
+        self.store = store
+        self.digester = digester
+        self.clock = clock
+        self.releases = releases
+    }
+
+    /// Verifies the active file's hash on every read, deliberately: a release that fails its hash is
+    /// disabled (storage decision section 3), so Settings never shows a damaged file as installed.
+    public func status() async -> PersonalFoodDatabaseStatus {
+        switch Self.loadActive(store) {
+        case let .present(active): .installed(PersonalFoodDatabaseSummary(active.manifest))
+        case .absent: .none
+        case .locked: .locked
+        case .damaged, .unreadable: .damaged
+        }
+    }
+
+    public func importFile(_ bytes: Data) async -> PersonalFoodDatabaseImportOutcome {
+        guard bytes.count <= PersonalFoodDatabaseCodec.limitBytes else { return .tooLarge }
+        // Only what the import needs is kept from each decoded file, so at most one typed file is
+        // in memory at a time and the active file's bytes are released before the comparison.
+        let prepared: Prepared
+        switch prepare(bytes) {
+        case let .success(value): prepared = value
+        case let .failure(outcome): return outcome.value
+        }
+        let digest = prepared.digest, candidates = prepared.candidates
+
+        let activeSources: [SourceRelease]
+        switch Self.activeComparison(store, digest: digest) {
+        case .locked: return .locked
+        case .unreadable: return .writeFailed
+        case let .same(summary): return .unchanged(summary)
+        case let .other(sources): activeSources = sources
+        case .none: activeSources = [] // absent, or damaged: the active comparison is skipped (3.1, change 3)
+        }
+
+        for release in candidates {
+            if let other = activeSources.first(where: { $0.sourceReleaseID == release.sourceReleaseID }), other != release {
+                return .releaseConflict
+            }
+            let stored: SourceRelease?
+            do { stored = try releases.sourceRelease(id: release.sourceReleaseID) } catch { return .ledgerUnavailable }
+            if let stored, stored != release { return .releaseConflict }
+        }
+
+        let manifest = PersonalFoodDatabaseManifest(
+            schema: PersonalFoodDatabaseFile.schema,
+            releaseID: PersonalFoodDatabaseRelease.releaseID(fileSHA256: digest),
+            fileSHA256: digest,
+            generated: prepared.generated,
+            importedAt: Date(timeIntervalSince1970: clock.now().timeIntervalSince1970.rounded(.down)),
+            entryCount: prepared.entryCount
+        )
+        do {
+            try store.install(bytes: bytes, manifest: manifest)
+        } catch PersonalFoodDatabaseStoreError.locked {
+            return .locked
+        } catch {
+            return .writeFailed
+        }
+        return .installed(PersonalFoodDatabaseSummary(manifest))
+    }
+
+    public func remove() async -> PersonalFoodDatabaseRemoveOutcome {
+        do {
+            return try store.remove() ? .removed : .nothingToRemove
+        } catch PersonalFoodDatabaseStoreError.locked {
+            return .locked
+        } catch {
+            return .writeFailed
+        }
+    }
+
+    private struct Prepared {
+        let digest: SHA256Digest
+        let generated: PersonalFoodDatabaseDate
+        let entryCount: Int
+        let candidates: [SourceRelease]
+    }
+
+    private struct OutcomeBox: Error { let value: PersonalFoodDatabaseImportOutcome }
+
+    /// Decodes the new file and keeps only the digest, date, count and releases.
+    private func prepare(_ bytes: Data) -> Result<Prepared, OutcomeBox> {
+        let file: PersonalFoodDatabaseFile
+        switch PersonalFoodDatabaseCodec.decode(bytes) {
+        case let .success(decoded): file = decoded
+        case let .failure(rejection): return .failure(OutcomeBox(value: .rejected(rejection.codes)))
+        }
+        guard let digest = try? digester.sha256(bytes) else { return .failure(OutcomeBox(value: .writeFailed)) }
+        do {
+            let candidates = try [PersonalFoodDatabaseRelease.sourceRelease(fileSHA256: digest, generated: file.generated)]
+                + file.sources.map { try $0.sourceRelease() }
+            return .success(Prepared(digest: digest, generated: file.generated, entryCount: file.entries.count, candidates: candidates))
+        } catch {
+            return .failure(OutcomeBox(value: .rejected([.malformed])))
+        }
+    }
+
+    private enum ActiveComparison {
+        case locked, unreadable, none
+        case same(PersonalFoodDatabaseSummary)
+        case other([SourceRelease])
+    }
+
+    /// The active release reduced to what the comparison needs; its bytes and decoded file are
+    /// released when this returns.
+    private static func activeComparison(_ store: any PersonalFoodDatabaseStoring, digest: SHA256Digest) -> ActiveComparison {
+        switch loadActive(store) {
+        case .locked: return .locked
+        case .unreadable: return .unreadable
+        case .absent, .damaged: return .none
+        case let .present(active):
+            if active.manifest.fileSHA256 == digest { return .same(PersonalFoodDatabaseSummary(active.manifest)) }
+            guard case let .success(file) = PersonalFoodDatabaseCodec.decode(active.bytes) else { return .none }
+            return .other((try? file.sources.map { try $0.sourceRelease() }) ?? [])
+        }
+    }
+
+    private enum ActiveLoad {
+        case present(PersonalFoodDatabaseInstalledRelease)
+        case absent, locked, damaged, unreadable
+    }
+
+    private static func loadActive(_ store: any PersonalFoodDatabaseStoring) -> ActiveLoad {
+        do {
+            return try store.activeRelease().map(ActiveLoad.present) ?? .absent
+        } catch PersonalFoodDatabaseStoreError.locked {
+            return .locked
+        } catch PersonalFoodDatabaseStoreError.damaged {
+            return .damaged
+        } catch {
+            return .unreadable
+        }
+    }
+}
