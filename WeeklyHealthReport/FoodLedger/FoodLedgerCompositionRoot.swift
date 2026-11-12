@@ -20,7 +20,13 @@ final class FoodLedgerCompositionRoot {
     private let confirmations: FoodConfirmationService
     private let favourites: FavouritesService
     private let ledger: FoodLedgerService
+    /// The label estimate pool and the food list import search this composite, which never holds
+    /// Your food database rows (import v1 section 12, decision 4).
     private let genericFoodSearch: any GenericFoodSearching
+    /// Add food search: the same sources plus Your food database (phase 1 plan section 5).
+    private let foodSearchWithDatabase: any GenericFoodSearching
+    private let personalFoodDatabaseIndex: PersonalFoodDatabaseIndex
+    private let genericRecordResolvers: GenericRecordResolverSet
     /// Ciqual's French names and source literals, for search Developer tools lines only.
     private let referenceRecordDetails: any GenericSourceRecordDetailing
     private let milkVolumeConversion: CoFIDWholeMilkVolumeConversion
@@ -99,17 +105,8 @@ final class FoodLedgerCompositionRoot {
             attachmentsRoot: root.appendingPathComponent("Attachments", isDirectory: true)
         )
         store = ledgerStore
-        personalFoodDatabase = PersonalFoodDatabaseSettingsViewModel(importer: PersonalFoodDatabaseImporter(
-            store: FilePersonalFoodDatabaseStore(root: root, digester: SHA256Digester(),
-                isProtectedDataAvailable: ProtectedDataAvailability.isAvailable),
-            digester: SHA256Digester(), clock: SystemLedgerClock(), releases: ledgerStore))
-        let databaseModel = personalFoodDatabase
-        Task { await databaseModel.load() }
-        // A launch before first unlock loads `locked`; reload when protected data returns so the
-        // Settings row does not stay "Locked".
-        personalFoodDatabaseObserver = NotificationCenter.default.addObserver(
-            forName: UIApplication.protectedDataDidBecomeAvailableNotification, object: nil, queue: .main
-        ) { [weak databaseModel] _ in Task { @MainActor in await databaseModel?.load() } }
+        let databaseStore = FilePersonalFoodDatabaseStore(root: root, digester: SHA256Digester(),
+            isProtectedDataAvailable: ProtectedDataAvailability.isAvailable)
         ids = RandomLedgerIDGenerator()
         offLookup = OpenFoodFactsLookup(transport: OFFHTTPSProductTransport(userAgent: "WeeklyHealthReport/0.1.1 (proxy@sertan.com)"))
         offSearchTransport = OFFHTTPSearchTransport(userAgent: "WeeklyHealthReport/0.1.1 (proxy@sertan.com)")
@@ -157,12 +154,49 @@ final class FoodLedgerCompositionRoot {
         let market = foodMarket
         let ciqual = try CiqualGenericFoodSearch(ids: ids)
         referenceRecordDetails = ciqual
-        genericFoodSearch = try CompositeGenericFoodSearch(sources: [
-            CoFIDGenericFoodSearch(library: PersonalLibraryGenericFoodSearch(reader: store), ids: ids),
-            USDAGenericFoodSearch(ids: ids)
-        ], regionalSources: [TFDAGenericFoodSearch(ids: ids)], referenceSources: [ciqual], promotesRegional: { request in
+        // One instance of each corpus serves both composites and the reference resolvers.
+        let cofid = try CoFIDGenericFoodSearch(library: PersonalLibraryGenericFoodSearch(reader: store), ids: ids)
+        let usda = try USDAGenericFoodSearch(ids: ids)
+        let tfda = try TFDAGenericFoodSearch(ids: ids)
+        let promotesTaiwan: (GenericFoodSearchRequest) -> Bool = { request in
             RegionalSourceOrderPolicy.promotesTaiwan(query: request.text.value, marketIsTaiwan: market.market == .taiwan)
-        }, ids: ids)
+        }
+        genericFoodSearch = CompositeGenericFoodSearch(sources: [cofid, usda], regionalSources: [tfda],
+            referenceSources: [ciqual], promotesRegional: promotesTaiwan, ids: ids)
+        let resolvers = GenericRecordResolverSet([.cofid: cofid, .usda: usda, .tfda: tfda])
+        genericRecordResolvers = resolvers
+        let index = PersonalFoodDatabaseIndex(store: databaseStore, resolver: resolvers)
+        personalFoodDatabaseIndex = index
+        foodSearchWithDatabase = CompositeGenericFoodSearch(sources: [cofid, usda], regionalSources: [tfda],
+            referenceSources: [ciqual],
+            databaseSource: PersonalFoodDatabaseFoodSearch(index: index, resolver: resolvers, ids: ids),
+            promotesRegional: promotesTaiwan, ids: ids)
+        // The index loads off the main thread: at launch, after every import or removal, and when
+        // protected data returns (phase 1 plan section 5.1 item 7). Search never waits for it.
+        personalFoodDatabase = PersonalFoodDatabaseSettingsViewModel(
+            importer: PersonalFoodDatabaseImporter(store: databaseStore, digester: SHA256Digester(),
+                clock: SystemLedgerClock(), releases: ledgerStore),
+            changed: {
+                index.invalidate()
+                await Task.detached(priority: .utility) { index.warm() }.value
+            },
+            referenceCount: {
+                await Task.detached(priority: .utility) {
+                    index.warm()
+                    return index.snapshot().map { ($0.release.sourceReleaseID.value, $0.unresolvedReferenceCount) }
+                }.value
+            })
+        let databaseModel = personalFoodDatabase
+        Task.detached(priority: .utility) { index.warm() }
+        Task { await databaseModel.load() }
+        // A launch before first unlock loads `locked`; reload when protected data returns so the
+        // Settings row does not stay "Locked", and warm the search index that could not load.
+        personalFoodDatabaseObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.protectedDataDidBecomeAvailableNotification, object: nil, queue: .main
+        ) { [weak databaseModel] _ in
+            Task.detached(priority: .utility) { index.warm() }
+            Task { @MainActor in await databaseModel?.load() }
+        }
         milkVolumeConversion = try CoFIDWholeMilkVolumeConversion()
     }
 
@@ -502,7 +536,7 @@ final class FoodLedgerCompositionRoot {
         locale: Locale = .current, additionalEvidence: [CaptureEvidence] = []
     ) throws -> GenericFoodSearchViewModel {
         GenericFoodSearchViewModel(
-            searcher: genericFoodSearch,
+            searcher: foodSearchWithDatabase,
             locale: try LedgerText(locale.identifier),
             additionalEvidence: additionalEvidence,
             database: OpenFoodFactsSearch(transport: offSearchTransport, locale: try LedgerText(locale.identifier), ids: ids),
@@ -548,7 +582,9 @@ final class FoodLedgerCompositionRoot {
         if let activeReresolution { return activeReresolution }
         let service = FoodReresolutionService(
             ledger: ledger, reader: FoodReresolutionHistory(archive: store, confirmations: store),
-            provider: try CoFIDReresolutionProvider(ids: ids), clock: SystemLedgerClock(), ids: ids
+            provider: FoodReresolutionProviderSet([try CoFIDReresolutionProvider(ids: ids),
+                PersonalFoodDatabaseReresolutionProvider(index: personalFoodDatabaseIndex, resolver: genericRecordResolvers, ids: ids)]),
+            clock: SystemLedgerClock(), ids: ids
         )
         let model = FoodReresolutionViewModel(service: service)
         activeReresolution = model
