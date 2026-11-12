@@ -406,7 +406,7 @@ public enum NutrientOriginText {
         return "Calculated from \(comparator)\(conversion.operandText) \(unit) (printed), \(rule(conversion.rule))"
     }
 
-    /// A stored value as shown beside its origin: "5.2 g", "Less than 0.5 g", "about 371 kcal",
+    /// A stored value as shown beside its origin: "5.2 g", "Less than 0.5 g", "More than 3 g", "about 371 kcal",
     /// "Less than 40 mg · Calculated". Calculated kcal and mg are shown to a whole number: an exact
     /// value half away from zero with "about"; a bound rounded outward (an upper end up) so the
     /// shown bound still contains the printed one, tagged "Calculated". Unknown is never zero.
@@ -422,6 +422,11 @@ public enum NutrientOriginText {
                 if calculated { return calculatedAmount(upper, unit: unit, comparator: bounds.upperClosed ? "<=" : "<") }
                 let number = FoodDisplayNumber.amount(upper, fraction: 0...3)
                 return bounds.upperClosed ? "\(number) \(unit) or less" : "Less than \(number) \(unit)"
+            }
+            if let lower = bounds.lower, bounds.upper == nil, !calculated {
+                // A lower bound only (Open Food Facts ">3"): "More than 3 g", "3 g or more".
+                let number = FoodDisplayNumber.amount(lower, fraction: 0...3)
+                return bounds.lowerClosed ? "\(number) \(unit) or more" : "More than \(number) \(unit)"
             }
             let lower = bounds.lower.map { FoodDisplayNumber.amount($0, fraction: 0...3) } ?? "?"
             let upper = bounds.upper.map { FoodDisplayNumber.amount($0, fraction: 0...3) } ?? "?"
@@ -497,6 +502,11 @@ public enum PastedLabelSavedEntryText {
             // An estimated bound stays a bound, marked as the estimate (#383), never "Unknown".
             if let value = detail.labelEstimate?.estimatedValues[total.key],
                let bound = LabelEstimateSavedEntryText.boundedValue(value, basis: detail.basis) { return bound }
+            // An Open Food Facts bound ("<0.5 g") stays a bound for the stored basis, marked as
+            // the product's estimate (docs/off-values-label-v1.md rule 3), never "Unknown".
+            if let value = detail.openFoodFactsBounds[total.key],
+               let bound = LabelEstimateSavedEntryText.boundedValue(value, basis: detail.basis,
+                                                                    marking: FoodLogText.openFoodFactsValue) { return bound }
             // Bounds stay bounds: a bound has no consumed amount, so it is shown as stored for
             // the label's basis ("Less than 0.5 g per 100 g · Printed"), never as unknown or zero.
             guard let value = detail.pastedLabelValues[total.key], case .bounded = value,
