@@ -402,4 +402,50 @@ final class PersonalFoodDatabaseSearchTests: XCTestCase {
         XCTAssertEqual(rows.first?.candidate.candidate.recordID.value, Self.oats)
         XCTAssertEqual(rows.last?.candidate.candidate.recordID.value, "regional:1")
     }
+
+    // MARK: Invariant review fixes
+
+    /// Two entries naming the same record give one Generic row (unique search IDs).
+    func testTwoEntriesNamingOneRecordGiveOneGenericRow() throws {
+        let bytes = try Self.golden {
+            $0.replacingOccurrences(of: "\"match\": \"same_food_same_state\",\n    \"role\": \"merge\"",
+                                    with: "\"match\": \"close\",\n    \"role\": \"candidate\"")
+              .replacingOccurrences(of: "\"generic_reference\": null",
+                                    with: "\"generic_reference\": {\n    \"source\": \"cofid\",\n    \"corpus_sha256\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\n    \"record_id\": \"cofid:example\",\n    \"match\": \"close\",\n    \"role\": \"candidate\"\n   }")
+        }
+        let (search, _, _) = try makeSearch(bytes)
+        let rows = matches(try search.search(request("synthetic")))
+        XCTAssertEqual(rows.filter { $0.candidate.candidate.recordID.value == "cofid:example" }.count, 1)
+        XCTAssertEqual(Set(rows.map(\.searchID)).count, rows.count)
+        XCTAssertEqual(rows.filter { $0.candidate.candidate.recordID.value.hasPrefix("pfc:") }.count, 2)
+    }
+
+    /// A merged record's own unknown reason is kept when nothing else declares the nutrient.
+    func testMergedRecordUnknownReasonIsKept() throws {
+        struct MissingConversion: GenericRecordResolving {
+            func contains(_ reference: GenericRecordReference) -> Bool { true }
+            func resolve(_ reference: GenericRecordReference, evidenceIDs: [EvidenceID], queryAlias: String) -> ResolvedGenericRecord? {
+                guard let base = FakeResolver().resolve(reference, evidenceIDs: evidenceIDs, queryAlias: queryAlias),
+                      let nutrients = try? NutrientSet(entries: base.candidate.candidate.nutrients.entries.map {
+                          $0.key == .fiber ? try NutrientEntry(key: .fiber, value: .unknown(.missingConversion)) : $0 }),
+                      let candidate = try? PopulatedFoodCandidate(candidate: ProviderNeutralCandidate(
+                          sourceReleaseID: base.candidate.candidate.sourceReleaseID, recordID: base.candidate.candidate.recordID,
+                          identity: base.candidate.candidate.identity, edibleQuantity: base.candidate.candidate.edibleQuantity,
+                          nutrients: nutrients, evidenceIDs: base.candidate.candidate.evidenceIDs,
+                          matchMetadata: base.candidate.candidate.matchMetadata),
+                          name: base.candidate.name, itemClass: base.candidate.itemClass) else { return nil }
+                return ResolvedGenericRecord(candidate: candidate, release: base.release)
+            }
+        }
+        let snapshot = try snapshot(Self.golden())
+        let entry = try XCTUnwrap(snapshot.file.entries.first { $0.id == Self.oats })
+        let evidence = [try EvidenceID("00000000-0000-0000-0000-0000000000aa")]
+        let record = MissingConversion().resolve(GenericRecordReference(try XCTUnwrap(entry.genericReference)),
+                                                 evidenceIDs: evidence, queryAlias: entry.title)
+        let built = try XCTUnwrap(PersonalFoodDatabaseCandidateBuilder.build(entry: entry, file: snapshot.file,
+            databaseRelease: snapshot.release, record: record, evidenceIDs: evidence, score: 1))
+        XCTAssertTrue(built.merged)
+        XCTAssertEqual(value(built, .fiber), .unknown(.missingConversion))
+        XCTAssertEqual(value(built, .calcium), .unknown(.notDeclared))
+    }
 }

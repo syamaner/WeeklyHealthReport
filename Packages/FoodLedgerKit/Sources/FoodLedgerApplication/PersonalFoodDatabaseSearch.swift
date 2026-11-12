@@ -173,22 +173,35 @@ public struct PersonalFoodDatabaseFoodSearch: GenericFoodSearching {
             let record = hit.entry.genericReference.flatMap {
                 resolver.resolve(GenericRecordReference($0), evidenceIDs: evidenceIDs, queryAlias: hit.alias)
             }
-            let built = try PersonalFoodDatabaseCandidateBuilder.build(entry: hit.entry, file: snapshot.file,
-                databaseRelease: snapshot.release, record: record, evidenceIDs: evidenceIDs, score: Self.score(hit))
-            // A referenced record that was not merged is offered as its own row, after the entry.
-            let generic = built?.merged == true ? nil : record
+            // One entry that cannot be represented is left out on its own; the others still answer.
+            let built: PersonalFoodDatabaseCandidateBuilder.Built?
+            do {
+                built = try PersonalFoodDatabaseCandidateBuilder.build(entry: hit.entry, file: snapshot.file,
+                    databaseRelease: snapshot.release, record: record, evidenceIDs: evidenceIDs, score: Self.score(hit))
+            } catch { continue }
+            // A referenced record that was not merged is offered as its own row, after the entry, once:
+            // two entries naming the same record never give two rows for it.
+            let generic = built?.merged == true ? nil : record.flatMap { resolved in
+                matches.contains { $0.searchID.recordID == resolved.candidate.candidate.recordID
+                    && $0.searchID.sourceReleaseID == resolved.candidate.candidate.sourceReleaseID } ? nil : resolved
+            }
             guard built != nil || generic != nil else { continue }
-            used += 1
+            var rows: [GenericFoodMatch] = []
+            var cited: [SourceRelease] = []
             if let built {
-                for release in built.releases { try add(release) }
-                matches.append(GenericFoodMatch(candidate: built.candidate, isExactName: hit.exact,
+                cited += built.releases
+                rows.append(GenericFoodMatch(candidate: built.candidate, isExactName: hit.exact,
                     personalDatabase: PersonalFoodDatabaseMatchContext(step: hit.step, isGenericReference: false)))
             }
             if let generic {
-                try add(generic.release)
-                matches.append(GenericFoodMatch(candidate: generic.candidate, isExactName: false,
+                cited.append(generic.release)
+                rows.append(GenericFoodMatch(candidate: generic.candidate, isExactName: false,
                     personalDatabase: PersonalFoodDatabaseMatchContext(step: hit.step, isGenericReference: true)))
             }
+            let before = releases
+            do { for release in cited { try add(release) } } catch { releases = before; continue }
+            used += 1
+            matches += rows
         }
         guard let first = matches.first else { return nil }
         return .confirmation(GenericFoodConfirmationRoute(confirmation: try PopulatedFoodConfirmation(

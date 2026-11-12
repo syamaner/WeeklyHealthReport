@@ -325,6 +325,8 @@ is `damaged`; each boundary rule fails its fixture; the protection applier cover
 
 ## 5. P1c architecture gate (12 November 2026)
 
+*Sections 5.1 and 5.2 override this section where they differ (re-resolution, merge condition, saving).*
+
 P1c makes Your food database searchable and loggable: import v1 sections 5 (except v12), 6, 7 and 9.
 It is written against the code on main at `c55fdad`. Where it refines the contract it says so, and
 the contract wins.

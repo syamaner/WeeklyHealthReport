@@ -532,6 +532,13 @@ final class FoodLedgerCompositionRoot {
 
     var searchPreferencesForSettings: any FoodSearchPreferences { searchPreferences }
 
+    /// Which searches hold Your food database rows: Add food search does; the label estimate pool
+    /// and the food list import never do (import v1 section 12, decision 4).
+    var personalFoodDatabaseRouting: (addFood: Bool, sharedPoolAndListImport: Bool) {
+        ((foodSearchWithDatabase as? CompositeGenericFoodSearch)?.searchesPersonalFoodDatabase == true,
+         (genericFoodSearch as? CompositeGenericFoodSearch)?.searchesPersonalFoodDatabase != false)
+    }
+
     func genericFoodSearchModel(
         locale: Locale = .current, additionalEvidence: [CaptureEvidence] = []
     ) throws -> GenericFoodSearchViewModel {

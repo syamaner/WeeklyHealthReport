@@ -35,6 +35,9 @@ public final class CompositeGenericFoodSearch: GenericFoodSearching, @unchecked 
         self.ids = ids
     }
 
+    /// Whether this composite searches Your food database (phase 1 plan section 5.1).
+    public var searchesPersonalFoodDatabase: Bool { databaseSource != nil }
+
     public func search(_ request: GenericFoodSearchRequest) throws -> GenericFoodSearchOutcome {
         let evidence = try request.captureEvidence ?? CaptureEvidence(
             evidenceID: ids.makeID(EvidenceTag.self), kind: .genericSearch, capturedAt: request.capturedAt,

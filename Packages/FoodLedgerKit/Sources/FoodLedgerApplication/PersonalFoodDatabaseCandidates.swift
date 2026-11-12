@@ -127,7 +127,13 @@ public enum PersonalFoodDatabaseCandidateBuilder {
             // retailer product record.
             let levels = entry.productType == .freshWhole ? [manual, generic, product] : [manual, product, generic]
             guard let level = levels.first(where: { !$0.isEmpty }) else {
-                entries.append(try NutrientEntry(key: key, value: .unknown(.notDeclared)))
+                // A merged record that gives its own unknown reason keeps it; otherwise not declared.
+                let recordUnknown = merge.flatMap { resolved in
+                    resolved.candidate.candidate.nutrients.entries.first { $0.key == key }.flatMap {
+                        if case .unknown = $0.value, $0.status == .resolved { $0.value } else { nil }
+                    }
+                }
+                entries.append(try NutrientEntry(key: key, value: recordUnknown ?? .unknown(.notDeclared)))
                 continue
             }
             let resolved = try resolve(key: key, level: level)
