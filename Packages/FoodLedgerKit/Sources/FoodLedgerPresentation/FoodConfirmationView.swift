@@ -914,7 +914,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
     /// Log (or Save changes) stays the only save.
     @discardableResult
     public func applyFoodDetails(_ draft: FoodDetailsDraft) -> Bool {
-        guard savedResult == nil, draft.canApply, let correction = draft.correction(for: state.selectedCandidate) else { return false }
+        guard savedResult == nil, let correction = draft.correction(in: state) else { return false }
         send(.applyCorrection(correction))
         return true
     }
@@ -938,6 +938,48 @@ public final class FoodConfirmationViewModel: ObservableObject {
         if !missingSourceDetails.isEmpty { return Self.addFoodDetailsTitle }
         if state.reopened != nil || state.correction != nil { return Self.correctFoodDetailsTitle }
         return nil
+    }
+
+    /// Rule 1 of docs/confirm-rules-review-v1.md (#470): the one-tap packaged answer is offered.
+    public var offersPackagedAsSold: Bool {
+        savedResult == nil && state.phase != .saving && PackagedAsSoldPolicy.offers(state)
+    }
+
+    /// Records "Packaged product, eaten as sold" with the fortification answer, as an ordinary
+    /// correction on Confirm. Nothing is saved; Log stays the only save.
+    @discardableResult
+    public func applyPackagedAsSold(fortified: Bool) -> Bool {
+        guard offersPackagedAsSold, let correction = try? PackagedAsSoldPolicy.correction(for: state, fortified: fortified) else { return false }
+        send(.applyCorrection(correction))
+        state.correctionOrigin = .packagedAsSold
+        return true
+    }
+
+    public static let packagedAsSoldTitle = "Packaged product, eaten as sold"
+    public static let packagedAsSoldQuestion = "Is it fortified with added vitamins or minerals?"
+    public static let packagedNotFortifiedTitle = "No, not fortified"
+    public static let packagedFortifiedTitle = "Yes, fortified"
+    public static let packagedNotSureTitle = "Not sure: add food details"
+
+    /// What Confirm says about food details it is using that the user did not type on this screen
+    /// or that came from the one tap: shown with "Correct food details" to change them.
+    public var foodDetailsSummary: String? {
+        guard let correction = state.correction, let origin = state.correctionOrigin else { return nil }
+        switch origin {
+        case .carried: return "Food details from your last entry: \(Self.detailsPhrase(correction.identity))."
+        case .packagedAsSold: return "Food details: \(Self.detailsPhrase(correction.identity))."
+        }
+    }
+
+    static func detailsPhrase(_ identity: DecisiveIdentity) -> String {
+        let packaged = identity.preparation.kind == .asSold && identity.bone == .notApplicable && identity.skin == .notApplicable
+            && identity.drained == .notApplicable
+        let base = packaged ? "packaged, as sold" : FoodConfirmationView.preparationLabel(identity.preparation).lowercased()
+        switch identity.fortification {
+        case .fortified: return base + ", fortified"
+        case .unfortified: return base + ", not fortified"
+        case .unknown: return base
+        }
     }
 
     public static let addFoodDetailsTitle = "Add food details"
@@ -1277,7 +1319,9 @@ public struct FoodConfirmationView: View {
                model.state.isSourceRecipe || model.state.reviewedWebProposalScope != nil {
                 ForEach(metadata.materialDifferences, id: \.value) { Text($0.value).font(.caption) }
             }
-            if let notice = model.correctionNotice {
+            if let summary = model.foodDetailsSummary {
+                Label(summary, systemImage: "checkmark.circle").font(.subheadline)
+            } else if let notice = model.correctionNotice {
                 Label(notice, systemImage: "checkmark.circle").font(.subheadline)
             } else if model.state.correction != nil {
                 Text("Uses your food correction").font(.caption)
@@ -1290,7 +1334,9 @@ public struct FoodConfirmationView: View {
                       systemImage: "exclamationmark.triangle")
                     .font(.subheadline)
             }
-            if let title = model.foodDetailsActionTitle {
+            if model.offersPackagedAsSold {
+                packagedAsSold
+            } else if let title = model.foodDetailsActionTitle {
                 Button(title) { showsCorrection = true }
                     .frame(minHeight: 44)
             }
@@ -1300,6 +1346,37 @@ public struct FoodConfirmationView: View {
             }
         }
         .accessibilityElement(children: .contain)
+    }
+
+    /// Rule 1 (#470): one question for a packaged Open Food Facts product. Each answer is an
+    /// explicit tap that records a correction on Confirm; Not sure opens the full Food details.
+    private var packagedAsSold: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(FoodConfirmationViewModel.packagedAsSoldTitle).font(.subheadline.weight(.semibold))
+            Text(FoodConfirmationViewModel.packagedAsSoldQuestion).font(.subheadline)
+            // Borderless: several buttons in one Form row, so each keeps its own tap target (in a
+            // plain row a tap anywhere runs every button's action, journey QA of #470).
+            Button(FoodConfirmationViewModel.packagedNotFortifiedTitle) { answerPackaged(fortified: false) }
+                .buttonStyle(.borderless)
+                .frame(minHeight: 44)
+                .accessibilityLabel("\(FoodConfirmationViewModel.packagedAsSoldTitle), not fortified")
+            Button(FoodConfirmationViewModel.packagedFortifiedTitle) { answerPackaged(fortified: true) }
+                .buttonStyle(.borderless)
+                .frame(minHeight: 44)
+                .accessibilityLabel("\(FoodConfirmationViewModel.packagedAsSoldTitle), fortified")
+            Button(FoodConfirmationViewModel.packagedNotSureTitle) { showsCorrection = true }
+                .buttonStyle(.borderless)
+                .frame(minHeight: 44)
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    /// The one tap, then the Food details sheet reopens on the answer just recorded.
+    private func answerPackaged(fortified: Bool) {
+        guard model.applyPackagedAsSold(fortified: fortified) else { return }
+        correctionDraft = FoodDetailsDraftSession(FoodDetailsDraft(model: model))
+        // The tapped button disappears: VoiceOver hears what was recorded, as after the sheet.
+        if let summary = model.foodDetailsSummary { AccessibilityNotification.Announcement(summary).post() }
     }
 
     private var sourceLine: String? {
@@ -2249,7 +2326,7 @@ public struct FoodConfirmationView: View {
         value.replacingOccurrences(of: "_", with: " ").capitalized
     }
 
-    private static func preparationLabel(_ value: PreparationState) -> String {
+    static func preparationLabel(_ value: PreparationState) -> String {
         value.method?.value ?? label(value.kind.rawValue)
     }
 

@@ -106,6 +106,8 @@ CODE_READ_DOCS = {
     "docs/off-label-estimate-v1.md",
     # Cited by the import v1 codec, its tests and the fixture generator (#424 phase 1).
     "docs/personal-food-database-import-v1-phase-1.md",
+    # Cited by the food details fill policy, the Confirm sheet and their tests (#470).
+    "docs/confirm-rules-review-v1.md",
     # Cited by the glucose readings projection, the Daily JSON builder and admission (#469).
     "docs/glucose-readings-export-contract-v1.md",
 }

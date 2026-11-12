@@ -56,6 +56,13 @@ public enum QuickAddPolicy {
             && pinned.logItemVersion.effectiveResolutionVersionID == pinned.logItemVersion.originalResolutionVersionID
     }
 
+    /// Quick add v2: the pinned entry's only correction filled in food details (typed fields only)
+    /// and its effective resolution is the original one.
+    public static func pinnedIsFillOnly(_ pinned: StoredFoodConfirmation) -> Bool {
+        FoodDetailsFillPolicy.isStoredFill(pinned)
+            && pinned.logItemVersion.effectiveResolutionVersionID == pinned.logItemVersion.originalResolutionVersionID
+    }
+
     /// The persisted claim prefix `FoodConfirmationService` writes for a correction.
     static let correctionClaimPrefix = "Corrected populated confirmation"
 
@@ -65,7 +72,11 @@ public enum QuickAddPolicy {
                                    rebuilt: FoodConfirmationState, now: Date, calendar: Calendar) -> QuickAddEligibility {
         if pinnedIsEstimate || FoodLogPolicy.savesEstimate(rebuilt) { return .confirm(.estimate) }
         if let pinned, FoodEntryEstimateStatus.isPartlyEstimated(pinned) { return .confirm(.labelEstimateNotCarried) }
-        if let pinned, !pinnedIsUncorrected(pinned) { return .confirm(.corrected) }
+        // Quick add v2 (#470 rule 3.5): a fill-only correction no longer makes a favourite ineligible.
+        if let pinned, !pinnedIsUncorrected(pinned),
+           !pinnedIsFillOnly(pinned) || rebuilt.correction?.identity != pinned.productVersion.identity {
+            return .confirm(.corrected)
+        }
         if let blocking = FoodLogPolicy.requirements(rebuilt, now: now, calendar: calendar).first(where: { placement($0) == .confirm }) {
             return .confirm(.requirement(blocking))
         }

@@ -399,6 +399,8 @@ public final class FavouritesService: @unchecked Sendable {
                     estimate = try confirmations.isEstimate(stored)
                 } catch { throw FavouritesServiceError.sourceUnverifiable }
                 var state = FoodConfirmationState(input: input, prefillSourceQuantity: false)
+                // #470 rule 3: the rebuilt state carries fill-only food details, so eligibility sees them.
+                FoodConfirmationService.applyCarriedFill(from: pinned, to: &state)
                 state.quantity = FoodQuantityDraft(value: version.defaultAmount.value, unit: version.defaultAmount.unit)
                 return preparation(item, state: state, pinned: pinned, estimate: estimate,
                                    isPlainWater: PlainWaterReference.isPlainWater(pinned.resolutionVersion),
