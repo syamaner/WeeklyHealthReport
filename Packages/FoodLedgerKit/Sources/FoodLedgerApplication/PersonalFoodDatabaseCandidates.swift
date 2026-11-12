@@ -130,19 +130,12 @@ public enum PersonalFoodDatabaseCandidateBuilder {
                 entries.append(try NutrientEntry(key: key, value: .unknown(.notDeclared)))
                 continue
             }
-            if level.dropFirst().allSatisfy({ $0 == level[0] }) {
-                entries.append(try NutrientEntry(key: key, value: level[0]))
-                anyKnown = true
-                for provenance in level[0].provenance where !cited.contains(provenance.sourceReleaseID.value) {
-                    cited.append(provenance.sourceReleaseID.value)
-                }
-            } else {
-                // A1 item 3: a same-level disagreement is a conflict and the nutrient is unknown.
-                entries.append(try NutrientEntry(key: key, value: .unknown(.conflictingEvidence),
-                                                 status: .conflict, conflictCandidates: level))
-                for provenance in level.flatMap(\.provenance) where !cited.contains(provenance.sourceReleaseID.value) {
-                    cited.append(provenance.sourceReleaseID.value)
-                }
+            let resolved = try resolve(key: key, level: level)
+            entries.append(resolved)
+            if resolved.status == .resolved { anyKnown = true }
+            for provenance in (resolved.conflictCandidates.isEmpty ? [resolved.value] : resolved.conflictCandidates)
+                .flatMap(\.provenance) where !cited.contains(provenance.sourceReleaseID.value) {
+                cited.append(provenance.sourceReleaseID.value)
             }
         }
         guard anyKnown else { return nil }
@@ -176,6 +169,14 @@ public enum PersonalFoodDatabaseCandidateBuilder {
             name: LedgerText(entry.title), brand: try entry.brand.map { try LedgerText($0) },
             variant: LedgerText("Your food database"), itemClass: itemClass(entry.category), packFacts: PackFacts())
         return Built(candidate: candidate, releases: releases, merged: merge != nil)
+    }
+
+    /// One level of A1: values that agree give that value; a same-level disagreement is a conflict
+    /// and the nutrient is unknown (A1 item 3).
+    static func resolve(key: NutrientKey, level: [NutrientValue]) throws -> NutrientEntry {
+        guard let first = level.first else { return try NutrientEntry(key: key, value: .unknown(.notDeclared)) }
+        if level.dropFirst().allSatisfy({ $0 == first }) { return try NutrientEntry(key: key, value: first) }
+        return try NutrientEntry(key: key, value: .unknown(.conflictingEvidence), status: .conflict, conflictCandidates: level)
     }
 
     private static func labelValue(
