@@ -26,6 +26,19 @@ final class FoodReresolutionPresentationTests: XCTestCase {
         XCTAssertEqual(try fixture.store.counts().operations, 1)
     }
 
+    func testBackgroundLoadShowsTheSameHistoryAsTheDirectLoad() async throws {
+        let fixture = try Fixture()
+        let model = fixture.model
+        XCTAssertEqual(model.historyState, .loading, "never claims an empty history before a read")
+        await model.loadInBackground()
+        XCTAssertEqual(model.historyState, .loaded)
+        let loaded = model.records.map(\.logItemVersion.logItemVersionID)
+        XCTAssertEqual(loaded, [fixture.record.logItemVersion.logItemVersionID])
+        XCTAssertEqual(model.targets, [fixture.provider.target])
+        model.load()
+        XCTAssertEqual(model.records.map(\.logItemVersion.logItemVersionID), loaded)
+    }
+
     func testLostResponseCannotBeDiscardedOrDuplicated() throws {
         let fixture = try Fixture()
         let model = fixture.model
