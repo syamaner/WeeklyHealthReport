@@ -1,6 +1,6 @@
 # Glucose readings in the Daily JSON export, v1 (#469)
 
-Status: **owner-decided 11 November 2026 (D1 to D8, section 11); implemented in the PR for #469.** No device action, personal-data transfer or release is authorised by this document; the device acceptance in section 12 is the owner's and is outstanding.
+Status: **owner-decided 11 November 2026 (D1 to D8, section 11) and 12 November 2026 (D9); implemented in the PR for #469.** No device action, personal-data transfer or release is authorised by this document; the device acceptance in section 12 is the owner's and is outstanding.
 
 Architecture gate: **PASS WITH CHANGES**, 11 November 2026 (read-only `architecture-gate` review against the code at `03510ae`). Its eight changes are folded in below: whole-second timestamp text, schema 9 layered on schema 8 only, the admission rules, the toggle's own setter and preference, the service and port rows, no duplicate window, the wider document amendments and ten further contract tests.
 
@@ -85,7 +85,7 @@ Schema 9 is emitted only when the Glucose readings choice is on. With the choice
 }
 ```
 
-- **Timestamps** are text in the envelope's existing format: whole seconds with the reporting time zone's offset, rendered in `make` like `data_as_of`. As elsewhere in the envelope, a zero offset is written `Z`. No native `Date` is added, so schema 8's numeric date rule does not apply to this block. A sub-second part is not exported; a test pins that it is truncated, not rounded into the next second.
+- **Timestamps** are text in the envelope's existing format: whole seconds with the reporting time zone's offset, rendered in `make` like `data_as_of`. As elsewhere in the envelope, a zero offset is written `Z`. No native `Date` is added, so schema 8's numeric date rule does not apply to this block. A sub-second part is not exported; a test pins that it is truncated, not rounded into the next second. This is the owner's decision D9, taken knowing that the stored precision was never checked.
 - **Window.** The block has no window of its own. The interval queried is the envelope's `day_window`, which for today already ends at the cutoff.
 - **`count` and `last_reading_time`** at the top of the block are facts about the records listed, across all sources: how many there are and the latest time among them. They are not a coverage or completeness measure.
 - **`series`** has one element per source, ordered by bundle identifier then name. Readings inside a series are ordered by native time, then value, then an internal object identifier that is never exported. Two visible records with the same source and time are both kept. Because text is whole seconds, two readings in one rendered second may appear with descending values; admission therefore checks non-decreasing rendered time only.
@@ -152,6 +152,7 @@ Terms:
 | D6 | Series samples and samples with a duration | **Accepted by the owner, 11 November 2026:** fail closed as `invalid_evidence` in v1; expand them only if a real source needs it |
 | D7 | Egress terms E1 to E4 | **Approved by the owner, 11 November 2026** |
 | D8 | Priority | **Decided by the owner, 11 November 2026:** start now, alongside the two features in progress |
+| D9 | Reading time precision | **Decided by the owner, 12 November 2026: whole seconds.** Issue #469 asked for a check in code of whether stored timestamps carry a sub-second part, with text used only if nothing is lost. No such check was made: the only observation is the Health app's whole-second display, which does not show the stored value. The owner keeps whole-second text as in section 6, so a sub-second part, if a source ever stores one, is truncated and not exported. Exporting milliseconds when present was the alternative and was not chosen |
 
 ## 12. Device acceptance (owner)
 
