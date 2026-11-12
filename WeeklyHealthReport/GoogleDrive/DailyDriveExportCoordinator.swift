@@ -23,8 +23,11 @@ struct DailyHealthExportIdentityPolicy: DrivePayloadIdentityPolicy {
             return date
         }
         guard let envelope = try? decoder.decode(DailyHealthExportEnvelope.self, from: payload),
-              [1, 2, 3, 6, 7, 8].contains(envelope.schemaVersion),
+              [1, 2, 3, 6, 7, 8, 9].contains(envelope.schemaVersion),
               envelope.today.foodLog == nil, envelope.today.foodNutritionSummary == nil,
+              // Schema 9 requires a self-consistent glucose readings block;
+              // every earlier schema must not carry one (#469).
+              envelope.glucoseReadingsAreAdmissible,
               envelope.reportDate == reportDate,
               try DailyHealthExportSerializer.encode(envelope) == payload,
               let dataAsOf = try? timestamp(envelope.dataAsOf),
@@ -37,7 +40,7 @@ struct DailyHealthExportIdentityPolicy: DrivePayloadIdentityPolicy {
                 guard let enrichment = workout.enrichment else { return true }
                 return ((envelope.schemaVersion == 6 && enrichment.enrichmentVersion == 1)
                     || (envelope.schemaVersion == 7 && enrichment.enrichmentVersion == 2)
-                    || (envelope.schemaVersion == 8 && enrichment.enrichmentVersion == 3))
+                    || ([8, 9].contains(envelope.schemaVersion) && enrichment.enrichmentVersion == 3))
                     && WorkoutEnrichmentReader.validatesExport(enrichment)
             }) else { throw DailyDriveExportFailure.invalidPayload }
         }
@@ -71,7 +74,7 @@ struct DailyHealthExportIdentityPolicy: DrivePayloadIdentityPolicy {
             }
         }
         let orderingToken: String
-        if [3, 6, 7, 8].contains(envelope.schemaVersion), try isHistorical(envelope) {
+        if [3, 6, 7, 8, 9].contains(envelope.schemaVersion), try isHistorical(envelope) {
             orderingToken = "\(Self.historicalOrderingVersion)|\(envelope.dataAsOf)|\(envelope.exportedAt)"
         } else {
             orderingToken = envelope.dataAsOf

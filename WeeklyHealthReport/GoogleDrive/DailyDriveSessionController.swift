@@ -214,6 +214,8 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     @Published private(set) var selectedReportDay: DailyNoteDayID?
     /// Food log (#287): on by default when Drive is connected; the person can switch it off.
     @Published private(set) var foodLogEnabled: Bool
+    /// Whether the health file carries individual glucose readings (#469).
+    @Published private(set) var glucoseReadingsEnabled: Bool
     /// The food file prepared by the latest refresh, whether or not Food log is on.
     @Published private var refreshedFood: DailyFoodExportPreparation = .notPrepared
     /// The latest food export attempt, independent of the health result.
@@ -239,6 +241,26 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         guard !busy, foodExport.isAvailable, enabled != foodLogEnabled else { return }
         foodLogEnabled = enabled
         foodLogPreference.saveFoodLogEnabled(enabled)
+    }
+
+    /// Switches individual glucose readings in the health file on or off (#469).
+    /// The choice changes the file's bytes, so the prepared preview and the last
+    /// outcome are cleared and a fresh preparation and review are required. A
+    /// change while the session is busy is ignored.
+    func setGlucoseReadingsEnabled(_ enabled: Bool) {
+        guard !busy, enabled != glucoseReadingsEnabled else { return }
+        glucoseReadingsEnabled = enabled
+        glucoseReadingsPreference.saveGlucoseReadingsEnabled(enabled)
+        preview = nil
+        lastExportOutcome = nil
+        switch presentationState {
+        case .needsAttention(.configurationUnavailable), .needsGoogleConnection:
+            // Not set up: the choice is remembered and nothing else changes.
+            break
+        default:
+            presentationState = .needsAttention(.notesChanged)
+            status = "Glucose readings changed. Choose Retry preparation to prepare a new snapshot before exporting."
+        }
     }
     var availableReportDays: [DailyNoteDayID] { exportService.availableReportDays() }
 
@@ -350,6 +372,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     private let foodExportCoordinator: DailyDriveExportCoordinator
     private let foodExport: DailyFoodExportService
     private let foodLogPreference: any DailyFoodLogPreferencePersisting
+    private let glucoseReadingsPreference: any DailyGlucoseReadingsPreferencePersisting
     private let nutritionSourceSelection: any NutritionSourceSelectionPersisting
     private let preparationOrchestrator = DailyExportPreparationOrchestrator()
     private var account: DailyDriveAccount?
@@ -383,7 +406,8 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
             notes: notes,
             foodIdentityStore: KeychainDailyDriveExportIdentityStore.food(keychain: keychain),
             foodExport: DailyFoodExportService(reader: foodLedger),
-            foodLogPreference: UserDefaultsDailyFoodLogPreference()
+            foodLogPreference: UserDefaultsDailyFoodLogPreference(),
+            glucoseReadingsPreference: UserDefaultsDailyGlucoseReadingsPreference()
         )
     }
 
@@ -400,7 +424,8 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         },
         foodIdentityStore: (any DailyDriveExportIdentityPersisting)? = nil,
         foodExport: DailyFoodExportService = .unavailable,
-        foodLogPreference: any DailyFoodLogPreferencePersisting = MemoryDailyFoodLogPreference()
+        foodLogPreference: any DailyFoodLogPreferencePersisting = MemoryDailyFoodLogPreference(),
+        glucoseReadingsPreference: any DailyGlucoseReadingsPreferencePersisting = MemoryDailyGlucoseReadingsPreference()
     ) {
         self.oauthSession = oauthSession ?? AppAuthDriveSession(
             secureStore: keychain,
@@ -431,6 +456,8 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         self.foodExport = foodExport
         self.foodLogPreference = foodLogPreference
         foodLogEnabled = foodExport.isAvailable && foodLogPreference.loadFoodLogEnabled()
+        self.glucoseReadingsPreference = glucoseReadingsPreference
+        glucoseReadingsEnabled = glucoseReadingsPreference.loadGlucoseReadingsEnabled()
         super.init()
         self.oauthSession.onAuthorizationError = { [weak self] failure in
             guard let self else { return }
@@ -1136,7 +1163,8 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         do {
             let result = try await exportService.refresh(
                 nutritionSourceBundleIdentifier: bundleIdentifier,
-                selectedDay: selectedReportDay
+                selectedDay: selectedReportDay,
+                includeGlucoseReadings: glucoseReadingsEnabled
             )
             destinationCoordinator.clearFileReplacementCandidate(
                 unlessReportDate: result.envelope.reportDate
@@ -1394,6 +1422,8 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     private var previewIsCurrent: Bool {
         guard notes.storageAvailable, let preview else { return false }
         guard preview.notesSnapshot.dayID == (selectedReportDay ?? availableReportDays.first) else { return false }
+        // A preview prepared under the other Glucose readings choice is never current (#469).
+        guard (preview.envelope.today.glucoseReadings != nil) == glucoseReadingsEnabled else { return false }
         return notes.document.snapshot(for: preview.notesSnapshot.dayID) == preview.notesSnapshot
     }
 

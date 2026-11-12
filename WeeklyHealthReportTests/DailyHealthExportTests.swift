@@ -3487,7 +3487,8 @@ private final class FailingDailyProvider: DailyHealthExportDataProviding {
     func fetchDailyHealthExportInputs(
         for window: DailyExportWindow,
         nutritionSourceBundleIdentifier: String,
-        includeWorkoutEnrichment: Bool
+        includeWorkoutEnrichment: Bool,
+        includeGlucoseReadings: Bool
     ) async throws -> DailyHealthExportInputs {
         fetchCount += 1
         throw ProbeError.queryFailed
@@ -3505,6 +3506,7 @@ private final class RecordingDailyProvider: DailyHealthExportDataProviding {
     private let makeInputs: (DailyExportWindow, String) -> DailyHealthExportInputs
     private(set) var window: DailyExportWindow?
     private(set) var requestedWorkoutEnrichment: Bool?
+    private(set) var requestedGlucoseReadings: Bool?
     private(set) var requestedSourceBundleIdentifier: String?
     private(set) var fetchCount = 0
     private(set) var readAuthorizationCount = 0
@@ -3541,10 +3543,12 @@ private final class RecordingDailyProvider: DailyHealthExportDataProviding {
     func fetchDailyHealthExportInputs(
         for window: DailyExportWindow,
         nutritionSourceBundleIdentifier: String,
-        includeWorkoutEnrichment: Bool
+        includeWorkoutEnrichment: Bool,
+        includeGlucoseReadings: Bool
     ) async throws -> DailyHealthExportInputs {
         self.window = window
         requestedWorkoutEnrichment = includeWorkoutEnrichment
+        requestedGlucoseReadings = includeGlucoseReadings
         requestedSourceBundleIdentifier = nutritionSourceBundleIdentifier
         fetchCount += 1
         return makeInputs(window, nutritionSourceBundleIdentifier)
@@ -4588,5 +4592,678 @@ extension DailyHealthExportTests {
         XCTAssertEqual(try food.load()?.identities.count, 0)
         XCTAssertEqual(try health.load()?.identities.count, 1, "the health identity for the same date is untouched")
         XCTAssertNil(session.foodFileReplacementReason)
+    }
+}
+
+// MARK: #469 individual glucose readings (schema 9)
+
+extension DailyHealthExportTests {
+    private func reading(
+        _ date: Date,
+        _ value: Double = 5.2,
+        source: String = "example.sensor.a",
+        name: String = "Fixture Sensor A",
+        id: UInt8 = 1,
+        count: Int = 1
+    ) -> GlucoseReadingSample {
+        GlucoseReadingSample(
+            id: UUID(uuid: (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, id)),
+            start: date, end: date, quantityCount: count, millimolesPerLiter: value,
+            sourceName: name, sourceBundleIdentifier: source
+        )
+    }
+
+    private func readingsEnvelope(
+        _ samples: [GlucoseReadingSample]?,
+        window: DailyExportWindow,
+        workouts: [WorkoutRecord] = []
+    ) throws -> DailyHealthExportEnvelope {
+        var inputs = emptyInputs(window: window, workouts: workouts)
+        inputs.glucoseReadingSamples = samples
+        return try DailyHealthExportBuilder.make(
+            window: window, exportedAt: window.cutoff, inputs: inputs,
+            includeWorkoutEnrichment: true, includeGlucoseReadings: samples != nil
+        )
+    }
+
+    private func rebuilt(
+        _ envelope: DailyHealthExportEnvelope,
+        schemaVersion: Int? = nil,
+        readings: ExportGlucoseReadings?
+    ) -> DailyHealthExportEnvelope {
+        var today = envelope.today
+        today.glucoseReadings = readings
+        return DailyHealthExportEnvelope(
+            schemaVersion: schemaVersion ?? envelope.schemaVersion, reportDate: envelope.reportDate,
+            timeZone: envelope.timeZone, dataAsOf: envelope.dataAsOf, exportedAt: envelope.exportedAt,
+            dayWindow: envelope.dayWindow, today: today, appContext: envelope.appContext
+        )
+    }
+
+    private func admits(_ envelope: DailyHealthExportEnvelope) -> Bool {
+        guard let bytes = try? DailyHealthExportSerializer.encode(envelope) else { return false }
+        return (try? DailyHealthExportIdentityPolicy().validate(payload: bytes, reportDate: envelope.reportDate)) != nil
+    }
+
+    private func jsonObject(_ envelope: DailyHealthExportEnvelope) throws -> NSDictionary {
+        try XCTUnwrap(JSONSerialization.jsonObject(with: DailyHealthExportSerializer.encode(envelope)) as? NSDictionary)
+    }
+
+    func testChoiceOffKeepsTodaysBytesAndChoiceOnAddsOnlyTheBlock() throws {
+        let calendar = londonCalendar()
+        let now = date(2026, 9, 10, 15, calendar: calendar)
+        let window = try DailyExportWindow.capture(at: now, calendar: calendar)
+        let eight = window.day.start.addingTimeInterval(8 * 3600)
+        let samples = [reading(eight, 5.0, id: 1), reading(eight.addingTimeInterval(300), 5.4, id: 2)]
+
+        // Samples present but the choice off: exactly the bytes emitted today.
+        var inputs = emptyInputs(window: window)
+        let baseline = try DailyHealthExportBuilder.make(window: window, exportedAt: now, inputs: inputs, includeWorkoutEnrichment: true)
+        inputs.glucoseReadingSamples = samples
+        let off = try DailyHealthExportBuilder.make(window: window, exportedAt: now, inputs: inputs, includeWorkoutEnrichment: true)
+        XCTAssertEqual(off.schemaVersion, 7)
+        XCTAssertEqual(try DailyHealthExportSerializer.encode(off), try DailyHealthExportSerializer.encode(baseline))
+        XCTAssertFalse(String(decoding: try DailyHealthExportSerializer.encode(off), as: UTF8.self).contains("glucose_readings"))
+
+        let on = try readingsEnvelope(samples, window: window)
+        XCTAssertEqual(on.schemaVersion, 9)
+        XCTAssertEqual(on.today.glucose, off.today.glucose, "statistics are unchanged by the readings")
+        XCTAssertTrue(admits(on))
+
+        // A day without workout detail: only schema_version and the block differ.
+        let onJSON = try XCTUnwrap(try jsonObject(on).mutableCopy() as? NSMutableDictionary)
+        let offJSON = try XCTUnwrap(try jsonObject(off).mutableCopy() as? NSMutableDictionary)
+        let onToday = try XCTUnwrap((onJSON["today"] as? NSDictionary)?.mutableCopy() as? NSMutableDictionary)
+        XCTAssertNotNil(onToday["glucose_readings"])
+        onToday.removeObject(forKey: "glucose_readings")
+        onJSON["today"] = onToday
+        onJSON.removeObject(forKey: "schema_version")
+        offJSON.removeObject(forKey: "schema_version")
+        XCTAssertEqual(onJSON, offJSON)
+    }
+
+    func testReadingsBlockShapeGroupsBySourceAndReportsRecordFacts() throws {
+        let calendar = londonCalendar()
+        let now = date(2026, 9, 10, 15, calendar: calendar)
+        let window = try DailyExportWindow.capture(at: now, calendar: calendar)
+        let eight = window.day.start.addingTimeInterval(8 * 3600)
+        let envelope = try readingsEnvelope([
+            reading(eight.addingTimeInterval(300), 5.4, id: 2),
+            reading(eight, 5.0, id: 1),
+            reading(eight.addingTimeInterval(120), 6.5, source: "example.sensor.b", name: "Fixture Sensor B", id: 3)
+        ], window: window)
+        let block = try XCTUnwrap(envelope.today.glucoseReadings)
+        XCTAssertEqual(block, ExportGlucoseReadings(
+            readingsVersion: 1, state: .available, unit: "mmol/L", count: 3,
+            lastReadingTime: "2026-09-10T08:05:00+01:00",
+            series: [
+                .init(sourceName: "Fixture Sensor A", sourceBundleIdentifier: "example.sensor.a", count: 2, readings: [
+                    .init(time: "2026-09-10T08:00:00+01:00", value: 5.0),
+                    .init(time: "2026-09-10T08:05:00+01:00", value: 5.4)
+                ]),
+                .init(sourceName: "Fixture Sensor B", sourceBundleIdentifier: "example.sensor.b", count: 1, readings: [
+                    .init(time: "2026-09-10T08:02:00+01:00", value: 6.5)
+                ])
+            ]
+        ))
+        let json = String(decoding: try DailyHealthExportSerializer.encode(envelope), as: UTF8.self)
+        XCTAssertTrue(json.contains(#""glucose_readings":{"count":3,"last_reading_time":"2026-09-10T08:05:00+01:00","readings_version":1,"series":[{"count":2,"readings":[{"time":"2026-09-10T08:00:00+01:00","value":5},"#))
+        XCTAssertTrue(json.contains(#""source_bundle_identifier":"example.sensor.a","source_name":"Fixture Sensor A""#))
+        XCTAssertTrue(admits(envelope))
+    }
+
+    func testValuesAreExportedUnrounded() throws {
+        let calendar = londonCalendar()
+        let window = try DailyExportWindow.capture(at: date(2026, 9, 10, 15, calendar: calendar), calendar: calendar)
+        // 97 mg/dL in mmol/L, as HealthKit's conversion would give it.
+        let converted = 97.0 / 18.01559
+        let envelope = try readingsEnvelope([reading(window.day.start.addingTimeInterval(3600), converted)], window: window)
+        XCTAssertEqual(envelope.today.glucoseReadings?.series?.first?.readings.first?.value, converted)
+        XCTAssertTrue(admits(envelope))
+    }
+
+    func testReadingTimesAreWholeSecondsTruncatedAndTiesStillPassAdmission() throws {
+        let calendar = londonCalendar()
+        let window = try DailyExportWindow.capture(at: date(2026, 9, 10, 15, calendar: calendar), calendar: calendar)
+        let eight = window.day.start.addingTimeInterval(8 * 3600)
+        // Two readings inside one rendered second, the later one lower.
+        let envelope = try readingsEnvelope([
+            reading(eight.addingTimeInterval(0.2), 6.0, id: 1),
+            reading(eight.addingTimeInterval(0.9), 5.0, id: 2)
+        ], window: window)
+        let readings = try XCTUnwrap(envelope.today.glucoseReadings?.series?.first?.readings)
+        XCTAssertEqual(readings.map(\.time), ["2026-09-10T08:00:00+01:00", "2026-09-10T08:00:00+01:00"])
+        XCTAssertEqual(readings.map(\.value), [6.0, 5.0], "native order is kept")
+        XCTAssertEqual(envelope.today.glucoseReadings?.lastReadingTime, "2026-09-10T08:00:00+01:00")
+        XCTAssertTrue(admits(envelope))
+    }
+
+    func testAReadingInTheCutoffsOwnSecondIsAdmitted() throws {
+        let calendar = londonCalendar()
+        let cutoff = date(2026, 9, 10, 15, calendar: calendar).addingTimeInterval(0.7)
+        let window = try DailyExportWindow.capture(at: cutoff, calendar: calendar)
+        let envelope = try readingsEnvelope([reading(cutoff.addingTimeInterval(-0.5))], window: window)
+        XCTAssertEqual(envelope.today.glucoseReadings?.state, .available)
+        XCTAssertTrue(admits(envelope))
+        // At the cutoff itself the reading is outside the day.
+        XCTAssertEqual(try readingsEnvelope([reading(cutoff)], window: window).today.glucoseReadings?.state, .noDataOrAccess)
+    }
+
+    func testATrailingLagBeforeTheCutoffIsNeitherFilledNorDescribed() throws {
+        let calendar = londonCalendar()
+        let window = try DailyExportWindow.capture(at: date(2026, 9, 10, 15, calendar: calendar), calendar: calendar)
+        // The newest reading is three hours behind the cutoff.
+        let noon = window.day.start.addingTimeInterval(12 * 3600)
+        let envelope = try readingsEnvelope([
+            reading(noon.addingTimeInterval(-600), id: 1),
+            reading(noon.addingTimeInterval(-300), id: 2),
+            reading(noon, id: 3)
+        ], window: window)
+        let block = try XCTUnwrap(envelope.today.glucoseReadings)
+        XCTAssertEqual(envelope.dataAsOf, "2026-09-10T15:00:00+01:00")
+        XCTAssertEqual(block.lastReadingTime, "2026-09-10T12:00:00+01:00")
+        XCTAssertEqual(block.count, 3, "nothing is added between the last reading and the cutoff")
+        XCTAssertEqual(block.series?.first?.readings.map(\.time), [
+            "2026-09-10T11:50:00+01:00", "2026-09-10T11:55:00+01:00", "2026-09-10T12:00:00+01:00"
+        ])
+        // The block states record facts only: no gap, coverage or completeness field.
+        let today = try XCTUnwrap(jsonObject(envelope)["today"] as? NSDictionary)
+        let exported = try XCTUnwrap(today["glucose_readings"] as? NSDictionary)
+        XCTAssertEqual(
+            Set(exported.allKeys.compactMap { $0 as? String }),
+            ["readings_version", "state", "unit", "count", "last_reading_time", "series"]
+        )
+        XCTAssertTrue(admits(envelope))
+    }
+
+    func testACaptureAtLocalMidnightHasAnEmptyDayAndClaimsNoReadings() throws {
+        let calendar = londonCalendar()
+        let midnight = calendar.startOfDay(for: date(2026, 9, 10, 15, calendar: calendar))
+        let window = try DailyExportWindow.capture(at: midnight, calendar: calendar)
+        XCTAssertEqual(window.day.duration, 0, "today so far is empty at local midnight")
+        // The client skips the query for an empty day and reports an empty read.
+        let empty = try readingsEnvelope([], window: window)
+        XCTAssertEqual(empty.schemaVersion, 9)
+        XCTAssertEqual(empty.today.glucoseReadings?.state, .noDataOrAccess)
+        XCTAssertNil(empty.today.glucoseReadings?.count, "an empty day is not zero readings")
+        XCTAssertTrue(admits(empty))
+        // Yesterday's last reading and one stamped at midnight are both outside the empty day.
+        let neighbours = try readingsEnvelope([
+            reading(midnight.addingTimeInterval(-300), id: 1),
+            reading(midnight, id: 2)
+        ], window: window)
+        XCTAssertEqual(neighbours.today.glucoseReadings?.state, .noDataOrAccess)
+        XCTAssertNil(neighbours.today.glucoseReadings?.series)
+    }
+
+    func testReExportingAPastDayPicksUpReadingsThatArrivedLate() throws {
+        let calendar = londonCalendar()
+        func yesterday(exportedAt now: Date) throws -> DailyExportWindow {
+            let selected = DailyExportWindow.availableDays(at: now, calendar: calendar)[1]
+            return try DailyExportWindow.capture(at: now, calendar: calendar, selectedDay: selected)
+        }
+        let morning = date(2026, 9, 11, 7, calendar: calendar)
+        let first = try yesterday(exportedAt: morning)
+        let evening = first.day.start.addingTimeInterval(21 * 3600)
+        let early = [reading(evening.addingTimeInterval(-300), id: 1), reading(evening, id: 2)]
+        // Readings for the same evening that reached the store after the first export.
+        let late = [reading(evening.addingTimeInterval(300), id: 3), reading(evening.addingTimeInterval(600), id: 4)]
+
+        let before = try readingsEnvelope(early, window: first)
+        let after = try readingsEnvelope(early + late, window: try yesterday(exportedAt: morning.addingTimeInterval(4 * 3600)))
+
+        XCTAssertEqual(before.reportDate, after.reportDate)
+        XCTAssertEqual(before.dayWindow, after.dayWindow, "both exports cover the same complete day")
+        XCTAssertEqual(before.today.glucoseReadings?.count, 2)
+        XCTAssertEqual(after.today.glucoseReadings?.count, 4)
+        XCTAssertEqual(before.today.glucoseReadings?.lastReadingTime, "2026-09-10T21:00:00+01:00")
+        XCTAssertEqual(after.today.glucoseReadings?.lastReadingTime, "2026-09-10T21:10:00+01:00")
+        let earlier = try XCTUnwrap(before.today.glucoseReadings?.series?.first?.readings)
+        let later = try XCTUnwrap(after.today.glucoseReadings?.series?.first?.readings)
+        XCTAssertEqual(Array(later.prefix(2)), earlier, "the readings already exported are unchanged")
+        XCTAssertTrue(admits(before))
+        XCTAssertTrue(admits(after))
+    }
+
+    func testRepeatedLocalHourKeepsItsOffsets() throws {
+        let calendar = londonCalendar()
+        // 25 October 2026: clocks go back, so 01:30 happens twice.
+        let day = date(2026, 10, 25, 0, calendar: calendar)
+        let selected = DailyNoteDayID(reportDate: "2026-10-25", timeZoneIdentifier: "Europe/London")
+        let window = try DailyExportWindow.capture(at: date(2026, 10, 27, 9, calendar: calendar), calendar: calendar, selectedDay: selected)
+        XCTAssertEqual(window.day.duration, 25 * 3600)
+        let envelope = try readingsEnvelope([
+            reading(day.addingTimeInterval(1.5 * 3600), 5.0, id: 1),
+            reading(day.addingTimeInterval(2.5 * 3600), 5.5, id: 2)
+        ], window: window)
+        XCTAssertEqual(
+            envelope.today.glucoseReadings?.series?.first?.readings.map(\.time),
+            ["2026-10-25T01:30:00+01:00", "2026-10-25T01:30:00Z"]
+        )
+        // A past day keeps the historical ordering token under schema 9.
+        let identity = try DailyHealthExportIdentityPolicy().validate(
+            payload: try DailyHealthExportSerializer.encode(envelope), reportDate: window.reportDate
+        )
+        XCTAssertTrue(identity.orderingToken.hasPrefix("\(DailyHealthExportIdentityPolicy.historicalOrderingVersion)|"))
+
+        // Forged: a reading at the next midnight is not part of a complete past day,
+        // and a time written in the wrong offset for its instant is not the builder's text.
+        func forged(_ time: String) -> DailyHealthExportEnvelope {
+            rebuilt(envelope, readings: ExportGlucoseReadings(
+                readingsVersion: 1, state: .available, unit: "mmol/L", count: 1, lastReadingTime: time,
+                series: [.init(sourceName: "Fixture Sensor A", sourceBundleIdentifier: "example.sensor.a",
+                               count: 1, readings: [.init(time: time, value: 5)])]
+            ))
+        }
+        XCTAssertTrue(admits(forged("2026-10-25T23:59:59Z")))
+        XCTAssertFalse(admits(forged("2026-10-26T00:00:00Z")))
+        XCTAssertFalse(admits(forged("2026-10-25T01:30:00+00:00")))
+        XCTAssertFalse(admits(forged("2026-10-25T12:00:00+01:00")), "noon that day is GMT, so +01:00 is not its offset")
+    }
+
+    func testStatesWithoutAListCarryOnlyVersionStateAndUnit() throws {
+        let calendar = londonCalendar()
+        let window = try DailyExportWindow.capture(at: date(2026, 9, 10, 15, calendar: calendar), calendar: calendar)
+        let start = window.day.start
+        let tooMany = (0...GlucoseReadingsPolicy.maximumReadingsPerDay).map {
+            reading(start.addingTimeInterval(TimeInterval($0)), id: UInt8($0 % 250))
+        }
+        let cases: [([GlucoseReadingSample], ExportGlucoseReadingsState, String)] = [
+            ([], .noDataOrAccess, "no_data_or_access"),
+            (tooMany, .limitExceeded, "limit_exceeded"),
+            ([reading(start.addingTimeInterval(60)), reading(start.addingTimeInterval(120), count: 2)], .invalidEvidence, "invalid_evidence")
+        ]
+        for (samples, state, text) in cases {
+            let envelope = try readingsEnvelope(samples, window: window)
+            XCTAssertEqual(envelope.schemaVersion, 9)
+            XCTAssertEqual(envelope.today.glucoseReadings, ExportGlucoseReadings(
+                readingsVersion: 1, state: state, unit: "mmol/L", count: nil, lastReadingTime: nil, series: nil
+            ))
+            let json = String(decoding: try DailyHealthExportSerializer.encode(envelope), as: UTF8.self)
+            XCTAssertTrue(json.contains(#""glucose_readings":{"readings_version":1,"state":"\#(text)","unit":"mmol/L"}"#), text)
+            XCTAssertTrue(admits(envelope), text)
+        }
+    }
+
+    func testSchemaNineRequiresVersionThreeWorkoutDetailAndRequestedSamples() throws {
+        let calendar = londonCalendar()
+        let now = date(2026, 9, 10, 15, calendar: calendar)
+        let window = try DailyExportWindow.capture(at: now, calendar: calendar)
+        let start = window.day.start.addingTimeInterval(3600.000123)
+        var enrichment = WorkoutEnrichmentReader.read(.init(start: start, end: start.addingTimeInterval(60),
+            activity: "walking", metadata: [:], statistics: .init(provenance: "healthKitWorkoutStatistics"),
+            distanceMetres: nil, activities: []))
+        XCTAssertEqual(enrichment.enrichmentVersion, 2)
+        let versionTwo = WorkoutRecord(id: UUID(), startDate: start, duration: 60, activityName: "Walking", enrichment: enrichment)
+        XCTAssertThrowsError(try readingsEnvelope([], window: window, workouts: [versionTwo]))
+
+        // Version 3 detail keeps schema 8's sub-millisecond dates under schema 9.
+        let point = start.addingTimeInterval(0.000234)
+        enrichment.enrichmentVersion = 3
+        enrichment.heartRateReadings = .project([WorkoutHeartRateReadings.Entry(sampleID: UUID(), entryIndex: 0,
+            startedAt: point, endedAt: point, beatsPerMinute: 93.25, sourceBundleIdentifier: "synthetic.test")], into: enrichment)
+        let versionThree = WorkoutRecord(id: UUID(), startDate: start, duration: 60, activityName: "Walking", enrichment: enrichment)
+        let envelope = try readingsEnvelope([reading(start)], window: window, workouts: [versionThree])
+        XCTAssertEqual(envelope.schemaVersion, 9)
+        let bytes = try DailyHealthExportSerializer.encode(envelope)
+        XCTAssertNoThrow(try DailyHealthExportIdentityPolicy().validate(payload: bytes, reportDate: window.reportDate))
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        decoder.dateDecodingStrategy = .custom { Date(timeIntervalSinceReferenceDate: try $0.singleValueContainer().decode(Double.self)) }
+        let decoded = try decoder.decode(DailyHealthExportEnvelope.self, from: bytes)
+        XCTAssertEqual(decoded.today.workouts.data?.first?.enrichment?.heartRateReadings?.entries.first?.startedAt, point)
+
+        // The choice on without samples, or without workout detail requested, fails closed.
+        XCTAssertThrowsError(try DailyHealthExportBuilder.make(window: window, exportedAt: now,
+            inputs: emptyInputs(window: window), includeWorkoutEnrichment: true, includeGlucoseReadings: true))
+        var inputs = emptyInputs(window: window)
+        inputs.glucoseReadingSamples = []
+        XCTAssertThrowsError(try DailyHealthExportBuilder.make(window: window, exportedAt: now,
+            inputs: inputs, includeWorkoutEnrichment: false, includeGlucoseReadings: true))
+
+        // Admission: enrichment 2 under schema 9 is rejected.
+        let seven = try DailyHealthExportBuilder.make(window: window, exportedAt: now,
+            inputs: emptyInputs(window: window, workouts: [versionTwo]), includeWorkoutEnrichment: true)
+        XCTAssertEqual(seven.schemaVersion, 7)
+        XCTAssertFalse(admits(rebuilt(seven, schemaVersion: 9, readings: envelope.today.glucoseReadings)))
+    }
+
+    func testAdmissionRejectsABlockOutsideSchemaNineAndSchemaNineWithoutOne() throws {
+        let calendar = londonCalendar()
+        let now = date(2026, 9, 10, 15, calendar: calendar)
+        let window = try DailyExportWindow.capture(at: now, calendar: calendar)
+        let nine = try readingsEnvelope([reading(window.day.start.addingTimeInterval(3600))], window: window)
+        XCTAssertTrue(admits(nine))
+        XCTAssertFalse(admits(rebuilt(nine, readings: nil)))
+        for version in [3, 6, 7, 8] {
+            XCTAssertFalse(admits(rebuilt(nine, schemaVersion: version, readings: nine.today.glucoseReadings)), "schema \(version)")
+            XCTAssertTrue(admits(rebuilt(nine, schemaVersion: version, readings: nil)), "schema \(version) without a block is unaffected")
+        }
+    }
+
+    func testAdmissionRejectsEveryForgedBlock() throws {
+        let calendar = londonCalendar()
+        let now = date(2026, 9, 10, 15, calendar: calendar)
+        let window = try DailyExportWindow.capture(at: now, calendar: calendar)
+        let eight = window.day.start.addingTimeInterval(8 * 3600)
+        let valid = try readingsEnvelope([
+            reading(eight, 5.0, id: 1),
+            reading(eight.addingTimeInterval(300), 5.4, id: 2),
+            reading(eight.addingTimeInterval(120), 6.5, source: "example.sensor.b", name: "Fixture Sensor B", id: 3)
+        ], window: window)
+        let block = try XCTUnwrap(valid.today.glucoseReadings)
+        let a = try XCTUnwrap(block.series?[0])
+        let b = try XCTUnwrap(block.series?[1])
+        XCTAssertTrue(admits(valid))
+
+        func forged(
+            version: Int = 1, state: ExportGlucoseReadingsState = .available, unit: String = "mmol/L",
+            count: Int? = 3, last: String? = "2026-09-10T08:05:00+01:00",
+            series: [ExportGlucoseReadingSeries]?
+        ) -> DailyHealthExportEnvelope {
+            rebuilt(valid, readings: ExportGlucoseReadings(
+                readingsVersion: version, state: state, unit: unit, count: count, lastReadingTime: last, series: series
+            ))
+        }
+        func with(_ item: ExportGlucoseReadingSeries, name: String? = nil, bundle: String? = nil,
+                  count: Int? = nil, readings: [ExportGlucoseReading]? = nil) -> ExportGlucoseReadingSeries {
+            ExportGlucoseReadingSeries(
+                sourceName: name ?? item.sourceName, sourceBundleIdentifier: bundle ?? item.sourceBundleIdentifier,
+                count: count ?? (readings ?? item.readings).count, readings: readings ?? item.readings
+            )
+        }
+        let tooMany = ExportGlucoseReadingSeries(
+            sourceName: a.sourceName, sourceBundleIdentifier: a.sourceBundleIdentifier,
+            count: 2_001, readings: Array(repeating: a.readings[0], count: 2_001)
+        )
+        let forgeries: [(String, DailyHealthExportEnvelope)] = [
+            ("round trip of the valid block", forged(series: [a, b])),
+            ("unknown version", forged(version: 2, series: [a, b])),
+            ("wrong unit", forged(unit: "mg/dL", series: [a, b])),
+            ("top count mismatch", forged(count: 4, series: [a, b])),
+            ("missing top count", forged(count: nil, series: [a, b])),
+            ("series count mismatch", forged(series: [with(a, count: 5), b])),
+            ("unsorted series", forged(series: [b, a])),
+            ("duplicate series", forged(count: 4, series: [a, a])),
+            ("empty series list", forged(count: 0, last: nil, series: [])),
+            ("series with no readings", forged(count: 1, last: b.readings[0].time, series: [with(a, readings: []), b])),
+            ("reading before the window", forged(series: [with(a, readings: [.init(time: "2026-09-09T23:59:59+01:00", value: 5), a.readings[1]]), b])),
+            ("reading after the window", forged(last: "2026-09-10T15:00:01+01:00", series: [with(a, readings: [a.readings[0], .init(time: "2026-09-10T15:00:01+01:00", value: 5)]), b])),
+            ("descending time", forged(series: [with(a, readings: [a.readings[1], a.readings[0]]), b])),
+            ("wrong last reading time", forged(last: "2026-09-10T08:02:00+01:00", series: [a, b])),
+            ("missing last reading time", forged(last: nil, series: [a, b])),
+            ("fractional time text", forged(series: [with(a, readings: [.init(time: "2026-09-10T08:00:00.000+01:00", value: 5), a.readings[1]]), b])),
+            ("time without offset", forged(series: [with(a, readings: [.init(time: "2026-09-10T08:00:00", value: 5), a.readings[1]]), b])),
+            ("time in another offset", forged(series: [with(a, readings: [.init(time: "2026-09-10T07:00:00Z", value: 5), a.readings[1]]), b])),
+            ("non-positive value", forged(series: [with(a, readings: [.init(time: a.readings[0].time, value: 0), a.readings[1]]), b])),
+            ("blank source name", forged(series: [with(a, name: " "), b])),
+            ("blank bundle identifier", forged(series: [with(a, bundle: ""), b])),
+            ("more than the bound", forged(count: 2_001, last: a.readings[0].time, series: [tooMany])),
+            ("list on a state without one", forged(state: .noDataOrAccess, series: [a, b])),
+            ("count on a state without one", forged(state: .limitExceeded, count: 3, last: nil, series: nil)),
+            ("available without a list", forged(series: nil))
+        ]
+        for (name, envelope) in forgeries {
+            XCTAssertEqual(admits(envelope), name == "round trip of the valid block", name)
+        }
+    }
+
+    func testChoiceIsCarriedToTheProviderWithTheFrozenWindow() async throws {
+        let calendar = londonCalendar()
+        let now = date(2026, 9, 10, 15, calendar: calendar)
+        let provider = RecordingDailyProvider { window in
+            var inputs = self.emptyInputs(window: window)
+            inputs.glucoseReadingSamples = [self.reading(window.day.start.addingTimeInterval(3600))]
+            return inputs
+        }
+        let service = DailyHealthExportService(healthData: provider, calendar: calendar, now: { now })
+        let off = try await service.refresh(nutritionSourceBundleIdentifier: fixtureNutritionSource.bundleIdentifier)
+        XCTAssertEqual(provider.requestedGlucoseReadings, false)
+        XCTAssertEqual(off.envelope.schemaVersion, 7)
+        XCTAssertNil(off.envelope.today.glucoseReadings)
+
+        let on = try await service.refresh(nutritionSourceBundleIdentifier: fixtureNutritionSource.bundleIdentifier, includeGlucoseReadings: true)
+        XCTAssertEqual(provider.requestedGlucoseReadings, true)
+        XCTAssertEqual(provider.window?.day, DateInterval(start: calendar.startOfDay(for: now), end: now))
+        XCTAssertEqual(on.envelope.schemaVersion, 9)
+        XCTAssertEqual(on.envelope.today.glucoseReadings?.count, 1)
+    }
+
+    @MainActor
+    func testTogglingReadingsClearsThePreviewAndPersistsTheChoice() async throws {
+        let calendar = londonCalendar()
+        let cutoff = date(2026, 9, 6, 8, calendar: calendar)
+        let notesStore = MutableDailyNotesStore()
+        let provider = RecordingDailyProvider { window in
+            var inputs = self.emptyInputs(window: window)
+            inputs.glucoseReadingSamples = []
+            return inputs
+        }
+        let preference = MemoryDailyGlucoseReadingsPreference()
+        func makeSession() -> DailyDriveSessionController {
+            DailyDriveSessionController(
+                keychain: MemoryDailySessionStore(),
+                drive: DailyDriveAPI(),
+                exportService: DailyHealthExportService(healthData: provider, notesStore: notesStore, calendar: calendar, now: { cutoff }),
+                identityStore: ControllerMemoryDailyIdentityStore(),
+                nutritionSourceSelection: FixedNutritionSourceSelection(bundleIdentifier: fixtureNutritionSource.bundleIdentifier),
+                notes: DailyNotesController(store: notesStore, calendar: calendar, now: { cutoff }),
+                glucoseReadingsPreference: preference
+            )
+        }
+        let session = makeSession()
+        XCTAssertFalse(session.glucoseReadingsEnabled, "off until the user switches it on")
+        await session.refreshPreview()
+        XCTAssertEqual(session.preview?.envelope.schemaVersion, 7)
+        XCTAssertEqual(provider.requestedGlucoseReadings, false)
+
+        session.setGlucoseReadingsEnabled(true)
+        XCTAssertTrue(session.glucoseReadingsEnabled)
+        XCTAssertNil(session.preview, "a preview made before the change cannot be exported")
+        XCTAssertNil(session.lastExportOutcome)
+        XCTAssertTrue(session.status.hasPrefix("Glucose readings changed."))
+        XCTAssertNotEqual(session.presentationState, .readyToExport)
+        XCTAssertFalse(session.canExport)
+
+        await session.refreshPreview()
+        XCTAssertEqual(provider.requestedGlucoseReadings, true)
+        XCTAssertEqual(session.preview?.envelope.schemaVersion, 9)
+        XCTAssertEqual(session.preview?.envelope.today.glucoseReadings?.state, .noDataOrAccess)
+
+        // Setting the same value again leaves the prepared preview alone.
+        session.setGlucoseReadingsEnabled(true)
+        XCTAssertNotNil(session.preview)
+
+        // The choice survives a new session over the same preference.
+        XCTAssertTrue(makeSession().glucoseReadingsEnabled)
+        session.setGlucoseReadingsEnabled(false)
+        XCTAssertNil(session.preview)
+        XCTAssertFalse(makeSession().glucoseReadingsEnabled)
+    }
+
+    @MainActor
+    func testTogglingReadingsBeforeGoogleIsConnectedOnlyRemembersTheChoice() {
+        let notesStore = MutableDailyNotesStore()
+        let preference = MemoryDailyGlucoseReadingsPreference()
+        let session = DailyDriveSessionController(
+            keychain: MemoryDailySessionStore(),
+            drive: PreparationDriveTransportFixture(createOutcomes: []),
+            exportService: DailyHealthExportService(
+                healthData: RecordingDailyProvider { _ in
+                    fatalError("Changing the choice must not query HealthKit")
+                },
+                notesStore: notesStore
+            ),
+            identityStore: ControllerMemoryDailyIdentityStore(),
+            nutritionSourceSelection: FixedNutritionSourceSelection(bundleIdentifier: nil),
+            notes: DailyNotesController(store: notesStore),
+            oauthSession: FakeDriveOAuthSession(),
+            glucoseReadingsPreference: preference
+        )
+        session.signOut()
+        XCTAssertEqual(session.presentationState, .needsGoogleConnection)
+        let statusBefore = session.status
+
+        session.setGlucoseReadingsEnabled(true)
+
+        XCTAssertTrue(session.glucoseReadingsEnabled)
+        XCTAssertNil(session.preview, "no preview survives a changed choice, in any state")
+        XCTAssertNil(session.lastExportOutcome)
+        XCTAssertTrue(preference.loadGlucoseReadingsEnabled(), "the choice is stored for the next session")
+        XCTAssertEqual(session.presentationState, .needsGoogleConnection, "the setup state is not replaced")
+        XCTAssertEqual(session.status, statusBefore)
+        XCTAssertFalse(session.canExport)
+    }
+
+    func testStoredReadingsPreferenceDefaultsToOffAndKeepsItsOwnKey() throws {
+        let suite = "glucose-readings-preference-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let preference = UserDefaultsDailyGlucoseReadingsPreference(defaults: defaults)
+        XCTAssertFalse(preference.loadGlucoseReadingsEnabled())
+        preference.saveGlucoseReadingsEnabled(true)
+        XCTAssertTrue(preference.loadGlucoseReadingsEnabled())
+        XCTAssertNotEqual(UserDefaultsDailyGlucoseReadingsPreference.key, UserDefaultsDailyFoodLogPreference.key)
+        XCTAssertNil(defaults.object(forKey: UserDefaultsDailyFoodLogPreference.key))
+    }
+
+    func testReadingsAreNotAMetricAndEveryStateHasPlainWords() throws {
+        let calendar = londonCalendar()
+        let window = try DailyExportWindow.capture(at: date(2026, 9, 10, 15, calendar: calendar), calendar: calendar)
+        let eight = window.day.start.addingTimeInterval(8 * 3600)
+        let without = try readingsEnvelope(nil, window: window)
+        let with = try readingsEnvelope([reading(eight), reading(eight.addingTimeInterval(300), id: 2)], window: window)
+        XCTAssertEqual(DailyExportIncludedSummary.metricAvailabilities(with.today).count, 15)
+        XCTAssertEqual(DailyExportIncludedSummary.make(today: with.today), DailyExportIncludedSummary.make(today: without.today))
+
+        let block = try XCTUnwrap(with.today.glucoseReadings)
+        XCTAssertEqual(DailyExportGlucoseReadingsText.includedValue(block), "2")
+        func value(_ state: ExportGlucoseReadingsState) -> String {
+            DailyExportGlucoseReadingsText.includedValue(ExportGlucoseReadings(
+                readingsVersion: 1, state: state, unit: "mmol/L", count: nil, lastReadingTime: nil, series: nil
+            ))
+        }
+        XCTAssertEqual(value(.noDataOrAccess), "No visible data or no access")
+        XCTAssertEqual(value(.limitExceeded), "Too many readings to include")
+        XCTAssertEqual(value(.invalidEvidence), "Readings could not be included")
+
+        XCTAssertEqual(DailyExportGlucoseReadingsText.developerFields(nil).map(\.value), ["Not in the prepared file"])
+        XCTAssertEqual(DailyExportGlucoseReadingsText.developerFields(block), [
+            .init(label: "Glucose readings state", value: "available"),
+            .init(label: "Glucose readings count", value: "2"),
+            .init(label: "Glucose source 1", value: "Fixture Sensor A · example.sensor.a"),
+            .init(label: "Glucose source 1 count", value: "2"),
+            .init(label: "Glucose source 1 first", value: "2026-09-10T08:00:00+01:00"),
+            .init(label: "Glucose source 1 last", value: "2026-09-10T08:05:00+01:00"),
+            .init(label: "Glucose source 1 most common interval", value: "5 min")
+        ])
+        let fields = DailyExportGlucoseReadingsText.developerFields(block)
+        XCTAssertFalse(fields.contains { $0.value.contains("5.2") }, "no reading value is shown")
+    }
+
+    func testMostCommonIntervalIsAFactAboutTheListedReadings() throws {
+        func interval(_ offsets: [TimeInterval]) -> String {
+            let start = Date(timeIntervalSince1970: 1_789_000_000)
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime]
+            return DailyExportGlucoseReadingsText.mostCommonInterval(offsets.map {
+                ExportGlucoseReading(time: formatter.string(from: start.addingTimeInterval($0)), value: 5.2)
+            })
+        }
+        XCTAssertEqual(interval([]), "Not enough readings")
+        XCTAssertEqual(interval([0]), "Not enough readings")
+        // A gap of 50 minutes is one interval among the five-minute ones.
+        XCTAssertEqual(interval([0, 300, 600, 3600, 3900]), "5 min")
+        // Equal counts resolve to the shortest interval.
+        XCTAssertEqual(interval([0, 300, 900]), "5 min")
+        XCTAssertEqual(interval([0, 600, 900]), "5 min")
+        // Not a whole number of minutes, and two readings in one second.
+        XCTAssertEqual(interval([0, 90, 180]), "90 s")
+        XCTAssertEqual(interval([0, 0]), "0 s")
+        XCTAssertEqual(
+            DailyExportGlucoseReadingsText.mostCommonInterval([
+                ExportGlucoseReading(time: "2026-09-10T08:00:00+01:00", value: 5.2),
+                ExportGlucoseReading(time: "not a time", value: 5.2)
+            ]),
+            "Unknown"
+        )
+    }
+}
+
+/// Holds a daily read open until released, so a test can act while the session is busy (#469).
+private final class GatedDailyProvider: DailyHealthExportDataProviding, @unchecked Sendable {
+    let isHealthDataAvailable = true
+    private let lock = NSLock()
+    private var release: CheckedContinuation<Void, Never>?
+    private var requested: [Bool] = []
+    private let makeInputs: (DailyExportWindow) -> DailyHealthExportInputs
+
+    init(makeInputs: @escaping (DailyExportWindow) -> DailyHealthExportInputs) { self.makeInputs = makeInputs }
+
+    var isWaiting: Bool { lock.withLock { release != nil } }
+    var requestedGlucoseReadings: [Bool] { lock.withLock { requested } }
+    func resume() {
+        let continuation = lock.withLock { () -> CheckedContinuation<Void, Never>? in
+            defer { release = nil }
+            return release
+        }
+        continuation?.resume()
+    }
+
+    func requestReadAuthorization() async throws {}
+    func requestNutritionReadAuthorization() async throws {}
+    func fetchVisibleNutritionSources() async throws -> [NutritionSource] {
+        [NutritionSource(bundleIdentifier: "example.fixture.nutrition", name: "Invented Nutrition Source")]
+    }
+
+    func fetchDailyHealthExportInputs(
+        for window: DailyExportWindow,
+        nutritionSourceBundleIdentifier: String,
+        includeWorkoutEnrichment: Bool,
+        includeGlucoseReadings: Bool
+    ) async throws -> DailyHealthExportInputs {
+        await withCheckedContinuation { continuation in
+            lock.withLock {
+                requested.append(includeGlucoseReadings)
+                release = continuation
+            }
+        }
+        return makeInputs(window)
+    }
+}
+
+extension DailyHealthExportTests {
+    @MainActor
+    func testTogglingReadingsWhileBusyIsIgnored() async throws {
+        let calendar = londonCalendar()
+        let cutoff = date(2026, 9, 6, 8, calendar: calendar)
+        let notesStore = MutableDailyNotesStore()
+        let provider = GatedDailyProvider { self.emptyInputs(window: $0) }
+        let preference = MemoryDailyGlucoseReadingsPreference()
+        let session = DailyDriveSessionController(
+            keychain: MemoryDailySessionStore(),
+            drive: DailyDriveAPI(),
+            exportService: DailyHealthExportService(healthData: provider, notesStore: notesStore, calendar: calendar, now: { cutoff }),
+            identityStore: ControllerMemoryDailyIdentityStore(),
+            nutritionSourceSelection: FixedNutritionSourceSelection(bundleIdentifier: fixtureNutritionSource.bundleIdentifier),
+            notes: DailyNotesController(store: notesStore, calendar: calendar, now: { cutoff }),
+            glucoseReadingsPreference: preference
+        )
+        let refresh = Task { await session.refreshPreview() }
+        for _ in 0..<2_000 where !provider.isWaiting {
+            try await Task.sleep(nanoseconds: 1_000_000)
+        }
+        XCTAssertTrue(provider.isWaiting)
+        XCTAssertTrue(session.busy)
+
+        session.setGlucoseReadingsEnabled(true)
+        XCTAssertFalse(session.glucoseReadingsEnabled, "a change while busy is ignored")
+        XCTAssertFalse(preference.loadGlucoseReadingsEnabled())
+
+        provider.resume()
+        await refresh.value
+        XCTAssertEqual(provider.requestedGlucoseReadings, [false])
+        XCTAssertEqual(session.preview?.envelope.schemaVersion, 7)
+        XCTAssertNil(session.preview?.envelope.today.glucoseReadings)
     }
 }

@@ -229,6 +229,39 @@ struct DailyGlucoseData: Codable, Equatable {
     let hours: [HourlyGlucoseData]
 }
 
+/// Individual glucose readings (#469, docs/glucose-readings-export-contract-v1.md).
+/// Present only in schema 9, when the Glucose readings choice is on.
+enum ExportGlucoseReadingsState: String, Codable, Equatable {
+    case available
+    case noDataOrAccess = "no_data_or_access"
+    case limitExceeded = "limit_exceeded"
+    case invalidEvidence = "invalid_evidence"
+}
+
+struct ExportGlucoseReading: Codable, Equatable {
+    /// Whole-second text with the reporting zone's offset, like `data_as_of`.
+    let time: String
+    let value: Double
+}
+
+struct ExportGlucoseReadingSeries: Codable, Equatable {
+    let sourceName: String
+    let sourceBundleIdentifier: String
+    let count: Int
+    let readings: [ExportGlucoseReading]
+}
+
+struct ExportGlucoseReadings: Codable, Equatable {
+    let readingsVersion: Int
+    let state: ExportGlucoseReadingsState
+    let unit: String
+    /// Facts about the records listed, across all sources. Present only when
+    /// `state` is available; never a coverage or completeness measure.
+    let count: Int?
+    let lastReadingTime: String?
+    let series: [ExportGlucoseReadingSeries]?
+}
+
 struct DailySleepData: Codable, Equatable {
     let wakeDate: String
     let durationSeconds: Double
@@ -342,9 +375,12 @@ struct DailyHealthMetrics: Codable, Equatable {
     let nutrition: DailyNutritionData?
     var foodLog: CanonicalFoodDocument? = nil
     var foodNutritionSummary: CanonicalFoodNutritionSummary? = nil
+    /// Schema 9 only. Nil is omitted from the JSON, so earlier schemas keep
+    /// their exact bytes.
+    var glucoseReadings: ExportGlucoseReadings? = nil
 
     private enum CodingKeys: String, CodingKey {
-        case notes, weight, bodyFat, waist, bloodPressure, glucose
+        case notes, weight, bodyFat, waist, bloodPressure, glucose, glucoseReadings
         case restingHeartRate, hrv, bloodOxygen, vo2Max, sleep
         case activity, workouts, watchCoverage, medications, nutrition
         case foodLog, foodNutritionSummary
@@ -538,6 +574,9 @@ struct DailyHealthExportInputs: Equatable {
     let contextAsleepIntervals: [AsleepInterval]
     let contextMedicationDoses: [MedicationDoseRecord]
     let nutrition: NutritionExportInput
+    /// Every visible glucose sample for the export day, or nil when readings
+    /// were not requested (#469).
+    var glucoseReadingSamples: [GlucoseReadingSample]? = nil
 }
 
 enum DailyHealthExportBuilder {
@@ -579,7 +618,8 @@ enum DailyHealthExportBuilder {
         exportedAt: Date,
         inputs: DailyHealthExportInputs,
         notes: [String] = [],
-        includeWorkoutEnrichment: Bool = false
+        includeWorkoutEnrichment: Bool = false,
+        includeGlucoseReadings: Bool = false
     ) throws -> DailyHealthExportEnvelope {
         guard exportedAt >= window.cutoff else {
             throw DailyHealthExportError.invalidWindow
@@ -776,7 +816,7 @@ enum DailyHealthExportBuilder {
                     )
                 })
 
-        let today = DailyHealthMetrics(
+        var today = DailyHealthMetrics(
             notes: notes,
             weight: weight,
             bodyFat: todayBodyFat,
@@ -829,8 +869,23 @@ enum DailyHealthExportBuilder {
             calendar: calendar,
             nutrition: nutrition.context
         )
+        var schemaVersion = includeWorkoutEnrichment ? (today.workouts.data?.contains { $0.enrichment?.enrichmentVersion == 3 } == true ? 8 : 7) : 3
+        if includeGlucoseReadings {
+            // Schema 9 is schema 8 plus the block (decision D1): workout
+            // detail, when present, must be enrichment version 3, and the
+            // samples must have been read for this window.
+            guard includeWorkoutEnrichment,
+                  today.workouts.data?.allSatisfy({
+                      $0.enrichment.map { $0.enrichmentVersion == 3 } ?? true
+                  }) ?? true,
+                  let samples = inputs.glucoseReadingSamples else {
+                throw DailyHealthExportError.invalidMetricValue
+            }
+            today.glucoseReadings = glucoseReadings(samples, window: window, timestamp: timestamp)
+            schemaVersion = 9
+        }
         return DailyHealthExportEnvelope(
-            schemaVersion: includeWorkoutEnrichment ? (today.workouts.data?.contains { $0.enrichment?.enrichmentVersion == 3 } == true ? 8 : 7) : 3,
+            schemaVersion: schemaVersion,
             reportDate: window.reportDate,
             timeZone: window.timeZoneIdentifier,
             dataAsOf: timestamp(window.cutoff),
@@ -953,6 +1008,56 @@ enum DailyHealthExportBuilder {
     private static func scalar(_ value: Double?, unit: String) -> ExportMetric<ExportScalar> {
         guard let value, value.isFinite else { return .noDataOrAccess }
         return .available(ExportScalar(value: value, unit: unit))
+    }
+
+    /// The `glucose_readings` block. Times are whole-second text; a
+    /// sub-second part is truncated, never rounded into the next second.
+    private static func glucoseReadings(
+        _ samples: [GlucoseReadingSample],
+        window: DailyExportWindow,
+        timestamp: (Date) -> String
+    ) -> ExportGlucoseReadings {
+        func block(
+            _ state: ExportGlucoseReadingsState,
+            series: [ExportGlucoseReadingSeries]? = nil,
+            last: Date? = nil
+        ) -> ExportGlucoseReadings {
+            ExportGlucoseReadings(
+                readingsVersion: GlucoseReadingsPolicy.readingsVersion,
+                state: state,
+                unit: GlucoseReadingsPolicy.unit,
+                count: series.map { $0.reduce(0) { $0 + $1.count } },
+                lastReadingTime: last.map(wholeSecondText),
+                series: series
+            )
+        }
+        func wholeSecondText(_ date: Date) -> String {
+            timestamp(Date(timeIntervalSinceReferenceDate:
+                date.timeIntervalSinceReferenceDate.rounded(.down)))
+        }
+        switch GlucoseReadingsProjection.project(samples, in: window.day) {
+        case .noDataOrAccess: return block(.noDataOrAccess)
+        case .limitExceeded: return block(.limitExceeded)
+        case .invalidEvidence: return block(.invalidEvidence)
+        case .available(let series):
+            return block(
+                .available,
+                series: series.map {
+                    ExportGlucoseReadingSeries(
+                        sourceName: $0.sourceName,
+                        sourceBundleIdentifier: $0.sourceBundleIdentifier,
+                        count: $0.readings.count,
+                        readings: $0.readings.map {
+                            ExportGlucoseReading(
+                                time: wholeSecondText($0.start),
+                                value: $0.millimolesPerLiter
+                            )
+                        }
+                    )
+                },
+                last: series.flatMap(\.readings).map(\.start).max()
+            )
+        }
     }
 
     private static func glucoseStatistics(_ value: DailyGlucoseValue) -> ExportStatistics? {
@@ -1401,12 +1506,89 @@ enum DailyHealthExportBuilder {
     }
 }
 
+extension DailyHealthExportEnvelope {
+    /// Strict admission of the `glucose_readings` block (#469,
+    /// docs/glucose-readings-export-contract-v1.md section 6). Schema 9
+    /// requires a self-consistent block; every other schema must have none.
+    var glucoseReadingsAreAdmissible: Bool {
+        guard schemaVersion == 9 else { return today.glucoseReadings == nil }
+        guard let block = today.glucoseReadings,
+              block.readingsVersion == GlucoseReadingsPolicy.readingsVersion,
+              block.unit == GlucoseReadingsPolicy.unit else { return false }
+        guard block.state == .available else {
+            return block.count == nil && block.lastReadingTime == nil && block.series == nil
+        }
+
+        guard let zone = TimeZone(identifier: timeZone) else { return false }
+        let parser = ISO8601DateFormatter()
+        parser.formatOptions = [.withInternetDateTime]
+        // Whole seconds with the reporting zone's own offset for that
+        // instant, exactly as the builder renders them (`Z` for zero).
+        let shape = #"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(Z|[+-]\d{2}:\d{2}(:\d{2})?)$"#
+        func offsetText(_ seconds: Int) -> String {
+            guard seconds != 0 else { return "Z" }
+            let magnitude = abs(seconds)
+            let base = String(format: "%@%02d:%02d", seconds < 0 ? "-" : "+", magnitude / 3600, magnitude / 60 % 60)
+            return magnitude % 60 == 0 ? base : base + String(format: ":%02d", magnitude % 60)
+        }
+        func instant(_ text: String) -> Date? {
+            guard text.range(of: shape, options: .regularExpression) != nil,
+                  let date = parser.date(from: text),
+                  String(text.dropFirst(19)) == offsetText(zone.secondsFromGMT(for: date)) else { return nil }
+            return date
+        }
+        func isBlank(_ text: String) -> Bool {
+            text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        guard let series = block.series, !series.isEmpty,
+              let total = block.count,
+              let lastReadingTime = block.lastReadingTime,
+              let windowStart = instant(dayWindow.start),
+              let windowEnd = instant(dayWindow.end) else { return false }
+        // A complete past day ends at the next local midnight, which no
+        // reading of that day reaches. Today ends at the cutoff, truncated
+        // to a whole second, so a reading in the cutoff's own second renders
+        // equal to it.
+        var gregorian = Calendar(identifier: .gregorian)
+        gregorian.timeZone = zone
+        let endsAtCutoff = gregorian.date(byAdding: .day, value: 1, to: windowStart) != windowEnd
+
+        var sum = 0
+        var previousKey: (String, String)?
+        var latest: (date: Date, text: String)?
+        for item in series {
+            let key = (item.sourceBundleIdentifier, item.sourceName)
+            guard !isBlank(key.0), !isBlank(key.1),
+                  item.count == item.readings.count, !item.readings.isEmpty else { return false }
+            // Series are unique and ordered by bundle identifier, then name.
+            if let previousKey, !(previousKey < key) { return false }
+            previousKey = key
+            var previous: Date?
+            for reading in item.readings {
+                guard reading.value.isFinite, reading.value > 0,
+                      let date = instant(reading.time),
+                      date >= windowStart,
+                      date < windowEnd || (date == windowEnd && endsAtCutoff)
+                else { return false }
+                // Whole-second text can tie, so only rendered time is ordered.
+                if let previous, date < previous { return false }
+                previous = date
+                if latest.map({ date > $0.date }) ?? true { latest = (date, reading.time) }
+            }
+            sum += item.count
+        }
+        return sum == total
+            && sum <= GlucoseReadingsPolicy.maximumReadingsPerDay
+            && latest?.text == lastReadingTime
+    }
+}
+
 enum DailyHealthExportSerializer {
     static func encode(_ envelope: DailyHealthExportEnvelope) throws -> Data {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .custom { date, encoder in
             var container = encoder.singleValueContainer()
-            if envelope.schemaVersion == 8 {
+            if [8, 9].contains(envelope.schemaVersion) {
                 try container.encode(date.timeIntervalSinceReferenceDate)
                 return
             }

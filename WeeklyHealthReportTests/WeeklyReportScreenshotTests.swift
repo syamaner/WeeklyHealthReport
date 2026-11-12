@@ -1458,7 +1458,8 @@ private struct UnusedDailyHealthDataProvider: DailyHealthExportDataProviding {
     func fetchDailyHealthExportInputs(
         for window: DailyExportWindow,
         nutritionSourceBundleIdentifier: String,
-        includeWorkoutEnrichment: Bool
+        includeWorkoutEnrichment: Bool,
+        includeGlucoseReadings: Bool
     ) async throws -> DailyHealthExportInputs {
         throw HealthDataError.unavailable
     }

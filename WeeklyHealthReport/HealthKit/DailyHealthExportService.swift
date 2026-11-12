@@ -9,7 +9,8 @@ protocol DailyHealthExportDataProviding {
     func fetchDailyHealthExportInputs(
         for window: DailyExportWindow,
         nutritionSourceBundleIdentifier: String,
-        includeWorkoutEnrichment: Bool
+        includeWorkoutEnrichment: Bool,
+        includeGlucoseReadings: Bool
     ) async throws -> DailyHealthExportInputs
 }
 
@@ -59,7 +60,8 @@ struct DailyHealthExportService {
     func refresh(
         nutritionSourceBundleIdentifier: String?,
         selectedDay: DailyNoteDayID? = nil,
-        includeWorkoutEnrichment: Bool = true
+        includeWorkoutEnrichment: Bool = true,
+        includeGlucoseReadings: Bool = false
     ) async throws -> DailyHealthExportResult {
         try Task.checkCancellation()
         let cutoff = now()
@@ -87,7 +89,8 @@ struct DailyHealthExportService {
         let inputs = try await healthData.fetchDailyHealthExportInputs(
             for: window,
             nutritionSourceBundleIdentifier: nutritionSourceBundleIdentifier,
-            includeWorkoutEnrichment: includeWorkoutEnrichment
+            includeWorkoutEnrichment: includeWorkoutEnrichment,
+            includeGlucoseReadings: includeGlucoseReadings
         )
         guard inputs.nutrition.source.bundleIdentifier == nutritionSourceBundleIdentifier else {
             throw DailyHealthExportError.nutritionSourceUnavailable
@@ -106,7 +109,8 @@ struct DailyHealthExportService {
             exportedAt: now(),
             inputs: inputs,
             notes: notesSnapshot.notes,
-            includeWorkoutEnrichment: includeWorkoutEnrichment
+            includeWorkoutEnrichment: includeWorkoutEnrichment,
+            includeGlucoseReadings: includeGlucoseReadings
         )
         let bytes = try DailyHealthExportSerializer.encode(envelope)
         try Task.checkCancellation()
@@ -116,4 +120,34 @@ struct DailyHealthExportService {
             notesSnapshot: notesSnapshot
         )
     }
+}
+
+/// Whether individual glucose readings go into the health Daily JSON (#469).
+/// Off until the user switches it on; kept apart from the Food log preference
+/// because this choice changes the health file's own bytes.
+protocol DailyGlucoseReadingsPreferencePersisting {
+    func loadGlucoseReadingsEnabled() -> Bool
+    func saveGlucoseReadingsEnabled(_ enabled: Bool)
+}
+
+struct UserDefaultsDailyGlucoseReadingsPreference: DailyGlucoseReadingsPreferencePersisting {
+    static let key = "daily-export.glucose-readings-enabled.v1"
+    let defaults: UserDefaults
+
+    init(defaults: UserDefaults = .standard) { self.defaults = defaults }
+
+    func loadGlucoseReadingsEnabled() -> Bool {
+        defaults.object(forKey: Self.key) as? Bool ?? false
+    }
+
+    func saveGlucoseReadingsEnabled(_ enabled: Bool) {
+        defaults.set(enabled, forKey: Self.key)
+    }
+}
+
+final class MemoryDailyGlucoseReadingsPreference: DailyGlucoseReadingsPreferencePersisting {
+    private var enabled: Bool
+    init(enabled: Bool = false) { self.enabled = enabled }
+    func loadGlucoseReadingsEnabled() -> Bool { enabled }
+    func saveGlucoseReadingsEnabled(_ enabled: Bool) { self.enabled = enabled }
 }

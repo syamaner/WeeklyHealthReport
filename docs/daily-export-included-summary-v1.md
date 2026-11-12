@@ -17,7 +17,7 @@ weight, bodyFat, waist, bloodPressure, glucose, restingHeartRate, hrv, bloodOxyg
 - **With data:** `availability == available`.
 - **Denominator:** the 15 entries minus any whose availability is `unsupported` (for example medications before iOS 26).
 - **Insufficient data (v1.1):** an entry whose availability is `insufficient_data` counts towards the denominator (Y) but not towards the metrics with data (X).
-- **Not counted as metrics:** workouts (counted separately), nutrition (its own row, "Selected Health source"), notes (their own row), `app_context` context values, and the schema-4 food fields (never present in a Drive export).
+- **Not counted as metrics:** workouts (counted separately), nutrition (its own row, "Selected Health source"), notes (their own row), `app_context` context values, the schema-4 food fields (never present in a Drive export), and the schema-9 `glucose_readings` block, which has its own row, "Readings in this file" ([glucose-readings-export-contract-v1.md](glucose-readings-export-contract-v1.md), #469). The 15 entries and the denominator are unchanged by that block.
 - Shown as `9 of 14 metrics have data`. With no metric available: `No Health data visible for this day, or no access`. A `no_data_or_access` entry is never shown as a zero value.
 
 ## 3. What counts as "a workout"
