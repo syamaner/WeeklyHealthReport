@@ -62,6 +62,7 @@ Start with [`../AGENTS.md`](../AGENTS.md) for working rules and [privacy and egr
 - [Open Food Facts plus generic estimate v1](off-label-estimate-v1.md) (#464, extends #383): the labelled estimate for unprinted nutrients offered on Confirm for Open Food Facts chocolate products, with the stored candidate as evidence of record
 - [Ciqual 2025 admission v1](ciqual-2025-admission-v1.md) (#384, phase C of #381): owner decisions 4 and 5 and decisions D1 to D10, pinned files and hashes, the chocolate subgroup 0702 scope (29 foods), constituent mapping and value-form rules, `cocoa-percent-policy-v2`, `composite-generic-ranking-v11`; architecture gate PASS WITH CHANGES applied
 - [Cocoa exact match v1](cocoa-exact-match-v1.md) (#462, amends #382 and #384): `cocoa-percent-policy-v3` reads a product named "N% dark chocolate", and an online product stating exactly the requested cocoa % is shown first on Search results
+- [Confirm rules review v1](confirm-rules-review-v1.md) (#470): relaxes the Confirm steps for packaged products: a one-tap "Packaged product, eaten as sold" answer, no typed reason when only filling in blanks, and re-log and favourites keeping your food details
 
 ## Nutrition evaluation
 
