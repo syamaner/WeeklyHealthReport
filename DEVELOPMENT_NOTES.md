@@ -4520,6 +4520,29 @@ Excluded:
 
 Pricing: this session ran on `claude-fable-5-2`, for which this ledger records no rate. It is priced at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, as the Fable subagents were in WHR-416-2026-11-08-A3, so the figure is a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
 
+## WHR-OFF-LABEL-2026-11-12: Claude Code Open Food Facts values label
+
+The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) picked up the #470 journey finding D3 (Open Food Facts entries reading a bare "Estimate"). The window covers:
+- tracing the label to the barcode contract, which stores Open Food Facts values as estimates;
+- the owner's decision to keep them as estimates and name the source;
+- `docs/off-values-label-v1.md`, the `OpenFoodFactsValues` predicate, the Food Log row, Recent foods and saved-entry labels, and their tests;
+- an invariant review (PASS, two low findings and the wording question applied), a local Qodo review (no findings) and the full gates.
+
+Subagents are included: the invariant reviewer. The window runs from the owner's "Yes, Estimate label" to the end of the gates.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Open Food Facts values label: spec, code, review and gates, with subagents | 17,299,549 (17,123,873) | 175,490 | 53,119 | 17,352,668 | $5.65 |
+
+Method: `phase_usage.py --format claude --since 2026-11-12T18:47:15Z --include-subagents` on the session transcript, run at 2026-11-12T19:26:43Z. Exact USD 5.6518066. The cache-write tokens (80,004 of them 5-minute writes) are part of the input figure.
+
+Excluded:
+- the Qodo review run;
+- local builds, test loops, xcodebuild gates and simulator time, which use no API tokens;
+- this ledger edit, the commit, the push and the PR after the window.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
 ## WHR-424-IMPORT-P1C-2026-11-12: Claude Code import v1 P1c search, merge, Confirm and records (#424)
 
 The implementation session (`claude-opus-5-5`, session `9a30287d-2461-44e3-836e-4b9789374ac5`) did the following in this window:

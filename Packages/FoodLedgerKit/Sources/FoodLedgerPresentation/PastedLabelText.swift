@@ -491,7 +491,8 @@ public enum PastedLabelSavedEntryText {
 
     /// "about 555 kcal · Calculated", "12 g · Corrected by you", or the plain value.
     public static func value(_ total: FoodIntakeTotal, detail: SavedFoodEntryDetail) -> String {
-        let plain = FoodLogText.nutrient(total, augmented: detail.augmentedKeys.contains(total.key))
+        let plain = FoodLogText.nutrient(total, augmented: detail.augmentedKeys.contains(total.key),
+                                         openFoodFacts: detail.openFoodFactsKeys.contains(total.key))
         guard total.knownAmount != nil else {
             // An estimated bound stays a bound, marked as the estimate (#383), never "Unknown".
             if let value = detail.labelEstimate?.estimatedValues[total.key],
