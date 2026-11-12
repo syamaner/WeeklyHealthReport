@@ -206,3 +206,64 @@ public struct PersonalFoodDatabaseFoodSearch: GenericFoodSearching {
         }
     }
 }
+
+/// Re-resolution against the active Your food database (phase 1 plan section 5.1 item 1). The only
+/// target is the active release under `pfc-resolution-v1`; a saved log is matched by its entry ID.
+/// With no database installed there is no target, so the service reports `unavailableTarget`.
+public struct PersonalFoodDatabaseReresolutionProvider: FoodReresolutionProviding {
+    private let index: PersonalFoodDatabaseIndex
+    private let resolver: any GenericRecordResolving
+    private let ids: any LedgerIDGenerating
+
+    public init(index: PersonalFoodDatabaseIndex, resolver: any GenericRecordResolving, ids: any LedgerIDGenerating) {
+        self.index = index
+        self.resolver = resolver
+        self.ids = ids
+    }
+
+    public func targets() throws -> [FoodReresolutionTarget] {
+        guard let snapshot = index.snapshot() else { return [] }
+        return [FoodReresolutionTarget(sourceRelease: snapshot.release,
+                                       methodVersion: try LedgerText(PersonalFoodDatabaseCandidateBuilder.methodVersion))]
+    }
+
+    public func candidates(for record: StoredFoodConfirmation, target: FoodReresolutionTarget, at date: Date) throws -> GenericFoodSearchOutcome {
+        guard let snapshot = index.snapshot(), try targets().contains(target) else { throw FoodReresolutionError.unavailableTarget }
+        let evidence = try CaptureEvidence(evidenceID: ids.makeID(EvidenceTag.self), kind: .genericSearch, capturedAt: date,
+            locale: LedgerText("en_GB"), captureMethod: LedgerText("personal_food_database_reresolution"),
+            captureMethodVersion: LedgerText(PersonalFoodDatabaseCandidateBuilder.methodVersion),
+            originalPayload: .text(record.productVersion.name))
+        let entryID = record.candidateDecision.candidate.recordID.value
+        guard let entry = snapshot.file.entries.first(where: { $0.id == entryID }),
+              let built = try PersonalFoodDatabaseCandidateBuilder.build(
+                  entry: entry, file: snapshot.file, databaseRelease: snapshot.release,
+                  record: entry.genericReference.flatMap {
+                      resolver.resolve(GenericRecordReference($0), evidenceIDs: [evidence.evidenceID], queryAlias: entry.title)
+                  },
+                  evidenceIDs: [evidence.evidenceID], score: 1) else {
+            return .noResult(GenericFoodNoResultRoute(evidence: evidence))
+        }
+        return .confirmation(GenericFoodConfirmationRoute(confirmation: try PopulatedFoodConfirmation(
+            evidence: [evidence], sourceReleases: built.releases, candidates: [built.candidate],
+            expectedIdentity: built.candidate.candidate.identity, expectedEdibleQuantity: built.candidate.candidate.edibleQuantity),
+            matches: [GenericFoodMatch(candidate: built.candidate, isExactName: true,
+                personalDatabase: PersonalFoodDatabaseMatchContext(step: .titleOrAlias, isGenericReference: false))]))
+    }
+}
+
+/// Several re-resolution providers behind the service's single port; each target goes to the
+/// provider that lists it.
+public struct FoodReresolutionProviderSet: FoodReresolutionProviding {
+    private let providers: [any FoodReresolutionProviding]
+
+    public init(_ providers: [any FoodReresolutionProviding]) { self.providers = providers }
+
+    public func targets() throws -> [FoodReresolutionTarget] { try providers.flatMap { try $0.targets() } }
+
+    public func candidates(for record: StoredFoodConfirmation, target: FoodReresolutionTarget, at date: Date) throws -> GenericFoodSearchOutcome {
+        for provider in providers where try provider.targets().contains(target) {
+            return try provider.candidates(for: record, target: target, at: date)
+        }
+        throw FoodReresolutionError.unavailableTarget
+    }
+}

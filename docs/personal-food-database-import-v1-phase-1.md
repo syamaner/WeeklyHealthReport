@@ -517,3 +517,16 @@ resolvers, and the boundary fixtures.
 
 **Owner decision (12 November 2026):** option (a), the stricter path. It is a rule change, recorded
 as a dated amendment in import v1 section 7 with the owner's approval of the same day.
+
+### 5.2 Found during implementation (12 November 2026)
+
+- **Linked releases on save.** Section 5 said saving needs no change. The ledger stores reject a
+  resolution whose values cite a release it does not link, and the save path linked only the
+  selected candidate's release. `FoodConfirmationService.linkedReleaseIDs` now appends, for a Your
+  food database candidate only, every release its saved values cite (owner label, Open Food Facts,
+  merged generic record) after the existing links. Every other source is unchanged, since its values
+  cite only releases already linked. Pinned by `PersonalFoodDatabaseLifecycleContractTests`.
+- **Resolver score.** A resolved reference scores 1 (the owner chose the record) rather than the
+  adapter's ranking score for the alias; the score is presentation only and record equality ignores it.
+- **Re-resolution.** `FoodReresolutionProviderSet` puts the CoFID and database providers behind the
+  service's single provider port.

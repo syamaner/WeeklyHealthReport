@@ -583,6 +583,25 @@ public final class FoodConfirmationService: @unchecked Sendable {
         }
     }
 
+    /// Import v1 section 7 (phase 1 plan section 5): a Your food database resolution also links each
+    /// upstream release its values cite (owner label, Open Food Facts, merged generic record), after
+    /// the existing links, so every provenance release is a linked release. Other sources are
+    /// unchanged: their values cite only releases already linked.
+    static func linkedReleaseIDs(_ base: [ExternalIdentifier], nutrients: NutrientSet, candidate: ProviderNeutralCandidate,
+                                 releases: [SourceRelease]) -> [ExternalIdentifier] {
+        guard releases.first(where: { $0.sourceReleaseID == candidate.sourceReleaseID })?.sourceID.value
+                == PersonalFoodDatabaseRelease.sourceID else { return base }
+        var linked = base
+        for entry in nutrients.entries {
+            for value in [entry.value] + entry.conflictCandidates {
+                for provenance in value.provenance where !linked.contains(provenance.sourceReleaseID) {
+                    linked.append(provenance.sourceReleaseID)
+                }
+            }
+        }
+        return linked
+    }
+
     private func save(
         _ state: FoodConfirmationState,
         operationID: OperationID,
@@ -766,13 +785,16 @@ public final class FoodConfirmationService: @unchecked Sendable {
                 basis: identity.servingBasis,
                 createdAt: now
             )
+            let nutrients = layer?.nutrients ?? state.correction?.nutrients ?? selected.candidate.nutrients
             resolutionVersion = try NutritionResolutionVersion(
                 resolutionVersionID: ids.makeID(ResolutionVersionTag.self),
                 resolutionID: resolution.resolutionID,
                 ordinal: VersionOrdinal(1),
                 methodVersion: LedgerText(FoodConfirmationPolicy.version),
-                sourceReleaseIDs: [selected.candidate.sourceReleaseID] + (layer.map { [$0.choice.sourceRelease.sourceReleaseID] } ?? []),
-                nutrients: layer?.nutrients ?? state.correction?.nutrients ?? selected.candidate.nutrients,
+                sourceReleaseIDs: Self.linkedReleaseIDs(
+                    [selected.candidate.sourceReleaseID] + (layer.map { [$0.choice.sourceRelease.sourceReleaseID] } ?? []),
+                    nutrients: nutrients, candidate: selected.candidate, releases: state.input.sourceReleases),
+                nutrients: nutrients,
                 decisionIDs: [decision.candidateDecisionID] + (estimateDecision.map { [$0.candidateDecisionID] } ?? []),
                 assertionIDs: assertion.map { [$0.assertionID] } ?? [],
                 createdAt: now
