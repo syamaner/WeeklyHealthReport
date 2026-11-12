@@ -311,10 +311,10 @@ final class OpenFoodFactsLookupTests: XCTestCase {
     }
 
     func testVolumeRequiresConsistentExplicitPanelMetadataAndPackageUnit() async throws {
-        // A per-serving panel with a stated 100 ml serving is admitted and scaled under v6
-        // (testPerServingPanelScalesToPer100AndKeepsTheSourceServing), so it is not listed here.
+        // A serving panel beside a per 100 g panel that contradicts the 1 l pack still declines:
+        // v6 applies only when the record has no per 100 pack panel at all.
         let changes: [(inout [String: Any]) -> Void] = [
-            { $0["per"] = "100g" }, { $0.removeValue(forKey: "per") },
+            { $0["per"] = "serving" }, { $0["per"] = "100g" }, { $0.removeValue(forKey: "per") },
             { $0["preparation"] = "prepared" }, { $0["source"] = "estimate" },
             { $0["per_quantity"] = 200 }, { $0["per_quantity"] = true }, { $0["per_quantity"] = "100" },
             { $0["per_unit"] = "g" }, { $0["per_unit"] = NSNull() }
@@ -454,7 +454,9 @@ final class OpenFoodFactsLookupTests: XCTestCase {
         let cases: [(String?, [[String: Any]])] = [
             (nil, [with(nil, "g")]), (nil, [with(30, nil)]), (nil, [with(0, "g")]), (nil, [with(true, "g")]),
             (nil, [with("30", "g")]), (nil, [with(30, "oz")]), (nil, [with(30, "g"), with(40, "g")]),
-            ("500 ml", [with(30, "g")]), ("500 g", [with(250, "ml")])
+            ("500 ml", [with(30, "g")]), ("500 g", [with(250, "ml")]),
+            // Implausible once scaled: 8 g protein in a 0.1 g serving is 8,000 g per 100 g.
+            (nil, [with(0.1, "g")])
         ]
         for (pack, sets) in cases {
             let body = try response { product in

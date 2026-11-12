@@ -195,6 +195,17 @@ public struct OpenFoodFactsLookup: PackagedFoodCandidateLookingUp {
                 sourceValue: .exact(source), provenance: [provenance])))
         }
         guard available > 0 else { return .insufficientData }
+        // v6 plausibility: a scaled value no food can have per 100 (more than 100 g of a nutrient
+        // or 900 kcal) means a wrong serving size, so the record declines rather than mislead.
+        if sourceSet.serving != nil, entries.contains(where: { entry in
+            guard case let .augmented(value) = entry.value else { return false }
+            switch value.unit {
+            case .grams: return value.amount > 100
+            case .milligrams: return value.amount > 100_000
+            case .kilocalories: return value.amount > 900
+            default: return false
+            }
+        }) { return .insufficientData }
         let identity = try DecisiveIdentity(preparation: PreparationState(kind: .unknown), bone: .unknown, skin: .unknown,
             drained: .unknown, packingMedium: .unknown, fortification: .unknown, servingBasis: basis)
         let quantity = try EdibleQuantityIdentity.known(PositiveQuantity(value: 100, unit: volume ? .millilitres : .grams), conversionVersionID: nil)
@@ -228,7 +239,13 @@ public struct OpenFoodFactsLookup: PackagedFoodCandidateLookingUp {
                 $0.element["source"] as? String == "packaging" && bases.contains($0.element["per"] as? String ?? "")
                     && $0.element["preparation"] as? String == "as_sold"
             }
-            if eligible.isEmpty { return servingNutrients(sets, volume: packBasis) }
+            // v6 only when the record has no per 100 pack panel of either basis: a per 100 panel
+            // that contradicts the pack still declines, as in v5 (invariant review).
+            let anyPer100 = sets.contains {
+                $0["source"] as? String == "packaging" && $0["preparation"] as? String == "as_sold"
+                    && ["100g", "100ml"].contains($0["per"] as? String ?? "")
+            }
+            if eligible.isEmpty { return anyPer100 ? nil : servingNutrients(sets, volume: packBasis) }
             guard eligible.count == 1, let values = eligible[0].element["nutrients"] as? [String: Any] else { return nil }
             let panel = eligible[0].element
             let volume = panel["per"] as? String == "100ml"
