@@ -448,4 +448,20 @@ final class PersonalFoodDatabaseSearchTests: XCTestCase {
         XCTAssertEqual(value(built, .fiber), .unknown(.missingConversion))
         XCTAssertEqual(value(built, .calcium), .unknown(.notDeclared))
     }
+
+    /// Qodo (local review): a Generic row exactly naming its record ranks as exact, and the kept
+    /// database copy keeps the source route's exact status.
+    func testGenericRowExactNameAndDedupeKeepsExactStatus() throws {
+        let (database, _, _) = try makeSearch(Self.golden())
+        let generic = matches(try database.search(request("tofu"))).first { $0.personalDatabase?.isGenericReference == true }
+        XCTAssertEqual(generic?.isExactName, false, "the record's own name is not the query")
+        let kept = try CompositeGenericFoodSearch.dedupeDatabaseRows([
+            GenericFoodMatch(candidate: try FakeResolver.candidate("tfda:X0001", preparation: .raw, basis: .per100Grams, energy: 380, evidenceIDs: []),
+                             isExactName: true),
+            GenericFoodMatch(candidate: try FakeResolver.candidate("tfda:X0001", preparation: .raw, basis: .per100Grams, energy: 380, evidenceIDs: []),
+                             isExactName: false, personalDatabase: PersonalFoodDatabaseMatchContext(step: .concept, isGenericReference: true))])
+        XCTAssertEqual(kept.count, 1)
+        XCTAssertTrue(kept[0].isExactName)
+        XCTAssertEqual(kept[0].personalDatabase?.isGenericReference, true)
+    }
 }

@@ -140,7 +140,10 @@ public final class CompositeGenericFoodSearch: GenericFoodSearching, @unchecked 
             guard FoodSearchRecordEquality.sameSourceRecord(result[index].candidate, row.candidate) else {
                 throw FoodLedgerValidationError.duplicateValue("conflicting source record")
             }
-            if row.personalDatabase != nil { result[index] = row }
+            // The kept database copy carries the exact-name status either copy earned.
+            let database = row.personalDatabase != nil ? row : result[index]
+            result[index] = GenericFoodMatch(candidate: database.candidate,
+                isExactName: row.isExactName || result[index].isExactName, personalDatabase: database.personalDatabase)
         }
         return result
     }

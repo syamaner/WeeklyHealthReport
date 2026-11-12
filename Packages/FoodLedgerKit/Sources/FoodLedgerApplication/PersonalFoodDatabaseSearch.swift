@@ -195,7 +195,10 @@ public struct PersonalFoodDatabaseFoodSearch: GenericFoodSearching {
             }
             if let generic {
                 cited.append(generic.release)
-                rows.append(GenericFoodMatch(candidate: generic.candidate, isExactName: false,
+                // Exact when the record's own name, folded, is the query (as the adapters judge it).
+                let exact = Set(GenericFoodRankingPolicy.terms(generic.candidate.name.value))
+                    == Set(GenericFoodRankingPolicy.terms(request.retrievalText))
+                rows.append(GenericFoodMatch(candidate: generic.candidate, isExactName: exact,
                     personalDatabase: PersonalFoodDatabaseMatchContext(step: hit.step, isGenericReference: true)))
             }
             let before = releases

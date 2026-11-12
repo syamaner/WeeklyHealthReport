@@ -417,7 +417,7 @@ asserts that every provenance `sourceReleaseID` of a database candidate is in th
 so any attempt returns `unavailableTarget`; the P1b-deferred tests check that, and that remove keeps
 the log and its release records.
 
-**Decision needed (one, with a recommendation).** Import v1 section 7 gives an entry whose values
+**Decision (closed 12 November 2026: the owner chose (a); see 5.1).** Import v1 section 7 gives an entry whose values
 all come from its merged record the generic-estimate allowance. The code's
 `FoodConfirmationPolicy.isGenericEstimate` grants it only when every provenance names the
 candidate's **own** release and record, which a database entry never does. Options: (a) keep the
