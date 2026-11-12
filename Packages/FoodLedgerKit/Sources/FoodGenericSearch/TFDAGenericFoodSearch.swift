@@ -82,7 +82,7 @@ public final class TFDAGenericFoodSearch: GenericFoodSearching, @unchecked Senda
         }.prefix(10)
         guard !ranked.isEmpty else { return miss() }
         let matches = try ranked.map { record, score, exact in
-            GenericFoodMatch(candidate: try candidate(record, score: score, evidence: retained), isExactName: exact)
+            GenericFoodMatch(candidate: try candidate(record, score: score, evidenceIDs: retained.map(\.evidenceID)), isExactName: exact)
         }
         let first = matches[0].candidate.candidate
         return .confirmation(GenericFoodConfirmationRoute(confirmation: try PopulatedFoodConfirmation(
@@ -90,7 +90,8 @@ public final class TFDAGenericFoodSearch: GenericFoodSearching, @unchecked Senda
             expectedIdentity: first.identity, expectedEdibleQuantity: .unknown), matches: matches))
     }
 
-    private func candidate(_ record: TFDARecord, score: Double, evidence: [CaptureEvidence]) throws -> PopulatedFoodCandidate {
+    private func candidate(_ record: TFDARecord, score: Double, evidenceIDs: [EvidenceID],
+                           methodVersion: String = TFDAGenericFoodSearch.matcherVersion) throws -> PopulatedFoodCandidate {
         let recordID = try ExternalIdentifier("tfda:" + record.id)
         let nutrients = try NutrientSet(entries: NutrientKey.allCases.map { key in
             guard let value = record.nutrients[key.rawValue] else { return try NutrientEntry(key: key, value: .unknown(.notDeclared)) }
@@ -108,8 +109,8 @@ public final class TFDAGenericFoodSearch: GenericFoodSearching, @unchecked Senda
         return try PopulatedFoodCandidate(candidate: ProviderNeutralCandidate(sourceReleaseID: release.sourceReleaseID,
             recordID: recordID, identity: identity,
             edibleQuantity: .known(PositiveQuantity(value: 100, unit: .grams), conversionVersionID: nil),
-            nutrients: nutrients, evidenceIDs: evidence.map(\.evidenceID),
-            matchMetadata: CandidateMatchMetadata(methodVersion: LedgerText(Self.matcherVersion), score: score,
+            nutrients: nutrients, evidenceIDs: evidenceIDs,
+            matchMetadata: CandidateMatchMetadata(methodVersion: LedgerText(methodVersion), score: score,
                 materialDifferences: [LedgerText("Taiwan composition estimate. Review variety, ingredients and preparation; this is not an exact vendor or packaged-product recipe."),
                     LedgerText("Source sample: \(record.sourceName). \(record.description)"),
                     LedgerText("Per 100 g edible portion. Source 熱量 energy and 總碳水化合物 carbohydrate conventions retained; missing values and serving weights remain unknown.")], libraryAliases: [])),
@@ -145,4 +146,24 @@ private struct TFDANutrient: Decodable {
     let amount: Double
     let unit, sourceField, literal: String
     let sourceRow: Int
+}
+
+/// Your food database references (phase 1 plan section 5.1 item 8); see the CoFID conformance.
+/// Record IDs carry the `tfda:` prefix; the corpus IDs are bare.
+extension TFDAGenericFoodSearch: GenericRecordResolving {
+    public func contains(_ reference: GenericRecordReference) -> Bool { record(for: reference) != nil }
+
+    public func resolve(_ reference: GenericRecordReference, evidenceIDs: [EvidenceID], queryAlias: String) -> ResolvedGenericRecord? {
+        guard let record = record(for: reference),
+              let candidate = try? candidate(record, score: 1, evidenceIDs: evidenceIDs,
+                  methodVersion: PersonalFoodDatabaseCandidateBuilder.methodVersion) else { return nil }
+        return ResolvedGenericRecord(candidate: candidate, release: release)
+    }
+
+    private func record(for reference: GenericRecordReference) -> TFDARecord? {
+        guard reference.source == .tfda, reference.corpusSHA256 == Self.corpusSHA256,
+              reference.recordID.hasPrefix("tfda:") else { return nil }
+        let id = String(reference.recordID.dropFirst("tfda:".count))
+        return corpus.records.first { $0.id == id }
+    }
 }

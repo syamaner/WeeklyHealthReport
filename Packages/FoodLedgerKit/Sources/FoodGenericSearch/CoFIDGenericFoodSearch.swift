@@ -262,7 +262,8 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
         evidenceIDs: [EvidenceID],
         score: Double,
         differences: [String],
-        queryAlias: LedgerText
+        queryAlias: LedgerText,
+        methodVersion: String = CoFIDGenericFoodSearch.matcherVersion
     ) throws -> PopulatedFoodCandidate {
         let identity = try Self.identity(record.identity)
         let basisQuantity: PositiveQuantity
@@ -275,7 +276,7 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
         let canonicalAlias = try LedgerText("food:name:\(Self.normalized(record.name))")
         let aliases = queryAlias == canonicalAlias ? [queryAlias] : [queryAlias, canonicalAlias]
         let metadata = try CandidateMatchMetadata(
-            methodVersion: LedgerText(Self.matcherVersion),
+            methodVersion: LedgerText(methodVersion),
             score: score,
             materialDifferences: try differences.map { try LedgerText($0) },
             libraryAliases: aliases
@@ -531,5 +532,28 @@ private struct CorpusNutrient: Decodable {
         case state, value
         case sourceUnit = "source_unit"
         case canonicalUnit = "canonical_unit"
+    }
+}
+
+/// Your food database references (import v1 section 3; phase 1 plan section 5.1 item 8): the record
+/// as this adapter's own builder makes it, under `pfc-resolution-v1`. The owner chose the record, so
+/// its score is 1; record facts are exactly the search route's.
+extension CoFIDGenericFoodSearch: GenericRecordResolving {
+    public func contains(_ reference: GenericRecordReference) -> Bool {
+        record(for: reference) != nil
+    }
+
+    public func resolve(_ reference: GenericRecordReference, evidenceIDs: [EvidenceID], queryAlias: String) -> ResolvedGenericRecord? {
+        guard let record = record(for: reference),
+              let alias = try? LedgerText("food:name:\(Self.normalized(queryAlias))"),
+              let candidate = try? populatedCandidate(record: record, evidenceIDs: evidenceIDs, score: 1,
+                  differences: ["Referenced by a Your food database entry."], queryAlias: alias,
+                  methodVersion: PersonalFoodDatabaseCandidateBuilder.methodVersion) else { return nil }
+        return ResolvedGenericRecord(candidate: candidate, release: release)
+    }
+
+    private func record(for reference: GenericRecordReference) -> CorpusRecord? {
+        guard reference.source == .cofid, reference.corpusSHA256 == Self.corpusCanonicalSHA256 else { return nil }
+        return corpus.records.first { $0.recordID == reference.recordID }
     }
 }
