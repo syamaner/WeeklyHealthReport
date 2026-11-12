@@ -535,25 +535,15 @@ private struct CorpusNutrient: Decodable {
     }
 }
 
-/// Your food database references (import v1 section 3; phase 1 plan section 5.1 item 8): the record
-/// as this adapter's own builder makes it, under `pfc-resolution-v1`. The owner chose the record, so
-/// its score is 1; record facts are exactly the search route's.
-extension CoFIDGenericFoodSearch: GenericRecordResolving {
-    public func contains(_ reference: GenericRecordReference) -> Bool {
-        record(for: reference) != nil
-    }
+// Lookups for `PersonalFoodDatabaseResolvers.swift`; the corpus types stay private to this file.
+extension CoFIDGenericFoodSearch {
+    func hasRecord(_ recordID: String) -> Bool { corpus.records.contains { $0.recordID == recordID } }
 
-    public func resolve(_ reference: GenericRecordReference, evidenceIDs: [EvidenceID], queryAlias: String) -> ResolvedGenericRecord? {
-        guard let record = record(for: reference),
-              let alias = try? LedgerText("food:name:\(Self.normalized(queryAlias))"),
-              let candidate = try? populatedCandidate(record: record, evidenceIDs: evidenceIDs, score: 1,
-                  differences: ["Referenced by a Your food database entry."], queryAlias: alias,
-                  methodVersion: PersonalFoodDatabaseCandidateBuilder.methodVersion) else { return nil }
-        return ResolvedGenericRecord(candidate: candidate, release: release)
-    }
-
-    private func record(for reference: GenericRecordReference) -> CorpusRecord? {
-        guard reference.source == .cofid, reference.corpusSHA256 == Self.corpusCanonicalSHA256 else { return nil }
-        return corpus.records.first { $0.recordID == reference.recordID }
+    func referencedCandidate(_ recordID: String, evidenceIDs: [EvidenceID], queryAlias: String) -> PopulatedFoodCandidate? {
+        guard let record = corpus.records.first(where: { $0.recordID == recordID }),
+              let alias = try? LedgerText("food:name:\(Self.normalized(queryAlias))") else { return nil }
+        return try? populatedCandidate(record: record, evidenceIDs: evidenceIDs, score: 1,
+            differences: ["Referenced by a Your food database entry."], queryAlias: alias,
+            methodVersion: PersonalFoodDatabaseCandidateBuilder.methodVersion)
     }
 }

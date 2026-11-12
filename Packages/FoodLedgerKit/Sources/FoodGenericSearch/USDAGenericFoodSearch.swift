@@ -164,20 +164,15 @@ private struct USDASource: Decodable { let id: String; let sourceID: String; let
 private struct USDARecord: Decodable { let id: String; let releaseID: String; let name: String; let preparation: String; let bone: String; let nutrients: [String: USDANutrient] }
 private struct USDANutrient: Decodable { let amount: Double; let unit: String; let nutrientID: Int }
 
-/// Your food database references (phase 1 plan section 5.1 item 8); see the CoFID conformance.
-extension USDAGenericFoodSearch: GenericRecordResolving {
-    public func contains(_ reference: GenericRecordReference) -> Bool { record(for: reference) != nil }
+// Lookups for `PersonalFoodDatabaseResolvers.swift`; the corpus types stay private to this file.
+extension USDAGenericFoodSearch {
+    func hasRecord(_ recordID: String) -> Bool { corpus.records.contains { $0.id == recordID } }
 
-    public func resolve(_ reference: GenericRecordReference, evidenceIDs: [EvidenceID], queryAlias: String) -> ResolvedGenericRecord? {
-        guard let record = record(for: reference), let release = releases[record.releaseID],
+    func referencedCandidate(_ recordID: String, evidenceIDs: [EvidenceID], queryAlias: String) -> (PopulatedFoodCandidate, SourceRelease)? {
+        guard let record = corpus.records.first(where: { $0.id == recordID }), let release = releases[record.releaseID],
               let query = try? LedgerText(queryAlias),
               let candidate = try? candidate(record, score: 1, evidenceIDs: evidenceIDs, query: query,
                   methodVersion: PersonalFoodDatabaseCandidateBuilder.methodVersion) else { return nil }
-        return ResolvedGenericRecord(candidate: candidate, release: release)
-    }
-
-    private func record(for reference: GenericRecordReference) -> USDARecord? {
-        guard reference.source == .usda, reference.corpusSHA256 == Self.corpusSHA256 else { return nil }
-        return corpus.records.first { $0.id == reference.recordID }
+        return (candidate, release)
     }
 }

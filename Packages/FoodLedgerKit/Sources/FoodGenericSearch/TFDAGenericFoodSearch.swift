@@ -42,6 +42,8 @@ public final class TFDAGenericFoodSearch: GenericFoodSearching, @unchecked Senda
     }
 
     public var recordCount: Int { corpus.records.count }
+    /// The adapter's own release, as its routes cite it.
+    public var sourceRelease: SourceRelease { release }
 
     public func search(_ request: GenericFoodSearchRequest) throws -> GenericFoodSearchOutcome {
         let evidence = try request.captureEvidence ?? CaptureEvidence(evidenceID: ids.makeID(EvidenceTag.self),
@@ -148,22 +150,14 @@ private struct TFDANutrient: Decodable {
     let sourceRow: Int
 }
 
-/// Your food database references (phase 1 plan section 5.1 item 8); see the CoFID conformance.
-/// Record IDs carry the `tfda:` prefix; the corpus IDs are bare.
-extension TFDAGenericFoodSearch: GenericRecordResolving {
-    public func contains(_ reference: GenericRecordReference) -> Bool { record(for: reference) != nil }
+// Lookups for `PersonalFoodDatabaseResolvers.swift`; the corpus types stay private to this file.
+// `id` is the bare corpus ID, without the `tfda:` prefix.
+extension TFDAGenericFoodSearch {
+    func hasRecord(_ id: String) -> Bool { corpus.records.contains { $0.id == id } }
 
-    public func resolve(_ reference: GenericRecordReference, evidenceIDs: [EvidenceID], queryAlias: String) -> ResolvedGenericRecord? {
-        guard let record = record(for: reference),
-              let candidate = try? candidate(record, score: 1, evidenceIDs: evidenceIDs,
-                  methodVersion: PersonalFoodDatabaseCandidateBuilder.methodVersion) else { return nil }
-        return ResolvedGenericRecord(candidate: candidate, release: release)
-    }
-
-    private func record(for reference: GenericRecordReference) -> TFDARecord? {
-        guard reference.source == .tfda, reference.corpusSHA256 == Self.corpusSHA256,
-              reference.recordID.hasPrefix("tfda:") else { return nil }
-        let id = String(reference.recordID.dropFirst("tfda:".count))
-        return corpus.records.first { $0.id == id }
+    func referencedCandidate(_ id: String, evidenceIDs: [EvidenceID]) -> PopulatedFoodCandidate? {
+        guard let record = corpus.records.first(where: { $0.id == id }) else { return nil }
+        return try? candidate(record, score: 1, evidenceIDs: evidenceIDs,
+                              methodVersion: PersonalFoodDatabaseCandidateBuilder.methodVersion)
     }
 }
