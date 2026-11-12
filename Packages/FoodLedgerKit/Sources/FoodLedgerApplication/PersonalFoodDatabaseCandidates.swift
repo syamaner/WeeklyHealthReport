@@ -173,7 +173,7 @@ public enum PersonalFoodDatabaseCandidateBuilder {
                         ? "Your food database entry · per 100 g"
                         : "Your food database entry · per 100 mL as labelled")])),
             name: LedgerText(entry.title), brand: try entry.brand.map { try LedgerText($0) },
-            variant: LedgerText("Your food database"), itemClass: itemClass(entry.category), packFacts: PackFacts())
+            itemClass: itemClass(entry.category), packFacts: PackFacts())
         return Built(candidate: candidate, releases: releases, merged: merge != nil)
     }
 

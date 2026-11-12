@@ -257,7 +257,7 @@ struct PersonalFoodDatabaseSettingsView: View {
                     Button("Remove", role: .destructive) { confirmsRemove = true }
                 }
             } footer: {
-                Text(PersonalFoodDatabaseSettingsText.searchFooter)
+                if case .installed = model.state { Text(PersonalFoodDatabaseSettingsText.searchFooter) }
             }
             if model.isWorking {
                 Section { ProgressView("Working") }

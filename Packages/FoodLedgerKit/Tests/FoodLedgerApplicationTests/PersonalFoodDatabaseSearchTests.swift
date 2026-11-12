@@ -157,6 +157,7 @@ final class PersonalFoodDatabaseSearchTests: XCTestCase {
         XCTAssertFalse(built.merged)
         XCTAssertEqual(built.candidate.candidate.identity.preparation.kind, .raw)
         XCTAssertEqual(built.candidate.itemClass, .food)
+        XCTAssertNil(built.candidate.variant, "the source name is never put in an identity field")
     }
 
     func testMergeIsRefusedForUnknownPreparationOtherKindOrPer100Millilitres() throws {
