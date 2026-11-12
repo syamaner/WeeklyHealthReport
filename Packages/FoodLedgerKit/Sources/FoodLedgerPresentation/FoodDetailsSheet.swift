@@ -88,8 +88,11 @@ public struct FoodDetailsDraft: Equatable, Sendable {
 
     public var packingChoice: PackingChoice {
         get {
-            switch packingMedium.trimmingCharacters(in: .whitespacesAndNewlines) {
-            case "": packingIsOther ? .other : .unknown
+            // Once Other is chosen, typed text that happens to match a frozen value stays Other, so
+            // the field never disappears mid-typing.
+            if packingIsOther { return .other }
+            return switch packingMedium.trimmingCharacters(in: .whitespacesAndNewlines) {
+            case "": .unknown
             case FoodDetailsFillPolicy.packingAsSold: .asSold
             case FoodDetailsFillPolicy.packingNotApplicable: .notApplicable
             default: .other

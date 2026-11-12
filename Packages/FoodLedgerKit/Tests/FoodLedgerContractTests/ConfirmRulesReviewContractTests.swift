@@ -10,10 +10,11 @@ final class ConfirmRulesReviewContractTests: XCTestCase {
     typealias OFF = OpenFoodFactsEstimateContractTests
 
     /// An Open Food Facts product as the lookup builds it: every food detail unknown.
-    static func unknownInput(_ route: OFF.Route = .barcode, expectedBasis: ResolutionBasis? = nil) throws -> PopulatedFoodConfirmation {
+    static func unknownInput(_ route: OFF.Route = .barcode, expectedBasis: ResolutionBasis? = nil,
+                             preparation: PreparationKind = .unknown) throws -> PopulatedFoodConfirmation {
         let base = try OFF.input(route)
         let source = base.candidates[0]
-        let identity = try DecisiveIdentity(preparation: PreparationState(kind: .unknown), bone: .unknown, skin: .unknown,
+        let identity = try DecisiveIdentity(preparation: PreparationState(kind: preparation), bone: .unknown, skin: .unknown,
             drained: .unknown, packingMedium: .unknown, fortification: .unknown, servingBasis: source.candidate.identity.servingBasis)
         let candidate = try PopulatedFoodCandidate(candidate: ProviderNeutralCandidate(
             sourceReleaseID: source.candidate.sourceReleaseID, recordID: source.candidate.recordID, identity: identity,
@@ -232,5 +233,21 @@ final class ConfirmRulesReviewContractTests: XCTestCase {
             identity: source.candidate.identity, itemClass: source.itemClass, nutrients: source.candidate.nutrients,
             reason: try LedgerText("typed"))
         XCTAssertFalse(FoodDetailsFillPolicy.isFill(reset, in: state), "back to unknown is a change")
+    }
+
+    /// Qodo review of #473: after a reasoned change to a detail the source states, filling a blank
+    /// is not reason-free, so the typed reason is never replaced by the fixed one.
+    func testAFillAfterAStatedDetailChangeStillNeedsItsReason() throws {
+        var state = Self.newState(try Self.unknownInput(preparation: .raw))
+        let source = state.selectedCandidate
+        let cooked = try DecisiveIdentity(preparation: PreparationState(kind: .cooked), bone: .unknown, skin: .unknown,
+            drained: .unknown, packingMedium: .unknown, fortification: .unknown, servingBasis: source.candidate.identity.servingBasis)
+        FoodConfirmationReducer.reduce(state: &state, action: .applyCorrection(FoodCorrection(name: source.name, brand: source.brand,
+            variant: source.variant, identity: cooked, itemClass: source.itemClass, nutrients: source.candidate.nutrients,
+            reason: try LedgerText("I cooked it"))))
+        XCTAssertFalse(FoodDetailsFillPolicy.isFill(try Self.sheetCorrection(state, preparation: .cooked), in: state),
+                       "cooked stays a change from the source's raw")
+        XCTAssertTrue(FoodDetailsFillPolicy.isFill(try Self.sheetCorrection(Self.newState(try Self.unknownInput(preparation: .raw)),
+            preparation: .raw), in: Self.newState(try Self.unknownInput(preparation: .raw))), "the stated raw kept, blanks filled")
     }
 }

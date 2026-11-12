@@ -1375,6 +1375,8 @@ public struct FoodConfirmationView: View {
     private func answerPackaged(fortified: Bool) {
         guard model.applyPackagedAsSold(fortified: fortified) else { return }
         correctionDraft = FoodDetailsDraftSession(FoodDetailsDraft(model: model))
+        // The tapped button disappears: VoiceOver hears what was recorded, as after the sheet.
+        if let summary = model.foodDetailsSummary { AccessibilityNotification.Announcement(summary).post() }
     }
 
     private var sourceLine: String? {

@@ -103,12 +103,14 @@ public enum FoodDetailsFillPolicy {
     }
 
     /// Every food detail either equals the source's, or the source did not know it and the
-    /// current identity either did not know it either or already says the same.
+    /// current identity either did not know it either or already says the same. A detail the
+    /// source states and an earlier correction changed is never a fill.
     static func fillsOnly(_ value: DecisiveIdentity, source: DecisiveIdentity, current: DecisiveIdentity) -> Bool {
-        // Unchanged from the current answer, or filling a detail neither the source nor the current
-        // answer knows. Resetting a known answer to unknown and then refilling it is not a fill.
+        // The source's own answer or a detail it left unknown (so an earlier correction of a stated
+        // detail keeps needing its reason), and unchanged from the current answer or filling a detail
+        // the current answer does not know either. Resetting a known answer and refilling it is not a fill.
         func facet<T: Equatable>(_ new: T, _ old: T, _ now: T, unknown: T) -> Bool {
-            new == now || (old == unknown && now == unknown)
+            (new == old || old == unknown) && (new == now || (old == unknown && now == unknown))
         }
         return facet(value.preparation.kind == .unknown ? nil : value.preparation,
                      source.preparation.kind == .unknown ? nil : source.preparation,

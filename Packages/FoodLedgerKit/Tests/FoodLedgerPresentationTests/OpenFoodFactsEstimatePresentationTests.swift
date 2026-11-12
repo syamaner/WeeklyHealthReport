@@ -230,5 +230,7 @@ extension OpenFoodFactsEstimatePresentationTests {
         renamed.packingChoice = .other
         XCTAssertEqual(renamed.packingMedium, "")
         XCTAssertEqual(renamed.packingChoice, .other, "Other stays chosen while its text is empty")
+        renamed.packingMedium = "as sold"
+        XCTAssertEqual(renamed.packingChoice, .other, "typing a frozen value under Other keeps its field (Qodo, #473)")
     }
 }
