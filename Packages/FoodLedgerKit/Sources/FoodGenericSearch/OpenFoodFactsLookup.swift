@@ -146,6 +146,8 @@ public struct OpenFoodFactsLookup: PackagedFoodCandidateLookingUp {
             .perServing(try PositiveQuantity(value: $0, unit: volume ? .millilitres : .grams))
         } ?? basis
         var available = 0
+        // v6: a value that only overflows because of the serving scale means a wrong serving size.
+        var scaledOverflow = false
         let entries = try NutrientKey.allCases.map { key -> NutrientEntry in
             // Legacy sodium _100g is normalised independently of the contributor unit.
             guard key != .sodium || sourceSet.isModern,
@@ -170,7 +172,10 @@ public struct OpenFoodFactsLookup: PackagedFoodCandidateLookingUp {
             }
             let sourceAmount = number.doubleValue
             let amount = sourceAmount * (convertsGrams ? 1_000 : 1) * servingScale
-            guard amount.isFinite else { return try NutrientEntry(key: key, value: .unknown(.missingConversion)) }
+            guard amount.isFinite else {
+                if sourceSet.serving != nil, (sourceAmount * (convertsGrams ? 1_000 : 1)).isFinite { scaledOverflow = true }
+                return try NutrientEntry(key: key, value: .unknown(.missingConversion))
+            }
             available += 1
             let unit = try LedgerText(sourceUnit)
             var transforms = convertsGrams ? [try NutrientTransform(transformID: LedgerText("mass-g-to-mg"), transformVersion: LedgerText("v1"))] : []
@@ -197,12 +202,19 @@ public struct OpenFoodFactsLookup: PackagedFoodCandidateLookingUp {
         guard available > 0 else { return .insufficientData }
         // v6 plausibility: a scaled value no food can have per 100 (more than 100 g of a nutrient
         // or 900 kcal) means a wrong serving size, so the record declines rather than mislead.
-        if sourceSet.serving != nil, entries.contains(where: { entry in
-            guard case let .augmented(value) = entry.value else { return false }
-            switch value.unit {
-            case .grams: return value.amount > 100
-            case .milligrams: return value.amount > 100_000
-            case .kilocalories: return value.amount > 900
+        // Both ends of a bound are checked too, and an overflow from scaling declines (Qodo review).
+        if sourceSet.serving != nil, scaledOverflow || entries.contains(where: { entry in
+            func implausible(_ amount: Double, _ unit: NutrientUnit) -> Bool {
+                switch unit {
+                case .grams: amount > 100
+                case .milligrams: amount > 100_000
+                case .kilocalories: amount > 900
+                default: false
+                }
+            }
+            switch entry.value {
+            case let .augmented(value): return implausible(value.amount, value.unit)
+            case let .bounded(bounds): return [bounds.lower, bounds.upper].compactMap { $0 }.contains { implausible($0, bounds.unit) }
             default: return false
             }
         }) { return .insufficientData }

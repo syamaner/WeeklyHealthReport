@@ -456,7 +456,12 @@ final class OpenFoodFactsLookupTests: XCTestCase {
             (nil, [with("30", "g")]), (nil, [with(30, "oz")]), (nil, [with(30, "g"), with(40, "g")]),
             ("500 ml", [with(30, "g")]), ("500 g", [with(250, "ml")]),
             // Implausible once scaled: 8 g protein in a 0.1 g serving is 8,000 g per 100 g.
-            (nil, [with(0.1, "g")])
+            (nil, [with(0.1, "g")]),
+            // A bound is checked too: "< 8 g" in a 0.1 g serving is a bound of 8,000 g per 100 g.
+            (nil, [{ var panel = with(0.1, "g"); panel["nutrients"] = ["proteins": ["value": 8, "unit": "g", "modifier": "<"]]; return panel }()]),
+            // Scaling that overflows declines the record instead of leaving the value unknown.
+            (nil, [{ var panel = with(1e-300, "g"); panel["nutrients"] = ["proteins": ["value": 1e10, "unit": "g"],
+                                                                          "fat": ["value": 0, "unit": "g"]]; return panel }()])
         ]
         for (pack, sets) in cases {
             let body = try response { product in
