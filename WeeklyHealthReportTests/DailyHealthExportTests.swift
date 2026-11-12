@@ -5005,6 +5005,38 @@ extension DailyHealthExportTests {
         XCTAssertFalse(makeSession().glucoseReadingsEnabled)
     }
 
+    @MainActor
+    func testTogglingReadingsBeforeGoogleIsConnectedOnlyRemembersTheChoice() {
+        let notesStore = MutableDailyNotesStore()
+        let preference = MemoryDailyGlucoseReadingsPreference()
+        let session = DailyDriveSessionController(
+            keychain: MemoryDailySessionStore(),
+            drive: PreparationDriveTransportFixture(createOutcomes: []),
+            exportService: DailyHealthExportService(
+                healthData: RecordingDailyProvider { _ in
+                    fatalError("Changing the choice must not query HealthKit")
+                },
+                notesStore: notesStore
+            ),
+            identityStore: ControllerMemoryDailyIdentityStore(),
+            nutritionSourceSelection: FixedNutritionSourceSelection(bundleIdentifier: nil),
+            notes: DailyNotesController(store: notesStore),
+            oauthSession: FakeDriveOAuthSession(),
+            glucoseReadingsPreference: preference
+        )
+        session.signOut()
+        XCTAssertEqual(session.presentationState, .needsGoogleConnection)
+        let statusBefore = session.status
+
+        session.setGlucoseReadingsEnabled(true)
+
+        XCTAssertTrue(session.glucoseReadingsEnabled)
+        XCTAssertTrue(preference.loadGlucoseReadingsEnabled(), "the choice is stored for the next session")
+        XCTAssertEqual(session.presentationState, .needsGoogleConnection, "the setup state is not replaced")
+        XCTAssertEqual(session.status, statusBefore)
+        XCTAssertFalse(session.canExport)
+    }
+
     func testStoredReadingsPreferenceDefaultsToOffAndKeepsItsOwnKey() throws {
         let suite = "glucose-readings-preference-\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
