@@ -242,14 +242,25 @@ public struct PersonalFoodDatabaseReresolutionProvider: FoodReresolutionProvidin
         self.ids = ids
     }
 
+    /// Off the main thread (Nutrition updates loads in the background) a cold index is loaded here,
+    /// so the screen never misses an installed database because the launch warm-up had not
+    /// finished. On the main thread the file is never read; the cached snapshot answers.
     public func targets() throws -> [FoodReresolutionTarget] {
+        if !Thread.isMainThread { index.warm() }
         guard let snapshot = index.snapshot() else { return [] }
-        return [FoodReresolutionTarget(sourceRelease: snapshot.release,
-                                       methodVersion: try LedgerText(PersonalFoodDatabaseCandidateBuilder.methodVersion))]
+        return [try Self.target(snapshot)]
+    }
+
+    static func target(_ snapshot: PersonalFoodDatabaseIndex.Snapshot) throws -> FoodReresolutionTarget {
+        FoodReresolutionTarget(sourceRelease: snapshot.release,
+                               methodVersion: try LedgerText(PersonalFoodDatabaseCandidateBuilder.methodVersion))
     }
 
     public func candidates(for record: StoredFoodConfirmation, target: FoodReresolutionTarget, at date: Date) throws -> GenericFoodSearchOutcome {
-        guard let snapshot = index.snapshot(), try targets().contains(target) else { throw FoodReresolutionError.unavailableTarget }
+        // One snapshot for both the check and the candidate, so an import in between cannot pair
+        // the new target with the old release.
+        if !Thread.isMainThread { index.warm() }
+        guard let snapshot = index.snapshot(), try Self.target(snapshot) == target else { throw FoodReresolutionError.unavailableTarget }
         let evidence = try CaptureEvidence(evidenceID: ids.makeID(EvidenceTag.self), kind: .genericSearch, capturedAt: date,
             locale: LedgerText("en_GB"), captureMethod: LedgerText("personal_food_database_reresolution"),
             captureMethodVersion: LedgerText(PersonalFoodDatabaseCandidateBuilder.methodVersion),

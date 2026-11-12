@@ -472,4 +472,22 @@ final class PersonalFoodDatabaseSearchTests: XCTestCase {
         XCTAssertTrue(PersonalFoodDatabaseFoodSearch.isExactName("Baked beans", query: "baked beans"))
         XCTAssertFalse(PersonalFoodDatabaseFoodSearch.isExactName("", query: ""))
     }
+
+    /// Qodo (PR #478): a cold index read off the main thread is warmed, so Nutrition updates sees
+    /// the installed database; a target from another release is refused against the same snapshot.
+    func testReresolutionWarmsAColdIndexOffTheMainThreadAndChecksOneSnapshot() throws {
+        let bytes = try Self.golden()
+        let store = InMemoryPersonalFoodDatabaseStore()
+        try store.install(bytes: bytes, manifest: manifest(bytes))
+        let index = PersonalFoodDatabaseIndex(store: store, resolver: FakeResolver())
+        let provider = PersonalFoodDatabaseReresolutionProvider(index: index, resolver: FakeResolver(), ids: IDs())
+        let done = expectation(description: "background read")
+        var targets: [FoodReresolutionTarget] = []
+        DispatchQueue.global().async { targets = (try? provider.targets()) ?? []; done.fulfill() }
+        wait(for: [done], timeout: 5)
+        XCTAssertEqual(targets.count, 1, "the cold index was warmed off the main thread")
+        let stale = FoodReresolutionTarget(sourceRelease: FakeResolver.release,
+                                           methodVersion: try LedgerText(PersonalFoodDatabaseCandidateBuilder.methodVersion))
+        XCTAssertFalse(try provider.targets().contains(stale))
+    }
 }
