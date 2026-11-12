@@ -146,6 +146,11 @@ public enum FoodSearchResultText {
     public static func spokenSourceLine(_ line: String) -> String {
         line.replacingOccurrences(of: " · ", with: ", ")
     }
+    /// A search row's title. A record referenced by a Your food database entry and offered as its
+    /// own row reads "Generic: <name>" (import v1 section 5); every other row is its name.
+    public static func rowTitle(_ match: GenericFoodMatch) -> String {
+        match.personalDatabase?.isGenericReference == true ? "Generic: \(match.candidate.name.value)" : match.candidate.name.value
+    }
     public static func family(_ family: FoodSearchResultSummary.SourceFamily) -> String {
         switch family {
         case .ukReference: "UK reference"
@@ -155,6 +160,7 @@ public enum FoodSearchResultText {
         case .packagedProduct: "Packaged product"
         case .webSource: "Web source"
         case .yourFoods: "Your foods"
+        case .yourFoodDatabase: "Your food database"
         case .otherSource: "Other source"
         }
     }

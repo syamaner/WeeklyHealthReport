@@ -241,6 +241,9 @@ struct PersonalFoodDatabaseSettingsView: View {
                     LabeledContent("Foods", value: PersonalFoodDatabaseSettingsText.foods(summary.entryCount))
                     LabeledContent("Built", value: summary.generated.utcMidnight.formatted(Self.generatedStyle))
                     LabeledContent("Imported", value: summary.importedAt.formatted(date: .long, time: .shortened))
+                    if let unresolved = model.unresolvedReferenceCount, unresolved > 0 {
+                        Text(PersonalFoodDatabaseSettingsText.unresolved(unresolved))
+                    }
                 case .locked:
                     Label(PersonalFoodDatabaseSettingsText.locked, systemImage: "lock")
                 case .damaged:
@@ -254,7 +257,7 @@ struct PersonalFoodDatabaseSettingsView: View {
                     Button("Remove", role: .destructive) { confirmsRemove = true }
                 }
             } footer: {
-                Text(PersonalFoodDatabaseSettingsText.notSearchedYet)
+                Text(PersonalFoodDatabaseSettingsText.searchFooter)
             }
             if model.isWorking {
                 Section { ProgressView("Working") }

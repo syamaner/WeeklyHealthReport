@@ -629,7 +629,7 @@ public struct GenericFoodSearchView: View {
         } label: {
             HStack(alignment: .center, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(match.candidate.name.value).font(.body)
+                    Text(FoodSearchResultText.rowTitle(match)).font(.body)
                     if let brand = match.candidate.brand { Text(brand.value).font(.subheadline) }
                     if let summary = model.summary(for: match) {
                         Text(FoodSearchResultText.summaryLine(summary)).font(.caption).foregroundStyle(.secondary)

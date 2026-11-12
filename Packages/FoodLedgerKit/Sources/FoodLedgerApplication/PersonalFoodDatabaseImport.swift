@@ -81,7 +81,10 @@ public enum PersonalFoodDatabaseStatus: Equatable, Sendable {
 /// The closed set of import outcomes (phase 1 plan section 3.1, change 8). None carries an entry
 /// ID, title, value or source field.
 public enum PersonalFoodDatabaseImportOutcome: Equatable, Sendable {
+    /// Replaced an active (or damaged) release.
     case installed(PersonalFoodDatabaseSummary)
+    /// Installed with no release present before (phase 1 plan section 5, first import).
+    case added(PersonalFoodDatabaseSummary)
     /// The same bytes are already the verified active release.
     case unchanged(PersonalFoodDatabaseSummary)
     case rejected([PersonalFoodDatabaseRuleCode])
@@ -147,12 +150,15 @@ public actor PersonalFoodDatabaseImporter: PersonalFoodDatabaseImporting {
         let digest = prepared.digest, candidates = prepared.candidates
 
         let activeSources: [SourceRelease]
+        let replacing: Bool
         switch Self.activeComparison(store, digest: digest) {
         case .locked: return .locked
         case .unreadable: return .writeFailed
         case let .same(summary): return .unchanged(summary)
-        case let .other(sources): activeSources = sources
-        case .none: activeSources = [] // absent, or damaged: the active comparison is skipped (3.1, change 3)
+        case let .other(sources): activeSources = sources; replacing = true
+        case .none: // absent, or damaged: the active comparison is skipped (3.1, change 3)
+            activeSources = []
+            if case .absent = Self.loadActive(store) { replacing = false } else { replacing = true }
         }
 
         for release in candidates {
@@ -179,7 +185,7 @@ public actor PersonalFoodDatabaseImporter: PersonalFoodDatabaseImporting {
         } catch {
             return .writeFailed
         }
-        return .installed(PersonalFoodDatabaseSummary(manifest))
+        return replacing ? .installed(PersonalFoodDatabaseSummary(manifest)) : .added(PersonalFoodDatabaseSummary(manifest))
     }
 
     public func remove() async -> PersonalFoodDatabaseRemoveOutcome {

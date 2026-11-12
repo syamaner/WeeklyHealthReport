@@ -13,15 +13,22 @@ public enum PersonalFoodDatabaseSettingsText {
     public static let locked = "Your food database is locked until you unlock your iPhone."
     public static let damaged = "Your food database could not be read. Import the file again to replace it. Saved food is not affected."
     public static let none = "Add the file built on your Mac with the personal food catalogue. It stays on this iPhone and is not backed up or sent anywhere."
-    public static let notSearchedYet = "Food search does not use this file yet."
+    public static let searchFooter = "Food search shows these foods under Your food database. Nothing is selected or saved until you log it."
     public static let removeConfirmation = "Remove Your food database? Saved food and its sources are kept."
     public static let removed = "Your food database was removed. Saved food is kept."
 
     public static func foods(_ count: Int) -> String { count == 1 ? "1 food" : "\(count) foods" }
 
+    /// References to a generic record that this app's corpora do not hold; those entries keep their
+    /// label values and nothing is substituted (import v1 section 4).
+    public static func unresolved(_ count: Int) -> String {
+        count == 1 ? "1 entry names a generic food this app does not have" : "\(count) entries name a generic food this app does not have"
+    }
+
     public static func message(for outcome: PersonalFoodDatabaseImportOutcome) -> String {
         switch outcome {
         case .installed: "Your food database was updated."
+        case .added: "Your food database was added."
         case .unchanged: "This file is already your food database."
         case let .rejected(codes): "\(reason(for: codes)) \(notChanged)"
         case .releaseConflict: "A source in this file disagrees with one already saved. \(notChanged)"
@@ -72,9 +79,21 @@ public final class PersonalFoodDatabaseSettingsViewModel: ObservableObject {
     }
     /// Changes with every outcome, even when its text repeats, so each one can be announced.
     @Published public private(set) var messageSerial = 0
+    /// Unresolved references for the shown release, nil until counted (phase 1 plan section 5.1 item 8).
+    @Published public private(set) var unresolvedReferenceCount: Int?
     private let importer: any PersonalFoodDatabaseImporting
+    private let changed: @Sendable () async -> Void
+    private let referenceCount: @Sendable () async -> (releaseID: String, unresolved: Int)?
 
-    public init(importer: any PersonalFoodDatabaseImporting) { self.importer = importer }
+    /// `changed` runs after every import or removal (the search index reloads off the main thread);
+    /// `referenceCount` reports the loaded release's unresolved references.
+    public init(importer: any PersonalFoodDatabaseImporting,
+                changed: @escaping @Sendable () async -> Void = {},
+                referenceCount: @escaping @Sendable () async -> (releaseID: String, unresolved: Int)? = { nil }) {
+        self.importer = importer
+        self.changed = changed
+        self.referenceCount = referenceCount
+    }
 
     /// The Settings row's detail.
     public var rowDetail: String? {
@@ -108,6 +127,10 @@ public final class PersonalFoodDatabaseSettingsViewModel: ObservableObject {
         guard generation > shownLoad else { return }
         shownLoad = generation
         state = Self.state(status)
+        unresolvedReferenceCount = nil
+        guard case let .installed(summary) = state, let count = await referenceCount(),
+              count.releaseID == summary.releaseID, shownLoad == generation else { return }
+        unresolvedReferenceCount = count.unresolved
     }
     private var startedLoads = 0
     private var shownLoad = 0
@@ -134,6 +157,7 @@ public final class PersonalFoodDatabaseSettingsViewModel: ObservableObject {
         case let .success(bytes):
             message = PersonalFoodDatabaseSettingsText.message(for: await importer.importFile(bytes))
         }
+        await changed()
         await load()
     }
 
@@ -145,6 +169,7 @@ public final class PersonalFoodDatabaseSettingsViewModel: ObservableObject {
         isWorking = true
         defer { isWorking = false }
         message = PersonalFoodDatabaseSettingsText.message(for: await importer.remove())
+        await changed()
         await load()
     }
 
