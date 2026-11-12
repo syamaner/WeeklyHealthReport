@@ -24,7 +24,8 @@ public struct AddFoodRecentRowText: Equatable, Sendable {
             style.calendar = calendar; style.timeZone = calendar.timeZone
             day = recent.item.occurredAt.formatted(style)
         }
-        let status = recent.isPartlyEstimated ? "\(FoodLogText.partlyEstimated) · " : recent.isEstimate ? "Estimate · " : ""
+        let status = recent.isPartlyEstimated ? "\(FoodLogText.partlyEstimated) · "
+            : recent.namesOpenFoodFacts ? "\(FoodLogText.openFoodFactsValues) · " : recent.isEstimate ? "Estimate · " : ""
         detail = status + "Last: \(shownAmount) · \(day)"
         if let kcal = recent.item.energyKcal {
             energy = "\(FoodDisplayNumber.kcal(kcal)) kcal"

@@ -246,7 +246,8 @@ public enum FoodLogText {
     /// for unknown strip nutrients other than energy (energy has its own slot). Empty when there
     /// is nothing to flag.
     public static func flags(_ entry: FoodLogDayContent.Entry) -> String {
-        var parts = entry.isPartlyEstimated ? [partlyEstimated] : entry.isEstimate ? ["Estimate"] : []
+        var parts = entry.isPartlyEstimated ? [partlyEstimated]
+            : entry.namesOpenFoodFacts ? [openFoodFactsValues] : entry.isEstimate ? ["Estimate"] : []
         if let method = methodLabel(entry.quantityMethod) { parts.append(method) }
         parts += entry.unknownKeys.filter { $0 != .energyConsumed }.map { "\(label($0)) unknown" }
         return parts.joined(separator: " · ")
@@ -343,11 +344,13 @@ public enum FoodLogText {
 
     /// "Unknown" for unknown, bounded or unscalable values; "Estimated" only beside a value the
     /// source augmented. A whole-entry estimate (an estimated weight) is stated once in the header.
-    public static func nutrient(_ total: FoodIntakeTotal, augmented: Bool = false, locale: Locale = .current) -> String {
+    public static func nutrient(_ total: FoodIntakeTotal, augmented: Bool = false, openFoodFacts: Bool = false,
+                                locale: Locale = .current) -> String {
         guard let amount = total.knownAmount else { return "Unknown" }
         let value = total.key == .energyConsumed
             ? "\(kcal(amount, locale: locale)) kcal"
             : "\(number(amount, locale: locale)) \(total.key.canonicalUnit.rawValue)"
+        if openFoodFacts { return "\(value) · \(openFoodFactsValue)" }
         return augmented ? "\(value) · Estimated" : value
     }
 
@@ -374,6 +377,10 @@ public enum FoodLogText {
 
     /// The entry status of a saved entry with a label estimate layer (docs/label-estimate-merge-v1.md section 8).
     public static let partlyEstimated = "Partly estimated"
+    /// docs/off-values-label-v1.md rule 2: an Open Food Facts product's own values, still estimates.
+    public static let openFoodFactsValues = "Open Food Facts values"
+    /// docs/off-values-label-v1.md rule 3: beside one Open Food Facts value.
+    public static let openFoodFactsValue = "Open Food Facts"
 
     /// "Label values, with unprinted nutrients estimated from US reference"; on an Open Food Facts
     /// entry "Open Food Facts values, with missing nutrients estimated from US reference".
