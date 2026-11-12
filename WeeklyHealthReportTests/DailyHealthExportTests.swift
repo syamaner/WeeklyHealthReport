@@ -4749,6 +4749,82 @@ extension DailyHealthExportTests {
         XCTAssertEqual(try readingsEnvelope([reading(cutoff)], window: window).today.glucoseReadings?.state, .noDataOrAccess)
     }
 
+    func testATrailingLagBeforeTheCutoffIsNeitherFilledNorDescribed() throws {
+        let calendar = londonCalendar()
+        let window = try DailyExportWindow.capture(at: date(2026, 9, 10, 15, calendar: calendar), calendar: calendar)
+        // The newest reading is three hours behind the cutoff.
+        let noon = window.day.start.addingTimeInterval(12 * 3600)
+        let envelope = try readingsEnvelope([
+            reading(noon.addingTimeInterval(-600), id: 1),
+            reading(noon.addingTimeInterval(-300), id: 2),
+            reading(noon, id: 3)
+        ], window: window)
+        let block = try XCTUnwrap(envelope.today.glucoseReadings)
+        XCTAssertEqual(envelope.dataAsOf, "2026-09-10T15:00:00+01:00")
+        XCTAssertEqual(block.lastReadingTime, "2026-09-10T12:00:00+01:00")
+        XCTAssertEqual(block.count, 3, "nothing is added between the last reading and the cutoff")
+        XCTAssertEqual(block.series?.first?.readings.map(\.time), [
+            "2026-09-10T11:50:00+01:00", "2026-09-10T11:55:00+01:00", "2026-09-10T12:00:00+01:00"
+        ])
+        // The block states record facts only: no gap, coverage or completeness field.
+        let today = try XCTUnwrap(jsonObject(envelope)["today"] as? NSDictionary)
+        let exported = try XCTUnwrap(today["glucose_readings"] as? NSDictionary)
+        XCTAssertEqual(
+            Set(exported.allKeys.compactMap { $0 as? String }),
+            ["readings_version", "state", "unit", "count", "last_reading_time", "series"]
+        )
+        XCTAssertTrue(admits(envelope))
+    }
+
+    func testACaptureAtLocalMidnightHasAnEmptyDayAndClaimsNoReadings() throws {
+        let calendar = londonCalendar()
+        let midnight = calendar.startOfDay(for: date(2026, 9, 10, 15, calendar: calendar))
+        let window = try DailyExportWindow.capture(at: midnight, calendar: calendar)
+        XCTAssertEqual(window.day.duration, 0, "today so far is empty at local midnight")
+        // The client skips the query for an empty day and reports an empty read.
+        let empty = try readingsEnvelope([], window: window)
+        XCTAssertEqual(empty.schemaVersion, 9)
+        XCTAssertEqual(empty.today.glucoseReadings?.state, .noDataOrAccess)
+        XCTAssertNil(empty.today.glucoseReadings?.count, "an empty day is not zero readings")
+        XCTAssertTrue(admits(empty))
+        // Yesterday's last reading and one stamped at midnight are both outside the empty day.
+        let neighbours = try readingsEnvelope([
+            reading(midnight.addingTimeInterval(-300), id: 1),
+            reading(midnight, id: 2)
+        ], window: window)
+        XCTAssertEqual(neighbours.today.glucoseReadings?.state, .noDataOrAccess)
+        XCTAssertNil(neighbours.today.glucoseReadings?.series)
+    }
+
+    func testReExportingAPastDayPicksUpReadingsThatArrivedLate() throws {
+        let calendar = londonCalendar()
+        func yesterday(exportedAt now: Date) throws -> DailyExportWindow {
+            let selected = DailyExportWindow.availableDays(at: now, calendar: calendar)[1]
+            return try DailyExportWindow.capture(at: now, calendar: calendar, selectedDay: selected)
+        }
+        let morning = date(2026, 9, 11, 7, calendar: calendar)
+        let first = try yesterday(exportedAt: morning)
+        let evening = first.day.start.addingTimeInterval(21 * 3600)
+        let early = [reading(evening.addingTimeInterval(-300), id: 1), reading(evening, id: 2)]
+        // Readings for the same evening that reached the store after the first export.
+        let late = [reading(evening.addingTimeInterval(300), id: 3), reading(evening.addingTimeInterval(600), id: 4)]
+
+        let before = try readingsEnvelope(early, window: first)
+        let after = try readingsEnvelope(early + late, window: try yesterday(exportedAt: morning.addingTimeInterval(4 * 3600)))
+
+        XCTAssertEqual(before.reportDate, after.reportDate)
+        XCTAssertEqual(before.dayWindow, after.dayWindow, "both exports cover the same complete day")
+        XCTAssertEqual(before.today.glucoseReadings?.count, 2)
+        XCTAssertEqual(after.today.glucoseReadings?.count, 4)
+        XCTAssertEqual(before.today.glucoseReadings?.lastReadingTime, "2026-09-10T21:00:00+01:00")
+        XCTAssertEqual(after.today.glucoseReadings?.lastReadingTime, "2026-09-10T21:10:00+01:00")
+        let earlier = try XCTUnwrap(before.today.glucoseReadings?.series?.first?.readings)
+        let later = try XCTUnwrap(after.today.glucoseReadings?.series?.first?.readings)
+        XCTAssertEqual(Array(later.prefix(2)), earlier, "the readings already exported are unchanged")
+        XCTAssertTrue(admits(before))
+        XCTAssertTrue(admits(after))
+    }
+
     func testRepeatedLocalHourKeepsItsOffsets() throws {
         let calendar = londonCalendar()
         // 25 October 2026: clocks go back, so 01:30 happens twice.
@@ -5031,6 +5107,8 @@ extension DailyHealthExportTests {
         session.setGlucoseReadingsEnabled(true)
 
         XCTAssertTrue(session.glucoseReadingsEnabled)
+        XCTAssertNil(session.preview, "no preview survives a changed choice, in any state")
+        XCTAssertNil(session.lastExportOutcome)
         XCTAssertTrue(preference.loadGlucoseReadingsEnabled(), "the choice is stored for the next session")
         XCTAssertEqual(session.presentationState, .needsGoogleConnection, "the setup state is not replaced")
         XCTAssertEqual(session.status, statusBefore)
