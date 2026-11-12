@@ -110,6 +110,8 @@ CODE_READ_DOCS = {
     "docs/confirm-rules-review-v1.md",
     # Cited by the glucose readings projection, the Daily JSON builder and admission (#469).
     "docs/glucose-readings-export-contract-v1.md",
+    # Cited by the Open Food Facts values predicate, the row and saved-entry labels and their tests.
+    "docs/off-values-label-v1.md",
 }
 CODE_READ_DOC_PREFIXES = ("docs/fixtures/",)
 # Never documentation, whatever the lists above say: CI, its scripts and this
