@@ -247,6 +247,9 @@ struct AppShellView: View {
         case .dataBackup:
             if let foodLedger, let view = InventoryBackupView(root: foodLedger) { view }
             else { ContentUnavailableView("Backup unavailable", systemImage: "exclamationmark.triangle", description: Text("The local inventory store could not be opened.")) }
+        case .personalFoodDatabase:
+            if let foodLedger { PersonalFoodDatabaseSettingsView(model: foodLedger.personalFoodDatabase) }
+            else { ContentUnavailableView("Your food database unavailable", systemImage: "exclamationmark.triangle", description: Text("The local food ledger could not be opened.")) }
         case .medicationAccess:
             MedicationAccessHelpView()
         case .developerTools:

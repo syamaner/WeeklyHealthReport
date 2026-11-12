@@ -143,9 +143,182 @@ Python changes stay inside the skill script and its tests; no frozen tool, seal 
 changes. They make the checker stricter only for inputs no build has produced (lone surrogates) or
 change one rejection's code (`malformed` to `corpus`).
 
-## 3. Open points (none blocks P1a)
+## 3. P1b architecture gate (11 November 2026)
 
-- P1b: whether the database file lives under the existing dataset root or a sibling folder;
-  decided in the P1b gate against `food-library-storage-and-backup-decision.md`.
+P1b installs, replaces and removes the file and shows it in Settings. Nothing searches it yet: the
+store has no reader outside the Settings flow until P1c, and no food record, export or HealthKit
+path changes.
+
+**Responsibilities.**
+
+- `PersonalFoodDatabaseStoring` (`FoodLedgerApplication`, consumer-owned port): `activeRelease()`
+  returns the installed file's bytes and manifest or nil; `install(bytes:manifest:)` replaces the
+  active release atomically; `remove()` deletes it. It throws only `PersonalFoodDatabaseStoreError`
+  (`locked`, `damaged`, `writeFailed`); no `URL`, `FileManager` or protection type crosses it.
+- `PersonalFoodDatabaseManifest` (`FoodLedgerApplication`, a plain value type): schema, release ID, file
+  SHA-256, `generated`, import time, entry count and a manifest version. The import time lives only
+  here (import v1 section 4), never in a `SourceRelease`.
+- `PersonalFoodDatabaseImporting` (`FoodLedgerApplication`, the Settings view model's seam) with one
+  implementation, `PersonalFoodDatabaseImporter`, injected with the store, `Digesting`, `LedgerClock`
+  and the existing `FoodConfirmationReading` (for `sourceRelease(id:)`, as import v1 section 3 names
+  it). Operations:
+  - `status()`: `none`, `installed(summary)`, `locked` or `damaged`. The summary holds release ID,
+    `generated`, import time and entry count, never entry content.
+  - `importFile(_ bytes: Data)`: codec decode (P1a), digest, the database `SourceRelease` and each
+    declared source's `SourceRelease`, the immutability check, then `install`. Any failure leaves the
+    active release as it was.
+  - `remove()`.
+- **Immutability check.** Each declared source, and the database release itself, is compared with
+  (a) the ledger's stored release of the same ID and (b) the same ID among the active file's declared
+  sources. Any difference rejects the import with `releaseConflict` and installs nothing. Importing
+  the same bytes again is a no-op that reports the existing summary.
+- `FilePersonalFoodDatabaseStore` (new target `FoodLedgerPersonalDatabase`, depending only on
+  Domain and Application): this answers the P1a open point. The file lives under the existing
+  dataset root of `food-library-storage-and-backup-decision.md` section 3, inside the app's
+  `FoodLedger/v1/` root:
+
+  ```text
+  FoodLedger/v1/Datasets/personal-food-database/active.json        pointer to the active release
+  FoodLedger/v1/Datasets/personal-food-database/pfc-sha256-<hex>/personal-food-catalogue-v1.json
+  FoodLedger/v1/Datasets/personal-food-database/pfc-sha256-<hex>/manifest.json
+  FoodLedger/v1/ImportStaging/personal-food-database-<uuid>/
+  ```
+
+  A release folder is named `pfc-sha256-<hex>` (the release ID with `:` replaced, since `:` is a path
+  separator in Finder). Install writes the file and manifest into a staging folder, renames it into
+  place, then replaces `active.json` atomically (the commit point), then deletes the old folder;
+  leftover staging folders and unreferenced release folders are swept on the next install. Every
+  folder and file uses `FileProtectionType.complete` and is excluded from backup (import v1 section
+  7: the file is not backed up). Load reads the pointer, the manifest and the file, and checks the
+  file's SHA-256 against the manifest through the injected `Digesting`; a mismatch or an undecodable
+  manifest is `damaged` (storage decision section 3, "disable that release"). Protected data
+  unavailable, through an injected availability check or a protection error, is `locked`, never
+  empty and never damaged.
+- **Presentation** (`FoodLedgerPresentation`): `PersonalFoodDatabaseSettingsViewModel` with explicit
+  `loading`, `none`, `installed`, `locked` and `damaged` states, an `isWorking` flag for an import or
+  remove in progress and a `message` for its outcome (including every failure), and all copy.
+  A rejection shows a short reason per rule-code group (for example "This file is not a food
+  database file from your Mac" or "An entry in this file could not be read"), never an entry ID,
+  title or value. The outcome message is announced to VoiceOver.
+- **App**: Settings row "Your food database" in the Data section (detail: entry count, "Locked",
+  "Needs replacing" or "Not added"), opening a screen with Import (or Replace) through the system
+  file picker (`.json`, size checked before reading, as `InventoryBackupFile` does), Remove behind a
+  confirmation that says saved food is kept, and last imported, generated date and entry count.
+- **Composition root**: the only importer of `FoodLedgerPersonalDatabase`. `check-boundaries.sh`
+  gains that rule and a self-test fixture that must fail (an application file importing the target).
+
+**Dependency direction.** Domain ← Application ← `FoodLedgerPersonalDatabase` (Foundation file APIs
+only) ← composition root. Presentation depends on Application only. No GRDB, SwiftUI, UIKit or
+CryptoKit in the new target; protected-data availability is injected as a closure from the app.
+
+**Invariants.** A failed, rejected or interrupted import keeps the active release byte for byte. One
+active release. Remove and replace never touch the ledger, saved food or release records (no ledger
+write at all in P1b). Locked is reported as locked. No network. No file content in any message or
+log. The manifest is not a `SourceRelease` and never enters the ledger.
+
+**Extension axes.** The store (an in-memory test store in `FoodLedgerTestSupport` passes the same
+contract suite). Nothing else.
+
+**Contract tests (synthetic fixtures only).**
+
+- Store contract suite, run against the file store (temporary folder) and the in-memory store:
+  install then load returns equal bytes and manifest; replace swaps atomically; an injected failure
+  at each install step (staging, rename, pointer) leaves the previous release loadable; remove then
+  load is nil; a changed byte in the stored file is `damaged`; locked is `locked` for load, install
+  and remove.
+- Importer: the golden file installs with release ID `pfc:sha256:` of its bytes and the codec's
+  entry count; a reject fixture installs nothing and returns its rule codes; the same bytes twice is
+  a no-op; a declared source whose ID the lookup holds with different fields is `releaseConflict`
+  and the active release stays; the same with the active file's sources; equal fields pass; remove
+  keeps the lookup's records (the importer never writes them).
+- View model: every state and its copy; a rejection message contains no fixture title, ID or value.
+- Boundaries: the new rules and a failing self-test fixture for each (section 3.1, change 9).
+- App test in the simulator (`SettingsContributionTests`): through the composition root's model,
+  import the golden fixture, see the row's entry count, reject a fixture with the active release
+  kept, remove, see "Not added" and an empty folder.
+
+**Deferred to P1c, with a reason.** The Settings row's "unresolved references" count (import v1
+section 3) needs the CoFID, USDA and TFDA resolvers, which are P1c; P1b shows the entry count only
+and P1c adds the unresolved count. Re-resolution after remove (`unavailableTarget`) and lifecycle
+tests that need a saved database log are P1c, since nothing can be saved from the database before
+then.
+
+**Validation.** All `AGENTS.md` gates (P1b touches the app target and its Xcode project).
+
+### 3.1 Changes from the architecture-gate review (11 November 2026)
+
+Verdict PASS WITH CHANGES. Each change binds P1b and overrides looser wording above.
+
+1. **Layout.** Import v1 section 3 and the storage decision write `FoodLedger/Datasets/<release_id>/`;
+   every food ledger file already lives under `FoodLedger/v1/`, and the personal database gets its own
+   folder so the pointer has one home. Import v1 records this as a dated clarification (section 3 of
+   the contract); folder names are always `pfc-sha256-<hex>`.
+2. **Same bytes.** Re-importing the active bytes is a no-op only when the active release loads and
+   verifies. Over a `damaged` release (or a pointer naming a missing folder) the same bytes reinstall:
+   that is the "Needs replacing" repair.
+3. **Replacing a damaged release.** The active file's declared sources cannot be read when it is
+   damaged, so that comparison is skipped and the ledger comparison still applies. Over a locked store
+   the import fails as `locked` before any comparison.
+4. **Crash sequence.**
+   - Install: refuse bytes whose SHA-256 is not the manifest's; stage into
+     `ImportStaging/personal-food-database-<uuid>/`; if the target release folder already exists, keep it
+     untouched when the current pointer names it and it verifies, otherwise (an orphan no pointer
+     names, or a damaged copy with nothing valid to lose) replace it; rename staging into place; write and protect `active.json.pending`, then
+     rename it over the pointer (commit point; nothing that can fail runs after it); then sweep. A
+     failed install deletes its own staging and pending files at once.
+   - Remove: delete the pointer first (commit point), then the release folder, then sweep.
+   - Reads go by path through `FileManager`; no URL-loading API (`contentsOf:`) is reachable, which
+     the boundaries script checks.
+   - Sweep: only after a pointer write or delete in this call succeeded, never while locked or damaged;
+     it deletes release folders other than the one the pointer names and only
+     `ImportStaging/personal-food-database-*` (other features share `ImportStaging`).
+   - Load: no pointer is `none`, even with orphan folders present; a pointer that does not decode, or
+     names a missing folder, is `damaged`.
+5. **Versioned on-disk JSON.** The pointer `{"folder": "pfc-sha256-<hex>", "version": 1}` and the
+   manifest `{"entry_count", "file_sha256", "generated" ("YYYY-MM-DD"), "imported_at" (RFC 3339 UTC to
+   the second, "Z"), "release_id", "schema", "version": 1}` are encoded with sorted keys by the file
+   store, which owns their shape; the Application manifest is a plain value and the in-memory store
+   encodes nothing. Golden fixtures of both decode and re-encode byte for byte; an unknown version is
+   `damaged`.
+6. **Damaged check.** On load the store checks the file's SHA-256 against the manifest, that
+   `release_id` is `pfc:sha256:` plus that hash, and that the folder name is the pointer's folder and
+   matches the hash. Any mismatch is `damaged`.
+7. **Port.** The importer reads releases through the existing `FoodConfirmationReading`, as the
+   contract names; no new lookup port.
+8. **Importer outcomes,** closed in Application: `installed(summary)`, `unchanged(summary)`,
+   `rejected(rule codes)`, `releaseConflict`, `locked`, `writeFailed`, `tooLarge`, and
+   `ledgerUnavailable` (the saved release records could not be read, so immutability could not be
+   checked; added in implementation). None carries an entry ID, title, value or source field.
+9. **Boundaries** (`check-boundaries.sh`, `Package.swift`): the new library product and target; the
+   target's own imports allow-listed to `Foundation`, `FoodLedgerApplication` and `FoodLedgerDomain`;
+   a token rule refusing `URLSession`, `URLRequest` and `Network` in it; only the composition root and
+   the target's tests import it. Each rule has a self-test fixture that must fail.
+10. **Protection.** `swift test` runs on macOS, where `.protectionKey` is unavailable. The store takes an
+    injected protection applier (the iOS default sets `FileProtectionType.complete`); the package test
+    asserts it is called for every folder and file the store creates. The simulator has no data
+    protection (it reports no protection attribute), so the attribute itself is checked only on the
+    device. Backup exclusion is inherited from the `WeeklyHealthReport/` root
+    (`LocalHealthStorageDirectory.prepare`), and the app test target asserts the store folder sits
+    under it and the root reports excluded.
+11. **P1c obligations.** The deferred items are listed in section 4 as required P1c contract tests
+    and on #424.
+
+Also adopted: the picked file is size-checked against the codec's 26,214,400-byte limit (not the
+inventory backup limit) inside security-scoped access; install and remove run one at a time on an
+actor; the store is built lazily so the composition root's init never touches protected files while
+the phone is locked.
+
+Added contract tests: missing pointer is `none`; undecodable pointer or missing folder is `damaged`;
+orphans swept only after a successful commit; an orphan folder of the same release still installs;
+same bytes over a damaged release reinstall; remove deletes the pointer first and deletes nothing
+while locked; golden pointer and manifest byte-stable; release ID or folder disagreeing with the hash
+is `damaged`; each boundary rule fails its fixture; the protection applier covers every path.
+
+## 4. Open points (none blocks P1b)
+
+- **Required P1c contract tests** (deferred from P1b, import v1 sections 3 and 9): the Settings
+  "unresolved references" count; re-resolution after remove gives `unavailableTarget`, and after
+  re-import succeeds; remove keeps saved logs and their release records with a real database log.
+
 - P1c: the composite's dedupe and the shared `sameSourceRecord` move are specified in section 5 of
   the contract; P1c's gate restates them with the resolver contract suite.

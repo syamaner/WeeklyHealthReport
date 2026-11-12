@@ -53,7 +53,7 @@ public struct PersonalFoodDatabaseDate: Equatable, Hashable, Sendable {
     }
 
     /// Strict `YYYY-MM-DD` in ASCII digits only.
-    init?(ascii bytes: some Collection<UInt8>) {
+    public init?(ascii bytes: some Collection<UInt8>) {
         let b = Array(bytes)
         guard b.count == 10, b[4] == UInt8(ascii: "-"), b[7] == UInt8(ascii: "-") else { return nil }
         func number(_ range: Range<Int>) -> Int? {
@@ -66,6 +66,12 @@ public struct PersonalFoodDatabaseDate: Equatable, Hashable, Sendable {
         }
         guard let y = number(0..<4), let m = number(5..<7), let d = number(8..<10) else { return nil }
         self.init(year: y, month: m, day: d)
+    }
+
+    /// The `YYYY-MM-DD` form, as the file writes it.
+    public var text: String {
+        func pad(_ v: Int, _ n: Int) -> String { String(repeating: "0", count: max(0, n - String(v).count)) + String(v) }
+        return "\(pad(year, 4))-\(pad(month, 2))-\(pad(day, 2))"
     }
 
     /// 00:00:00Z on this date, by day arithmetic (never the process calendar or time zone).
