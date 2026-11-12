@@ -4455,3 +4455,28 @@ Excluded:
 - this ledger edit, the commit, the push and the PR after the window.
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
+## WHR-470-2026-11-11: Claude Code Confirm rules review (#470)
+
+The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) took the owner's report that logging an Open Food Facts product, and a favourite of one, kept asking for the same food details. The window covers:
+- tracing the cause in the re-log and quick add code;
+- drafting `confirm-rules-review-v1.md`, two architecture gate rounds and owner decisions 1 to 5;
+- the docs PR (#471);
+- the implementation on a stacked branch;
+- an invariant review, two local Qodo reviews and three validator runs;
+- two journey QA rounds in the simulator, the first of which found the one-tap button bug.
+
+Subagents are included: one survey (Explore), the architecture gate (two rounds), the invariant reviewer, four validator runs (one stopped and re-run after an edit landed mid-run) and the journey QA (two rounds). The window runs from the owner's first message about the friction (`2026-11-11T22:02:58Z`) to `2026-11-12T00:19:45Z`.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Confirm rules review (#470): contract, gates, build, reviews and journey, with subagents | 71,924,791 (70,467,583) | 1,456,292 | 227,636 | 72,152,427 | $26.55 |
+
+Method: `phase_usage.py --format claude --since 2026-11-11T22:02:58Z --include-subagents` on the session transcript, run at the end of the window. Exact USD 26.5540376. The cache-write tokens (1,248,733 of them 5-minute writes) are part of the input figure, not added to it.
+
+Excluded:
+- the Qodo review runs;
+- local builds, test loops, xcodebuild gates and simulator time, which use no API tokens;
+- this ledger edit, the commit, the push and the PR after the window.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
