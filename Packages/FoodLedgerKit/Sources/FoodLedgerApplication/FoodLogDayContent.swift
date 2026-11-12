@@ -39,7 +39,7 @@ public struct FoodLogDayContent: Sendable {
         /// estimate layer and is not an estimate as a whole. `isEstimate` stays true for such an
         /// entry, as its estimated values make it; the status only names it.
         public var isPartlyEstimated: Bool = false
-        /// "Open Food Facts values" instead of "Estimate" (docs/off-values-label-v1.md rule 2): the
+        /// "Open Food Facts estimate" instead of "Estimate" (docs/off-values-label-v1.md rule 2): the
         /// entry's only estimated values are the product's own. `isEstimate` stays true.
         public var namesOpenFoodFacts: Bool = false
     }
@@ -100,7 +100,7 @@ public struct FoodLogDayContent: Sendable {
             entry.isPartlyEstimated = FoodEntryEstimateStatus.showsPartlyEstimated(
                 isPartlyEstimated: partlyEstimated.contains(row.logItemID), isEstimate: estimates.contains(row.logItemID),
                 quantityIsEstimate: row.quantityMethod.isEstimate)
-            entry.namesOpenFoodFacts = !entry.isPartlyEstimated && OpenFoodFactsValues.namesSource(
+            entry.namesOpenFoodFacts = entry.isEstimate && !entry.isPartlyEstimated && OpenFoodFactsValues.namesSource(
                 valuesAreOnlyEstimates: openFoodFactsValues.contains(row.logItemID), isEstimate: estimates.contains(row.logItemID),
                 quantityIsEstimate: row.quantityMethod.isEstimate, energyBoundIsCalculated: row.energyUpperBound?.isCalculated == true)
             return entry

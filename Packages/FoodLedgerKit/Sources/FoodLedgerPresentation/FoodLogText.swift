@@ -378,9 +378,9 @@ public enum FoodLogText {
     /// The entry status of a saved entry with a label estimate layer (docs/label-estimate-merge-v1.md section 8).
     public static let partlyEstimated = "Partly estimated"
     /// docs/off-values-label-v1.md rule 2: an Open Food Facts product's own values, still estimates.
-    public static let openFoodFactsValues = "Open Food Facts values"
+    public static let openFoodFactsValues = "Open Food Facts estimate"
     /// docs/off-values-label-v1.md rule 3: beside one Open Food Facts value.
-    public static let openFoodFactsValue = "Open Food Facts"
+    public static let openFoodFactsValue = "Open Food Facts estimate"
 
     /// "Label values, with unprinted nutrients estimated from US reference"; on an Open Food Facts
     /// entry "Open Food Facts values, with missing nutrients estimated from US reference".

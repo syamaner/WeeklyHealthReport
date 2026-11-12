@@ -44,9 +44,9 @@ public enum OpenFoodFactsValues {
         return any
     }
 
-    /// The row and Recent foods rule (rule 2): "Open Food Facts values" replaces "Estimate" only
+    /// The row and Recent foods rule (rule 2): "Open Food Facts estimate" replaces "Estimate" only
     /// when the entry would read "Estimate" for no reason other than its Open Food Facts values.
-    /// "Partly estimated" is decided first by the caller and is never replaced.
+    /// The caller also requires that the entry reads "Estimate" at all and is not "Partly estimated".
     public static func namesSource(valuesAreOnlyEstimates: Bool, isEstimate: Bool, quantityIsEstimate: Bool,
                                    energyBoundIsCalculated: Bool) -> Bool {
         valuesAreOnlyEstimates && !isEstimate && !quantityIsEstimate && !energyBoundIsCalculated

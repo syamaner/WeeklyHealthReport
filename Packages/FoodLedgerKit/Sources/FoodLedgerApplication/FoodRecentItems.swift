@@ -86,7 +86,7 @@ public struct FoodRecentRelogItem: Equatable, Sendable {
     /// "Partly estimated" under the shared rule: the entry carries a label estimate layer and is
     /// not an estimate as a whole. Logging it again saves the label values only.
     public var isPartlyEstimated = false
-    /// "Open Food Facts values" instead of "Estimate", under the Food Log row's rule
+    /// "Open Food Facts estimate" instead of "Estimate", under the Food Log row's rule
     /// (docs/off-values-label-v1.md rule 2).
     public var namesOpenFoodFacts = false
     /// The verified current version of the entry: what "Save as favourite" pins (Q2). Nil only
@@ -138,7 +138,7 @@ public struct FoodRecentItemsService: Sendable {
             relog.isPartlyEstimated = FoodEntryEstimateStatus.showsPartlyEstimated(
                 isPartlyEstimated: FoodEntryEstimateStatus.isPartlyEstimated(saved), isEstimate: isEstimate,
                 quantityIsEstimate: quantityIsEstimate)
-            relog.namesOpenFoodFacts = !relog.isPartlyEstimated && OpenFoodFactsValues.namesSource(
+            relog.namesOpenFoodFacts = relog.isEstimate && !relog.isPartlyEstimated && OpenFoodFactsValues.namesSource(
                 valuesAreOnlyEstimates: OpenFoodFactsValues.areTheOnlyEstimates(saved.resolutionVersion.nutrients),
                 isEstimate: isEstimate, quantityIsEstimate: quantityIsEstimate,
                 energyBoundIsCalculated: item.energyUpperBound?.isCalculated == true)
