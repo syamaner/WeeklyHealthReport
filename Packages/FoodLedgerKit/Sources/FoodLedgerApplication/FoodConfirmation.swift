@@ -182,6 +182,10 @@ public struct FoodConfirmationState: Codable, Equatable, Sendable {
     /// Pasted label Confirm v1 (#306) C4: set only through the presentation entry point for an
     /// editable pasted-label source (a new reading). Transient: never encoded, decodes as false.
     public var answersLabelFortification = false
+    /// Where the current correction came from, for Confirm's wording only (#470): the one tap or
+    /// details carried from the last entry. Never stored with the entry; any other correction
+    /// clears it.
+    public var correctionOrigin: FoodCorrectionOrigin?
 
     private enum CodingKeys: String, CodingKey {
         case input, selectedCandidateIndex, decision, correction, quantity, phase, reopened, decisions, occurredAt
@@ -342,6 +346,12 @@ public enum FoodConfirmationAction: Sendable {
     case saved(LogItemID)
 }
 
+/// Where a correction on Confirm came from (presentation wording only, #470).
+public enum FoodCorrectionOrigin: String, Codable, Equatable, Sendable {
+    case packagedAsSold
+    case carried
+}
+
 public enum FoodConfirmationReducer {
     public static func reduce(state: inout FoodConfirmationState, action: FoodConfirmationAction) {
         switch action {
@@ -381,12 +391,18 @@ public enum FoodConfirmationReducer {
             state.phase = .editing
         case let .applyCorrection(correction):
             let previousIdentity = state.correction?.identity ?? state.reopened?.productVersion.identity ?? state.selectedCandidate.candidate.identity
+            // Confirm rules review v1 (#470 rule 2.4): a correction that only fills in blanks keeps the
+            // entered weight, conversion and portion guide; any other correction clears them as v5 did.
+            let fill = FoodDetailsFillPolicy.isFill(correction, of: state.selectedCandidate, current: previousIdentity)
             state.correction = correction
+            state.correctionOrigin = nil
             state.decisions = [:]
             state.decision = .accepted
-            state.quantity.conversion = nil
-            state.quantity.portionGuideCode = nil
-            if state.quantity.directWeight != nil, previousIdentity != correction.identity {
+            if !fill {
+                state.quantity.conversion = nil
+                state.quantity.portionGuideCode = nil
+            }
+            if !fill, state.quantity.directWeight != nil, previousIdentity != correction.identity {
                 state.quantity.directWeight?.needsReconfirmation = true
                 state.decision = .undecided
             }
@@ -945,6 +961,8 @@ public final class FoodConfirmationService: @unchecked Sendable {
     public func relogState(logItemID: LogItemID) throws -> FoodConfirmationState? {
         guard let saved = try reader.foodConfirmation(logItemID: logItemID) else { return nil }
         var state = FoodConfirmationState(input: try relogInput(saved), prefillSourceQuantity: false)
+        // #470 rule 3: fill-only food details carry, applied before the amount and guide are restored.
+        Self.applyCarriedFill(from: saved, to: &state)
         let last = Self.lastEnteredAmount(saved.logItemVersion, conversion: saved.quantityConversion)
         state.quantity = FoodQuantityDraft(value: last.value, unit: last.unit)
         // A typical-weight entry relogs at its saved size; Confirm keeps it only while still offered.
@@ -952,6 +970,17 @@ public final class FoodConfirmationService: @unchecked Sendable {
             state.quantity.portionGuideCode = conversion.methodVersion
         }
         return state
+    }
+
+    /// Applies the food details a saved entry filled in (docs/confirm-rules-review-v1.md rule 3),
+    /// through the ordinary correction action, when they may be carried. Visible on Confirm.
+    public static func applyCarriedFill(from saved: StoredFoodConfirmation, to state: inout FoodConfirmationState) {
+        guard let carried = FoodDetailsFillPolicy.carriedFill(from: saved, into: state) else { return }
+        let decision = state.decision
+        FoodConfirmationReducer.reduce(state: &state, action: .applyCorrection(carried))
+        // Carrying is not acceptance: Log stays the explicit action.
+        state.decision = decision
+        state.correctionOrigin = .carried
     }
 
     /// The amount as the user entered it: the original input of a weight declaration, the source

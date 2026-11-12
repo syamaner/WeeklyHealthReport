@@ -265,6 +265,10 @@ final class FoodLedgerCompositionRoot {
         if prepared != state.input {
             let quantity = state.quantity
             state = FoodConfirmationState(input: prepared, prefillSourceQuantity: false)
+            // Keep the carried food details (#470 rule 3) across the volume-source rebuild.
+            if let saved = try? store.foodConfirmation(logItemID: logItemID) {
+                FoodConfirmationService.applyCarriedFill(from: saved, to: &state)
+            }
             state.quantity = quantity
         }
         let when = entryWhen(day: entryDay)
@@ -385,6 +389,13 @@ final class FoodLedgerCompositionRoot {
         let (input, offering) = withMilkVolumeSource(state.input)
         guard input != state.input else { return (state, offering) }
         var enriched = FoodConfirmationState(input: input, prefillSourceQuantity: false)
+        // Keep carried food details (#470 rule 3) across the volume-source rebuild, with their origin;
+        // carrying is still not acceptance.
+        if let correction = state.correction {
+            FoodConfirmationReducer.reduce(state: &enriched, action: .applyCorrection(correction))
+            enriched.decision = state.decision
+            enriched.correctionOrigin = state.correctionOrigin
+        }
         enriched.quantity = state.quantity
         enriched.occurredAt = state.occurredAt
         return (enriched, offering)

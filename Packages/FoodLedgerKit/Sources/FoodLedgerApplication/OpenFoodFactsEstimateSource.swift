@@ -60,9 +60,9 @@ public enum OpenFoodFactsEstimateSource {
     /// A fortified product or another item class (a supplement, say) drops it: the bundled
     /// reference rows are unfortified plain foods and would understate or misdescribe it.
     public static func isIdentityOnlyCorrection(_ correction: FoodCorrection, of candidate: PopulatedFoodCandidate) -> Bool {
-        correction.name == candidate.name && correction.brand == candidate.brand
-            && correction.nutrients == candidate.candidate.nutrients
-            && correction.identity.servingBasis == candidate.candidate.identity.servingBasis
+        // Built on the value-preserving layer of the shared fill policy (#470), so changing a
+        // known food detail still keeps the estimate, as decision 6 allows.
+        FoodDetailsFillPolicy.isValuePreserving(correction, of: candidate)
             && correction.identity.fortification != .fortified
             && (correction.itemClass ?? candidate.itemClass) == candidate.itemClass
     }

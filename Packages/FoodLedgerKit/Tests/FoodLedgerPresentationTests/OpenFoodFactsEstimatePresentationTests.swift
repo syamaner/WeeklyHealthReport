@@ -191,3 +191,46 @@ final class OpenFoodFactsEstimatePresentationTests: XCTestCase {
         XCTAssertNil(renamed.pendingLabelEstimate)
     }
 }
+
+/// Confirm rules review v1 (docs/confirm-rules-review-v1.md, #470): the one tap and the sheet.
+extension OpenFoodFactsEstimatePresentationTests {
+    func testTheOneTapRecordsThePackagedAnswerAndShowsIt() throws {
+        let (model, estimate, _) = try confirm(unknownDetails: true)
+        XCTAssertTrue(model.offersPackagedAsSold)
+        XCTAssertTrue(model.applyPackagedAsSold(fortified: false))
+        XCTAssertFalse(model.offersPackagedAsSold, "answered once")
+        XCTAssertTrue(model.missingSourceDetails.isEmpty)
+        XCTAssertEqual(model.foodDetailsSummary, "Food details: packaged, as sold, not fortified.")
+        XCTAssertEqual(model.foodDetailsActionTitle, FoodConfirmationViewModel.correctFoodDetailsTitle, "Change stays available")
+        XCTAssertFalse(estimate.isUnavailableAfterCorrection, "No keeps the estimate")
+    }
+
+    func testTheSheetNeedsNoReasonWhenItOnlyFillsInBlanks() throws {
+        let (model, _, _) = try confirm(unknownDetails: true)
+        var draft = FoodDetailsDraft(model: model)
+        XCTAssertFalse(draft.canApply(in: model.state), "nothing filled in yet")
+        draft.preparation = PreparationKind.asSold.rawValue
+        draft.bone = BoneState.notApplicable.rawValue
+        draft.skin = SkinState.notApplicable.rawValue
+        draft.drained = DrainedState.notApplicable.rawValue
+        draft.packingChoice = .asSold
+        draft.fortification = FortificationState.unfortified.rawValue
+        XCTAssertEqual(draft.packingMedium, "as sold")
+        XCTAssertTrue(draft.canApply(in: model.state), "a fill needs no reason")
+        XCTAssertTrue(model.applyFoodDetails(draft))
+        XCTAssertEqual(model.state.correction?.reason.value, "Food details added")
+        XCTAssertNil(model.foodDetailsSummary, "a typed sheet fill keeps the ordinary correction notice")
+        XCTAssertTrue(model.missingSourceDetails.isEmpty)
+
+        var renamed = FoodDetailsDraft(model: model)
+        renamed.name = "Another chocolate"
+        XCTAssertFalse(renamed.canApply(in: model.state), "a changed name needs a reason")
+        renamed.packingChoice = .notApplicable
+        XCTAssertEqual(renamed.packingMedium, "not applicable")
+        renamed.packingChoice = .other
+        XCTAssertEqual(renamed.packingMedium, "")
+        XCTAssertEqual(renamed.packingChoice, .other, "Other stays chosen while its text is empty")
+        renamed.packingMedium = "as sold"
+        XCTAssertEqual(renamed.packingChoice, .other, "typing a frozen value under Other keeps its field (Qodo, #473)")
+    }
+}

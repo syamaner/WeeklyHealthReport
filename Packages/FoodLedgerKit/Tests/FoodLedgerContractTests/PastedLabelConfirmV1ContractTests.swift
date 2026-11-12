@@ -319,6 +319,8 @@ final class PastedLabelConfirmV1ContractTests: XCTestCase {
             let service = try F.service(harness)
             func eligibility(_ saved: StoredFoodConfirmation) throws -> QuickAddEligibility {
                 var rebuilt = FoodConfirmationState(input: try service.favouriteInput(saved), prefillSourceQuantity: false)
+                // As the favourites service prepares it: fill-only food details carry (#470 rule 3).
+                FoodConfirmationService.applyCarriedFill(from: saved, to: &rebuilt)
                 FoodConfirmationReducer.reduce(state: &rebuilt, action: .setQuantity(40, .grams))
                 let estimate = FoodEntryEstimateStatus.isEstimate(saved, restoredInput: try service.favouriteInput(saved))
                 return QuickAddPolicy.eligibility(pinned: saved, pinnedIsEstimate: estimate, rebuilt: rebuilt,
@@ -338,7 +340,8 @@ final class PastedLabelConfirmV1ContractTests: XCTestCase {
             XCTAssertEqual(try eligibility(yes), .sheet, harness.name)
             XCTAssertEqual(try eligibility(no), .sheet, harness.name)
             XCTAssertEqual(try eligibility(notStated), .confirm(.estimate), harness.name)
-            XCTAssertEqual(try eligibility(corrected), .confirm(.corrected), harness.name)
+            // Quick add v2 (#470 rule 3.5): a correction that only filled in fortification carries.
+            XCTAssertEqual(try eligibility(corrected), .sheet, harness.name)
 
             // A re-log asks inline; Not stated is an explicit choice on Confirm, never carried.
             var relog = try XCTUnwrap(service.relogState(logItemID: notStated.logItem.logItemID))

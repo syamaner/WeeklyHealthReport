@@ -1,5 +1,7 @@
 # Food quick add contract v1 (#198)
 
+Status: v2 since [`confirm-rules-review-v1.md`](confirm-rules-review-v1.md) (#470): rule 3 admits fill-only corrections and the label defaults to the saved product name. Everything else is unchanged from v1.
+
 Status: **approved by the owner on 12 October 2026 with every recommended answer (Q1 to Q11); implemented in #198 (PR #209).** Rebase notes for phases 3 and 4 are in the [phase plan](ux-revamp-phase-5-favourites.md#rebase-notes-12-october-2026-after-phases-3-and-4-merged).
 This is the change [ux-revamp-v1.md](ux-revamp-v1.md) calls "Quick add" (section "Contract changes > 4"). It builds on [food-confirmation-contract-v5.md](food-confirmation-contract-v5.md) (one Log action, `FoodLogPolicy`, D4 and D6) and sequences after phase 3 (#196, PR #207: recent foods, `FoodConfirmationService.relogInput`, food archive contract 5, schema `food-ledger-v5`). Phase plan: [ux-revamp-phase-5-favourites.md](ux-revamp-phase-5-favourites.md). Wireframes: [`Favourites.dc.html`](designs/ux-revamp-v1/Favourites.dc.html), [`QuickAdd.dc.html`](designs/ux-revamp-v1/QuickAdd.dc.html).
 
@@ -32,7 +34,7 @@ FavouriteArrangement  { arrangementVersionID, ordinal, supersedes?, order: [Favo
 
 - **Binding by log item version only.** `.savedEntry` stores one `LogItemVersionID`. Product version, resolution version and evidence are read through that immutable version (a read-only reader addition, `foodConfirmation(logItemVersionID:)`), so the binding cannot hold inconsistent IDs. The store and strict decoding reject a binding to a version that does not exist or whose composition is not `.product` (for example a `.removed` version).
 - **Default amount.** Value and unit only, as `FoodConfirmationService.lastEnteredAmount` reads them. No conversion, plate or decision is carried.
-- **Label.** Display name, defaulting to the **source candidate** name (what `favouriteInput` rebuilds, not a corrected product name); never alters identity, nutrients or provenance.
+- **Label.** Display name, defaulting to the **saved product name** (what `favouriteInput` restores from the saved product version; quick add v2, [`confirm-rules-review-v1.md`](confirm-rules-review-v1.md) rule 3.6, #470); never alters identity, nutrients or provenance.
 - **Estimate status is derived, never stored**, from `FoodEntryEstimateStatus` over the pinned stored confirmation. A favourite made from an estimate keeps the estimate label and provenance.
 - **Display order.** One `FavouriteArrangement` lists favourites in quick-add order. The first four are the Home chips and "On Today's quick add"; the rest are "Other favourites". Reordering writes one arrangement version and no favourite version. Removed favourites are dropped even if listed; active favourites missing from the arrangement are appended by `createdAt`.
 - **Competing heads** of any `FavouriteVersion` chain **or** of the `FavouriteArrangement` chain stop the Favourites projection with an explicit failed state, as the intake projection does for log heads. Nothing chooses by ordinal or time.
@@ -77,6 +79,7 @@ The one-step sheet is offered only when all hold:
 1. the input rebuilds and re-verifies; otherwise the favourite shows "Source can no longer be verified" and offers removal;
 2. the pinned entry's derived `FoodEntryEstimateStatus` is **not** estimate, **and** `FoodLogPolicy.savesEstimate` for the rebuilt state is false;
 3. the pinned entry carried **no correction or re-resolution**: its product version ordinal is 1, no correction assertion is attached, its candidate decision outcome is not `.rejected`, and its effective resolution version equals the original one. Any of these opens Confirm, because the rebuilt source candidate drops the correction;
+   - **Quick add v2** ([`confirm-rules-review-v1.md`](confirm-rules-review-v1.md) rule 3.5, #470): a pinned entry whose only correction filled in food details its source left unknown (typed fields only, not fortified) and whose effective resolution is the original one is also eligible; quick add applies those details to the rebuilt state before this check.
 4. `FoodLogPolicy.requirements` for the state with the default amount and Now contains only the sheet-resolvable cases below.
 
 | May appear in the sheet (blocks Log, fixed inline) | Never in the sheet: opens the full Confirm |
