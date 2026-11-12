@@ -515,6 +515,5 @@ basis, re-resolution after remove and re-import, a logged Generic row re-resolvi
 does, Open Food Facts parity, the isolated composites, resolver-versus-route facts for all three
 resolvers, and the boundary fixtures.
 
-**Owner decision pending:** the `isGenericEstimate` option in section 5 is a rule change to import
-v1 section 7 and owner decision 12, not a clarification. It needs the owner's approval as a dated
-amendment before code.
+**Owner decision (12 November 2026):** option (a), the stricter path. It is a rule change, recorded
+as a dated amendment in import v1 section 7 with the owner's approval of the same day.

@@ -245,6 +245,9 @@ malformed file: every unexpected type is a rejection.
   the composite's dedupe runs after the v12 sort and its fat and preparation partitions, before
   `PopulatedFoodConfirmation` is built. An entry with no
   values and no reference is shown as "No nutrition data yet" with its fallback chain.
+  *Deferral, 12 November 2026 (P1c gate, section 5.1 item 3 of the phase 1 plan):* until that row
+  is built, such an entry, and one whose only reference is unresolved, is left out of results, so
+  no log can be saved with every nutrient unknown.
 - Results use a new source family **"Your food database"**, not the closed "Your foods" family; the
   family mapping in `FoodSearchResultSummary` is amended for this one case.
 - Ranking is `composite-generic-ranking-v12`, a new document. v12 keeps v11's keys and adds one
@@ -301,6 +304,13 @@ contract section 8, in the same change that implements this document. Its method
   Food Facts product today: Confirm asks for any unknown preparation, bone, skin, drained state,
   packing medium or fortification through the existing correction flow before Log is enabled. No log
   policy changes (decision 12).
+  *Amendment, 12 November 2026, approved by the owner the same day (P1c gate):* the generic-estimate
+  allowance above is **withdrawn for Your food database entries**. `isGenericEstimate` grants it
+  only when every value cites the candidate's own release and record, which a database entry never
+  does, and changing that would change `food_confirmation_v5`, which golden archives pin. So every
+  database entry, merged or not, asks for its unknown identity facts on Confirm before Log. A
+  separate "Generic" row is the record's own candidate and keeps the allowance as today. Decision 12
+  is narrowed accordingly; no log policy changes.
 - On save, the ledger stores the resolution as today with only existing `ProvenanceSourceKind`
   cases, and persists `SourceRelease` records for the database release (section 4), for each cited
   label release (from `sources`) and for the merged generic record (the adapter's own release). The
