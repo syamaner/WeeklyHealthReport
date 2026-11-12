@@ -4519,3 +4519,25 @@ Excluded:
 - this ledger edit, and any Qodo review, commit, push or PR after the window.
 
 Pricing: this session ran on `claude-fable-5-2`, for which this ledger records no rate. It is priced at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, as the Fable subagents were in WHR-416-2026-11-08-A3, so the figure is a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
+## WHR-424-IMPORT-P1C-2026-11-12: Claude Code import v1 P1c search, merge, Confirm and records (#424)
+
+The implementation session (`claude-opus-5-5`, session `9a30287d-2461-44e3-836e-4b9789374ac5`) did the following in this window:
+- wrote the P1c architecture gate in `docs/personal-food-database-import-v1-phase-1.md` section 5 from a code map, ran an architecture gate (PASS WITH CHANGES) and bound its thirteen changes in section 5.1, and recorded the owner's stricter Confirm decision as a dated amendment in import v1 section 7;
+- wrote the resolver port and the CoFID, USDA and TFDA resolvers, the candidate builder with the A1 merge, the background-loaded index, the search route, the composite's database route and dedupe, the re-resolution provider, the linked-release save fix (section 5.2), the source family, Generic row titles, Confirm's mixed-source details, the Settings count and wording, the composition-root wiring, two boundary rules with failing fixtures and the A1 amendment rows;
+- ran an invariant review (PASS WITH CHANGES, four items fixed), a local Qodo review (two findings fixed), the full gates through the validator (one stale app test fixed) and a simulator journey (seven of seven items passed; two defects fixed).
+
+The subagents are included: a code-map explorer, the architecture gate, an Open Food Facts parity test writer, the invariant reviewer, the validator and the journey QA agent. The window runs from `2026-11-12T19:32:13Z`, just after the owner's "yes all good so far proceed", to `2026-11-12T21:29:30Z`.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Import v1 P1c gate, search, merge, Confirm, records, tests and reviews, implementation session and subagents | 76,202,788 (75,127,380) | 1,074,528 | 283,104 | 76,485,892 | $26.93 |
+
+Method: `phase_usage.py --format claude --since 2026-11-12T19:32:13Z --include-subagents` on the session transcript, run at `2026-11-12T21:29:30Z`. Exact USD 26.926633. The cache-write tokens are part of the input figure, and 786,889 of them are 5-minute writes. The total is input plus output.
+
+Excluded:
+- the Qodo review run;
+- local test, gate and simulator runs, which use no API tokens;
+- this ledger edit, the commit, the push and the PR after the window.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison, not billing, and token totals do not measure quality or productivity.
