@@ -1298,6 +1298,12 @@ public struct FoodConfirmationView: View {
                 Text(line).font(.subheadline).foregroundStyle(.secondary)
                     .accessibilityLabel(FoodSearchResultText.spokenSourceLine(line))
             }
+            if let sources = FoodSearchResultText.databaseNutrientSources(model.state.selectedCandidate,
+                                                                         releases: model.state.input.sourceReleases) {
+                DisclosureGroup(FoodSearchResultText.mixedSources) {
+                    ForEach(sources, id: \.self) { Text($0).font(.caption) }
+                }.font(.subheadline)
+            }
             if model.displayedName != model.state.selectedCandidate.name {
                 LabeledContent("Source food", value: model.state.selectedCandidate.name.value).font(.caption)
             }
@@ -1383,6 +1389,9 @@ public struct FoodConfirmationView: View {
         var parts: [String] = []
         if let scope = model.state.reviewedWebProposalScope {
             parts.append(scope == .representativeEstimate ? "Reviewed web estimate" : "Reviewed web product")
+        } else if FoodSearchResultSummary.family(candidate: model.state.selectedCandidate.candidate,
+                                                 releases: model.state.input.sourceReleases) == .yourFoodDatabase {
+            parts.append(FoodSearchResultText.family(.yourFoodDatabase))
         } else if let name = FoodSearchResultText.confirmSourceName(
             family: FoodSearchResultSummary.family(candidate: model.state.selectedCandidate.candidate,
                                                    releases: model.state.input.sourceReleases),
