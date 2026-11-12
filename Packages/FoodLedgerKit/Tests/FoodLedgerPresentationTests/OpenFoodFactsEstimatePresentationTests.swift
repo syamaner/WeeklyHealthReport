@@ -233,4 +233,104 @@ extension OpenFoodFactsEstimatePresentationTests {
         renamed.packingMedium = "as sold"
         XCTAssertEqual(renamed.packingChoice, .other, "typing a frozen value under Other keeps its field (Qodo, #473)")
     }
+
+    // MARK: docs/off-values-label-v1.md, the Open Food Facts values label
+
+    private func plainEntry() throws -> (StoredFoodConfirmation, InMemoryFoodLedgerStore, FoodConfirmationService) {
+        let store = InMemoryFoodLedgerStore()
+        let service = try Self.service(store)
+        let model = FoodConfirmationViewModel(state: FoodConfirmationState(input: try Self.input(), prefillSourceQuantity: false),
+                                              now: { F.now }) { state in
+            try service.save(state, operationID: RandomLedgerIDGenerator().makeID(OperationTag.self), idempotencyKey: nil)
+        }
+        model.send(.setQuantity(25, .grams))
+        model.log()
+        return (try XCTUnwrap(model.savedResult, model.blockedReason ?? ""), store, service)
+    }
+
+    private static func total(_ key: NutrientKey, _ detail: SavedFoodEntryDetail) throws -> FoodIntakeTotal {
+        guard case let .calculated(totals) = detail.nutrition else { throw XCTSkip("no totals") }
+        return try XCTUnwrap(totals.first { $0.key == key })
+    }
+
+    /// Rule 1: only an augmented value or bound naming Open Food Facts alone is one.
+    func testOnlyOpenFoodFactsAugmentedValuesQualify() throws {
+        let off = NutrientProvenance(sourceKind: .exactProductDataset, sourceID: try ExternalIdentifier("open-food-facts"),
+                                     sourceReleaseID: try ExternalIdentifier(Self.releaseID), recordID: try ExternalIdentifier(Self.recordID))
+        let generic = NutrientProvenance(sourceKind: .genericCompositionDataset, sourceID: try ExternalIdentifier("cofid"),
+                                         sourceReleaseID: try ExternalIdentifier("cofid:2021"), recordID: try ExternalIdentifier("cofid:1"))
+        func exact(_ provenance: [NutrientProvenance]) throws -> ExactNutrientValue {
+            try ExactNutrientValue(amount: 3, unit: .grams,
+                sourceValue: .exact(SourceExactNutrientValue(amount: 3, unit: LedgerText("g"), basis: .per100Grams)), provenance: provenance)
+        }
+        XCTAssertTrue(OpenFoodFactsValues.isProductValue(.augmented(try exact([off]))))
+        XCTAssertFalse(OpenFoodFactsValues.isProductValue(.augmented(try exact([generic]))), "a generic estimate")
+        XCTAssertFalse(OpenFoodFactsValues.isProductValue(.augmented(try exact([off, generic]))), "mixed provenance")
+        XCTAssertFalse(OpenFoodFactsValues.isProductValue(.measured(try exact([off]))), "measured is not an estimate")
+        XCTAssertFalse(OpenFoodFactsValues.isProductValue(.unknown(.notDeclared)))
+        let bound = try NutrientBounds(lower: nil, upper: 0.5, lowerClosed: false, upperClosed: false, origin: .augmented, unit: .grams,
+            sourceValue: .bounded(SourceBoundedNutrientValue(lower: nil, upper: 0.5, lowerClosed: false, upperClosed: false,
+                                                            unit: LedgerText("g"), basis: .per100Grams)), provenance: [off])
+        XCTAssertTrue(OpenFoodFactsValues.isProductValue(.bounded(bound)), "an Open Food Facts bound")
+        XCTAssertThrowsError(try exact([]), "a value with no provenance cannot exist, so it never qualifies")
+
+        // The entry rule: any other estimated or calculated value keeps "Estimate".
+        func set(_ values: [NutrientKey: NutrientValue]) throws -> NutrientSet {
+            try NutrientSet(entries: NutrientKey.allCases.map { try NutrientEntry(key: $0, value: values[$0] ?? .unknown(.notDeclared)) })
+        }
+        XCTAssertTrue(OpenFoodFactsValues.areTheOnlyEstimates(try set([.protein: .augmented(try exact([off]))])))
+        XCTAssertFalse(OpenFoodFactsValues.areTheOnlyEstimates(try set([.protein: .augmented(try exact([off])),
+                                                                        .fiber: .augmented(try exact([generic]))])), "mixed entry")
+        XCTAssertFalse(OpenFoodFactsValues.areTheOnlyEstimates(try set([.protein: .measured(try exact([off]))])), "nothing estimated")
+        let calculated = NutrientProvenance(sourceKind: .exactProductDataset, sourceID: try ExternalIdentifier("open-food-facts"),
+            sourceReleaseID: try ExternalIdentifier(Self.releaseID), recordID: try ExternalIdentifier(Self.recordID),
+            transforms: [try NutrientTransform(transformID: LedgerText("salt_to_sodium_v1"), transformVersion: LedgerText("pasted-label-conversions-v1"))])
+        XCTAssertFalse(OpenFoodFactsValues.areTheOnlyEstimates(try set([.carbohydrates: .augmented(try exact([off])),
+                                                                        .protein: .measured(try exact([calculated]))])), "a calculated value")
+        XCTAssertFalse(OpenFoodFactsValues.namesSource(valuesAreOnlyEstimates: true, isEstimate: false, quantityIsEstimate: true,
+                                                       energyBoundIsCalculated: false), "an estimated amount")
+        XCTAssertFalse(OpenFoodFactsValues.namesSource(valuesAreOnlyEstimates: true, isEstimate: false, quantityIsEstimate: false,
+                                                       energyBoundIsCalculated: true), "a calculated energy bound")
+    }
+
+    /// Rule 2: the row and Recent foods name the source only when nothing else makes it an estimate.
+    func testTheRowAndRecentFoodsNameOpenFoodFactsValues() throws {
+        let (saved, store, service) = try plainEntry()
+        XCTAssertTrue(OpenFoodFactsValues.areTheOnlyEstimates(saved.resolutionVersion.nutrients))
+        let id = saved.logItem.logItemID
+        let day = saved.logItemVersion.reportingDate.value
+        func flags(estimates: Set<LogItemID> = [], partly: Set<LogItemID> = [], off: Set<LogItemID> = [id]) throws -> String {
+            let content = FoodLogDayContent(projection: try FoodIntakeProjection(records: try store.archiveState().records, reportingDate: day),
+                                            reportingDate: day, estimates: estimates, partlyEstimated: partly, openFoodFactsValues: off)
+            let entry = try XCTUnwrap(content.entries.first)
+            XCTAssertTrue(entry.isEstimate, "the values stay estimates")
+            return FoodLogText.flags(entry)
+        }
+        let named = try flags()
+        XCTAssertTrue(named.hasPrefix("Open Food Facts estimate"), named)
+        XCTAssertFalse(named.contains("Estimate"), "no second, bare Estimate")
+        XCTAssertTrue(try flags(estimates: [id]).hasPrefix("Estimate"), "a decided or generic estimate wins")
+        XCTAssertTrue(try flags(partly: [id]).hasPrefix("Partly estimated"), "a layer wins")
+        XCTAssertTrue(try flags(off: []).hasPrefix("Estimate"), "other estimated values")
+
+        let recent = try XCTUnwrap(FoodRecentItemsService(reader: store, confirmations: service)
+            .items(records: try store.archiveState().records, now: F.now, calendar: .current).first)
+        XCTAssertTrue(recent.isEstimate)
+        XCTAssertTrue(recent.namesOpenFoodFacts, "Recent foods follows the row")
+    }
+
+    /// Rule 3: each product value names its source; a layer's estimates keep "Estimated".
+    func testTheSavedEntryNamesEachOpenFoodFactsValue() throws {
+        let (plain, _, _) = try plainEntry()
+        let detail = SavedFoodEntryDetail(stored: plain, isEstimate: false, history: [])
+        XCTAssertTrue(PastedLabelSavedEntryText.value(try Self.total(.protein, detail), detail: detail).hasSuffix(" · Open Food Facts estimate"))
+        XCTAssertEqual(PastedLabelSavedEntryText.value(try Self.total(.fiber, detail), detail: detail), "Unknown")
+
+        let (layered, _, _, _) = try layeredEntry()
+        XCTAssertFalse(OpenFoodFactsValues.areTheOnlyEstimates(layered.resolutionVersion.nutrients), "a layer adds generic estimates")
+        let layeredDetail = SavedFoodEntryDetail(stored: layered, isEstimate: false, history: [])
+        XCTAssertTrue(PastedLabelSavedEntryText.value(try Self.total(.protein, layeredDetail), detail: layeredDetail).hasSuffix(" · Open Food Facts estimate"))
+        XCTAssertTrue(PastedLabelSavedEntryText.value(try Self.total(.fiber, layeredDetail), detail: layeredDetail).hasSuffix(" · Estimated"),
+                      "a layer's estimate keeps its marking")
+    }
 }

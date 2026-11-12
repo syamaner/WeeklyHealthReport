@@ -34,6 +34,8 @@ public struct SavedFoodEntryDetail: Sendable {
     public let quantityMethod: FoodQuantityMethod
     /// Nutrients whose source value is augmented (estimated); marked beside that value only.
     public let augmentedKeys: Set<NutrientKey>
+    /// Values that are the Open Food Facts product's own (docs/off-values-label-v1.md rule 3).
+    public let openFoodFactsKeys: Set<NutrientKey>
     public let nutrition: Nutrition
     public let basis: ResolutionBasis
     public let sourceFamily: FoodSearchResultSummary.SourceFamily
@@ -146,6 +148,7 @@ public struct SavedFoodEntryDetail: Sendable {
         augmentedKeys = Set(stored.resolutionVersion.nutrients.entries.compactMap { entry in
             if case .augmented = entry.value { return entry.key } else { return nil }
         })
+        openFoodFactsKeys = OpenFoodFactsValues.productValueKeys(stored.resolutionVersion.nutrients)
         basis = stored.resolution.basis
         isPlainWater = PlainWaterReference.isPlainWater(stored.resolutionVersion)
         nutrition = Self.nutrition(quantity: log.edibleQuantity, basis: stored.resolution.basis,

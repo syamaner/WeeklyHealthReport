@@ -57,6 +57,7 @@ public struct FoodLogReadingService: Sendable {
         let status = statuses(projection.rows.map(\.logItemID))
         return FoodLogDayContent(projection: projection, reportingDate: reportingDate,
                                  estimates: status.estimates, partlyEstimated: status.partlyEstimated,
+                                 openFoodFactsValues: status.openFoodFactsValues,
                                  plainWater: try PlainWaterDayTotal.total(records: records, reportingDate: reportingDate))
     }
 
@@ -91,15 +92,18 @@ public struct FoodLogReadingService: Sendable {
     }
 
     /// Entries whose current saved version is a labelled estimate, and those that carry a label
-    /// estimate layer ("partly estimated"). An unreadable entry is neither.
-    private func statuses(_ ids: [LogItemID]) -> (estimates: Set<LogItemID>, partlyEstimated: Set<LogItemID>) {
-        var estimates: Set<LogItemID> = [], partly: Set<LogItemID> = []
+    /// estimate layer ("partly estimated"), and those whose only estimated values are Open Food
+    /// Facts values (docs/off-values-label-v1.md). An unreadable entry is none of them.
+    private func statuses(_ ids: [LogItemID])
+        -> (estimates: Set<LogItemID>, partlyEstimated: Set<LogItemID>, openFoodFactsValues: Set<LogItemID>) {
+        var estimates: Set<LogItemID> = [], partly: Set<LogItemID> = [], openFoodFacts: Set<LogItemID> = []
         for id in ids {
             guard let stored = try? confirmationReader.foodConfirmation(logItemID: id) else { continue }
             if (try? confirmations.isEstimate(stored)) == true { estimates.insert(id) }
             if FoodEntryEstimateStatus.isPartlyEstimated(stored) { partly.insert(id) }
+            if OpenFoodFactsValues.areTheOnlyEstimates(stored.resolutionVersion.nutrients) { openFoodFacts.insert(id) }
         }
-        return (estimates, partly)
+        return (estimates, partly, openFoodFacts)
     }
 
     private func change(_ logItemID: LogItemID, expected: LogItemVersionID, restoring: Bool) -> FoodLogChangeOutcome {
