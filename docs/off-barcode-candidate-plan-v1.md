@@ -81,3 +81,18 @@ The rule, shared by barcode lookup and text search:
 Nothing else changes: the same eight nutrient fields, units, bounds, unknowns, supplement refusal, provenance, attribution, hashes and confirmation before logging. Stored records keep their own projection version and decode unchanged. The personal food catalogue's `off_rules.py` port follows v5 in the same change, so search, barcode lookup and catalogue builds give the same answer. Its export check accepts v4 and v5 releases, each named the same in its ID and `pipeline_version`, so catalogue entries built under v4 stay valid; see `personal-food-catalogue-import-v1.md`.
 
 Out of scope: a search reads at most two product details, so one read can go to a product with no nutrition data at all (6001000006843 in the 85% case).
+
+## Per-serving panels scaled to per 100, `off-product-projection-v6`, 12 November 2026
+
+Owner approved on 12 November 2026 ("use percentages and interpolate"): scale a per-serving panel to per 100 g or per 100 ml in proportion. Evidence: the owner's scan of Birds Eye country mixed vegetables (5000116127801) was declined although Open Food Facts lists its pack values, because the only `packaging`, `as_sold` panel is `per: serving` with `per_quantity` 100 and `per_unit` g. Replaying the app's lookup over 235 Open Food Facts records cached by the owner's catalogue work, 190 were admitted and all 44 declined records failed the same way: their only pack panel was per serving with a stated size (16 of exactly 100 g, the rest from 28 g to 170 g, two in ml).
+
+The rule, shared by barcode lookup and text search, applies only when v5 finds **no** eligible per 100 g or per 100 ml panel:
+
+- Exactly one `packaging`, `as_sold` panel with `per: serving` must exist; two or more decline.
+- Its `per_quantity` must be a finite number greater than 0 (not a boolean) and its `per_unit` must be `g` or `ml`. Anything else declines.
+- The unit decides the basis (g: per 100 g, ml: per 100 ml). A pack quantity that states the other basis declines, as in v5; a pack quantity that states both still declines.
+- Every value, and both ends of a bound, is multiplied by `100 / per_quantity`. The stored source value keeps the panel's own number with basis `perServing(per_quantity unit)`, and each scaled value's provenance carries the transform `off-serving-to-100` version `v1`, so the arithmetic is traceable. A serving of exactly 100 needs no arithmetic but carries the transform too, because the panel said "serving".
+- The candidate's release names `off-product-projection-v6`. A record admitted under v5 rules is projected exactly as before and keeps `off-product-projection-v5`, so its bytes, hashes and release ID are unchanged.
+- The values stay `augmented` Open Food Facts estimates and are reviewed on Confirm before logging, as every Open Food Facts candidate is. A wrong serving size in Open Food Facts scales every value wrongly; Confirm shows the values and their source.
+
+Out of scope: legacy `nutriments` records keep the v5 rule (per 100 g only). The personal food catalogue's `off_rules.py` port and its export check (which accepts v4 and v5) are not changed here, so catalogue builds do not yet admit per-serving records.

@@ -311,8 +311,10 @@ final class OpenFoodFactsLookupTests: XCTestCase {
     }
 
     func testVolumeRequiresConsistentExplicitPanelMetadataAndPackageUnit() async throws {
+        // A per-serving panel with a stated 100 ml serving is admitted and scaled under v6
+        // (testPerServingPanelScalesToPer100AndKeepsTheSourceServing), so it is not listed here.
         let changes: [(inout [String: Any]) -> Void] = [
-            { $0["per"] = "serving" }, { $0["per"] = "100g" }, { $0.removeValue(forKey: "per") },
+            { $0["per"] = "100g" }, { $0.removeValue(forKey: "per") },
             { $0["preparation"] = "prepared" }, { $0["source"] = "estimate" },
             { $0["per_quantity"] = 200 }, { $0["per_quantity"] = true }, { $0["per_quantity"] = "100" },
             { $0["per_unit"] = "g" }, { $0["per_unit"] = NSNull() }
@@ -394,6 +396,82 @@ final class OpenFoodFactsLookupTests: XCTestCase {
             let outcome = try await lookup.lookup(request())
             XCTAssertEqual(outcome, .insufficientData, "legacy \(pack ?? "nil")")
         }
+    }
+
+    /// v6 (off-barcode-candidate-plan-v1, 12 November 2026): a per-serving panel with a stated
+    /// size scales to per 100 in proportion; the source keeps its own number and basis. The first
+    /// case has the shape of the owner's declined scan (a 100 g serving). Synthetic products.
+    func testPerServingPanelScalesToPer100AndKeepsTheSourceServing() async throws {
+        func panel(_ quantity: Any?, _ unit: String?) -> [String: Any] {
+            var panel: [String: Any] = ["source": "packaging", "per": "serving", "preparation": "as_sold",
+                "nutrients": ["energy-kcal": ["value": 43, "unit": "kcal"], "proteins": ["value": 2.7, "unit": "g"],
+                              "sugars": ["value": 0.5, "unit": "g", "modifier": "<"], "sodium": ["value": 0.012, "unit": "g"]]]
+            if let quantity { panel["per_quantity"] = quantity }
+            if let unit { panel["per_unit"] = unit }
+            return panel
+        }
+        for (quantity, unit, pack) in [(100.0, "g", nil), (28.0, "g", "640 g"), (250.0, "ml", nil)] as [(Double, String, String?)] {
+            let body = try response { product in
+                if let pack { product["quantity"] = pack } else { product.removeValue(forKey: "quantity") }
+                product.removeValue(forKey: "nutrition_data_per"); product["nutriments"] = [:]
+                product["nutrition"] = ["input_sets": [panel(quantity, unit),
+                    ["source": "estimate", "per": "100g", "preparation": "as_sold", "nutrients": ["fiber": ["value": 9, "unit": "g"]]]]]
+            }
+            let lookup = OpenFoodFactsLookup(transport: OFFFixtureTransport(response: .init(status: 200, body: body)), clock: clock)
+            guard case let .candidate(input) = try await lookup.lookup(request()) else { return XCTFail("\(quantity) \(unit)") }
+            let candidate = input.candidates[0]
+            let volume = unit == "ml"
+            XCTAssertEqual(candidate.candidate.identity.servingBasis, volume ? .per100Millilitres : .per100Grams)
+            XCTAssertEqual(input.sourceReleases[0].pipelineVersion.value, "off-product-projection-v6")
+            let factor = 100 / quantity
+            let entries = Dictionary(uniqueKeysWithValues: candidate.candidate.nutrients.entries.map { ($0.key, $0.value) })
+            guard case let .augmented(energy) = entries[.energyConsumed], case let .augmented(sodium) = entries[.sodium],
+                  case let .bounded(sugar) = entries[.sugar] else { return XCTFail("values \(quantity)") }
+            XCTAssertEqual(energy.amount, 43 * factor, accuracy: 1e-9)
+            XCTAssertEqual(sodium.amount, 12 * factor, accuracy: 1e-9, "g to mg, then scaled")
+            XCTAssertEqual(try XCTUnwrap(sugar.upper), 0.5 * factor, accuracy: 1e-9, "a bound scales too")
+            let serving = ResolutionBasis.perServing(try PositiveQuantity(value: quantity, unit: volume ? .millilitres : .grams))
+            XCTAssertEqual(energy.sourceValue, .exact(try SourceExactNutrientValue(amount: 43, unit: LedgerText("kcal"), basis: serving)))
+            XCTAssertTrue(energy.provenance[0].transforms.contains { $0.transformID.value == "off-serving-to-100" && $0.transformVersion.value == "v1" })
+            XCTAssertEqual(entries[.fiber], .unknown(.notDeclared), "the estimate panel never backfills")
+            XCTAssertFalse(NutrientDerivation.isCalculated(.augmented(energy)), "scaling is not a calculated label value")
+            let variant = try XCTUnwrap(candidate.variant?.value)
+            XCTAssertTrue(variant.contains("scaled from a \(Int(quantity)) \(unit) serving"), variant)
+        }
+    }
+
+    /// v6 declines: no stated size, a zero, boolean or non-numeric size, an unsupported unit, two
+    /// serving panels, a pack that contradicts the unit; and a per 100 panel always wins (v5 bytes).
+    func testPerServingPanelDeclinesWithoutAUsableSizeAndNeverOverridesPer100() async throws {
+        let base: [String: Any] = ["source": "packaging", "per": "serving", "preparation": "as_sold",
+            "nutrients": ["proteins": ["value": 8, "unit": "g"]]]
+        func with(_ quantity: Any?, _ unit: Any?) -> [String: Any] {
+            var panel = base
+            if let quantity { panel["per_quantity"] = quantity }
+            if let unit { panel["per_unit"] = unit }
+            return panel
+        }
+        let cases: [(String?, [[String: Any]])] = [
+            (nil, [with(nil, "g")]), (nil, [with(30, nil)]), (nil, [with(0, "g")]), (nil, [with(true, "g")]),
+            (nil, [with("30", "g")]), (nil, [with(30, "oz")]), (nil, [with(30, "g"), with(40, "g")]),
+            ("500 ml", [with(30, "g")]), ("500 g", [with(250, "ml")])
+        ]
+        for (pack, sets) in cases {
+            let body = try response { product in
+                if let pack { product["quantity"] = pack } else { product.removeValue(forKey: "quantity") }
+                product["nutrition"] = ["input_sets": sets]
+            }
+            let lookup = OpenFoodFactsLookup(transport: OFFFixtureTransport(response: .init(status: 200, body: body)), clock: clock)
+            let outcome = try await lookup.lookup(request())
+            XCTAssertEqual(outcome, .insufficientData, "\(pack ?? "nil") \(sets)")
+        }
+        let per100: [String: Any] = ["source": "packaging", "per": "100g", "preparation": "as_sold",
+            "nutrients": ["proteins": ["value": 8, "unit": "g"]]]
+        let body = try response { product in product["nutrition"] = ["input_sets": [with(30, "g"), per100]] }
+        let lookup = OpenFoodFactsLookup(transport: OFFFixtureTransport(response: .init(status: 200, body: body)), clock: clock)
+        guard case let .candidate(input) = try await lookup.lookup(request()) else { return XCTFail("per 100 panel") }
+        XCTAssertEqual(input.sourceReleases[0].pipelineVersion.value, "off-product-projection-v5", "v5 records are unchanged")
+        XCTAssertFalse(try XCTUnwrap(input.candidates[0].variant?.value).contains("scaled"))
     }
 
     func testVolumeComputedSodiumDoesNotBorrowMassOrLegacyNutrition() async throws {
