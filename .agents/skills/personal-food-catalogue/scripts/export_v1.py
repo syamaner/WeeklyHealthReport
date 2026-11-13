@@ -609,7 +609,13 @@ def main(ws: Path, repo: Path):
     from workspace_guard import check_output
     previous = next((out / n for n in ("personal-food-catalogue-v2.json", "personal-food-catalogue-v1.json")
                      if (out / n).exists()), None)
-    report = change_report(json.loads(previous.read_bytes()) if previous else None, doc)
+    try:
+        prior = json.loads(previous.read_bytes()) if previous else None
+        report = change_report(prior if isinstance(prior, dict) else None, doc)
+    except (ValueError, TypeError, KeyError, AttributeError) as error:
+        # The report only compares counts; a damaged earlier file must not stop the new
+        # file, which has already passed every check, from being written.
+        report = f"not compared, the previous file could not be read ({type(error).__name__})"
     p = check_output(out / "personal-food-catalogue-v2.json")
     p.write_bytes(data)
     p.chmod(0o600)
