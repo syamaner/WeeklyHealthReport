@@ -22,6 +22,9 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
     )
 
     private let corpus: Corpus
+    /// Record positions by ID, built once at load, so a Your food database index resolves each
+    /// reference without scanning the corpus (#478 review). The first record wins, as `first(where:)` did.
+    private let recordPositions: [String: Int]
     private let release: SourceRelease
     private let library: (any GenericFoodLibrarySearching)?
     private let ids: any LedgerIDGenerating
@@ -48,6 +51,7 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
         guard digest == Self.corpusCanonicalSHA256 else { throw CoFIDSearchError.corpusHashMismatch }
         do {
             corpus = try JSONDecoder().decode(Corpus.self, from: data)
+            recordPositions = Dictionary(corpus.records.enumerated().map { ($1.recordID, $0) }, uniquingKeysWith: { first, _ in first })
             release = try Self.makeRelease(source: corpus.source)
         } catch let error as CoFIDSearchError {
             throw error
@@ -537,10 +541,10 @@ private struct CorpusNutrient: Decodable {
 
 // Lookups for `PersonalFoodDatabaseResolvers.swift`; the corpus types stay private to this file.
 extension CoFIDGenericFoodSearch {
-    func hasRecord(_ recordID: String) -> Bool { corpus.records.contains { $0.recordID == recordID } }
+    func hasRecord(_ recordID: String) -> Bool { recordPositions[recordID] != nil }
 
     func referencedCandidate(_ recordID: String, evidenceIDs: [EvidenceID], queryAlias: String) -> PopulatedFoodCandidate? {
-        guard let record = corpus.records.first(where: { $0.recordID == recordID }),
+        guard let position = recordPositions[recordID], case let record = corpus.records[position],
               let alias = try? LedgerText("food:name:\(Self.normalized(queryAlias))") else { return nil }
         return try? populatedCandidate(record: record, evidenceIDs: evidenceIDs, score: 1,
             differences: ["Referenced by a Your food database entry."], queryAlias: alias,

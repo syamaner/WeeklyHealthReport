@@ -10,6 +10,9 @@ public final class USDAGenericFoodSearch: GenericFoodSearching, @unchecked Senda
     public static let matcherVersion = "usda-generic-ranking-v16"
     public static let corpusSHA256 = "6759b10f419ecdfd5395d469b0ff51d58e59e29d40f31e2087ae9455da6a4bd4"
     private let corpus: USDACorpus
+    /// Record positions by ID, built once at load, so a Your food database index resolves each
+    /// reference without scanning the corpus (#478 review). The first record wins, as `first(where:)` did.
+    private let recordPositions: [String: Int]
     private let releases: [String: SourceRelease]
     private let ids: any LedgerIDGenerating
 
@@ -25,6 +28,7 @@ public final class USDAGenericFoodSearch: GenericFoodSearching, @unchecked Senda
         let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
         guard hash == Self.corpusSHA256 else { throw USDASearchError.hashMismatch }
         corpus = try JSONDecoder().decode(USDACorpus.self, from: data)
+        recordPositions = Dictionary(corpus.records.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
         guard corpus.version == 1, corpus.preparationPolicy == "usda-preparation-words-v2", Set(corpus.records.map(\.id)).count == corpus.records.count,
               Set(corpus.sources.map(\.id)).count == corpus.sources.count else { throw USDASearchError.invalidCorpus }
         var sources: [String: SourceRelease] = [:]
@@ -166,10 +170,10 @@ private struct USDANutrient: Decodable { let amount: Double; let unit: String; l
 
 // Lookups for `PersonalFoodDatabaseResolvers.swift`; the corpus types stay private to this file.
 extension USDAGenericFoodSearch {
-    func hasRecord(_ recordID: String) -> Bool { corpus.records.contains { $0.id == recordID } }
+    func hasRecord(_ recordID: String) -> Bool { recordPositions[recordID] != nil }
 
     func referencedCandidate(_ recordID: String, evidenceIDs: [EvidenceID], queryAlias: String) -> (PopulatedFoodCandidate, SourceRelease)? {
-        guard let record = corpus.records.first(where: { $0.id == recordID }), let release = releases[record.releaseID],
+        guard let position = recordPositions[recordID], case let record = corpus.records[position], let release = releases[record.releaseID],
               let query = try? LedgerText(queryAlias),
               let candidate = try? candidate(record, score: 1, evidenceIDs: evidenceIDs, query: query,
                   methodVersion: PersonalFoodDatabaseCandidateBuilder.methodVersion) else { return nil }
