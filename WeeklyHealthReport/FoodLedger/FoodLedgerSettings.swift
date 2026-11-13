@@ -190,43 +190,47 @@ struct InventoryBackupView: View {
     }
 }
 
-/// Whether protected data is readable, for the file stores that run off the main actor. On the main
-/// thread it reads `UIApplication` live. Off it, it returns the value the main thread last saw,
-/// kept current by the protected-data notifications, and never waits for the main thread: a
-/// background `DispatchQueue.main.sync` here starved the concurrency pool and hung the app tests
-/// once the Your food database index began loading off the main thread (#478). Before `start()`
+/// Whether protected data is readable, for the file stores that run off the main actor. Off the main
+/// thread it returns the state the protected-data notifications last announced (seeded by `start()`);
+/// on it, that state and `UIApplication`'s live value must both say available. It never waits for
+/// the main thread: a background `DispatchQueue.main.sync` here starved the concurrency pool and
+/// hung the app tests once the Your food database index began loading off the main thread (#478).
+/// Before `start()`
 /// has run an off-main read says unavailable, which callers treat as locked and retry on unlock.
 enum ProtectedDataAvailability {
     private static let lock = NSLock()
     nonisolated(unsafe) private static var cached = false
     nonisolated(unsafe) private static var observers: [NSObjectProtocol] = []
 
-    /// Seeds the cached value and keeps it current. Idempotent; call it before any store reads.
+    /// Seeds the announced state on its first call and keeps it current. Idempotent; call it before
+    /// any store reads.
     @MainActor static func start() {
         lock.lock()
         let started = !observers.isEmpty
         lock.unlock()
         if !started {
             let center = NotificationCenter.default
-            let tokens = [UIApplication.protectedDataDidBecomeAvailableNotification,
-                          UIApplication.protectedDataWillBecomeUnavailableNotification].map { name in
-                center.addObserver(forName: name, object: nil, queue: .main) { _ in
-                    MainActor.assumeIsolated { store(UIApplication.shared.isProtectedDataAvailable) }
-                }
+            // "Will become unavailable" arrives while `isProtectedDataAvailable` still says true, so
+            // each notification stores the state it announces (#478 review): a read that fails during
+            // the lock is then reported as locked and retried on unlock, never cached as damaged.
+            let tokens = [(UIApplication.protectedDataDidBecomeAvailableNotification, true),
+                          (UIApplication.protectedDataWillBecomeUnavailableNotification, false)].map { name, available in
+                center.addObserver(forName: name, object: nil, queue: .main) { _ in store(available) }
             }
             lock.lock(); observers = tokens; lock.unlock()
+            // Seeded once: a later call must not replace an announced lock with the live value.
+            store(UIApplication.shared.isProtectedDataAvailable)
         }
-        store(UIApplication.shared.isProtectedDataAvailable)
     }
 
     @Sendable static func isAvailable() -> Bool {
-        if Thread.isMainThread {
-            let live = MainActor.assumeIsolated { UIApplication.shared.isProtectedDataAvailable }
-            store(live)
-            return live
-        }
-        lock.lock(); defer { lock.unlock() }
-        return cached
+        lock.lock()
+        let announced = cached
+        lock.unlock()
+        guard Thread.isMainThread else { return announced }
+        // The live value still says true after "will become unavailable", so the main thread also
+        // honours the announced state and never writes the live value back over it.
+        return announced && MainActor.assumeIsolated { UIApplication.shared.isProtectedDataAvailable }
     }
 
     private static func store(_ value: Bool) {
