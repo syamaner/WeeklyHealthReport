@@ -114,17 +114,38 @@ jobs:
     needs: changes
     # Fail closed: only an explicit documentation-only decision skips this job.
     if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
-    # 30, down from 40 (#405): the slowest cases now run concurrently, and on
-    # 9 Nov 2026 the job took 20m12s against 27m09s for main at the same base
-    # (see "FoodLedgerKit job timeout" in the CI analysis doc). Earlier: 40 after
-    # the 4 Nov runs of up to 24m39s, and 25 after the 31 Oct 2026 timeouts.
+    # The package suite is split across two parallel jobs: this one runs every test
+    # target except FoodGenericSearchTests, and "FoodLedgerKit search and retrieval
+    # replay" runs that target and scores the replay. The --skip and --filter
+    # patterns are complements, so every test still runs once, and a new test
+    # target lands here by default. Before the split the whole suite ran here and
+    # took up to 29m39s against this 30-minute limit (12 Nov 2026); see
+    # "FoodLedgerKit job timeout" in the CI analysis doc. Earlier: 40 after the
+    # 4 Nov runs of up to 24m39s, and 25 after the 31 Oct 2026 timeouts.
     timeout-minutes: 30
 
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Build and test FoodLedgerKit and replay ranked retrieval
+      - name: Build and test FoodLedgerKit except generic food search
+        run: swift test --package-path Packages/FoodLedgerKit --skip '^FoodGenericSearchTests\.'
+
+  food-ledger-kit-search:
+    name: FoodLedgerKit search and retrieval replay
+    runs-on: macos-26
+    needs: changes
+    # Fail closed: only an explicit documentation-only decision skips this job.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    # Same limit as "FoodLedgerKit build and contracts"; FoodGenericSearchTests was
+    # about 806 s of that job's 1269 s of XCTest on 13 Nov 2026 (run 43485455316).
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build and test generic food search and replay ranked retrieval
         env:
           WHR_RETRIEVAL_REPORT: ${{ runner.temp }}/retrieval-current.json
           WHR_RETRIEVAL_REPORT_V4: ${{ runner.temp }}/retrieval-v4-current.json
@@ -134,7 +155,9 @@ jobs:
           WHR_RETRIEVAL_REPORT_V8: ${{ runner.temp }}/retrieval-v8-current.json
         run: |
           set -euo pipefail
-          swift test --package-path Packages/FoodLedgerKit
+          # The replay tests write the WHR_RETRIEVAL_REPORT files the scorers read, so
+          # a filter that matched no tests fails the first scorer rather than passing.
+          swift test --package-path Packages/FoodLedgerKit --filter '^FoodGenericSearchTests\.'
           python3 -m unittest discover -s Tools/FoodSearchQuality/tests -v
           # food-lexical-terms-v9: frozen v3 to v5 labels scored on the current replay,
           # plus the v6 plural cases (docs/food-lexical-terms-v9.md).
