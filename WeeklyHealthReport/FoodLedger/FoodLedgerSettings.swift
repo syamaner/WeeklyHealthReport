@@ -190,14 +190,47 @@ struct InventoryBackupView: View {
     }
 }
 
-/// Whether protected data is readable, read live from `UIApplication` for the file stores that
-/// run off the main actor (a cached value can miss the launch-time state). Constraint: off the main
-/// thread it waits on the main queue, so main-thread code must never wait synchronously on a store
-/// that calls it (the importer is an actor reached only with `await`).
+/// Whether protected data is readable, for the file stores that run off the main actor. On the main
+/// thread it reads `UIApplication` live. Off it, it returns the value the main thread last saw,
+/// kept current by the protected-data notifications, and never waits for the main thread: a
+/// background `DispatchQueue.main.sync` here starved the concurrency pool and hung the app tests
+/// once the Your food database index began loading off the main thread (#478). Before `start()`
+/// has run an off-main read says unavailable, which callers treat as locked and retry on unlock.
 enum ProtectedDataAvailability {
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var cached = false
+    nonisolated(unsafe) private static var observers: [NSObjectProtocol] = []
+
+    /// Seeds the cached value and keeps it current. Idempotent; call it before any store reads.
+    @MainActor static func start() {
+        lock.lock()
+        let started = !observers.isEmpty
+        lock.unlock()
+        if !started {
+            let center = NotificationCenter.default
+            let tokens = [UIApplication.protectedDataDidBecomeAvailableNotification,
+                          UIApplication.protectedDataWillBecomeUnavailableNotification].map { name in
+                center.addObserver(forName: name, object: nil, queue: .main) { _ in
+                    MainActor.assumeIsolated { store(UIApplication.shared.isProtectedDataAvailable) }
+                }
+            }
+            lock.lock(); observers = tokens; lock.unlock()
+        }
+        store(UIApplication.shared.isProtectedDataAvailable)
+    }
+
     @Sendable static func isAvailable() -> Bool {
-        if Thread.isMainThread { return MainActor.assumeIsolated { UIApplication.shared.isProtectedDataAvailable } }
-        return DispatchQueue.main.sync { MainActor.assumeIsolated { UIApplication.shared.isProtectedDataAvailable } }
+        if Thread.isMainThread {
+            let live = MainActor.assumeIsolated { UIApplication.shared.isProtectedDataAvailable }
+            store(live)
+            return live
+        }
+        lock.lock(); defer { lock.unlock() }
+        return cached
+    }
+
+    private static func store(_ value: Bool) {
+        lock.lock(); cached = value; lock.unlock()
     }
 }
 

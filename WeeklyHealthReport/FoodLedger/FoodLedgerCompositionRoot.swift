@@ -105,6 +105,7 @@ final class FoodLedgerCompositionRoot {
             attachmentsRoot: root.appendingPathComponent("Attachments", isDirectory: true)
         )
         store = ledgerStore
+        ProtectedDataAvailability.start()
         let databaseStore = FilePersonalFoodDatabaseStore(root: root, digester: SHA256Digester(),
             isProtectedDataAvailable: ProtectedDataAvailability.isAvailable)
         ids = RandomLedgerIDGenerator()
