@@ -155,8 +155,9 @@ jobs:
           WHR_RETRIEVAL_REPORT_V8: ${{ runner.temp }}/retrieval-v8-current.json
         run: |
           set -euo pipefail
-          # The replay tests write the WHR_RETRIEVAL_REPORT files the scorers read, so
-          # a filter that matched no tests fails the first scorer rather than passing.
+          # A filter that matched no tests cannot pass: swift test reports no matching
+          # tests, and the scorers below would find no WHR_RETRIEVAL_REPORT files, which
+          # only the replay tests write.
           swift test --package-path Packages/FoodLedgerKit --filter '^FoodGenericSearchTests\.'
           python3 -m unittest discover -s Tools/FoodSearchQuality/tests -v
           # food-lexical-terms-v9: frozen v3 to v5 labels scored on the current replay,
