@@ -104,6 +104,9 @@ Example of a scaled sodium value (synthetic):
   per 100 g" (decision 3). The serving is written as the barcode route writes it ("28", "12.5", no
   trailing ".0"), through one shared helper, `OpenFoodFactsServingText`. A panel-wins entry needs no
   extra line: its basis line already reads "per 100 mL as labelled".
+  The serving line writes `ml` as the barcode route does (decision 3), while the existing basis line
+  keeps its own "mL", so a scaled per 100 ml entry shows both spellings; aligning them is a separate
+  copy decision for the owner.
 - **Closed rule in one place.** The transform pair, the projection version and the plausibility
   limits live in one Domain constant, `OpenFoodFactsServingRule`, used by `OpenFoodFactsLookup`, the
   codec and the candidate builder. The skill mirrors the values; the tests pin them.
@@ -115,7 +118,7 @@ the per-serving path (`per_quantity` a non-boolean finite number above 0, or tex
 `[0-9]{1,6}(\.[0-9]{1,3})?` in full, so `"112\n"` declines in both), scaling after the g to mg
 conversion, refusal when only the scale overflows, and plausibility over every scaled value,
 including bound ends the port then leaves out. A record v5 admits keeps `off-product-projection-v5`
-and byte-identical values and releases; only records v5 refuses get v6. The one remaining difference
+and byte-identical values (an integer stays an integer) and releases; only records v5 refuses get v6. The one remaining difference
 from the app is v1's: a `<` or `>` value becomes a bound in the app and is left out of the catalogue.
 
 `export_v1.py` (the module keeps its name; it is not a contract) writes schema

@@ -157,6 +157,10 @@ two100["nutrition"]["input_sets"].append(dict(two100["nutrition"]["input_sets"][
 check("two per 100 panels contradicting the pack refused", run(two100) is None)
 check("legacy record never scaled", run(legacy(nutrition_data_per="serving", serving_quantity=28)) is None)
 v5 = run(modern())
+iv5 = run(modern(sodium=(1, "g")))
+check("v5 integer values keep their type (byte-identical output)", iv5
+      and type(iv5[3]["energy_consumed"]["value"]) is int and iv5[3]["energy_consumed"]["value"] == 370
+      and type(iv5[3]["sodium"]["value"]) is int and iv5[3]["sodium"]["value"] == 1000)
 check("v5 admission keeps v5 and no serving", v5 and v5[2]["pipeline_version"] == "off-product-projection-v5"
       and "serving" not in v5[3]["sodium"]["source_value"])
 

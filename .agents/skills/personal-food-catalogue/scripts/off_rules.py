@@ -159,8 +159,8 @@ def project(product, record_bytes, retrieved="unknown"):
             continue
         if (modifier or "") not in MODIFIERS:
             continue
-        unscaled = float(v) * (1000 if g_to_mg else 1)
-        amount = unscaled * scale
+        unscaled = v * 1000 if g_to_mg else v  # the stored type is kept, so v5 output keeps its bytes
+        amount = unscaled * scale if serving is not None else unscaled
         if not math.isfinite(amount):
             if serving is not None and math.isfinite(unscaled):
                 scaled_overflow = True  # only the scale overflowed: a wrong serving size
