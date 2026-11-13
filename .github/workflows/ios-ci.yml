@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # The merge queue (#479) runs every required check on the queue commit, which is
+  # this pull request combined with main and any entries ahead of it.
+  merge_group:
+    types: [checks_requested]
 
 permissions:
   actions: read
@@ -12,6 +16,8 @@ permissions:
   contents: read
   pull-requests: read
 
+# Each queue entry has its own gh-readonly-queue/main/... ref, so queue runs never
+# cancel one another or a pull request run.
 concurrency:
   group: ios-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -39,8 +45,10 @@ jobs:
         id: classify
         env:
           EVENT_NAME: ${{ github.event_name }}
-          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
-          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          # merge_group: base_sha is the queue entry's parent (main or the entry ahead),
+          # so base...head is what this entry adds, classified like its pull request.
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'merge_group' && github.event.merge_group.base_sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.sha }}
         run: |
           set -euo pipefail
           # Decide with the base revision's reviewed classifier so a change cannot
@@ -516,7 +524,11 @@ jobs:
             --github-step-summary "$GITHUB_STEP_SUMMARY" \
             --minimum-domain-coverage 95
 
+      # Queue commits live on temporary gh-readonly-queue branches that never become a
+      # Codecov base; pull request and main push runs carry the coverage history. The
+      # domain coverage minimum above still gates queue commits.
       - name: Upload app coverage to Codecov
+        if: github.event_name != 'merge_group'
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           disable_search: true

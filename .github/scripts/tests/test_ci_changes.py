@@ -72,6 +72,14 @@ class DecisionTests(unittest.TestCase):
     def test_missing_or_zero_revisions_run_code_ci(self) -> None:
         self.assertTrue(changes.decide("push", "", "b" * 40)[0])
         self.assertTrue(changes.decide("push", changes.ZERO_SHA, "b" * 40)[0])
+        self.assertTrue(changes.decide("merge_group", "", "b" * 40)[0])
+        self.assertTrue(changes.decide("merge_group", changes.ZERO_SHA, "b" * 40)[0])
+        self.assertTrue(changes.decide("merge_group", "a" * 40, "")[0])
+
+    def test_merge_group_is_supported_and_unknown_revisions_run_code_ci(self) -> None:
+        code, reason = changes.decide("merge_group", "a" * 40, "b" * 40)
+        self.assertTrue(code)
+        self.assertNotIn("unsupported event", reason)
 
     def test_unknown_revisions_run_code_ci(self) -> None:
         self.assertTrue(changes.decide("pull_request", "a" * 40, "b" * 40)[0])
@@ -100,6 +108,42 @@ class DecisionTests(unittest.TestCase):
                 os.chdir(directory)
                 self.assertFalse(changes.decide("push", base, docs_head)[0])
                 self.assertTrue(changes.decide("push", base, code_head)[0])
+            finally:
+                os.chdir(original)
+
+    def test_merge_group_classifies_queue_entries_like_their_pull_requests(self) -> None:
+        # main <- queue entry 1 (code PR merged) <- queue entry 2 (docs PR merged).
+        # Each entry is compared with its parent, so entry 2 sees only its own docs change.
+        with tempfile.TemporaryDirectory() as directory:
+            run = lambda *args: subprocess.run(["git", *args], cwd=directory, check=True, capture_output=True, text=True).stdout.strip()
+            run("init", "-q", "-b", "main")
+            run("config", "user.email", "ci@example.invalid")
+            run("config", "user.name", "CI")
+            Path(directory, "README.md").write_text("a\n")
+            run("add", ".")
+            run("commit", "-q", "-m", "base")
+            main = run("rev-parse", "HEAD")
+            run("checkout", "-q", "-b", "code-pr")
+            Path(directory, "App.swift").write_text("c\n")
+            run("add", ".")
+            run("commit", "-q", "-m", "code")
+            run("checkout", "-q", "-b", "docs-pr", main)
+            Path(directory, "docs").mkdir()
+            Path(directory, "docs", "note.md").write_text("b\n")
+            run("add", ".")
+            run("commit", "-q", "-m", "docs")
+            run("checkout", "-q", "--detach", main)
+            run("merge", "-q", "--no-ff", "-m", "queue entry 1", "code-pr")
+            entry_one = run("rev-parse", "HEAD")
+            run("merge", "-q", "--no-ff", "-m", "queue entry 2", "docs-pr")
+            entry_two = run("rev-parse", "HEAD")
+            original = Path.cwd()
+            try:
+                os.chdir(directory)
+                self.assertTrue(changes.decide("merge_group", main, entry_one)[0])
+                code, reason = changes.decide("merge_group", entry_one, entry_two)
+                self.assertFalse(code, reason)
+                self.assertTrue(changes.decide("merge_group", main, entry_two)[0])
             finally:
                 os.chdir(original)
 
