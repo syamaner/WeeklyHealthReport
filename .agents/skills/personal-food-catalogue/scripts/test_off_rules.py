@@ -152,6 +152,20 @@ check("implausible scaled bound end refused (a value the port leaves out)",
 check("plausible bound left out, record admitted", (lambda x: x and "sugar" not in x[3])(
     run(serving(modifier=("<", 0.5), sodium=(0.112, "mg")))))
 check("scale overflow refused", run(serving(per_quantity=1e-300, energy=1e300)) is None)
+# Qodo (local review): large integers are handled as the app's doubles, never raised.
+try:
+    big_scaled = run(serving(per_quantity=1e-10, energy=10 ** 300))
+    check("large integer that overflows only when scaled refuses the record", big_scaled is None)
+except OverflowError:
+    check("large integer that overflows only when scaled refuses the record", False)
+try:
+    big_sodium = run(modern(sodium=(10 ** 306, "g")))
+    check("large integer sodium in g that overflows is left out, record admitted",
+          big_sodium and "sodium" not in big_sodium[3] and big_sodium[3]["energy_consumed"]["value"] == 370)
+    big_served = run(serving(sodium=(10 ** 306, "g")))
+    check("serving record whose sodium overflows before scaling keeps the rest", big_served and "sodium" not in big_served[3])
+except OverflowError:
+    check("large integer sodium does not raise", False)
 two100 = modern(per="100g", qty="1 l")
 two100["nutrition"]["input_sets"].append(dict(two100["nutrition"]["input_sets"][0], per="100g"))
 check("two per 100 panels contradicting the pack refused", run(two100) is None)

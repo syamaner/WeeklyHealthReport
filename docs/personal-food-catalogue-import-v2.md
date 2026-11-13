@@ -58,7 +58,8 @@ comes, takes the next free schema version; this document does not change the sup
    that order (the app's order) for sodium in grams. Any other two-element list, or a longer one, is
    `transform-shape`.
 5. **Arithmetic.** `value = source_value.value × 1000 (with mass-g-to-mg) × 100 / serving.quantity`,
-   with v1's tolerance of 0.5 per cent; otherwise `transform-arithmetic`.
+   with v1's tolerance of 0.5 per cent; otherwise `transform-arithmetic`. An expected value that is not
+   finite (a tiny serving such as 1e-320 overflows the scale) is also `transform-arithmetic`.
 6. **Plausibility.** A value carrying `off-serving-to-100` above 100 g, 100,000 mg or 900 kcal per 100
    is rejected with the new code `serving-implausible`, mirroring the app, which declines such a
    record. The skill never writes one; this is defence in depth.
@@ -93,15 +94,18 @@ Example of a scaled sodium value (synthetic):
 - **Store.** The manifest records the file's schema; a stored manifest is valid for either schema and
   for nothing else, and keeps `version` 1 and its byte form. The data file name stays
   `personal-food-catalogue-v1.json` (decision 4). A manifest whose schema differs from the decoded
-  file reads as damaged, never as a release with the wrong `schemaVersion`.
+  file reads as damaged, never as a release with the wrong `schemaVersion`: the search index and
+  Settings both treat it so, and importing the same bytes again repairs the manifest (the store reuses
+  a release folder only when its manifest names the same file and schema).
 - **Provenance.** The candidate builder gives a scaled value the source basis
   `perServing(quantity g or ml)` and the panel's own number, with the transforms in file order. This
   reproduces the barcode route's provenance for the same record, so a saved log from either route
   carries the same transform pairs and source basis shape. A value without a serving keeps the
   entry's basis, as in v1.
-- **Confirm.** When a value the candidate uses carries `off-serving-to-100`, the candidate adds the
-  material difference "Some values scaled from a 28 g serving" after "Your food database entry ·
-  per 100 g" (decision 3). The serving is written as the barcode route writes it ("28", "12.5", no
+- **Confirm.** When a value the candidate uses carries `off-serving-to-100`, Confirm's Food section
+  shows "Some values scaled from a 28 g serving" (decision 3), from the candidate's own values
+  (`FoodSearchResultText.databaseScaledServingNotes`). The candidate's material differences carry the
+  same line after "Your food database entry · per 100 g", which search rows list. The serving is written as the barcode route writes it ("28", "12.5", no
   trailing ".0"), through one shared helper, `OpenFoodFactsServingText`. A panel-wins entry needs no
   extra line: its basis line already reads "per 100 mL as labelled".
   The serving line writes `ml` as the barcode route does (decision 3), while the existing basis line
@@ -116,7 +120,8 @@ Example of a scaled sodium value (synthetic):
 `off_rules.py` follows `OpenFoodFactsLookup.project` rule for rule, including the panel-wins rule,
 the per-serving path (`per_quantity` a non-boolean finite number above 0, or text matching
 `[0-9]{1,6}(\.[0-9]{1,3})?` in full, so `"112\n"` declines in both), scaling after the g to mg
-conversion, refusal when only the scale overflows, and plausibility over every scaled value,
+conversion in the app's double arithmetic (a value that overflows before scaling is left out, as the
+app leaves it unknown), refusal when only the scale overflows, and plausibility over every scaled value,
 including bound ends the port then leaves out. A record v5 admits keeps `off-product-projection-v5`
 and byte-identical values (an integer stays an integer) and releases; only records v5 refuses get v6. The one remaining difference
 from the app is v1's: a `<` or `>` value becomes a bound in the app and is left out of the catalogue.

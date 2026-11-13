@@ -377,6 +377,16 @@ final class OpenFoodFactsSkillParityTests: XCTestCase {
         XCTAssertEqual(try run(serving(perQuantity: 1e-300, energy: 1e300)), .insufficientData)
     }
 
+    /// Mirrors the port's large-number cases (Qodo local review): a value that overflows only when
+    /// scaled declines the record; one that overflows before scaling is unknown and the rest stays.
+    func testLargeValuesFollowTheAppsDoubleArithmetic() throws {
+        XCTAssertEqual(try run(serving(perQuantity: 1e-10, energy: 1e300)), .insufficientData)
+        let plain = try admitted(modern(sodium: (1e306, "g")))
+        XCTAssertEqual(value(plain, .sodium), .unknown(.missingConversion))
+        XCTAssertEqual(exact(value(plain, .energyConsumed))?.amount, 370)
+        XCTAssertEqual(value(try admitted(serving(sodium: (1e306, "g"))), .sodium), .unknown(.missingConversion))
+    }
+
     func testTwoPer100PanelsContradictingThePackRefused() throws {
         var product = modern(per: "100g", quantity: "1 l")
         var nutrition = product["nutrition"] as! [String: Any]

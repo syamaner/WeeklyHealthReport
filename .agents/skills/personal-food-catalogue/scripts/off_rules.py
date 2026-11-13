@@ -159,12 +159,16 @@ def project(product, record_bytes, retrieved="unknown"):
             continue
         if (modifier or "") not in MODIFIERS:
             continue
-        unscaled = v * 1000 if g_to_mg else v  # the stored type is kept, so v5 output keeps its bytes
-        amount = unscaled * scale if serving is not None else unscaled
-        if not math.isfinite(amount):
+        # The app's double arithmetic: a value that overflows is unknown, and one that overflows only
+        # because of the scale declines the record. float(v) is safe once _number accepted v.
+        unscaled = float(v) * (1000 if g_to_mg else 1)
+        scaled = unscaled * scale
+        if not math.isfinite(scaled):
             if serving is not None and math.isfinite(unscaled):
                 scaled_overflow = True  # only the scale overflowed: a wrong serving size
             continue
+        # Unscaled output keeps the stored type (an integer stays an integer), so v5 bytes are unchanged.
+        amount = scaled if serving is not None else (v * 1000 if g_to_mg else v)
         if serving is not None and amount > PLAUSIBLE_MAXIMUM[CANON[key]]:
             implausible = True  # checked on bounds too, which the port then leaves out
         if modifier:
