@@ -551,8 +551,11 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      # Timing evidence expects every Build and test step, Codecov included, to succeed,
+      # so it is not collected on queue commits; pull request and main push runs time
+      # the same code.
       - name: Collect workflow step timings
-        if: success()
+        if: success() && github.event_name != 'merge_group'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -576,7 +579,7 @@ jobs:
           exit 1
 
       - name: Summarise CI timing
-        if: success()
+        if: success() && github.event_name != 'merge_group'
         run: |
           python3 .github/scripts/summarize_ci_timing.py \
             --jobs-json "$RUNNER_TEMP/actions-jobs.json" \
