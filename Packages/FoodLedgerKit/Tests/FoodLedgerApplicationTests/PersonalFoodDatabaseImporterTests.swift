@@ -161,6 +161,28 @@ final class PersonalFoodDatabaseImporterTests: XCTestCase {
         XCTAssertEqual(release.schemaVersion.value, "personal-food-catalogue-v2")
     }
 
+    /// Qodo (local review): a manifest naming another schema than its file reads as damaged, as the
+    /// search index reads it, and importing the same bytes repairs it instead of answering unchanged.
+    func testAManifestSchemaMismatchIsDamagedAndReimportRepairsIt() async throws {
+        let v2 = try Data(contentsOf: Self.fixtures.deletingLastPathComponent()
+            .appendingPathComponent("personal-food-database-v2/golden.json"))
+        let digest = try SHA256Digester().sha256(v2)
+        let file = try PersonalFoodDatabaseCodec.decode(v2).get()
+        try store.install(bytes: v2, manifest: PersonalFoodDatabaseManifest(schema: PersonalFoodDatabaseSchema.v1.rawValue,
+            releaseID: PersonalFoodDatabaseRelease.releaseID(fileSHA256: digest), fileSHA256: digest, generated: file.generated,
+            importedAt: Date(timeIntervalSince1970: 1_794_000_000), entryCount: file.entries.count))
+        let before = await importer.status()
+        XCTAssertEqual(before, .damaged)
+        let outcome = await importer.importFile(v2)
+        XCTAssertNotNil(summary(outcome), "repaired, not unchanged: \(outcome)")
+        XCTAssertEqual(try store.activeRelease()?.manifest.schema, "personal-food-catalogue-v2")
+        let after = await importer.status()
+        guard case .installed = after else { return XCTFail("expected installed, got \(after)") }
+        XCTAssertEqual(PersonalFoodDatabaseCodec.declaredSchema(v2), .v2)
+        XCTAssertNil(PersonalFoodDatabaseCodec.declaredSchema(Data(#"{"schema":"personal-food-catalogue-v3"}"#.utf8)))
+        XCTAssertNil(PersonalFoodDatabaseCodec.declaredSchema(Data("not json".utf8)))
+    }
+
     func testFailureOutcomes() async throws {
         let bytes = try Self.fixture("golden.json")
         let tooLarge = await importer.importFile(Data(count: PersonalFoodDatabaseCodec.limitBytes + 1))

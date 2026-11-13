@@ -349,4 +349,18 @@ final class FilePersonalFoodDatabaseStoreTests: XCTestCase {
             XCTAssertNil(other.manifest, schema)
         }
     }
+
+    /// Qodo (local review): reinstalling the same bytes with a manifest of another schema replaces the
+    /// folder's manifest rather than reusing the old one, so a wrong schema can be repaired.
+    func testReinstallWithAnotherSchemaRewritesTheManifest() throws {
+        let a = try Self.release("first")
+        let v2 = PersonalFoodDatabaseManifest(schema: PersonalFoodDatabaseSchema.v2.rawValue, releaseID: a.manifest.releaseID,
+            fileSHA256: a.manifest.fileSHA256, generated: a.manifest.generated, importedAt: a.manifest.importedAt,
+            entryCount: a.manifest.entryCount)
+        try makeStore().install(bytes: a.bytes, manifest: a.manifest)
+        try makeStore().install(bytes: a.bytes, manifest: v2)
+        XCTAssertEqual(try makeStore().activeRelease()?.manifest, v2)
+        try makeStore().install(bytes: a.bytes, manifest: a.manifest)
+        XCTAssertEqual(try makeStore().activeRelease()?.manifest, a.manifest)
+    }
 }

@@ -253,7 +253,11 @@ public actor PersonalFoodDatabaseImporter: PersonalFoodDatabaseImporting {
 
     private static func loadActive(_ store: any PersonalFoodDatabaseStoring) -> ActiveLoad {
         do {
-            return try store.activeRelease().map(ActiveLoad.present) ?? .absent
+            guard let active = try store.activeRelease() else { return .absent }
+            // Import v2: a manifest naming another schema than its file is damaged, as the search
+            // index reads it, so Settings never shows it as installed and a re-import repairs it.
+            guard PersonalFoodDatabaseCodec.declaredSchema(active.bytes)?.rawValue == active.manifest.schema else { return .damaged }
+            return .present(active)
         } catch PersonalFoodDatabaseStoreError.locked {
             return .locked
         } catch PersonalFoodDatabaseStoreError.damaged {

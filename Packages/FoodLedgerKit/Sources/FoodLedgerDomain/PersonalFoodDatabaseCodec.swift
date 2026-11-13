@@ -28,6 +28,13 @@ public enum PersonalFoodDatabaseCodec {
         }
         return .success(file)
     }
+
+    /// The file's own top-level `schema` when it is one this codec accepts, read with the same strict
+    /// reader but none of the rules: a cheap check that a stored manifest names the file's schema.
+    public static func declaredSchema(_ data: Data) -> PersonalFoodDatabaseSchema? {
+        guard case let .success(root) = PersonalFoodDatabaseJSON.read(data), let text = root["schema"]?.text else { return nil }
+        return PersonalFoodDatabaseSchema(rawValue: text.string).flatMap { $0.rawValue.utf8.elementsEqual(text.bytes) ? $0 : nil }
+    }
 }
 
 typealias PFDText = PersonalFoodDatabaseText

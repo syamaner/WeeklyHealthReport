@@ -134,7 +134,11 @@ public struct FilePersonalFoodDatabaseStore: PersonalFoodDatabaseStoring {
             var reuse = false
             if fileManager.fileExists(atPath: target.path) {
                 let named = (try? Self.decodePointer(fileManager.contents(atPath: pointerURL.path)))?.folder == folderName
-                if named, verifies(target, digest: manifest.fileSHA256) { reuse = true } else { try fileManager.removeItem(at: target) }
+                if named, verifies(target, digest: manifest.fileSHA256, schema: manifest.schema) {
+                    reuse = true
+                } else {
+                    try fileManager.removeItem(at: target)
+                }
             }
             if !reuse {
                 try fault?(.rename)
@@ -212,11 +216,13 @@ public struct FilePersonalFoodDatabaseStore: PersonalFoodDatabaseStoring {
         return data
     }
 
-    private func verifies(_ folder: URL, digest: SHA256Digest) -> Bool {
+    /// A folder is reused only when its manifest names the same file and schema, so a reinstall
+    /// repairs a manifest whose schema was wrong (import v2).
+    private func verifies(_ folder: URL, digest: SHA256Digest, schema: String) -> Bool {
         guard let bytes = FileManager.default.contents(atPath: folder.appendingPathComponent(Self.fileName).path),
               let stored = try? JSONDecoder().decode(PersonalFoodDatabaseStoredManifest.self,
                   from: FileManager.default.contents(atPath: folder.appendingPathComponent(Self.manifestName).path) ?? Data()),
-              let storedManifest = stored.manifest, storedManifest.fileSHA256 == digest,
+              let storedManifest = stored.manifest, storedManifest.fileSHA256 == digest, storedManifest.schema == schema,
               storedManifest.releaseID == PersonalFoodDatabaseRelease.releaseID(fileSHA256: digest) else { return false }
         return (try? digester.sha256(bytes)) == digest
     }
