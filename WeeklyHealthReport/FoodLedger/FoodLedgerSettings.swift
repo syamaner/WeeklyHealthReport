@@ -196,9 +196,15 @@ struct InventoryBackupView: View {
 /// background `DispatchQueue.main.sync` here starved the concurrency pool and hung the app tests
 /// once the Your food database index began loading off the main thread (#478). Before `start()`
 /// has run an off-main read says unavailable, which callers treat as locked and retry on unlock.
+///
+/// "Will become unavailable" arrives while `isProtectedDataAvailable` still says true, so it marks
+/// a lock as pending until "did become available" (#478 review). While a lock is pending every read
+/// says unavailable, on or off the main thread, so a read that fails during the lock is reported as
+/// locked and retried on unlock instead of being cached as damaged.
 enum ProtectedDataAvailability {
     private static let lock = NSLock()
     nonisolated(unsafe) private static var cached = false
+    nonisolated(unsafe) private static var lockPending = false
     nonisolated(unsafe) private static var observers: [NSObjectProtocol] = []
 
     /// Seeds the cached value and keeps it current. Idempotent; call it before any store reads.
@@ -208,10 +214,10 @@ enum ProtectedDataAvailability {
         lock.unlock()
         if !started {
             let center = NotificationCenter.default
-            let tokens = [UIApplication.protectedDataDidBecomeAvailableNotification,
-                          UIApplication.protectedDataWillBecomeUnavailableNotification].map { name in
+            let tokens = [(UIApplication.protectedDataDidBecomeAvailableNotification, false),
+                          (UIApplication.protectedDataWillBecomeUnavailableNotification, true)].map { name, pending in
                 center.addObserver(forName: name, object: nil, queue: .main) { _ in
-                    MainActor.assumeIsolated { store(UIApplication.shared.isProtectedDataAvailable) }
+                    MainActor.assumeIsolated { store(UIApplication.shared.isProtectedDataAvailable, lockPending: pending) }
                 }
             }
             lock.lock(); observers = tokens; lock.unlock()
@@ -223,14 +229,16 @@ enum ProtectedDataAvailability {
         if Thread.isMainThread {
             let live = MainActor.assumeIsolated { UIApplication.shared.isProtectedDataAvailable }
             store(live)
-            return live
         }
         lock.lock(); defer { lock.unlock() }
-        return cached
+        return cached && !lockPending
     }
 
-    private static func store(_ value: Bool) {
-        lock.lock(); cached = value; lock.unlock()
+    private static func store(_ value: Bool, lockPending pending: Bool? = nil) {
+        lock.lock()
+        cached = value
+        if let pending { lockPending = pending }
+        lock.unlock()
     }
 }
 

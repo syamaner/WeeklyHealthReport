@@ -10,6 +10,9 @@ public final class TFDAGenericFoodSearch: GenericFoodSearching, @unchecked Senda
     public static let matcherVersion = "tfda-reviewed-ranking-v2"
     public static let corpusSHA256 = "95949fcb64a6a45ede5298080ded30feebb9608e1054fa7d3dca6f422a67d72a"
     private let corpus: TFDACorpus
+    /// Record positions by ID, built once at load, so a Your food database index resolves each
+    /// reference without scanning the corpus (#478 review). The first record wins, as `first(where:)` did.
+    private let recordPositions: [String: Int]
     private let release: SourceRelease
     private let ids: any LedgerIDGenerating
 
@@ -26,6 +29,7 @@ public final class TFDAGenericFoodSearch: GenericFoodSearching, @unchecked Senda
             throw TFDASearchError.hashMismatch
         }
         corpus = try JSONDecoder().decode(TFDACorpus.self, from: data)
+        recordPositions = Dictionary(corpus.records.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
         guard corpus.schema == "tfda-generic-v1", corpus.projectionVersion == "tfda-projection-v1",
               corpus.aliasPolicy == "tfda-reviewed-names-v1", !corpus.records.isEmpty,
               Set(corpus.records.map(\.id)).count == corpus.records.count,
@@ -153,10 +157,11 @@ private struct TFDANutrient: Decodable {
 // Lookups for `PersonalFoodDatabaseResolvers.swift`; the corpus types stay private to this file.
 // `id` is the bare corpus ID, without the `tfda:` prefix.
 extension TFDAGenericFoodSearch {
-    func hasRecord(_ id: String) -> Bool { corpus.records.contains { $0.id == id } }
+    func hasRecord(_ id: String) -> Bool { recordPositions[id] != nil }
 
     func referencedCandidate(_ id: String, evidenceIDs: [EvidenceID]) -> PopulatedFoodCandidate? {
-        guard let record = corpus.records.first(where: { $0.id == id }) else { return nil }
+        guard let position = recordPositions[id] else { return nil }
+        let record = corpus.records[position]
         return try? candidate(record, score: 1, evidenceIDs: evidenceIDs,
                               methodVersion: PersonalFoodDatabaseCandidateBuilder.methodVersion)
     }
