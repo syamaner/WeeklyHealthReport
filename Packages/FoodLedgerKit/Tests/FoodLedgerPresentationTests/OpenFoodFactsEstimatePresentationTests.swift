@@ -25,7 +25,8 @@ final class OpenFoodFactsEstimatePresentationTests: XCTestCase {
     /// An Open Food Facts search candidate: energy, protein and a zero sugars stated, fibre in a
     /// unit the reader cannot convert, everything else not declared. Identity resolved, so it logs
     /// without a correction.
-    private static func input(name: String = "90% Cocoa Dark Chocolate", unknownDetails: Bool = false) throws -> PopulatedFoodConfirmation {
+    private static func input(name: String = "90% Cocoa Dark Chocolate", unknownDetails: Bool = false,
+                              bounds: [NutrientKey: (modifier: String, amount: Double)] = [:]) throws -> PopulatedFoodConfirmation {
         let evidence = try CaptureEvidence(evidenceID: LedgerID("00000000-0000-0000-0000-0000000f0001"), kind: .genericSearch, capturedAt: F.now,
             locale: LedgerText("en_GB"), captureMethod: LedgerText("off_text_search"), captureMethodVersion: LedgerText("off-search-candidates-v6"),
             originalPayload: .text(LedgerText("dark chocolate 90%")))
@@ -33,6 +34,15 @@ final class OpenFoodFactsEstimatePresentationTests: XCTestCase {
                                              sourceReleaseID: try ExternalIdentifier(releaseID), recordID: try ExternalIdentifier(recordID))]
         let stated: [NutrientKey: Double] = [.energyConsumed: 598, .protein: 9, .sugar: 0]
         let nutrients = try NutrientSet(entries: NutrientKey.allCases.map { key in
+            if let bound = bounds[key] {
+                // As OpenFoodFactsLookup stores a modifier ("<0.5"): an augmented bound, per 100 g.
+                let upper = bound.modifier.hasPrefix("<"), closed = bound.modifier.hasSuffix("=")
+                let source = try SourceBoundedNutrientValue(lower: upper ? nil : bound.amount, upper: upper ? bound.amount : nil,
+                    lowerClosed: !upper && closed, upperClosed: upper && closed, unit: LedgerText(key.canonicalUnit.rawValue), basis: .per100Grams)
+                return try NutrientEntry(key: key, value: .bounded(NutrientBounds(lower: source.lower, upper: source.upper,
+                    lowerClosed: source.lowerClosed, upperClosed: source.upperClosed, origin: .augmented, unit: key.canonicalUnit,
+                    sourceValue: .bounded(source), provenance: provenance)))
+            }
             if key == .fiber { return try NutrientEntry(key: key, value: .unknown(.missingConversion)) }
             guard let amount = stated[key] else { return try NutrientEntry(key: key, value: .unknown(.notDeclared)) }
             return try NutrientEntry(key: key, value: .augmented(ExactNutrientValue(amount: amount, unit: key.canonicalUnit,
@@ -236,10 +246,11 @@ extension OpenFoodFactsEstimatePresentationTests {
 
     // MARK: docs/off-values-label-v1.md, the Open Food Facts values label
 
-    private func plainEntry() throws -> (StoredFoodConfirmation, InMemoryFoodLedgerStore, FoodConfirmationService) {
+    private func plainEntry(bounds: [NutrientKey: (modifier: String, amount: Double)] = [:])
+        throws -> (StoredFoodConfirmation, InMemoryFoodLedgerStore, FoodConfirmationService) {
         let store = InMemoryFoodLedgerStore()
         let service = try Self.service(store)
-        let model = FoodConfirmationViewModel(state: FoodConfirmationState(input: try Self.input(), prefillSourceQuantity: false),
+        let model = FoodConfirmationViewModel(state: FoodConfirmationState(input: try Self.input(bounds: bounds), prefillSourceQuantity: false),
                                               now: { F.now }) { state in
             try service.save(state, operationID: RandomLedgerIDGenerator().makeID(OperationTag.self), idempotencyKey: nil)
         }
@@ -332,5 +343,25 @@ extension OpenFoodFactsEstimatePresentationTests {
         XCTAssertTrue(PastedLabelSavedEntryText.value(try Self.total(.protein, layeredDetail), detail: layeredDetail).hasSuffix(" · Open Food Facts estimate"))
         XCTAssertTrue(PastedLabelSavedEntryText.value(try Self.total(.fiber, layeredDetail), detail: layeredDetail).hasSuffix(" · Estimated"),
                       "a layer's estimate keeps its marking")
+    }
+
+    /// Bounds stay bounds: an Open Food Facts bound reads as the bound for the stored basis with the
+    /// product's estimate marking, never "Unknown" or zero. Presentation only; the stored bound is unchanged.
+    func testTheSavedEntryStatesOpenFoodFactsBoundsForTheStoredBasis() throws {
+        let (saved, _, _) = try plainEntry(bounds: [.sugar: ("<", 0.5), .fatSaturated: ("<=", 0.1), .fiber: (">", 3), .sodium: (">=", 120)])
+        let detail = SavedFoodEntryDetail(stored: saved, isEstimate: false, history: [])
+        func shown(_ key: NutrientKey) throws -> String { PastedLabelSavedEntryText.value(try Self.total(key, detail), detail: detail) }
+        XCTAssertEqual(try shown(.sugar), "Less than 0.5 g per 100 g · Open Food Facts estimate")
+        XCTAssertEqual(try shown(.fatSaturated), "0.1 g or less per 100 g · Open Food Facts estimate")
+        XCTAssertEqual(try shown(.fiber), "More than 3 g per 100 g · Open Food Facts estimate")
+        XCTAssertEqual(try shown(.sodium), "120 mg or more per 100 g · Open Food Facts estimate")
+        XCTAssertTrue(try shown(.protein).hasSuffix(" · Open Food Facts estimate"), "exact values unchanged")
+
+        let sugar = try XCTUnwrap(saved.resolutionVersion.nutrients.entries.first { $0.key == .sugar }?.value)
+        guard case let .bounded(stored) = sugar else { return XCTFail("the bound is stored as a bound") }
+        XCTAssertEqual(stored.upper, 0.5)
+        XCTAssertNil(stored.lower)
+        XCTAssertEqual(stored.origin, .augmented)
+        XCTAssertNil(try Self.total(.sugar, detail).knownAmount, "no consumed amount is invented")
     }
 }
