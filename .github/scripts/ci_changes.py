@@ -152,13 +152,19 @@ def changed_paths(base: str, head: str, three_dot: bool) -> list[str]:
     return [line for line in output.splitlines() if line]
 
 
+# A merge queue entry (merge_group) is compared like its pull request: from its
+# parent (main, or the entry ahead of it in the queue) to the queue commit (#479).
+THREE_DOT_EVENTS = {"pull_request", "merge_group"}
+SUPPORTED_EVENTS = THREE_DOT_EVENTS | {"push"}
+
+
 def decide(event_name: str, base: str, head: str) -> tuple[bool, str]:
-    if event_name not in {"pull_request", "push"}:
+    if event_name not in SUPPORTED_EVENTS:
         return True, f"unsupported event {event_name!r}"
     if not SHA_PATTERN.match(base) or not SHA_PATTERN.match(head) or base == ZERO_SHA:
         return True, "missing or invalid comparison revisions"
     try:
-        paths = changed_paths(base, head, three_dot=event_name == "pull_request")
+        paths = changed_paths(base, head, three_dot=event_name in THREE_DOT_EVENTS)
     except (OSError, subprocess.CalledProcessError) as error:
         return True, f"git diff failed: {error}"
     return needs_code_ci(paths)
