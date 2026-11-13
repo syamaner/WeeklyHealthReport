@@ -36,6 +36,9 @@ public struct SavedFoodEntryDetail: Sendable {
     public let augmentedKeys: Set<NutrientKey>
     /// Values that are the Open Food Facts product's own (docs/off-values-label-v1.md rule 3).
     public let openFoodFactsKeys: Set<NutrientKey>
+    /// The Open Food Facts values that are bounds, as stored ("<0.5 g"): they have no consumed
+    /// amount, so the saved entry states them for the stored basis (bounds stay bounds).
+    public let openFoodFactsBounds: [NutrientKey: NutrientValue]
     public let nutrition: Nutrition
     public let basis: ResolutionBasis
     public let sourceFamily: FoodSearchResultSummary.SourceFamily
@@ -149,6 +152,10 @@ public struct SavedFoodEntryDetail: Sendable {
             if case .augmented = entry.value { return entry.key } else { return nil }
         })
         openFoodFactsKeys = OpenFoodFactsValues.productValueKeys(stored.resolutionVersion.nutrients)
+        openFoodFactsBounds = Dictionary(uniqueKeysWithValues: stored.resolutionVersion.nutrients.entries.compactMap { entry in
+            guard case .bounded = entry.value, OpenFoodFactsValues.isProductValue(entry.value) else { return nil }
+            return (entry.key, entry.value)
+        })
         basis = stored.resolution.basis
         isPlainWater = PlainWaterReference.isPlainWater(stored.resolutionVersion)
         nutrition = Self.nutrition(quantity: log.edibleQuantity, basis: stored.resolution.basis,
