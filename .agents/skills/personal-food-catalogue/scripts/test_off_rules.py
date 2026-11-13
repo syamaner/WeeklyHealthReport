@@ -58,7 +58,10 @@ check("modern sodium g -> mg with transform and source value",
       and m[3]["sodium"]["source_value"] == {"value": 0.4, "unit": "g"})
 v = run(modern(per="100ml", qty="1 l"))
 check("volume product uses per-100-ml basis", v and v[0] == "per_100_ml_as_labelled")
-check("panel per 100 g on a volume product refused", run(modern(per="100g", qty="1 l")) is None)
+pw = run(modern(per="100g", qty="1 l"))
+check("panel per 100 g on a volume product: the panel wins under v6", pw and pw[0] == "per_100_g"
+      and pw[2]["pipeline_version"] == "off-product-projection-v6" and ":off-product-projection-v6:" in pw[2]["source_release_id"]
+      and pw[3]["sodium"]["transforms"] == [{"transform_id": "mass-g-to-mg", "version": "v1"}])
 check("'<' value left out, never exact", (lambda x: x and "sugar" not in x[3])(run(modern(modifier="<"))))
 check("unknown modifier left out", (lambda x: x and "sugar" not in x[3])(run(modern(modifier="~"))))
 check("non-canonical unit left out", (lambda x: x and "sodium" not in x[3])(run(modern(sodium=(400, "µg")))))
@@ -80,7 +83,9 @@ two["nutrition"]["input_sets"].append(dict(two["nutrition"]["input_sets"][0], pe
 check("two panels with no pack basis refused", run(two) is None)
 check("legacy record with no pack refused", run(legacy(quantity="")) is None)
 check("legacy record with an unrecognised pack refused", run(legacy(quantity="3 oz")) is None)
-check("mass pack still refuses a lone per 100 ml panel", run(modern(per="100ml", qty="500 g")) is None)
+pm = run(modern(per="100ml", qty="500 g"))
+check("mass pack with a lone per 100 ml panel: the panel wins under v6", pm and pm[0] == "per_100_ml_as_labelled"
+      and pm[2]["pipeline_version"] == "off-product-projection-v6")
 for bad in ([], ["100g"], {}, {"per": "100g"}, 100):
     malformed = modern(qty="")
     malformed["nutrition"]["input_sets"][0]["per"] = bad
@@ -92,6 +97,68 @@ for bad in ([], ["100g"], {}, {"per": "100g"}, 100):
 wrong_unit = modern(qty="")
 wrong_unit["nutrition"]["input_sets"][0]["per_unit"] = "ml"
 check("panel unit that contradicts its per refused", run(wrong_unit) is None)
+
+# off-product-projection-v6 (#477; catalogue v2): with no per 100 panel, one per-serving panel is
+# scaled by 100 / serving. Each case is mirrored in OpenFoodFactsSkillParityTests.swift.
+def serving(qty="500 g", per_quantity=28, per_unit="g", sodium=(0.4, "g"), extra=None, modifier=None, energy=100):
+    n = {"energy-kcal": {"value": energy, "unit": "kcal"}, "sodium": {"value": sodium[0], "unit": sodium[1]}}
+    if modifier:
+        n["sugars"] = {"value": modifier[1], "unit": "g", "modifier": modifier[0]}
+    panel = {"source": "packaging", "per": "serving", "preparation": "as_sold", "nutrients": n}
+    if per_quantity is not None:
+        panel["per_quantity"] = per_quantity
+    if per_unit is not None:
+        panel["per_unit"] = per_unit
+    p = {"code": "00000017", "product_name": "Synthetic bar", "quantity": qty,
+         "nutrition": {"input_sets": [panel] + (extra or [])}}
+    return p
+
+
+s28 = run(serving(sodium=(0.112, "mg")))
+check("numeric 28 g serving scaled to per 100 g with off-serving-to-100", s28 and s28[0] == "per_100_g"
+      and abs(s28[3]["energy_consumed"]["value"] - 100 * 100 / 28) < 1e-9
+      and s28[3]["energy_consumed"]["transforms"] == [{"transform_id": "off-serving-to-100", "version": "v1"}]
+      and s28[3]["energy_consumed"]["source_value"] == {"value": 100, "unit": "kcal", "serving": {"quantity": 28.0, "unit": "g"}}
+      and s28[2]["pipeline_version"] == "off-product-projection-v6" and ":off-product-projection-v6:" in s28[2]["source_release_id"])
+st = run(serving(per_quantity="12.5", sodium=(0.112, "mg")))
+check("text serving '12.5' scaled", st and abs(st[3]["energy_consumed"]["value"] - 100 * 8) < 1e-9
+      and st[3]["energy_consumed"]["source_value"]["serving"] == {"quantity": 12.5, "unit": "g"})
+s100 = run(serving(per_quantity=100, sodium=(0.112, "mg")))
+check("serving of exactly 100 still carries the transform", s100 and s100[3]["energy_consumed"]["value"] == 100
+      and s100[3]["energy_consumed"]["transforms"] == [{"transform_id": "off-serving-to-100", "version": "v1"}])
+sml = run(serving(per_unit="ml", per_quantity=250, sodium=(0.112, "mg")))
+check("ml serving on a mass pack gives per 100 ml", sml and sml[0] == "per_100_ml_as_labelled"
+      and sml[3]["energy_consumed"]["source_value"]["serving"] == {"quantity": 250.0, "unit": "ml"})
+sg = run(serving(sodium=(0.112, "g")))
+check("sodium in g gives the two-transform chain in order", sg
+      and sg[3]["sodium"]["transforms"] == [{"transform_id": "mass-g-to-mg", "version": "v1"},
+                                             {"transform_id": "off-serving-to-100", "version": "v1"}]
+      and abs(sg[3]["sodium"]["value"] - 0.112 * 1000 * 100 / 28) < 1e-9
+      and sg[3]["sodium"]["source_value"] == {"value": 0.112, "unit": "g", "serving": {"quantity": 28.0, "unit": "g"}})
+two_serving = serving()
+two_serving["nutrition"]["input_sets"].append(dict(two_serving["nutrition"]["input_sets"][0], per_quantity=30))
+check("two serving panels refused", run(two_serving) is None)
+beside = run(serving(extra=[{"source": "packaging", "per": "100g", "preparation": "as_sold",
+                             "nutrients": {"energy-kcal": {"value": 400, "unit": "kcal"}}}]))
+check("serving panel beside a per 100 panel is ignored (v5 result)", beside and beside[3]["energy_consumed"]["value"] == 400
+      and "transforms" not in beside[3]["energy_consumed"] and beside[2]["pipeline_version"] == "off-product-projection-v5")
+for bad in (0, -5, True, "1e2", "+5", "112\n", "1234567", "12.5000", None, "", [28]):
+    check(f"per_quantity {bad!r} refused", run(serving(per_quantity=bad)) is None)
+for bad in ("oz", None, "G", 1):
+    check(f"per_unit {bad!r} refused", run(serving(per_unit=bad)) is None)
+check("implausible scaled exact value refused", run(serving(per_quantity=1, energy=10)) is None)
+check("implausible scaled bound end refused (a value the port leaves out)",
+      run(serving(per_quantity=1, energy=5, modifier=("<", 101))) is None)
+check("plausible bound left out, record admitted", (lambda x: x and "sugar" not in x[3])(
+    run(serving(modifier=("<", 0.5), sodium=(0.112, "mg")))))
+check("scale overflow refused", run(serving(per_quantity=1e-300, energy=1e300)) is None)
+two100 = modern(per="100g", qty="1 l")
+two100["nutrition"]["input_sets"].append(dict(two100["nutrition"]["input_sets"][0], per="100g"))
+check("two per 100 panels contradicting the pack refused", run(two100) is None)
+check("legacy record never scaled", run(legacy(nutrition_data_per="serving", serving_quantity=28)) is None)
+v5 = run(modern())
+check("v5 admission keeps v5 and no serving", v5 and v5[2]["pipeline_version"] == "off-product-projection-v5"
+      and "serving" not in v5[3]["sodium"]["source_value"])
 
 import json as _json, os as _os, tempfile as _tempfile
 from pathlib import Path as _Path
