@@ -15,6 +15,11 @@ import XCTest
 /// the catalogue v1 format has no bounded state, so the skill leaves that nutrient out. The parity check for that case
 /// asserts that the app gives a bounded value, never an exact one.
 ///
+/// Second known difference: the skill's port stays on `off-product-projection-v5`, because the catalogue codec accepts
+/// only v4 and v5 releases. The app's v6 (docs/off-barcode-candidate-plan-v1.md) only admits records v5 refuses (a per
+/// serving panel, or a lone per 100 panel that contradicts the pack) and projects every v5 admission unchanged, so the
+/// two cases where the port refuses and the app now admits assert the app's v6 result.
+///
 /// Skill-only checks with no app equivalent:
 /// - "release fields are a function of its ID (retrieved date in both)": the `pfc-off:` release form and its
 ///   `released_at` string are defined by the catalogue contract, not by the app, whose release ID is
@@ -173,8 +178,10 @@ final class OpenFoodFactsSkillParityTests: XCTestCase {
         XCTAssertEqual(basis(try admitted(modern(per: "100ml", quantity: "1 l"))), .per100Millilitres)
     }
 
-    func testPer100GramPanelOnVolumeProductRefused() throws {
-        XCTAssertEqual(try run(modern(per: "100g", quantity: "1 l")), .insufficientData)
+    func testPer100GramPanelOnVolumeProductUsesThePanelInTheAppOnly() throws {
+        // Known difference (off-product-projection-v6, "the panel wins"): the skill, still on v5, refuses a lone per
+        // 100 g panel on a volume pack; the app admits it with the panel's own basis under a v6 release.
+        try assertPanelWins(modern(per: "100g", quantity: "1 l"), basis: .per100Grams)
     }
 
     func testLessThanValueIsNeverExact() throws {
@@ -234,8 +241,18 @@ final class OpenFoodFactsSkillParityTests: XCTestCase {
         XCTAssertEqual(try run(legacy(["quantity": "3 oz"])), .insufficientData)
     }
 
-    func testMassPackStillRefusesALonePer100MillilitrePanel() throws {
-        XCTAssertEqual(try run(modern(per: "100ml", quantity: "500 g")), .insufficientData)
+    func testMassPackWithALonePer100MillilitrePanelUsesThePanelInTheAppOnly() throws {
+        // Known difference (off-product-projection-v6, "the panel wins"): the skill, still on v5, refuses this record.
+        try assertPanelWins(modern(per: "100ml", quantity: "500 g"), basis: .per100Millilitres)
+    }
+
+    private func assertPanelWins(_ product: [String: Any], basis expected: ResolutionBasis,
+                                 file: StaticString = #filePath, line: UInt = #line) throws {
+        let input = try admitted(product, file: file, line: line)
+        XCTAssertEqual(basis(input), expected, file: file, line: line)
+        let release = try XCTUnwrap(input.sourceReleases.first, file: file, line: line)
+        XCTAssertEqual(release.pipelineVersion.value, "off-product-projection-v6", file: file, line: line)
+        XCTAssertTrue(release.sourceReleaseID.value.contains(":off-product-projection-v6:"), file: file, line: line)
     }
 
     func testMalformedPanelPerIsDeclinedNotRaised() throws {
