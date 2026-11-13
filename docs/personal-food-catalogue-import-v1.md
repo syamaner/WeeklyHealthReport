@@ -182,7 +182,10 @@ Label nutrient value (exactly these keys; `transforms` and `source_value` togeth
   unit must be canonical, with sodium g to mg the only conversion. The one difference: a value the
   app would bound is left out, because v1 has no bounds. Since #458 both use `off-product-projection-v5`, which also
   admits a product with no recognised pack quantity when its single label panel states its own
-  basis. New releases carry v5; releases built under v4 (a stricter subset) remain valid.
+  basis. New releases carry v5; releases built under v4 (a stricter subset) remain valid. The app's
+  barcode lookup has since moved to `off-product-projection-v6` (#477), which only admits records v5
+  refuses and leaves every v5 admission unchanged; the skill stays on v5, because this format accepts
+  v4 and v5 releases only, so a v6-only product is not built into a catalogue until a versioned amendment.
 
 Generic reference:
 
@@ -378,7 +381,7 @@ owner asks.
   gives a new release.
 - Open Food Facts parity: the cases in the skill's `test_off_rules.py` reproduced against
   `OpenFoodFactsLookup.project`, using the v3.6 response shape, including non-string `quantity` and
-  `product_name`.
+  `product_name`. The two cases where v6 admits what the port refuses assert the app's v6 result.
 - Resolver contract shared by the CoFID, USDA and TFDA resolvers: resolves by the defined record
   form; a hash mismatch or missing record is unresolved; returns the adapter's own `SourceRelease`;
   the composite never throws a duplicate release.

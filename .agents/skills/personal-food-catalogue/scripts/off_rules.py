@@ -5,6 +5,10 @@ Keep this in step with that file (off-product-projection-v5 since #458). One del
 value into a bound; the catalogue format has no bounded state in v1, so such a value is
 left out (unknown). Everything else (fields, basis, legacy sodium, supplements, record
 identity) follows the app.
+
+The app has since moved to off-product-projection-v6 (#477), which only admits records v5 refuses
+(a per-serving panel, or a lone per 100 panel that contradicts the pack). This port stays on v5
+because the catalogue codec accepts v4 and v5 releases only; moving it needs a contract amendment.
 """
 import hashlib
 import json

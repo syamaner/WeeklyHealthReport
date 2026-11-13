@@ -112,6 +112,8 @@ CODE_READ_DOCS = {
     "docs/glucose-readings-export-contract-v1.md",
     # Cited by the Open Food Facts values predicate, the row and saved-entry labels and their tests.
     "docs/off-values-label-v1.md",
+    # Cited by the Open Food Facts parity tests for the v6 projection difference.
+    "docs/off-barcode-candidate-plan-v1.md",
 }
 CODE_READ_DOC_PREFIXES = ("docs/fixtures/",)
 # Never documentation, whatever the lists above say: CI, its scripts and this
