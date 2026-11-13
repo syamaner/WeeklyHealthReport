@@ -532,16 +532,14 @@ jobs:
             --github-step-summary "$GITHUB_STEP_SUMMARY" \
             --minimum-domain-coverage 95
 
-      # Queue commits live on temporary gh-readonly-queue branches that never become a
-      # Codecov base; pull request and main push runs carry the coverage history. The
-      # domain coverage minimum above still gates queue commits.
+      # Queue commits upload too, but a Codecov error there only warns: the queue must
+      # not stall on Codecov, and the domain coverage minimum above still gates them.
       - name: Upload app coverage to Codecov
-        if: github.event_name != 'merge_group'
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           disable_search: true
           disable_telem: true
-          fail_ci_if_error: true
+          fail_ci_if_error: ${{ github.event_name != 'merge_group' }}
           files: WeeklyHealthReport.app.coverage.txt
           plugins: xcode
           swift_project: WeeklyHealthReport
@@ -559,11 +557,8 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-      # Timing evidence expects every Build and test step, Codecov included, to succeed,
-      # so it is not collected on queue commits; pull request and main push runs time
-      # the same code.
       - name: Collect workflow step timings
-        if: success() && github.event_name != 'merge_group'
+        if: success()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -587,7 +582,7 @@ jobs:
           exit 1
 
       - name: Summarise CI timing
-        if: success() && github.event_name != 'merge_group'
+        if: success()
         run: |
           python3 .github/scripts/summarize_ci_timing.py \
             --jobs-json "$RUNNER_TEMP/actions-jobs.json" \
