@@ -176,7 +176,7 @@ final class SettingsContributionTests: XCTestCase {
         let fixtures = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
             .appendingPathComponent("docs/fixtures/personal-food-database-v1")
         await model.importFile(try Data(contentsOf: fixtures.appendingPathComponent("golden.json")))
-        XCTAssertEqual(model.message, "Your food database was updated.")
+        XCTAssertEqual(model.message, "Your food database was added.")
         XCTAssertEqual(model.rowDetail, "3 foods")
         if case let .link(detail, _) = row.kind { XCTAssertEqual(detail(), "3 foods") } else { XCTFail("link row") }
 

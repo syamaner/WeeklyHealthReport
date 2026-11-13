@@ -57,6 +57,16 @@ final class FoodLogAppTests: XCTestCase {
 
     // MARK: No egress
 
+    /// P1c (import v1 section 12, decision 4): Your food database rows reach Add food search only.
+    func testOnlyAddFoodSearchHoldsYourFoodDatabase() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
+        let root = try FoodLedgerCompositionRoot(fileManager: IntakeRenderFileManager(directory: directory),
+                                                 userDefaults: isolatedDefaults())
+        XCTAssertTrue(root.personalFoodDatabaseRouting.addFood)
+        XCTAssertFalse(root.personalFoodDatabaseRouting.sharedPoolAndListImport)
+    }
+
     /// Food Log load, saved-entry open, edit, remove and restore run through the composition
     /// root without any network request. The root has no transport seam, so the recorder sees
     /// shared-session traffic. The guarantee comes from types and review (the Food Log service

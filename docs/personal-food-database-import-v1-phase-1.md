@@ -322,3 +322,213 @@ is `damaged`; each boundary rule fails its fixture; the protection applier cover
 
 - P1c: the composite's dedupe and the shared `sameSourceRecord` move are specified in section 5 of
   the contract; P1c's gate restates them with the resolver contract suite.
+
+## 5. P1c architecture gate (12 November 2026)
+
+*Sections 5.1 and 5.2 override this section where they differ (re-resolution, merge condition, saving).*
+
+P1c makes Your food database searchable and loggable: import v1 sections 5 (except v12), 6, 7 and 9.
+It is written against the code on main at `c55fdad`. Where it refines the contract it says so, and
+the contract wins.
+
+**Responsibilities.**
+
+- `GenericRecordResolving` (`FoodLedgerApplication`, consumer-owned port):
+  `resolve(_ reference: GenericRecordReference, request: GenericFoodSearchRequest, evidence: [CaptureEvidence]) -> ResolvedGenericRecord?`,
+  where the reference is `{source, corpusSHA256, recordID}` and the result is
+  `{candidate: PopulatedFoodCandidate, release: SourceRelease}`. It never throws: a hash that differs
+  from the adapter's pin, an unknown record or a record of another source returns nil (unresolved).
+- Resolvers (`FoodGenericSearch`): CoFID, USDA and TFDA each gain a conformance that builds the
+  candidate through the adapter's **own** existing candidate builder (record facts, identity, edible
+  quantity and nutrients byte-identical to what its search route returns), binds the request's
+  evidence IDs, and sets `CandidateMatchMetadata.methodVersion` to `pfc-resolution-v1` with the
+  adapter's own score for the entry's first matched alias. It returns the adapter's own
+  `SourceRelease`. A small `GenericRecordResolverSet` dispatches on `source`. Ciqual is out of scope.
+- `PersonalFoodDatabaseIndex` (`FoodLedgerApplication`, a final class with a lock): holds the
+  decoded active release, loaded lazily from `PersonalFoodDatabaseStoring.activeRelease()` through
+  the P1a codec, keyed by release ID. `invalidate()` is called by the Settings flow after every
+  install and remove (wired at the composition root). Any store error or decode failure leaves the
+  index empty and reports `unavailable`; it never throws into search.
+- `PersonalFoodDatabaseFoodSearch` (`FoodLedgerApplication`, conforms to `GenericFoodSearching`):
+  matches `GenericFoodSearchRequest.retrievalText` with `GenericFoodRankingPolicy.terms` against
+  title, titles and aliases (step 1), variety (step 2) and concept (step 3); the best step wins per
+  entry; at most 10 entries. It builds each entry candidate (below) and, for a `candidate` role, the
+  resolved generic record as a second row straight after it. No match, an empty or unavailable index,
+  or any internal failure returns `.noResult` with **no** guidance and no suggestions.
+- `PersonalFoodDatabaseCandidateBuilder` (`FoodLedgerApplication`, pure): entry plus an optional
+  resolved `merge` record gives one `PopulatedFoodCandidate` with `sourceReleaseID` the database
+  release (`pfc:sha256:…`), `recordID` the entry `id`, item class and identity per section 4.1, edible
+  quantity `.known(100 g)` for `per_100_g` and the label basis otherwise, and nutrients per A1
+  (below). It also returns the `SourceRelease` set the candidate cites: the database release, each
+  cited label release from `sources`, and the merged record's release.
+- `GenericFoodMatch` gains `personalDatabase: PersonalFoodDatabaseMatchContext?`
+  (`{step: 1...3, isGenericReference: Bool}`), default nil, so every existing match is unchanged.
+- `CompositeGenericFoodSearch` gains one init parameter, `databaseSource: (any GenericFoodSearching)? = nil`.
+  Its rows join group 0 after the existing default sources and take their v11 place (no v12; the
+  version string stays `composite-generic-ranking-v11`, and with no database rows the output is
+  byte-identical). Its `noResult` is never taken as the fallback route or for suggestions. After the
+  v11 sort and partitions, a record dedupe keeps the first row per `FoodSearchCandidateID` when
+  `sameSourceRecord` holds and throws otherwise, before `PopulatedFoodConfirmation` is built.
+- `sameSourceRecord` moves from `FoodSearchResultMerger` to one internal function in
+  `FoodLedgerApplication` used by both.
+- `FoodSearchResultSummary.family`: source ID `personal-food-database` maps to a new
+  `.yourFoodDatabase` case ("Your food database"), never `.yourFoods`. Generic-reference rows keep
+  their own source's family; "Generic: <name>" is presentation from `personalDatabase`.
+- Settings: `PersonalFoodDatabaseSummary` gains `unresolvedReferenceCount`, computed from the index
+  with the resolver set; the row shows it when above zero. `installed` gains `replaced: Bool`, so a
+  first import says "Your food database was added." and a replacement "was updated.". The footer
+  "Food search does not use this file yet." is removed.
+- Confirm: when a selected database candidate's nutrients carry more than one `sourceReleaseID`,
+  Confirm shows "Nutrients from more than one source", with the per-nutrient source and "automatic
+  match" behind details (A1 item 5).
+
+**A1 merge (import v1 section 6), restated for code.**
+
+1. The merge runs only for role `merge`, entry state `raw` or `cooked`, basis `per_100_g`, and a
+   resolved record whose known preparation agrees with the entry's (known against known only, the
+   same rule as `FoodReresolutionProposal.hasNoKnownContradictions`). The merged candidate takes the
+   record's identity for every other facet. Otherwise the record is offered as its own row.
+2. Per nutrient, in order: `manual_declaration`; then, for `fresh_whole` only, the generic value;
+   then `exact_product_dataset`; then (non-`fresh_whole`) the generic value. Two label values at the
+   same level that disagree give `.unknown(.conflictingEvidence)` with both as conflict candidates.
+3. States: `manual_declaration` is `.measured` with provenance `{manual_declaration, owner, <owner release>}`;
+   `exact_product_dataset` is `.augmented` with its `off:gtin:` record ID; generic values keep the
+   resolved record's own `.augmented` provenance unchanged. Every entry passes `NutrientEntry`
+   validation; a value that would not is left unknown and counted in a test, never coerced.
+4. Transforms: the codec's `salt_to_sodium_v1`, `kj_to_kcal_v1` (both `pasted-label-conversions-v1`)
+   and `mass-g-to-mg` / `v1` are carried as `NutrientTransform`s with the printed source value, so
+   `NutrientDerivation.isCalculated` gives `calculated: true` for the first two and false for the third.
+
+**Routing and isolation.**
+
+- The database-aware composite is built only for the Add food search view model. The label-estimate
+  pool and the food list import keep a composite **without** `databaseSource` (import v1 section 12,
+  decision 4); a test pins both.
+- Escalation is unchanged. `ConservativeFoodSearchCoverageAssessment` calls a row strong only with
+  `reuse`, which a database row never has, so a lexical match never suppresses an online route.
+- A locked or damaged store gives `noResult` from the database route only; other sources answer and
+  their guidance is shown.
+
+**Saving and records.** No save-path change. The route's `sourceReleases` include every release the
+candidate's provenance names, so `FoodConfirmationService` persists them through its existing
+`missingReleases` step; the resolution links the database release as today. A new contract test
+asserts that every provenance `sourceReleaseID` of a database candidate is in the confirmation's
+`sourceReleases`. Re-resolution is unchanged: a database release is never a `FoodReresolutionTarget`,
+so any attempt returns `unavailableTarget`; the P1b-deferred tests check that, and that remove keeps
+the log and its release records.
+
+**Decision (closed 12 November 2026: the owner chose (a); see 5.1).** Import v1 section 7 gives an entry whose values
+all come from its merged record the generic-estimate allowance. The code's
+`FoodConfirmationPolicy.isGenericEstimate` grants it only when every provenance names the
+candidate's **own** release and record, which a database entry never does. Options: (a) keep the
+policy unchanged, so such entries ask for the unknown identity facts on Confirm (stricter, no closed
+rule touched); (b) extend the policy for this one case. **Recommendation: (a)** for P1c, recorded as
+a dated clarification in import v1 section 7; a separate "Generic" row, which is the record's own
+candidate, keeps the allowance as today.
+
+**Dependency direction.** Unchanged. The search, builder and index live in Application and depend
+on the store port only. Resolvers live in `FoodGenericSearch` beside the corpora. Only the
+composition root wires the store, index, resolver set and composites. No new import into Domain;
+`check-boundaries.sh` gains a rule that `FoodLedgerApplication`'s database files name no
+`FoodGenericSearch` type, with a failing fixture.
+
+**Invariants.** Unknown stays unknown (no title inference, no coercion); no automatic selection or
+saving; Confirm stays the only Log path; no network module reachable from the new code; stored
+records, archives and exports decode and re-encode unchanged; with no database installed, search
+output is identical to today.
+
+**Contract tests (synthetic fixtures only).** Import v1 section 9 minus v12 and Open Food Facts
+parity (already covered by P1a), plus: the resolver suite run against all three resolvers; index
+invalidation after install and remove; v11 identity with an empty database (the v8 retrieval replay
+and `CiqualCompositeContractTests` unchanged); label-estimate pool and list import never see database
+rows; the provenance-release-subset test; the Settings unresolved count and the added/updated
+wording; the simulator journey of section 9 with a synthetic file.
+
+**Validation.** All `AGENTS.md` gates, plus the FoodSearchQuality replay steps from
+`.github/workflows/ios-ci.yml` (FoodQueryEvaluation tests only the parser and is unaffected, but is
+run as CI does).
+
+### 5.1 Changes from the architecture-gate review (12 November 2026)
+
+Verdict PASS WITH CHANGES. Each change binds P1c and overrides looser wording in section 5.
+
+1. **Re-resolution.** A `PersonalFoodDatabaseReresolutionProvider` implements the existing
+   `FoodReresolutionProviding`: its only target is the active database release with method
+   `pfc-resolution-v1`; `candidates(for:target:at:)` looks up the saved log's `recordID` (the entry
+   `id`) in the index and rebuilds the candidate through the same builder. After remove there is no
+   target, so the service returns `unavailableTarget`; after re-import of a file holding that entry
+   it succeeds. The composition root adds it beside `CoFIDReresolutionProvider`.
+2. **Merge condition.** A record merges only if its preparation kind is **known** and equals the
+   entry's (`raw` or `cooked`), the kind alone is compared (a cooked entry has no method, so a record
+   with a cooking method still merges, and its method is kept), and the record's serving basis is
+   per 100 g with a known 100 g edible quantity. Anything else becomes its own row.
+3. **No nutrition data.** In P1c an entry is left out of results when no nutrient would be known
+   (no label values and no resolved `merge` record), so no log can reach the export's
+   `unattributedEntry` path. The "No nutrition data yet" row with its fallback chain is deferred to a
+   later phase as a dated note in import v1 section 5; a test pins the omission.
+4. **Dedupe under v11.** The dedupe runs only on a pair where one row came from the database route.
+   The database copy is kept (with its `personalDatabase` context and `pfc-resolution-v1` metadata),
+   at the position of whichever copy sorted first; the other is dropped when `sameSourceRecord`
+   holds and the search throws otherwise. Rows from existing sources are never deduped. "Straight
+   after its entry" holds within the database route only.
+5. **Group.** The composite places the database route at a fixed index ahead of the regional and
+   reference routes and assigns it group 0 explicitly, leaving the regional and reference indices and
+   groups as today; a test pins this with regional rows both deferred and promoted.
+6. **Exact name and order.** A database entry row is `isExactName` when the folded query terms equal
+   the folded title or one alias at step 1; a Generic row uses its adapter's own rule. Within the
+   route, entries are ordered by step, then `GenericFoodRankingPolicy.preference`, then entry `id`;
+   at most 10 entries (up to 20 rows). The route never sets `reuse`.
+7. **Index concurrency.** The index is warmed off the main thread at launch, after every install and
+   remove, and on `protectedDataDidBecomeAvailable`. Search reads the current snapshot under a short
+   lock and never waits for a load (no database rows until warm). A generation counter discards a
+   load that finishes after `invalidate()`. A `locked` result is never cached; `damaged` is cached
+   until the next invalidation.
+8. **Resolver port.** `resolve(_ reference:, evidenceIDs:, queryAlias:) -> ResolvedGenericRecord?`
+   and `contains(_ reference:) -> Bool` for the Settings count. The pins checked are
+   `CoFIDGenericFoodSearch.corpusCanonicalSHA256`, `USDAGenericFoodSearch.corpusSHA256` and
+   `TFDAGenericFoodSearch.corpusSHA256`. `PersonalFoodDatabaseReferenceCount` computes the count in
+   the index's background warm-up; Settings reads it with the summary.
+9. **Label provenance.** `manual_declaration`: `sourceID` `owner`, `sourceReleaseID` the `owner:`
+   release, `recordID` nil. `exact_product_dataset`: `sourceID` `open-food-facts`, `sourceReleaseID`
+   the `pfc-off:` release, `recordID` `off:gtin:…`. Both: `manifestReference`
+   `<database release ID>#<entry id>`, never a title, brand or name. A test checks the saved log's
+   food export carries only opaque IDs.
+10. **Identity and basis.** Item class is `.drink` for category `beverage` or `alcohol`, otherwise
+    `.food`; never water, fortified food or supplement; fortification unknown. `per_100_g` gives
+    serving basis per 100 g and edible quantity `.known(100 g)`; `per_100_ml_as_labelled` gives per
+    100 mL and `.known(100 mL)`, and never merges.
+11. **Open Food Facts parity** is a P1c test (plan section 2.1 item 6): the skill's
+    `test_off_rules.py` cases against `OpenFoodFactsLookup.project`.
+12. **Boundary rules.** Replace the redundant rule with two that bite, each with a failing fixture:
+    `FoodLedgerApplication`'s `PersonalFoodDatabase*` files name no `FileManager`, `URLSession`,
+    `URLRequest` or `contentsOf:`; the resolver files in `FoodGenericSearch` name no URL-loading token.
+13. **A1 amendment rows** are added in this change to `unified-food-search-contract-v1.md` and to
+    section 8 of `food-identity-nutrition-contract.md`, dated and citing import v1 section 6.
+
+Adopted suggestions: one shared set of CoFID, USDA, TFDA and Ciqual instances feeds both composites
+and the resolver set; `personal-food-database` is checked first in `FoodSearchResultSummary.family`;
+the golden fixture's Chinese title is tested for step-1 matching.
+
+Added contract tests are those listed in the review: refused merges (unknown preparation, per
+100 mL record, other states), the pinned no-conflict case plus the builder's conflict branch, the
+no-data omission, the three dedupe cases, the group pin, deterministic order, the four index cases,
+evidence parity when the database route answers first, label provenance fields, the per-100 mL
+basis, re-resolution after remove and re-import, a logged Generic row re-resolving as a CoFID log
+does, Open Food Facts parity, the isolated composites, resolver-versus-route facts for all three
+resolvers, and the boundary fixtures.
+
+**Owner decision (12 November 2026):** option (a), the stricter path. It is a rule change, recorded
+as a dated amendment in import v1 section 7 with the owner's approval of the same day.
+
+### 5.2 Found during implementation (12 November 2026)
+
+- **Linked releases on save.** Section 5 said saving needs no change. The ledger stores reject a
+  resolution whose values cite a release it does not link, and the save path linked only the
+  selected candidate's release. `FoodConfirmationService.linkedReleaseIDs` now appends, for a Your
+  food database candidate only, every release its saved values cite (owner label, Open Food Facts,
+  merged generic record) after the existing links. Every other source is unchanged, since its values
+  cite only releases already linked. Pinned by `PersonalFoodDatabaseLifecycleContractTests`.
+- **Resolver score.** A resolved reference scores 1 (the owner chose the record) rather than the
+  adapter's ranking score for the alias; the score is presentation only and record equality ignores it.
+- **Re-resolution.** `FoodReresolutionProviderSet` puts the CoFID and database providers behind the
+  service's single provider port.

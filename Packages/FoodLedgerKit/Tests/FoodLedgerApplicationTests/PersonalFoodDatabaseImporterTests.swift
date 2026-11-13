@@ -49,8 +49,10 @@ final class PersonalFoodDatabaseImporterTests: XCTestCase {
     }
 
     func summary(_ outcome: PersonalFoodDatabaseImportOutcome) -> PersonalFoodDatabaseSummary? {
-        if case let .installed(summary) = outcome { return summary }
-        return nil
+        switch outcome {
+        case let .installed(summary), let .added(summary): return summary
+        default: return nil
+        }
     }
 
     func testGoldenInstallsWithItsReleaseIdentity() async throws {
@@ -174,5 +176,13 @@ final class PersonalFoodDatabaseImporterTests: XCTestCase {
         let status = await importer.status()
         XCTAssertEqual(status, .none)
         XCTAssertEqual(releases.stored.count, file.sources.count, "remove never touches release records")
+    }
+
+    /// Phase 1 plan section 5: a first import is "added"; replacing an active release is "installed".
+    func testFirstImportIsAddedAndAReplacementIsInstalled() async throws {
+        let golden = try Self.fixture("golden.json")
+        guard case .added = await importer.importFile(golden) else { return XCTFail("first import") }
+        let other = Data(String(decoding: golden, as: UTF8.self).replacingOccurrences(of: "Synthetic Example Oats", with: "Synthetic Example Oat Flakes").utf8)
+        guard case .installed = await importer.importFile(other) else { return XCTFail("replacement") }
     }
 }

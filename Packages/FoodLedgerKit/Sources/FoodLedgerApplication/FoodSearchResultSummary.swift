@@ -5,7 +5,7 @@ import FoodLedgerDomain
 /// ("UK reference · cooked · 248 kcal for 150 g"); no text is produced here.
 public struct FoodSearchResultSummary: Equatable, Sendable {
     public enum SourceFamily: Equatable, Sendable {
-        case ukReference, usReference, taiwanReference, frenchReference, packagedProduct, webSource, yourFoods, otherSource
+        case ukReference, usReference, taiwanReference, frenchReference, packagedProduct, webSource, yourFoods, yourFoodDatabase, otherSource
     }
     public enum Energy: Equatable, Sendable {
         /// Energy scaled to the amount: kcal rounded to a whole number, half away from zero.
@@ -71,8 +71,11 @@ public struct FoodSearchResultSummary: Equatable, Sendable {
     }
 
     /// Closed mapping. "Your foods" is only the personal library and user-verified packages;
+    /// "Your food database" is only the imported database release;
     /// anything unmapped or empty is a neutral "other source", never presented as the user's own.
     public static func family(_ sourceID: String, recordID: String = "") -> SourceFamily {
+        // Import v1 section 5: its own family, checked first, never "Your foods".
+        if sourceID == PersonalFoodDatabaseRelease.sourceID { return .yourFoodDatabase }
         if recordID.hasPrefix("personal-library:") || sourceID == "physical_package" { return .yourFoods }
         let id = sourceID.lowercased()
         if id.contains("cofid") { return .ukReference }

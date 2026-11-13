@@ -36,7 +36,7 @@ final class PersonalFoodDatabaseSettingsViewModelTests: XCTestCase {
         XCTAssertFalse(model.canRemove)
 
         await model.importFile(try Data(contentsOf: Self.fixtures.appendingPathComponent("golden.json")))
-        XCTAssertEqual(model.message, "Your food database was updated.")
+        XCTAssertEqual(model.message, "Your food database was added.")
         XCTAssertEqual(model.rowDetail, "3 foods")
         XCTAssertEqual(model.importTitle, "Replace file")
         XCTAssertTrue(model.canRemove)
@@ -125,5 +125,25 @@ final class PersonalFoodDatabaseSettingsViewModelTests: XCTestCase {
         case let object as [String: Any]: object.values.flatMap { strings(in: $0) }
         default: []
         }
+    }
+
+    func testChangeHookRunsAndTheCountShowsOnlyForTheShownRelease() async throws {
+        final class Calls: @unchecked Sendable { var changed = 0 }
+        let calls = Calls()
+        let store = InMemoryPersonalFoodDatabaseStore()
+        let model = PersonalFoodDatabaseSettingsViewModel(importer: PersonalFoodDatabaseImporter(
+            store: store, digester: SHA256Digester(), clock: Clock(), releases: NoReleases()),
+            changed: { calls.changed += 1 },
+            referenceCount: {
+                guard let active = try? store.activeRelease() else { return nil }
+                return (active.manifest.releaseID, 2)
+            })
+        await model.importFile(try Data(contentsOf: Self.fixtures.appendingPathComponent("golden.json")))
+        XCTAssertEqual(calls.changed, 1)
+        XCTAssertEqual(model.unresolvedReferenceCount, 2)
+        await model.remove()
+        XCTAssertEqual(calls.changed, 2)
+        XCTAssertNil(model.unresolvedReferenceCount)
+        XCTAssertEqual(PersonalFoodDatabaseSettingsText.unresolved(1), "1 entry names a generic food this app does not have")
     }
 }

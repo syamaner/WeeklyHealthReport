@@ -262,7 +262,8 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
         evidenceIDs: [EvidenceID],
         score: Double,
         differences: [String],
-        queryAlias: LedgerText
+        queryAlias: LedgerText,
+        methodVersion: String = CoFIDGenericFoodSearch.matcherVersion
     ) throws -> PopulatedFoodCandidate {
         let identity = try Self.identity(record.identity)
         let basisQuantity: PositiveQuantity
@@ -275,7 +276,7 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
         let canonicalAlias = try LedgerText("food:name:\(Self.normalized(record.name))")
         let aliases = queryAlias == canonicalAlias ? [queryAlias] : [queryAlias, canonicalAlias]
         let metadata = try CandidateMatchMetadata(
-            methodVersion: LedgerText(Self.matcherVersion),
+            methodVersion: LedgerText(methodVersion),
             score: score,
             materialDifferences: try differences.map { try LedgerText($0) },
             libraryAliases: aliases
@@ -531,5 +532,18 @@ private struct CorpusNutrient: Decodable {
         case state, value
         case sourceUnit = "source_unit"
         case canonicalUnit = "canonical_unit"
+    }
+}
+
+// Lookups for `PersonalFoodDatabaseResolvers.swift`; the corpus types stay private to this file.
+extension CoFIDGenericFoodSearch {
+    func hasRecord(_ recordID: String) -> Bool { corpus.records.contains { $0.recordID == recordID } }
+
+    func referencedCandidate(_ recordID: String, evidenceIDs: [EvidenceID], queryAlias: String) -> PopulatedFoodCandidate? {
+        guard let record = corpus.records.first(where: { $0.recordID == recordID }),
+              let alias = try? LedgerText("food:name:\(Self.normalized(queryAlias))") else { return nil }
+        return try? populatedCandidate(record: record, evidenceIDs: evidenceIDs, score: 1,
+            differences: ["Referenced by a Your food database entry."], queryAlias: alias,
+            methodVersion: PersonalFoodDatabaseCandidateBuilder.methodVersion)
     }
 }

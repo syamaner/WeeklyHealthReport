@@ -536,6 +536,57 @@ SWIFT
 
 self_test_personal_database_edges
 check_personal_database_edges "$package_root" "$app_root"
+
+# Your food database search (#424 P1c, docs/personal-food-database-import-v1-phase-1.md 5.1, change 12):
+# the application's database files reach files only through the store port, and the reference
+# resolvers in FoodGenericSearch (a target that may use Network elsewhere) load nothing by URL.
+check_personal_database_search_edges() {
+  local pkg="$1" violations="" file
+  while IFS= read -r file; do
+    if [[ -n "$file" ]]; then violations+="Your food database application code names a file or network API in $file"$'\n'; fi
+  done < <(find "$pkg/Sources/FoodLedgerApplication" -name 'PersonalFoodDatabase*.swift' -exec \
+    grep -lE '(FileManager|URLSession|URLRequest|NWConnection|contentsOf:)' {} + 2>/dev/null || true)
+  local resolvers="$pkg/Sources/FoodGenericSearch/PersonalFoodDatabaseResolvers.swift"
+  if [[ ! -f "$resolvers" ]]; then
+    violations+="missing $resolvers"$'\n'
+  elif grep -qE '(URLSession|URLRequest|NWConnection|contentsOf:|^[[:space:]]*(@[A-Za-z]+[[:space:]]+)*import[[:space:]]+(Network|Foundation)\b)' "$resolvers"; then
+    violations+="the reference resolvers name a URL-loading API in $resolvers"$'\n'
+  fi
+  if [[ -n "$violations" ]]; then
+    printf '%s' "$violations" >&2
+    return 1
+  fi
+}
+
+self_test_personal_database_search_edges() {
+  local scratch status=0 fixture target
+  scratch="$(mktemp -d "${TMPDIR:-/tmp}/check-boundaries-pfd-search.XXXXXX")"
+  local base="$scratch/base/Packages/FoodLedgerKit"
+  mkdir -p "$base/Sources/FoodLedgerApplication" "$base/Sources/FoodGenericSearch"
+  echo 'import FoodLedgerDomain' > "$base/Sources/FoodLedgerApplication/PersonalFoodDatabaseSearch.swift"
+  printf 'import FoodLedgerApplication\nimport FoodLedgerDomain\n' > "$base/Sources/FoodGenericSearch/PersonalFoodDatabaseResolvers.swift"
+  if ! check_personal_database_search_edges "$base" 2>/dev/null; then
+    echo "check-boundaries self-test: the personal database search baseline must pass" >&2; status=1
+  fi
+  for fixture in file_manager url_session resolver_load resolver_network resolver_foundation; do
+    target="$scratch/$fixture/Packages/FoodLedgerKit"
+    mkdir -p "$(dirname "$target")"; cp -R "$base" "$target"
+    case "$fixture" in
+      file_manager) echo 'let files = FileManager.default' >> "$target/Sources/FoodLedgerApplication/PersonalFoodDatabaseSearch.swift" ;;
+      url_session) echo 'let session = URLSession.shared' >> "$target/Sources/FoodLedgerApplication/PersonalFoodDatabaseSearch.swift" ;;
+      resolver_load) echo 'let page = try Data(contentsOf: url)' >> "$target/Sources/FoodGenericSearch/PersonalFoodDatabaseResolvers.swift" ;;
+      resolver_network) echo '@preconcurrency import Network' >> "$target/Sources/FoodGenericSearch/PersonalFoodDatabaseResolvers.swift" ;;
+      resolver_foundation) echo 'import Foundation' >> "$target/Sources/FoodGenericSearch/PersonalFoodDatabaseResolvers.swift" ;;
+    esac
+    if check_personal_database_search_edges "$target" 2>/dev/null; then
+      echo "check-boundaries self-test: the personal database search $fixture fixture must fail" >&2; status=1
+    fi
+  done
+  rm -rf "$scratch"
+  return "$status"
+}
+self_test_personal_database_search_edges
+check_personal_database_search_edges "$package_root"
 clipboard_unexpected="$(clipboard_violations "$package_root/Sources")"
 if [[ -n "$clipboard_unexpected" ]]; then
   echo "$clipboard_unexpected" >&2

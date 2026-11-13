@@ -146,6 +146,33 @@ public enum FoodSearchResultText {
     public static func spokenSourceLine(_ line: String) -> String {
         line.replacingOccurrences(of: " · ", with: ", ")
     }
+    /// Import v1 section 6, A1 item 5: a Your food database entry whose known values come from more
+    /// than one release says so on Confirm.
+    public static let mixedSources = "Nutrients from more than one source"
+
+    /// The per-nutrient sources behind Confirm's details for a Your food database entry, or nil for
+    /// any other candidate or a single-source entry. Automatic matches are named as such (decision 9).
+    public static func databaseNutrientSources(_ candidate: PopulatedFoodCandidate, releases: [SourceRelease]) -> [String]? {
+        guard FoodSearchResultSummary.family(candidate: candidate.candidate, releases: releases) == .yourFoodDatabase else { return nil }
+        let known = candidate.candidate.nutrients.entries.filter { !$0.value.provenance.isEmpty }
+        guard Set(known.flatMap { $0.value.provenance.map(\.sourceReleaseID) }).count > 1 else { return nil }
+        return known.map { entry in
+            let kind = entry.value.provenance.first?.sourceKind
+            let source = switch kind {
+            case .manualDeclaration?: "your label"
+            case .exactProductDataset?: "Open Food Facts product, automatic match"
+            case .genericCompositionDataset?: "generic food, automatic match"
+            default: "other source"
+            }
+            return "\(FoodLogText.label(entry.key)): \(source)"
+        }
+    }
+
+    /// A search row's title. A record referenced by a Your food database entry and offered as its
+    /// own row reads "Generic: <name>" (import v1 section 5); every other row is its name.
+    public static func rowTitle(_ match: GenericFoodMatch) -> String {
+        match.personalDatabase?.isGenericReference == true ? "Generic: \(match.candidate.name.value)" : match.candidate.name.value
+    }
     public static func family(_ family: FoodSearchResultSummary.SourceFamily) -> String {
         switch family {
         case .ukReference: "UK reference"
@@ -155,6 +182,7 @@ public enum FoodSearchResultText {
         case .packagedProduct: "Packaged product"
         case .webSource: "Web source"
         case .yourFoods: "Your foods"
+        case .yourFoodDatabase: "Your food database"
         case .otherSource: "Other source"
         }
     }

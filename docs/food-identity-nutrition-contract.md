@@ -342,6 +342,19 @@ summary may report the known subtotal and bounds over known/bounded inputs, but
 `has_unknown_contribution` must be true and the result must not be labelled the
 whole-day total.
 
+**Amendment A1, 12 November 2026 (Your food database).** Recorded by
+[personal food database import v1](personal-food-catalogue-import-v1.md) section 6 and implemented in
+P1c. For a Your food database entry whose generic reference has role `merge` only, resolution is per
+nutrient across the entry's label values and its one referenced generic record, in this order: an
+owner `manual_declaration` value; then, for `fresh_whole` entries only, the generic value; then an
+`exact_product_dataset` value; then (other entries) the generic value. Two label values at the same
+level that disagree are a conflict and the nutrient is unknown. The merge happens only when the
+record's preparation is known and equal to the entry's raw or cooked state, both are per 100 g and
+the record's 100 g edible quantity is known; the merged entry takes the record's identity for every
+other facet. Owner values are `measured`; Open Food Facts and generic values are `augmented`. The
+saved resolution links every release its values cite. Every other source keeps the rules above
+unchanged.
+
 ## 9. Correction, reformulation and re-resolution
 
 - **Evidence correction:** evidence never changes. Add a correcting assertion and a

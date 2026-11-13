@@ -504,3 +504,12 @@ Owner decision (Sertan, 3 November 2026, #370): "Yes prefill". On the bounded na
 ### Evaluation
 
 The parser replay of `Tools/FoodQueryEvaluation/synthetic-v9.json` is identical to `predictions/v9-final.json.gz` (0 of 592 predictions differ), and no synthetic-v9 case gains an interpretation quantity on the clarification route (the fixture holds no named dishes), so no fixture, manifest or baseline changes. The four retrieval replays in `Tools/FoodSearchQuality` (scenarios v3 to v6) are byte-identical to a replay of `main` (099c875c) on the same machine; retrieval text never contains the amount. On that local machine `--verify-report` reports last-digit floating-point differences for both replays (for example a composite nDCG@5 of 0.990309708420754 against a frozen 0.9903097084207537), so CI remains the reference for those checks. Same-author synthetic checks, not independent acceptance or device validation.
+
+## Amendment A1: Your food database per-nutrient sources (12 November 2026)
+
+Recorded by [personal food database import v1](personal-food-catalogue-import-v1.md) section 6, accepted by the owner on 7 November 2026 and implemented in P1c ([phase 1 plan](personal-food-database-import-v1-phase-1.md) sections 5 to 5.2). It narrows two sentences of the product contract above for one case only.
+
+- "Do not combine one candidate's strong identity with another's complete nutrients" and "Never silently combine nutrients" still hold for every source, **except** a Your food database entry whose generic reference has role `merge`. Such an entry may take label values for the nutrients its label declares and the referenced CoFID, USDA or TFDA record's values for the rest, under method version `pfc-resolution-v1`.
+- The merge is never silent: Confirm shows "Nutrients from more than one source" with each nutrient's source, and automatic matches are named as such behind details.
+- The merge needs the record's preparation to be known and equal to the entry's (raw or cooked), a per 100 g basis on both sides and a known 100 g edible quantity; otherwise the record is offered as its own "Generic" row.
+- Bundled source adapters keep their own no-backfill rule. Ranking is unchanged in P1c: database rows take their v11 place, and a lexical database match never suppresses an online route.

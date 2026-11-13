@@ -88,7 +88,7 @@ public final class USDAGenericFoodSearch: GenericFoodSearching, @unchecked Senda
         }.prefix(10).map { eligible[$0] }
         guard !ranked.isEmpty else { return .noResult(GenericFoodNoResultRoute(evidence: evidence, additionalEvidence: request.additionalEvidence, suggestedQueries: GenericFoodSearchTerms.suggestions(for: request.text.value, names: corpus.records.map(\.name)))) }
         let matches = try ranked.map { record, score, _ in
-            GenericFoodMatch(candidate: try candidate(record, score: score, evidence: evidenceList, query: request.text),
+            GenericFoodMatch(candidate: try candidate(record, score: score, evidenceIDs: evidenceList.map(\.evidenceID), query: request.text),
                              isExactName: CoFIDGenericFoodSearch.normalized(record.name) == CoFIDGenericFoodSearch.normalized(request.retrievalText))
         }
         let sourceIDs = Set(matches.map { $0.candidate.candidate.sourceReleaseID.value })
@@ -102,7 +102,8 @@ public final class USDAGenericFoodSearch: GenericFoodSearching, @unchecked Senda
         ))
     }
 
-    private func candidate(_ record: USDARecord, score: Double, evidence: [CaptureEvidence], query: LedgerText) throws -> PopulatedFoodCandidate {
+    private func candidate(_ record: USDARecord, score: Double, evidenceIDs: [EvidenceID], query: LedgerText,
+                           methodVersion: String = USDAGenericFoodSearch.matcherVersion) throws -> PopulatedFoodCandidate {
         guard let release = releases[record.releaseID] else { throw USDASearchError.invalidCorpus }
         let identity = try Self.identity(record)
         let nutrients = try NutrientSet(entries: NutrientKey.allCases.map { key in
@@ -123,7 +124,7 @@ public final class USDAGenericFoodSearch: GenericFoodSearching, @unchecked Senda
         })
         let alias = try LedgerText("food:name:\(CoFIDGenericFoodSearch.normalized(query.value))")
         let metadata = try CandidateMatchMetadata(
-            methodVersion: LedgerText(Self.matcherVersion), score: score,
+            methodVersion: LedgerText(methodVersion), score: score,
             materialDifferences: [LedgerText("Search terms: \(Self.tokens(query.value).sorted().joined(separator: " ")); original query tokens retained; parsed food terms used for retrieval; attributes need review."), LedgerText("US composition estimate; review cut, grade, fat and preparation."),
                                  LedgerText("US carbohydrate by difference includes fibre; vitamin A RAE is not substituted." )],
             libraryAliases: [alias]
@@ -131,7 +132,7 @@ public final class USDAGenericFoodSearch: GenericFoodSearching, @unchecked Senda
         let value = try ProviderNeutralCandidate(
             sourceReleaseID: release.sourceReleaseID, recordID: ExternalIdentifier(record.id), identity: identity,
             edibleQuantity: .known(PositiveQuantity(value: 100, unit: .grams), conversionVersionID: nil),
-            nutrients: nutrients, evidenceIDs: evidence.map(\.evidenceID), matchMetadata: metadata
+            nutrients: nutrients, evidenceIDs: evidenceIDs, matchMetadata: metadata
         )
         return try PopulatedFoodCandidate(candidate: value, name: LedgerText(record.name),
                                           variant: LedgerText("USDA · US composition estimate · per 100 g"), itemClass: .food, packFacts: PackFacts())
@@ -162,3 +163,16 @@ private struct USDACorpus: Decodable { let version: Int; let preparationPolicy: 
 private struct USDASource: Decodable { let id: String; let sourceID: String; let date: String; let archiveHash: String }
 private struct USDARecord: Decodable { let id: String; let releaseID: String; let name: String; let preparation: String; let bone: String; let nutrients: [String: USDANutrient] }
 private struct USDANutrient: Decodable { let amount: Double; let unit: String; let nutrientID: Int }
+
+// Lookups for `PersonalFoodDatabaseResolvers.swift`; the corpus types stay private to this file.
+extension USDAGenericFoodSearch {
+    func hasRecord(_ recordID: String) -> Bool { corpus.records.contains { $0.id == recordID } }
+
+    func referencedCandidate(_ recordID: String, evidenceIDs: [EvidenceID], queryAlias: String) -> (PopulatedFoodCandidate, SourceRelease)? {
+        guard let record = corpus.records.first(where: { $0.id == recordID }), let release = releases[record.releaseID],
+              let query = try? LedgerText(queryAlias),
+              let candidate = try? candidate(record, score: 1, evidenceIDs: evidenceIDs, query: query,
+                  methodVersion: PersonalFoodDatabaseCandidateBuilder.methodVersion) else { return nil }
+        return (candidate, release)
+    }
+}
