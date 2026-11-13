@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 """Shared synthetic fixtures for the import rejection rules, and their Python verdicts.
 
-  python3 -I test_export_check.py <scripts_dir> --write <fixtures_dir>   regenerate the files
-  python3 -I test_export_check.py <scripts_dir> <fixtures_dir>           check every file's verdict
+  python3 -I test_export_check.py <scripts_dir> --write <fixtures_dir>      regenerate the v1 files
+  python3 -I test_export_check.py <scripts_dir> --write-v2 <fixtures_dir>   regenerate the v2 files
+  python3 -I test_export_check.py <scripts_dir> <fixtures_dir>              check every file's verdict
+
+v1 fixtures live in docs/fixtures/personal-food-database-v1 and stay byte for byte as they were;
+v2 fixtures (docs/personal-food-catalogue-import-v2.md, Open Food Facts projection v6) live in
+docs/fixtures/personal-food-database-v2 with their own manifest, which names its schema.
 
 The fixtures directory holds golden.json and accept-*.json (must be accepted), one reject-*.json
 per rule, and manifest.json with the expected verdict for each, the checker's full rule-code set,
@@ -193,11 +198,14 @@ def _mutated(f):
     return json.dumps(d, ensure_ascii=False).encode()
 
 
-def rule_codes():
-    """Every rule code export_v1.check_bytes can emit, read from its source so the list cannot drift."""
+def rule_codes(schema=E.SCHEMA_V2):
+    """Every rule code export_v1.check_bytes can emit, read from its source so the list cannot drift.
+    A v1 file can never get the v2-only codes, so the v1 manifest lists the set without them."""
     src = Path(E.__file__).read_text()
     found = set(re.findall(r'err\("([a-z0-9-]+)"', src)) | set(re.findall(r'_Reject\("([a-z0-9-]+)"\)', src))
     found |= set(re.findall(r'return \[f?"([a-z0-9-]+):', src))
+    if schema == E.SCHEMA_V1:
+        found -= set(E.V2_RULE_CODES)
     return sorted(found)
 RAW["too-many-values"] = ("count", lambda: b"[" + b"0," * E.MAX_VALUES + b"0]")
 GENERATED = {"over-size-limit", "too-many-items", "too-many-values"}  # large: built at test time, never committed
@@ -226,7 +234,7 @@ def write(fixtures: Path):
     for name, make in ACCEPT.items():
         (fixtures / f"accept-{name}.json").write_bytes(make() + b"\n")
         manifest["accept"].append(f"accept-{name}.json")
-    manifest["rule_codes"] = rule_codes()
+    manifest["rule_codes"] = rule_codes(E.SCHEMA_V1)
     manifest["canonical_units"] = E.CANON_UNITS
     manifest["max_depth"] = E.MAX_DEPTH
     manifest["max_values"] = E.MAX_VALUES
@@ -240,6 +248,8 @@ def codes(data):
 
 def verify(fixtures: Path):
     manifest = json.loads((fixtures / "manifest.json").read_text())
+    if manifest.get("schema") == E.SCHEMA_V2:
+        return verify_v2(fixtures, manifest)
     golden_bytes = (fixtures / manifest["golden"]).read_bytes()
     errs = E.check_bytes(golden_bytes) + E.check_export_conventions(json.loads(golden_bytes))
     assert errs == [], f"golden rejected: {errs}"
@@ -254,7 +264,8 @@ def verify(fixtures: Path):
     mixed["sources"] = [dict(s, pipeline_version="off-product-projection-v5") if s["source_id"] == "open-food-facts" else s
                         for s in mixed["sources"]]
     assert "source-pins" in codes(json.dumps(mixed, ensure_ascii=False, indent=1).encode("utf-8")), "mismatched pipeline accepted"
-    assert manifest["rule_codes"] == rule_codes(), "manifest rule codes differ from export_v1"
+    assert manifest["rule_codes"] == rule_codes(E.SCHEMA_V1), "manifest rule codes differ from export_v1"
+    assert set(rule_codes(E.SCHEMA_V1)) < set(rule_codes()), "v1 codes must be a strict subset of v2's"
     assert manifest["canonical_units"] == E.CANON_UNITS and manifest["max_depth"] == E.MAX_DEPTH \
         and manifest["max_values"] == E.MAX_VALUES
     for f in manifest["accept"]:
@@ -278,8 +289,230 @@ def verify(fixtures: Path):
         sys.exit(1)
 
 
+# Catalogue v2 (docs/personal-food-catalogue-import-v2.md): v1 plus Open Food Facts projection v6.
+V6_BAR = "d" * 64
+V6_DRINK = "e" * 64
+V6_BAR_ID = f"pfc-off:sha256:{V6_BAR}:projection:off-product-projection-v6:retrieved:2026-11-13"
+V6_DRINK_ID = f"pfc-off:sha256:{V6_DRINK}:projection:off-product-projection-v6:retrieved:2026-11-13"
+
+
+def off_release(digest, rid, code):
+    return {**OFF_REL, "source_release_id": rid, "released_at": "2026-11-13T00:00:00Z", "artifact_sha256": digest,
+            "manifest_sha256": digest, "pipeline_version": "off-product-projection-v6",
+            "attribution": f"Open Food Facts · https://world.openfoodfacts.org/product/{code}"}
+
+
+def scaled(value, unit, source, serving, release=V6_BAR_ID, record="off:gtin:00000000000024", chain=False):
+    transforms = ([{"transform_id": "mass-g-to-mg", "version": "v1"}] if chain else []) \
+        + [{"transform_id": "off-serving-to-100", "version": "v1"}]
+    return {"value": value, "unit": unit, "source_kind": "exact_product_dataset", "source_release": release,
+            "record_id": record, "match": "probable", "transforms": transforms,
+            "source_value": {"value": source[0], "unit": source[1], "serving": serving}}
+
+
+def golden_v2():
+    d = golden()
+    d["schema"] = E.SCHEMA_V2
+    d["generated"] = "2026-11-13"
+    d["sources"] = sorted(d["sources"] + [off_release(V6_BAR, V6_BAR_ID, "00000024"),
+                                          off_release(V6_DRINK, V6_DRINK_ID, "00000031")],
+                          key=lambda x: x["source_release_id"])
+    serving = {"quantity": 28, "unit": "g"}
+    bar = entry(None, "Synthetic Serving Bar", concept="cereal bar", fallback_chain=["cereal bar"], category="snack",
+                product_type="packaged_composite", state="unknown", label_nutrients={
+        "energy_consumed": scaled(100 * (100 / 28), "kcal", (100, "kcal"), serving),
+        "protein": scaled(2.8 * (100 / 28), "g", (2.8, "g"), serving),
+        "sodium": scaled(0.112 * 1000 * (100 / 28), "mg", (0.112, "g"), serving, chain=True)})
+    drink = entry(None, "Synthetic Panel Drink", concept="juice", fallback_chain=["juice"], category="beverage",
+                  product_type="packaged_composite", state="unknown", basis="per_100_ml_as_labelled", label_nutrients={
+        "energy_consumed": {"value": 42, "unit": "kcal", "source_kind": "exact_product_dataset",
+                            "source_release": V6_DRINK_ID, "record_id": "off:gtin:00000000000031", "match": "probable"}})
+    d["items"] = sorted(d["items"] + [bar, drink], key=lambda x: x["id"])
+    return d
+
+
+bar = lambda d: find(d, "Synthetic Serving Bar")
+bar_value = lambda d, k: bar(d)["label_nutrients"][k]
+bar_kcal = lambda d: bar_value(d, "energy_consumed")
+bar_sod = lambda d: bar_value(d, "sodium")
+bar_protein = lambda d: bar_value(d, "protein")
+
+
+def _to_owner(v):
+    v.update(source_kind="manual_declaration", match="owner", record_id=None, source_release=OWNER_ID)
+
+
+def _bar_on_v5(d):
+    v5_id = V6_BAR_ID.replace("off-product-projection-v6", "off-product-projection-v5")
+    for s in d["sources"]:
+        if s["source_release_id"] == V6_BAR_ID:
+            s.update(source_release_id=v5_id, pipeline_version="off-product-projection-v5")
+    for v in bar(d)["label_nutrients"].values():
+        v["source_release"] = v5_id
+
+
+def _v1_with_serving(d):
+    d.update(schema=E.SCHEMA_V1)
+    for s in list(d["sources"]):
+        if ":off-product-projection-v6:" in s["source_release_id"]:
+            d["sources"].remove(s)
+    d["items"] = [i for i in d["items"] if i["title"] not in ("Synthetic Serving Bar", "Synthetic Panel Drink")]
+    sod(d)["source_value"]["serving"] = {"quantity": 100, "unit": "g"}
+
+
+CASES_V2 = {  # name: (expected rule code, mutation of golden_v2)
+    "v1-file-citing-v6": ("source-form", lambda d: d.update(schema=E.SCHEMA_V1)),
+    "v1-file-with-serving-key": ("source-value", _v1_with_serving),
+    "unknown-projection-v7": ("source-form", lambda d: d["sources"].append(off_release(
+        "f" * 64, f"pfc-off:sha256:{'f' * 64}:projection:off-product-projection-v7:retrieved:2026-11-13", "00000048"))),
+    "serving-without-transform": ("source-value", lambda d: bar_sod(d).update(
+        transforms=[{"transform_id": "mass-g-to-mg", "version": "v1"}])),
+    "transform-without-serving": ("source-value", lambda d: bar_kcal(d)["source_value"].pop("serving")),
+    "serving-quantity-zero": ("source-value", lambda d: bar_kcal(d)["source_value"]["serving"].update(quantity=0)),
+    "serving-quantity-negative": ("source-value", lambda d: bar_kcal(d)["source_value"]["serving"].update(quantity=-1)),
+    "serving-quantity-1e15": ("source-value", lambda d: bar_kcal(d)["source_value"]["serving"].update(quantity=1e15)),
+    "serving-quantity-text": ("source-value", lambda d: bar_kcal(d)["source_value"]["serving"].update(quantity="28")),
+    "serving-quantity-boolean": ("source-value", lambda d: bar_kcal(d)["source_value"]["serving"].update(quantity=True)),
+    "serving-unit-oz": ("source-value", lambda d: bar_kcal(d)["source_value"]["serving"].update(unit="oz")),
+    "serving-extra-key": ("source-value", lambda d: bar_kcal(d)["source_value"]["serving"].update(note="x")),
+    "serving-not-an-object": ("source-value", lambda d: bar_kcal(d)["source_value"].update(serving=28)),
+    "chain-reversed": ("transform-shape", lambda d: bar_sod(d)["transforms"].reverse()),
+    "chain-of-three": ("transform-shape", lambda d: bar_sod(d)["transforms"].append(
+        {"transform_id": "off-serving-to-100", "version": "v1"})),
+    "chain-on-non-sodium": ("transform-scope", lambda d: bar_protein(d).update(
+        transforms=[{"transform_id": "mass-g-to-mg", "version": "v1"}, {"transform_id": "off-serving-to-100", "version": "v1"}])),
+    "serving-ml-on-per-100-g": ("transform-scope", lambda d: [bar_value(d, k)["source_value"]["serving"].update(unit="ml")
+                                                            for k in ("energy_consumed", "protein", "sodium")]),
+    "serving-on-owner-value": ("transform-scope", lambda d: _to_owner(bar_kcal(d))),
+    "serving-citing-v5-release": ("transform-scope", _bar_on_v5),
+    "serving-on-non-off-nutrient": ("transform-scope", lambda d: bar(d)["label_nutrients"].update(
+        calcium=scaled(100.0, "mg", (28, "mg"), {"quantity": 28, "unit": "g"}))),
+    "serving-wrong-source-unit": ("transform-scope", lambda d: bar_kcal(d)["source_value"].update(unit="kJ")),
+    "serving-arithmetic-wrong": ("transform-arithmetic", lambda d: bar_kcal(d).update(value=100)),
+    "serving-arithmetic-just-above-tolerance": ("transform-arithmetic", lambda d: bar_kcal(d).update(
+        value=100 * (100 / 28) * 1.0051)),
+    "serving-implausible-grams": ("serving-implausible", lambda d: bar_protein(d).update(
+        value=30 * (100 / 28), source_value={"value": 30, "unit": "g", "serving": {"quantity": 28, "unit": "g"}})),
+    "serving-implausible-milligrams": ("serving-implausible", lambda d: bar_sod(d).update(
+        value=30 * 1000 * (100 / 28), source_value={"value": 30, "unit": "g", "serving": {"quantity": 28, "unit": "g"}})),
+    "serving-implausible-kilocalories": ("serving-implausible", lambda d: bar_kcal(d).update(
+        value=260 * (100 / 28), source_value={"value": 260, "unit": "kcal", "serving": {"quantity": 28, "unit": "g"}})),
+    "serving-mismatch-two-sizes": ("serving-mismatch", lambda d: bar_protein(d).update(
+        value=2.8 * (100 / 30), source_value={"value": 2.8, "unit": "g", "serving": {"quantity": 30, "unit": "g"}})),
+    "serving-mismatch-some-unscaled": ("serving-mismatch", lambda d: [bar_protein(d).pop(k) for k in ("transforms", "source_value")]),
+}
+ACCEPT_V2 = {  # name: mutation of golden_v2 that both checkers must accept
+    "serving-arithmetic-at-tolerance": lambda d: bar_kcal(d).update(value=100 * (100 / 28) * 1.005),
+    "v1-content-under-v2": lambda d: _v1_content(d),
+    "serving-ml-on-per-100-ml": lambda d: find(d, "Synthetic Panel Drink")["label_nutrients"].update(
+        energy_consumed=scaled(42 * (100 / 250), "kcal", (42, "kcal"), {"quantity": 250, "unit": "ml"},
+                               release=V6_DRINK_ID, record="off:gtin:00000000000031")),
+    "serving-quantity-written-as-decimal": lambda d: [bar_value(d, k)["source_value"]["serving"].update(quantity=28.0)
+                                                for k in ("energy_consumed", "protein", "sodium")],
+}
+
+
+def _v1_content(d):
+    d.clear()
+    d.update(golden(), schema=E.SCHEMA_V2)
+
+
+def write_v2(fixtures: Path):
+    fixtures.mkdir(parents=True, exist_ok=True)
+    for old_file in [*fixtures.glob("reject-*.json"), *fixtures.glob("accept-*.json")]:
+        old_file.unlink()
+    manifest = {"contract": "docs/personal-food-catalogue-import-v2.md", "schema": E.SCHEMA_V2, "golden": "golden.json",
+                "note": "each reject file must be rejected with the listed rule code among its errors",
+                "reject": {}}
+    (fixtures / "golden.json").write_text(json.dumps(golden_v2(), indent=1, ensure_ascii=False) + "\n")
+    for name, (code, f) in CASES_V2.items():
+        d = copy.deepcopy(golden_v2())
+        f(d)
+        (fixtures / f"reject-{name}.json").write_text(json.dumps(d, ensure_ascii=False) + "\n")
+        manifest["reject"][f"reject-{name}.json"] = code
+    manifest["generated_at_test_time"] = {}
+    manifest["accept"] = []
+    for name, f in ACCEPT_V2.items():
+        d = copy.deepcopy(golden_v2())
+        f(d)
+        (fixtures / f"accept-{name}.json").write_text(json.dumps(d, ensure_ascii=False) + "\n")
+        manifest["accept"].append(f"accept-{name}.json")
+    manifest["rule_codes"] = rule_codes()
+    manifest["v2_only_rule_codes"] = list(E.V2_RULE_CODES)
+    manifest["canonical_units"] = E.CANON_UNITS
+    manifest["max_depth"] = E.MAX_DEPTH
+    manifest["max_values"] = E.MAX_VALUES
+    (fixtures / "manifest.json").write_text(json.dumps(manifest, indent=1) + "\n")
+    print(f"wrote golden.json and {len(manifest['reject'])} v2 rejection fixtures to {fixtures}")
+
+
+def build_round_trip():
+    """The skill's own output passes its own check: off_rules.project (v6 serving) through build."""
+    import off_rules
+    product = {"code": "00000024", "product_name": "Synthetic bar", "quantity": "84 g",
+               "nutrition": {"input_sets": [{"source": "packaging", "per": "serving", "preparation": "as_sold",
+                                             "per_quantity": "28", "per_unit": "g", "nutrients": {
+                                                 "energy-kcal": {"value": 100, "unit": "kcal"},
+                                                 "proteins": {"value": 2.8, "unit": "g"},
+                                                 "sodium": {"value": 0.112, "unit": "g"}}}]}}
+    basis, record_id, release, values = off_rules.project(product, b"{}", "2026-11-13")
+    tiers = {k: {**v, "source": f"label:off:{record_id}", "release": release["source_release_id"]} for k, v in values.items()}
+    cat = {"items": [{"kind": "food", "title": "Synthetic Serving Bar", "brand": None, "basis": basis,
+                      "category": "snack", "product_type": "packaged_composite", "state": "unknown",
+                      "label_tiers": {"off": tiers}}],
+           "off_releases": {release["source_release_id"]: release}}
+    doc, _ = E.build(cat, {}, "2026-11-13")
+    data = json.dumps(doc, indent=1, ensure_ascii=False).encode()
+    errs = E.check_bytes(data) + E.check_export_conventions(doc)
+    assert doc["schema"] == E.SCHEMA_V2 and errs == [], f"build output rejected: {errs}"
+    sodium = doc["items"][0]["label_nutrients"]["sodium"]
+    assert [t["transform_id"] for t in sodium["transforms"]] == ["mass-g-to-mg", "off-serving-to-100"], sodium
+
+
+def change_report_counts():
+    """The rebuild report counts what changed, never a title."""
+    old = golden()
+    new = golden_v2()
+    report = E.change_report(old, new)
+    assert report == {"entries with scaled values": 1, "new entries": 2}, report
+    flipped = copy.deepcopy(old)
+    oats(flipped).update(basis="per_100_ml_as_labelled", generic_reference=dict(ref(flipped), role="candidate"))
+    report = E.change_report(old, flipped)
+    assert report["entries changing basis"] == 1 and report["entries losing a merge"] == 1, report
+    assert not any("Synthetic" in k for k in report), report
+
+
+def verify_v2(fixtures: Path, manifest):
+    golden_bytes = (fixtures / manifest["golden"]).read_bytes()
+    errs = E.check_bytes(golden_bytes) + E.check_export_conventions(json.loads(golden_bytes))
+    assert errs == [], f"v2 golden rejected: {errs}"
+    assert manifest["rule_codes"] == rule_codes(), "v2 manifest rule codes differ from export_v1"
+    assert manifest["v2_only_rule_codes"] == list(E.V2_RULE_CODES)
+    assert manifest["canonical_units"] == E.CANON_UNITS and manifest["max_depth"] == E.MAX_DEPTH \
+        and manifest["max_values"] == E.MAX_VALUES
+    for f in manifest["accept"]:
+        errs = E.check_bytes((fixtures / f).read_bytes())
+        assert errs == [], f"{f} rejected: {errs}"
+    build_round_trip()
+    change_report_counts()
+    wrong = []
+    for f, code in manifest["reject"].items():
+        got = codes((fixtures / f).read_bytes())
+        if code not in got:
+            wrong.append((f, code, sorted(got)))
+    total = len(manifest["reject"])
+    print(f"v2 golden accepted (release pfc:sha256:{hashlib.sha256(golden_bytes).hexdigest()[:16]}...); "
+          f"{total - len(wrong)} of {total} v2 rejection fixtures rejected with their expected rule code; build round trip passes")
+    if wrong:
+        for w in wrong:
+            print("  WRONG:", w)
+        sys.exit(1)
+
+
 if __name__ == "__main__":
-    if sys.argv[2] == "--write":
+    if sys.argv[2] == "--write-v2":
+        write_v2(Path(sys.argv[3]))
+    elif sys.argv[2] == "--write":
         write(Path(sys.argv[3]))
     else:
         verify(Path(sys.argv[2]))

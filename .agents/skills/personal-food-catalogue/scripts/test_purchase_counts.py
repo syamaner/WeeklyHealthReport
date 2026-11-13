@@ -12,9 +12,9 @@ import purchase_counts as P  # noqa: E402
 from export_v1 import entry_id  # noqa: E402
 
 
-def export(*pairs):
+def export(*pairs, schema="personal-food-catalogue-v1"):
     items = [{"id": entry_id(b, t), "brand": b, "title": t} for b, t in pairs]
-    return json.dumps({"schema": "personal-food-catalogue-v1", "items": items}).encode()
+    return json.dumps({"schema": schema, "items": items}).encode()
 
 
 def food(brand, title, lines, kind="food"):
@@ -33,6 +33,14 @@ class PurchaseCounts(unittest.TestCase):
         self.assertEqual(doc["counts"], dict(sorted({entry_id(None, "Synthetic oats"): 5,
                                                      entry_id("Brandless", "Synthetic rice"): 1,
                                                      entry_id(None, "Synthetic note food"): 0}.items())))
+
+    def test_a_v2_import_file_counts_the_same_and_another_schema_is_refused(self):
+        cat = {"items": [food(None, "Synthetic oats", 3)]}
+        v1 = P.purchase_counts(cat, export((None, "Synthetic oats")))["counts"]
+        v2 = P.purchase_counts(cat, export((None, "Synthetic oats"), schema="personal-food-catalogue-v2"))["counts"]
+        self.assertEqual(v1, v2)
+        with self.assertRaises(P.CountsError):
+            P.purchase_counts(cat, export((None, "Synthetic oats"), schema="personal-food-catalogue-v3"))
 
     def test_a_bought_food_missing_from_the_export_is_refused_without_its_title(self):
         with self.assertRaises(P.CountsError) as cm:

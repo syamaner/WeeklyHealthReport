@@ -6,3 +6,5 @@ Packages/FoodLedgerKit/Sources/NutritionLabelParsing/Resources/*.txt linguist-ge
 # Shared import v1 fixtures (#424): byte-exact, because tests pin the golden file's SHA-256 and
 # both checkers read the same bytes.
 docs/fixtures/personal-food-database-v1/* -text
+# Shared import v2 fixtures (Open Food Facts projection v6): byte-exact for the same reason.
+docs/fixtures/personal-food-database-v2/* -text

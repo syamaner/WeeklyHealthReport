@@ -87,7 +87,7 @@ final class PersonalFoodDatabaseSearchTests: XCTestCase {
     func manifest(_ bytes: Data) throws -> PersonalFoodDatabaseManifest {
         let digest = try SHA256Digester().sha256(bytes)
         guard case let .success(file) = PersonalFoodDatabaseCodec.decode(bytes) else { throw FoodLedgerValidationError.invalidBasis }
-        return PersonalFoodDatabaseManifest(schema: PersonalFoodDatabaseFile.schema,
+        return PersonalFoodDatabaseManifest(schema: file.schema.rawValue,
             releaseID: PersonalFoodDatabaseRelease.releaseID(fileSHA256: digest), fileSHA256: digest,
             generated: file.generated, importedAt: Date(timeIntervalSince1970: 1_794_000_000), entryCount: file.entries.count)
     }
@@ -489,5 +489,74 @@ final class PersonalFoodDatabaseSearchTests: XCTestCase {
         let stale = FoodReresolutionTarget(sourceRelease: FakeResolver.release,
                                            methodVersion: try LedgerText(PersonalFoodDatabaseCandidateBuilder.methodVersion))
         XCTAssertFalse(try provider.targets().contains(stale))
+    }
+
+    // MARK: Import v2: values scaled from an Open Food Facts per-serving panel (projection v6)
+
+    static let fixturesV2 = fixtures.deletingLastPathComponent().appendingPathComponent("personal-food-database-v2")
+
+    func builtV2(_ fixture: String = "golden.json", title: String) throws -> (PersonalFoodDatabaseIndex.Snapshot,
+                                                                               PersonalFoodDatabaseCandidateBuilder.Built) {
+        let snapshot = try snapshot(Data(contentsOf: Self.fixturesV2.appendingPathComponent(fixture)))
+        let entry = try XCTUnwrap(snapshot.file.entries.first { $0.title == title })
+        return (snapshot, try XCTUnwrap(build(snapshot, id: entry.id)))
+    }
+
+    func testScaledValuesKeepTheirPerServingSourceAndTransformsInFileOrder() throws {
+        let (snapshot, built) = try builtV2(title: "Synthetic Serving Bar")
+        XCTAssertEqual(snapshot.release.schemaVersion.value, "personal-food-catalogue-v2")
+        let serving = try PositiveQuantity(value: 28, unit: .grams)
+        guard case let .augmented(energy)? = value(built, .energyConsumed) else { return XCTFail("product value is augmented") }
+        XCTAssertEqual(energy.amount, 100 * (100 / 28.0), accuracy: 1e-9)
+        XCTAssertEqual(energy.sourceValue, .exact(try SourceExactNutrientValue(amount: 100, unit: LedgerText("kcal"),
+                                                                                basis: .perServing(serving))))
+        XCTAssertEqual(energy.provenance.first?.transforms.map(\.transformID.value), ["off-serving-to-100"])
+        XCTAssertFalse(NutrientDerivation.isCalculated(.augmented(energy)), "scaling is not a calculation: calculated false")
+        guard case let .augmented(sodium)? = value(built, .sodium) else { return XCTFail("product value is augmented") }
+        XCTAssertEqual(sodium.provenance.first?.transforms.map(\.transformID.value), ["mass-g-to-mg", "off-serving-to-100"])
+        XCTAssertEqual(sodium.sourceValue, .exact(try SourceExactNutrientValue(amount: 0.112, unit: LedgerText("g"),
+                                                                                basis: .perServing(serving))))
+        XCTAssertFalse(NutrientDerivation.isCalculated(.augmented(sodium)))
+        XCTAssertEqual(built.candidate.candidate.matchMetadata?.materialDifferences.map(\.value),
+                       ["Your food database entry · per 100 g", "Some values scaled from a 28 g serving"])
+        XCTAssertTrue(built.releases.contains { $0.pipelineVersion.value == "off-product-projection-v6" })
+    }
+
+    func testScaledCandidateRoundTripsByteStable() throws {
+        let (_, built) = try builtV2(title: "Synthetic Serving Bar")
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let first = try encoder.encode(built.candidate)
+        let again = try encoder.encode(try JSONDecoder().decode(PopulatedFoodCandidate.self, from: first))
+        XCTAssertEqual(first, again)
+    }
+
+    func testPanelWinsEntryNeedsNoServingLineAndMillilitreServingSaysMl() throws {
+        let (_, drink) = try builtV2(title: "Synthetic Panel Drink")
+        XCTAssertEqual(drink.candidate.candidate.matchMetadata?.materialDifferences.map(\.value),
+                       ["Your food database entry · per 100 mL as labelled"])
+        let (_, scaled) = try builtV2("accept-serving-ml-on-per-100-ml.json", title: "Synthetic Panel Drink")
+        XCTAssertEqual(scaled.candidate.candidate.matchMetadata?.materialDifferences.map(\.value).last,
+                       "Some values scaled from a 250 ml serving")
+    }
+
+    func testServingTextIsSharedWithTheBarcodeRoute() throws {
+        XCTAssertEqual(OpenFoodFactsServingText.number(28), "28")
+        XCTAssertEqual(OpenFoodFactsServingText.number(12.5), "12.5")
+        XCTAssertEqual(OpenFoodFactsServingText.number(100), "100")
+        XCTAssertEqual(OpenFoodFactsServingText.databaseEntryNote(try PositiveQuantity(value: 12.5, unit: .grams)),
+                       "Some values scaled from a 12.5 g serving")
+    }
+
+    func testAManifestNamingAnotherSchemaThanTheFileIsDamaged() throws {
+        let bytes = try Data(contentsOf: Self.fixturesV2.appendingPathComponent("golden.json"))
+        let good = try manifest(bytes)
+        let store = InMemoryPersonalFoodDatabaseStore()
+        try store.install(bytes: bytes, manifest: PersonalFoodDatabaseManifest(schema: PersonalFoodDatabaseSchema.v1.rawValue,
+            releaseID: good.releaseID, fileSHA256: good.fileSHA256, generated: good.generated, importedAt: good.importedAt,
+            entryCount: good.entryCount))
+        let index = PersonalFoodDatabaseIndex(store: store, resolver: FakeResolver())
+        index.warm()
+        XCTAssertNil(index.snapshot())
     }
 }

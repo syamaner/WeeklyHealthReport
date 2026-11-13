@@ -11,6 +11,9 @@ import Foundation
 /// <root>/ImportStaging/personal-food-database-<uuid>/
 /// ```
 ///
+/// The data file name is a fixed storage name, not the file's schema: a `personal-food-catalogue-v2`
+/// file is stored under it too, so an installed database keeps loading (import v2, owner decision 4).
+///
 /// `root` is the app's `FoodLedger/v1/` folder, inside the backup-excluded `WeeklyHealthReport/`
 /// root. Nothing touches the disk until a method is called, so building the store while the phone
 /// is locked is safe.
@@ -280,7 +283,8 @@ struct PersonalFoodDatabaseStoredManifest: Codable, Equatable {
 
     /// Nil for any version, schema, date, digest or count this store did not write.
     var manifest: PersonalFoodDatabaseManifest? {
-        guard version == Self.currentVersion, schema == PersonalFoodDatabaseFile.schema, entryCount >= 0,
+        // Either accepted file schema (import v2); the data file name stays a fixed storage name.
+        guard version == Self.currentVersion, PersonalFoodDatabaseSchema(rawValue: schema) != nil, entryCount >= 0,
               let digest = try? SHA256Digest(fileSHA256),
               let date = PersonalFoodDatabaseDate(ascii: Array(generated.utf8)),
               let imported = try? Date(importedAt, strategy: Date.ISO8601FormatStyle()),

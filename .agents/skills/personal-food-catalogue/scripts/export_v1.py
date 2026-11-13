@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
-"""Write the importable file defined by docs/personal-food-catalogue-import-v1.md (revision 5).
+"""Write the importable file defined by docs/personal-food-catalogue-import-v1.md (revision 5) and
+its v2 delta, docs/personal-food-catalogue-import-v2.md (Open Food Facts projection v6).
 
 Input: out/personal-food-catalogue.json (working form). Output:
-out/personal-food-catalogue-v1.json. The file carries no self-hash; the app derives the
+out/personal-food-catalogue-v2.json, always schema personal-food-catalogue-v2 (owner decision,
+13 November 2026). check_bytes also checks v1 files under the v1 rules, unchanged. The module keeps
+its name; it is not a contract. The file carries no self-hash; the app derives the
 release ID from the exact bytes (pfc:sha256:<hex>), and this script prints the same ID.
 The export runs the importer's rejection rules (check_bytes) on its own output and refuses
 to write a file the app would reject.
@@ -57,6 +60,17 @@ TRANSFORMS = {  # (id, version): (nutrient, source unit, source_kind, function f
     ("mass-g-to-mg", "v1"): ("sodium", "g", "exact_product_dataset", lambda v: v * 1000),
 }
 TOLERANCE = 0.005  # relative, for transform arithmetic
+SCHEMA_V1, SCHEMA_V2 = "personal-food-catalogue-v1", "personal-food-catalogue-v2"
+SCHEMA = SCHEMA_V2  # what build() writes
+# Catalogue v2 (import v2 section 3): the app's per-serving scaling, off-product-projection-v6.
+MASS_G_TO_MG = ("mass-g-to-mg", "v1")
+SERVING_TO_100 = ("off-serving-to-100", "v1")  # not a calculation (calculated: false)
+SERVING_NUTRIENTS = {"energy_consumed", "protein", "carbohydrates", "fat_total", "fat_saturated", "fiber", "sugar",
+                     "sodium"}  # the eight Open Food Facts fields
+PLAUSIBLE_MAXIMUM = {"g": 100.0, "mg": 100_000.0, "kcal": 900.0}  # per 100, as the app's v6 declines
+SERVING_UNITS = {"per_100_g": "g", "per_100_ml_as_labelled": "ml"}
+OFF_V6 = "off-product-projection-v6"
+V2_RULE_CODES = ("serving-implausible", "serving-mismatch")  # emitted for v2 files only
 GENERIC_SOURCES = {"cofid", "usda", "tfda"}
 GENERIC_MATCHES = {"same_food_same_state", "close"}
 SOURCE_IDS = {"open-food-facts", "owner"}
@@ -69,10 +83,13 @@ SOURCE_PINS = {  # every release field except the hashes and date is fixed per s
 }
 # #458: v5 entries are built under the panel-stated basis rule; v4 entries built before it stay valid.
 OFF_PROJECTIONS = {"off-product-projection-v4", "off-product-projection-v5"}
+OFF_PROJECTIONS_V2 = OFF_PROJECTIONS | {OFF_V6}  # catalogue v2 only
 RELEASE_PATTERNS = {
     "open-food-facts": re.compile(r"pfc-off:sha256:[0-9a-f]{64}:projection:off-product-projection-v[45]:retrieved:[0-9]{4}-[0-9]{2}-[0-9]{2}"),
     "owner": re.compile(r"owner:sha256:[0-9a-f]{64}"),
 }
+RELEASE_PATTERNS_V2 = {**RELEASE_PATTERNS, "open-food-facts": re.compile(
+    r"pfc-off:sha256:[0-9a-f]{64}:projection:off-product-projection-v[456]:retrieved:[0-9]{4}-[0-9]{2}-[0-9]{2}")}
 SWIFT_PINS = {
     "cofid": ("cofid-2021-generic-search-v1.json", "CoFIDGenericFoodSearch.swift", "corpusCanonicalSHA256"),
     "usda": ("usda-generic-v1.json", "USDAGenericFoodSearch.swift", "corpusSHA256"),
@@ -212,7 +229,7 @@ def build(cat, pins, generated):
             "generic_reference": choose_reference({**i, "state": fixed["state"]}, pins, basis),
         })
     items.sort(key=lambda x: x["id"])
-    doc = {"schema": "personal-food-catalogue-v1", "generated": generated,
+    doc = {"schema": SCHEMA, "generated": generated,
            "sources": sorted(sources.values(), key=lambda s: s["source_release_id"]),
            "generic_corpora": [{"source": k, "corpus_sha256": h} for k, h in sorted(pins.items())],
            "items": items}
@@ -301,7 +318,8 @@ def _no_duplicate_keys(pairs):
     return dict(pairs)
 
 
-def _check_value(where, k, v, declared, err):
+def _check_value(where, k, v, declared, err, v2=False, basis=None):
+    """Returns (release, serving) for a product value under v2, for the serving-mismatch rule."""
     if k not in CANON_UNITS:
         return err("unknown-nutrient", f"{where}: {k}")
     if not isinstance(v, dict):
@@ -326,6 +344,8 @@ def _check_value(where, k, v, declared, err):
         err("undeclared-release", f"{where}: {k}")
     elif {"manual_declaration": "owner", "exact_product_dataset": "open-food-facts"}[kind] != src["source_id"]:
         err("release-kind", f"{where}: {k}")
+    if v2:
+        return _check_value_v2(where, k, v, kind, src, basis, err)
     if "transforms" in v:
         tr, sv = v["transforms"], v["source_value"]
         if not isinstance(sv, dict) or set(sv) != {"value", "unit"} or not _num(sv.get("value")) \
@@ -343,11 +363,69 @@ def _check_value(where, k, v, declared, err):
             err("transform-arithmetic", f"{where}: {k}")
 
 
+def _serving_quantity_ok(q):
+    if isinstance(q, bool) or not isinstance(q, (int, float)):
+        return False
+    try:
+        return math.isfinite(q) and q > 0 and float(q) < 1e15
+    except OverflowError:
+        return False
+
+
+def _check_value_v2(where, k, v, kind, src, basis, err):
+    """Catalogue v2 transforms (import v2 section 3); everything before them is the v1 rule."""
+    product = kind == "exact_product_dataset" and isinstance(v["source_release"], str)
+    if "transforms" not in v:
+        return (v["source_release"], None) if product else None
+    tr, sv = v["transforms"], v["source_value"]
+    if not isinstance(sv, dict) or set(sv) not in ({"value", "unit"}, {"value", "unit", "serving"}) \
+            or not _num(sv.get("value")) or not isinstance(sv.get("unit"), str):
+        return err("source-value", f"{where}: {k}")
+    serving = sv.get("serving")
+    if "serving" in sv and not (isinstance(serving, dict) and set(serving) == {"quantity", "unit"}
+                                and _serving_quantity_ok(serving["quantity"]) and serving["unit"] in ("g", "ml")):
+        return err("source-value", f"{where}: {k} serving must be {{quantity above 0, unit g or ml}}")
+    if not isinstance(tr, list) or len(tr) not in (1, 2) or not all(
+            isinstance(t, dict) and set(t) == {"transform_id", "version"} and all(isinstance(x, str) for x in t.values())
+            for t in tr):
+        return err("transform-shape", f"{where}: {k}")
+    pairs = [(t["transform_id"], t["version"]) for t in tr]
+    if len(pairs) == 2 and pairs != [MASS_G_TO_MG, SERVING_TO_100]:
+        return err("transform-shape", f"{where}: {k} the only chain is mass-g-to-mg then off-serving-to-100")
+    if (SERVING_TO_100 in pairs) != ("serving" in sv):
+        return err("source-value", f"{where}: {k} serving and off-serving-to-100 come together or not at all")
+    if any(p not in TRANSFORMS and p != SERVING_TO_100 for p in pairs):
+        return err("transform-unknown", f"{where}: {k}")
+    unit, expected = sv["unit"], sv["value"]
+    for p in pairs:
+        if p == SERVING_TO_100:
+            ok = k in SERVING_NUTRIENTS and kind == "exact_product_dataset" and unit == CANON_UNITS[k] \
+                and src is not None and src["pipeline_version"] == OFF_V6 and serving["unit"] == SERVING_UNITS.get(basis)
+            expected = expected * (100 / serving["quantity"])
+        else:
+            rule = TRANSFORMS[p]
+            ok = rule[0] == k and rule[1] == unit and rule[2] == kind
+            expected, unit = rule[3](expected), CANON_UNITS[k]
+        if not ok:
+            return err("transform-scope", f"{where}: {k} transform does not apply to this nutrient, unit, source or basis")
+    if _num(v["value"]):
+        if abs(expected - v["value"]) > TOLERANCE * abs(expected) + 1e-9:
+            err("transform-arithmetic", f"{where}: {k}")
+        elif "serving" in sv and v["value"] > PLAUSIBLE_MAXIMUM[CANON_UNITS[k]]:
+            err("serving-implausible", f"{where}: {k} more than any food holds per 100")
+    if product:
+        return v["source_release"], (serving["quantity"], serving["unit"]) if "serving" in sv else None
+    return None
+
+
 def _check(doc, err):
     if not isinstance(doc, dict) or set(doc) != TOP_KEYS:
         return err("top-keys", f"top-level keys must be exactly {sorted(TOP_KEYS)}")
-    if doc["schema"] != "personal-food-catalogue-v1":
+    v2 = doc["schema"] == SCHEMA_V2  # an unknown schema keeps the v1 rules for the rest
+    if doc["schema"] != SCHEMA_V1 and not v2:
         err("schema", "unknown schema")
+    patterns = RELEASE_PATTERNS_V2 if v2 else RELEASE_PATTERNS
+    projections = OFF_PROJECTIONS_V2 if v2 else OFF_PROJECTIONS
     if not _date(doc["generated"]):
         err("generated", "generated must be a real YYYY-MM-DD date")
     declared = {}
@@ -358,7 +436,7 @@ def _check(doc, err):
             err("source-fields", "a source is missing a release field")
             continue
         sid, kind = s["source_release_id"], s["source_id"]
-        if kind not in SOURCE_IDS or not RELEASE_PATTERNS[kind].fullmatch(sid):
+        if kind not in SOURCE_IDS or not patterns[kind].fullmatch(sid):
             err("source-form", f"{sid[:40]}")
             continue
         id_hash = sid.split(":")[2]
@@ -370,7 +448,7 @@ def _check(doc, err):
         attribution_ok = (re.fullmatch(r"Open Food Facts · https://world\.openfoodfacts\.org/product/[0-9]{8,14}",
                                        s["attribution"]) is not None) if kind == "open-food-facts" \
             else s["attribution"] == pins["attribution"]
-        pipeline_ok = (s["pipeline_version"] in OFF_PROJECTIONS and sid.split(":")[4] == s["pipeline_version"]) \
+        pipeline_ok = (s["pipeline_version"] in projections and sid.split(":")[4] == s["pipeline_version"]) \
             if kind == "open-food-facts" else s["pipeline_version"] == pins["pipeline_version"]
         if any(s[f] != pins[f] for f in ("schema_version", "licence")) or not pipeline_ok or not attribution_ok:
             err("source-pins", f"{sid[:40]}: schema, pipeline, licence or attribution off-pin")
@@ -433,8 +511,13 @@ def _check(doc, err):
         if not isinstance(it["label_nutrients"], dict):
             err("label-nutrients", where)
             continue
+        servings = {}
         for k, v in it["label_nutrients"].items():
-            _check_value(where, k, v, declared, err)
+            got = _check_value(where, k, v, declared, err, v2, it["basis"])
+            if got is not None:
+                servings.setdefault(got[0], set()).add(got[1])
+        if any(len(s) > 1 for s in servings.values()):
+            err("serving-mismatch", f"{where}: values from one release disagree on the serving size")
 
 
 def check_bytes(data: bytes):
@@ -484,6 +567,28 @@ def check_export_conventions(doc):
     return errs
 
 
+def change_report(old, new):
+    """Counts only (import v2 section 5): how a rebuild changes entries present in both files. The
+    private workspace keeps it; nothing here names a food."""
+    before = {it["id"]: it for it in (old or {}).get("items", []) if isinstance(it, dict) and "id" in it}
+    counts = Counter()
+    for it in new["items"]:
+        was = before.get(it["id"])
+        if was is None:
+            counts["new entries"] += 1
+            continue
+        if len(it["label_nutrients"]) > len(was.get("label_nutrients") or {}):
+            counts["entries gaining label values"] += 1
+        if it["basis"] != was.get("basis"):
+            counts["entries changing basis"] += 1
+        old_role = (was.get("generic_reference") or {}).get("role")
+        if old_role == "merge" and (it["generic_reference"] or {}).get("role") != "merge":
+            counts["entries losing a merge"] += 1
+    counts["entries with scaled values"] = sum(
+        any("serving" in (v.get("source_value") or {}) for v in it["label_nutrients"].values()) for it in new["items"])
+    return dict(sorted(counts.items()))
+
+
 def main(ws: Path, repo: Path):
     out = ws / "out"
     cat = json.load(open(out / "personal-food-catalogue.json"))
@@ -501,7 +606,10 @@ def main(ws: Path, repo: Path):
             print("  -", e)
         sys.exit(2)
     from workspace_guard import check_output
-    p = check_output(out / "personal-food-catalogue-v1.json")
+    previous = next((out / n for n in ("personal-food-catalogue-v2.json", "personal-food-catalogue-v1.json")
+                     if (out / n).exists()), None)
+    report = change_report(json.loads(previous.read_bytes()) if previous else None, doc)
+    p = check_output(out / "personal-food-catalogue-v2.json")
     p.write_bytes(data)
     p.chmod(0o600)
     refs = [it["generic_reference"] for it in doc["items"] if it["generic_reference"]]
@@ -510,6 +618,7 @@ def main(ws: Path, repo: Path):
           f"references, {sum(bool(it['label_nutrients']) for it in doc['items'])} with label values, "
           f"{len(doc['sources'])} source releases)")
     print(f"release pfc:sha256:{hashlib.sha256(data).hexdigest()}")
+    print(f"changes against {previous.name if previous else 'no previous file'}: {report}")
     if REPLACED:
         print(f"replaced values outside the closed vocabularies: {dict(REPLACED)}")
     if withheld:

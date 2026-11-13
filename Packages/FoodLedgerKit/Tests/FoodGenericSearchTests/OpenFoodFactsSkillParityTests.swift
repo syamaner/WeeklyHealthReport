@@ -1,10 +1,12 @@
+import CryptoKit
 import Foundation
 @testable import FoodGenericSearch
 import FoodLedgerApplication
 import FoodLedgerDomain
 import XCTest
 
-/// Open Food Facts parity (personal-food-catalogue-import-v1 section 9; phase 1 plan 2.1 item 6, 5.1 item 11).
+/// Open Food Facts parity (personal-food-catalogue-import-v1 section 9, import v2 section 5; phase 1 plan 2.1 item 6,
+/// 5.1 item 11).
 ///
 /// Reproduces every check in `.agents/skills/personal-food-catalogue/scripts/test_off_rules.py` (the Python port,
 /// `off_rules.py`) against the app's own `OpenFoodFactsLookup.project`, using synthetic v3.6 product records only.
@@ -15,10 +17,10 @@ import XCTest
 /// the catalogue v1 format has no bounded state, so the skill leaves that nutrient out. The parity check for that case
 /// asserts that the app gives a bounded value, never an exact one.
 ///
-/// Second known difference: the skill's port stays on `off-product-projection-v5`, because the catalogue codec accepts
-/// only v4 and v5 releases. The app's v6 (docs/off-barcode-candidate-plan-v1.md) only admits records v5 refuses (a per
-/// serving panel, or a lone per 100 panel that contradicts the pack) and projects every v5 admission unchanged, so the
-/// two cases where the port refuses and the app now admits assert the app's v6 result.
+/// Since import v2 (docs/personal-food-catalogue-import-v2.md) the port follows `off-product-projection-v6` too: the
+/// panel wins over a contradicting pack, and a single per-serving panel is scaled to per 100, so those cases are ordinary
+/// parity cases, mirrored one for one in `test_off_rules.py`. The plausibility check covers bound ends as well, so the
+/// port refuses exactly the records the app declines, although it leaves the bounds themselves out.
 ///
 /// Skill-only checks with no app equivalent:
 /// - "release fields are a function of its ID (retrieved date in both)": the `pfc-off:` release form and its
@@ -178,10 +180,11 @@ final class OpenFoodFactsSkillParityTests: XCTestCase {
         XCTAssertEqual(basis(try admitted(modern(per: "100ml", quantity: "1 l"))), .per100Millilitres)
     }
 
-    func testPer100GramPanelOnVolumeProductUsesThePanelInTheAppOnly() throws {
-        // Known difference (off-product-projection-v6, "the panel wins"): the skill, still on v5, refuses a lone per
-        // 100 g panel on a volume pack; the app admits it with the panel's own basis under a v6 release.
-        try assertPanelWins(modern(per: "100g", quantity: "1 l"), basis: .per100Grams)
+    func testPer100GramPanelOnVolumeProductUsesThePanel() throws {
+        // off-product-projection-v6, "the panel wins": a lone per 100 g panel on a volume pack keeps its own basis.
+        let input = try assertPanelWins(modern(per: "100g", quantity: "1 l"), basis: .per100Grams)
+        guard case let .augmented(sodium) = value(input, .sodium) else { return XCTFail("Expected exact sodium") }
+        XCTAssertEqual(sodium.provenance.first?.transforms.map(\.transformID.value), ["mass-g-to-mg"], "no scaling")
     }
 
     func testLessThanValueIsNeverExact() throws {
@@ -241,18 +244,194 @@ final class OpenFoodFactsSkillParityTests: XCTestCase {
         XCTAssertEqual(try run(legacy(["quantity": "3 oz"])), .insufficientData)
     }
 
-    func testMassPackWithALonePer100MillilitrePanelUsesThePanelInTheAppOnly() throws {
-        // Known difference (off-product-projection-v6, "the panel wins"): the skill, still on v5, refuses this record.
+    func testMassPackWithALonePer100MillilitrePanelUsesThePanel() throws {
         try assertPanelWins(modern(per: "100ml", quantity: "500 g"), basis: .per100Millilitres)
     }
 
+    @discardableResult
     private func assertPanelWins(_ product: [String: Any], basis expected: ResolutionBasis,
-                                 file: StaticString = #filePath, line: UInt = #line) throws {
+                                 file: StaticString = #filePath, line: UInt = #line) throws -> PopulatedFoodConfirmation {
         let input = try admitted(product, file: file, line: line)
         XCTAssertEqual(basis(input), expected, file: file, line: line)
-        let release = try XCTUnwrap(input.sourceReleases.first, file: file, line: line)
-        XCTAssertEqual(release.pipelineVersion.value, "off-product-projection-v6", file: file, line: line)
-        XCTAssertTrue(release.sourceReleaseID.value.contains(":off-product-projection-v6:"), file: file, line: line)
+        assertProjection(input, "off-product-projection-v6", file: file, line: line)
+        return input
+    }
+
+    private func assertProjection(_ input: PopulatedFoodConfirmation, _ version: String,
+                                  file: StaticString = #filePath, line: UInt = #line) {
+        guard let release = input.sourceReleases.first else { return XCTFail("Expected a release", file: file, line: line) }
+        XCTAssertEqual(release.pipelineVersion.value, version, file: file, line: line)
+        XCTAssertTrue(release.sourceReleaseID.value.contains(":\(version):"), file: file, line: line)
+    }
+
+    // MARK: off-product-projection-v6 per-serving panels, the same cases as `serving()` in test_off_rules.py
+
+    private func serving(quantity: String? = "500 g", perQuantity: Any? = 28, perUnit: Any? = "g",
+                         sodium: (Double, String) = (0.4, "g"), extra: [[String: Any]] = [],
+                         modifier: (String, Double)? = nil, energy: Double = 100) -> [String: Any] {
+        var nutrients: [String: Any] = ["energy-kcal": ["value": energy, "unit": "kcal"],
+                                        "sodium": ["value": sodium.0, "unit": sodium.1]]
+        if let modifier { nutrients["sugars"] = ["value": modifier.1, "unit": "g", "modifier": modifier.0] }
+        var panel: [String: Any] = ["source": "packaging", "per": "serving", "preparation": "as_sold", "nutrients": nutrients]
+        if let perQuantity { panel["per_quantity"] = perQuantity }
+        if let perUnit { panel["per_unit"] = perUnit }
+        var product: [String: Any] = ["code": "00000017", "product_name": "Synthetic bar", "nutrition": ["input_sets": [panel] + extra]]
+        if let quantity { product["quantity"] = quantity }
+        return product
+    }
+
+    private func perServing(_ value: Double, _ unit: QuantityUnit) throws -> ResolutionBasis {
+        .perServing(try PositiveQuantity(value: value, unit: unit))
+    }
+
+    func testNumericServingScaledWithTransformAndPerServingSource() throws {
+        let input = try admitted(serving(sodium: (0.112, "mg")))
+        XCTAssertEqual(basis(input), .per100Grams)
+        assertProjection(input, "off-product-projection-v6")
+        guard case let .augmented(energy) = value(input, .energyConsumed) else { return XCTFail("Expected exact energy") }
+        XCTAssertEqual(energy.amount, 100 * 100 / 28, accuracy: 1e-9)
+        XCTAssertEqual(energy.provenance.first?.transforms.map(\.transformID.value), ["off-serving-to-100"])
+        XCTAssertEqual(energy.sourceValue, .exact(try SourceExactNutrientValue(amount: 100, unit: LedgerText("kcal"),
+                                                                                basis: perServing(28, .grams))))
+    }
+
+    func testTextServingScaled() throws {
+        let input = try admitted(serving(perQuantity: "12.5", sodium: (0.112, "mg")))
+        XCTAssertEqual(exact(value(input, .energyConsumed))?.amount ?? 0, 100 * 8, accuracy: 1e-9)
+        XCTAssertEqual(exact(value(input, .energyConsumed))?.sourceValue,
+                       .exact(try SourceExactNutrientValue(amount: 100, unit: LedgerText("kcal"), basis: perServing(12.5, .grams))))
+    }
+
+    func testServingOfExactly100StillCarriesTheTransform() throws {
+        let energy = exact(value(try admitted(serving(perQuantity: 100, sodium: (0.112, "mg"))), .energyConsumed))
+        XCTAssertEqual(energy?.amount, 100)
+        XCTAssertEqual(energy?.provenance.first?.transforms.map(\.transformID.value), ["off-serving-to-100"])
+    }
+
+    func testMillilitreServingOnAMassPackGivesPer100Millilitres() throws {
+        let input = try admitted(serving(perQuantity: 250, perUnit: "ml", sodium: (0.112, "mg")))
+        XCTAssertEqual(basis(input), .per100Millilitres)
+        XCTAssertEqual(exact(value(input, .energyConsumed))?.sourceValue,
+                       .exact(try SourceExactNutrientValue(amount: 100, unit: LedgerText("kcal"), basis: perServing(250, .millilitres))))
+        XCTAssertTrue(input.candidates.first?.variant?.value.contains("scaled from a 250 ml serving") == true)
+    }
+
+    func testSodiumInGramsGivesTheTwoTransformChainInOrder() throws {
+        guard case let .augmented(sodium) = value(try admitted(serving(sodium: (0.112, "g"))), .sodium) else {
+            return XCTFail("Expected exact sodium")
+        }
+        XCTAssertEqual(sodium.provenance.first?.transforms.map(\.transformID.value), ["mass-g-to-mg", "off-serving-to-100"])
+        XCTAssertEqual(sodium.amount, 0.112 * 1000 * (100 / 28), accuracy: 1e-9)
+        XCTAssertEqual(sodium.sourceValue, .exact(try SourceExactNutrientValue(amount: 0.112, unit: LedgerText("g"),
+                                                                                basis: perServing(28, .grams))))
+    }
+
+    func testTwoServingPanelsRefused() throws {
+        var product = serving()
+        var nutrition = product["nutrition"] as! [String: Any]
+        var sets = nutrition["input_sets"] as! [[String: Any]]
+        var second = sets[0]; second["per_quantity"] = 30
+        sets.append(second); nutrition["input_sets"] = sets; product["nutrition"] = nutrition
+        XCTAssertEqual(try run(product), .insufficientData)
+    }
+
+    func testServingPanelBesideAPer100PanelIsIgnored() throws {
+        let input = try admitted(serving(extra: [["source": "packaging", "per": "100g", "preparation": "as_sold",
+                                                  "nutrients": ["energy-kcal": ["value": 400, "unit": "kcal"]]]]))
+        XCTAssertEqual(exact(value(input, .energyConsumed))?.amount, 400)
+        XCTAssertEqual(exact(value(input, .energyConsumed))?.provenance.first?.transforms, [])
+        assertProjection(input, "off-product-projection-v5")
+    }
+
+    func testMalformedServingQuantitiesRefused() throws {
+        let bad: [Any] = [0, -5, true, "1e2", "+5", "112\n", "1234567", "12.5000", "", [28]]
+        for quantity in bad {
+            XCTAssertEqual(try run(serving(perQuantity: quantity)), .insufficientData, "per_quantity \(quantity)")
+        }
+        XCTAssertEqual(try run(serving(perQuantity: nil)), .insufficientData, "per_quantity absent")
+    }
+
+    func testServingUnitsOtherThanGramsOrMillilitresRefused() throws {
+        for unit: Any? in ["oz", nil, "G", 1] {
+            XCTAssertEqual(try run(serving(perUnit: unit)), .insufficientData, "per_unit \(String(describing: unit))")
+        }
+    }
+
+    func testImplausibleScaledExactValueRefused() throws {
+        XCTAssertEqual(try run(serving(perQuantity: 1, energy: 10)), .insufficientData)
+    }
+
+    func testImplausibleScaledBoundEndRefused() throws {
+        XCTAssertEqual(try run(serving(perQuantity: 1, modifier: ("<", 101), energy: 5)), .insufficientData)
+    }
+
+    func testPlausibleScaledBoundIsABoundNeverExact() throws {
+        // The port leaves it out (no bounds in the catalogue); the app keeps a scaled bound.
+        let sugar = value(try admitted(serving(sodium: (0.112, "mg"), modifier: ("<", 0.5))), .sugar)
+        XCTAssertNil(exact(sugar))
+        guard case let .bounded(bound) = sugar else { return XCTFail("Expected a bounded sugar value in the app") }
+        XCTAssertEqual(bound.upper ?? 0, 0.5 * 100 / 28, accuracy: 1e-9)
+    }
+
+    func testScaleOverflowRefused() throws {
+        XCTAssertEqual(try run(serving(perQuantity: 1e-300, energy: 1e300)), .insufficientData)
+    }
+
+    func testTwoPer100PanelsContradictingThePackRefused() throws {
+        var product = modern(per: "100g", quantity: "1 l")
+        var nutrition = product["nutrition"] as! [String: Any]
+        var sets = nutrition["input_sets"] as! [[String: Any]]
+        sets.append(sets[0]); nutrition["input_sets"] = sets; product["nutrition"] = nutrition
+        XCTAssertEqual(try run(product), .insufficientData)
+    }
+
+    func testLegacyRecordNeverScaled() throws {
+        XCTAssertEqual(try run(legacy(["nutrition_data_per": "serving", "serving_quantity": 28])), .insufficientData)
+    }
+
+    func testV5AdmissionKeepsV5AndNoServing() throws {
+        let input = try admitted(modern())
+        assertProjection(input, "off-product-projection-v5")
+        guard case let .augmented(sodium) = value(input, .sodium), case let .exact(source) = sodium.sourceValue else {
+            return XCTFail("Expected exact sodium")
+        }
+        XCTAssertEqual(source.basis, .per100Grams)
+    }
+
+    // MARK: Cross-route: a catalogue v2 entry gives the barcode route's own provenance
+
+    /// The v2 golden's "Synthetic Serving Bar" is what the skill writes for this record (export
+    /// `build_round_trip` in test_export_check.py). Through the database candidate builder its values,
+    /// source values, per-serving basis and transforms equal the app's barcode projection of the record.
+    func testCatalogueV2EntryMatchesTheBarcodeRouteProvenance() throws {
+        let product: [String: Any] = ["code": "00000017", "product_name": "Synthetic bar", "quantity": "84 g",
+            "nutrition": ["input_sets": [["source": "packaging", "per": "serving", "preparation": "as_sold",
+                "per_quantity": "28", "per_unit": "g", "nutrients": [
+                    "energy-kcal": ["value": 100, "unit": "kcal"], "proteins": ["value": 2.8, "unit": "g"],
+                    "sodium": ["value": 0.112, "unit": "g"]]]]]]
+        let barcode = try admitted(product)
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("docs/fixtures/personal-food-database-v2/golden.json")
+        let bytes = try Data(contentsOf: url)
+        let file = try PersonalFoodDatabaseCodec.decode(bytes).get()
+        let entry = try XCTUnwrap(file.entries.first { $0.title == "Synthetic Serving Bar" })
+        let digest = try SHA256Digest(SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined())
+        let release = try PersonalFoodDatabaseRelease.sourceRelease(fileSHA256: digest, generated: file.generated, schema: file.schema)
+        let built = try XCTUnwrap(PersonalFoodDatabaseCandidateBuilder.build(entry: entry, file: file, databaseRelease: release,
+                                                                            record: nil, evidenceIDs: [], score: 1))
+        for key in [NutrientKey.energyConsumed, .protein, .sodium] {
+            let app = try XCTUnwrap(exact(value(barcode, key)), "\(key)")
+            let database = try XCTUnwrap(exact(built.candidate.candidate.nutrients.entries.first { $0.key == key }?.value), "\(key)")
+            XCTAssertEqual(database.amount, app.amount, "\(key)")
+            XCTAssertEqual(database.unit, app.unit, "\(key)")
+            XCTAssertEqual(database.sourceValue, app.sourceValue, "\(key)")
+            XCTAssertEqual(database.provenance.first?.transforms, app.provenance.first?.transforms, "\(key)")
+            XCTAssertEqual(database.provenance.first?.sourceKind, app.provenance.first?.sourceKind, "\(key)")
+        }
+        XCTAssertTrue(barcode.candidates.first?.variant?.value.contains("scaled from a 28 g serving") == true)
+        XCTAssertTrue(built.candidate.candidate.matchMetadata?.materialDifferences.map(\.value)
+            .contains("Some values scaled from a 28 g serving") == true)
     }
 
     func testMalformedPanelPerIsDeclinedNotRaised() throws {

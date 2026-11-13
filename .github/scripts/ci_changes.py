@@ -100,6 +100,8 @@ CODE_READ_DOCS = {
     "docs/pasted-label-ai-text-v1.md",
     # Cited by the personal-food-catalogue skill's export and fixtures, and later the importer (#419).
     "docs/personal-food-catalogue-import-v1.md",
+    # Cited by the import v2 codec, the skill's port and export check, and their tests.
+    "docs/personal-food-catalogue-import-v2.md",
     # Cited by the cocoa percent policy v3, the search view model and their tests (#462).
     "docs/cocoa-exact-match-v1.md",
     # Cited by the Open Food Facts estimate predicate, store, archive, copy and their tests (#464).

@@ -96,7 +96,18 @@ final class PersonalFoodDatabaseCodecTests: XCTestCase {
     }
 
     func testRuleCodesEqualThePythonChecker() throws {
-        XCTAssertEqual(Set(PersonalFoodDatabaseRuleCode.allCases.map(\.rawValue)), Set(try manifest().rule_codes))
+        // The v1 manifest lists the codes a v1 file can get: every code but the two v2-only ones
+        // (import v2), which the v2 manifest adds (PersonalFoodDatabaseCodecV2Tests).
+        XCTAssertEqual(Set(PersonalFoodDatabaseRuleCode.allCases.map(\.rawValue))
+                       .subtracting(PersonalFoodDatabaseRuleCode.v2Only.map(\.rawValue)), Set(try manifest().rule_codes))
+    }
+
+    func testV1FilesKeepTheV1SchemaAndNeverGetV2OnlyCodes() throws {
+        let m = try manifest()
+        XCTAssertEqual(try golden().schema, .v1)
+        for file in m.reject.keys.sorted() {
+            XCTAssertTrue(codes(try fixture(file)).isDisjoint(with: PersonalFoodDatabaseRuleCode.v2Only.map(\.rawValue)), file)
+        }
     }
 
     func testCanonicalUnitsAndDepthEqualThePythonChecker() throws {
@@ -131,7 +142,8 @@ final class PersonalFoodDatabaseCodecTests: XCTestCase {
         XCTAssertEqual(sodium.source, .exactProductDataset(
             sourceRelease: file.sources[0].sourceReleaseID, recordID: "off:gtin:00000000000017"))
         XCTAssertEqual(sodium.transform, PersonalFoodDatabaseTransform(
-            transformID: "mass-g-to-mg", version: "v1", sourceValue: 0.005, sourceUnit: "g"))
+            steps: [PersonalFoodDatabaseTransformStep(transformID: "mass-g-to-mg", version: "v1")],
+            sourceValue: 0.005, sourceUnit: "g", serving: nil))
         let energy = try XCTUnwrap(oats.labelNutrients.first { $0.key == .energyConsumed }?.value)
         XCTAssertEqual(energy.value, 370)
         XCTAssertEqual(energy.source, .manualDeclaration(sourceRelease: file.sources[1].sourceReleaseID))
@@ -178,7 +190,7 @@ final class PersonalFoodDatabaseCodecTests: XCTestCase {
         let hex = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
         XCTAssertEqual(hex, Self.goldenSHA256, "golden.json changed; regenerate it with the skill and update the pin")
         let digest = try SHA256Digest(hex)
-        let release = try PersonalFoodDatabaseRelease.sourceRelease(fileSHA256: digest, generated: try golden().generated)
+        let release = try PersonalFoodDatabaseRelease.sourceRelease(fileSHA256: digest, generated: try golden().generated, schema: .v1)
         XCTAssertEqual(release.sourceReleaseID.value, "pfc:sha256:\(hex)")
         XCTAssertEqual(release.sourceID.value, "personal-food-database")
         XCTAssertEqual(release.releasedAt, Date(timeIntervalSince1970: 1_794_009_600))
@@ -188,7 +200,7 @@ final class PersonalFoodDatabaseCodecTests: XCTestCase {
         XCTAssertEqual(release.pipelineVersion.value, "pfc-resolution-v1")
         XCTAssertEqual(release.licence.value, "private")
         XCTAssertEqual(release.attribution.value, "Your food database, built by the owner")
-        XCTAssertEqual(release, try PersonalFoodDatabaseRelease.sourceRelease(fileSHA256: digest, generated: try golden().generated))
+        XCTAssertEqual(release, try PersonalFoodDatabaseRelease.sourceRelease(fileSHA256: digest, generated: try golden().generated, schema: .v1))
 
         var changed = [UInt8](bytes)
         changed[changed.count - 2] ^= 0x01

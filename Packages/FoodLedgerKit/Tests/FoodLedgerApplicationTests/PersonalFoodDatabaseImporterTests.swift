@@ -135,9 +135,30 @@ final class PersonalFoodDatabaseImporterTests: XCTestCase {
         let bytes = try Self.fixture("golden.json")
         let file = try PersonalFoodDatabaseCodec.decode(bytes).get()
         releases.stored = try file.sources.map { try $0.sourceRelease() }
-            + [PersonalFoodDatabaseRelease.sourceRelease(fileSHA256: SHA256Digester().sha256(bytes), generated: file.generated)]
+            + [PersonalFoodDatabaseRelease.sourceRelease(fileSHA256: SHA256Digester().sha256(bytes), generated: file.generated, schema: .v1)]
         let i6 = await importer.importFile(bytes)
         XCTAssertNotNil(summary(i6))
+    }
+
+    /// Import v2: the manifest records the file's own schema, the v1 golden's stays v1, and the stored
+    /// v1 database release still compares equal (no conflict on re-import after this change).
+    func testV2FileRecordsItsSchemaAndV1KeepsV1() async throws {
+        let v1 = try Self.fixture("golden.json")
+        let v1File = try PersonalFoodDatabaseCodec.decode(v1).get()
+        releases.stored = try v1File.sources.map { try $0.sourceRelease() }
+            + [PersonalFoodDatabaseRelease.sourceRelease(fileSHA256: SHA256Digester().sha256(v1), generated: v1File.generated,
+                                                         schema: .v1)]
+        let first = await importer.importFile(v1)
+        XCTAssertNotNil(summary(first))
+        XCTAssertEqual(try store.activeRelease()?.manifest.schema, "personal-food-catalogue-v1")
+        let v2 = try Data(contentsOf: Self.fixtures.deletingLastPathComponent()
+            .appendingPathComponent("personal-food-database-v2/golden.json"))
+        let second = await importer.importFile(v2)
+        XCTAssertNotNil(summary(second))
+        XCTAssertEqual(try store.activeRelease()?.manifest.schema, "personal-food-catalogue-v2")
+        let release = try PersonalFoodDatabaseRelease.sourceRelease(fileSHA256: SHA256Digester().sha256(v2),
+            generated: PersonalFoodDatabaseCodec.decode(v2).get().generated, schema: .v2)
+        XCTAssertEqual(release.schemaVersion.value, "personal-food-catalogue-v2")
     }
 
     func testFailureOutcomes() async throws {

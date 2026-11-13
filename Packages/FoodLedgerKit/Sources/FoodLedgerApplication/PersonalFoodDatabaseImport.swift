@@ -171,7 +171,7 @@ public actor PersonalFoodDatabaseImporter: PersonalFoodDatabaseImporting {
         }
 
         let manifest = PersonalFoodDatabaseManifest(
-            schema: PersonalFoodDatabaseFile.schema,
+            schema: prepared.schema.rawValue,
             releaseID: PersonalFoodDatabaseRelease.releaseID(fileSHA256: digest),
             fileSHA256: digest,
             generated: prepared.generated,
@@ -199,6 +199,7 @@ public actor PersonalFoodDatabaseImporter: PersonalFoodDatabaseImporting {
     }
 
     private struct Prepared {
+        let schema: PersonalFoodDatabaseSchema
         let digest: SHA256Digest
         let generated: PersonalFoodDatabaseDate
         let entryCount: Int
@@ -216,9 +217,10 @@ public actor PersonalFoodDatabaseImporter: PersonalFoodDatabaseImporting {
         }
         guard let digest = try? digester.sha256(bytes) else { return .failure(OutcomeBox(value: .writeFailed)) }
         do {
-            let candidates = try [PersonalFoodDatabaseRelease.sourceRelease(fileSHA256: digest, generated: file.generated)]
+            let candidates = try [PersonalFoodDatabaseRelease.sourceRelease(fileSHA256: digest, generated: file.generated,
+                                                                            schema: file.schema)]
                 + file.sources.map { try $0.sourceRelease() }
-            return .success(Prepared(digest: digest, generated: file.generated, entryCount: file.entries.count, candidates: candidates))
+            return .success(Prepared(schema: file.schema, digest: digest, generated: file.generated, entryCount: file.entries.count, candidates: candidates))
         } catch {
             return .failure(OutcomeBox(value: .rejected([.malformed])))
         }

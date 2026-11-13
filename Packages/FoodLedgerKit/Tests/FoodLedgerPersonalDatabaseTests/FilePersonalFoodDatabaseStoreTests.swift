@@ -42,7 +42,7 @@ final class FilePersonalFoodDatabaseStoreTests: XCTestCase {
         let bytes = Data(text.utf8)
         let digest = try SHA256Digester().sha256(bytes)
         let manifest = PersonalFoodDatabaseManifest(
-            schema: PersonalFoodDatabaseFile.schema, releaseID: PersonalFoodDatabaseRelease.releaseID(fileSHA256: digest),
+            schema: PersonalFoodDatabaseSchema.v1.rawValue, releaseID: PersonalFoodDatabaseRelease.releaseID(fileSHA256: digest),
             fileSHA256: digest, generated: try XCTUnwrap(PersonalFoodDatabaseDate(ascii: Array("2026-11-10".utf8))),
             importedAt: Date(timeIntervalSince1970: importedAt), entryCount: 3)
         return PersonalFoodDatabaseInstalledRelease(bytes: bytes, manifest: manifest)
@@ -325,6 +325,28 @@ final class FilePersonalFoodDatabaseStoreTests: XCTestCase {
                            ("2026-11-06T21:20:00Z", "2026-11-06T21:20:00.5Z"), ("personal-food-catalogue-v1", "other")] {
             let decoded = try JSONDecoder().decode(PersonalFoodDatabaseStoredManifest.self, from: Data(text.replacingOccurrences(of: old, with: new).utf8))
             XCTAssertNil(decoded.manifest, new)
+        }
+    }
+
+    /// Import v2: a v2 file is stored under the same storage name with a v2 manifest; the v1
+    /// manifest above keeps its bytes, and an unknown schema is still refused.
+    func testV2ManifestRoundTripsAndUnknownSchemasStayRefused() throws {
+        let a = try Self.release("first")
+        let v2 = PersonalFoodDatabaseManifest(schema: PersonalFoodDatabaseSchema.v2.rawValue, releaseID: a.manifest.releaseID,
+            fileSHA256: a.manifest.fileSHA256, generated: a.manifest.generated, importedAt: a.manifest.importedAt,
+            entryCount: a.manifest.entryCount)
+        let text = String(decoding: try PersonalFoodDatabaseStoredManifest(v2).encoded(), as: UTF8.self)
+        XCTAssertTrue(text.contains(#""schema":"personal-food-catalogue-v2","version":1}"#))
+        let decoded = try JSONDecoder().decode(PersonalFoodDatabaseStoredManifest.self, from: Data(text.utf8))
+        XCTAssertEqual(decoded.manifest, v2)
+        XCTAssertEqual(String(decoding: try decoded.encoded(), as: UTF8.self), text)
+        try makeStore().install(bytes: a.bytes, manifest: v2)
+        XCTAssertEqual(contents(folder(a)), ["manifest.json", "personal-food-catalogue-v1.json"])
+        XCTAssertEqual(try makeStore().activeRelease()?.manifest, v2)
+        for schema in ["personal-food-catalogue-v3", "PERSONAL-FOOD-CATALOGUE-V2", ""] {
+            let other = try JSONDecoder().decode(PersonalFoodDatabaseStoredManifest.self,
+                from: Data(text.replacingOccurrences(of: "personal-food-catalogue-v2", with: schema).utf8))
+            XCTAssertNil(other.manifest, schema)
         }
     }
 }
