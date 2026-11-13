@@ -4538,6 +4538,25 @@ Method: `phase_usage.py --format claude --since 2026-11-12T18:47:15Z --include-s
 
 Excluded:
 - the Qodo review run;
+
+## WHR-OFF-SERVING-2026-11-12: Claude Code Open Food Facts per-serving panels (projection v6)
+
+The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) covered, in this window:
+- the owner's review of the import, barcode and label programmes;
+- diagnosing why barcode scans found no product: replaying the app's lookup offline over cached records and live against Open Food Facts, then the owner's Birds Eye scan (5000116127801), whose only pack panel is per serving;
+- the owner's decision to scale per-serving panels to per 100 g, the v6 section of `off-barcode-candidate-plan-v1.md`, the projection change and its tests;
+- an invariant review (PASS; conflict rule, plausibility check and counts applied), two local Qodo reviews (two findings fixed) and the full gates, including one app test rerun after simulator-clone failures.
+
+Subagents are included: the invariant reviewer. The window also holds the #475 PR opening and a message to the bounds session (#476), which are small. The window runs from the end of WHR-OFF-LABEL-2026-11-12 to the end of the gates.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Programme review, barcode diagnosis and projection v6, with subagents | 42,610,784 (42,387,954) | 222,516 | 77,018 | 42,687,802 | $11.58 |
+
+Method: `phase_usage.py --format claude --since 2026-11-12T19:26:43Z --until 2026-11-12T20:35:41Z --include-subagents` on the session transcript. Exact USD 11.5779558. The cache-write tokens (73,793 of them 5-minute writes) are part of the input figure.
+
+Excluded:
+- the Qodo review runs and the bounds session's own work (#476);
 - local builds, test loops, xcodebuild gates and simulator time, which use no API tokens;
 - this ledger edit, the commit, the push and the PR after the window.
 
