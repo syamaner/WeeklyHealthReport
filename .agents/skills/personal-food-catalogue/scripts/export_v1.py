@@ -409,7 +409,8 @@ def _check_value_v2(where, k, v, kind, src, basis, err):
         if not ok:
             return err("transform-scope", f"{where}: {k} transform does not apply to this nutrient, unit, source or basis")
     if _num(v["value"]):
-        if abs(expected - v["value"]) > TOLERANCE * abs(expected) + 1e-9:
+        # a tiny serving can overflow the expected value; inf > inf is false, so check it first
+        if not math.isfinite(expected) or abs(expected - v["value"]) > TOLERANCE * abs(expected) + 1e-9:
             err("transform-arithmetic", f"{where}: {k}")
         elif "serving" in sv and v["value"] > PLAUSIBLE_MAXIMUM[CANON_UNITS[k]]:
             err("serving-implausible", f"{where}: {k} more than any food holds per 100")

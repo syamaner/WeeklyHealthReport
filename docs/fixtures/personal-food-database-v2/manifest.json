@@ -27,6 +27,7 @@
   "reject-serving-wrong-source-unit.json": "transform-scope",
   "reject-serving-arithmetic-wrong.json": "transform-arithmetic",
   "reject-serving-arithmetic-just-above-tolerance.json": "transform-arithmetic",
+  "reject-serving-quantity-subnormal.json": "transform-arithmetic",
   "reject-serving-implausible-grams.json": "serving-implausible",
   "reject-serving-implausible-milligrams.json": "serving-implausible",
   "reject-serving-implausible-kilocalories.json": "serving-implausible",

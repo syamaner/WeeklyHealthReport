@@ -515,7 +515,8 @@ struct PersonalFoodDatabaseChecker {
             }
         }
         if let number {
-            if R.transformArithmeticFails(expected: expected, value: number) {
+            // A tiny serving can overflow the expected value; `inf > inf` is false, so check it first.
+            if !expected.isFinite || R.transformArithmeticFails(expected: expected, value: number) {
                 err(.transformArithmetic)
             } else if serving != nil, OpenFoodFactsServingRule.isImplausible(number, unit: canonical.unit) {
                 err(.servingImplausible)

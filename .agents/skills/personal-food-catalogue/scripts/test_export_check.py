@@ -391,6 +391,9 @@ CASES_V2 = {  # name: (expected rule code, mutation of golden_v2)
     "serving-arithmetic-wrong": ("transform-arithmetic", lambda d: bar_kcal(d).update(value=100)),
     "serving-arithmetic-just-above-tolerance": ("transform-arithmetic", lambda d: bar_kcal(d).update(
         value=100 * (100 / 28) * 1.0051)),
+    # Qodo (local review): 100 / 1e-320 overflows; the expected value is infinite and must not pass.
+    "serving-quantity-subnormal": ("transform-arithmetic", lambda d: bar_kcal(d)["source_value"]["serving"].update(
+        quantity=1e-320)),
     "serving-implausible-grams": ("serving-implausible", lambda d: bar_protein(d).update(
         value=30 * (100 / 28), source_value={"value": 30, "unit": "g", "serving": {"quantity": 28, "unit": "g"}})),
     "serving-implausible-milligrams": ("serving-implausible", lambda d: bar_sod(d).update(
