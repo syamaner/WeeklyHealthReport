@@ -192,7 +192,7 @@ public enum PersonalFoodDatabaseCandidateBuilder {
     /// The distinct per-serving sizes behind the candidate's resolved values that carry the
     /// `off-serving-to-100` transform, in nutrient order. One per release is guaranteed by the codec's
     /// `serving-mismatch` rule.
-    static func scaledServings(_ entries: [NutrientEntry]) -> [PositiveQuantity] {
+    public static func scaledServings(_ entries: [NutrientEntry]) -> [PositiveQuantity] {
         var servings: [PositiveQuantity] = []
         for entry in entries where entry.status == .resolved {
             guard case let .augmented(value) = entry.value, case let .exact(source) = value.sourceValue,
