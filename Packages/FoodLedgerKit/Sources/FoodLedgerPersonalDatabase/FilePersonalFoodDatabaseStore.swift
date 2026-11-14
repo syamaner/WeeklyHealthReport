@@ -11,6 +11,9 @@ import Foundation
 /// <root>/ImportStaging/personal-food-database-<uuid>/
 /// ```
 ///
+/// The data file name is a fixed storage name, not the file's schema: a `personal-food-catalogue-v2`
+/// file is stored under it too, so an installed database keeps loading (import v2, owner decision 4).
+///
 /// `root` is the app's `FoodLedger/v1/` folder, inside the backup-excluded `WeeklyHealthReport/`
 /// root. Nothing touches the disk until a method is called, so building the store while the phone
 /// is locked is safe.
@@ -131,7 +134,20 @@ public struct FilePersonalFoodDatabaseStore: PersonalFoodDatabaseStoring {
             var reuse = false
             if fileManager.fileExists(atPath: target.path) {
                 let named = (try? Self.decodePointer(fileManager.contents(atPath: pointerURL.path)))?.folder == folderName
-                if named, verifies(target, digest: manifest.fileSHA256) { reuse = true } else { try fileManager.removeItem(at: target) }
+                switch named ? verification(target, digest: manifest.fileSHA256, schema: manifest.schema) : .fails {
+                case .verifies:
+                    reuse = true
+                case .otherSchema:
+                    // The same bytes with a manifest naming another schema (import v2): only the
+                    // manifest is rewritten, atomically, inside the folder the pointer names, so a
+                    // failure or crash leaves either the old manifest or the new one, never a
+                    // missing folder (PR #487 review).
+                    try fault?(.rename)
+                    try write(PersonalFoodDatabaseStoredManifest(manifest).encoded(), to: target.appendingPathComponent(Self.manifestName))
+                    reuse = true
+                case .fails:
+                    try fileManager.removeItem(at: target)
+                }
             }
             if !reuse {
                 try fault?(.rename)
@@ -209,13 +225,18 @@ public struct FilePersonalFoodDatabaseStore: PersonalFoodDatabaseStoring {
         return data
     }
 
-    private func verifies(_ folder: URL, digest: SHA256Digest) -> Bool {
+    enum FolderVerification { case verifies, otherSchema, fails }
+
+    /// A folder is reused only when its manifest names the same file and schema. The same verified
+    /// file under a manifest of another schema is `otherSchema`, which a reinstall repairs (import v2).
+    private func verification(_ folder: URL, digest: SHA256Digest, schema: String) -> FolderVerification {
         guard let bytes = FileManager.default.contents(atPath: folder.appendingPathComponent(Self.fileName).path),
               let stored = try? JSONDecoder().decode(PersonalFoodDatabaseStoredManifest.self,
                   from: FileManager.default.contents(atPath: folder.appendingPathComponent(Self.manifestName).path) ?? Data()),
               let storedManifest = stored.manifest, storedManifest.fileSHA256 == digest,
-              storedManifest.releaseID == PersonalFoodDatabaseRelease.releaseID(fileSHA256: digest) else { return false }
-        return (try? digester.sha256(bytes)) == digest
+              storedManifest.releaseID == PersonalFoodDatabaseRelease.releaseID(fileSHA256: digest),
+              (try? digester.sha256(bytes)) == digest else { return .fails }
+        return storedManifest.schema == schema ? .verifies : .otherSchema
     }
 
     static func decodePointer(_ data: Data?) throws -> PersonalFoodDatabaseStoredPointer? {
@@ -280,7 +301,8 @@ struct PersonalFoodDatabaseStoredManifest: Codable, Equatable {
 
     /// Nil for any version, schema, date, digest or count this store did not write.
     var manifest: PersonalFoodDatabaseManifest? {
-        guard version == Self.currentVersion, schema == PersonalFoodDatabaseFile.schema, entryCount >= 0,
+        // Either accepted file schema (import v2); the data file name stays a fixed storage name.
+        guard version == Self.currentVersion, PersonalFoodDatabaseSchema(rawValue: schema) != nil, entryCount >= 0,
               let digest = try? SHA256Digest(fileSHA256),
               let date = PersonalFoodDatabaseDate(ascii: Array(generated.utf8)),
               let imported = try? Date(importedAt, strategy: Date.ISO8601FormatStyle()),

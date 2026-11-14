@@ -168,6 +168,17 @@ public enum FoodSearchResultText {
         }
     }
 
+    /// Import v2 (owner decision 3, 13 November 2026): the Confirm line for a Your food database
+    /// entry whose resolved values were scaled from an Open Food Facts per-serving panel, one per
+    /// serving size; empty for any other candidate. `nutrients` are the values Confirm shows (a
+    /// correction or a reopened entry's, when present), so a value the user replaced no longer counts.
+    public static func databaseScaledServingNotes(_ candidate: PopulatedFoodCandidate, nutrients: NutrientSet? = nil,
+                                                  releases: [SourceRelease]) -> [String] {
+        guard FoodSearchResultSummary.family(candidate: candidate.candidate, releases: releases) == .yourFoodDatabase else { return [] }
+        return PersonalFoodDatabaseCandidateBuilder.scaledServings((nutrients ?? candidate.candidate.nutrients).entries)
+            .map(OpenFoodFactsServingText.databaseEntryNote)
+    }
+
     /// A search row's title. A record referenced by a Your food database entry and offered as its
     /// own row reads "Generic: <name>" (import v1 section 5); every other row is its name.
     public static func rowTitle(_ match: GenericFoodMatch) -> String {

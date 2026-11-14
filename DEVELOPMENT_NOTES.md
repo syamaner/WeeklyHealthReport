@@ -4583,3 +4583,24 @@ Excluded:
 - this ledger edit, the commit, the push and the PR after the window.
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison, not billing, and token totals do not measure quality or productivity.
+
+## WHR-CATALOGUE-V2-2026-11-13: Claude Code catalogue import v2 with Open Food Facts projection v6
+
+On 13 November 2026 the owner approved moving the personal food catalogue skill and the import to the v6 projection, with a new `personal-food-catalogue-v2` schema. Four subagents of the coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) did the work:
+- a read-only design pass that wrote the proposal the owner approved;
+- the implementer, which ported v6 to the skill, added the v2 codec, the per-serving provenance and the Confirm serving line, fixtures, tests and docs, and ran the gates;
+- the architecture gate (PASS WITH CHANGES, six changes applied before production code);
+- a blind invariant review (PASS, one low finding fixed).
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Catalogue import v2 design, gate, implementation, tests and review, four subagents | 31,813,544 (30,844,425) | 968,803 | 152,143 | 31,965,687 | $14.06 |
+
+Method: `phase_usage.py --format claude` on each of the four subagent transcripts in full (`agent-a96b4bac3ca91f47d`, `agent-a8dbe048319ce7bc0`, `agent-aa8428e6b95a88fdf`, `agent-adcecf0ae973b18ae`), summed. Exact USD 14.057024. All cache writes are 5-minute writes, and the cache-write tokens are part of the input figure.
+
+Excluded:
+- the coordinator session's own turns (briefing, review of the result, this ledger edit, the commit, the push and the PR), because no boundary was captured for them;
+- the Qodo review runs;
+- local test, gate and simulator runs, which use no API tokens.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and token totals do not measure quality or productivity.

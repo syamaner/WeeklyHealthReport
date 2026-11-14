@@ -208,6 +208,8 @@ def main(work: Path, cat_path: Path, res: Path):
     json.dump(cat, open(cat_path, "w"), indent=1, ensure_ascii=False)
     ex = [i for i in cat["items"] if str(i.get("origin", "")).startswith("intake:")]
     print(f"labels attached to receipt entries: {attached}")
+    if A.off_rules_declined():  # intake records the catalogue format cannot hold (counts only)
+        print("Open Food Facts records declined by the catalogue's number rules:", A.off_rules_declined())
     print(f"extras added: {added}; with nutrients: {sum(1 for i in ex if i['nutrient_sources'])}; "
           f"name-only: {[i['title'] for i in ex if not i['nutrient_sources']]}")
 

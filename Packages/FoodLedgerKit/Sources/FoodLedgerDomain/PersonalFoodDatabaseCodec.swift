@@ -1,9 +1,10 @@
 import Foundation
 
-/// The pure decoder for `personal-food-catalogue-v1` (import v1 sections 4 to 4.2). It applies the
-/// rules of the skill's `export_v1._check` in the same order with the same codes, collecting every
-/// failure rather than stopping at the first, and builds the typed file only when none fails. It
-/// never traps on a malformed file: every unexpected type is a rule failure.
+/// The pure decoder for `personal-food-catalogue-v1` (import v1 sections 4 to 4.2) and `-v2` (import
+/// v2 section 3: v1 plus Open Food Facts projection v6). A v1 file gets exactly the v1 rules. It
+/// applies the rules of the skill's `export_v1._check` in the same order with the same codes,
+/// collecting every failure rather than stopping at the first, and builds the typed file only when
+/// none fails. It never traps on a malformed file: every unexpected type is a rule failure.
 ///
 /// The phase 2 estimates decoder reuses the module-internal checks below
 /// (`PersonalFoodDatabaseRules`), so the two schemas cannot drift.
@@ -26,6 +27,13 @@ public enum PersonalFoodDatabaseCodec {
             return .failure(PersonalFoodDatabaseRejection(codes: [.malformed]))
         }
         return .success(file)
+    }
+
+    /// The file's own top-level `schema` when it is one this codec accepts, read with the same strict
+    /// reader but none of the rules: a cheap check that a stored manifest names the file's schema.
+    public static func declaredSchema(_ data: Data) -> PersonalFoodDatabaseSchema? {
+        guard case let .success(root) = PersonalFoodDatabaseJSON.read(data), let text = root["schema"]?.text else { return nil }
+        return PersonalFoodDatabaseSchema(rawValue: text.string).flatMap { $0.rawValue.utf8.elementsEqual(text.bytes) ? $0 : nil }
     }
 }
 
@@ -81,6 +89,8 @@ enum PersonalFoodDatabaseRules {
     static let corpusKeys = set(["source", "corpus_sha256"])
     static let transformKeys = set(["transform_id", "version"])
     static let sourceValueKeys = set(["value", "unit"])
+    static let sourceValueKeysWithServing = set(["value", "unit", "serving"])
+    static let servingKeys = set(["quantity", "unit"])
 
     static let categories = set(PersonalFoodDatabaseCategory.allCases.map(\.rawValue))
     static let productTypes = set(PersonalFoodDatabaseProductType.allCases.map(\.rawValue))
@@ -126,6 +136,23 @@ enum PersonalFoodDatabaseRules {
         transforms[id.bytes + [UInt8(ascii: "|")] + version.bytes]
     }
 
+    // Import v2 section 3: the app's per-serving scaling (`OpenFoodFactsServingRule`).
+    static let massGToMG = (id: PFDText("mass-g-to-mg"), version: PFDText("v1"))
+    static let servingToHundred = (id: PFDText(bytes: Array(OpenFoodFactsServingRule.transformID.utf8)),
+                                   version: PFDText(bytes: Array(OpenFoodFactsServingRule.transformVersion.utf8)))
+    /// The eight Open Food Facts fields `OpenFoodFactsLookup.project` admits.
+    static let servingNutrients: Set<NutrientKey> = [.energyConsumed, .protein, .carbohydrates, .fatTotal, .fatSaturated,
+                                                     .fiber, .sugar, .sodium]
+    static let offV6 = PFDText(bytes: Array(OpenFoodFactsServingRule.projectionVersion.utf8))
+    static let servingUnits: [PFDText: PFDText] = [PFDText("per_100_g"): PFDText("g"),
+                                                   PFDText("per_100_ml_as_labelled"): PFDText("ml")]
+
+    /// `export_v1._serving_quantity_ok`: a finite number above 0 and below 1e15, never a boolean.
+    static func servingQuantity(_ v: PFDValue?) -> Double? {
+        guard case let .number(d)? = v, d.isFinite, d > 0, d < 1e15 else { return nil }
+        return d
+    }
+
     static let tolerance = 0.005
 
     /// `export_v1`: refused when `abs(f(sv) - v) > 0.005 * abs(f(sv)) + 1e-9`.
@@ -157,11 +184,12 @@ enum PersonalFoodDatabaseRules {
         return PersonalFoodDatabaseDate(ascii: b[0..<10])
     }
 
-    /// The release ID forms of import v1 section 4; returns the hash in the ID.
-    static func releaseHash(_ t: PFDText, sourceID: PFDText) -> [UInt8]? {
+    /// The release ID forms of import v1 section 4 (and v2, which adds projection v6); returns the
+    /// hash in the ID.
+    static func releaseHash(_ t: PFDText, sourceID: PFDText, v2: Bool) -> [UInt8]? {
         let b = t.bytes
         if sourceID == openFoodFacts {
-            // pfc-off:sha256:<64 hex>:projection:off-product-projection-v[45]:retrieved:DDDD-DD-DD
+            // pfc-off:sha256:<64 hex>:projection:off-product-projection-v[45] (v2: v[456]):retrieved:DDDD-DD-DD
             let head = Array("pfc-off:sha256:".utf8), mid = Array(":projection:off-product-projection-v".utf8)
             let tail = Array(":retrieved:".utf8)
             let total = head.count + 64 + mid.count + 1 + tail.count + 10
@@ -170,7 +198,7 @@ enum PersonalFoodDatabaseRules {
             var i = head.count + 64
             guard isHex64(hash), Array(b[i..<i + mid.count]) == mid else { return nil }
             i += mid.count
-            guard b[i] == UInt8(ascii: "4") || b[i] == UInt8(ascii: "5") else { return nil }
+            guard b[i] == UInt8(ascii: "4") || b[i] == UInt8(ascii: "5") || (v2 && b[i] == UInt8(ascii: "6")) else { return nil }
             i += 1
             guard Array(b[i..<i + tail.count]) == tail else { return nil }
             i += tail.count
@@ -196,6 +224,7 @@ enum PersonalFoodDatabaseRules {
         "ODbL 1.0 https://opendatacommons.org/licenses/odbl/1-0/; contents: https://opendatacommons.org/licenses/dbcl/1-0/".utf8))
     static let offSchema = PFDText("off-v3.6-product-record")
     static let offProjections = set(["off-product-projection-v4", "off-product-projection-v5"])
+    static let offProjectionsV2 = offProjections.union([offV6])
     static let offAttributionPrefix = Array("Open Food Facts \u{00B7} https://world.openfoodfacts.org/product/".utf8)
     static let ownerSchema = PFDText("pfc-intake-label-v1")
     static let ownerPipeline = PFDText("personal-food-catalogue-skill-v1")
@@ -226,6 +255,18 @@ struct PersonalFoodDatabaseChecker {
     typealias R = PersonalFoodDatabaseRules
     private(set) var codes: [PersonalFoodDatabaseRuleCode] = []
 
+    /// A declared release: its source ID and pipeline version.
+    struct Declared {
+        let kind: PFDText
+        let pipeline: PFDText
+    }
+
+    /// One value's serving for the v2 `serving-mismatch` rule; nil when it was not scaled.
+    struct Serving: Hashable {
+        let quantity: Double
+        let unit: PFDText
+    }
+
     private mutating func err(_ code: PersonalFoodDatabaseRuleCode) { codes.append(code) }
 
     mutating func check(_ doc: PFDValue) {
@@ -234,10 +275,12 @@ struct PersonalFoodDatabaseChecker {
               let corporaValue = doc["generic_corpora"], let itemsValue = doc["items"] else {
             return err(.topKeys)
         }
-        if !schema.isString(PFDText("personal-food-catalogue-v1")) { err(.schema) }
+        // An unknown schema keeps the v1 rules for the rest of the file, as `export_v1` does.
+        let v2 = schema.isString(PFDText(bytes: Array(PersonalFoodDatabaseSchema.v2.rawValue.utf8)))
+        if !schema.isString(PFDText(bytes: Array(PersonalFoodDatabaseSchema.v1.rawValue.utf8))) && !v2 { err(.schema) }
         if generated.text.flatMap({ PersonalFoodDatabaseDate(ascii: $0.bytes) }) == nil { err(.generated) }
 
-        var declared: [PFDText: PFDText] = [:]  // release ID -> source ID
+        var declared: [PFDText: Declared] = [:]  // release ID -> source ID and pipeline
         if sources.items == nil { err(.sources) }
         for s in sources.items ?? [] {
             guard s.keys == R.sourceKeys,
@@ -250,7 +293,7 @@ struct PersonalFoodDatabaseChecker {
                 err(.sourceFields)
                 continue
             }
-            guard let idHash = R.releaseHash(sid, sourceID: kind) else {
+            guard let idHash = R.releaseHash(sid, sourceID: kind, v2: v2) else {
                 err(.sourceForm)
                 continue
             }
@@ -262,7 +305,7 @@ struct PersonalFoodDatabaseChecker {
             let pinsOK: Bool
             if isOFF {
                 pinsOK = schemaVersion == R.offSchema && licence == R.offLicence
-                    && R.offProjections.contains(pipeline) && R.part(sid, 4) == pipeline.bytes
+                    && (v2 ? R.offProjectionsV2 : R.offProjections).contains(pipeline) && R.part(sid, 4) == pipeline.bytes
                     && R.offAttributionOK(attribution)
             } else {
                 pinsOK = schemaVersion == R.ownerSchema && licence == R.ownerLicence
@@ -270,7 +313,7 @@ struct PersonalFoodDatabaseChecker {
             }
             if !pinsOK { err(.sourcePins) }
             if declared[sid] != nil { err(.sourceDuplicate) }
-            declared[sid] = kind
+            declared[sid] = Declared(kind: kind, pipeline: pipeline)
         }
 
         var corpora: [PFDText: PFDText] = [:]
@@ -338,19 +381,26 @@ struct PersonalFoodDatabaseChecker {
                 err(.labelNutrients)
                 continue
             }
+            var servings: [PFDText: Set<Serving?>] = [:]
             for (key, value) in nutrients {
-                checkValue(key: key, value: value, declared: declared)
+                if let got = checkValue(key: key, value: value, declared: declared, v2: v2, basis: basis) {
+                    servings[got.release, default: []].insert(got.serving)
+                }
             }
+            if servings.values.contains(where: { $0.count > 1 }) { err(.servingMismatch) }
         }
     }
 
-    /// `export_v1._check_value`.
-    private mutating func checkValue(key: PFDText, value v: PFDValue, declared: [PFDText: PFDText]) {
-        guard let canonical = R.canonicalUnits[key] else { return err(.unknownNutrient) }
-        guard let keys = v.keys else { return err(.valueShape) }
+    /// `export_v1._check_value`. Under v2 it returns a product value's release and serving for the
+    /// `serving-mismatch` rule.
+    private mutating func checkValue(key: PFDText, value v: PFDValue, declared: [PFDText: Declared], v2: Bool,
+                                     basis: PFDText) -> (release: PFDText, serving: Serving?)? {
+        guard let canonical = R.canonicalUnits[key] else { err(.unknownNutrient); return nil }
+        guard let keys = v.keys else { err(.valueShape); return nil }
         let optional = keys.intersection(R.valueOptional)
         guard R.valueKeys.isSubset(of: keys), keys.isSubset(of: R.valueKeys.union(R.valueOptional)), optional.count != 1 else {
-            return err(.valueKeys)
+            err(.valueKeys)
+            return nil
         }
         if v["unit"]?.text != PFDText(bytes: Array(canonical.unit.rawValue.utf8)) { err(.unit) }
         let number = v["value"]?.nutrientNumber
@@ -358,30 +408,121 @@ struct PersonalFoodDatabaseChecker {
         guard let kind = v["source_kind"]?.text,
               (kind == R.manualDeclaration && v["match"]?.text == R.owner)
                 || (kind == R.exactProductDataset && v["match"]?.text == R.probable) else {
-            return err(.kindMatch)
+            err(.kindMatch)
+            return nil
         }
         let isOwner = kind == R.manualDeclaration
         if isOwner, v["record_id"]?.isNull != true { err(.recordID) }
         if !isOwner, !(v["record_id"]?.text.map(R.isGTINRecordID) ?? false) { err(.recordID) }
-        if let release = v["source_release"]?.text, let sourceID = declared[release] {
-            if sourceID != (isOwner ? R.owner : R.openFoodFacts) { err(.releaseKind) }
+        let source = v["source_release"]?.text.flatMap { declared[$0] }
+        if let source {
+            if source.kind != (isOwner ? R.owner : R.openFoodFacts) { err(.releaseKind) }
         } else {
             err(.undeclaredRelease)
         }
-        guard optional.count == 2, let transforms = v["transforms"], let sv = v["source_value"] else { return }
+        if v2 {
+            return checkTransformsV2(canonical: canonical, value: v, number: number, kind: kind, source: source, basis: basis)
+        }
+        guard optional.count == 2, let transforms = v["transforms"], let sv = v["source_value"] else { return nil }
         guard sv.keys == R.sourceValueKeys, let svNumber = sv["value"]?.nutrientNumber, let svUnit = sv["unit"]?.text else {
-            return err(.sourceValue)
+            err(.sourceValue)
+            return nil
         }
         guard let list = transforms.items, list.count == 1, list[0].keys == R.transformKeys,
               let id = list[0]["transform_id"]?.text, let version = list[0]["version"]?.text else {
-            return err(.transformShape)
+            err(.transformShape)
+            return nil
         }
-        guard let rule = R.transform(id: id, version: version) else { return err(.transformUnknown) }
+        guard let rule = R.transform(id: id, version: version) else { err(.transformUnknown); return nil }
         if rule.nutrient != canonical.key || rule.sourceUnit != svUnit || rule.sourceKind != kind {
             err(.transformScope)
         } else if let number, R.transformArithmeticFails(expected: rule.apply(svNumber), value: number) {
             err(.transformArithmetic)
         }
+        return nil
+    }
+
+    /// `export_v1._check_value_v2`: the import v2 transforms; everything before them is the v1 rule.
+    private mutating func checkTransformsV2(
+        canonical: (key: NutrientKey, unit: NutrientUnit), value v: PFDValue, number: Double?, kind: PFDText,
+        source: Declared?, basis: PFDText
+    ) -> (release: PFDText, serving: Serving?)? {
+        let productRelease = kind == R.exactProductDataset ? v["source_release"]?.text : nil
+        guard let transforms = v["transforms"], let sv = v["source_value"] else {
+            return productRelease.map { ($0, nil) }
+        }
+        guard let svKeys = sv.keys, svKeys == R.sourceValueKeys || svKeys == R.sourceValueKeysWithServing,
+              let svNumber = sv["value"]?.nutrientNumber, let svUnit = sv["unit"]?.text else {
+            err(.sourceValue)
+            return nil
+        }
+        let hasServingKey = svKeys.contains(PFDText("serving"))
+        var serving: Serving?
+        if hasServingKey {
+            guard let s = sv["serving"], s.keys == R.servingKeys, let quantity = R.servingQuantity(s["quantity"]),
+                  let unit = s["unit"]?.text, unit == PFDText("g") || unit == PFDText("ml") else {
+                err(.sourceValue)
+                return nil
+            }
+            serving = Serving(quantity: quantity, unit: unit)
+        }
+        guard let list = transforms.items, list.count == 1 || list.count == 2 else {
+            err(.transformShape)
+            return nil
+        }
+        var pairs: [(id: PFDText, version: PFDText)] = []
+        for item in list {
+            guard item.keys == R.transformKeys, let id = item["transform_id"]?.text, let version = item["version"]?.text else {
+                err(.transformShape)
+                return nil
+            }
+            pairs.append((id, version))
+        }
+        func isServing(_ p: (id: PFDText, version: PFDText)) -> Bool {
+            p.id == R.servingToHundred.id && p.version == R.servingToHundred.version
+        }
+        if pairs.count == 2, !(pairs[0].id == R.massGToMG.id && pairs[0].version == R.massGToMG.version && isServing(pairs[1])) {
+            err(.transformShape)
+            return nil
+        }
+        if pairs.contains(where: isServing) != hasServingKey {
+            err(.sourceValue)
+            return nil
+        }
+        if pairs.contains(where: { !isServing($0) && R.transform(id: $0.id, version: $0.version) == nil }) {
+            err(.transformUnknown)
+            return nil
+        }
+        let canonicalUnit = PFDText(bytes: Array(canonical.unit.rawValue.utf8))
+        var unit = svUnit
+        var expected = svNumber
+        for pair in pairs {
+            let ok: Bool
+            if isServing(pair), let serving {
+                ok = R.servingNutrients.contains(canonical.key) && kind == R.exactProductDataset && unit == canonicalUnit
+                    && source?.pipeline == R.offV6 && R.servingUnits[basis] == serving.unit
+                expected = expected * (100 / serving.quantity)
+            } else if let rule = R.transform(id: pair.id, version: pair.version) {
+                ok = rule.nutrient == canonical.key && rule.sourceUnit == unit && rule.sourceKind == kind
+                expected = rule.apply(expected)
+                unit = canonicalUnit
+            } else {
+                ok = false
+            }
+            if !ok {
+                err(.transformScope)
+                return nil
+            }
+        }
+        if let number {
+            // A tiny serving can overflow the expected value; `inf > inf` is false, so check it first.
+            if !expected.isFinite || R.transformArithmeticFails(expected: expected, value: number) {
+                err(.transformArithmetic)
+            } else if serving != nil, OpenFoodFactsServingRule.isImplausible(number, unit: canonical.unit) {
+                err(.servingImplausible)
+            }
+        }
+        return productRelease.map { ($0, serving) }
     }
 }
 
@@ -391,7 +532,8 @@ enum PersonalFoodDatabaseBuilder {
     typealias R = PersonalFoodDatabaseRules
 
     static func file(_ doc: PFDValue) -> PersonalFoodDatabaseFile? {
-        guard let generated = doc["generated"]?.text.flatMap({ PersonalFoodDatabaseDate(ascii: $0.bytes) }),
+        guard let schema = doc["schema"]?.text.flatMap({ PersonalFoodDatabaseSchema(rawValue: $0.string) }),
+              let generated = doc["generated"]?.text.flatMap({ PersonalFoodDatabaseDate(ascii: $0.bytes) }),
               let sourceValues = doc["sources"]?.items, let corpusValues = doc["generic_corpora"]?.items,
               let itemValues = doc["items"]?.items else { return nil }
         var sources: [PersonalFoodDatabaseDeclaredSource] = []
@@ -411,7 +553,8 @@ enum PersonalFoodDatabaseBuilder {
             guard let entry = entry(item) else { return nil }
             entries.append(entry)
         }
-        return PersonalFoodDatabaseFile(generated: generated, sources: sources, genericCorpora: corpora, entries: entries)
+        return PersonalFoodDatabaseFile(schema: schema, generated: generated, sources: sources, genericCorpora: corpora,
+                                        entries: entries)
     }
 
     static func declaredSource(_ s: PFDValue) -> PersonalFoodDatabaseDeclaredSource? {
@@ -487,10 +630,21 @@ enum PersonalFoodDatabaseBuilder {
         }
         var transform: PersonalFoodDatabaseTransform?
         if let list = v["transforms"]?.items, let sv = v["source_value"] {
-            guard let first = list.first, let id = first["transform_id"]?.text?.string,
-                  let version = first["version"]?.text?.string, let svValue = sv["value"]?.nutrientNumber,
-                  let svUnit = sv["unit"]?.text?.string else { return nil }
-            transform = PersonalFoodDatabaseTransform(transformID: id, version: version, sourceValue: svValue, sourceUnit: svUnit)
+            var steps: [PersonalFoodDatabaseTransformStep] = []
+            for item in list {
+                guard let id = item["transform_id"]?.text?.string, let version = item["version"]?.text?.string else { return nil }
+                steps.append(PersonalFoodDatabaseTransformStep(transformID: id, version: version))
+            }
+            guard !steps.isEmpty, let svValue = sv["value"]?.nutrientNumber, let svUnit = sv["unit"]?.text?.string else { return nil }
+            var serving: PositiveQuantity?
+            if let s = sv["serving"] {
+                guard let quantity = R.servingQuantity(s["quantity"]), let servingUnit = s["unit"]?.text,
+                      let quantityUnit: QuantityUnit = servingUnit == PFDText("g") ? .grams
+                        : servingUnit == PFDText("ml") ? .millilitres : nil,
+                      let positive = try? PositiveQuantity(value: quantity, unit: quantityUnit) else { return nil }
+                serving = positive
+            }
+            transform = PersonalFoodDatabaseTransform(steps: steps, sourceValue: svValue, sourceUnit: svUnit, serving: serving)
         }
         return PersonalFoodDatabaseLabelValue(value: number, unit: unit, source: source, transform: transform)
     }

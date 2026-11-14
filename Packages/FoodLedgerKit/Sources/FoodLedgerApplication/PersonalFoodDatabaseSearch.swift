@@ -71,9 +71,11 @@ public final class PersonalFoodDatabaseIndex: @unchecked Sendable {
     }
 
     static func load(_ installed: PersonalFoodDatabaseInstalledRelease, resolver: any GenericRecordResolving) -> Snapshot? {
+        // The release's schema comes from the decoded file; a manifest that names another is damaged.
         guard case let .success(file) = PersonalFoodDatabaseCodec.decode(installed.bytes),
+              installed.manifest.schema == file.schema.rawValue,
               let release = try? PersonalFoodDatabaseRelease.sourceRelease(
-                  fileSHA256: installed.manifest.fileSHA256, generated: installed.manifest.generated),
+                  fileSHA256: installed.manifest.fileSHA256, generated: installed.manifest.generated, schema: file.schema),
               release.sourceReleaseID.value == installed.manifest.releaseID else { return nil }
         let unresolved = file.entries.reduce(0) { count, entry in
             guard let reference = entry.genericReference else { return count }
