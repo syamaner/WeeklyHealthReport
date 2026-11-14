@@ -84,6 +84,21 @@ final class PersonalFoodDatabasePresentationTests: XCTestCase {
             throw FoodConfirmationSaveError.noAcceptedCandidate
         }
         XCTAssertEqual(model.scaledServingNotes, ["Some values scaled from a 28 g serving"])
+        // PR #487 review: once a correction replaces the scaled values, the line goes.
+        let typed = try NutrientSet(entries: candidate.candidate.nutrients.entries.map { entry in
+            guard case .augmented = entry.value else { return entry }
+            return try NutrientEntry(key: entry.key, value: .unknown(.notDeclared))
+        })
+        var corrected = model.state
+        corrected.correction = FoodCorrection(name: candidate.name, brand: candidate.brand, variant: nil,
+            identity: candidate.candidate.identity, nutrients: typed, reason: try LedgerText("Synthetic correction"))
+        let correctedModel = FoodConfirmationViewModel(state: corrected) { _ in throw FoodConfirmationSaveError.noAcceptedCandidate }
+        XCTAssertEqual(correctedModel.scaledServingNotes, [])
+        // An identity-only correction keeps the scaled values, so it keeps the line.
+        corrected.correction = FoodCorrection(name: candidate.name, brand: candidate.brand, variant: nil,
+            identity: candidate.candidate.identity, nutrients: candidate.candidate.nutrients, reason: try LedgerText("Synthetic"))
+        let identityOnly = FoodConfirmationViewModel(state: corrected) { _ in throw FoodConfirmationSaveError.noAcceptedCandidate }
+        XCTAssertEqual(identityOnly.scaledServingNotes, ["Some values scaled from a 28 g serving"])
         let drink = try self.route("synthetic panel drink", file: Self.goldenV2)
         XCTAssertEqual(FoodSearchResultText.databaseScaledServingNotes(drink.matches[0].candidate,
                                                                        releases: drink.confirmation.sourceReleases), [])
