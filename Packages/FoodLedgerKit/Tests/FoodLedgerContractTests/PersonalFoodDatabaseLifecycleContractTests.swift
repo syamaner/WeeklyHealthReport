@@ -17,7 +17,7 @@ final class PersonalFoodDatabaseLifecycleContractTests: XCTestCase {
     func install(_ store: InMemoryPersonalFoodDatabaseStore, _ bytes: Data) throws {
         let digest = try SHA256Digester().sha256(bytes)
         guard case let .success(file) = PersonalFoodDatabaseCodec.decode(bytes) else { return XCTFail("golden decodes") }
-        try store.install(bytes: bytes, manifest: PersonalFoodDatabaseManifest(schema: PersonalFoodDatabaseFile.schema,
+        try store.install(bytes: bytes, manifest: PersonalFoodDatabaseManifest(schema: PersonalFoodDatabaseSchema.v1.rawValue,
             releaseID: PersonalFoodDatabaseRelease.releaseID(fileSHA256: digest), fileSHA256: digest, generated: file.generated,
             importedAt: Date(timeIntervalSince1970: 1_794_000_000), entryCount: file.entries.count))
     }

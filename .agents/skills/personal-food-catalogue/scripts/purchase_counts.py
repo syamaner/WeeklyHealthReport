@@ -28,8 +28,8 @@ class CountsError(ValueError):
 def purchase_counts(catalogue: dict, export_bytes: bytes) -> dict:
     """The pfd-purchase-counts-v1 document. Pure."""
     export = json.loads(export_bytes.decode("utf-8"))
-    if export.get("schema") != "personal-food-catalogue-v1":
-        raise CountsError("the import file is not personal-food-catalogue-v1")
+    if export.get("schema") not in ("personal-food-catalogue-v1", "personal-food-catalogue-v2"):
+        raise CountsError("the import file is not personal-food-catalogue-v1 or v2")
     ids = [it["id"] for it in export["items"]]
     if len(set(ids)) != len(ids):
         raise CountsError("the import file repeats an entry id")

@@ -1,6 +1,6 @@
 ---
 name: personal-food-catalogue
-description: Add foods to the owner's private nutrition catalogue from any input (receipt PDFs, CSV exports, free-text notes or pasted lists, label or receipt photos, the app's daily exports, product pages, typed values), enrich them with per-nutrient provenance, and rebuild the importable personal-food-catalogue-v1 file. Use whenever the owner asks to add, match, enrich or refresh catalogue entries. All catalogue data stays in the private workspace, never in this repository.
+description: Add foods to the owner's private nutrition catalogue from any input (receipt PDFs, CSV exports, free-text notes or pasted lists, label or receipt photos, the app's daily exports, product pages, typed values), enrich them with per-nutrient provenance, and rebuild the importable personal-food-catalogue-v2 file. Use whenever the owner asks to add, match, enrich or refresh catalogue entries. All catalogue data stays in the private workspace, never in this repository.
 ---
 
 # Personal food catalogue
@@ -123,8 +123,10 @@ input  ──►  intake file  ──►  intake.py add  ──►  mapping (age
    match. Search results carry no units or `<` modifiers, so label values come only from product
    records, under the app's `OpenFoodFactsLookup` rules. Cached requests are skipped.
 6. **Build offline:** `python3 -I $S/build.py $W <repo>`. This validates mappings, assembles every
-   source tier, appends intake items, exports `out/personal-food-catalogue-v1.json` and prints
-   coverage. The export writes label values plus one **reference** to a generic record (owner
+   source tier, appends intake items, exports `out/personal-food-catalogue-v2.json` (schema
+   `personal-food-catalogue-v2`, always, since 13 November 2026; see
+   [import v2](../../../docs/personal-food-catalogue-import-v2.md)) and prints coverage. Import it
+   only on an app build that accepts v2; an older build refuses it as an unknown schema. The export writes label values plus one **reference** to a generic record (owner
    decision: generic values are referenced, the app reads them from its bundled corpus), withholds
    unconfirmed values, and refuses to write a file the app would reject.
 7. **Review before reporting.** Read every new label match and every new generic match for the
@@ -164,7 +166,7 @@ Facts, OpenRouter label reading) run is unchanged and decided by the existing es
 | `intake.py` | Validate, register and list intake items |
 | `fetch_off.py`, `fetch_off_pass2.py` | Rate-limited Open Food Facts search (candidates only) |
 | `fetch_off_products.py`, `http_client.py` | Full product records for chosen matches; the shared paced client |
-| `off_rules.py` | Port of the app's `OpenFoodFactsLookup.project` admission rules; keep in step with it |
+| `off_rules.py` | Port of the app's `OpenFoodFactsLookup.project` admission rules (`off-product-projection-v6`: the panel wins, per-serving panels scaled); keep in step with it |
 | `test_owner_approval.py`, `test_outbound_gate.py` | Synthetic tests: no query is sent before approval; the outbound privacy gate |
 | `test_off_rules.py`, `test_export_check.py` | Synthetic tests: the Open Food Facts port, and one failing case per import rejection rule |
 | `validate_mappings.py`, `assemble.py`, `assemble_extras.py`, `export_v1.py`, `build.py` | Offline build and export |
@@ -180,7 +182,9 @@ Keep it compatible with Codex and Claude Code: canonical files here, relative sy
 After touching scripts, run `python3 -I scripts/test_http_client.py scripts`,
 `python3 -I scripts/test_off_rules.py scripts`, `python3 -I scripts/test_outbound_gate.py scripts`,
 `python3 -I scripts/test_owner_approval.py scripts`, `python3 -I scripts/test_private_config.py scripts`, `python3 -I scripts/test_compile_all.py scripts`, `python3 -I scripts/test_guards_and_edges.py scripts`, `python3 -I scripts/test_purchase_counts.py scripts`, `python3 -I scripts/test_attach_label.py scripts` and
-`python3 -I scripts/test_export_check.py scripts docs/fixtures/personal-food-database-v1` (from the
-repository root). These tests run locally only; CI does not run them. When a rejection rule changes, regenerate the shared fixtures with `--write
-docs/fixtures/personal-food-database-v1` and review the diff: the Swift importer tests read them too.
+`python3 -I scripts/test_export_check.py scripts docs/fixtures/personal-food-database-v1` and the same
+with `docs/fixtures/personal-food-database-v2` (from the repository root; CI runs the two fixture
+checks). When a rejection rule changes, regenerate the shared fixtures with `--write
+docs/fixtures/personal-food-database-v1` or `--write-v2 docs/fixtures/personal-food-database-v2` and
+review the diff: the Swift importer tests read them too, and the v1 folder must not change.
 When `OpenFoodFactsLookup.swift` changes, update `off_rules.py` and its tests in the same change.

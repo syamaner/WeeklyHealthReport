@@ -135,9 +135,71 @@ final class PersonalFoodDatabaseImporterTests: XCTestCase {
         let bytes = try Self.fixture("golden.json")
         let file = try PersonalFoodDatabaseCodec.decode(bytes).get()
         releases.stored = try file.sources.map { try $0.sourceRelease() }
-            + [PersonalFoodDatabaseRelease.sourceRelease(fileSHA256: SHA256Digester().sha256(bytes), generated: file.generated)]
+            + [PersonalFoodDatabaseRelease.sourceRelease(fileSHA256: SHA256Digester().sha256(bytes), generated: file.generated, schema: .v1)]
         let i6 = await importer.importFile(bytes)
         XCTAssertNotNil(summary(i6))
+    }
+
+    /// Import v2: the manifest records the file's own schema, the v1 golden's stays v1, and the stored
+    /// v1 database release still compares equal (no conflict on re-import after this change).
+    func testV2FileRecordsItsSchemaAndV1KeepsV1() async throws {
+        let v1 = try Self.fixture("golden.json")
+        let v1File = try PersonalFoodDatabaseCodec.decode(v1).get()
+        releases.stored = try v1File.sources.map { try $0.sourceRelease() }
+            + [PersonalFoodDatabaseRelease.sourceRelease(fileSHA256: SHA256Digester().sha256(v1), generated: v1File.generated,
+                                                         schema: .v1)]
+        let first = await importer.importFile(v1)
+        XCTAssertNotNil(summary(first))
+        XCTAssertEqual(try store.activeRelease()?.manifest.schema, "personal-food-catalogue-v1")
+        let v2 = try Data(contentsOf: Self.fixtures.deletingLastPathComponent()
+            .appendingPathComponent("personal-food-database-v2/golden.json"))
+        let second = await importer.importFile(v2)
+        XCTAssertNotNil(summary(second))
+        XCTAssertEqual(try store.activeRelease()?.manifest.schema, "personal-food-catalogue-v2")
+        let release = try PersonalFoodDatabaseRelease.sourceRelease(fileSHA256: SHA256Digester().sha256(v2),
+            generated: PersonalFoodDatabaseCodec.decode(v2).get().generated, schema: .v2)
+        XCTAssertEqual(release.schemaVersion.value, "personal-food-catalogue-v2")
+    }
+
+    /// Qodo (local review): a manifest naming another schema than its file reads as damaged, as the
+    /// search index reads it, and importing the same bytes repairs it instead of answering unchanged.
+    func testAManifestSchemaMismatchIsDamagedAndReimportRepairsIt() async throws {
+        let v2 = try Data(contentsOf: Self.fixtures.deletingLastPathComponent()
+            .appendingPathComponent("personal-food-database-v2/golden.json"))
+        let digest = try SHA256Digester().sha256(v2)
+        let file = try PersonalFoodDatabaseCodec.decode(v2).get()
+        try store.install(bytes: v2, manifest: PersonalFoodDatabaseManifest(schema: PersonalFoodDatabaseSchema.v1.rawValue,
+            releaseID: PersonalFoodDatabaseRelease.releaseID(fileSHA256: digest), fileSHA256: digest, generated: file.generated,
+            importedAt: Date(timeIntervalSince1970: 1_794_000_000), entryCount: file.entries.count))
+        let before = await importer.status()
+        XCTAssertEqual(before, .damaged)
+        let outcome = await importer.importFile(v2)
+        XCTAssertNotNil(summary(outcome), "repaired, not unchanged: \(outcome)")
+        XCTAssertEqual(try store.activeRelease()?.manifest.schema, "personal-food-catalogue-v2")
+        let after = await importer.status()
+        guard case .installed = after else { return XCTFail("expected installed, got \(after)") }
+        XCTAssertEqual(PersonalFoodDatabaseCodec.declaredSchema(v2), .v2)
+        XCTAssertNil(PersonalFoodDatabaseCodec.declaredSchema(Data(#"{"schema":"personal-food-catalogue-v3"}"#.utf8)))
+        XCTAssertNil(PersonalFoodDatabaseCodec.declaredSchema(Data("not json".utf8)))
+    }
+
+    /// PR #487 review: once a file hash's schema is verified, status() does not parse the file again.
+    /// The real store re-hashes the file on every read; this in-memory store does not, so swapping in
+    /// unreadable bytes under the same manifest shows that no second parse happens. A manifest that
+    /// changes its schema for the same hash is still read and found damaged.
+    func testStatusReadsTheSchemaOncePerFileHash() async throws {
+        let v2 = try Data(contentsOf: Self.fixtures.deletingLastPathComponent()
+            .appendingPathComponent("personal-food-database-v2/golden.json"))
+        let first = await importer.importFile(v2)
+        XCTAssertNotNil(summary(first))
+        let manifest = try XCTUnwrap(try store.activeRelease()?.manifest)
+        try store.install(bytes: Data("not json".utf8), manifest: manifest)
+        guard case .installed = await importer.status() else { return XCTFail("the verified schema is cached") }
+        try store.install(bytes: v2, manifest: PersonalFoodDatabaseManifest(schema: PersonalFoodDatabaseSchema.v1.rawValue,
+            releaseID: manifest.releaseID, fileSHA256: manifest.fileSHA256, generated: manifest.generated,
+            importedAt: manifest.importedAt, entryCount: manifest.entryCount))
+        let mismatched = await importer.status()
+        XCTAssertEqual(mismatched, .damaged)
     }
 
     func testFailureOutcomes() async throws {
