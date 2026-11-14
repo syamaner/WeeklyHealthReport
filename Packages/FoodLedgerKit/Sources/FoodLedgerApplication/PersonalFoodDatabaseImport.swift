@@ -118,6 +118,10 @@ public actor PersonalFoodDatabaseImporter: PersonalFoodDatabaseImporting {
     private let digester: any Digesting
     private let clock: any LedgerClock
     private let releases: any FoodConfirmationReading
+    /// The last file hash whose own schema was read and found to match its manifest. The store
+    /// verifies the file hash on every read, so equal hashes mean equal bytes and the schema need not
+    /// be parsed again (PR #487 review: `status()` should not parse the whole file each time).
+    private var verifiedSchema: (digest: SHA256Digest, schema: String)?
 
     public init(store: any PersonalFoodDatabaseStoring, digester: any Digesting, clock: any LedgerClock,
                 releases: any FoodConfirmationReading) {
@@ -130,7 +134,7 @@ public actor PersonalFoodDatabaseImporter: PersonalFoodDatabaseImporting {
     /// Verifies the active file's hash on every read, deliberately: a release that fails its hash is
     /// disabled (storage decision section 3), so Settings never shows a damaged file as installed.
     public func status() async -> PersonalFoodDatabaseStatus {
-        switch Self.loadActive(store) {
+        switch loadActive() {
         case let .present(active): .installed(PersonalFoodDatabaseSummary(active.manifest))
         case .absent: .none
         case .locked: .locked
@@ -151,14 +155,14 @@ public actor PersonalFoodDatabaseImporter: PersonalFoodDatabaseImporting {
 
         let activeSources: [SourceRelease]
         let replacing: Bool
-        switch Self.activeComparison(store, digest: digest) {
+        switch activeComparison(digest: digest) {
         case .locked: return .locked
         case .unreadable: return .writeFailed
         case let .same(summary): return .unchanged(summary)
         case let .other(sources): activeSources = sources; replacing = true
         case .none: // absent, or damaged: the active comparison is skipped (3.1, change 3)
             activeSources = []
-            if case .absent = Self.loadActive(store) { replacing = false } else { replacing = true }
+            if case .absent = loadActive() { replacing = false } else { replacing = true }
         }
 
         for release in candidates {
@@ -180,6 +184,7 @@ public actor PersonalFoodDatabaseImporter: PersonalFoodDatabaseImporting {
         )
         do {
             try store.install(bytes: bytes, manifest: manifest)
+            verifiedSchema = (digest, manifest.schema)  // the file was just decoded with this schema
         } catch PersonalFoodDatabaseStoreError.locked {
             return .locked
         } catch {
@@ -234,8 +239,8 @@ public actor PersonalFoodDatabaseImporter: PersonalFoodDatabaseImporting {
 
     /// The active release reduced to what the comparison needs; its bytes and decoded file are
     /// released when this returns.
-    private static func activeComparison(_ store: any PersonalFoodDatabaseStoring, digest: SHA256Digest) -> ActiveComparison {
-        switch loadActive(store) {
+    private func activeComparison(digest: SHA256Digest) -> ActiveComparison {
+        switch loadActive() {
         case .locked: return .locked
         case .unreadable: return .unreadable
         case .absent, .damaged: return .none
@@ -251,12 +256,17 @@ public actor PersonalFoodDatabaseImporter: PersonalFoodDatabaseImporting {
         case absent, locked, damaged, unreadable
     }
 
-    private static func loadActive(_ store: any PersonalFoodDatabaseStoring) -> ActiveLoad {
+    private func loadActive() -> ActiveLoad {
         do {
             guard let active = try store.activeRelease() else { return .absent }
             // Import v2: a manifest naming another schema than its file is damaged, as the search
             // index reads it, so Settings never shows it as installed and a re-import repairs it.
+            if let verified = verifiedSchema, verified.digest == active.manifest.fileSHA256,
+               verified.schema == active.manifest.schema {
+                return .present(active)
+            }
             guard PersonalFoodDatabaseCodec.declaredSchema(active.bytes)?.rawValue == active.manifest.schema else { return .damaged }
+            verifiedSchema = (active.manifest.fileSHA256, active.manifest.schema)
             return .present(active)
         } catch PersonalFoodDatabaseStoreError.locked {
             return .locked

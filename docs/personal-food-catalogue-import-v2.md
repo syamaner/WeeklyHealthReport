@@ -95,16 +95,18 @@ Example of a scaled sodium value (synthetic):
   for nothing else, and keeps `version` 1 and its byte form. The data file name stays
   `personal-food-catalogue-v1.json` (decision 4). A manifest whose schema differs from the decoded
   file reads as damaged, never as a release with the wrong `schemaVersion`: the search index and
-  Settings both treat it so, and importing the same bytes again repairs the manifest (the store reuses
-  a release folder only when its manifest names the same file and schema).
+  Settings both treat it so, and importing the same bytes again repairs it: the store rewrites only that
+  folder's manifest, atomically, so a failure or crash never leaves the pointer naming a missing folder.
+  The importer reads a file's schema once per verified file hash, not on every status read.
 - **Provenance.** The candidate builder gives a scaled value the source basis
   `perServing(quantity g or ml)` and the panel's own number, with the transforms in file order. This
   reproduces the barcode route's provenance for the same record, so a saved log from either route
   carries the same transform pairs and source basis shape. A value without a serving keeps the
   entry's basis, as in v1.
 - **Confirm.** When a value the candidate uses carries `off-serving-to-100`, Confirm's Food section
-  shows "Some values scaled from a 28 g serving" (decision 3), from the candidate's own values
-  (`FoodSearchResultText.databaseScaledServingNotes`). The candidate's material differences carry the
+  shows "Some values scaled from a 28 g serving" (decision 3), from the values Confirm shows
+  (`FoodSearchResultText.databaseScaledServingNotes`), so a correction that replaces the scaled values
+  removes the line. The candidate's material differences carry the
   same line after "Your food database entry · per 100 g", which search rows list. The serving is written as the barcode route writes it ("28", "12.5", no
   trailing ".0"), through one shared helper, `OpenFoodFactsServingText`. A panel-wins entry needs no
   extra line: its basis line already reads "per 100 mL as labelled".
@@ -123,16 +125,22 @@ the per-serving path (`per_quantity` a non-boolean finite number above 0, or tex
 conversion in the app's double arithmetic (a value that overflows before scaling is left out, as the
 app leaves it unknown), refusal when only the scale overflows, and plausibility over every scaled value,
 including bound ends the port then leaves out. A record v5 admits keeps `off-product-projection-v5`
-and byte-identical values (an integer stays an integer) and releases; only records v5 refuses get v6. The one remaining difference
-from the app is v1's: a `<` or `>` value becomes a bound in the app and is left out of the catalogue.
+and byte-identical values (an integer stays an integer) and releases; only records v5 refuses get v6. Two differences from the app
+remain, both limits of the format: a `<` or `>` value becomes a bound in the app and is left out of
+the catalogue (v1's), and a numeric serving of 1e15 or more, which section 3 rule 3 cannot hold, is
+admitted by the app but declines the record in the port, so one such cached record never refuses the
+whole build.
 
 `export_v1.py` (the module keeps its name; it is not a contract) writes schema
-`personal-food-catalogue-v2` to `out/personal-food-catalogue-v2.json`, and its `check_bytes` applies
+`personal-food-catalogue-v2` to `out/personal-food-catalogue-v2.json`, then renames an old
+`out/personal-food-catalogue-v1.json` to `personal-food-catalogue-v1.superseded.json` in the same
+private folder so the stale file cannot be imported by mistake, and its `check_bytes` applies
 the v1 rules to a v1 file and the v1 plus section 3 rules to a v2 file. `purchase_counts.py` accepts
 either schema. A rebuild re-projects the private cache (no new query, no new field, no new endpoint):
 v5 admissions are unchanged, v6 records gain values, and an entry whose basis becomes
 `per_100_ml_as_labelled` loses a `merge` role through the existing role rule. The skill reports those
-counts in the private workspace before the owner imports.
+counts in the private workspace before the owner imports; a previous file that cannot be read, or
+whose root is not a catalogue object, is reported as not compared.
 
 Import a v2 file only on an app build with this change; an older build refuses it as an unknown
 schema ("This file is not a food database file from your Mac.") and keeps the active release.

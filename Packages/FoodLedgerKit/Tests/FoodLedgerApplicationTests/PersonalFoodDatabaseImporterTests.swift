@@ -183,6 +183,25 @@ final class PersonalFoodDatabaseImporterTests: XCTestCase {
         XCTAssertNil(PersonalFoodDatabaseCodec.declaredSchema(Data("not json".utf8)))
     }
 
+    /// PR #487 review: once a file hash's schema is verified, status() does not parse the file again.
+    /// The real store re-hashes the file on every read; this in-memory store does not, so swapping in
+    /// unreadable bytes under the same manifest shows that no second parse happens. A manifest that
+    /// changes its schema for the same hash is still read and found damaged.
+    func testStatusReadsTheSchemaOncePerFileHash() async throws {
+        let v2 = try Data(contentsOf: Self.fixtures.deletingLastPathComponent()
+            .appendingPathComponent("personal-food-database-v2/golden.json"))
+        let first = await importer.importFile(v2)
+        XCTAssertNotNil(summary(first))
+        let manifest = try XCTUnwrap(try store.activeRelease()?.manifest)
+        try store.install(bytes: Data("not json".utf8), manifest: manifest)
+        guard case .installed = await importer.status() else { return XCTFail("the verified schema is cached") }
+        try store.install(bytes: v2, manifest: PersonalFoodDatabaseManifest(schema: PersonalFoodDatabaseSchema.v1.rawValue,
+            releaseID: manifest.releaseID, fileSHA256: manifest.fileSHA256, generated: manifest.generated,
+            importedAt: manifest.importedAt, entryCount: manifest.entryCount))
+        let mismatched = await importer.status()
+        XCTAssertEqual(mismatched, .damaged)
+    }
+
     func testFailureOutcomes() async throws {
         let bytes = try Self.fixture("golden.json")
         let tooLarge = await importer.importFile(Data(count: PersonalFoodDatabaseCodec.limitBytes + 1))
