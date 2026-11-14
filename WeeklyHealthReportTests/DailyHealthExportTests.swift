@@ -1,4 +1,5 @@
 import AppAuth
+import Combine
 import DriveExportOAuth
 import FoodLedgerApplication
 import FoodLedgerDomain
@@ -4444,6 +4445,20 @@ extension DailyHealthExportTests {
             mimeType: DailyDriveConsentPolicy.folderMIMEType, trashed: false, driveID: nil, isAppAuthorized: true,
             canAddChildren: true))
         let (session, _) = try await makeFoodSession(drive: drive)
+        // The helper leaves the session ready, so polling for readiness passed before the
+        // screen's own preparation (started from onAppear in an unstructured task) had run,
+        // and that preparation then raced Export for `busy`. Wait for the screen's preparation
+        // itself: it moves to `.preparing` and finishes when `busy` returns to false.
+        let screenPrepared = expectation(description: "opening the screen runs its own preparation to the end")
+        let preparationEnded = session.$presentationState.dropFirst()
+            .combineLatest(session.$busy)
+            .scan((sawPreparing: false, ended: false)) { progress, update in
+                let (state, busy) = update
+                let sawPreparing = progress.sawPreparing || state == .preparing
+                return (sawPreparing, sawPreparing && state != .preparing && !busy)
+            }
+            .first { $0.ended }
+            .sink { _ in screenPrepared.fulfill() }
         let host = UIHostingController(rootView: NavigationStack { DailyExportView(session: session) })
         let bounds = CGRect(x: 0, y: 0, width: 393, height: 1700)
         let window: UIWindow
@@ -4460,11 +4475,10 @@ extension DailyHealthExportTests {
         defer { window.isHidden = true }
         host.view.frame = window.bounds
         host.view.layoutIfNeeded()
-        let deadline = Date().addingTimeInterval(10)
-        while Date() < deadline,
-              session.busy || session.presentationState != .readyToExport || session.preview == nil {
-            try await Task.sleep(nanoseconds: 50_000_000)
-        }
+        // The timeout only bounds a failure; a passing run returns as soon as preparation ends.
+        await fulfillment(of: [screenPrepared], timeout: 30)
+        preparationEnded.cancel()
+        XCTAssertFalse(session.busy)
         XCTAssertEqual(session.presentationState, .readyToExport, session.status)
         XCTAssertNotNil(session.preview)
         XCTAssertNotNil(session.foodPreparation.preview, "opening the screen prepares the food file too")
