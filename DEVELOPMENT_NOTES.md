@@ -4583,3 +4583,26 @@ Excluded:
 - this ledger edit, the commit, the push and the PR after the window.
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison, not billing, and token totals do not measure quality or productivity.
+
+## WHR-316-SWITCH-2026-11-14: Claude Code label photo Settings switch for internal TestFlight (#316)
+
+The coordinating session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) did the following in this window:
+- wrote spec section 17.22 (the switch, its blockers and the internal-only release rule) and the matching privacy and egress entry;
+- built the Settings › Food search switch, the Release route resolution and the turned-off blocker, with tests;
+- ran an architecture gate (seven changes made), an invariant review (three low findings: two fixed, one accepted), a keyless route check and the full gates;
+- recorded the owner's waiver of the iPhone run for internal builds.
+
+The window also holds interleaved backlog work from the same session: issue triage updates, the #467 and #422 decisions and the #487 review checks. They could not be separated by time, so the figure overstates this phase. Subagents are included. The window runs from `2026-11-14T11:27:08Z`, the owner's "Yes, prepare #316", to the measurement run.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| #316 switch spec, code, reviews and gates, with interleaved backlog work and subagents | 25,816,979 (24,955,158) | 861,481 | 89,452 | 25,906,431 | $11.42 |
+
+Method: `phase_usage.py --format claude --since 2026-11-14T11:27:08Z --include-subagents` on the session transcript. Exact USD 11.4160376. The cache-write tokens are part of the input figure, and 752,414 of them are 5-minute writes. The total is input plus output.
+
+Excluded:
+- the Qodo review runs;
+- local test, gate and simulator runs, which use no API tokens;
+- this ledger edit, the commit, the push and the PR after the measurement.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
