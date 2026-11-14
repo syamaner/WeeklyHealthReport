@@ -1508,7 +1508,7 @@ In the narrow window where the switch is turned off between the tap and the read
 
 | State | Copy |
 |---|---|
-| Turned off while the screen is open | `Label photo reading is off. Turn on Read label photos with AI in Settings to read this photo. Nothing was sent.` |
+| Turned off while the screen is open | `Label photo reading is off. Turn on Read label photos with AI in Settings to read this photo.` |
 
 Turning the switch off keeps the live consent (`labelPhoto.egressConsent.live.v1`) and the live spend ledger, as 17.21 keeps them across launches; turning it on again does not ask again, and today's count carries on.
 

@@ -1,3 +1,4 @@
+import Combine
 import FoodLedgerApplication
 import FoodLedgerDomain
 @testable import FoodLedgerPresentation
@@ -270,9 +271,14 @@ final class LabelPhotoPresentationTests: XCTestCase {
         XCTAssertEqual(model.blocker, .turnedOff, "the switch comes before every other blocker")
         XCTAssertFalse(model.canRead)
         XCTAssertEqual(model.blocker?.text,
-                       "Label photo reading is off. Turn on Read label photos with AI in Settings to read this photo. Nothing was sent.")
+                       "Label photo reading is off. Turn on Read label photos with AI in Settings to read this photo.",
+                       "no claim about a read that may already be under way")
         XCTAssertNil(model.blocker?.action)
+        var redraws = 0
+        let watch = model.objectWillChange.sink { redraws += 1 }
         model.readTapped()
+        XCTAssertEqual(redraws, 1, "a refused tap redraws the screen so the blocker shows")
+        watch.cancel()
         model.firstUseAccepted()
         await Task.yield()
         XCTAssertEqual(script.reads, 0, "nothing is sent once the route is off")

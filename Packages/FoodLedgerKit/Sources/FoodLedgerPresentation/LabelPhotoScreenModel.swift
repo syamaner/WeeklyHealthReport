@@ -195,7 +195,9 @@ public final class LabelPhotoScreenModel: ObservableObject {
 
     /// Read label with AI. The first use shows the sheet; nothing is sent until Send photo.
     public func readTapped() {
-        guard canRead else { return }
+        // A blocker read on demand (the Settings switch, say) changes without publishing, so a
+        // refused tap redraws the screen to show why instead of doing nothing (Qodo review of #316).
+        guard canRead else { objectWillChange.send(); return }
         if environment.hasConsented() { startRead() } else { showsFirstUseSheet = true }
     }
 
