@@ -86,6 +86,15 @@ final class LabelPhotoCompositionTests: XCTestCase {
         XCTAssertNotEqual(model.blocker, .turnedOff, "back on with the same key and build, the same route is in force")
     }
 
+    func testRemovingTheKeyWhileTheScreenIsOpenShowsNoKeyNotTurnedOff() throws {
+        let (root, _) = try makeRoot(route: nil, switchOn: true, savedKey: "sk-or-v1-synthetic")
+        let model = try XCTUnwrap(root.labelPhotoScreenModel())
+        root.webDiscovery.removeKey()
+        XCTAssertFalse(root.webDiscovery.hasSavedKey)
+        XCTAssertEqual(model.blocker, .noKey, "the switch is still on; the cause is the missing key")
+        XCTAssertFalse(model.canRead)
+    }
+
     private func addFoodPhotos(_ root: FoodLedgerCompositionRoot) -> Bool? {
         let view = AddFoodView(recents: [], search: { _ in }, scanBarcode: {}, pasteOrDictate: {}, nutritionLabel: {},
                                nutritionLabelPhotos: root.labelPhotoEnabled, favourites: {}, relog: { _ in })

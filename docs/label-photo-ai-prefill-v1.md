@@ -1502,7 +1502,9 @@ The footer changes because "only the food terms you search for" would stop being
 
 **When off.** The route is hidden exactly as it is today: Add food's Nutrition label row has its text-only subtitle, the entry offers only text, `labelPhotoFlow()` and `labelPhotoScreenModel()` return nil, and a pasted image is not accepted. The entry changes the next time Add food or Nutrition label opens.
 
-**Turning it off stops sending at once.** Unlike a launch argument, the switch can change while a Label photo screen is open (in another scene, say). The screen model therefore asks, before every tap, whether the mode it was built for is still the one the switch, the key and the build resolve to. If not, Read label with AI is disabled with a new blocker, and the root's read closure also refuses without sending (defence in depth):
+**Turning it off stops the next read.** Unlike a launch argument, the switch can change while a Label photo screen is open (in another scene, say). The screen model therefore asks, before every tap, whether the mode it was built for is still the one the switch and the build resolve to. If not, Read label with AI is disabled with a new blocker. A removed key is not this blocker: it shows the existing no-key blocker (7.2). The root's read closure also checks the switch and the key once more just before the read starts, and refuses without sending (defence in depth). A read already under way, including its E11 retries within the one tap, is not stopped by the switch; Cancel stops it, as before.
+
+In the narrow window where the switch is turned off between the tap and the read starting, the refusal shows the route-unavailable failure copy; nothing is sent, and the blocker below then shows. This is accepted rather than adding a failure case to the closed `LabelImageReadingFailure` set.
 
 | State | Copy |
 |---|---|
@@ -1525,6 +1527,6 @@ Turning the switch off keeps the live consent (`labelPhoto.egressConsent.live.v1
 - Settings: the row sits directly after Web lookup with the exact title (its VoiceOver label) and caption, the amended footer verbatim, off by default; building and toggling the section sends no web lookup request and builds no label photo flow (`LabelPhotoSessions.count` unchanged).
 - Turning the switch off while a live screen is open: the screen shows `.turnedOff`, Read label with AI is disabled, and the root's read closure returns a failure without reaching the flow.
 
-**Records changed in this PR.** `privacy-and-egress.md`'s "In force, route not yet enabled for users" entry is replaced by the text below; the section 11 rows and the privacy policy already describe the live route and are unchanged.
+**Records changed in this PR.** `privacy-and-egress.md`'s "In force, route not yet enabled for users" heading becomes "In force, internal testing only", and its launch-argument sentence is replaced by the text below; the section 11 rows and the privacy policy already describe the live route and are unchanged.
 
 > The live route is reachable in a Debug build through the `-LabelPhotoRoute live` launch argument, and in a Release build only through Settings › Food search › Read label photos with AI, which is off by default (section 17.22, owner approval 14 November 2026). Builds that contain the switch go to the internal TestFlight group only, after the recorded iPhone run of `FoodLabelPhotoCaptureTests` (17.17 (c)), and are not offered to external testers or the App Store until the owner has reviewed the App Store privacy answers. With the switch off, a build sends no label photo.

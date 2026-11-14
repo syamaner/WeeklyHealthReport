@@ -1789,8 +1789,10 @@ extension FoodLedgerCompositionRoot {
         let keyArgument = defaults.string(forKey: "LabelPhotoKey")
         let live = mode == .live, credentials = webDiscovery, consentKey = labelPhotoConsentKey(for: mode)
         let connectivity = Self.labelPhotoConnectivity
-        // Asked before every tap and again at the send: the switch may be turned off while this
-        // screen is open, and then nothing more is sent (17.22).
+        // The switch may be turned off while this screen is open (17.22). Before every tap the screen
+        // asks only about the switch and build, so a removed key still reads as no key; just before a
+        // read starts the closure also checks the key, and refuses without sending.
+        let switchInForce = { LabelPhotoRouteMode.from(defaults, keySaved: true) == mode }
         let stillInForce = { LabelPhotoRouteMode.from(defaults, keySaved: credentials.hasSavedKey) == mode }
         return LabelPhotoScreenModel(environment: .init(
             prepare: { flow.prepare($0, crop: $1) },
@@ -1811,7 +1813,7 @@ extension FoodLedgerCompositionRoot {
                     imageEvidenceID: ids.makeID(EvidenceTag.self), manifestEvidenceID: ids.makeID(EvidenceTag.self),
                     locale: LedgerText(identifier))
             },
-            isEnabled: stillInForce))
+            isEnabled: switchInForce))
     }
 
     /// Confirm for a label photo: the same Confirm and Log as every route. Log goes through the

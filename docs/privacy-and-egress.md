@@ -52,7 +52,7 @@ Developer tooling for the pasted-label AI text evaluation ([pasted-label-ai-text
 - Responses are evidence for review, never authority: citations or model confidence alone never authorise nutrition or saving.
 - Adding a destination, widening a payload or changing when a request happens needs a versioned contract, an update to this file and `privacy-policy.txt`, and explicit user approval. Prove a new transport with synthetic data before integrating it with HealthKit or any other personal data.
 
-## In force, route not yet enabled for users
+## In force, internal testing only
 
 - **Label photo reading through OpenRouter** (#316): the owner approved egress terms E1 to E16 on 25 October 2026 ([label-photo-ai-prefill-v1.md](label-photo-ai-prefill-v1.md) sections 10 and 17), and its section 11 row, retry amendment and on-device photo rule are in force above from the PR that wires the live transport (E16). E13 passed on 27 October 2026 (section 17.21). The live route is reachable in a Debug build through the `-LabelPhotoRoute live` launch argument, and in a Release build only through Settings › Food search › Read label photos with AI, which is off by default (section 17.22, owner approval 14 November 2026). Builds that contain the switch go to the internal TestFlight group only, after the recorded iPhone run of `FoodLabelPhotoCaptureTests` (17.17 (c)), and are not offered to external testers or the App Store until the owner has reviewed the App Store privacy answers. With the switch off, a build sends no label photo. On 10 November 2026 the owner approved a pasted image as a further source of the same photo, under E1 to E16 unchanged (#454, owner decisions Q1 to Q3; [nutrition-label-entry-v1.md](nutrition-label-entry-v1.md) section 4).
 
