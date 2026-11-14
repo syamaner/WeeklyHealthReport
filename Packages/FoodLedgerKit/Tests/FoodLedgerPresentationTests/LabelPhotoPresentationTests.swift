@@ -278,12 +278,15 @@ final class LabelPhotoPresentationTests: XCTestCase {
         let watch = model.objectWillChange.sink { redraws += 1 }
         model.readTapped()
         XCTAssertEqual(redraws, 1, "a refused tap redraws the screen so the blocker shows")
-        watch.cancel()
         model.firstUseAccepted()
         await Task.yield()
         XCTAssertEqual(script.reads, 0, "nothing is sent once the route is off")
         script.enabled = true; script.key = .valid
         XCTAssertNil(model.blocker)
+        let before = redraws
+        model.settingsChanged()
+        XCTAssertEqual(redraws, before + 1, "a settings change redraws the screen, so Read comes back without another tap")
+        watch.cancel()
     }
 
     func testTheFirstUseSheetComesOnceAndNotNowSendsNothing() async throws {

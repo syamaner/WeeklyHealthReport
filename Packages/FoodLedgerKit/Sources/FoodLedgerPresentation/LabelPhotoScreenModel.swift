@@ -193,6 +193,10 @@ public final class LabelPhotoScreenModel: ObservableObject {
         photo = nil; prepared = nil; preparationFailure = nil; phase = .editing; confirmSource = nil
     }
 
+    /// A setting the blockers read on demand changed (the 17.22 switch, say): redraw so the screen
+    /// shows the current blocker, or none, without waiting for an unrelated change (Qodo review of #316).
+    public func settingsChanged() { objectWillChange.send() }
+
     /// Read label with AI. The first use shows the sheet; nothing is sent until Send photo.
     public func readTapped() {
         // A blocker read on demand (the Settings switch, say) changes without publishing, so a
