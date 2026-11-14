@@ -21,12 +21,15 @@ final class PersonalFoodDatabasePresentationTests: XCTestCase {
         }
     }
 
-    func route(_ query: String) throws -> GenericFoodConfirmationRoute {
-        let bytes = try Data(contentsOf: Self.golden)
+    static let goldenV2 = golden.deletingLastPathComponent().deletingLastPathComponent()
+        .appendingPathComponent("personal-food-database-v2/golden.json")
+
+    func route(_ query: String, file url: URL = golden) throws -> GenericFoodConfirmationRoute {
+        let bytes = try Data(contentsOf: url)
         let digest = try SHA256Digester().sha256(bytes)
         guard case let .success(file) = PersonalFoodDatabaseCodec.decode(bytes) else { throw XCTSkip("golden decodes") }
         let store = InMemoryPersonalFoodDatabaseStore()
-        try store.install(bytes: bytes, manifest: PersonalFoodDatabaseManifest(schema: PersonalFoodDatabaseFile.schema,
+        try store.install(bytes: bytes, manifest: PersonalFoodDatabaseManifest(schema: file.schema.rawValue,
             releaseID: PersonalFoodDatabaseRelease.releaseID(fileSHA256: digest), fileSHA256: digest, generated: file.generated,
             importedAt: Date(timeIntervalSince1970: 1_794_000_000), entryCount: file.entries.count))
         let index = PersonalFoodDatabaseIndex(store: store, resolver: GenericRecordResolverSet([:]))
@@ -64,5 +67,43 @@ final class PersonalFoodDatabasePresentationTests: XCTestCase {
         let generic = GenericFoodMatch(candidate: route.matches[0].candidate, isExactName: false,
             personalDatabase: PersonalFoodDatabaseMatchContext(step: .concept, isGenericReference: true))
         XCTAssertEqual(FoodSearchResultText.rowTitle(generic), "Generic: Synthetic Example Oats")
+    }
+
+    /// Import v2 (owner decision 3): Confirm shows the scaled-serving line for a database entry,
+    /// and nothing for an unscaled one.
+    @MainActor
+    func testConfirmShowsTheScaledServingLineForADatabaseEntry() throws {
+        let route = try route("synthetic serving bar", file: Self.goldenV2)
+        let candidate = try XCTUnwrap(route.matches.first { $0.candidate.name.value == "Synthetic Serving Bar" }?.candidate)
+        XCTAssertEqual(FoodSearchResultText.databaseScaledServingNotes(candidate, releases: route.confirmation.sourceReleases),
+                       ["Some values scaled from a 28 g serving"])
+        let input = try PopulatedFoodConfirmation(evidence: route.confirmation.evidence,
+            sourceReleases: route.confirmation.sourceReleases, candidates: [candidate],
+            expectedIdentity: candidate.candidate.identity, expectedEdibleQuantity: candidate.candidate.edibleQuantity)
+        let model = FoodConfirmationViewModel(state: FoodConfirmationState(input: input, prefillSourceQuantity: false)) { _ in
+            throw FoodConfirmationSaveError.noAcceptedCandidate
+        }
+        XCTAssertEqual(model.scaledServingNotes, ["Some values scaled from a 28 g serving"])
+        // PR #487 review: once a correction replaces the scaled values, the line goes.
+        let typed = try NutrientSet(entries: candidate.candidate.nutrients.entries.map { entry in
+            guard case .augmented = entry.value else { return entry }
+            return try NutrientEntry(key: entry.key, value: .unknown(.notDeclared))
+        })
+        var corrected = model.state
+        corrected.correction = FoodCorrection(name: candidate.name, brand: candidate.brand, variant: nil,
+            identity: candidate.candidate.identity, nutrients: typed, reason: try LedgerText("Synthetic correction"))
+        let correctedModel = FoodConfirmationViewModel(state: corrected) { _ in throw FoodConfirmationSaveError.noAcceptedCandidate }
+        XCTAssertEqual(correctedModel.scaledServingNotes, [])
+        // An identity-only correction keeps the scaled values, so it keeps the line.
+        corrected.correction = FoodCorrection(name: candidate.name, brand: candidate.brand, variant: nil,
+            identity: candidate.candidate.identity, nutrients: candidate.candidate.nutrients, reason: try LedgerText("Synthetic"))
+        let identityOnly = FoodConfirmationViewModel(state: corrected) { _ in throw FoodConfirmationSaveError.noAcceptedCandidate }
+        XCTAssertEqual(identityOnly.scaledServingNotes, ["Some values scaled from a 28 g serving"])
+        let drink = try self.route("synthetic panel drink", file: Self.goldenV2)
+        XCTAssertEqual(FoodSearchResultText.databaseScaledServingNotes(drink.matches[0].candidate,
+                                                                       releases: drink.confirmation.sourceReleases), [])
+        let oats = try self.route("synthetic example oats")
+        XCTAssertEqual(FoodSearchResultText.databaseScaledServingNotes(oats.matches[0].candidate,
+                                                                       releases: oats.confirmation.sourceReleases), [])
     }
 }

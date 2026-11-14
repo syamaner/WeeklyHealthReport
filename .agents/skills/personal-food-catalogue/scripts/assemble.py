@@ -161,6 +161,12 @@ def off_label(code):
                    for k, v in values.items()}
 
 
+def off_rules_declined():
+    """Counts only, by rule code: records off_rules declined because the format cannot hold them."""
+    import off_rules
+    return dict(sorted(off_rules.FORMAT_DECLINED.items()))
+
+
 def off_nutrients(hit, code):
     """Back-compatible wrapper: values only."""
     return off_label(code)[1]
@@ -353,6 +359,8 @@ def main(work: Path, cofid_path: Path, out: Path, usda_path: Path):
     (out / "personal-food-catalogue.json").write_text(json.dumps(catalogue, indent=1, ensure_ascii=False))
     print("families by sources used:", dict(stats.most_common()))
     print("nutrient values per tier:", dict(tier_use))
+    if off_rules_declined():  # records the app admits that the catalogue format cannot hold
+        print("Open Food Facts records declined by the catalogue's number rules:", off_rules_declined())
 
 
 if __name__ == "__main__":

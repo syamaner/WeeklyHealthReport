@@ -163,15 +163,19 @@ public enum PersonalFoodDatabaseCandidateBuilder {
                 drained: .unknown, packingMedium: .unknown, fortification: .unknown, servingBasis: basis)
         }
         let edible = try PositiveQuantity(value: 100, unit: entry.basis == .per100Grams ? .grams : .millilitres)
+        var differences = [try LedgerText(entry.basis == .per100Grams
+            ? "Your food database entry · per 100 g"
+            : "Your food database entry · per 100 mL as labelled")]
+        // Import v2 (owner decision 3, 13 November 2026): values scaled from a per-serving panel say so,
+        // as the barcode route's source line does. Only values the candidate uses count.
+        differences += try scaledServings(entries).map { try LedgerText(OpenFoodFactsServingText.databaseEntryNote($0)) }
         let candidate = try PopulatedFoodCandidate(
             candidate: ProviderNeutralCandidate(
                 sourceReleaseID: databaseRelease.sourceReleaseID, recordID: ExternalIdentifier(entry.id, field: "record"),
                 identity: identity, edibleQuantity: .known(edible, conversionVersionID: nil),
                 nutrients: NutrientSet(entries: entries), evidenceIDs: evidenceIDs,
                 matchMetadata: CandidateMatchMetadata(methodVersion: LedgerText(methodVersion), score: score,
-                    materialDifferences: [LedgerText(entry.basis == .per100Grams
-                        ? "Your food database entry · per 100 g"
-                        : "Your food database entry · per 100 mL as labelled")])),
+                    materialDifferences: differences)),
             name: LedgerText(entry.title), brand: try entry.brand.map { try LedgerText($0) },
             itemClass: itemClass(entry.category), packFacts: PackFacts())
         return Built(candidate: candidate, releases: releases, merged: merge != nil)
@@ -185,16 +189,36 @@ public enum PersonalFoodDatabaseCandidateBuilder {
         return try NutrientEntry(key: key, value: .unknown(.conflictingEvidence), status: .conflict, conflictCandidates: level)
     }
 
+    /// The distinct per-serving sizes behind the candidate's resolved values that carry the
+    /// `off-serving-to-100` transform, in nutrient order. One per release is guaranteed by the codec's
+    /// `serving-mismatch` rule.
+    public static func scaledServings(_ entries: [NutrientEntry]) -> [PositiveQuantity] {
+        var servings: [PositiveQuantity] = []
+        for entry in entries where entry.status == .resolved {
+            guard case let .augmented(value) = entry.value, case let .exact(source) = value.sourceValue,
+                  case let .perServing(quantity) = source.basis,
+                  value.provenance.contains(where: { provenance in provenance.transforms.contains {
+                      $0.transformID.value == OpenFoodFactsServingRule.transformID
+                          && $0.transformVersion.value == OpenFoodFactsServingRule.transformVersion
+                  } }), !servings.contains(quantity) else { continue }
+            servings.append(quantity)
+        }
+        return servings
+    }
+
     private static func labelValue(
         _ label: PersonalFoodDatabaseLabelValue, key: NutrientKey, basis: ResolutionBasis, reference: LedgerText,
         declared: [String: PersonalFoodDatabaseDeclaredSource]
     ) throws -> NutrientValue {
         guard let source = declared[label.source.sourceRelease] else { throw FoodLedgerValidationError.missingProvenance }
-        let transforms = try label.transform.map {
-            [NutrientTransform(transformID: try LedgerText($0.transformID), transformVersion: try LedgerText($0.version))]
-        } ?? []
+        // Transforms in file order; a scaled value's source is per its serving, never per 100 (import
+        // v2), which reproduces the barcode route's provenance for the same record.
+        let transforms = try (label.transform?.steps ?? []).map {
+            NutrientTransform(transformID: try LedgerText($0.transformID), transformVersion: try LedgerText($0.version))
+        }
         let original = try SourceExactNutrientValue(amount: label.transform?.sourceValue ?? label.value,
-            unit: LedgerText(label.transform?.sourceUnit ?? label.unit.rawValue), basis: basis)
+            unit: LedgerText(label.transform?.sourceUnit ?? label.unit.rawValue),
+            basis: label.transform?.serving.map { .perServing($0) } ?? basis)
         let releaseID = try ExternalIdentifier(source.sourceReleaseID, field: "source release")
         let sourceID = try ExternalIdentifier(source.sourceID.rawValue, field: "source")
         switch label.source {

@@ -54,6 +54,14 @@ public final class FoodConfirmationViewModel: ObservableObject {
     public var quantitySuggestion: ParsedFoodQuery.Quantity? { searchInterpretation?.quantitySuggestion }
     public var displayedName: LedgerText { state.correction?.name ?? state.reopened?.productVersion.name ?? state.selectedCandidate.name }
     public var displayedBrand: LedgerText? { state.correction?.brand ?? state.reopened?.productVersion.brand ?? state.selectedCandidate.brand }
+    /// Import v2: "Some values scaled from a 28 g serving" lines for a Your food database entry, shown
+    /// in Confirm's Food section (the generic material differences list is not shown for this route).
+    public var scaledServingNotes: [String] {
+        // Only values still coming from the scaled source count (PR #487 review).
+        FoodSearchResultText.databaseScaledServingNotes(state.selectedCandidate,
+            nutrients: state.correction?.nutrients ?? state.reopened?.resolutionVersion.nutrients,
+            releases: state.input.sourceReleases)
+    }
     public var displayedVariant: LedgerText? { state.correction?.variant ?? state.reopened?.productVersion.variant ?? state.selectedCandidate.variant }
     public var displayedIdentity: DecisiveIdentity { state.correction?.identity ?? state.reopened?.productVersion.identity ?? state.selectedCandidate.candidate.identity }
     public var selectionCaution: String? {
@@ -1303,6 +1311,9 @@ public struct FoodConfirmationView: View {
                 DisclosureGroup(FoodSearchResultText.mixedSources) {
                     ForEach(sources, id: \.self) { Text($0).font(.caption) }
                 }.font(.subheadline)
+            }
+            ForEach(model.scaledServingNotes, id: \.self) { note in
+                Label(note, systemImage: "info.circle").font(.subheadline).accessibilityLabel(note)
             }
             if model.displayedName != model.state.selectedCandidate.name {
                 LabeledContent("Source food", value: model.state.selectedCandidate.name.value).font(.caption)

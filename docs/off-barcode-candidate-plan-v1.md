@@ -99,3 +99,5 @@ The rule, shared by barcode lookup and text search, applies only when v5 finds *
 - The values stay `augmented` Open Food Facts estimates and are reviewed on Confirm before logging, as every Open Food Facts candidate is. A wrong serving size in Open Food Facts scales every value wrongly; Confirm shows the values and their source.
 
 Out of scope: legacy `nutriments` records keep the v5 rule (per 100 g only). The personal food catalogue's `off_rules.py` port and its export check (which accepts v4 and v5) are not changed here, so catalogue builds do not yet admit per-serving records.
+
+*Note, 13 November 2026:* the catalogue now follows v6 through a new file schema, `personal-food-catalogue-v2`, defined in [personal-food-catalogue-import-v2.md](personal-food-catalogue-import-v2.md) and approved by the owner the same day. The `off_rules.py` port projects v6, the export writes v2, and the importer accepts v2 alongside v1. The serving transform pair and the plausibility limits now live in one Domain constant, `OpenFoodFactsServingRule`, shared by this lookup and the importer; the lookup's behaviour is unchanged.

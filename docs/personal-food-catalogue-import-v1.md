@@ -186,6 +186,11 @@ Label nutrient value (exactly these keys; `transforms` and `source_value` togeth
   barcode lookup has since moved to `off-product-projection-v6` (#477), which only admits records v5
   refuses and leaves every v5 admission unchanged; the skill stays on v5, because this format accepts
   v4 and v5 releases only, so a v6-only product is not built into a catalogue until a versioned amendment.
+  *Note, 13 November 2026 (no rule change to v1):* that amendment is
+  [import v2](personal-food-catalogue-import-v2.md), schema `personal-food-catalogue-v2`, approved by the
+  owner the same day. A v1 file keeps every rule above, its rule codes and its fixtures exactly; v6
+  releases, the `off-serving-to-100` transform and a `serving` in `source_value` are accepted only in a
+  v2 file. The skill now writes v2.
 
 Generic reference:
 
@@ -382,6 +387,8 @@ owner asks.
 - Open Food Facts parity: the cases in the skill's `test_off_rules.py` reproduced against
   `OpenFoodFactsLookup.project`, using the v3.6 response shape, including non-string `quantity` and
   `product_name`. The two cases where v6 admits what the port refuses assert the app's v6 result.
+  *Note, 13 November 2026:* with [import v2](personal-food-catalogue-import-v2.md) the port follows
+  v6, so those two cases are ordinary parity cases, and the per-serving cases are added (v2 section 5).
 - Resolver contract shared by the CoFID, USDA and TFDA resolvers: resolves by the defined record
   form; a hash mismatch or missing record is unresolved; returns the adapter's own `SourceRelease`;
   the composite never throws a duplicate release.

@@ -1,8 +1,9 @@
 import Foundation
 
-/// Every rule code of import v1 section 4.2. The raw values are the codes of the skill's
-/// `export_v1.check_bytes`, so the two checkers report the same code for each shared fixture
-/// (`docs/fixtures/personal-food-database-v1/manifest.json` lists the full set; a test keeps them equal).
+/// Every rule code of import v1 section 4.2 and import v2 section 3. The raw values are the codes of
+/// the skill's `export_v1.check_bytes`, so the two checkers report the same code for each shared
+/// fixture (`docs/fixtures/personal-food-database-v2/manifest.json` lists the full set and the v1
+/// manifest the v1 subset; a test keeps them equal).
 public enum PersonalFoodDatabaseRuleCode: String, CaseIterable, Error, Sendable {
     case size, bom, encoding, json
     case duplicateKey = "duplicate-key"
@@ -22,6 +23,19 @@ public enum PersonalFoodDatabaseRuleCode: String, CaseIterable, Error, Sendable 
     case undeclaredRelease = "undeclared-release", releaseKind = "release-kind"
     case sourceValue = "source-value", transformShape = "transform-shape", transformUnknown = "transform-unknown"
     case transformScope = "transform-scope", transformArithmetic = "transform-arithmetic"
+    /// Import v2 only: a scaled value above any food's content per 100, or one entry's values from
+    /// one release disagreeing on the serving size.
+    case servingImplausible = "serving-implausible", servingMismatch = "serving-mismatch"
+
+    /// The codes a `personal-food-catalogue-v1` file can never get.
+    public static let v2Only: Set<Self> = [.servingImplausible, .servingMismatch]
+}
+
+/// The file schemas the importer accepts. v1 files keep the v1 rules exactly; v2 adds Open Food
+/// Facts projection v6 (docs/personal-food-catalogue-import-v2.md).
+public enum PersonalFoodDatabaseSchema: String, CaseIterable, Sendable {
+    case v1 = "personal-food-catalogue-v1"
+    case v2 = "personal-food-catalogue-v2"
 }
 
 /// A rejected file: the rule codes in the order found. It never carries an entry ID, title or
@@ -127,12 +141,24 @@ public struct PersonalFoodDatabaseGenericReference: Equatable, Sendable {
     public let role: PersonalFoodDatabaseReferenceRole
 }
 
-/// One transform of import v1 section 4, with the printed value it was computed from.
-public struct PersonalFoodDatabaseTransform: Equatable, Sendable {
+/// One `{transform_id, version}` pair, in file order.
+public struct PersonalFoodDatabaseTransformStep: Equatable, Sendable {
     public let transformID: String
     public let version: String
+}
+
+/// The transforms of one value (import v1 section 4; import v2 section 3), with the printed value
+/// they were computed from. v1 holds exactly one step and no serving. v2 also allows the
+/// `off-serving-to-100` step, alone or after `mass-g-to-mg`, and then `serving` is the panel's own
+/// serving size (grams or millilitres): the source value is per that serving, not per 100.
+public struct PersonalFoodDatabaseTransform: Equatable, Sendable {
+    public let steps: [PersonalFoodDatabaseTransformStep]
     public let sourceValue: Double
     public let sourceUnit: String
+    public let serving: PositiveQuantity?
+
+    /// True when the value was scaled from a per-serving panel.
+    public var isServingScaled: Bool { serving != nil }
 }
 
 public enum PersonalFoodDatabaseValueSource: Equatable, Sendable {
@@ -214,9 +240,10 @@ public struct PersonalFoodDatabaseDeclaredSource: Equatable, Sendable {
     }
 }
 
-/// An accepted `personal-food-catalogue-v1` file.
+/// An accepted `personal-food-catalogue-v1` or `-v2` file.
 public struct PersonalFoodDatabaseFile: Equatable, Sendable {
-    public static let schema = "personal-food-catalogue-v1"
+    /// The file's own schema; it becomes the database release's `schemaVersion`.
+    public let schema: PersonalFoodDatabaseSchema
     public let generated: PersonalFoodDatabaseDate
     public let sources: [PersonalFoodDatabaseDeclaredSource]
     /// Each referenced corpus once, with the hash the file was built against.
@@ -225,7 +252,8 @@ public struct PersonalFoodDatabaseFile: Equatable, Sendable {
 }
 
 /// The database release itself (import v1 section 4): every field a pure function of the file's
-/// SHA-256 and its `generated` date. The caller computes the digest through `Digesting`.
+/// SHA-256, its `generated` date and its schema, all inside the hashed bytes. The caller computes
+/// the digest through `Digesting`.
 public enum PersonalFoodDatabaseRelease {
     public static let sourceID = "personal-food-database"
     public static let pipelineVersion = "pfc-resolution-v1"
@@ -234,13 +262,14 @@ public enum PersonalFoodDatabaseRelease {
 
     public static func releaseID(fileSHA256: SHA256Digest) -> String { "pfc:sha256:\(fileSHA256.value)" }
 
-    public static func sourceRelease(fileSHA256: SHA256Digest, generated: PersonalFoodDatabaseDate) throws -> SourceRelease {
+    public static func sourceRelease(fileSHA256: SHA256Digest, generated: PersonalFoodDatabaseDate,
+                                     schema: PersonalFoodDatabaseSchema) throws -> SourceRelease {
         SourceRelease(
             sourceReleaseID: try ExternalIdentifier(releaseID(fileSHA256: fileSHA256), field: "source release"),
             sourceID: try ExternalIdentifier(sourceID, field: "source"),
             releasedAt: generated.utcMidnight,
             artifactHash: fileSHA256,
-            schemaVersion: try LedgerText(PersonalFoodDatabaseFile.schema),
+            schemaVersion: try LedgerText(schema.rawValue),
             pipelineVersion: try LedgerText(pipelineVersion),
             licence: try LedgerText(licence),
             attribution: try LedgerText(attribution),

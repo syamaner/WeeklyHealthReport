@@ -129,7 +129,8 @@ public struct OpenFoodFactsLookup: PackagedFoodCandidateLookingUp {
         let hash = SHA256.hash(data: artifact).map { String(format: "%02x", $0) }.joined()
         // v6 (per-serving panels scaled to per 100) only for a record v5 would decline, so every
         // v5 record keeps its bytes, hashes and release ID (off-barcode-candidate-plan-v1).
-        let projectionVersion = sourceSet.serving == nil && !sourceSet.panelOverridesPack ? "off-product-projection-v5" : "off-product-projection-v6"
+        let projectionVersion = sourceSet.serving == nil && !sourceSet.panelOverridesPack ? "off-product-projection-v5"
+            : OpenFoodFactsServingRule.projectionVersion
         let schemaVersion = searchScore == nil ? "off-v3.6-explicit-basis-candidates-v4" : "off-search-explicit-basis-candidates-v5"
         let releaseID = try ExternalIdentifier("off:snapshot:sha256:\(hash):projection:\(projectionVersion):schema:\(schemaVersion):retrieved:\(now.timeIntervalSince1970)")
         let productURL = "https://world.openfoodfacts.org/product/\(returned)"
@@ -180,7 +181,8 @@ public struct OpenFoodFactsLookup: PackagedFoodCandidateLookingUp {
             let unit = try LedgerText(sourceUnit)
             var transforms = convertsGrams ? [try NutrientTransform(transformID: LedgerText("mass-g-to-mg"), transformVersion: LedgerText("v1"))] : []
             if sourceSet.serving != nil {
-                transforms.append(try NutrientTransform(transformID: LedgerText("off-serving-to-100"), transformVersion: LedgerText("v1")))
+                transforms.append(try NutrientTransform(transformID: LedgerText(OpenFoodFactsServingRule.transformID),
+                    transformVersion: LedgerText(OpenFoodFactsServingRule.transformVersion)))
             }
             let source = try SourceExactNutrientValue(amount: sourceAmount, unit: unit, basis: sourceBasis)
             let provenance = try NutrientProvenance(sourceKind: .exactProductDataset, sourceID: ExternalIdentifier("open-food-facts"),
@@ -204,14 +206,7 @@ public struct OpenFoodFactsLookup: PackagedFoodCandidateLookingUp {
         // or 900 kcal) means a wrong serving size, so the record declines rather than mislead.
         // Both ends of a bound are checked too, and an overflow from scaling declines (Qodo review).
         if sourceSet.serving != nil, scaledOverflow || entries.contains(where: { entry in
-            func implausible(_ amount: Double, _ unit: NutrientUnit) -> Bool {
-                switch unit {
-                case .grams: amount > 100
-                case .milligrams: amount > 100_000
-                case .kilocalories: amount > 900
-                default: false
-                }
-            }
+            let implausible = OpenFoodFactsServingRule.isImplausible
             switch entry.value {
             case let .augmented(value): return implausible(value.amount, value.unit)
             case let .bounded(bounds): return [bounds.lower, bounds.upper].compactMap { $0 }.contains { implausible($0, bounds.unit) }
@@ -226,7 +221,7 @@ public struct OpenFoodFactsLookup: PackagedFoodCandidateLookingUp {
             libraryAliases: searchScore == nil ? [try BarcodeIdentity.gtin(gtin).lookupAlias] : [])
         // v6: the source line says the values were scaled, so Confirm shows it.
         let servingNote = (sourceSet.serving.map {
-            ", scaled from a \(Self.servingText($0)) \(volume ? "ml" : "g") serving"
+            ", scaled from a \(Self.servingText($0)) \(OpenFoodFactsServingText.unit(millilitres: volume)) serving"
         } ?? "") + (sourceSet.panelOverridesPack || (sourceSet.serving != nil && packBasis.map { $0 != volume } == true)
             ? ", as the nutrition panel states (the pack is in \(volume ? "g" : "ml"))" : "")
         let candidate = try PopulatedFoodCandidate(candidate: ProviderNeutralCandidate(sourceReleaseID: releaseID,
@@ -292,9 +287,7 @@ public struct OpenFoodFactsLookup: PackagedFoodCandidateLookingUp {
     }
 
     /// "28" or "12.5": the serving as Open Food Facts states it, without a trailing ".0".
-    static func servingText(_ value: Double) -> String {
-        value == value.rounded() && abs(value) < 1e15 ? String(Int64(value)) : String(value)
-    }
+    static func servingText(_ value: Double) -> String { OpenFoodFactsServingText.number(value) }
 
     /// v6: exactly one `packaging`, `as_sold`, `per: serving` panel whose `per_quantity` is a
     /// finite number above 0 and whose `per_unit` (g or ml) agrees with any pack basis.
