@@ -1445,3 +1445,88 @@ xcodebuild test -scheme FoodLedgerKit-Package -destination 'platform=iOS,id=0000
   - the display line.
 - Composition: the live launch argument gets its own consent key and ledger and no sample, and with no argument the route stays off.
 - Records: the section 11 text and the camera string, verbatim.
+
+### 17.22 A Settings switch for internal TestFlight testing (14 November 2026)
+
+**Owner decision, 14 November 2026 (verbatim):** "Yes, prepare #316" and "I am happy to add to release so I can test". The owner's requirement for the route: "just need to be able to paste an image or use camera". Camera, photo library and paste-image already exist in `FoodLabelPhotoUI` and the Nutrition label entry (#454), so this change adds only a way to reach the live route in a Release build. **It is off by default, and nothing turns it on except the user.**
+
+**This amends the 17.21 gate.** 17.21 kept the live route out of every Release build until E13, the iPhone run and the owner's device check had all passed. The owner's "I am happy to add to release so I can test" approves reordering that for internal testing: a Release build may now contain the route, reachable only through the switch below, off by default, before the owner's device check is recorded. The device check moves to the internal TestFlight build itself, which is the point of the change. Everything else in 17.21 stands.
+
+**What this enables, and what it does not.**
+- **Internal TestFlight only.** A build that contains the switch goes only to the internal testing group (the owner) until the owner has reviewed the App Store privacy answers (17.21, "What remains"). It is not added to an external group or submitted for App Store review before then. Nothing in the build enforces this, so the rule is in `privacy-and-egress.md` and the phase PR's delivery checklist.
+- **The iPhone run comes first.** The recorded iPhone run of `FoodLabelPhotoCaptureTests` (17.17 (c), command in 17.21) is a precondition for uploading any build that contains the switch, because that run is what checks E3's metadata removal on iOS's own ImageIO before real camera and library photos can be sent. Waiving it would be a change to E3 and 17.17 (c) and needs the owner's explicit decision. **Attempted 14 November 2026:** SiPhone (`00008150-000261502282401C`) was connected, but `xcodebuild` refused the 17.21 command before building: "Tool-hosted testing is unavailable on device destinations. Select a host application for the test target" (exit 70). A Swift package test target has no host app, so this command cannot run on a device as written. **Owner decision, 14 November 2026:** after being told the run could not happen as written, the owner said "Get it out I will test". That waives the recorded iPhone run as a precondition for internal TestFlight builds only; the owner's own device check on the internal build stands in its place. The run stays a precondition for any external TestFlight or App Store build, and needs the same tests run inside a host application (for example a small test host, or the app's own test target), which is a separate, small change.
+- **Not a default.** The route stays off for anyone who does not turn the switch on.
+
+**Route identity re-checked (14 November 2026, keyless).** Keyless GETs of `/api/v1/models/google/gemini-4-argon/endpoints` and `/api/v1/endpoints/zdr` at 2026-11-14T11:29Z, with no key and no user data, found:
+- `google-vertex/us` listed with status 0, provider name "Google", the dated name `google/gemini-4-argon-20261013`, image input, and the same pricing object as 17.21, field for field ($2.20 / $11 per million, `internal_reasoning` at the completion rate, `discount` 0.5), so W stays **$0.0451** for route v2;
+- `google-vertex/us` in the ZDR listing under `model_id` `google/gemini-4-argon` and `tag` `google-vertex/us`;
+- a ZDR listing of 1,161,203 bytes, inside the checker's 8,000,000-byte cap.
+
+The listing now also shows Google AI Studio endpoints (`google-ai-studio`, `/flex`, `/priority`). None is in the ZDR listing, and the request pins `only` and `order` to `google-vertex/us` with no fallbacks, so they change nothing. The route identity, the request golden, `pinnedSnapshots` and every section 10 term stay as they are.
+
+**Where the switch lives.** Settings › Food search, as a toggle row directly after Web lookup (the OpenRouter key and privacy screen), because the route uses that key and the same provider.
+
+| Element | Copy |
+|---|---|
+| Toggle title (and VoiceOver label) | `Read label photos with AI` |
+| Caption | `Adds photos and pasted images to Nutrition label. Read label with AI sends only the cropped photo to OpenRouter, using your OpenRouter key and credit, and you check every value on Confirm before logging. Needs an OpenRouter key under Web lookup.` |
+| Section footer (amended) | `Online sources receive only the food terms you search for, and any label photo you choose to send. Your Health data and food log stay on this device unless you export them to Google Drive.` |
+
+The footer changes because "only the food terms you search for" would stop being true in the same section once the switch is on. The row uses the shared `SettingsToggle`, so it is a native `Toggle` (44 pt, Dynamic Type, its title as the VoiceOver label, its state read aloud).
+
+**Persistence.** A Boolean in the root's `UserDefaults` under a new, versioned key, `labelPhoto.liveRoute.enabled.v1`, read and written only through `LabelPhotoReadingPreference`. A missing value reads as off. Turning it off removes the value. No record, archive or export carries it, so no stored format changes.
+
+**Mode resolution.** One pure function, `LabelPhotoRouteMode.resolve(launchArgument:switchOn:keySaved:debugBuild:)`, decides the mode; `from(_:keySaved:)` feeds it the stored values and whether this is a Debug build.
+
+| Build | `-LabelPhotoRoute` | Switch | OpenRouter key saved | Mode |
+|---|---|---|---|---|
+| Debug | a scripted scenario | any | any | that fake scenario (no network), as today |
+| Debug | `live` | any | any | live, as today (17.21) |
+| Debug | any other value | any | any | off, as today |
+| Debug or Release | absent | off | any | **off** (the default) |
+| Debug or Release | absent | on | no | off |
+| Debug or Release | absent | on | yes | live |
+| Release | anything | as above | as above | the argument is ignored; only the switch and key decide |
+
+- **Release never reaches a fake scenario.** Before this change a Release build honoured `-LabelPhotoRoute <scenario>`. It now ignores the argument entirely, so a Release build is either off or live, never scripted.
+- **Debug launch arguments keep working**, and they win over the switch, so UI tests and the scripted scenarios behave exactly as before whatever the switch says.
+- **The mode is resolved once per call.** `labelPhotoFlow(mode:)`, the consent key and the spend ledger take the mode that `labelPhotoScreenModel()` resolved, so the flow, consent key and ledger can never come from two different resolutions. The accessors that read the key state are `@MainActor`, because `FoodWebDiscoveryViewModel` is.
+- **Launch arguments and the switch key.** `UserDefaults` also reads launch arguments, so `-labelPhoto.liveRoute.enabled.v1 YES` would turn the switch on in a development launch. Nobody can pass launch arguments to a TestFlight or App Store build, so "nothing turns it on except the user" holds for every build that reaches a user.
+- **"Key saved" means a key in the Keychain**, read from the shared `FoodWebDiscoveryViewModel.hasSavedKey`, never from a fresh Keychain read per access. With no saved key the entry stays hidden, as the caption says. A saved key that has not been validated this session still opens the route, and the screen shows its existing "Validate your OpenRouter key before reading a photo." blocker (7.2). Nothing is sent without a key validated in the current session (E8, unchanged).
+
+**When on.** Everything in 17.21's live route applies unchanged:
+- the live consent key `labelPhoto.egressConsent.live.v1`, with the first-use sheet on the first tap as today;
+- the live spend ledger `label-photo-spend-live-v1.json`, with the $0.05 per-tap limit, W, retries and the shared 30 reads and $0.50 a day (E9 to E11, D14);
+- the catalogue check on the first tap of a session and of each local day (E7);
+- the real camera, photo library and pasted images only, with no synthetic sample.
+
+**When off.** The route is hidden exactly as it is today: Add food's Nutrition label row has its text-only subtitle, the entry offers only text, `labelPhotoFlow()` and `labelPhotoScreenModel()` return nil, and a pasted image is not accepted. The entry changes the next time Add food or Nutrition label opens.
+
+**Turning it off stops the next read.** Unlike a launch argument, the switch can change while a Label photo screen is open (in another scene, say). The screen model therefore asks, before every tap, whether the mode it was built for is still the one the switch and the build resolve to. If not, Read label with AI is disabled with a new blocker. A removed key is not this blocker: it shows the existing no-key blocker (7.2). The root's read closure also checks the switch and the key once more just before the read starts, and refuses without sending (defence in depth). A read already under way, including its E11 retries within the one tap, is not stopped by the switch; Cancel stops it, as before.
+
+In the narrow window where the switch is turned off between the tap and the read starting, the refusal shows the route-unavailable failure copy; nothing is sent, and the blocker below then shows. This is accepted rather than adding a failure case to the closed `LabelImageReadingFailure` set.
+
+| State | Copy |
+|---|---|
+| Turned off while the screen is open | `Label photo reading is off. Turn on Read label photos with AI in Settings to read this photo.` |
+
+Turning the switch off keeps the live consent (`labelPhoto.egressConsent.live.v1`) and the live spend ledger, as 17.21 keeps them across launches; turning it on again does not ask again, and today's count carries on.
+
+**Architecture.**
+- The preference and the Settings row are presentation and composition code in the app target (`FoodLedgerSettings.swift`, the composition root). No package gains a dependency, and the boundary script needs no change.
+- The composition root takes an injectable OpenRouter key store (`openRouterKeys`, default `OpenRouterKeychainStore()` in `init`), held in one stored property and used at both sites that built their own before: web lookup's `FoodWebDiscoveryViewModel` and the live label photo flow. Tests can then decide "key saved" without the device Keychain. Production wiring is unchanged: one Keychain store for the one OpenRouter key.
+- `LabelPhotoScreenModel.Environment` gains `isEnabled`, defaulting to always true, and `Blocker` gains `.turnedOff` with the copy above. The package's other routes and tests are unchanged.
+- The catalogue requests (E7) also go to OpenRouter, with no key and no user data, as 17.21 records. The caption names only the photo because that is the only thing of the user's that is sent.
+- Closed and unchanged: every section 11 record, every section 10 term, the route identity (`LabelPhotoRoute.v2US`), the consent keys, the spend ledgers, the manifest and the request golden.
+
+**Tests.**
+- The resolution matrix above, row by row, including Release ignoring every launch argument.
+- At the root: off by default; on with a saved key gives the live route with its own consent key and ledger; on with no key stays off; turning it off again hides the route (no flow, no screen model, a text-only Nutrition label entry, Add food's text-only subtitle).
+- A Debug scenario with the switch on keeps the scripted consent key and ledger, never the live ones.
+- `LabelPhotoReadingPreference`: off when the key is missing or not a Boolean; true stores exactly `labelPhoto.liveRoute.enabled.v1`; false removes it.
+- Settings: the row sits directly after Web lookup with the exact title (its VoiceOver label) and caption, the amended footer verbatim, off by default; building and toggling the section sends no web lookup request and builds no label photo flow (`LabelPhotoSessions.count` unchanged).
+- Turning the switch off while a live screen is open: the screen shows `.turnedOff`, Read label with AI is disabled, and the root's read closure returns a failure without reaching the flow.
+
+**Records changed in this PR.** `privacy-and-egress.md`'s "In force, route not yet enabled for users" heading becomes "In force, internal testing only", and its launch-argument sentence is replaced by the text below; the section 11 rows and the privacy policy already describe the live route and are unchanged.
+
+> The live route is reachable in a Debug build through the `-LabelPhotoRoute live` launch argument, and in a Release build only through Settings › Food search › Read label photos with AI, which is off by default (section 17.22, owner approval 14 November 2026). Builds that contain the switch go to the internal TestFlight group only (the recorded iPhone run of `FoodLabelPhotoCaptureTests`, 17.17 (c), is waived for internal builds by the owner's decision in 17.22 and remains required before any external build), and are not offered to external testers or the App Store until the owner has reviewed the App Store privacy answers. With the switch off, a build sends no label photo.

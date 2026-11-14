@@ -10,12 +10,108 @@ import FoodLedgerPresentation
 /// attachments root and spend ledger under the backup-excluded health-data directory.
 @MainActor
 final class LabelPhotoCompositionTests: XCTestCase {
-    func makeRoot(route: String?) throws -> (FoodLedgerCompositionRoot, URL) {
+    func makeRoot(route: String?, switchOn: Bool = false, savedKey: String? = nil) throws -> (FoodLedgerCompositionRoot, URL) {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: "label-photo-\(UUID().uuidString)"))
+        let suite = "label-photo-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
         if let route { defaults.set(route, forKey: "LabelPhotoRoute") }
-        return (try FoodLedgerCompositionRoot(fileManager: IntakeRenderFileManager(directory: directory), userDefaults: defaults), directory)
+        if switchOn { defaults.set(true, forKey: "labelPhoto.liveRoute.enabled.v1") }
+        return (try FoodLedgerCompositionRoot(fileManager: IntakeRenderFileManager(directory: directory), userDefaults: defaults,
+                                              openRouterKeys: SyntheticOpenRouterKeys(key: savedKey)), directory)
+    }
+
+    // MARK: The Settings switch (17.22)
+
+    func testModeResolutionMatrix() {
+        typealias Mode = LabelPhotoRouteMode
+        for debug in [false, true] {
+            for (on, key) in [(false, false), (false, true), (true, false), (true, true)] {
+                XCTAssertEqual(Mode.resolve(launchArgument: nil, switchOn: on, keySaved: key, debugBuild: debug),
+                               on && key ? .live : .off, "no argument, debug \(debug), switch \(on), key \(key)")
+            }
+        }
+        for argument in ["live", "answer", "routeUnavailable", "Live", "unknown", ""] {
+            for (on, key) in [(false, false), (false, true), (true, false), (true, true)] {
+                XCTAssertEqual(Mode.resolve(launchArgument: argument, switchOn: on, keySaved: key, debugBuild: false),
+                               on && key ? .live : .off, "Release ignores `\(argument)` and never reaches a scripted scenario")
+            }
+        }
+        XCTAssertEqual(Mode.resolve(launchArgument: "answer", switchOn: true, keySaved: true, debugBuild: true), .fake(.answer),
+                       "a Debug scenario wins over the switch")
+        XCTAssertEqual(Mode.resolve(launchArgument: "live", switchOn: false, keySaved: false, debugBuild: true), .live,
+                       "Debug `live` wins regardless of the switch and key")
+        XCTAssertEqual(Mode.resolve(launchArgument: "Live", switchOn: true, keySaved: true, debugBuild: true), .off,
+                       "an unknown Debug argument keeps the route off, even with the switch on")
+    }
+
+    func testTheSwitchWithASavedKeyTurnsOnTheLiveRouteAndOffHidesIt() throws {
+        let (root, _) = try makeRoot(route: nil, savedKey: "sk-or-v1-synthetic")
+        XCTAssertEqual(root.labelPhotoMode, .off, "off by default, even with a saved key")
+        root.labelPhotoReading.isOn = true
+        XCTAssertEqual(root.labelPhotoMode, .live)
+        XCTAssertEqual(root.labelPhotoActiveConsentKey, "labelPhoto.egressConsent.live.v1")
+        XCTAssertEqual(root.labelPhotoActiveSpendLedgerURL, root.labelPhotoLiveSpendLedgerURL)
+        XCTAssertTrue(root.labelPhotoActiveSpendLedgerURL.standardizedFileURL.path.hasPrefix(root.healthDirectory.standardizedFileURL.path + "/"))
+        XCTAssertNil(root.labelPhotoSample, "the live route reads only real photos")
+        XCTAssertNotNil(root.labelPhotoScreenModel())
+        XCTAssertTrue(NutritionLabelVisit(root: root).entry.photosEnabled)
+        XCTAssertEqual(addFoodPhotos(root), true)
+
+        root.labelPhotoReading.isOn = false
+        assertHidden(root)
+    }
+
+    func testTheSwitchWithNoSavedKeyStaysOff() throws {
+        let (root, _) = try makeRoot(route: nil, switchOn: true)
+        assertHidden(root)
+    }
+
+    func testADebugScenarioWithTheSwitchOnKeepsTheScriptedRecords() throws {
+        let (root, _) = try makeRoot(route: "answer", switchOn: true, savedKey: "sk-or-v1-synthetic")
+        XCTAssertEqual(root.labelPhotoMode, .fake(.answer))
+        XCTAssertEqual(root.labelPhotoActiveConsentKey, "labelPhoto.egressConsent.scripted.v1")
+        XCTAssertEqual(root.labelPhotoActiveSpendLedgerURL, root.labelPhotoSpendLedgerURL)
+    }
+
+    func testTurningTheSwitchOffWhileTheScreenIsOpenStopsTheNextSend() async throws {
+        let (root, _) = try makeRoot(route: nil, switchOn: true, savedKey: "sk-or-v1-synthetic")
+        let model = try XCTUnwrap(root.labelPhotoScreenModel())
+        XCTAssertNotEqual(model.blocker, .turnedOff)
+        root.labelPhotoReading.isOn = false
+        XCTAssertEqual(model.blocker, .turnedOff)
+        XCTAssertFalse(model.canRead)
+        root.labelPhotoReading.isOn = true
+        XCTAssertNotEqual(model.blocker, .turnedOff, "back on with the same key and build, the same route is in force")
+    }
+
+    func testRemovingTheKeyWhileTheScreenIsOpenShowsNoKeyNotTurnedOff() throws {
+        let (root, _) = try makeRoot(route: nil, switchOn: true, savedKey: "sk-or-v1-synthetic")
+        let model = try XCTUnwrap(root.labelPhotoScreenModel())
+        root.webDiscovery.removeKey()
+        XCTAssertFalse(root.webDiscovery.hasSavedKey)
+        XCTAssertEqual(model.blocker, .noKey, "the switch is still on; the cause is the missing key")
+        XCTAssertFalse(model.canRead)
+    }
+
+    private func addFoodPhotos(_ root: FoodLedgerCompositionRoot) -> Bool? {
+        let view = AddFoodView(recents: [], search: { _ in }, scanBarcode: {}, pasteOrDictate: {}, nutritionLabel: {},
+                               nutritionLabelPhotos: root.labelPhotoEnabled, favourites: {}, relog: { _ in })
+        return Mirror(reflecting: view).descendant("nutritionLabelPhotos") as? Bool
+    }
+
+    private func assertHidden(_ root: FoodLedgerCompositionRoot, file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertEqual(root.labelPhotoMode, .off, file: file, line: line)
+        XCTAssertFalse(root.labelPhotoEnabled, file: file, line: line)
+        XCTAssertNil(root.labelPhotoFlow(), file: file, line: line)
+        XCTAssertNil(root.labelPhotoScreenModel(), file: file, line: line)
+        let visit = NutritionLabelVisit(root: root)
+        XCTAssertNil(visit.photoModel, file: file, line: line)
+        XCTAssertFalse(visit.entry.photosEnabled, file: file, line: line)
+        XCTAssertFalse(visit.entry.acceptsImages, "a pasted image is not accepted", file: file, line: line)
+        XCTAssertEqual(visit.entry.addFoodRowSubtitle, NutritionLabelEntryText.addFoodRowSubtitle(photosEnabled: false), file: file, line: line)
+        XCTAssertEqual(addFoodPhotos(root), false, "Add food shows the text-only subtitle", file: file, line: line)
     }
 
     func testTheRouteIsOffByDefault() throws {
@@ -211,4 +307,12 @@ final class LabelPhotoCompositionTests: XCTestCase {
         // A consent given to the scripted transport never stands for live egress (L5 uses a fresh key).
         XCTAssertEqual(FoodLedgerCompositionRoot.labelPhotoConsentKey, "labelPhoto.egressConsent.scripted.v1")
     }
+}
+
+/// A key store for the switch tests: never the device Keychain, and nothing is ever sent.
+private struct SyntheticOpenRouterKeys: FoodWebKeyStoring {
+    let key: String?
+    func load() throws -> String? { key }
+    func save(_ key: String) throws {}
+    func delete() throws {}
 }

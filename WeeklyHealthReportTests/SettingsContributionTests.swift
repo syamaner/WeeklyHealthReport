@@ -87,7 +87,8 @@ final class SettingsContributionTests: XCTestCase {
             let preferences = FoodSearchUserDefaultsPreferencesFake()
             let section = FoodSearchSettingsContribution.section(
                 preferences: preferences, onlineDatabaseAvailable: true,
-                webLookup: lookup, market: FoodMarketPreference(defaults: isolatedDefaults())
+                webLookup: lookup, market: FoodMarketPreference(defaults: isolatedDefaults()),
+                labelPhotoReading: LabelPhotoReadingPreference(defaults: isolatedDefaults())
             )
             var details: [String?] = []
             for row in section.rows {
@@ -104,6 +105,51 @@ final class SettingsContributionTests: XCTestCase {
             guard case let .toggle(toggle) = section.rows.first?.kind else { return XCTFail("Expected the database toggle") }
             XCTAssertTrue(toggle.caption?.contains("Community product data can be incomplete.") == true)
         }
+    }
+
+    /// 17.22: Read label photos with AI sits directly after Web lookup, off by default, with its exact
+    /// copy and the amended footer; it writes only its versioned key, and building or toggling it
+    /// sends nothing and builds no read flow.
+    func testLabelPhotoReadingRowIsOffByDefaultAfterWebLookup() throws {
+        let defaults = isolatedDefaults()
+        let provider = RecordingWebProvider()
+        let lookup = FoodWebDiscoveryViewModel(provider: provider, keys: FixedKeyStore(key: "synthetic-key"))
+        let sessions = LabelPhotoSessions.count
+        let section = FoodSearchSettingsContribution.section(
+            preferences: FoodSearchUserDefaultsPreferencesFake(), onlineDatabaseAvailable: true,
+            webLookup: lookup, market: FoodMarketPreference(defaults: isolatedDefaults()),
+            labelPhotoReading: LabelPhotoReadingPreference(defaults: defaults))
+        XCTAssertEqual(section.rows.map(\.id), ["toggle.onlineFoodDatabase", "route.webLookupKey", "toggle.labelPhotoReading", "route.foodMarket"])
+        XCTAssertEqual(section.footer, "Online sources receive only the food terms you search for, and any label photo you choose to send. Your Health data and food log stay on this device unless you export them to Google Drive.")
+        let row = section.rows[2]
+        guard case let .toggle(toggle) = row.kind else { return XCTFail("Expected the label photo toggle") }
+        XCTAssertEqual(row.title, "Read label photos with AI", "the Toggle's title is its VoiceOver label")
+        XCTAssertEqual(toggle.title, "Read label photos with AI")
+        XCTAssertEqual(toggle.caption, "Adds photos and pasted images to Nutrition label. Read label with AI sends only the cropped photo to OpenRouter, using your OpenRouter key and credit, and you check every value on Confirm before logging. Needs an OpenRouter key under Web lookup.")
+        XCTAssertTrue(toggle.isEnabled)
+        XCTAssertFalse(toggle.isOn, "off by default")
+        XCTAssertNil(defaults.object(forKey: "labelPhoto.liveRoute.enabled.v1"))
+        toggle.set(true)
+        XCTAssertTrue(toggle.isOn)
+        XCTAssertEqual(defaults.object(forKey: "labelPhoto.liveRoute.enabled.v1") as? Bool, true)
+        toggle.set(false)
+        XCTAssertFalse(toggle.isOn)
+        XCTAssertNil(defaults.object(forKey: "labelPhoto.liveRoute.enabled.v1"), "off removes the value")
+        XCTAssertEqual(provider.requestCount, 0)
+        XCTAssertEqual(LabelPhotoSessions.count, sessions, "the switch builds no read flow")
+    }
+
+    func testLabelPhotoReadingPreferenceReadsOffUnlessTrue() {
+        let defaults = isolatedDefaults()
+        let preference = LabelPhotoReadingPreference(defaults: defaults)
+        XCTAssertFalse(preference.isOn)
+        defaults.set("yes", forKey: LabelPhotoReadingPreference.key)
+        XCTAssertFalse(preference.isOn, "a non-Boolean value reads as off")
+        preference.isOn = true
+        XCTAssertEqual(LabelPhotoReadingPreference.key, "labelPhoto.liveRoute.enabled.v1")
+        XCTAssertEqual(defaults.object(forKey: "labelPhoto.liveRoute.enabled.v1") as? Bool, true)
+        preference.isOn = false
+        XCTAssertNil(defaults.object(forKey: "labelPhoto.liveRoute.enabled.v1"))
     }
 
     func testFoodMarketPreferenceSetRemoveAndReviewModel() throws {
