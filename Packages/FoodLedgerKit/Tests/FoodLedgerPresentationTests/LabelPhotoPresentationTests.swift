@@ -184,6 +184,7 @@ final class LabelPhotoPresentationTests: XCTestCase {
         var status = LabelPhotoReadSession.Status(day: .open(reads: 3), routeUnavailable: false)
         var hold = false
         var finishedReads = 0
+        var enabled = true
     }
 
     func screen(_ script: Script, prepare: LabelImagePreparationError? = nil) throws -> LabelPhotoScreenModel {
@@ -204,7 +205,7 @@ final class LabelPhotoPresentationTests: XCTestCase {
             status: { script.status },
             keyState: { script.key }, isOnline: { script.online },
             hasConsented: { script.consented }, recordConsent: { script.consented = true },
-            makeConfirm: { _, _, _ in source }))
+            makeConfirm: { _, _, _ in source }, isEnabled: { script.enabled }))
     }
 
     func ready(_ model: LabelPhotoScreenModel) async {
@@ -254,6 +255,29 @@ final class LabelPhotoPresentationTests: XCTestCase {
         script.status = .init(day: .paused, routeUnavailable: false)
         await model.refresh()
         XCTAssertEqual(model.blocker?.text, LabelPhotoText.failedCostPaused)
+    }
+
+    /// 17.22: turning the Settings switch off while the screen is open blocks the next tap, before
+    /// the key or any other state, and sends nothing; turning it on again clears the blocker.
+    func testTurningTheRouteOffBlocksTheNextTapAndSendsNothing() async throws {
+        let script = Script()
+        script.consented = true
+        let model = try screen(script)
+        await ready(model)
+        XCTAssertTrue(model.canRead)
+        script.enabled = false
+        script.key = .missing
+        XCTAssertEqual(model.blocker, .turnedOff, "the switch comes before every other blocker")
+        XCTAssertFalse(model.canRead)
+        XCTAssertEqual(model.blocker?.text,
+                       "Label photo reading is off. Turn on Read label photos with AI in Settings to read this photo. Nothing was sent.")
+        XCTAssertNil(model.blocker?.action)
+        model.readTapped()
+        model.firstUseAccepted()
+        await Task.yield()
+        XCTAssertEqual(script.reads, 0, "nothing is sent once the route is off")
+        script.enabled = true; script.key = .valid
+        XCTAssertNil(model.blocker)
     }
 
     func testTheFirstUseSheetComesOnceAndNotNowSendsNothing() async throws {

@@ -47,6 +47,8 @@ public enum LabelPhotoText {
     public static let searchFoods = "Search foods"
     public static let dailyLimit = "You've reached today's limit of 30 label photo reads (or $0.50 of reported cost). It resets at midnight."
     public static let routeUnavailable = "Label photo reading is unavailable: the model's private endpoint could not be confirmed. Nothing was sent."
+    /// 17.22: the Settings switch was turned off while the screen was open.
+    public static let turnedOff = "Label photo reading is off. Turn on Read label photos with AI in Settings to read this photo. Nothing was sent."
     public static let cropTooSmall = "This crop is too small to read. Move closer or crop less tightly."
     public static let photoTooLarge = "This photo could not be made small enough to send. Crop more tightly and try again."
     public static let reading = "Reading the label…"

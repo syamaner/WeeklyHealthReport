@@ -11,6 +11,8 @@ public final class LabelPhotoScreenModel: ObservableObject {
     /// Why Read label with AI is disabled before any tap (section 9), each with its 7.2 copy.
     public enum Blocker: Equatable, Sendable {
         case noKey, keyNotValidated, offline, dailyLimit, paused, routeUnavailable
+        /// The Settings switch was turned off while this screen was open (17.22).
+        case turnedOff
 
         public var text: String {
             switch self {
@@ -20,6 +22,7 @@ public final class LabelPhotoScreenModel: ObservableObject {
             case .dailyLimit: LabelPhotoText.dailyLimit
             case .paused: LabelPhotoText.failedCostPaused
             case .routeUnavailable: LabelPhotoText.routeUnavailable
+            case .turnedOff: LabelPhotoText.turnedOff
             }
         }
 
@@ -29,7 +32,7 @@ public final class LabelPhotoScreenModel: ObservableObject {
             case .noKey: LabelPhotoText.openRouterSettings
             case .keyNotValidated: LabelPhotoText.validateKey
             case .offline: LabelPhotoText.pasteLabel
-            case .dailyLimit, .paused, .routeUnavailable: nil
+            case .dailyLimit, .paused, .routeUnavailable, .turnedOff: nil
             }
         }
     }
@@ -55,14 +58,19 @@ public final class LabelPhotoScreenModel: ObservableObject {
         public let hasConsented: () -> Bool
         public let recordConsent: () -> Void
         public let makeConfirm: (LabelPhotoReview, PreparedLabelImage, PastedLabelDetails) throws -> LabelPhotoSourceModel
+        /// Whether the route this screen was built for is still the one in force (17.22): asked
+        /// before every tap, so turning the Settings switch off stops the next send.
+        public let isEnabled: () -> Bool
 
         public init(prepare: @escaping (Data, LabelCropRect) -> Result<PreparedLabelImage, LabelImagePreparationError>,
                     read: @escaping (PreparedLabelImage, @escaping @Sendable (Int) -> Void) async -> LabelPhotoReadFlow.Outcome,
                     status: @escaping () async -> LabelPhotoReadSession.Status, keyState: @escaping () -> KeyState, isOnline: @escaping () -> Bool,
                     hasConsented: @escaping () -> Bool, recordConsent: @escaping () -> Void,
-                    makeConfirm: @escaping (LabelPhotoReview, PreparedLabelImage, PastedLabelDetails) throws -> LabelPhotoSourceModel) {
+                    makeConfirm: @escaping (LabelPhotoReview, PreparedLabelImage, PastedLabelDetails) throws -> LabelPhotoSourceModel,
+                    isEnabled: @escaping () -> Bool = { true }) {
             self.prepare = prepare; self.read = read; self.status = status; self.keyState = keyState; self.isOnline = isOnline
             self.hasConsented = hasConsented; self.recordConsent = recordConsent; self.makeConfirm = makeConfirm
+            self.isEnabled = isEnabled
         }
     }
 
@@ -96,6 +104,7 @@ public final class LabelPhotoScreenModel: ObservableObject {
     // MARK: State
 
     public var blocker: Blocker? {
+        guard environment.isEnabled() else { return .turnedOff }
         switch environment.keyState() {
         case .missing: return .noKey
         case .notValidated: return .keyNotValidated
