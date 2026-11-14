@@ -590,6 +590,39 @@ def change_report(old, new):
     return dict(sorted(counts.items()))
 
 
+OUTPUT_NAME = "personal-food-catalogue-v2.json"
+V1_OUTPUT_NAME = "personal-food-catalogue-v1.json"
+V1_SUPERSEDED_NAME = "personal-food-catalogue-v1.superseded.json"
+
+
+def previous_report(out: Path, doc):
+    """(previous file name or None, report) for the export about to be written. A previous file that
+    cannot be read, or whose root is not a catalogue object, is reported as not compared: it must
+    never stop the new file, which has already passed every check, or count every entry as new."""
+    previous = next((out / n for n in (OUTPUT_NAME, V1_OUTPUT_NAME) if (out / n).exists()), None)
+    if previous is None:
+        return None, change_report(None, doc)
+    try:
+        prior = json.loads(previous.read_bytes())
+        if not isinstance(prior, dict) or not isinstance(prior.get("items"), list):
+            return previous.name, "not compared, the previous file is not a catalogue file"
+        return previous.name, change_report(prior, doc)
+    except (OSError, RecursionError, ValueError, TypeError, KeyError, AttributeError) as error:
+        return previous.name, f"not compared, the previous file could not be read ({type(error).__name__})"
+
+
+def retire_v1_output(out: Path):
+    """After a v2 file is written, renames an old v1 export in the same private folder so the owner
+    cannot pick the stale file on the iPhone. Returns the new path, or None when there was none."""
+    from workspace_guard import check_output
+    old = out / V1_OUTPUT_NAME
+    if not old.exists():
+        return None
+    target = check_output(out / V1_SUPERSEDED_NAME)
+    old.replace(target)
+    return target
+
+
 def main(ws: Path, repo: Path):
     out = ws / "out"
     cat = json.load(open(out / "personal-food-catalogue.json"))
@@ -607,25 +640,20 @@ def main(ws: Path, repo: Path):
             print("  -", e)
         sys.exit(2)
     from workspace_guard import check_output
-    previous = next((out / n for n in ("personal-food-catalogue-v2.json", "personal-food-catalogue-v1.json")
-                     if (out / n).exists()), None)
-    try:
-        prior = json.loads(previous.read_bytes()) if previous else None
-        report = change_report(prior if isinstance(prior, dict) else None, doc)
-    except (OSError, RecursionError, ValueError, TypeError, KeyError, AttributeError) as error:
-        # The report only compares counts; a damaged earlier file must not stop the new
-        # file, which has already passed every check, from being written.
-        report = f"not compared, the previous file could not be read ({type(error).__name__})"
-    p = check_output(out / "personal-food-catalogue-v2.json")
+    previous, report = previous_report(out, doc)
+    p = check_output(out / OUTPUT_NAME)
     p.write_bytes(data)
     p.chmod(0o600)
+    retired = retire_v1_output(out)
     refs = [it["generic_reference"] for it in doc["items"] if it["generic_reference"]]
     print(f"wrote {p} ({len(data) / 1e6:.2f} MB, {len(doc['items'])} entries, "
           f"{sum(r['role'] == 'merge' for r in refs)} merge and {sum(r['role'] == 'candidate' for r in refs)} candidate "
           f"references, {sum(bool(it['label_nutrients']) for it in doc['items'])} with label values, "
           f"{len(doc['sources'])} source releases)")
     print(f"release pfc:sha256:{hashlib.sha256(data).hexdigest()}")
-    print(f"changes against {previous.name if previous else 'no previous file'}: {report}")
+    print(f"changes against {previous or 'no previous file'}: {report}")
+    if retired:
+        print(f"renamed the old v1 export to {retired.name}, so only the v2 file can be imported")
     if REPLACED:
         print(f"replaced values outside the closed vocabularies: {dict(REPLACED)}")
     if withheld:

@@ -55,6 +55,30 @@ try:
 except Exception as e:
     results.append((f"list or dict vocabulary values fall back, no crash ({type(e).__name__})", False))
 
+# PR #487 review: the previous-file report and the retired v1 export, in a private temporary folder.
+with tempfile.TemporaryDirectory() as tmp:
+    out = Path(tmp)
+    os.chmod(out, 0o700)
+    doc = {"items": [{"id": "pfc:000000000001", "basis": "per_100_g", "label_nutrients": {}, "generic_reference": None}]}
+    name, report = E.previous_report(out, doc)
+    results.append(("no previous file: every entry is new", name is None and report.get("new entries") == 1))
+    for bad in (b"[]", b"7", b'{"items": 3}', b"not json"):
+        (out / E.V1_OUTPUT_NAME).write_bytes(bad)
+        name, report = E.previous_report(out, doc)
+        results.append((f"previous file {bad!r} is not compared, never all new",
+                        name == E.V1_OUTPUT_NAME and isinstance(report, str) and report.startswith("not compared")))
+    (out / E.V1_OUTPUT_NAME).write_text(json.dumps({"items": doc["items"]}))
+    name, report = E.previous_report(out, doc)
+    results.append(("a v1 previous file is compared", name == E.V1_OUTPUT_NAME and report.get("new entries") is None))
+    (out / E.OUTPUT_NAME).write_text(json.dumps({"items": []}))
+    name, _ = E.previous_report(out, doc)
+    results.append(("the v2 file is preferred as the previous file", name == E.OUTPUT_NAME))
+    retired = E.retire_v1_output(out)
+    results.append(("the old v1 export is renamed beside the v2 file",
+                    retired == (out / E.V1_SUPERSEDED_NAME).resolve() and not (out / E.V1_OUTPUT_NAME).exists()
+                    and retired.exists() and (out / E.OUTPUT_NAME).exists()))
+    results.append(("nothing to retire the second time", E.retire_v1_output(out) is None))
+
 failed = [n for n, ok in results if not ok]
 print(f"guards and edge cases: {len(results) - len(failed)} of {len(results)} checks pass")
 if failed:
