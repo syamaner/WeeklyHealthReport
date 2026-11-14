@@ -244,7 +244,7 @@ final class PastedLabelRouteTests: XCTestCase {
         XCTAssertTrue(opened)
         XCTAssertNil(Mirror(reflecting: view).descendant("pasteLabel"), "no Paste nutrition label route")
         XCTAssertNil(Mirror(reflecting: view).descendant("photoLabel"), "no Photo of nutrition label route")
-        XCTAssertEqual(Mirror(reflecting: view).descendant("nutritionLabelPhotos") as? Bool, false, "off in every Release build today")
+        XCTAssertEqual(Mirror(reflecting: view).descendant("nutritionLabelPhotos") as? Bool, false, "off by default (17.22)")
         XCTAssertEqual(NutritionLabelEntryText.addFoodRow, "Nutrition label")
         XCTAssertNotNil(Mirror(reflecting: AddFoodFlowView(root: root)).descendant("root"))
         for (size, name) in [(DynamicTypeSize.large, "standard"), (.accessibility3, "accessibility3")] {

@@ -36,6 +36,9 @@ public struct LabelPhotoScreenView: View {
         }
         .navigationTitle(LabelPhotoText.screenTitle)
         .task { await model.refresh() }
+        .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification).receive(on: RunLoop.main)) { _ in
+            model.settingsChanged()
+        }
         .labelPhotoCover(isPresented: $model.cropping) {
             if let photo = model.photo {
                 NavigationStack {
