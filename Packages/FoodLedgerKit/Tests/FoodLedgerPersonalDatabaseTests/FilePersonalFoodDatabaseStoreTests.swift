@@ -363,4 +363,24 @@ final class FilePersonalFoodDatabaseStoreTests: XCTestCase {
         try makeStore().install(bytes: a.bytes, manifest: a.manifest)
         XCTAssertEqual(try makeStore().activeRelease()?.manifest, a.manifest)
     }
+
+    /// PR #487 review: repairing a manifest of another schema never removes the folder the pointer
+    /// names; a fault during the repair keeps the previous, still loadable release.
+    func testAFailedSchemaRepairKeepsTheNamedFolder() throws {
+        let a = try Self.release("first")
+        let v2 = PersonalFoodDatabaseManifest(schema: PersonalFoodDatabaseSchema.v2.rawValue, releaseID: a.manifest.releaseID,
+            fileSHA256: a.manifest.fileSHA256, generated: a.manifest.generated, importedAt: a.manifest.importedAt,
+            entryCount: a.manifest.entryCount)
+        try makeStore().install(bytes: a.bytes, manifest: a.manifest)
+        for step in [FilePersonalFoodDatabaseStore.Step.rename, .pointer] {
+            let failing = makeStore(fault: { if $0 == step { throw Fault() } })
+            XCTAssertThrowsError(try failing.install(bytes: a.bytes, manifest: v2), "\(step)")
+            let active = try makeStore().activeRelease()
+            XCTAssertEqual(active?.bytes, a.bytes, "\(step)")
+            XCTAssertNotNil(active?.manifest, "\(step)")
+            XCTAssertEqual(contents(folder(a)), ["manifest.json", "personal-food-catalogue-v1.json"], "\(step)")
+        }
+        try makeStore().install(bytes: a.bytes, manifest: v2)
+        XCTAssertEqual(try makeStore().activeRelease()?.manifest, v2)
+    }
 }

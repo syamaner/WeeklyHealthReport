@@ -134,9 +134,18 @@ public struct FilePersonalFoodDatabaseStore: PersonalFoodDatabaseStoring {
             var reuse = false
             if fileManager.fileExists(atPath: target.path) {
                 let named = (try? Self.decodePointer(fileManager.contents(atPath: pointerURL.path)))?.folder == folderName
-                if named, verifies(target, digest: manifest.fileSHA256, schema: manifest.schema) {
+                switch named ? verification(target, digest: manifest.fileSHA256, schema: manifest.schema) : .fails {
+                case .verifies:
                     reuse = true
-                } else {
+                case .otherSchema:
+                    // The same bytes with a manifest naming another schema (import v2): only the
+                    // manifest is rewritten, atomically, inside the folder the pointer names, so a
+                    // failure or crash leaves either the old manifest or the new one, never a
+                    // missing folder (PR #487 review).
+                    try fault?(.rename)
+                    try write(PersonalFoodDatabaseStoredManifest(manifest).encoded(), to: target.appendingPathComponent(Self.manifestName))
+                    reuse = true
+                case .fails:
                     try fileManager.removeItem(at: target)
                 }
             }
@@ -216,15 +225,18 @@ public struct FilePersonalFoodDatabaseStore: PersonalFoodDatabaseStoring {
         return data
     }
 
-    /// A folder is reused only when its manifest names the same file and schema, so a reinstall
-    /// repairs a manifest whose schema was wrong (import v2).
-    private func verifies(_ folder: URL, digest: SHA256Digest, schema: String) -> Bool {
+    enum FolderVerification { case verifies, otherSchema, fails }
+
+    /// A folder is reused only when its manifest names the same file and schema. The same verified
+    /// file under a manifest of another schema is `otherSchema`, which a reinstall repairs (import v2).
+    private func verification(_ folder: URL, digest: SHA256Digest, schema: String) -> FolderVerification {
         guard let bytes = FileManager.default.contents(atPath: folder.appendingPathComponent(Self.fileName).path),
               let stored = try? JSONDecoder().decode(PersonalFoodDatabaseStoredManifest.self,
                   from: FileManager.default.contents(atPath: folder.appendingPathComponent(Self.manifestName).path) ?? Data()),
-              let storedManifest = stored.manifest, storedManifest.fileSHA256 == digest, storedManifest.schema == schema,
-              storedManifest.releaseID == PersonalFoodDatabaseRelease.releaseID(fileSHA256: digest) else { return false }
-        return (try? digester.sha256(bytes)) == digest
+              let storedManifest = stored.manifest, storedManifest.fileSHA256 == digest,
+              storedManifest.releaseID == PersonalFoodDatabaseRelease.releaseID(fileSHA256: digest),
+              (try? digester.sha256(bytes)) == digest else { return .fails }
+        return storedManifest.schema == schema ? .verifies : .otherSchema
     }
 
     static func decodePointer(_ data: Data?) throws -> PersonalFoodDatabaseStoredPointer? {
