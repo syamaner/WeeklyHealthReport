@@ -21,7 +21,8 @@ import XCTest
 /// panel wins over a contradicting pack, and a single per-serving panel is scaled to per 100, so those cases are ordinary
 /// parity cases, mirrored one for one in `test_off_rules.py`. The plausibility check covers bound ends as well, so the
 /// port refuses exactly the records the app declines, although it leaves the bounds themselves out. A second format
-/// limit: a numeric serving of 1e15 or more, which the catalogue cannot hold, is admitted here and declined by the port.
+/// limit: a record with any emitted number the catalogue's rules refuse (a value, a per-serving source value or a
+/// serving of 1e15 or more) is admitted here and declined by the port, which runs the export's own value checks.
 ///
 /// Skill-only checks with no app equivalent:
 /// - "release fields are a function of its ID (retrieved date in both)": the `pfc-off:` release form and its
@@ -378,11 +379,18 @@ final class OpenFoodFactsSkillParityTests: XCTestCase {
         XCTAssertEqual(try run(serving(perQuantity: 1e-300, energy: 1e300)), .insufficientData)
     }
 
-    /// Known difference (import v2 section 5): the app admits a numeric serving of 1e15 or more; the catalogue format
-    /// cannot hold one, so the port declines that record (test_off_rules.py "serving of 1e15 declined by the port").
-    func testServingAtTheCatalogueBoundIsAdmittedInTheAppOnly() throws {
-        let input = try admitted(serving(perQuantity: 1e15, sodium: (0.112, "mg")))
-        assertProjection(input, "off-product-projection-v6")
+    /// Known difference (import v2 section 5): the app admits these records; each has a number the catalogue format
+    /// cannot hold, so the port declines it (the "declined" cases in test_off_rules.py, one per emitted number field).
+    func testNumbersBeyondTheCatalogueRulesAreAdmittedInTheAppOnly() throws {
+        let serving1e15 = try admitted(serving(perQuantity: 1e15, sodium: (0.112, "mg")))
+        assertProjection(serving1e15, "off-product-projection-v6")
+        let hugeSource = try admitted(serving(perQuantity: 5e14, sodium: (0.112, "mg"), energy: 4e15))
+        XCTAssertEqual(exact(value(hugeSource, .energyConsumed))?.amount ?? 0, 800, accuracy: 1e-9)
+        guard case let .exact(source)? = exact(value(hugeSource, .energyConsumed))?.sourceValue else {
+            return XCTFail("Expected an exact source value")
+        }
+        XCTAssertEqual(source.amount, 4e15, "the per-serving source the catalogue cannot hold")
+        XCTAssertEqual(exact(value(try admitted(modern(sodium: (1e13, "g"))), .sodium))?.amount, 1e16)
         XCTAssertNotNil(try admitted(serving(perQuantity: 9.99e14, sodium: (0.112, "mg"))).candidates.first)
     }
 

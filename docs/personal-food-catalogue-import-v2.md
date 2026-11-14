@@ -127,9 +127,12 @@ app leaves it unknown), refusal when only the scale overflows, and plausibility 
 including bound ends the port then leaves out. A record v5 admits keeps `off-product-projection-v5`
 and byte-identical values (an integer stays an integer) and releases; only records v5 refuses get v6. Two differences from the app
 remain, both limits of the format: a `<` or `>` value becomes a bound in the app and is left out of
-the catalogue (v1's), and a numeric serving of 1e15 or more, which section 3 rule 3 cannot hold, is
-admitted by the app but declines the record in the port, so one such cached record never refuses the
-whole build.
+the catalogue (v1's); and a record with any emitted number the format's rules refuse (a value, a
+per-serving source value or a serving of 1e15 or more, for example a 4e15 kcal panel on a 5e14 g
+serving) is admitted by the app but declined by the port. The port runs the export's own per-value
+check on every projected record before returning it, so one odd product is declined, counted by rule
+code in the build output (counts only), and never refuses the whole build. Bound ends are never
+emitted, so they need no such check.
 
 `export_v1.py` (the module keeps its name; it is not a contract) writes schema
 `personal-food-catalogue-v2` to `out/personal-food-catalogue-v2.json`, then renames an old

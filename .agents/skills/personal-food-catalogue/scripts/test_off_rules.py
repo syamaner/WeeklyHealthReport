@@ -152,9 +152,23 @@ check("implausible scaled bound end refused (a value the port leaves out)",
 check("plausible bound left out, record admitted", (lambda x: x and "sugar" not in x[3])(
     run(serving(modifier=("<", 0.5), sodium=(0.112, "mg")))))
 check("scale overflow refused", run(serving(per_quantity=1e-300, energy=1e300)) is None)
-# PR #487 review: the catalogue cannot hold a serving of 1e15 or more, so the port declines the
-# record (the app admits it: a documented difference) and the build is never refused for it.
-check("serving of 1e15 declined by the port", run(serving(per_quantity=1e15)) is None)
+# PR #487 review: a record with any emitted number the catalogue's rules refuse is declined (the
+# app admits it: a documented difference) and counted, so the build is never refused for it.
+def declined(product, code):
+    before = R.FORMAT_DECLINED[code]
+    return run(product) is None and R.FORMAT_DECLINED[code] == before + 1
+check("serving of 1e15 declined and counted (serving quantity)",
+      declined(serving(per_quantity=1e15, sodium=(0.112, "mg")), "source-value"))
+check("per-serving source value of 4e15 kcal on a 5e14 g serving declined (source_value.value)",
+      declined(serving(per_quantity=5e14, energy=4e15, sodium=(0.112, "mg")), "source-value"))
+check("an unscaled value of 1e15 or more declined (value)", declined(modern(sodium=(0.4, "g")) | {"nutrition": {"input_sets": [
+    {"source": "packaging", "per": "100g", "preparation": "as_sold", "nutrients": {
+        "energy-kcal": {"value": 2e15, "unit": "kcal"}}}]}}, "value"))
+check("sodium in g whose mg value reaches 1e15 declined (value after g to mg)",
+      declined(modern(sodium=(1e13, "g")), "value"))
+check("sodium in g of 1e15 or more declined (source_value.value under g to mg)",
+      declined(modern(sodium=(2e15, "g")), "source-value"))
+check("the counter names rule codes only, never a product", all(isinstance(k, str) and ":" not in k for k in R.FORMAT_DECLINED))
 just_under = run(serving(per_quantity=9.99e14, sodium=(0.112, "mg")))
 check("serving just under 1e15 admitted (test_export_check builds it)", just_under
       and just_under[3]["energy_consumed"]["source_value"]["serving"]["quantity"] == 9.99e14)

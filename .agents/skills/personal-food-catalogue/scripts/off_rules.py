@@ -7,16 +7,20 @@ and identical values; v6 only adds records v5 refuses: a lone per 100 panel that
 pack ("the panel wins"), or a single per-serving panel scaled to per 100.
 
 Two deliberate differences, both limits of the catalogue format: the app turns a "<" or ">" value
-into a bound, which the catalogue cannot hold, so such a value is left out (unknown); and a numeric
-serving of 1e15 or more, which the catalogue cannot hold, declines the record here though the app
-admits it. The plausibility check still covers bounds, so the port otherwise refuses exactly the
-records the app declines. Everything else (fields, basis, legacy
+into a bound, which the catalogue cannot hold, so such a value is left out (unknown); and a record
+with any emitted number the catalogue's rules refuse (a value, a source value or a serving of 1e15
+or more) is declined here though the app admits it. Every projected value is run through the
+export's own per-value check (export_v1._check_value, v2 rules) before it is returned, so one odd
+product is declined and counted in FORMAT_DECLINED instead of refusing the whole build. The
+plausibility check still covers bounds, so the port otherwise refuses exactly the records the app
+declines. Everything else (fields, basis, legacy
 sodium, supplements, record identity) follows the app.
 """
 import hashlib
 import json
 import math
 import re
+from collections import Counter
 
 # OpenFoodFactsLookup.project `fields`: the only eight nutrients the app admits.
 FIELDS = {"energy_consumed": "energy-kcal", "protein": "proteins", "carbohydrates": "carbohydrates",
@@ -56,10 +60,24 @@ def _serving_quantity(raw):
     return q if math.isfinite(q) and q > 0 else None
 
 
-# The catalogue's serving bound (import v2 section 3, export_v1._serving_quantity_ok): the format
-# cannot carry a serving of 1e15 or more, so such a record is declined here, while the app admits it.
-# A deliberate difference, like bounds; without it one cached record would refuse the whole build.
-MAX_CATALOGUE_SERVING = 1e15
+# Records the app admits but the catalogue format cannot hold, counted for the build output (counts
+# only, never a product). See the module docstring.
+FORMAT_DECLINED = Counter()
+
+
+def _format_codes(basis, record_id, release, values):
+    """The rule codes export_v1 would report for these values (v2 rules), empty when it accepts them."""
+    import export_v1  # the export's own checks, so the two can never disagree
+    codes = []
+    declared = {release["source_release_id"]: release}
+    for key, value in values.items():
+        out = {"value": value["value"], "unit": value["unit"], "source_kind": "exact_product_dataset",
+               "source_release": release["source_release_id"], "record_id": record_id, "match": "probable"}
+        if "transforms" in value:
+            out["transforms"], out["source_value"] = value["transforms"], value["source_value"]
+        export_v1._check_value("projected", key, out, declared, lambda code, detail="": codes.append(code),
+                               True, basis)
+    return codes
 
 
 def _panel_values(panel):
@@ -80,7 +98,7 @@ def _serving_nutrients(sets):
         return None
     serving = _serving_quantity(panels[0].get("per_quantity"))
     unit = panels[0].get("per_unit")
-    if serving is None or unit not in ("g", "ml") or serving >= MAX_CATALOGUE_SERVING:
+    if serving is None or unit not in ("g", "ml"):
         return None
     return _panel_values(panels[0]), True, unit == "ml", serving, False
 
@@ -206,7 +224,13 @@ def project(product, record_bytes, retrieved="unknown"):
                "schema_version": "off-v3.6-product-record", "pipeline_version": projection,
                "licence": "ODbL 1.0 https://opendatacommons.org/licenses/odbl/1-0/; contents: https://opendatacommons.org/licenses/dbcl/1-0/",
                "attribution": f"Open Food Facts · https://world.openfoodfacts.org/product/{code}"}
-    return ("per_100_ml_as_labelled" if volume else "per_100_g"), f"off:gtin:{gtin}", release, values
+    basis = "per_100_ml_as_labelled" if volume else "per_100_g"
+    codes = _format_codes(basis, f"off:gtin:{gtin}", release, values)
+    if codes:
+        for code in sorted(set(codes)):
+            FORMAT_DECLINED[code] += 1  # counted once per record and rule, never named
+        return None
+    return basis, f"off:gtin:{gtin}", release, values
 
 
 def load(path):
