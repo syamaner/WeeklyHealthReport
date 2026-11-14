@@ -470,6 +470,21 @@ def build_round_trip():
     assert doc["schema"] == E.SCHEMA_V2 and errs == [], f"build output rejected: {errs}"
     sodium = doc["items"][0]["label_nutrients"]["sodium"]
     assert [t["transform_id"] for t in sodium["transforms"]] == ["mass-g-to-mg", "off-serving-to-100"], sodium
+    # PR #487 review: the port declines a serving the format cannot hold, and one just under the
+    # bound still exports, so no cached record can refuse the whole build.
+    panel = product["nutrition"]["input_sets"][0]
+    for quantity, admitted in ((1e15, False), (9.99e14, True)):
+        panel["per_quantity"] = quantity
+        got = off_rules.project(product, b"{}", "2026-11-13")
+        assert (got is not None) == admitted, (quantity, got)
+        if got:
+            basis, record_id, release, values = got
+            tiers = {k: {**v, "source": f"label:off:{record_id}", "release": release["source_release_id"]}
+                     for k, v in values.items()}
+            doc, _ = E.build({**cat, "items": [{**cat["items"][0], "label_tiers": {"off": tiers}}],
+                              "off_releases": {release["source_release_id"]: release}}, {}, "2026-11-13")
+            errs = E.check_bytes(json.dumps(doc, indent=1, ensure_ascii=False).encode())
+            assert errs == [], f"serving {quantity}: {errs}"
 
 
 def change_report_counts():

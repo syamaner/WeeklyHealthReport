@@ -20,7 +20,8 @@ import XCTest
 /// Since import v2 (docs/personal-food-catalogue-import-v2.md) the port follows `off-product-projection-v6` too: the
 /// panel wins over a contradicting pack, and a single per-serving panel is scaled to per 100, so those cases are ordinary
 /// parity cases, mirrored one for one in `test_off_rules.py`. The plausibility check covers bound ends as well, so the
-/// port refuses exactly the records the app declines, although it leaves the bounds themselves out.
+/// port refuses exactly the records the app declines, although it leaves the bounds themselves out. A second format
+/// limit: a numeric serving of 1e15 or more, which the catalogue cannot hold, is admitted here and declined by the port.
 ///
 /// Skill-only checks with no app equivalent:
 /// - "release fields are a function of its ID (retrieved date in both)": the `pfc-off:` release form and its
@@ -375,6 +376,14 @@ final class OpenFoodFactsSkillParityTests: XCTestCase {
 
     func testScaleOverflowRefused() throws {
         XCTAssertEqual(try run(serving(perQuantity: 1e-300, energy: 1e300)), .insufficientData)
+    }
+
+    /// Known difference (import v2 section 5): the app admits a numeric serving of 1e15 or more; the catalogue format
+    /// cannot hold one, so the port declines that record (test_off_rules.py "serving of 1e15 declined by the port").
+    func testServingAtTheCatalogueBoundIsAdmittedInTheAppOnly() throws {
+        let input = try admitted(serving(perQuantity: 1e15, sodium: (0.112, "mg")))
+        assertProjection(input, "off-product-projection-v6")
+        XCTAssertNotNil(try admitted(serving(perQuantity: 9.99e14, sodium: (0.112, "mg"))).candidates.first)
     }
 
     /// Mirrors the port's large-number cases (Qodo local review): a value that overflows only when

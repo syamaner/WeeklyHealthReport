@@ -152,6 +152,12 @@ check("implausible scaled bound end refused (a value the port leaves out)",
 check("plausible bound left out, record admitted", (lambda x: x and "sugar" not in x[3])(
     run(serving(modifier=("<", 0.5), sodium=(0.112, "mg")))))
 check("scale overflow refused", run(serving(per_quantity=1e-300, energy=1e300)) is None)
+# PR #487 review: the catalogue cannot hold a serving of 1e15 or more, so the port declines the
+# record (the app admits it: a documented difference) and the build is never refused for it.
+check("serving of 1e15 declined by the port", run(serving(per_quantity=1e15)) is None)
+just_under = run(serving(per_quantity=9.99e14, sodium=(0.112, "mg")))
+check("serving just under 1e15 admitted (test_export_check builds it)", just_under
+      and just_under[3]["energy_consumed"]["source_value"]["serving"]["quantity"] == 9.99e14)
 # Qodo (local review): large integers are handled as the app's doubles, never raised.
 try:
     big_scaled = run(serving(per_quantity=1e-10, energy=10 ** 300))

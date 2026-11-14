@@ -6,9 +6,11 @@ by docs/personal-food-catalogue-import-v2.md). A record v5 admits keeps off-prod
 and identical values; v6 only adds records v5 refuses: a lone per 100 panel that contradicts the
 pack ("the panel wins"), or a single per-serving panel scaled to per 100.
 
-One deliberate difference: the app turns a "<" or ">" value into a bound; the catalogue format has
-no bounded state, so such a value is left out (unknown). The plausibility check still covers it,
-so the port refuses exactly the records the app declines. Everything else (fields, basis, legacy
+Two deliberate differences, both limits of the catalogue format: the app turns a "<" or ">" value
+into a bound, which the catalogue cannot hold, so such a value is left out (unknown); and a numeric
+serving of 1e15 or more, which the catalogue cannot hold, declines the record here though the app
+admits it. The plausibility check still covers bounds, so the port otherwise refuses exactly the
+records the app declines. Everything else (fields, basis, legacy
 sodium, supplements, record identity) follows the app.
 """
 import hashlib
@@ -54,6 +56,12 @@ def _serving_quantity(raw):
     return q if math.isfinite(q) and q > 0 else None
 
 
+# The catalogue's serving bound (import v2 section 3, export_v1._serving_quantity_ok): the format
+# cannot carry a serving of 1e15 or more, so such a record is declined here, while the app admits it.
+# A deliberate difference, like bounds; without it one cached record would refuse the whole build.
+MAX_CATALOGUE_SERVING = 1e15
+
+
 def _panel_values(panel):
     out = {}
     for field, raw in panel["nutrients"].items():
@@ -72,7 +80,7 @@ def _serving_nutrients(sets):
         return None
     serving = _serving_quantity(panels[0].get("per_quantity"))
     unit = panels[0].get("per_unit")
-    if serving is None or unit not in ("g", "ml"):
+    if serving is None or unit not in ("g", "ml") or serving >= MAX_CATALOGUE_SERVING:
         return None
     return _panel_values(panels[0]), True, unit == "ml", serving, False
 
