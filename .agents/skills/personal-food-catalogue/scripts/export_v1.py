@@ -612,7 +612,7 @@ def main(ws: Path, repo: Path):
     try:
         prior = json.loads(previous.read_bytes()) if previous else None
         report = change_report(prior if isinstance(prior, dict) else None, doc)
-    except (ValueError, TypeError, KeyError, AttributeError) as error:
+    except (OSError, RecursionError, ValueError, TypeError, KeyError, AttributeError) as error:
         # The report only compares counts; a damaged earlier file must not stop the new
         # file, which has already passed every check, from being written.
         report = f"not compared, the previous file could not be read ({type(error).__name__})"
