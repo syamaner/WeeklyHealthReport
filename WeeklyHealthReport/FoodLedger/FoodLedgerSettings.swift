@@ -25,9 +25,18 @@ struct FoodMarketPreference {
 @MainActor
 enum FoodSearchSettingsContribution {
     /// Reads only local key state. Opening Settings never validates a key.
-    static func webLookupDetail(hasSavedKey: Bool, keyIsUsable: Bool) -> String {
+    /// A key that could not be read yet (for example before first unlock) is not shown as missing (#493).
+    static func webLookupDetail(hasSavedKey: Bool, keyIsUsable: Bool, keyLoadFailed: Bool = false) -> String {
         if keyIsUsable { return "Key added" }
-        return hasSavedKey ? "Revalidate key" : "Key missing"
+        if hasSavedKey { return "Revalidate key" }
+        return keyLoadFailed ? "Key not read yet" : "Key missing"
+    }
+
+    /// Emits when the Web lookup detail may have changed while Settings is open, for example when a
+    /// key that could not be read becomes readable after unlock (#493).
+    static func webLookupChanges(_ webLookup: FoodWebDiscoveryViewModel) -> AnyPublisher<Void, Never> {
+        Publishers.CombineLatest3(webLookup.$hasSavedKey, webLookup.$keyIsUsable, webLookup.$keyLoadFailed)
+            .dropFirst().map { _ in () }.eraseToAnyPublisher()
     }
 
     /// The live label photo route's switch (docs/label-photo-ai-prefill-v1.md 17.22), off by default.
@@ -64,10 +73,11 @@ enum FoodSearchSettingsContribution {
             ),
             rows: [
                 .toggle("onlineFoodDatabase", onlineDatabase),
-                .link("Web lookup", route: .webLookupKey) { [weak webLookup] in
+                .link("Web lookup", route: .webLookupKey, detail: { [weak webLookup] in
                     guard let webLookup else { return nil }
-                    return webLookupDetail(hasSavedKey: webLookup.hasSavedKey, keyIsUsable: webLookup.keyIsUsable)
-                },
+                    return webLookupDetail(hasSavedKey: webLookup.hasSavedKey, keyIsUsable: webLookup.keyIsUsable,
+                                           keyLoadFailed: webLookup.keyLoadFailed)
+                }, changes: webLookupChanges(webLookup)),
                 .toggle("labelPhotoReading", labelPhotoReadingToggle(labelPhotoReading)),
                 .link("Food market", route: .foodMarket) { market.market.rawValue }
             ]

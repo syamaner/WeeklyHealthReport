@@ -145,6 +145,105 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
         XCTAssertTrue(model.keyMessage?.contains("Could not remove") == true)
     }
 
+    // MARK: A failed key read is retried (#493)
+
+    func testAFailedReadIsNotNoKeyAndARecheckAfterUnlockFindsTheSavedKey() async {
+        let keys = LockableWebKeys(key: key, failingReads: 1)
+        let provider = DiscoverySpy()
+        let model = FoodWebDiscoveryViewModel(provider: provider, keys: keys)
+        XCTAssertTrue(model.keyLoadFailed, "a read that throws is not \"no key saved\"")
+        XCTAssertFalse(model.hasSavedKey)
+        XCTAssertFalse(model.keyIsUsable)
+        XCTAssertTrue(model.keyMessage?.contains("could not be read yet") == true)
+        XCTAssertThrowsError(try model.credentialForRequest())
+
+        model.recheckSavedKey()
+        XCTAssertFalse(model.keyLoadFailed)
+        XCTAssertTrue(model.hasSavedKey)
+        XCTAssertFalse(model.keyIsUsable, "a recheck never validates or enables the key")
+        XCTAssertEqual(model.keyMessage, "Revalidate the saved key before searching the web.")
+        XCTAssertThrowsError(try model.credentialForRequest())
+        var counts = await provider.counts()
+        XCTAssertEqual(counts, [0, 0], "a recheck sends nothing")
+
+        await model.revalidateSavedKey()
+        XCTAssertTrue(model.keyIsUsable, "the recovered key can now be revalidated explicitly")
+        counts = await provider.counts()
+        XCTAssertEqual(counts, [1, 0])
+        let reads = keys.reads
+        model.recheckSavedKey()
+        XCTAssertEqual(keys.reads, reads, "after a successful read a recheck does nothing")
+        XCTAssertTrue(model.keyIsUsable, "a recheck never revokes a validated key")
+    }
+
+    func testAReadThatKeepsFailingStaysFailedAndNeverValid() async {
+        let keys = LockableWebKeys(key: key, failingReads: .max)
+        let provider = DiscoverySpy()
+        let model = FoodWebDiscoveryViewModel(provider: provider, keys: keys)
+        for _ in 0..<3 {
+            model.recheckSavedKey()
+            XCTAssertTrue(model.keyLoadFailed)
+            XCTAssertFalse(model.hasSavedKey)
+            XCTAssertFalse(model.keyIsUsable)
+        }
+        await model.revalidateSavedKey()
+        XCTAssertFalse(model.keyIsUsable)
+        let counts = await provider.counts()
+        XCTAssertEqual(counts, [0, 0], "nothing is sent while the key cannot be read")
+        XCTAssertThrowsError(try model.credentialForRequest())
+    }
+
+    func testNoSavedKeyStaysDistinctFromAFailedRead() {
+        let keys = LockableWebKeys(key: nil, failingReads: 0)
+        let model = FoodWebDiscoveryViewModel(provider: DiscoverySpy(), keys: keys)
+        XCTAssertFalse(model.keyLoadFailed)
+        XCTAssertFalse(model.hasSavedKey)
+        XCTAssertNil(model.keyMessage)
+        model.recheckSavedKey()
+        XCTAssertEqual(keys.reads, 1, "with no failed read there is nothing to recheck")
+
+        let locked = LockableWebKeys(key: nil, failingReads: 1)
+        let recovered = FoodWebDiscoveryViewModel(provider: DiscoverySpy(), keys: locked)
+        XCTAssertTrue(recovered.keyLoadFailed)
+        recovered.recheckSavedKey()
+        XCTAssertFalse(recovered.keyLoadFailed)
+        XCTAssertFalse(recovered.hasSavedKey, "a readable store with no key is no key")
+        XCTAssertNil(recovered.keyMessage, "the unreadable message clears once the store is read")
+    }
+
+    func testALockDuringValidationIsRecordedAsUnreadableAndRecheckedNotReadAsNoKey() async {
+        let keys = LockableWebKeys(key: key, failingReads: 0)
+        let provider = DiscoverySpy(suspended: true)
+        let model = FoodWebDiscoveryViewModel(provider: provider, keys: keys)
+        XCTAssertTrue(model.hasSavedKey)
+        let work = Task { await model.revalidateSavedKey() }
+        await provider.waitUntilPending()
+        keys.locked = true
+        await provider.release()
+        await work.value
+        XCTAssertFalse(model.keyIsUsable, "a Keychain error is never success")
+        XCTAssertFalse(model.hasSavedKey)
+        XCTAssertTrue(model.keyLoadFailed, "a failed read after a request is unknown, not no key")
+
+        keys.locked = false
+        model.recheckSavedKey()
+        XCTAssertFalse(model.keyLoadFailed)
+        XCTAssertTrue(model.hasSavedKey)
+        XCTAssertFalse(model.keyIsUsable)
+    }
+
+    func testSavingANewKeyWhileTheReadFailedClearsTheFailedState() async {
+        let keys = LockableWebKeys(key: nil, failingReads: 1)
+        let provider = DiscoverySpy()
+        let model = FoodWebDiscoveryViewModel(provider: provider, keys: keys)
+        XCTAssertTrue(model.keyLoadFailed)
+        model.keyEntry = key
+        await model.validateAndSaveKey()
+        XCTAssertFalse(model.keyLoadFailed)
+        XCTAssertTrue(model.hasSavedKey)
+        XCTAssertTrue(model.keyIsUsable)
+    }
+
     func testNoResultsAndQueryBounds() async {
         let model = FoodWebDiscoveryViewModel(provider: DiscoverySpy(empty: true), keys: MemoryWebKeys(key: key))
         model.foodTerms = String(repeating: "x", count: 301)
@@ -287,4 +386,30 @@ private final class MemoryWebKeys: FoodWebKeyStoring, @unchecked Sendable {
     func load() throws -> String? { try lock.withLock { if fails { throw CocoaError(.fileReadNoPermission) }; return key } }
     func save(_ key: String) throws { try lock.withLock { if fails { throw CocoaError(.fileWriteNoPermission) }; self.key = key } }
     func delete() throws { try lock.withLock { if fails || deleteFails { throw CocoaError(.fileWriteNoPermission) }; key = nil } }
+}
+
+/// A synthetic key store whose first `failingReads` reads throw, as the Keychain does before first
+/// unlock (#493). Writes always succeed; the key is never a real credential.
+private final class LockableWebKeys: FoodWebKeyStoring, @unchecked Sendable {
+    private let lock = NSLock()
+    private var key: String?
+    private var failingReads: Int
+    private(set) var reads = 0
+    private var lockedNow = false
+    /// While true every read throws, as when the device locks during a request.
+    var locked: Bool {
+        get { lock.withLock { lockedNow } }
+        set { lock.withLock { lockedNow = newValue } }
+    }
+    init(key: String?, failingReads: Int) { self.key = key; self.failingReads = failingReads }
+    func load() throws -> String? {
+        try lock.withLock {
+            reads += 1
+            if lockedNow { throw CocoaError(.fileReadNoPermission) }
+            if failingReads > 0 { failingReads -= 1; throw CocoaError(.fileReadNoPermission) }
+            return key
+        }
+    }
+    func save(_ key: String) throws { lock.withLock { self.key = key } }
+    func delete() throws { lock.withLock { key = nil } }
 }

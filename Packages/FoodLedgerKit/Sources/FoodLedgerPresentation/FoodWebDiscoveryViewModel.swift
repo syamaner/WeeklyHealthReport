@@ -6,6 +6,10 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
     @Published public var keyEntry = ""
     @Published public var foodTerms = "" { didSet { if foodTerms != oldValue { cancelSearch() } } }
     @Published public private(set) var hasSavedKey = false
+    /// True while the last read of the saved key failed (for example before first unlock), so whether
+    /// a key is saved is unknown. It is never a saved or usable key: `hasSavedKey` stays false and
+    /// nothing is sent until a later read succeeds and the key is validated (#493).
+    @Published public private(set) var keyLoadFailed = false
     @Published public private(set) var keyIsUsable = false
     @Published public private(set) var isValidating = false
     @Published public private(set) var isSearching = false
@@ -29,14 +33,31 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
         self.provider = provider
         self.keys = keys
         self.providerName = providerName; self.operatorName = operatorName; self.keyManagementName = keyManagementName
+        loadSavedKeyState()
+    }
+
+    /// Reads the saved key again after a failed read, when the composition root reports that
+    /// protected data became available or the app returned to the foreground (#493). It only
+    /// updates whether a key is saved; it never validates, enables or sends the key.
+    public func recheckSavedKey() {
+        guard keyLoadFailed, !isValidating else { return }
+        loadSavedKeyState()
+    }
+
+    private func loadSavedKeyState() {
+        // A retained credential may have been rejected or could not be deleted
+        // in an earlier session. Syntax alone never re-enables provider access.
+        invalidateUsability()
         do {
             let key = try keys.load()
+            keyLoadFailed = false
             hasSavedKey = key != nil
-            // A retained credential may have been rejected or could not be deleted
-            // in an earlier session. Syntax alone never re-enables provider access.
-            keyIsUsable = false
-            if key != nil { keyMessage = "Revalidate the saved key before searching the web." }
-        } catch { keyMessage = "The device Keychain is unavailable. Unlock your device and reopen this screen." }
+            keyMessage = key != nil ? "Revalidate the saved key before searching the web." : nil
+        } catch {
+            hasSavedKey = false
+            keyLoadFailed = true
+            keyMessage = "The device Keychain is unavailable, so the saved key could not be read yet. It is checked again when you unlock your device or return to the app."
+        }
     }
 
     public var canSearch: Bool {
@@ -99,13 +120,14 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
                 }
             }
             guard (try? keys.load()) == key else {
-                hasSavedKey = (try? keys.load()) != nil
+                refreshSavedKeyPresence()
                 keyMessage = "The saved key changed during validation. Revalidate the current key before searching."
                 isValidating = false
                 validation = nil
                 return
             }
             hasSavedKey = true
+            keyLoadFailed = false
             validatedKey = key
             keyIsUsable = true
             keyMessage = saveNewKey
@@ -156,7 +178,7 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
             guard searchGeneration == current else { return }
             guard (try? keys.load()) == key else {
                 invalidateUsability()
-                hasSavedKey = (try? keys.load()) != nil
+                refreshSavedKeyPresence()
                 searchMessage = "The saved key changed during the request. Revalidate it before searching again."
                 isSearching = false
                 search = nil
@@ -170,7 +192,7 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
                 invalidateRejectedKey(expectedKey: key)
             } else if (try? keys.load()) != key {
                 invalidateUsability()
-                hasSavedKey = (try? keys.load()) != nil
+                refreshSavedKeyPresence()
             }
             searchMessage = message(for: error)
         }
@@ -212,6 +234,18 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
         cancelSearch()
     }
 
+    /// Whether a key is still saved after the key changed during a request. A failed read is
+    /// recorded as unknown, so the unlock and foreground recheck reads it again (#493).
+    private func refreshSavedKeyPresence() {
+        do {
+            hasSavedKey = try keys.load() != nil
+            keyLoadFailed = false
+        } catch {
+            hasSavedKey = false
+            keyLoadFailed = true
+        }
+    }
+
     private func invalidateUsability() {
         validatedKey = nil
         keyIsUsable = false
@@ -228,6 +262,7 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
             }
             try keys.delete()
             hasSavedKey = false
+            keyLoadFailed = false
         } catch { keyMessage = "The rejected key could not be removed. Unlock your device and retry Remove key." }
     }
 
@@ -237,6 +272,7 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
         do {
             try keys.delete()
             hasSavedKey = false
+            keyLoadFailed = false
             keyMessage = "Key removed from this device. Requests already received by \(operatorName) cannot be recalled. Revoke the key in \(keyManagementName) if needed."
         } catch {
             keyMessage = "Could not remove the key from Keychain. Web search is disabled here; unlock the device and retry removal."
