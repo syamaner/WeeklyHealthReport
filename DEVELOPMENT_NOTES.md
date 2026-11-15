@@ -4628,6 +4628,29 @@ Excluded:
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
 
+## WHR-493-KEYCHAIN-RECHECK-2026-11-15: Claude Code OpenRouter key recheck after unlock (#493)
+
+One implementation subagent (`claude-opus-5-5`, transcript `agent-a0b6d31b89f07ce09` under session `af79238e-bf1c-4e94-955a-e13124c352b8`) did the following:
+- told a failed Keychain read apart from "no key", and read the key again on unlock and on return to the foreground, without validating it or sending anything;
+- made Add food and the Settings row follow the key state, with view-model, composition and Settings tests;
+- ran the full gates and a local Qodo review (one finding, fixed).
+
+The whole subagent transcript is measured, from `2026-11-15T12:21:55Z` to its hand-back. The coordinating session's briefing and checks are excluded.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| #493 Keychain recheck, implementation subagent | 14,400,861 (14,188,170) | 212,501 | 49,156 | 14,450,017 | $4.88 |
+
+Method: `phase_usage.py --format claude` on the subagent transcript. Exact USD 4.884019. The cache-write tokens are part of the input figure, and all of them are 5-minute writes. The total is input plus output.
+
+Excluded:
+- the coordinating session's turns;
+- the Qodo review run;
+- local test and gate runs, which use no API tokens;
+- this ledger edit.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
 ## WHR-467-COCOA-CLAUSE-2026-11-15: Claude Code cocoa trailing clause rule (#467)
 
 One implementation subagent (`claude-opus-5-5`, transcript `agent-a4124792db9c4ee01` under session `af79238e-bf1c-4e94-955a-e13124c352b8`) did the following:

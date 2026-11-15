@@ -71,6 +71,14 @@ struct WeeklyHealthReportApp: App {
                     for: UIApplication.protectedDataDidBecomeAvailableNotification
                 )) { _ in
                     dailyExport.notes.retryStorageAccess()
+                    foodLedger?.recheckSavedKeys()
+                }
+                // A saved key the Keychain could not return at launch is read again on return to
+                // the foreground as well as on unlock (#493).
+                .onReceive(NotificationCenter.default.publisher(
+                    for: UIApplication.willEnterForegroundNotification
+                )) { _ in
+                    foodLedger?.recheckSavedKeys()
                 }
         }
     }
