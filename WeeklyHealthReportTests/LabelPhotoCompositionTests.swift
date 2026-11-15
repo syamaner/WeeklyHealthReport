@@ -10,7 +10,8 @@ import FoodLedgerPresentation
 /// attachments root and spend ledger under the backup-excluded health-data directory.
 @MainActor
 final class LabelPhotoCompositionTests: XCTestCase {
-    func makeRoot(route: String?, switchOn: Bool = false, savedKey: String? = nil) throws -> (FoodLedgerCompositionRoot, URL) {
+    func makeRoot(route: String?, switchOn: Bool = false, savedKey: String? = nil,
+                  keys: (any FoodWebKeyStoring)? = nil) throws -> (FoodLedgerCompositionRoot, URL) {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
         let suite = "label-photo-\(UUID().uuidString)"
@@ -19,7 +20,69 @@ final class LabelPhotoCompositionTests: XCTestCase {
         if let route { defaults.set(route, forKey: "LabelPhotoRoute") }
         if switchOn { defaults.set(true, forKey: "labelPhoto.liveRoute.enabled.v1") }
         return (try FoodLedgerCompositionRoot(fileManager: IntakeRenderFileManager(directory: directory), userDefaults: defaults,
-                                              openRouterKeys: SyntheticOpenRouterKeys(key: savedKey)), directory)
+                                              openRouterKeys: keys ?? SyntheticOpenRouterKeys(key: savedKey)), directory)
+    }
+
+    // MARK: A key the Keychain could not return at launch (#493)
+
+    func testAKeyUnreadableAtLaunchIsReadAgainAndTheRouteAndSettingsFollow() throws {
+        let keys = LockedAtLaunchOpenRouterKeys(key: "sk-or-v1-synthetic", failingReads: 1)
+        let (root, _) = try makeRoot(route: nil, switchOn: true, keys: keys)
+        let settings = WeeklyHealthReportApp.makeSettings(foodLedger: root, defaults: root.userDefaults, medicationAccessAvailable: false)
+        let availability = AddFoodLabelPhotoAvailability(root: root)
+        var settingsChanges = 0
+        let observer = settings.detailChanges.sink { settingsChanges += 1 }
+        defer { observer.cancel() }
+
+        XCTAssertTrue(root.webDiscovery.keyLoadFailed)
+        assertHidden(root)
+        XCTAssertFalse(availability.enabled)
+        XCTAssertEqual(webLookupDetail(settings), "Key not read yet", "an unreadable key is not shown as missing")
+
+        root.recheckSavedKeys()
+        XCTAssertFalse(root.webDiscovery.keyLoadFailed)
+        XCTAssertTrue(root.webDiscovery.hasSavedKey)
+        XCTAssertFalse(root.webDiscovery.keyIsUsable, "reading the key again never validates it")
+        XCTAssertEqual(root.labelPhotoMode, .live)
+        XCTAssertTrue(availability.enabled, "Add food's Nutrition label row offers photos without reopening")
+        XCTAssertTrue(NutritionLabelVisit(root: root).entry.photosEnabled)
+        XCTAssertEqual(webLookupDetail(settings), "Revalidate key")
+        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        XCTAssertGreaterThan(settingsChanges, 0, "an open Settings screen redraws the Web lookup row")
+    }
+
+    func testAKeyThatStaysUnreadableKeepsTheRouteHidden() throws {
+        let keys = LockedAtLaunchOpenRouterKeys(key: "sk-or-v1-synthetic", failingReads: .max)
+        let (root, _) = try makeRoot(route: nil, switchOn: true, keys: keys)
+        let availability = AddFoodLabelPhotoAvailability(root: root)
+        for _ in 0..<3 {
+            root.recheckSavedKeys()
+            XCTAssertTrue(root.webDiscovery.keyLoadFailed)
+            XCTAssertFalse(root.webDiscovery.keyIsUsable)
+            assertHidden(root)
+            XCTAssertFalse(availability.enabled)
+        }
+    }
+
+    func testAddFoodPhotoAvailabilityFollowsTheSwitch() throws {
+        let (root, _) = try makeRoot(route: nil, savedKey: "sk-or-v1-synthetic")
+        let availability = AddFoodLabelPhotoAvailability(root: root)
+        XCTAssertFalse(availability.enabled)
+        root.labelPhotoReading.isOn = true
+        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        XCTAssertTrue(availability.enabled)
+        root.labelPhotoReading.isOn = false
+        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        XCTAssertFalse(availability.enabled)
+    }
+
+    private func webLookupDetail(_ settings: AppSettings) -> String? {
+        for section in settings.sections {
+            for row in section.rows where row.route == .webLookupKey {
+                if case let .link(detail, _) = row.kind { return detail() }
+            }
+        }
+        return nil
     }
 
     // MARK: The Settings switch (17.22)
@@ -313,6 +376,22 @@ final class LabelPhotoCompositionTests: XCTestCase {
 private struct SyntheticOpenRouterKeys: FoodWebKeyStoring {
     let key: String?
     func load() throws -> String? { key }
+    func save(_ key: String) throws {}
+    func delete() throws {}
+}
+
+/// A synthetic key store whose first reads throw, as the Keychain does before first unlock (#493).
+private final class LockedAtLaunchOpenRouterKeys: FoodWebKeyStoring, @unchecked Sendable {
+    private let lock = NSLock()
+    private let key: String?
+    private var failingReads: Int
+    init(key: String?, failingReads: Int) { self.key = key; self.failingReads = failingReads }
+    func load() throws -> String? {
+        try lock.withLock {
+            if failingReads > 0 { failingReads -= 1; throw CocoaError(.fileReadNoPermission) }
+            return key
+        }
+    }
     func save(_ key: String) throws {}
     func delete() throws {}
 }

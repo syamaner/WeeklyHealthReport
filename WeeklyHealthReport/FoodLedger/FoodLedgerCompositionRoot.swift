@@ -1,3 +1,4 @@
+import Combine
 import FoodLedgerApplication
 import FoodLedgerDomain
 import FoodGenericSearch
@@ -950,9 +951,35 @@ struct AddFoodFavourites: Sendable {
 /// first read finishes; the field and the routes are usable at once. Later reloads keep the shown
 /// rows until the fresh ones arrive, and only the newest of overlapping reads applies. Favourite
 /// badges and Save actions on recent rows wait for their favourite states.
+/// Whether Add food's Nutrition label row offers photos. It follows the shared key state and the
+/// Settings switch while Add food is open, so a saved key that becomes readable after unlock, or a
+/// switch change, reaches the row without reopening Add food (#493). It reads no Keychain itself.
+@MainActor
+final class AddFoodLabelPhotoAvailability: ObservableObject {
+    @Published private(set) var enabled: Bool
+    private var observers: Set<AnyCancellable> = []
+
+    init(root: FoodLedgerCompositionRoot) {
+        enabled = root.labelPhotoEnabled
+        let defaults = root.userDefaults
+        // `$hasSavedKey` emits before the property changes, so resolve from the emitted value.
+        root.webDiscovery.$hasSavedKey.removeDuplicates()
+            .sink { [weak self] saved in self?.update(LabelPhotoRouteMode.from(defaults, keySaved: saved) != .off) }
+            .store(in: &observers)
+        NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification).receive(on: RunLoop.main)
+            .sink { [weak self, weak root] _ in
+                MainActor.assumeIsolated { if let root { self?.update(root.labelPhotoEnabled) } }
+            }
+            .store(in: &observers)
+    }
+
+    private func update(_ value: Bool) { if enabled != value { enabled = value } }
+}
+
 struct AddFoodFlowView: View {
     private let finish: FoodEntryFinish?
     private let root: FoodLedgerCompositionRoot
+    @StateObject private var labelPhotos: AddFoodLabelPhotoAvailability
     /// Loading, failed or loaded recent foods; never "No recent foods" for a failed read.
     @StateObject private var recentsModel: AddFoodRecentsModel
     @State private var submittedQuery: String?
@@ -976,6 +1003,7 @@ struct AddFoodFlowView: View {
     init(root: FoodLedgerCompositionRoot, finish: FoodEntryFinish? = nil) {
         self.root = root; self.finish = finish
         _favouriteSaving = StateObject(wrappedValue: root.favouriteSaveModel())
+        _labelPhotos = StateObject(wrappedValue: AddFoodLabelPhotoAvailability(root: root))
         _recentsModel = StateObject(wrappedValue: AddFoodRecentsModel { [root] in await root.loadRecentFoods() })
     }
 
@@ -987,7 +1015,7 @@ struct AddFoodFlowView: View {
                     scanBarcode: { showsBarcode = true },
                     pasteOrDictate: { showsList = true },
                     nutritionLabel: { showsNutritionLabel = true },
-                    nutritionLabelPhotos: root.labelPhotoEnabled,
+                    nutritionLabelPhotos: labelPhotos.enabled,
                     favourites: { showsFavourites = true },
                     favouriteItems: favouriteItems.items,
                     favouritesLoading: !favouritesLoaded,
@@ -1716,6 +1744,12 @@ extension FoodLedgerCompositionRoot {
         LabelPhotoRouteMode.from(userDefaults, keySaved: webDiscovery.hasSavedKey)
     }
     @MainActor var labelPhotoEnabled: Bool { labelPhotoMode != .off }
+
+    /// Called by the app when protected data becomes available or the app returns to the
+    /// foreground: a saved key that could not be read at launch (for example before first unlock)
+    /// is read again, so Web lookup and the label photo route follow it (#493). Reads only; it
+    /// never validates or sends the key.
+    @MainActor func recheckSavedKeys() { webDiscovery.recheckSavedKey() }
     var labelPhotoReading: LabelPhotoReadingPreference { LabelPhotoReadingPreference(defaults: userDefaults) }
 
     /// The fake route's first-use consent (17.19).

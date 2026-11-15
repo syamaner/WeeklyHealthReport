@@ -78,6 +78,8 @@ final class SettingsContributionTests: XCTestCase {
         XCTAssertEqual(FoodSearchSettingsContribution.webLookupDetail(hasSavedKey: false, keyIsUsable: false), "Key missing")
         XCTAssertEqual(FoodSearchSettingsContribution.webLookupDetail(hasSavedKey: true, keyIsUsable: false), "Revalidate key")
         XCTAssertEqual(FoodSearchSettingsContribution.webLookupDetail(hasSavedKey: true, keyIsUsable: true), "Key added")
+        XCTAssertEqual(FoodSearchSettingsContribution.webLookupDetail(hasSavedKey: false, keyIsUsable: false, keyLoadFailed: true),
+                       "Key not read yet", "a key the Keychain could not return is not shown as missing (#493)")
     }
 
     func testBuildingAndReadingFoodSearchSettingsSendsNoRequests() throws {
