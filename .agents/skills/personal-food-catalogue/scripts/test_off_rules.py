@@ -3,6 +3,7 @@
 
 Usage: python3 -I test_off_rules.py <scripts_dir>
 """
+import json
 import sys
 
 sys.path.insert(0, sys.argv[1])
@@ -26,7 +27,8 @@ def modern(per="100g", qty="500 g", sodium=(0.4, "g"), modifier=None):
 
 
 def run(p):
-    return R.project(p, b"{}")
+    # The product's own canonical bytes, as off_rules.load builds them, so each record has its own digest.
+    return R.project(p, json.dumps(p, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode())
 
 
 CHECKS = []
@@ -168,6 +170,12 @@ check("sodium in g whose mg value reaches 1e15 declined (value after g to mg)",
       declined(modern(sodium=(1e13, "g")), "value"))
 check("sodium in g of 1e15 or more declined (source_value.value under g to mg)",
       declined(modern(sodium=(2e15, "g")), "source-value"))
+# PR #487 Qodo: assemble re-projects the same cached product for each family it matches, so a
+# repeat projection of an already declined record must not count it again.
+again = serving(per_quantity=1e15, sodium=(0.112, "mg"))
+before_again = R.FORMAT_DECLINED["source-value"]
+check("the same declined record projected twice is counted once",
+      run(again) is None and run(again) is None and R.FORMAT_DECLINED["source-value"] == before_again)
 check("the counter names rule codes only, never a product", all(isinstance(k, str) and ":" not in k for k in R.FORMAT_DECLINED))
 just_under = run(serving(per_quantity=9.99e14, sodium=(0.112, "mg")))
 check("serving just under 1e15 admitted (test_export_check builds it)", just_under
