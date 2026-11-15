@@ -104,7 +104,10 @@ final class CocoaPercentPolicyTests: XCTestCase {
         for name in ["70% Dark Chocolate, hazelnut", "70% dark chocolate, with almonds", "70% Dark Chocolate, Sea Salt",
                      "Dark chocolate 70%, orange", "70% dark chocolate, organic, raspberry pieces", "70% DARK CHOCOLATE, MINT",
                      "70% dark chocolate, salted caramel", "70% dark chocolate,cherries", "Dark chocolate 70% cocoa, crème filling",
-                     "70% dark chocolate, cocoa nibs", "70% dark chocolate, orange peel and sultanas", "70% dark chocolate, crunchy"] {
+                     "70% dark chocolate, cocoa nibs", "70% dark chocolate, orange peel and sultanas", "70% dark chocolate, crunchy",
+                     "70% Dark Chocolate, pineapple", "70% dark chocolate, pear", "70% dark chocolate, plums",
+                     "70% dark chocolate, peach", "70% dark chocolate, dates", "70% dark chocolate, prune",
+                     "70% dark chocolate, kiwi", "70% Dark Chocolate, blackcurrant"] {
             XCTAssertTrue(CocoaPercentPolicy.trailingClauseNamesInclusion(name), name)
         }
         for name in ["70% Dark Chocolate", "95% Dark Chocolate, organic", "70% dark chocolate, fairtrade, vegan",

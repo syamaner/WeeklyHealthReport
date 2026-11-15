@@ -163,7 +163,8 @@ public enum CocoaPercentPolicy {
         "fruit", "fruits", "raisin", "raisins", "sultana", "sultanas", "currant", "currants", "peel", "cherry", "cherries", "orange", "oranges", "raspberry", "raspberries",
         "strawberry", "strawberries", "cranberry", "cranberries", "blueberry", "blueberries", "berry", "berries",
         "lemon", "lemons", "lime", "limes", "apricot", "apricots", "fig", "figs", "banana", "bananas", "apple", "apples",
-        "mango", "mangoes", "coconut", "ginger",
+        "mango", "mangoes", "coconut", "ginger", "pineapple", "pineapples", "pear", "pears", "plum", "plums",
+        "peach", "peaches", "date", "dates", "prune", "prunes", "kiwi", "kiwis", "blackcurrant", "blackcurrants",
         // Sweets, flavourings and other pieces.
         "caramel", "caramelised", "caramelized", "toffee", "fudge", "mint", "peppermint", "salt", "salted", "honey",
         "coffee", "espresso", "biscuit", "biscuits", "cookie", "cookies", "wafer", "wafers", "crisp", "crisps", "crispy", "crunch", "crunchy", "nib", "nibs",
