@@ -165,6 +165,9 @@ public enum CocoaPercentPolicy {
         "lemon", "lemons", "lime", "limes", "apricot", "apricots", "fig", "figs", "banana", "bananas", "apple", "apples",
         "mango", "mangoes", "coconut", "ginger", "pineapple", "pineapples", "pear", "pears", "plum", "plums",
         "peach", "peaches", "date", "dates", "prune", "prunes", "kiwi", "kiwis", "blackcurrant", "blackcurrants",
+        "grape", "grapes", "goji", "passionfruit", "yuzu", "rhubarb",
+        // Seeds.
+        "pumpkin", "sunflower", "chia", "flax", "linseed", "poppy", "hemp",
         // Sweets, flavourings and other pieces.
         "caramel", "caramelised", "caramelized", "toffee", "fudge", "mint", "peppermint", "salt", "salted", "honey",
         "coffee", "espresso", "biscuit", "biscuits", "cookie", "cookies", "wafer", "wafers", "crisp", "crisps", "crispy", "crunch", "crunchy", "nib", "nibs",
@@ -173,6 +176,17 @@ public enum CocoaPercentPolicy {
         "pretzel", "pretzels"
     ]
 
+    /// Rule 3 (v4, #467): compound endings. A whole word ending in one of these names an
+    /// inclusion too, so "blackberry", "redcurrant", "chestnut", "passionfruit" and "flaxseed"
+    /// are read without listing every compound. "saltire" is not read: no ending matches.
+    static let inclusionEndings: [String] = [
+        "berry", "berries", "currant", "currants", "nut", "nuts", "fruit", "fruits", "seed", "seeds"
+    ]
+
+    static func namesInclusion(_ word: String) -> Bool {
+        inclusionWords.contains(word) || inclusionEndings.contains { word.count > $0.count && word.hasSuffix($0) }
+    }
+
     /// Rule 3 (v4, #467): true when any comma clause after the primary name (rule 1.1) names an
     /// inclusion word, as in "70% Dark Chocolate, hazelnut". The primary name is not read here, and
     /// a clause such as ", organic" names none. Only the Open Food Facts estimate offer reads it.
@@ -180,7 +194,7 @@ public enum CocoaPercentPolicy {
         name.split(separator: ",", omittingEmptySubsequences: false).dropFirst().contains { clause in
             let words = clause.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "en_GB"))
                 .lowercased().components(separatedBy: CharacterSet.letters.inverted)
-            return words.contains(where: inclusionWords.contains)
+            return words.contains(where: namesInclusion)
         }
     }
 
