@@ -80,6 +80,10 @@ In estimates v2 this becomes:
   record's by construction. `state_basis` is `stated_assumption` or `source_states_it`, never
   `unknown`, and `assumption` says in plain words why the record stands for the food (for example
   "sold ready to eat; no cooking state applies").
+- **Basis.** A `national_composition` estimate, own-reference or not, is admitted only on an entry
+  whose `basis` is `per_100_g`, the bundled records' basis. On a `per_100_ml_as_labelled` entry it
+  is rejected, because no density is ever inferred; such an entry can take page estimates stated per
+  100 ml, or stays unknown.
 - Nothing else about the reference changes. An estimate never promotes a `candidate` to a `merge`,
   the separate "Generic" candidate is still offered and still carries only its own record's values,
   and import v1 decision 8 and identity contract section 8 are not amended.
@@ -173,9 +177,12 @@ both the skill's checker and the Swift decoder):
   the four decoders refuse each other's schema.
 - A v2 file re-labelled as estimates v2 with empty estimate fields is accepted; a scaled
   per-serving value and an estimate on different keys of one entry are accepted.
-- Every estimates v1 section 2.3 rejection fixture, re-based on v2, keeps its rule code.
+- Every estimates v1 section 2.3 rejection fixture, re-based on v2, keeps its rule code, except the
+  own-reference fixture, which the next line replaces.
 - Own reference: `merge` rejected; `candidate` with the matching carried method accepted;
   `candidate` with `direct`, `derived`, the other carried method or `state_basis` `unknown` rejected.
+- Basis: a `national_composition` estimate on a `per_100_ml_as_labelled` entry is rejected, own
+  reference or not; a page estimate on that entry is accepted.
 - A carried value that differs from its bundled record, cites an unpinned corpus, a missing record,
   or a record with no quantified value (missing, trace, bounded, "N") is rejected with four distinct
   rule codes, including a zero-value case.
