@@ -103,7 +103,8 @@ final class CocoaPercentPolicyTests: XCTestCase {
     func testV4TrailingClauseInclusionIsReadFromCommaClausesOnly() {
         for name in ["70% Dark Chocolate, hazelnut", "70% dark chocolate, with almonds", "70% Dark Chocolate, Sea Salt",
                      "Dark chocolate 70%, orange", "70% dark chocolate, organic, raspberry pieces", "70% DARK CHOCOLATE, MINT",
-                     "70% dark chocolate, salted caramel", "70% dark chocolate,cherries", "Dark chocolate 70% cocoa, crème filling"] {
+                     "70% dark chocolate, salted caramel", "70% dark chocolate,cherries", "Dark chocolate 70% cocoa, crème filling",
+                     "70% dark chocolate, cocoa nibs", "70% dark chocolate, orange peel and sultanas", "70% dark chocolate, crunchy"] {
             XCTAssertTrue(CocoaPercentPolicy.trailingClauseNamesInclusion(name), name)
         }
         for name in ["70% Dark Chocolate", "95% Dark Chocolate, organic", "70% dark chocolate, fairtrade, vegan",

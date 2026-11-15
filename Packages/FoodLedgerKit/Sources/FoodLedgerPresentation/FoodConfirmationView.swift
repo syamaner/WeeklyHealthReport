@@ -110,7 +110,8 @@ public final class FoodConfirmationViewModel: ObservableObject {
 
     /// Whether Confirm shows the estimate section: a new pasted label or label photo entry whose
     /// label admits an estimate (rule 1), or an Open Food Facts product admitted by
-    /// `OpenFoodFactsEstimateSource.applies` (off-label-estimate-v1). It never blocks Log.
+    /// `OpenFoodFactsEstimateSource.offersNewEstimate` (off-label-estimate-v1 rules 1 and 1a). It
+    /// never blocks Log.
     public var offersLabelEstimate: Bool {
         labelEstimate != nil && LabelEstimateOffer.applies(state)
     }

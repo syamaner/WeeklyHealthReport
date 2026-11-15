@@ -160,13 +160,13 @@ public enum CocoaPercentPolicy {
         "cashew", "cashews", "pecan", "pecans", "macadamia", "macadamias", "walnut", "walnuts", "praline", "pralines",
         "gianduja", "nougat", "marzipan",
         // Fruit.
-        "fruit", "fruits", "raisin", "raisins", "cherry", "cherries", "orange", "oranges", "raspberry", "raspberries",
+        "fruit", "fruits", "raisin", "raisins", "sultana", "sultanas", "currant", "currants", "peel", "cherry", "cherries", "orange", "oranges", "raspberry", "raspberries",
         "strawberry", "strawberries", "cranberry", "cranberries", "blueberry", "blueberries", "berry", "berries",
         "lemon", "lemons", "lime", "limes", "apricot", "apricots", "fig", "figs", "banana", "bananas", "apple", "apples",
         "mango", "mangoes", "coconut", "ginger",
         // Sweets, flavourings and other pieces.
         "caramel", "caramelised", "caramelized", "toffee", "fudge", "mint", "peppermint", "salt", "salted", "honey",
-        "coffee", "espresso", "biscuit", "biscuits", "cookie", "cookies", "wafer", "wafers", "crisp", "crisps", "crispy",
+        "coffee", "espresso", "biscuit", "biscuits", "cookie", "cookies", "wafer", "wafers", "crisp", "crisps", "crispy", "crunch", "crunchy", "nib", "nibs",
         "puffed", "rice", "cereal", "cereals", "chilli", "chili", "filled", "filling", "centre", "centres", "center",
         "centers", "cream", "liqueur", "marshmallow", "marshmallows", "sesame", "seed", "seeds", "quinoa", "popcorn",
         "pretzel", "pretzels"
