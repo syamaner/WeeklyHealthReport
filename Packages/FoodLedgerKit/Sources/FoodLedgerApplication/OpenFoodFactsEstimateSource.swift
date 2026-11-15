@@ -31,6 +31,15 @@ public enum OpenFoodFactsEstimateSource {
         return LabelEstimateCompatibility.offersEstimate(name: candidate.name.value, basis: source.identity.servingBasis)
     }
 
+    /// Whether a new entry is offered the estimate: `applies`, and (#467,
+    /// docs/off-label-estimate-v1.md rule 1a) the product name's trailing comma clauses name no
+    /// inclusion (`CocoaPercentPolicy.trailingClauseNamesInclusion`). Read by `LabelEstimateOffer`
+    /// and `admitsLayer` only; reopen and the edit recheck keep `applies`, so a layer saved before
+    /// this rule still opens and edits as it did.
+    public static func offersNewEstimate(_ input: PopulatedFoodConfirmation, candidate: PopulatedFoodCandidate) -> Bool {
+        applies(input, candidate: candidate) && !CocoaPercentPolicy.trailingClauseNamesInclusion(candidate.name.value)
+    }
+
     /// Every stated value carries Open Food Facts provenance naming the candidate's release and its
     /// record; for a personal-library rescan row (whose record is the library entry), every stated
     /// value names one and the same Open Food Facts record. At least one value is stated. Also the
@@ -70,7 +79,7 @@ public enum OpenFoodFactsEstimateSource {
     /// Whether a new Open Food Facts entry's correction, if any, still admits the estimate layer:
     /// none, or an identity-only one (decision 6). Shared by Confirm and the save.
     public static func admitsLayer(_ state: FoodConfirmationState) -> Bool {
-        guard applies(state.input, candidate: state.selectedCandidate) else { return false }
+        guard offersNewEstimate(state.input, candidate: state.selectedCandidate) else { return false }
         guard let correction = state.correction else { return true }
         return isIdentityOnlyCorrection(correction, of: state.selectedCandidate)
     }
