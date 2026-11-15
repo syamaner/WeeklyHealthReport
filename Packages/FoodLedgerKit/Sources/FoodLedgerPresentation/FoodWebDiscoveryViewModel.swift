@@ -27,6 +27,9 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
     private var searchGeneration = 0
     private var validation: Task<Void, Error>?
     private var search: Task<FoodWebDiscoveryResult, Error>?
+    /// A recheck asked for while validation was running; it runs once validation finishes, fails
+    /// or is cancelled, and only if the key is still unread (#493).
+    private var recheckPending = false
 
     public init(provider: any FoodWebDiscovering, keys: any FoodWebKeyStoring,
                 providerName: String = "Gemini", operatorName: String = "Google", keyManagementName: String = "AI Studio") {
@@ -38,10 +41,23 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
 
     /// Reads the saved key again after a failed read, when the composition root reports that
     /// protected data became available or the app returned to the foreground (#493). It only
-    /// updates whether a key is saved; it never validates, enables or sends the key.
+    /// updates whether a key is saved; it never validates, enables or sends the key. While
+    /// validation runs it is deferred until validation ends, never dropped.
     public func recheckSavedKey() {
-        guard keyLoadFailed, !isValidating else { return }
+        guard !isValidating else { recheckPending = true; return }
+        guard keyLoadFailed else { return }
         loadSavedKeyState()
+    }
+
+    /// Runs a recheck deferred by validation once validation has ended, keeping the validation
+    /// outcome message when the key can now be read.
+    private func runPendingRecheck() {
+        guard recheckPending, !isValidating else { return }
+        recheckPending = false
+        guard keyLoadFailed else { return }
+        let outcome = keyMessage
+        loadSavedKeyState()
+        if !keyLoadFailed, let outcome { keyMessage = outcome }
     }
 
     private func loadSavedKeyState() {
@@ -54,11 +70,12 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
             hasSavedKey = key != nil
             keyMessage = key != nil ? "Revalidate the saved key before searching the web." : nil
         } catch {
-            hasSavedKey = false
-            keyLoadFailed = true
-            keyMessage = "The device Keychain is unavailable, so the saved key could not be read yet. It is checked again when you unlock your device or return to the app."
+            markKeyUnread()
+            keyMessage = Self.unreadKeyMessage
         }
     }
+
+    private static let unreadKeyMessage = "The device Keychain is unavailable, so the saved key could not be read yet. It is checked again when you unlock your device or return to the app."
 
     public var canSearch: Bool {
         keyIsUsable && !isValidating && !isSearching && !outboundTerms.isEmpty && outboundTerms.count <= 300
@@ -78,7 +95,7 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
         guard !isValidating, hasSavedKey else { return }
         let key: String
         do {
-            guard let saved = try keys.load() else {
+            guard let saved = try loadKey() else {
                 hasSavedKey = false
                 invalidateUsability()
                 keyMessage = "No saved key is available. Add and validate one first."
@@ -86,8 +103,7 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
             }
             key = saved
         } catch {
-            invalidateUsability()
-            keyMessage = "The device Keychain is unavailable. Unlock your device and retry."
+            keyMessage = Self.unreadKeyMessage
             return
         }
         await validate(key: key, saveNewKey: false)
@@ -116,6 +132,7 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
                     keyMessage = "Validation succeeded, but the device Keychain could not save the key."
                     isValidating = false
                     validation = nil
+                    runPendingRecheck()
                     return
                 }
             }
@@ -124,6 +141,7 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
                 keyMessage = "The saved key changed during validation. Revalidate the current key before searching."
                 isValidating = false
                 validation = nil
+                runPendingRecheck()
                 return
             }
             hasSavedKey = true
@@ -135,13 +153,14 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
                 : "Saved key revalidated. Search access and quota are checked when you search."
         } catch {
             guard generation == current else { return }
-            if error as? FoodWebDiscoveryError == .credentialRejected, (try? keys.load()) == key {
+            if error as? FoodWebDiscoveryError == .credentialRejected, (try? loadKey()) == key {
                 invalidateRejectedKey(expectedKey: key)
             }
             keyMessage = message(for: error) + (saveNewKey ? " The new key was not saved." : "")
         }
         isValidating = false
         validation = nil
+        runPendingRecheck()
     }
 
     /// No automatic retries, typing hooks, offline fallbacks or lifecycle calls invoke this.
@@ -149,7 +168,7 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
         guard canSearch else { return }
         let key: String
         do {
-            guard let saved = try keys.load(), FoodWebKeySyntax.isValid(saved) else {
+            guard let saved = try loadKey(), FoodWebKeySyntax.isValid(saved) else {
                 invalidateUsability()
                 searchMessage = "Add and validate your \(providerName) API key first."
                 return
@@ -202,7 +221,7 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
 
     public func credentialForRequest() throws -> FoodWebRequestCredential {
         guard keyIsUsable, !isValidating, let key = validatedKey else { throw FoodSearchEnrichmentError.unavailable }
-        guard (try? keys.load()) == key else {
+        guard (try? loadKey()) == key else {
             invalidateUsability()
             keyMessage = "The saved key changed or is unavailable. Revalidate it before searching."
             throw FoodSearchEnrichmentError.unavailable
@@ -212,7 +231,7 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
 
     public func isCurrent(_ credential: FoodWebRequestCredential) -> Bool {
         guard generation == credential.generation, keyIsUsable, !isValidating else { return false }
-        guard validatedKey == credential.key, (try? keys.load()) == credential.key else {
+        guard validatedKey == credential.key, (try? loadKey()) == credential.key else {
             invalidateUsability()
             keyMessage = "The saved key changed or is unavailable. Revalidate it before searching."
             return false
@@ -232,18 +251,30 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
         validation?.cancel(); validation = nil; isValidating = false
         keyEntry = ""
         cancelSearch()
+        runPendingRecheck()
     }
 
     /// Whether a key is still saved after the key changed during a request. A failed read is
     /// recorded as unknown, so the unlock and foreground recheck reads it again (#493).
     private func refreshSavedKeyPresence() {
         do {
-            hasSavedKey = try keys.load() != nil
+            hasSavedKey = try loadKey() != nil
             keyLoadFailed = false
-        } catch {
-            hasSavedKey = false
-            keyLoadFailed = true
-        }
+        } catch {}
+    }
+
+    /// Every read of the saved key goes through here. A read that throws is recorded as unknown,
+    /// never as "no key": the key is not saved or usable until a later read succeeds, and the
+    /// unlock and foreground recheck reads it again (#493). A definite empty result is returned.
+    private func loadKey() throws -> String? {
+        do { return try keys.load() }
+        catch { markKeyUnread(); throw error }
+    }
+
+    private func markKeyUnread() {
+        invalidateUsability()
+        hasSavedKey = false
+        keyLoadFailed = true
     }
 
     private func invalidateUsability() {
@@ -253,8 +284,13 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
 
     private func invalidateRejectedKey(expectedKey: String) {
         invalidateUsability()
+        let current: String?
+        do { current = try loadKey() } catch {
+            keyMessage = Self.unreadKeyMessage
+            return
+        }
         do {
-            let current = try keys.load()
+            keyLoadFailed = false
             guard current == expectedKey else {
                 hasSavedKey = current != nil
                 keyMessage = "The saved key changed. Revalidate the current key before searching."
@@ -287,6 +323,7 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
         isValidating = false
         keyEntry = ""
         cancelSearch()
+        runPendingRecheck()
     }
 
     private func cancelSearch() {

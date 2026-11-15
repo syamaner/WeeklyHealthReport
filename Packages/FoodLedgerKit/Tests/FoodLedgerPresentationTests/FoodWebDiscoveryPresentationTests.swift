@@ -244,6 +244,98 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
         XCTAssertTrue(model.keyIsUsable)
     }
 
+    func testAReadFailureDuringRevalidationIsRecordedAsUnreadAndRecheckedOnUnlock() async {
+        let keys = LockableWebKeys(key: key, failingReads: 0)
+        let provider = DiscoverySpy()
+        let model = FoodWebDiscoveryViewModel(provider: provider, keys: keys)
+        XCTAssertTrue(model.hasSavedKey)
+        XCTAssertFalse(model.keyLoadFailed)
+        keys.locked = true
+        await model.revalidateSavedKey()
+        XCTAssertTrue(model.keyLoadFailed, "a later read that throws is unknown, not no key")
+        XCTAssertFalse(model.hasSavedKey)
+        XCTAssertFalse(model.keyIsUsable)
+        XCTAssertTrue(model.keyMessage?.contains("could not be read yet") == true)
+        var counts = await provider.counts()
+        XCTAssertEqual(counts, [0, 0], "nothing is sent when the key cannot be read")
+
+        keys.locked = false
+        model.recheckSavedKey()
+        XCTAssertFalse(model.keyLoadFailed)
+        XCTAssertTrue(model.hasSavedKey)
+        XCTAssertFalse(model.keyIsUsable, "a recheck never validates or enables the key")
+        counts = await provider.counts()
+        XCTAssertEqual(counts, [0, 0])
+        await model.revalidateSavedKey()
+        XCTAssertTrue(model.keyIsUsable)
+    }
+
+    func testAReadFailureWhenGrantingARequestIsRecordedAsUnreadAndRechecked() async {
+        let keys = LockableWebKeys(key: key, failingReads: 0)
+        let model = FoodWebDiscoveryViewModel(provider: DiscoverySpy(), keys: keys)
+        await model.revalidateSavedKey()
+        XCTAssertTrue(model.keyIsUsable)
+        keys.locked = true
+        XCTAssertThrowsError(try model.credentialForRequest())
+        XCTAssertTrue(model.keyLoadFailed)
+        XCTAssertFalse(model.hasSavedKey)
+        XCTAssertFalse(model.keyIsUsable)
+
+        keys.locked = false
+        model.recheckSavedKey()
+        XCTAssertFalse(model.keyLoadFailed)
+        XCTAssertTrue(model.hasSavedKey)
+        XCTAssertFalse(model.keyIsUsable, "the recovered key needs explicit revalidation")
+        XCTAssertThrowsError(try model.credentialForRequest())
+    }
+
+    func testARecheckDuringValidationRunsWhenValidationFails() async {
+        let keys = LockableWebKeys(key: key, failingReads: 1)
+        let provider = DiscoverySpy(error: .connectionFailed, suspended: true)
+        let model = FoodWebDiscoveryViewModel(provider: provider, keys: keys)
+        XCTAssertTrue(model.keyLoadFailed)
+        model.keyEntry = "replacement-synthetic-key-for-tests"
+        let work = Task { await model.validateAndSaveKey() }
+        await provider.waitUntilPending()
+        model.recheckSavedKey()
+        XCTAssertTrue(model.keyLoadFailed, "the recheck waits while validation runs")
+        await provider.release()
+        await work.value
+        XCTAssertFalse(model.isValidating)
+        XCTAssertFalse(model.keyLoadFailed, "the deferred recheck runs once validation fails")
+        XCTAssertTrue(model.hasSavedKey)
+        XCTAssertFalse(model.keyIsUsable, "a recheck never validates or enables the key")
+        XCTAssertTrue(model.keyMessage?.contains("The new key was not saved.") == true,
+                      "the validation outcome stays visible")
+        XCTAssertEqual(try keys.load(), key)
+        let counts = await provider.counts()
+        XCTAssertEqual(counts, [1, 0], "the recheck sends nothing")
+    }
+
+    func testARecheckDuringValidationRunsWhenValidationIsCancelled() async {
+        let keys = LockableWebKeys(key: key, failingReads: 1)
+        let provider = DiscoverySpy(suspended: true)
+        let model = FoodWebDiscoveryViewModel(provider: provider, keys: keys)
+        XCTAssertTrue(model.keyLoadFailed)
+        model.keyEntry = "replacement-synthetic-key-for-tests"
+        let work = Task { await model.validateAndSaveKey() }
+        await provider.waitUntilPending()
+        model.recheckSavedKey()
+        XCTAssertTrue(model.keyLoadFailed)
+        model.closeCredentialEditor()
+        XCTAssertFalse(model.isValidating)
+        XCTAssertFalse(model.keyLoadFailed, "the deferred recheck runs once validation is cancelled")
+        XCTAssertTrue(model.hasSavedKey)
+        XCTAssertFalse(model.keyIsUsable)
+        await provider.release()
+        await work.value
+        XCTAssertFalse(model.keyIsUsable, "a cancelled validation never enables a key")
+        XCTAssertEqual(try keys.load(), key, "a cancelled validation saves nothing")
+        let reads = keys.reads
+        model.recheckSavedKey()
+        XCTAssertEqual(keys.reads, reads, "the pending recheck ran once and is not repeated")
+    }
+
     func testNoResultsAndQueryBounds() async {
         let model = FoodWebDiscoveryViewModel(provider: DiscoverySpy(empty: true), keys: MemoryWebKeys(key: key))
         model.foodTerms = String(repeating: "x", count: 301)
