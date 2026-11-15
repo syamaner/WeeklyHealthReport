@@ -4673,3 +4673,26 @@ Excluded:
 - this ledger edit.
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
+## WHR-424-ESTIMATES-V2-PROPOSAL-2026-11-15: Claude Code estimates on catalogue v2, proposal (#424)
+
+The session (`claude-fable-5-2`, session `da6b123c-cf92-4d58-9bb7-540385b44d83`) did the following:
+- read the import v1 and v2, estimates v1, R2 builder and egress contracts;
+- measured the owner's private catalogue (counts only) and drafted private review sheets, outside the repository;
+- wrote `docs/personal-food-catalogue-estimates-v2-proposal.md` with its architecture gate and owner decisions P1 to P5. No code.
+
+The whole session is measured, from `2026-11-15T21:22:16Z` to `2026-11-15T21:30:58Z` (transcript timestamps), so the private catalogue work is inside the boundary. One web research subagent was still running at the cut-off; its tokens up to then are included and the rest are unmeasured.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| #424 estimates v2 proposal, whole session with subagent | 3,572,261 (3,318,227) | 253,988 | 55,489 | 3,627,750 | $3.66 |
+
+Method: `phase_usage.py --format claude --since 2026-11-15T00:00:00Z --until 2026-11-15T21:30:58Z --include-subagents` on the session transcript. Exact USD 3.6627944. The cache-write tokens are part of the input figure; 47,573 of them are 5-minute writes. The total is input plus output.
+
+Excluded:
+- the session's turns after the cut-off (local Qodo review, commit, pull request, handover);
+- the subagent's turns after the cut-off;
+- the Qodo review run;
+- this ledger edit.
+
+Pricing: this session ran on `claude-fable-5-2`, for which this ledger records no rate. It is priced at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, so the figure is a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
