@@ -120,9 +120,11 @@ one source" notice. Added here, to state the owner's requirements explicitly:
 
 - **Every value can be corrected before Log**, through the existing correction flow of the shared
   Confirm screen. A corrected nutrient takes the provenance that flow already gives a typed value
-  and loses its "Estimated" label; the capture manifest (`pfd-estimate-capture-v1`) then lists only
-  the nutrients still estimated. A correction changes the log being confirmed, never the imported
-  database.
+  and loses its "Estimated" label, and its provenance no longer cites the estimate. The capture
+  manifest (`pfd-estimate-capture-v1`) is not edited: it is built once when the candidate is bound
+  to Confirm and stays exactly as captured, with every imported estimate and its evidence, so the
+  record of what was offered survives the correction (capture evidence is append-only). A
+  correction changes the log being confirmed, never the imported database or the manifest.
 - **Nothing is selected or saved automatically.** One Log action, the quantity is always the user's,
   and import never logs. An entry whose values are all estimates is not a generic estimate under
   `FoodConfirmationPolicy`, so the identity questions of import v1 decision 12 still apply.
@@ -180,7 +182,8 @@ both the skill's checker and the Swift decoder):
 - Precedence: label, then estimate, then merged record; a label and an estimate on one key is
   rejected; an estimate does not promote a candidate; the separate candidate carries no estimates.
 - Confirm: an estimated value shows "Estimated" and its details; correcting it removes the label
-  for that nutrient only and the manifest drops it; Log is never pre-selected; an estimate-only
+  for that nutrient only, its saved provenance is the correction's, and the manifest's bytes and
+  hash are unchanged and still verify; Log is never pre-selected; an estimate-only
   entry is not a generic estimate.
 - Saved logs hold `approved_estimate` as `.augmented`, survive replace, remove and archive restore,
   and export `state: "estimated"`; a document with no estimate exports byte-identically.
