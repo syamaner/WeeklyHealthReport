@@ -177,6 +177,12 @@ before_again = R.FORMAT_DECLINED["source-value"]
 first_again = run(again) is None and R.FORMAT_DECLINED["source-value"] == before_again + 1
 check("the same declined record projected twice is counted once",
       first_again and run(again) is None and R.FORMAT_DECLINED["source-value"] == before_again + 1)
+# PR #498 Qodo: two different declined products with the same placeholder bytes are both counted.
+before_shared = R.FORMAT_DECLINED["source-value"]
+check("different declined products sharing placeholder bytes are each counted",
+      R.project(serving(per_quantity=4e15, sodium=(0.112, "mg")), b"{}") is None
+      and R.project(serving(per_quantity=5e15, sodium=(0.112, "mg")), b"{}") is None
+      and R.FORMAT_DECLINED["source-value"] == before_shared + 2)
 check("the counter names rule codes only, never a product", all(isinstance(k, str) and ":" not in k for k in R.FORMAT_DECLINED))
 just_under = run(serving(per_quantity=9.99e14, sodium=(0.112, "mg")))
 check("serving just under 1e15 admitted (test_export_check builds it)", just_under
