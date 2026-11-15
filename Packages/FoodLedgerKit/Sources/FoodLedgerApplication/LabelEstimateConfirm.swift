@@ -85,8 +85,9 @@ public enum LabelEstimateRoute: Equatable, Sendable {
 public enum LabelEstimateOffer {
     /// The route of a new entry that offers an estimate under rule 1: a pasted label or label
     /// photo, or (off-label-estimate-v1 rule 1) an Open Food Facts product admitted by
-    /// `OpenFoodFactsEstimateSource.applies`. Nil for a reviewed manufacturer page, a re-log of
-    /// another source, an edit and every other route.
+    /// `OpenFoodFactsEstimateSource.offersNewEstimate` (no inclusion in a trailing comma clause,
+    /// #467). Nil for a reviewed manufacturer page, a re-log of another source, an edit and every
+    /// other route.
     public static func route(_ state: FoodConfirmationState) -> LabelEstimateRoute? {
         guard state.reopened == nil else { return nil }
         let selected = state.selectedCandidate
@@ -95,7 +96,7 @@ public enum LabelEstimateOffer {
             return LabelEstimateCompatibility.offersEstimate(name: selected.name.value, basis: selected.candidate.identity.servingBasis)
                 ? .label : nil
         case .refused:
-            return OpenFoodFactsEstimateSource.applies(state.input, candidate: selected) ? .openFoodFacts : nil
+            return OpenFoodFactsEstimateSource.offersNewEstimate(state.input, candidate: selected) ? .openFoodFacts : nil
         }
     }
 

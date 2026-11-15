@@ -4650,3 +4650,26 @@ Excluded:
 - this ledger edit.
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
+## WHR-467-COCOA-CLAUSE-2026-11-15: Claude Code cocoa trailing clause rule (#467)
+
+One implementation subagent (`claude-opus-5-5`, transcript `agent-a4124792db9c4ee01` under session `af79238e-bf1c-4e94-955a-e13124c352b8`) did the following:
+- moved the cocoa policy to v4: no estimate when the trailing comma clause names an inclusion, decimal percentages written into rule 1.1, and saved layered entries still open;
+- amended `docs/cocoa-exact-match-v1.md` and `docs/off-label-estimate-v1.md`, with tests;
+- ran the full gates and a local Qodo review (one informational finding, fixed).
+
+The whole subagent transcript is measured, from `2026-11-15T12:21:53Z` to its hand-back. The coordinating session's briefing and checks are excluded.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| #467 cocoa clause rule, implementation subagent | 9,944,081 (9,759,973) | 183,972 | 36,685 | 9,980,766 | $3.61 |
+
+Method: `phase_usage.py --format claude` on the subagent transcript. Exact USD 3.6060986. The cache-write tokens are part of the input figure, and all of them are 5-minute writes. The total is input plus output.
+
+Excluded:
+- the coordinating session's turns;
+- the Qodo review run;
+- local test and gate runs, which use no API tokens;
+- this ledger edit.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
