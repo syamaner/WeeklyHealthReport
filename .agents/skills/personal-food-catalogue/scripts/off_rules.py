@@ -63,6 +63,9 @@ def _serving_quantity(raw):
 # Records the app admits but the catalogue format cannot hold, counted for the build output (counts
 # only, never a product). See the module docstring.
 FORMAT_DECLINED = Counter()
+# Record digests already counted for each rule code, so re-projecting the same cached product (a
+# label match or alternate for several families) never counts it twice. Digests only, never output.
+_DECLINED_SEEN = set()
 
 
 def _format_codes(basis, record_id, release, values):
@@ -228,7 +231,9 @@ def project(product, record_bytes, retrieved="unknown"):
     codes = _format_codes(basis, f"off:gtin:{gtin}", release, values)
     if codes:
         for code in sorted(set(codes)):
-            FORMAT_DECLINED[code] += 1  # counted once per record and rule, never named
+            if (digest, code) not in _DECLINED_SEEN:
+                _DECLINED_SEEN.add((digest, code))
+                FORMAT_DECLINED[code] += 1  # counted once per record and rule, never named
         return None
     return basis, f"off:gtin:{gtin}", release, values
 
