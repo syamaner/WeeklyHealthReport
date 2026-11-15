@@ -63,6 +63,10 @@ def _serving_quantity(raw):
 # Records the app admits but the catalogue format cannot hold, counted for the build output (counts
 # only, never a product). See the module docstring.
 FORMAT_DECLINED = Counter()
+# Product content digests already counted for each rule code, so re-projecting the same cached
+# product (a label match or alternate for several families) never counts it twice. Keyed on the
+# product itself, not record_bytes, so callers' bytes cannot merge two products. Never output.
+_DECLINED_SEEN = set()
 
 
 def _format_codes(basis, record_id, release, values):
@@ -150,6 +154,9 @@ def project(product, record_bytes, retrieved="unknown"):
 
     values: {key: {"value", "unit", "transforms"?, "source_value"?}}; a scaled value's source_value
     also carries "serving": {"quantity", "unit"} (catalogue v2).
+
+    A declined record is counted once per rule however often it is projected, keyed on the
+    product's own content.
     """
     code = product.get("code")
     name = product.get("product_name") if isinstance(product.get("product_name"), str) else ""
@@ -227,8 +234,12 @@ def project(product, record_bytes, retrieved="unknown"):
     basis = "per_100_ml_as_labelled" if volume else "per_100_g"
     codes = _format_codes(basis, f"off:gtin:{gtin}", release, values)
     if codes:
+        identity = hashlib.sha256(json.dumps(product, sort_keys=True, separators=(",", ":"),
+                                             ensure_ascii=False).encode()).hexdigest()
         for code in sorted(set(codes)):
-            FORMAT_DECLINED[code] += 1  # counted once per record and rule, never named
+            if (identity, code) not in _DECLINED_SEEN:
+                _DECLINED_SEEN.add((identity, code))
+                FORMAT_DECLINED[code] += 1  # counted once per record and rule, never named
         return None
     return basis, f"off:gtin:{gtin}", release, values
 
