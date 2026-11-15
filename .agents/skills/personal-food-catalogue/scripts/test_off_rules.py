@@ -172,10 +172,11 @@ check("sodium in g of 1e15 or more declined (source_value.value under g to mg)",
       declined(modern(sodium=(2e15, "g")), "source-value"))
 # PR #487 Qodo: assemble re-projects the same cached product for each family it matches, so a
 # repeat projection of an already declined record must not count it again.
-again = serving(per_quantity=1e15, sodium=(0.112, "mg"))
+again = serving(per_quantity=3e15, sodium=(0.112, "mg"))  # used by no other check
 before_again = R.FORMAT_DECLINED["source-value"]
+first_again = run(again) is None and R.FORMAT_DECLINED["source-value"] == before_again + 1
 check("the same declined record projected twice is counted once",
-      run(again) is None and run(again) is None and R.FORMAT_DECLINED["source-value"] == before_again)
+      first_again and run(again) is None and R.FORMAT_DECLINED["source-value"] == before_again + 1)
 check("the counter names rule codes only, never a product", all(isinstance(k, str) and ":" not in k for k in R.FORMAT_DECLINED))
 just_under = run(serving(per_quantity=9.99e14, sodium=(0.112, "mg")))
 check("serving just under 1e15 admitted (test_export_check builds it)", just_under

@@ -153,6 +153,9 @@ def project(product, record_bytes, retrieved="unknown"):
 
     values: {key: {"value", "unit", "transforms"?, "source_value"?}}; a scaled value's source_value
     also carries "serving": {"quantity", "unit"} (catalogue v2).
+
+    record_bytes identifies the record: a declined record is counted once per rule however often it
+    is projected, so pass its canonical bytes (load returns them), never a shared placeholder.
     """
     code = product.get("code")
     name = product.get("product_name") if isinstance(product.get("product_name"), str) else ""
