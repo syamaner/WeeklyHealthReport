@@ -274,6 +274,50 @@ final class OpenFoodFactsEstimateContractTests: XCTestCase {
         XCTAssertEqual(LabelEstimateCompatibility.prefill(name: "Synthetic dark chocolate", pastedText: "Cocoa solids: 72% minimum")?.origin, .pastedText)
     }
 
+    // MARK: Rule 1a (#467): an inclusion in a trailing comma clause
+
+    func testAnInclusionInATrailingCommaClauseOffersNoEstimateAndTheSaveRefusesOne() throws {
+        for harness in try LedgerFixtures.harnesses() {
+            defer { harness.cleanup() }
+            for (offset, route) in Route.allCases.enumerated() {
+                for (index, name) in ["90% Dark Chocolate, hazelnut", "90% dark chocolate, with almonds",
+                                      "90% Cocoa Dark Chocolate, sea salt"].enumerated() {
+                    let input = try Self.input(route, name: name)
+                    // Reopen and the edit recheck still read `applies`, so a layer saved before #467 keeps opening.
+                    XCTAssertTrue(OpenFoodFactsEstimateSource.applies(input, candidate: input.candidates[0]), name)
+                    XCTAssertFalse(OpenFoodFactsEstimateSource.offersNewEstimate(input, candidate: input.candidates[0]), name)
+                    let state = Self.state(input)
+                    XCTAssertNil(LabelEstimateOffer.route(state), name)
+                    XCTAssertFalse(LabelEstimateOffer.admitsChoice(state), name)
+                    XCTAssertNil(LabelEstimateOffer.prefill(state), name)
+                    XCTAssertThrowsError(try Self.service(harness).save(state,
+                        operationID: LedgerFixtures.operationID(9_440 + offset * 10 + index), estimate: Self.choice())) {
+                        XCTAssertEqual($0 as? FoodConfirmationSaveError, .invalidLabelEstimate, "\(name) \(harness.name)")
+                    }
+                    // Without an estimate the product logs as before.
+                    XCTAssertNoThrow(try Self.service(harness).save(state, operationID: LedgerFixtures.operationID(9_460 + offset * 10 + index)))
+                }
+            }
+        }
+    }
+
+    func testANonInclusionTrailingClauseAndADecimalPercentageBehaveAsBefore() throws {
+        func state(_ name: String) throws -> FoodConfirmationState { Self.state(try Self.input(.search, name: name)) }
+        XCTAssertEqual(LabelEstimateOffer.route(try state("90% Dark Chocolate, organic")), .openFoodFacts)
+        XCTAssertEqual(LabelEstimateOffer.prefill(try state("90% Dark Chocolate, organic"))?.value, 90)
+        XCTAssertEqual(LabelEstimateOffer.prefill(try state("85.5% Dark Chocolate"))?.value, 85.5)
+        XCTAssertEqual(LabelEstimateOffer.prefill(try state("Dark chocolate 72.5%, fairtrade"))?.value, 72.5)
+        XCTAssertNil(LabelEstimateOffer.prefill(try state("72.55% Dark Chocolate")), "not a valid tenth of a percent")
+        XCTAssertEqual(LabelEstimateOffer.route(try state("72.55% Dark Chocolate")), .openFoodFacts, "the user types the percentage")
+        for harness in try LedgerFixtures.harnesses() {
+            defer { harness.cleanup() }
+            let saved = try Self.service(harness).save(try state("90% Dark Chocolate, organic"),
+                                                       operationID: LedgerFixtures.operationID(9_480), estimate: Self.choice())
+            XCTAssertNotNil(saved.estimate, harness.name)
+            XCTAssertNotNil(try Self.service(harness).reopen(logItemID: saved.logItem.logItemID), harness.name)
+        }
+    }
+
     // MARK: Rules 2 and 3: save and reopen
 
     func testALayeredOpenFoodFactsEntrySavesV4KeepsEveryProductValueAndReopens() throws {

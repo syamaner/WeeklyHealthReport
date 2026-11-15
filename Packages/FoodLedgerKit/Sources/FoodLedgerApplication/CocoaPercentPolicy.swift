@@ -9,8 +9,10 @@ import FoodLedgerDomain
 /// v3 (docs/cocoa-exact-match-v1.md rule 1) adds `displayBand`, which also reads a product
 /// named "N% dark chocolate" or "dark chocolate N%". Only Search row notes and the exact online
 /// section read it; `band` (ranking, discovery, admission, pre-fill, compatibility) is unchanged.
+/// v4 (#467, docs/cocoa-exact-match-v1.md rule 3) adds `trailingClauseNamesInclusion`, read only by
+/// the Open Food Facts estimate offer, and states that N may be a decimal. No band changes.
 public enum CocoaPercentPolicy {
-    public static let version = "cocoa-percent-policy-v3"
+    public static let version = "cocoa-percent-policy-v4"
 
     public enum Band: Hashable, Sendable {
         /// Read from the source name or description: `L-U% cocoa solids` or `N% cocoa`.
@@ -133,6 +135,7 @@ public enum CocoaPercentPolicy {
 
     /// Rule 1.1 and 1.2: the whole primary name (before the first comma, one trailing "bar" or
     /// "block" removed) must be the phrase, so "biscuits with 70% dark chocolate" is not read.
+    /// N may be a decimal with a point ("72.5% dark chocolate", v4 rule 1.1).
     static func namePhrasePercent(_ name: String) -> Double? {
         var head = String(name.split(separator: ",", maxSplits: 1, omittingEmptySubsequences: false).first ?? "")
             .lowercased()
@@ -145,6 +148,39 @@ public enum CocoaPercentPolicy {
             }
         }
         return nil
+    }
+
+    /// Rule 3 (v4, #467): the closed list of inclusion words. A trailing comma clause naming one
+    /// says the product is chocolate with something in it (nuts, fruit, caramel, mint, salt and
+    /// similar), so no plain dark chocolate reference row describes it. Singular and plural forms
+    /// are listed; matching is on whole words, case and diacritics ignored.
+    static let inclusionWords: Set<String> = [
+        // Nuts and nut pastes.
+        "nut", "nuts", "almond", "almonds", "hazelnut", "hazelnuts", "peanut", "peanuts", "pistachio", "pistachios",
+        "cashew", "cashews", "pecan", "pecans", "macadamia", "macadamias", "walnut", "walnuts", "praline", "pralines",
+        "gianduja", "nougat", "marzipan",
+        // Fruit.
+        "fruit", "fruits", "raisin", "raisins", "cherry", "cherries", "orange", "oranges", "raspberry", "raspberries",
+        "strawberry", "strawberries", "cranberry", "cranberries", "blueberry", "blueberries", "berry", "berries",
+        "lemon", "lemons", "lime", "limes", "apricot", "apricots", "fig", "figs", "banana", "bananas", "apple", "apples",
+        "mango", "mangoes", "coconut", "ginger",
+        // Sweets, flavourings and other pieces.
+        "caramel", "caramelised", "caramelized", "toffee", "fudge", "mint", "peppermint", "salt", "salted", "honey",
+        "coffee", "espresso", "biscuit", "biscuits", "cookie", "cookies", "wafer", "wafers", "crisp", "crisps", "crispy",
+        "puffed", "rice", "cereal", "cereals", "chilli", "chili", "filled", "filling", "centre", "centres", "center",
+        "centers", "cream", "liqueur", "marshmallow", "marshmallows", "sesame", "seed", "seeds", "quinoa", "popcorn",
+        "pretzel", "pretzels"
+    ]
+
+    /// Rule 3 (v4, #467): true when any comma clause after the primary name (rule 1.1) names an
+    /// inclusion word, as in "70% Dark Chocolate, hazelnut". The primary name is not read here, and
+    /// a clause such as ", organic" names none. Only the Open Food Facts estimate offer reads it.
+    public static func trailingClauseNamesInclusion(_ name: String) -> Bool {
+        name.split(separator: ",", omittingEmptySubsequences: false).dropFirst().contains { clause in
+            let words = clause.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "en_GB"))
+                .lowercased().components(separatedBy: CharacterSet.letters.inverted)
+            return words.contains(where: inclusionWords.contains)
+        }
     }
 
     /// The two closed exceptions to full query-word coverage. Other source guards still apply.

@@ -11,7 +11,7 @@ final class CocoaPercentPolicyTests: XCTestCase {
         func band(_ name: String, _ description: String? = nil) -> CocoaPercentPolicy.Band? {
             CocoaPercentPolicy.band(name: name, description: description, recordID: nil)
         }
-        XCTAssertEqual(CocoaPercentPolicy.version, "cocoa-percent-policy-v3")
+        XCTAssertEqual(CocoaPercentPolicy.version, "cocoa-percent-policy-v4")
         XCTAssertEqual(band("Chocolate, dark, 45- 59% cacao solids"), .declared(lower: 45, upper: 59))
         XCTAssertEqual(band("Chocolate, dark, 70-85% cacao solids"), .declared(lower: 70, upper: 85))
         XCTAssertEqual(band("Chocolate, dark, 70\u{2013}85% cocoa solids"), .declared(lower: 70, upper: 85))
@@ -82,6 +82,37 @@ final class CocoaPercentPolicyTests: XCTestCase {
         XCTAssertNil(display("95% dark chocolate", "at least 50% cocoa, 85% cocoa"))
         XCTAssertEqual(display("95% dark chocolate", "Open Food Facts · source estimate · 100 g · per 100 g"), .declared(lower: 95, upper: 95))
         XCTAssertEqual(display("95% dark chocolate", "70% cocoa"), .declared(lower: 70, upper: 70), "v2's own reading is kept")
+    }
+
+    /// v4 rule 1.1 (#467): N may be a decimal with a point, in either phrase form. A decimal comma is
+    /// not read: the first comma ends the primary name, so no value (and never a wrong one) is read.
+    func testV4DisplayReadsDecimalPercentagesWithAPoint() {
+        func display(_ name: String) -> CocoaPercentPolicy.Band? {
+            CocoaPercentPolicy.displayBand(name: name, description: nil, recordID: nil)
+        }
+        XCTAssertEqual(display("85.5% Dark Chocolate"), .declared(lower: 85.5, upper: 85.5))
+        XCTAssertEqual(display("Dark chocolate 85.5 %"), .declared(lower: 85.5, upper: 85.5))
+        XCTAssertEqual(display("72.5% dark chocolate bar, organic"), .declared(lower: 72.5, upper: 72.5))
+        XCTAssertEqual(display("72.5% dark chocolate, with almonds"), .declared(lower: 72.5, upper: 72.5), "display is kept with an inclusion")
+        XCTAssertNil(display("85,5% dark chocolate"))
+        XCTAssertNil(display("100.5% dark chocolate"), "outside 0 to 100")
+        XCTAssertNil(CocoaPercentPolicy.band(name: "85.5% Dark Chocolate", description: nil, recordID: nil), "v2 band unchanged")
+    }
+
+    /// v4 rule 3 (#467): an inclusion named in a trailing comma clause. The display reading is kept.
+    func testV4TrailingClauseInclusionIsReadFromCommaClausesOnly() {
+        for name in ["70% Dark Chocolate, hazelnut", "70% dark chocolate, with almonds", "70% Dark Chocolate, Sea Salt",
+                     "Dark chocolate 70%, orange", "70% dark chocolate, organic, raspberry pieces", "70% DARK CHOCOLATE, MINT",
+                     "70% dark chocolate, salted caramel", "70% dark chocolate,cherries", "Dark chocolate 70% cocoa, crème filling"] {
+            XCTAssertTrue(CocoaPercentPolicy.trailingClauseNamesInclusion(name), name)
+        }
+        for name in ["70% Dark Chocolate", "95% Dark Chocolate, organic", "70% dark chocolate, fairtrade, vegan",
+                     "70% dark chocolate, 100 g", "Dark chocolate 70%, single origin", "Almonds in 70% dark chocolate",
+                     "Dark chocolate with almonds", "70% dark chocolate, saltire", "70% dark chocolate, "] {
+            XCTAssertFalse(CocoaPercentPolicy.trailingClauseNamesInclusion(name), name)
+        }
+        XCTAssertEqual(CocoaPercentPolicy.displayBand(name: "70% Dark Chocolate, hazelnut", description: nil, recordID: nil),
+                       .declared(lower: 70, upper: 70), "Search keeps showing the cocoa reading")
     }
 
     /// Rule 1.4: ranking, admission and pre-fill keep the v2 band; only notes read the display band.
