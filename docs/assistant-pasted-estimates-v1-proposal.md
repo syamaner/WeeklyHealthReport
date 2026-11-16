@@ -530,7 +530,8 @@ version 3's shape plus the fields below**, recorded as a dated amendment to
 ## 10. Privacy and egress
 
 No new network destination, transport or background work. Two things are new, and both need the
-owner's explicit approval before any code (decision A2): **a new clipboard payload**, and **new
+owner's explicit approval before any code (decision A2, given on 16 November 2026 for the wording
+below): **a new clipboard payload**, and **new
 content in archives and in the daily export**. This proposal does not edit
 [`privacy-and-egress.md`](privacy-and-egress.md); the implementing change does, with the wording
 the owner approves, and checks `privacy-policy.txt` against it. Proposed wording:
@@ -683,7 +684,7 @@ identical-results test above.
 
 ## 12. Decisions for the owner
 
-A1 is decided; A2 to A8 are open. In the order they should be asked, each with a recommendation. A8 was added by
+A1 and A2 are decided; A3 to A8 are open. In the order they should be asked, each with a recommendation. A8 was added by
 the invariant review.
 
 - **A1. May the brand be in the prompt? Decided by the owner on 16 November 2026: yes, shown in
@@ -692,8 +693,13 @@ the invariant review.
   when they screenshot a pack. Cost: the brand reaches whichever assistant the owner pastes into.
   Alternatives: switch starts off; brand never included (weaker estimates for branded foods, and
   the name may still hold a brand word).
-- **A2. The clipboard payload and the stored reply (section 10).** *Recommended: approve the
-  wording as proposed, with the clipboard limited to this iPhone and expiring after ten minutes.*
+- **A2. The clipboard payload and the stored reply (section 10). Approved by the owner on 16
+  November 2026, as worded in section 10 at 676159f, with the clipboard limited to this iPhone
+  and expiring after ten minutes** (the recommendation). The approval covers that wording and
+  nothing wider: a further field, destination or trigger needs a fresh approval. If a later
+  decision narrows the feature (A4 without tier lowering, say), the sentence about a lowered tier
+  is dropped and no new approval is needed. `privacy-and-egress.md` is still edited only by the
+  implementing change.
   Alternative: let the prompt use the shared clipboard so it can be pasted on a Mac; more
   convenient, and it widens where the text can travel.
 - **A3. Which routes get it?** *Recommended: Your food database entries only in v1.* It is where
@@ -779,3 +785,5 @@ the contract's rules; each must be settled against the code before production wo
   own.**
 - 16 November 2026: the owner decided A1 (brand included, switch starts on). A2 to A8 are open,
   and the proposal as a whole is not accepted.
+- 16 November 2026: the owner approved A2, the egress wording of section 10, with the clipboard
+  on this iPhone only. A3 to A8 are open, and the proposal as a whole is not accepted.
