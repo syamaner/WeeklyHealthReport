@@ -1,7 +1,7 @@
 # Personal food database: labelled estimates on catalogue v2 (proposal)
 
 Status: **proposal, 15 November 2026, revised 16 November 2026 after a blind review (section 9).
-Not accepted, nothing implemented.** Section 8 lists the decisions; P1, P2, P4 and P6 are decided, two are open. No app
+Not accepted, nothing implemented.** Section 8 lists the decisions; P1, P2, P3, P4 and P6 are decided, one is open. No app
 code, skill code or fixture changes with this document. Programme #424, base contracts #419.
 
 It is a delta on two accepted contracts and repeats neither:
@@ -160,8 +160,8 @@ fortification, so the fortified-record rule can fire for CoFID only. In both cas
 are the two free-text states, the `assumption`, the owner's approval of each value and the
 "Estimated" label. That part is a builder and owner obligation; a fixture cannot prove an
 assumption true. To keep it visible, the private change report counts estimates whose record
-preparation is unknown and estimates from a source that never states fortification, and decision
-P2 offers the stricter rule.
+preparation is unknown and estimates from a source that never states fortification. The stricter
+rule (reject when the record's preparation is unknown) was offered in decision P2 and not taken.
 
 **Builder obligations added to estimates v1 section 3.1** (not checkable by the importer):
 
@@ -171,12 +171,31 @@ P2 offers the stricter rule.
   entry's former or close reference, and the count must be zero.
 - An entry whose reference the E3 disposition demoted, removed or held at `candidate` takes no
   estimate from that record by any route (E3 disposition sections 4 and 4.1). A record or value E3
-  withheld for a food stays refused for that food.
+  withheld for a food stays refused for that food. This is the default; the one exception is the
+  re-admission below.
 - Those lists are keyed to entry IDs of the pinned evaluation release. The builder carries them
   across by the private mapping of old entries to v2 entries; the **evaluator**, not the builder,
   reports the refused count, which must be zero in the file. An entry with no counterpart in the
   pinned release cannot be checked this way; such entries are counted separately as "no E3
   counterpart" so the limit of the rule stays visible.
+- **Re-admission, row by row (owner decision P3, 16 November 2026).** The owner may re-admit one
+  refused source for one entry on a fresh approval. This amends E3 disposition sections 4 and 4.1
+  and is recorded there as a dated amendment when this proposal is accepted. Its limits:
+  - One row is one entry and one record. The review sheet row shows that E3 refused it and why,
+    and the owner accepts that row; there is no batch acceptance, and the builder or an agent
+    never re-admits on the owner's behalf.
+  - A re-admitted value is an ordinary labelled estimate and nothing more. Every codec, importer
+    and Confirm rule applies unchanged, so re-admission overrides no mechanical rule: a `raw` or
+    `cooked` entry still cannot take its own held record (`estimate-own-held`), a contradiction
+    still rejects or withholds, and a close match is still `estimate-similar`. In practice it
+    reaches entries whose state is not `raw` or `cooked`.
+  - It never restores a `merge` role, changes a reference's role or the entry's identity, and it
+    never makes a value measured.
+  - The re-admission list (entry, source, record, date) is private and stays in the owner's
+    workspace; it holds until the owner withdraws a row. The file carries no marker for it.
+  - The evaluator reports two counts from that list: refused estimates not re-admitted, which
+    must be zero, and re-admitted estimates, reported as a number. The private change report
+    lists the re-admitted rows.
 
 ### 3.2 What Confirm must do with it
 
@@ -485,11 +504,13 @@ In order; each open one has a recommendation.
   whose record preparation the adapter holds as unknown; safer, fewer entries filled; and
   an "as sold" state that merges; mechanical and with no free text, but it amends the merge rule,
   shows no "Estimated" label and settles every facet from the record.
-- **P3. Which E3 builder obligations bind the v2 catalogue?** Recommended: all of estimates v1
-  section 3.1 plus the two obligations added in section 3.1 here; the evaluator reports the count.
-  Limit, stated: the lists are keyed to the pinned release, so entries with no counterpart there
-  are counted, not checked. Alternative: let the owner re-admit a refused source row by row on a
-  fresh approval; more coverage, but it reopens a decided disposition.
+- **P3. Which E3 builder obligations bind the v2 catalogue? Decided 16 November 2026: all of
+  estimates v1 section 3.1 and the obligations added in section 3.1 here bind by default, and the
+  owner may re-admit a refused source row by row on a fresh approval** (section 3.1). This was the
+  alternative, not the recommendation: it gives more coverage and reopens a decided disposition,
+  which is why it is recorded as an amendment to E3 and overrides no mechanical rule. Limit,
+  stated: the lists are keyed to the pinned release, so entries with no counterpart there are
+  counted, not checked.
 - **P4. Close matches. Decided 16 November 2026: same food only for the first release.**
   `carried_from_similar_food` is rejected in this schema; the 213 close-match entries keep their
   separate candidate.
@@ -531,4 +552,7 @@ In order; each open one has a recommendation.
   its stored shape and its export case; the evidence item now holds left-out keys only.
 - 16 November 2026: the owner decided P1 (estimates v2 only).
 - 16 November 2026: the owner decided P2 (labelled estimates from the entry's own record).
-- Still owed before acceptance: a short re-review of sections 3.1, 3.2 and 5.
+- 16 November 2026: the owner decided P3 (refusals bind by default; row-by-row re-admission on a
+  fresh approval). The re-admission text of section 3.1 is new and has had no review.
+- Still owed before acceptance: a short re-review of sections 3.1, 3.2 and 5, with the
+  re-admission rule looked at on its own.
