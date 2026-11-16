@@ -226,8 +226,9 @@ to 2 for a document holding an approved estimate, but
 [daily export v2](food-daily-export-contract-v2.md) (decided, not implemented) takes 2 for every
 document. Approved estimates therefore take **version 3**, written only for a document holding at
 least one `approved_estimate` value; a document without one keeps whatever version the build
-writes for it (1 today, 2 once daily export v2 lands). The phase's export amendment is a delta on
-whichever of those is current.
+writes for it. So that one version number never names two shapes, version 3 is defined only as
+daily export v2's shape plus the estimate fields: the estimates phase depends on daily export v2
+having landed, and does not start its export step before then.
 
 **Dependency direction.** Unchanged: presentation and infrastructure depend on application, which
 depends on domain. No new target. One port beyond today's: `GenericRecordNutrientLookup`, planned
@@ -349,5 +350,7 @@ In order; each has a recommendation.
   new rejections had no codes and "must equal" contradicted the inherited tolerance (table in 3.1).
 - 16 November 2026: local Qodo pass on that revision, three findings fixed: the Confirm veto now
   covers every decisive facet; P3 keeps the no-laundering rule; the daily export version no longer
-  collides with daily export v2 (version 3).
+  collides with daily export v2 (version 3). A second pass added one: version 3 is defined on
+  daily export v2's shape only, so the phase waits for it. That pass also repeated the three
+  earlier points; P3's re-admission route survives only as the labelled alternative.
 - Still owed before acceptance: a repeat of both gates on this revision.
