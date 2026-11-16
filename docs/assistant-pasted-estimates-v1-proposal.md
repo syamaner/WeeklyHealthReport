@@ -43,7 +43,7 @@ record which assistant the owner used.
 ## 2. Scope
 
 - **Route.** Confirm for a candidate from Your food database (import v2 or estimates v2 release)
-  whose basis is `per_100_g` or `per_100_ml`. Other routes are not offered it in v1 (decision A3).
+  whose basis is `per_100_g` or `per_100_ml`. Other routes are not offered it in v1 (decision A3, decided).
   The reason is in the save path: reviewed web and label candidates are admitted only while the
   saved nutrients equal the verified source's (`FoodConfirmationService.save`, the
   `invalidReviewedSource` and `invalidPastedLabelSource` guards), so adding values there is a
@@ -684,7 +684,7 @@ identical-results test above.
 
 ## 12. Decisions for the owner
 
-A1 and A2 are decided; A3 to A8 are open. In the order they should be asked, each with a recommendation. A8 was added by
+A1 to A3 are decided; A4 to A8 are open. In the order they should be asked, each with a recommendation. A8 was added by
 the invariant review.
 
 - **A1. May the brand be in the prompt? Decided by the owner on 16 November 2026: yes, shown in
@@ -702,7 +702,8 @@ the invariant review.
   implementing change.
   Alternative: let the prompt use the shared clipboard so it can be pasted on a Mac; more
   convenient, and it widens where the text can travel.
-- **A3. Which routes get it?** *Recommended: Your food database entries only in v1.* It is where
+- **A3. Which routes get it? Decided by the owner on 16 November 2026: Your food database
+  entries only in v1** (the recommendation). It is where
   the gaps are, and it leaves the label and web verifiers untouched. Alternative: every Confirm
   route, which changes those verifiers and their admission rules and is a larger phase.
 - **A4. What does a tier suggestion do?** *Recommended: a ticked suggestion lowers the tier shown
@@ -787,3 +788,5 @@ the contract's rules; each must be settled against the code before production wo
   and the proposal as a whole is not accepted.
 - 16 November 2026: the owner approved A2, the egress wording of section 10, with the clipboard
   on this iPhone only. A3 to A8 are open, and the proposal as a whole is not accepted.
+- 16 November 2026: the owner decided A3 (Your food database entries only in v1). A4 to A8 are
+  open, and the proposal as a whole is not accepted.
