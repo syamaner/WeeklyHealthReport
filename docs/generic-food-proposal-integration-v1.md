@@ -165,8 +165,9 @@ reconcile the two before that route ships.
   the review's overall 150-second deadline still bounds the whole lookup. No
   attempt is started with less than 15 seconds left before the whole-call
   deadline, so a billed request that could not finish is never sent (a
-  narrowing added after approval, in review of PR #503; 15 seconds is a
-  conservative judgement, not a measured reply time).
+  narrowing added in review of PR #503 and accepted by the owner on 16 November
+  2026, "Yes, accept 15 s"; 15 seconds is a conservative judgement, not a
+  measured reply time).
 * Waiting is cancellable: stopping the lookup, or changing the query, market or
   key, cancels the wait and sends nothing further.
 * Website page fetches are not model calls. They keep the no-retry rule and the
