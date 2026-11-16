@@ -684,7 +684,7 @@ identical-results test above.
 
 ## 12. Decisions for the owner
 
-A1 to A5 are decided; A6 to A8 are open. In the order they should be asked, each with a recommendation. A8 was added by
+A1 to A6 are decided; A7 and A8 are open. In the order they should be asked, each with a recommendation. A8 was added by
 the invariant review.
 
 - **A1. May the brand be in the prompt? Decided by the owner on 16 November 2026: yes, shown in
@@ -721,8 +721,8 @@ the invariant review.
   catalogue estimate never meets an assistant value. Alternative: let a reply fill a withheld key
   (more coverage where a record contradicts the details), at the price of a rule for which one
   wins when the contradiction is later removed.
-- **A6. Re-log and quick add.** *Recommended: the earlier reply is offered again, every row
-  unticked, when the details match.* Alternatives: never carried, so each new log needs a fresh
+- **A6. Re-log and quick add. Decided by the owner on 16 November 2026: the earlier reply is
+  offered again, every row unticked, when the details match** (the recommendation). Alternatives: never carried, so each new log needs a fresh
   paste; or carried already ticked, which is not recommended because it selects by default. A
   value wanted on every log belongs in the catalogue.
 - **A7. A suggested zero.** *Recommended: accepted, as a labelled estimate the owner ticks.*
@@ -798,3 +798,5 @@ the contract's rules; each must be settled against the code before production wo
   whole is not accepted.
 - 16 November 2026: the owner decided A5 (a reply cannot fill a nutrient whose catalogue estimate
   is withheld or left out). A6 to A8 are open, and the proposal as a whole is not accepted.
+- 16 November 2026: the owner decided A6 (on re-log and quick add the earlier reply is offered
+  again, unticked). A7 and A8 are open, and the proposal as a whole is not accepted.
