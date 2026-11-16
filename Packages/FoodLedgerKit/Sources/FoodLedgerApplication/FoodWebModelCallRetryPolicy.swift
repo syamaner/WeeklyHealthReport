@@ -8,7 +8,8 @@ import FoodLedgerDomain
 /// Only transport errors, timeouts and HTTP 408, 429, 500, 502, 503 and 504 are retried, by
 /// resending the identical request to the same endpoint, with exponential backoff and jitter that
 /// honours `Retry-After` in its seconds and HTTP-date forms: at most 3 attempts within a 120 s
-/// whole-call deadline, 90 s per attempt, and never a wait longer than 10 s. Key rejection (401,
+/// whole-call deadline, 90 s per attempt, never a wait longer than 10 s, and no attempt started
+/// with less than 15 s left. Key rejection (401,
 /// 403), credit limits (402), rejected requests and content failures are never retried. Website
 /// page fetches are not model calls and keep their no-retry rule.
 public enum FoodWebModelCallRetryPolicy {
@@ -18,6 +19,10 @@ public enum FoodWebModelCallRetryPolicy {
     public static let baseDelay: TimeInterval = 1
     /// A `Retry-After` longer than this is not waited for; the call stops instead.
     public static let maxDelay: TimeInterval = 10
+    /// No attempt is started with less than this left before the deadline: a billed request
+    /// that could not finish is never sent. The 15 s floor is a conservative judgement for
+    /// #500, not a measured reply time.
+    public static let minimumAttemptTime: TimeInterval = 15
     public static let retryableStatuses: Set<Int> = [408, 429, 500, 502, 503, 504]
 
     public enum Outcome: Equatable, Sendable {
@@ -68,7 +73,7 @@ public enum FoodWebModelCallRetryPolicy {
     /// After attempt `attempt` (1-based) ended with `outcome`, `elapsed` seconds into the call.
     /// The delay is the larger of `Retry-After` and the backoff `baseDelay × 2^(attempt-1)` scaled
     /// by (0.5 + jitter / 2). The call stops when the delay exceeds `maxDelay` or the next attempt
-    /// could not start before the deadline.
+    /// would start with less than `minimumAttemptTime` left before the deadline.
     public static func next(afterAttempt attempt: Int, outcome: Outcome, elapsed: TimeInterval, now: Date,
                             jitter: Double) -> Decision {
         guard isRetryable(outcome) else { return .stop(.notRetryable) }
@@ -79,7 +84,7 @@ public enum FoodWebModelCallRetryPolicy {
         let backoff = baseDelay * pow(2, Double(attempt - 1)) * (0.5 + jitter / 2)
         let delay = max(retryAfter(header, now: now) ?? 0, backoff)
         guard delay <= maxDelay else { return .stop(.waitTooLong) }
-        guard elapsed + delay < deadline else { return .stop(.deadline) }
+        guard deadline - (elapsed + delay) >= minimumAttemptTime else { return .stop(.deadline) }
         return .retry(after: delay, timeout: attemptTimeout(elapsed: elapsed + delay))
     }
 }

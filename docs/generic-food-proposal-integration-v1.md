@@ -144,7 +144,11 @@ merge of the PR that carries it.
 On device, a web lookup extracted two eligible candidates and then lost the
 applicability check to an unrecorded failure, so no source could be used. Every
 OpenRouter model call of a web lookup (discovery, lead selection, extraction and
-the applicability check) may now be sent again, but only under these terms:
+the applicability check) may now be sent again, but only under these terms.
+This amendment governs today's web lookup calls only; the AI search by name
+route (#488 phase P4) uses its own approved A10 terms in
+[ai-name-search-v1-proposal.md](ai-name-search-v1-proposal.md), and P4 must
+reconcile the two before that route ships.
 
 * Only a transient failure is retried: a transport error, a timeout, or HTTP 408,
   429, 500, 502, 503 or 504 (as a status, or as the code of an OpenRouter error
@@ -158,7 +162,11 @@ the applicability check) may now be sent again, but only under these terms:
   scaled by jitter) that honours `Retry-After` in its seconds and HTTP-date
   forms. A wait longer than 10 s is not made; the call fails instead. Each call
   has a 120-second whole-call deadline with at most 90 seconds per attempt, and
-  the review's overall 150-second deadline still bounds the whole lookup.
+  the review's overall 150-second deadline still bounds the whole lookup. No
+  attempt is started with less than 15 seconds left before the whole-call
+  deadline, so a billed request that could not finish is never sent (a
+  narrowing added after approval, in review of PR #503; 15 seconds is a
+  conservative judgement, not a measured reply time).
 * Waiting is cancellable: stopping the lookup, or changing the query, market or
   key, cancels the wait and sends nothing further.
 * Website page fetches are not model calls. They keep the no-retry rule and the

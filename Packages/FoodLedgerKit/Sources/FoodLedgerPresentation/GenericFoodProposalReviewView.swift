@@ -171,6 +171,7 @@ public struct GenericFoodProposalReviewView: View {
     @State private var showsKey = false
     @State private var scope: FoodProposalReviewScope?
     @State private var useMessage: String?
+    @FocusState private var editsDescription: Bool
     public init(model: GenericFoodProposalReviewViewModel, credentials: FoodWebDiscoveryViewModel,
                 initialScope: FoodProposalReviewScope? = nil,
                 recordDiagnostics: @escaping ([String]) -> Void = { _ in },
@@ -184,6 +185,7 @@ public struct GenericFoodProposalReviewView: View {
             Section {
                 LabeledContent("Market", value: model.market == .unspecified ? "Not set" : model.market.rawValue)
                 TextField("Food, product or dish", text: $model.foodTerms, axis: .vertical).autocorrectionDisabled()
+                    .focused($editsDescription)
                 DisclosureGroup("Use a specific page") {
                     TextField("Source address (optional)", text: $model.sourceAddress).autocorrectionDisabled()
                         #if os(iOS)
@@ -219,10 +221,17 @@ public struct GenericFoodProposalReviewView: View {
                     let noSuggestion = GenericFoodProposalReviewCopy.noSuggestion(result)
                     Section {
                         Text(noSuggestion.text)
-                        if noSuggestion.offersLookUpAgain && credentials.keyIsUsable {
+                        switch noSuggestion.action {
+                        case .lookUpAgain where credentials.keyIsUsable:
                             Button("Look up again") { scope = nil; useMessage = nil; Task { await model.search() } }
                                 .frame(minHeight: 44)
                                 .disabled(!model.canSearch)
+                        case .editDescription:
+                            // Goes back to the description; nothing is sent until Look up.
+                            Button("Edit the description") { editsDescription = true }
+                                .frame(minHeight: 44)
+                        default:
+                            EmptyView()
                         }
                     }
                 }

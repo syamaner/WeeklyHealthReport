@@ -364,9 +364,43 @@ final class GenericFoodProposalReviewPresentationTests: XCTestCase {
         XCTAssertEqual(GenericFoodProposalReviewCopy.summary(unrecorded, suggested: nil), "Found 1 source · none suits this food")
         let declined = try ProposalPresentationFixture.result(selection: "none")
         XCTAssertEqual(GenericFoodProposalReviewCopy.noSuggestion(declined),
-                       .init(text: "No usable source was found for this food.", offersLookUpAgain: false))
+                       .init(text: "No usable source was found for this food.", action: nil))
         XCTAssertEqual(GenericFoodProposalReviewCopy.status(try XCTUnwrap(declined.validation.candidates.first), in: declined),
                        "Not suggested for this food")
+    }
+
+    func testASkippedCheckIsNotReportedAsUnavailableAndOffersNoPaidRerun() throws {
+        let noBasis = try ProposalPresentationFixture.result(selection: nil, basisUnit: nil)
+        XCTAssertFalse(try XCTUnwrap(noBasis.validation.candidates.first).selectionEligible)
+        let copy = GenericFoodProposalReviewCopy.noSuggestion(noBasis)
+        XCTAssertFalse(copy.text.contains("unavailable"))
+        XCTAssertTrue(copy.text.contains("does not say what amount its values are for"))
+        XCTAssertNil(copy.action)
+        let original = try ProposalPresentationFixture.result(selection: nil)
+        let extraction = FoodProposalExtraction(version: FoodProposalExtraction.schemaVersion, candidates: [], preferredId: "none")
+        let empty = GenericFoodProposalReview(foodTerms: "milk", discovery: nil, documents: original.documents,
+            validation: try FoodProposalBinding.validate(extraction, documents: original.documents), selection: nil)
+        XCTAssertEqual(GenericFoodProposalReviewCopy.noSuggestion(empty), .init(text: "No usable source was found for this food.", action: nil))
+    }
+
+    func testAnUnclearMatchGoesBackToTheDescriptionInsteadOfRerunning() throws {
+        let clarify = try ProposalPresentationFixture.result(selection: "clarify")
+        let copy = GenericFoodProposalReviewCopy.noSuggestion(clarify)
+        XCTAssertTrue(copy.text.contains("Add detail"))
+        XCTAssertEqual(copy.action, .editDescription)
+        XCTAssertFalse(copy.offersLookUpAgain)
+    }
+
+    func testEveryLeadTitleOnScreenUsesTheSharedDisplayNormalisation() throws {
+        let sources = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().appendingPathComponent("Sources/FoodLedgerPresentation")
+        let files = try FileManager.default.contentsOfDirectory(at: sources, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "swift" && $0.lastPathComponent != "GenericFoodProposalReviewCopy.swift" }
+        XCTAssertFalse(files.isEmpty)
+        for file in files {
+            let text = try String(contentsOf: file, encoding: .utf8)
+            XCTAssertFalse(text.contains("lead.title"), "\(file.lastPathComponent) shows a lead title without leadTitle(_:)")
+        }
     }
 
     func testDeveloperToolsNameTheSelectionFailureWithoutKeyOrPayload() async throws {
@@ -462,7 +496,8 @@ private enum ProposalPresentationFixture {
         return try FoodProposalBinding.validate(extraction, documents: [document]).candidates
     }
 
-    static func result(name: String = "Milk", preferred: String = "c1", selection: String? = "c1") throws -> GenericFoodProposalReview {
+    static func result(name: String = "Milk", preferred: String = "c1", selection: String? = "c1",
+                       basisUnit: String? = "g") throws -> GenericFoodProposalReview {
         let text = "Milk Yoghurt Per 100g Energy 100kcal"
         let document = try GenericFoodDocumentProjector.project(Data(text.utf8), url: URL(string: "https://example.com/food")!,
             mediaType: "text/plain", retrievedAt: Date(timeIntervalSince1970: 0), origin: "synthetic_fixture")
@@ -474,7 +509,9 @@ private enum ProposalPresentationFixture {
         }
         let candidate: [String: Any] = ["id": "c1", "document_id": document.id, "name": name, "brand": NSNull(), "preparation": NSNull(),
             "identity_evidence": ref, "panel_evidence": ref,
-            "basis": ["amount": "100", "unit": "g", "label": "Per 100g", "evidence": ref], "nutrients": nutrients, "limitations": []]
+            "basis": basisUnit.map { ["amount": "100", "unit": $0, "label": "Per 100g", "evidence": ref] as [String: Any] }
+                ?? ["amount": NSNull(), "unit": NSNull(), "label": NSNull(), "evidence": []],
+            "nutrients": nutrients, "limitations": []]
         let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
         let extraction = try decoder.decode(FoodProposalExtraction.self, from: JSONSerialization.data(withJSONObject:
             ["version": FoodProposalExtraction.schemaVersion, "candidates": [candidate], "preferred_id": preferred]))

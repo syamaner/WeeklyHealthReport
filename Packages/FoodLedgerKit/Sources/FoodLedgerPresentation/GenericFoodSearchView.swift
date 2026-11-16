@@ -444,7 +444,7 @@ public struct GenericFoodSearchView: View {
                             Section("Source pages") {
                                 if let message = model.sourceReviewMessage { Text(message).font(.caption) }
                                 ForEach(Array(discovery.leads.enumerated()), id: \.offset) { _, lead in
-                                    if FoodWebLinkPolicy.isAllowed(lead.url) { Link(lead.title, destination: lead.url) }
+                                    if FoodWebLinkPolicy.isAllowed(lead.url) { Link(GenericFoodProposalReviewCopy.leadTitle(lead), destination: lead.url) }
                                 }
                             }
                         }.navigationTitle("Web sources")

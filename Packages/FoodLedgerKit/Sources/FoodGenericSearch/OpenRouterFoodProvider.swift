@@ -409,7 +409,7 @@ public struct OpenRouterFoodProvider: FoodWebDiscovering, FoodProposalExtracting
                 // Re-read the clock: a late wake-up must not start an attempt past the deadline.
                 let timeout = min(planned, FoodWebModelCallRetryPolicy.attemptTimeout(
                     elapsed: retry.now().timeIntervalSince(started)))
-                guard timeout > 0 else { throw failure.error }
+                guard timeout >= FoodWebModelCallRetryPolicy.minimumAttemptTime else { throw failure.error }
                 request.timeoutInterval = timeout
                 attemptNumber += 1
             }
@@ -433,18 +433,15 @@ public struct OpenRouterFoodProvider: FoodWebDiscovering, FoodProposalExtracting
                 : .failure(.init(error: .connectionFailed, outcome: .transportError))
         }
         catch { return .failure(.init(error: .serviceUnavailable, outcome: .notRetryable)) }
+        // A retryable status is classified before the body is looked at, so an unreadable,
+        // oversized or key-echoing error page still counts as transient. The body is never
+        // read, surfaced or kept on this path.
+        if reply.status != 200, FoodWebModelCallRetryPolicy.retryableStatuses.contains(reply.status) {
+            return .failure(.init(error: classify(reply.status), outcome: .httpStatus(reply.status, retryAfter: reply.retryAfter)))
+        }
         // Never expose provider error bodies or echoed credentials in UI/logs.
         guard reply.data.count <= 200_000, let text = String(data: reply.data, encoding: .utf8), !text.contains(key) else {
             return .failure(.init(error: .invalidResponse, outcome: .notRetryable))
-        }
-        func classify(_ status: Int?) -> FoodWebDiscoveryError {
-            switch status {
-            case 401: .credentialRejected
-            case 403: .permissionDenied
-            case 402, 429: .quotaExceeded
-            case 400, 404, 422: .requestRejected
-            default: .serviceUnavailable
-            }
         }
         guard reply.status == 200 else {
             return .failure(.init(error: classify(reply.status), outcome: .httpStatus(reply.status, retryAfter: reply.retryAfter)))
@@ -461,6 +458,16 @@ public struct OpenRouterFoodProvider: FoodWebDiscovering, FoodProposalExtracting
         return .success(reply.data)
     }
 
+    private func classify(_ status: Int?) -> FoodWebDiscoveryError {
+            switch status {
+            case 401: .credentialRejected
+            case 403: .permissionDenied
+            case 402, 429: .quotaExceeded
+            case 400, 404, 422: .requestRejected
+            default: .serviceUnavailable
+            }
+        }
+
     public static func liveTransport(_ request: URLRequest) async throws -> OpenRouterFoodHTTPReply {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.httpCookieStorage = nil; configuration.httpShouldSetCookies = false
@@ -473,6 +480,12 @@ public struct OpenRouterFoodProvider: FoodWebDiscovering, FoodProposalExtracting
         defer { session.invalidateAndCancel() }
         let (bytes, response) = try await session.bytes(for: request)
         guard let response = response as? HTTPURLResponse, response.url == request.url else { throw FoodWebDiscoveryError.invalidResponse }
+        let retryAfter = response.value(forHTTPHeaderField: "Retry-After")
+        // A retryable error status is returned without reading its body (#500), so an
+        // oversized error page cannot turn a transient failure into a final one.
+        if FoodWebModelCallRetryPolicy.retryableStatuses.contains(response.statusCode) {
+            return OpenRouterFoodHTTPReply(status: response.statusCode, data: Data(), retryAfter: retryAfter)
+        }
         var data = Data()
         for try await byte in bytes {
             try Task.checkCancellation()
@@ -480,7 +493,7 @@ public struct OpenRouterFoodProvider: FoodWebDiscovering, FoodProposalExtracting
             data.append(byte)
         }
         return OpenRouterFoodHTTPReply(status: response.statusCode, data: data,
-                                       retryAfter: response.value(forHTTPHeaderField: "Retry-After"))
+                                       retryAfter: retryAfter)
     }
     private final class NoRedirects: NSObject, URLSessionTaskDelegate {
         func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,

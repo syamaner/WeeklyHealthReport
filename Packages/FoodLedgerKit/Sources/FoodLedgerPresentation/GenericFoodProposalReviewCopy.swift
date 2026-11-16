@@ -5,10 +5,14 @@ import FoodLedgerDomain
 /// result, so tests pin every wording without a view.
 public enum GenericFoodProposalReviewCopy {
     public struct NoSuggestion: Equatable, Sendable {
+        /// What the screen offers next. A paid re-run is offered only where the same lookup can
+        /// reasonably give a different answer; an outcome that needs more detail goes back to
+        /// the description instead; a settled outcome offers nothing.
+        public enum Action: Equatable, Sendable { case lookUpAgain, editDescription }
         public let text: String
-        /// Whether the screen offers Look up again for this result.
-        public let offersLookUpAgain: Bool
-        public init(text: String, offersLookUpAgain: Bool) { self.text = text; self.offersLookUpAgain = offersLookUpAgain }
+        public let action: Action?
+        public init(text: String, action: Action?) { self.text = text; self.action = action }
+        public var offersLookUpAgain: Bool { action == .lookUpAgain }
     }
 
     public static func summary(_ result: GenericFoodProposalReview, suggested: BoundFoodProposal?) -> String {
@@ -20,20 +24,32 @@ public enum GenericFoodProposalReviewCopy {
 
     public static func noSuggestion(_ result: GenericFoodProposalReview) -> NoSuggestion {
         if let failure = result.selectionFailure {
-            return NoSuggestion(text: selectionFailureText(failure), offersLookUpAgain: failure.canLookUpAgain)
+            return NoSuggestion(text: selectionFailureText(failure), action: failure.canLookUpAgain ? .lookUpAgain : nil)
+        }
+        let conflicting = result.validation.candidates.contains(where: { $0.status == .conflictingCandidates })
+        let conflictingText = "The source gives conflicting values for this food, so it cannot be used."
+        let noUsableText = "No usable source was found for this food."
+        // The check is skipped when no candidate is eligible for it; that is not a failure, and
+        // looking up again would cost a request and return the same page and values.
+        if !result.rankingUnavailable, result.selection == nil,
+           !result.validation.candidates.contains(where: \.selectionEligible) {
+            if conflicting { return NoSuggestion(text: conflictingText, action: nil) }
+            if !result.validation.candidates.isEmpty, result.validation.candidates.allSatisfy({ $0.candidate.basis.unit == nil }) {
+                return NoSuggestion(text: "The source does not say what amount its values are for, such as per 100 g or per serving, so it cannot be used.",
+                                    action: nil)
+            }
+            return NoSuggestion(text: noUsableText, action: nil)
         }
         if result.rankingUnavailable || result.selection == nil {
             return NoSuggestion(text: "Checking whether a source suits this food was unavailable, so no source can be used. You can look it up again.",
-                                offersLookUpAgain: true)
+                                action: .lookUpAgain)
         }
-        if result.validation.candidates.contains(where: { $0.status == .conflictingCandidates }) {
-            return NoSuggestion(text: "The source gives conflicting values for this food, so it cannot be used.", offersLookUpAgain: false)
-        }
+        if conflicting { return NoSuggestion(text: conflictingText, action: nil) }
         if result.suggestedChoice == "clarify" {
             return NoSuggestion(text: "The source does not clearly match your description. Add detail, such as the brand or how it was prepared, and look it up again.",
-                                offersLookUpAgain: false)
+                                action: .editDescription)
         }
-        return NoSuggestion(text: "No usable source was found for this food.", offersLookUpAgain: false)
+        return NoSuggestion(text: noUsableText, action: nil)
     }
 
     /// Why the check of whether a source suits this food did not finish, in plain language.

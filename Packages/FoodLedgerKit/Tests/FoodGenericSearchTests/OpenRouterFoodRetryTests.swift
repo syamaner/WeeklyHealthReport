@@ -89,10 +89,33 @@ final class OpenRouterFoodRetryTests: XCTestCase {
         catch { XCTAssertEqual(error as? FoodWebDiscoveryError, .serviceUnavailable) }
         let count = await late.requests.count
         XCTAssertEqual(count, 1)
-        let shortened = Script([.status(503, retryAfter: nil), .ok(try success())], secondsPerAttempt: 100, extraSleep: 5)
+        let shortened = Script([.status(503, retryAfter: nil), .ok(try success())], secondsPerAttempt: 100, extraSleep: 1)
         _ = try await provider(shortened).chooseSource(foodTerms: "synthetic food", leads: leads, key: key)
         let timeouts = await shortened.requests.map(\.timeoutInterval)
-        XCTAssertEqual(timeouts, [90, 14])
+        XCTAssertEqual(timeouts, [90, 18])
+        // A wake-up that leaves less than the minimum attempt time sends nothing further.
+        let tooLittle = Script([.status(503, retryAfter: nil), .ok(try success())], secondsPerAttempt: 100, extraSleep: 5)
+        do { _ = try await provider(tooLittle).chooseSource(foodTerms: "synthetic food", leads: leads, key: key); XCTFail("Expected failure") }
+        catch { XCTAssertEqual(error as? FoodWebDiscoveryError, .serviceUnavailable) }
+        let tooLittleCount = await tooLittle.requests.count
+        XCTAssertEqual(tooLittleCount, 1)
+    }
+
+    func testARetryableStatusIsRetriedWhateverItsBody() async throws {
+        let bodies = [Data([0xff, 0xfe, 0x00]), Data(key.utf8), Data(repeating: 0x41, count: 300_000)]
+        for body in bodies {
+            let script = Script([.statusBody(503, body), .statusBody(429, body), .ok(try success())])
+            let decision = try await provider(script).chooseSource(foodTerms: "synthetic food", leads: leads, key: key)
+            XCTAssertEqual(decision, .selected(index: 0, purpose: .primaryProduct, reason: "exact_product_primary_lead"))
+            let count = await script.requests.count
+            XCTAssertEqual(count, 3)
+        }
+        // A non-retryable status with an echoed key still fails closed and is never retried.
+        let echoed = Script([.statusBody(400, Data(key.utf8)), .ok(try success())])
+        do { _ = try await provider(echoed).chooseSource(foodTerms: "synthetic food", leads: leads, key: key); XCTFail("Expected failure") }
+        catch { XCTAssertEqual(error as? FoodWebDiscoveryError, .invalidResponse) }
+        let echoedCount = await echoed.requests.count
+        XCTAssertEqual(echoedCount, 1)
     }
 
     func testCancellationDuringTheWaitSendsNothingFurther() async throws {
@@ -137,11 +160,12 @@ final class OpenRouterFoodRetryTests: XCTestCase {
     }
 
     enum Step: CustomStringConvertible {
-        case ok(Data), status(Int, retryAfter: String?), urlError(URLError.Code), envelope(code: Int), envelopeWithChoices(code: Int)
+        case ok(Data), status(Int, retryAfter: String?), statusBody(Int, Data), urlError(URLError.Code), envelope(code: Int), envelopeWithChoices(code: Int)
         var description: String {
             switch self {
             case .ok: "ok"
             case let .status(status, _): "status \(status)"
+            case let .statusBody(status, _): "status \(status) with body"
             case let .urlError(code): "url error \(code.rawValue)"
             case let .envelope(code): "envelope \(code)"
             case let .envelopeWithChoices(code): "envelope with choices \(code)"
@@ -179,6 +203,7 @@ final class OpenRouterFoodRetryTests: XCTestCase {
             switch step {
             case let .ok(data): return .init(status: 200, data: data)
             case let .status(status, retryAfter): return .init(status: status, data: Data("{}".utf8), retryAfter: retryAfter)
+            case let .statusBody(status, data): return .init(status: status, data: data)
             case let .urlError(code): throw URLError(code)
             case let .envelope(code):
                 return .init(status: 200, data: Data(#"{"error":{"code":\#(code),"message":"synthetic"}}"#.utf8))

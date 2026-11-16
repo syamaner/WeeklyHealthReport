@@ -74,6 +74,12 @@ final class FoodWebModelCallRetryPolicyTests: XCTestCase {
         XCTAssertEqual(Policy.next(afterAttempt: 2, outcome: .timedOut, elapsed: 118, now: now, jitter: 1),
                        .stop(.deadline))
         XCTAssertEqual(Policy.attemptTimeout(elapsed: 0), 90)
+        // No attempt is started with less than the minimum attempt time left.
+        XCTAssertEqual(Policy.minimumAttemptTime, 15)
+        XCTAssertEqual(Policy.next(afterAttempt: 1, outcome: .timedOut, elapsed: 104, now: now, jitter: 1),
+                       .retry(after: 1, timeout: 15))
+        XCTAssertEqual(Policy.next(afterAttempt: 1, outcome: .timedOut, elapsed: 104.5, now: now, jitter: 1),
+                       .stop(.deadline))
         XCTAssertEqual(Policy.attemptTimeout(elapsed: 200), 0)
     }
 
