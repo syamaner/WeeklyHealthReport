@@ -4726,3 +4726,27 @@ Excluded:
 - this ledger edit.
 
 Pricing: this session ran on `claude-fable-5-2`, for which this ledger records no rate. It is priced at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, so the figure is a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
+## WHR-500-LOOKUP-RETRY-2026-11-16: Claude Code web lookup selection failure and retries (#500)
+
+One implementation subagent (`claude-opus-5-5`, transcript `agent-a3422508c334646b3` under session `af79238e-bf1c-4e94-955a-e13124c352b8`) did the following:
+- recorded why the web lookup applicability check failed, with plain copy and Look up again, and named the failure in Developer tools;
+- added bounded, identical-bytes retries of transient web lookup model-call failures (3 attempts, 120 s per call), with the contract, egress, privacy policy and key screen amendments the owner approved on 16 November 2026;
+- told duplicate candidate names apart and collapsed whitespace in lead titles;
+- ran the full gates, the CI search and query evaluations, and a local Qodo review (two findings, fixed).
+
+The whole subagent transcript is measured, from `2026-11-16T19:06:40Z` to its hand-back. The coordinating session's briefing, checks and approval edits are excluded.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| #500 web lookup retry, implementation subagent | 26,530,556 (26,255,140) | 275,158 | 91,050 | 26,621,606 | $8.45 |
+
+Method: `phase_usage.py --format claude` on the subagent transcript. Exact USD 8.44885. The cache-write tokens are part of the input figure, and all of them are 5-minute writes. The total is input plus output.
+
+Excluded:
+- the coordinating session's turns;
+- the Qodo review runs;
+- local test and gate runs, which use no API tokens;
+- this ledger edit.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.

@@ -35,6 +35,8 @@ public struct GenericFoodProposalReview: Equatable, Sendable {
     public let validation: FoodProposalValidation
     public let selection: FoodProposalSelection?
     public let rankingUnavailable: Bool
+    /// Why the check did not produce a usable answer, when it was attempted and failed (#500).
+    public let selectionFailure: FoodProposalSelectionFailure?
     public let attemptedSourceURL: URL?
     public let sourceAttempts: [URL]
     public let representativeSourceOnly: Bool
@@ -55,10 +57,13 @@ public struct GenericFoodProposalReview: Equatable, Sendable {
 
     public init(foodTerms: String, discovery: FoodWebDiscoveryResult?, documents: [CapturedFoodDocument],
                 validation: FoodProposalValidation, selection: FoodProposalSelection?, rankingUnavailable: Bool = false,
+                selectionFailure: FoodProposalSelectionFailure? = nil,
                 attemptedSourceURL: URL? = nil, sourceAttempts: [URL] = [], representativeSourceOnly: Bool = false) {
         self.foodTerms = foodTerms; self.discovery = discovery; self.documents = documents
         self.validation = validation; self.selection = selection
-        self.rankingUnavailable = rankingUnavailable
+        // A recorded failure always means the check is unavailable.
+        self.rankingUnavailable = rankingUnavailable || selectionFailure != nil
+        self.selectionFailure = selectionFailure
         self.attemptedSourceURL = attemptedSourceURL
         self.sourceAttempts = sourceAttempts.isEmpty ? attemptedSourceURL.map { [$0] } ?? [] : sourceAttempts
         self.representativeSourceOnly = representativeSourceOnly
@@ -93,7 +98,8 @@ public protocol GenericFoodProposalReviewing: Sendable {
 
 /// One discovery; at most two distinct selected source captures. A second source
 /// is considered only after empty extraction or recoverable acquisition failure.
-/// No repeated discovery, provider retries, cross-source merging or ledger writes.
+/// No repeated discovery, cross-source merging or ledger writes. Transient model-call retries,
+/// where composed, live inside the provider adapter (#500); this orchestration never repeats a step.
 public actor GenericFoodProposalReviewer: GenericFoodProposalReviewing {
     private let discovery: any FoodWebDiscovering
     private let capture: any FoodDocumentCapturing
@@ -170,6 +176,7 @@ public actor GenericFoodProposalReviewer: GenericFoodProposalReviewing {
             let next = try await runSingle(terms: terms, sourceURL: nil, key: key, existingDiscovery: narrowed)
             return GenericFoodProposalReview(foodTerms: next.foodTerms, discovery: original, documents: next.documents,
                 validation: next.validation, selection: next.selection, rankingUnavailable: next.rankingUnavailable,
+                selectionFailure: next.selectionFailure,
                 attemptedSourceURL: next.attemptedSourceURL, sourceAttempts: attempts + next.sourceAttempts,
                 representativeSourceOnly: next.representativeSourceOnly)
         } catch let failure as GenericFoodProposalPartialFailure {
@@ -246,7 +253,7 @@ public actor GenericFoodProposalReviewer: GenericFoodProposalReviewing {
         do { validation = try FoodProposalBinding.validate(extracted, documents: [document]) }
         catch { throw GenericFoodProposalPartialFailure(discovery: result, reason: .invalidProposal, attemptedSourceURL: url) }
         var selected: FoodProposalSelection?
-        var rankingUnavailable = false
+        var selectionFailure: FoodProposalSelectionFailure?
         if let selection, validation.candidates.contains(where: \.selectionEligible) {
             do {
                 let suggested = try await selection.select(foodTerms: terms, documents: [document], validation: validation, key: key)
@@ -258,11 +265,11 @@ public actor GenericFoodProposalReviewer: GenericFoodProposalReviewing {
             } catch {
                 try Task.checkCancellation()
                 if error is CancellationError || error as? FoodWebDiscoveryError == .credentialRejected { throw error }
-                rankingUnavailable = true
+                selectionFailure = FoodProposalSelectionFailure(error)
             }
         }
         try Task.checkCancellation()
         return GenericFoodProposalReview(foodTerms: terms, discovery: result, documents: [document],
-                                         validation: validation, selection: selected, rankingUnavailable: rankingUnavailable, attemptedSourceURL: url, representativeSourceOnly: representativeSourceOnly)
+                                         validation: validation, selection: selected, selectionFailure: selectionFailure, attemptedSourceURL: url, representativeSourceOnly: representativeSourceOnly)
     }
 }

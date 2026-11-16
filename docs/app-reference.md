@@ -185,7 +185,11 @@ extraction requests, followed by at most one applicability request. A second off
 source is considered only after empty extraction or unreadable capture; evidence is
 never merged across pages. Each capture permits three website connections including
 redirects. A supplied URL skips discovery and selection and is reviewed alone.
-The overall deadline is 150 seconds, with no automatic retries. The same OpenRouter key covers every model request.
+The overall deadline is 150 seconds. A model request that fails for a temporary reason
+(a transport error, a timeout, or HTTP 408, 429, 500, 502, 503 or 504) is resent unchanged,
+at most 3 attempts per request, with backoff that honours `Retry-After`; website page
+fetches are never retried ([generic-food-proposal-integration-v1.md](generic-food-proposal-integration-v1.md),
+model call retry amendment, #500). The same OpenRouter key covers every model request.
 Luna searches, selects a source and checks applicability; Grok extracts from the
 captured document. Jev remains a separate evaluation option and is not composed
 in the app. Failed or declined source selection retains the leads without silently

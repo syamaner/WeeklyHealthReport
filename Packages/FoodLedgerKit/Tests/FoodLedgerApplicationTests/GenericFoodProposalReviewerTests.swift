@@ -247,8 +247,35 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
         let result = try await reviewer(ports).review(foodTerms: "tofu", key: key)
         XCTAssertEqual(result.validation.candidates.filter(\.selectionEligible).count, 1)
         XCTAssertNil(result.selection); XCTAssertTrue(result.rankingUnavailable)
+        XCTAssertEqual(result.selectionFailure, .serverError)
         XCTAssertEqual(result.suggestedChoice, "clarify")
         XCTAssertFalse(result.permitsConfirmation(of: try XCTUnwrap(result.validation.candidates.first)))
+    }
+
+    func testApplicabilityFailureRecordsItsKind() async throws {
+        let cases: [(FoodWebDiscoveryError, FoodProposalSelectionFailure)] = [
+            (.connectionFailed, .transport), (.timedOut, .timedOut), (.quotaExceeded, .rateLimited),
+            (.serviceUnavailable, .serverError), (.invalidResponse, .invalidResponse),
+            (.requestRejected, .requestRejected), (.permissionDenied, .requestRejected)]
+        for (error, expected) in cases {
+            let result = try await reviewer(ReviewPorts(selectionError: error)).review(foodTerms: "tofu", key: key)
+            XCTAssertEqual(result.selectionFailure, expected, "\(error)")
+            XCTAssertTrue(result.rankingUnavailable)
+            XCTAssertNil(result.selection)
+        }
+    }
+
+    func testOutOfSetApplicabilityChoiceIsRecordedAsChoiceNotOffered() async throws {
+        let result = try await reviewer(ReviewPorts(selectionChoice: "c9")).review(foodTerms: "tofu", key: key)
+        XCTAssertEqual(result.selectionFailure, .choiceNotOffered)
+        XCTAssertNil(result.selection)
+        XCTAssertFalse(result.permitsConfirmation(of: try XCTUnwrap(result.validation.candidates.first)))
+    }
+
+    func testSuccessfulApplicabilityRecordsNoFailure() async throws {
+        let result = try await reviewer(ReviewPorts()).review(foodTerms: "tofu", key: key)
+        XCTAssertNil(result.selectionFailure)
+        XCTAssertFalse(result.rankingUnavailable)
     }
 
     func testCredentialRejectionRemainsDistinctAtExtractionAndSelection() async throws {
