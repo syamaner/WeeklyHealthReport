@@ -2,8 +2,8 @@
 
 Status: **proposal, 16 November 2026. Not accepted, not implemented, and not to be merged before
 the owner accepts it.** Documentation only: no app code, skill code or fixture changes with this
-document, and `privacy-and-egress.md` is not edited here. Section 12 lists the eight decisions that
-are the owner's, each with a recommendation; section 14 says plainly what has and has not been
+document, and `privacy-and-egress.md` is not edited here. Section 12 records the owner's eight decisions,
+all taken on 16 November 2026; section 14 says plainly what has and has not been
 reviewed. It has no issue of its own yet and closes nothing. Programme #424.
 
 It is a delta on [estimates on catalogue v2](personal-food-catalogue-estimates-v2-proposal.md)
@@ -684,7 +684,8 @@ identical-results test above.
 
 ## 12. Decisions for the owner
 
-A1 to A7 are decided; A8 is open. In the order they should be asked, each with a recommendation. A8 was added by
+All eight were decided by the owner on 16 November 2026, each as recommended. Deciding them is
+not acceptance: the proposal as a whole still waits for the owner's acceptance. A8 was added by
 the invariant review.
 
 - **A1. May the brand be in the prompt? Decided by the owner on 16 November 2026: yes, shown in
@@ -730,7 +731,8 @@ the invariant review.
   Alternative: refuse every zero from a reply, which is stricter about "unknown is never zero" and
   loses true zeros such as fibre in butter.
 
-- **A8. May an assistant value be a log's only known nutrient?** *Recommended: no.* When every
+- **A8. May an assistant value be a log's only known nutrient? Decided by the owner on 16
+  November 2026: no** (the recommendation). When every
   other value was withheld or left out, Log stays blocked. It keeps a model's reply from ever
   being the whole of a log's nutrition and keeps every exported unknown attributable to a real
   source. Alternative: yes, which fills a little more and needs an export rule for an entry
@@ -803,3 +805,7 @@ the contract's rules; each must be settled against the code before production wo
   again, unticked). A7 and A8 are open, and the proposal as a whole is not accepted.
 - 16 November 2026: the owner decided A7 (a suggested zero is accepted and shown in words). A8 is
   open, and the proposal as a whole is not accepted.
+- 16 November 2026: the owner decided A8 (an assistant value is never a log's only known
+  nutrient). All eight decisions are taken, each as recommended. **The proposal as a whole is not
+  accepted**, and the fixes folded in after the blind reviews have still had no review of their
+  own.
