@@ -50,11 +50,21 @@ public struct FoodDailyExportNotes: Codable, Equatable, Sendable {
     public let occurredAt: String
     public let unknownValues: String
     public let plainWater: String
+    /// Schema 2 only (`docs/food-daily-export-contract-v2.md` 3.4, #312): the constant sentence
+    /// about estimated amounts. Absent from a schema-1 file, so it is encoded only when present;
+    /// this build reads it and does not write it.
+    public let quantityEstimates: String?
+
+    init(occurredAt: String, unknownValues: String, plainWater: String, quantityEstimates: String? = nil) {
+        self.occurredAt = occurredAt; self.unknownValues = unknownValues; self.plainWater = plainWater
+        self.quantityEstimates = quantityEstimates
+    }
 
     enum CodingKeys: String, CodingKey {
         case occurredAt = "occurred_at"
         case unknownValues = "unknown_values"
         case plainWater = "plain_water"
+        case quantityEstimates = "quantity_estimates"
     }
 }
 
@@ -147,14 +157,110 @@ public struct FoodDailyExportQuantity: Codable, Equatable, Sendable {
     public let unit: String
     /// `declared` (weighed), `estimated`, or `unknown` when no weight declaration was recorded.
     public let weightBasis: String
+    /// Schema 2 only (contract v2 3.1, #312): how the amount was obtained. Absent from every
+    /// entry of a schema-1 file, so it is encoded only when present; this build reads it and
+    /// does not write it.
+    public let amountMethod: FoodDailyExportAmountMethod?
 
-    public init(amount: Double, unit: String, weightBasis: String) {
-        self.amount = amount; self.unit = unit; self.weightBasis = weightBasis
+    public init(amount: Double, unit: String, weightBasis: String, amountMethod: FoodDailyExportAmountMethod? = nil) {
+        self.amount = amount; self.unit = unit; self.weightBasis = weightBasis; self.amountMethod = amountMethod
     }
 
     enum CodingKeys: String, CodingKey {
         case amount, unit
         case weightBasis = "weight_basis"
+        case amountMethod = "amount_method"
+    }
+}
+
+/// `quantity.amount_method` of a schema-2 file (contract v2 3.1): the method code, whether the
+/// amount is an estimate, what the person entered and, for a source-backed estimate, its frozen
+/// rule and release. Every key is always written; a value that does not apply is an explicit
+/// `null`, and a file that leaves one of the keys out does not decode (a missing key is not a
+/// null). The closed sets are checked by `FoodDailyExportShape`, not here.
+public struct FoodDailyExportAmountMethod: Codable, Equatable, Sendable {
+    public let code: String
+    public let isEstimate: Bool
+    /// The amount the person entered when it differs from the exported amount; null otherwise,
+    /// or when no original input was stored. Never zero for "unknown".
+    public let entered: Entered?
+    /// Only for `typical_weight` and `whole_milk_volume`.
+    public let source: Source?
+
+    public init(code: String, isEstimate: Bool, entered: Entered?, source: Source?) {
+        self.code = code; self.isEstimate = isEstimate; self.entered = entered; self.source = source
+    }
+
+    public struct Entered: Codable, Equatable, Sendable {
+        public let amount: Double
+        /// `g`, `mL`, `count` or `serving`.
+        public let unit: String
+
+        public init(amount: Double, unit: String) { self.amount = amount; self.unit = unit }
+    }
+
+    public struct Source: Codable, Equatable, Sendable {
+        public let methodVersion: String
+        public let sourceReleaseID: String
+        /// `small`, `medium`, `large` or `extra_large` for a typical weight; null for whole milk.
+        public let size: String?
+
+        public init(methodVersion: String, sourceReleaseID: String, size: String?) {
+            self.methodVersion = methodVersion; self.sourceReleaseID = sourceReleaseID; self.size = size
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case methodVersion = "method_version"
+            case sourceReleaseID = "source_release_id"
+            case size
+        }
+
+        public init(from decoder: any Decoder) throws {
+            let values = try decoder.container(keyedBy: CodingKeys.self)
+            methodVersion = try values.decode(String.self, forKey: .methodVersion)
+            sourceReleaseID = try values.decode(String.self, forKey: .sourceReleaseID)
+            size = try values.decodeExplicit(String.self, forKey: .size)
+        }
+
+        public func encode(to encoder: any Encoder) throws {
+            var values = encoder.container(keyedBy: CodingKeys.self)
+            try values.encode(methodVersion, forKey: .methodVersion)
+            try values.encode(sourceReleaseID, forKey: .sourceReleaseID)
+            try values.encode(size, forKey: .size) // explicit null for whole milk
+        }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case code
+        case isEstimate = "is_estimate"
+        case entered, source
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        code = try values.decode(String.self, forKey: .code)
+        isEstimate = try values.decode(Bool.self, forKey: .isEstimate)
+        entered = try values.decodeExplicit(Entered.self, forKey: .entered)
+        source = try values.decodeExplicit(Source.self, forKey: .source)
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(code, forKey: .code)
+        try values.encode(isEstimate, forKey: .isEstimate)
+        try values.encode(entered, forKey: .entered) // explicit null: stated, not left out
+        try values.encode(source, forKey: .source)
+    }
+}
+
+private extension KeyedDecodingContainer {
+    /// A value or an explicit `null`; a missing key throws, unlike `decodeIfPresent`.
+    func decodeExplicit<T: Decodable>(_ type: T.Type, forKey key: Key) throws -> T? {
+        guard contains(key) else {
+            throw DecodingError.keyNotFound(key, DecodingError.Context(
+                codingPath: codingPath, debugDescription: "\(key.stringValue) must be written, as a value or null"))
+        }
+        return try decodeIfPresent(type, forKey: key)
     }
 }
 

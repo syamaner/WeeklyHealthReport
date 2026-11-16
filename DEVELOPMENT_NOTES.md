@@ -4774,4 +4774,25 @@ Excluded:
 - the Qodo review run itself;
 - the turns after the cut-off (this ledger edit, commit, push, pull request and handover).
 
+## WHR-312-PR2-2026-11-16: Claude Code food daily export v2, readers accept schema 2 (#312)
+
+One session (`claude-fable-5-2`, `32ff8170-52ac-43c9-801e-2e408752f002`) with its two review subagents (`architecture-gate`, `invariant-reviewer`) did the following:
+- read the v2 contract, the export code and the frozen v1 goldens, and wrote the PR 2 architecture gate;
+- added the `amount_method` DTO, the optional schema-2 fields, the pure per-version shape rule and the Drive policy switch, with no writer change;
+- hand-built four synthetic schema-2 fixtures from the frozen v1 goldens;
+- added contract tests 7, 8, 11 and 12, ran the gates and folded in both reviews.
+
+The window is `2026-11-16T22:12:41Z` to `2026-11-16T22:42:49Z`, from the task brief to the first commit.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| #312 PR 2 readers, gate to first commit | 12,130,487 (11,746,110) | 384,229 | 96,811 | 12,227,298 | $6.75 |
+
+Method: `phase_usage.py --format claude --since 2026-11-16T22:12:41Z --include-subagents` on the session transcript. Exact USD 6.746042. The cache-write tokens are part of the input figure, and 204,608 of them are 5-minute writes. The total is input plus output.
+
+Excluded:
+- the session's turns after the window (this ledger edit, the pull request, the handover and any later fix);
+- the Qodo review run;
+- local test and gate runs, which use no API tokens.
+
 Pricing: this session ran on `claude-fable-5-2`, for which this ledger records no rate. It is priced at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, so the figure is a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
