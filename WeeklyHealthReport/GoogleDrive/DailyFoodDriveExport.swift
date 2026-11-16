@@ -17,19 +17,19 @@ struct DailyFoodExportIdentityPolicy: DrivePayloadIdentityPolicy {
     static let orderingVersion = "food-v1"
     /// The summary version this build emits.
     static let summaryVersion = FoodIntakeSummary.version
-    /// Every published summary version: files already on Drive (v4 before #304) must still pass
-    /// reconcile and recovery, as the health policy accepts earlier schemas. Only the current
-    /// version (v6 from #307) is emitted; the writer derives it so it cannot drift (gate G1).
-    static let acceptedSummaryVersions: Set<String> = ["food-intake-summary-v4", "food-intake-summary-v5", "food-intake-summary-v6"]
     let ownerPropertyKey = "whrDailyFood"
     let orderingPropertyKey = "whrDataAsOf"
 
+    /// Files already on Drive must still pass reconcile and recovery, as the health policy
+    /// accepts earlier schemas: `FoodDailyExportShape` admits schema 1 (summary v4, v5, v6) and
+    /// schema 2 (summary v6, with `amount_method` on every entry; contract v2 section 5, #312),
+    /// and rejects any other schema number and any mixed file. The exact-byte re-encode below
+    /// completes that rule: it rejects a null where a key must be absent and any unknown key.
     func validate(payload: Data, reportDate: String) throws -> DrivePayloadIdentity {
         guard let document = try? FoodDailyExportSerializer.decode(payload),
-              document.foodDailySchemaVersion == FoodDailyExportDocument.schemaVersion,
+              (try? FoodDailyExportShape.validate(document)) != nil,
               document.reportDate == reportDate,
               document.nutrientCatalogueVersion == NutrientSet.catalogueVersion,
-              Self.acceptedSummaryVersions.contains(document.summaryVersion),
               document.summary.map(\.key) == NutrientKey.allCases.map(\.rawValue),
               document.entries.allSatisfy({ $0.nutrients.map(\.key) == NutrientKey.allCases.map(\.rawValue) }),
               TimeZone(identifier: document.timeZone) != nil,

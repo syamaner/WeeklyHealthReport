@@ -1,3 +1,5 @@
+import FoodLedgerApplication
+import FoodLedgerDomain
 import Foundation
 import XCTest
 @testable import DriveExportKit
@@ -946,6 +948,68 @@ final class DailyDriveExportCoordinatorTests: XCTestCase {
             try? await Task.sleep(for: .milliseconds(1))
         }
         XCTFail("Timed out waiting for deterministic test gate")
+    }
+}
+
+// Food daily export contract v2 (#312), contract test 11: a schema-2 food file replaces the
+// verified schema-1 file for the same date under the same Drive file ID, with unchanged ordering.
+extension DailyDriveExportCoordinatorTests {
+    /// 2026-09-06T08:00:00+01:00.
+    private static let foodCutoff = Date(timeIntervalSince1970: 1_788_678_000)
+
+    private func foodSchemaOne(preparedAfter seconds: TimeInterval) throws -> Data {
+        let document = try FoodDailyExportBuilder.make(FoodDailyExportRequest(
+            records: LedgerMutation(), reportDate: reportDate, timeZone: TimeZone(identifier: "Europe/London")!,
+            dataAsOf: Self.foodCutoff, exportedAt: Self.foodCutoff.addingTimeInterval(seconds),
+            appContext: FoodDailyExportAppContext(appVersion: "0.0.0", appBuild: "0")))
+        return try FoodDailyExportSerializer.encode(document)
+    }
+
+    func testSchemaTwoFoodFileReplacesSchemaOneUnderTheSameIDAndRecovers() async throws {
+        let store = MemoryDailyIdentityStore()
+        let server = MockDailyDriveServer()
+        let policy = DailyFoodExportIdentityPolicy()
+        let coordinator = DailyDriveExportCoordinator(transport: server, store: store, policy: policy)
+        func export(_ payload: Data) async throws -> DailyDriveExportResult {
+            try await coordinator.export(payload: payload, reportDate: reportDate, accountID: accountID, folderID: folderID,
+                                         tokenProvider: token)
+        }
+        let version1 = try foodSchemaOne(preparedAfter: 1)
+        let version2 = try DailyFoodDriveExportTests.schemaTwo(fromEmptyDay: try foodSchemaOne(preparedAfter: 60))
+        XCTAssertEqual(try FoodDailyExportSerializer.decode(version1).foodDailySchemaVersion, 1)
+        XCTAssertEqual(try FoodDailyExportSerializer.decode(version2).foodDailySchemaVersion, 2)
+
+        guard case .verified(_, true) = try await export(version1) else { return XCTFail("the schema-1 file is created") }
+        let fileID = try XCTUnwrap(store.snapshot()?.identities.first?.fileID)
+        let replaced = try await export(version2)
+        XCTAssertEqual(replaced, .verified(
+            dataAsOf: "food-v1|2026-09-06T08:00:00.000+01:00|2026-09-06T08:01:00.000+01:00", created: false))
+        let fileCount = await server.fileCount()
+        let stored = await server.storedContent(id: fileID)
+        XCTAssertEqual(fileCount, 1)
+        XCTAssertEqual(stored, version2)
+        XCTAssertEqual(store.snapshot()?.identities.map(\.fileID), [fileID], "the same persisted Drive file ID")
+        let creates = await server.createIDs
+        XCTAssertEqual(creates, [fileID])
+
+        // Stale-cutoff rejection is not relaxed across schemas: the older schema-1 bytes, and an
+        // older schema-2 file, cannot replace the verified schema-2 file.
+        for stale in [version1, try DailyFoodDriveExportTests.schemaTwo(fromEmptyDay: try foodSchemaOne(preparedAfter: 30))] {
+            do {
+                _ = try await export(stale)
+                XCTFail("an older snapshot must not replace the verified schema-2 file")
+            } catch DailyDriveExportFailure.staleSnapshot {}
+        }
+        // Recovery on a fresh registry reads and verifies the schema-2 file.
+        let afterStale = await server.storedContent(id: fileID)
+        XCTAssertEqual(afterStale, version2, "the stale attempts changed nothing")
+        let restoredStore = MemoryDailyIdentityStore()
+        let restored = DailyDriveExportCoordinator(transport: server, store: restoredStore, policy: policy)
+        _ = try await restored.recover(selectedFileID: fileID, reportDate: reportDate, accountID: accountID, folderID: folderID,
+                                       tokenProvider: token)
+        XCTAssertEqual(restoredStore.snapshot()?.identities.map(\.fileID), [fileID])
+        let afterRecovery = await server.storedContent(id: fileID)
+        XCTAssertEqual(afterRecovery, stored, "recovery does not rewrite the file")
     }
 }
 
