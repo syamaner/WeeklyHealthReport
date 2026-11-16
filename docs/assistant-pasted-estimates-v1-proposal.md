@@ -684,7 +684,7 @@ identical-results test above.
 
 ## 12. Decisions for the owner
 
-A1 to A4 are decided; A5 to A8 are open. In the order they should be asked, each with a recommendation. A8 was added by
+A1 to A5 are decided; A6 to A8 are open. In the order they should be asked, each with a recommendation. A8 was added by
 the invariant review.
 
 - **A1. May the brand be in the prompt? Decided by the owner on 16 November 2026: yes, shown in
@@ -716,8 +716,8 @@ the invariant review.
   lowering is the costliest part of this route (a second evidence kind, an amendment to estimates
   v2, a precedence rule and a new export field) for a change to one log's display, and leaving it
   out removes most of the amendment surface.
-- **A5. A catalogue estimate that is withheld or left out.** *Recommended: the reply cannot fill
-  that nutrient.* It keeps "one source per nutrient" fixed for the log and means a returning
+- **A5. A catalogue estimate that is withheld or left out. Decided by the owner on 16 November
+  2026: the reply cannot fill that nutrient** (the recommendation). It keeps "one source per nutrient" fixed for the log and means a returning
   catalogue estimate never meets an assistant value. Alternative: let a reply fill a withheld key
   (more coverage where a record contradicts the details), at the price of a rule for which one
   wins when the contradiction is later removed.
@@ -796,3 +796,5 @@ the contract's rules; each must be settled against the code before production wo
 - 16 November 2026: the owner decided A4 (a ticked tier suggestion lowers the tier for that log
   only), with the architecture review's cost put to them. A5 to A8 are open, and the proposal as a
   whole is not accepted.
+- 16 November 2026: the owner decided A5 (a reply cannot fill a nutrient whose catalogue estimate
+  is withheld or left out). A6 to A8 are open, and the proposal as a whole is not accepted.
