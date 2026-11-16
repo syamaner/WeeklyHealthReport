@@ -238,8 +238,12 @@ answer those questions, every `national_composition` estimate is re-checked agai
 - **The comparison** is per facet and uses the equality the existing `IdentityCompatibility` rule
   uses, with one difference only: a facet that is `unknown` on either side does not contradict.
   Preparation compares the whole state (kind, and method when both sides name one), so `as_sold`
-  against a `raw`, `cooked`, `reheated` or `named` record is a contradiction like any other; only
-  `unknown` on either side never contradicts. Packing
+  against a `cooked`, `reheated` or `named` record is a contradiction like any other. **One pair is
+  compatible by owner decision (16 November 2026): `as_sold` and `raw` do not contradict each
+  other, in either direction,** so answering "as sold" keeps an estimate from a raw record. The
+  stated cost: if a raw record was matched to a food sold tinned or smoked, this check will not
+  catch it, and the review of the match and the "Estimated" label are the safeguard. The private
+  change report counts estimates whose record is `raw` on an entry whose state is not `raw`. Packing
   medium is exact text equality. The function lives in `FoodLedgerDomain` beside
   `IdentityCompatibility`, with a test that both cover the same facets. A facet (preparation, bone, skin, drained state, packing medium, fortification) that is
   known on both sides and different withholds every estimate citing that record.
@@ -468,8 +472,9 @@ skill's checker and the Swift decoder both read it for codec codes):
   repeats; a codec rejection carries no importer code.
 - Importer: unpinned corpus, missing record, unquantified value (missing, trace, bounded, "N") and
   a value outside the tolerance give the four codes; at zero only exact equality passes;
-  `estimate-contradiction` for a `raw` or `cooked` entry against a record that is `cooked`, `raw`,
-  `as_sold`, `reheated` or `named`, a fortified record and a record without a known 100 g edible
+  `estimate-contradiction` for a `raw` entry against a `cooked`, `reheated` or `named` record and
+  for a `cooked` entry against a `raw`, `as_sold`, `reheated` or `named` record; a `raw` entry
+  against an `as_sold` record is accepted; a fortified record and a record without a known 100 g edible
   quantity, on a non-own record and on an entry with no reference; fortification and edible
   quantity also on an own record. The importer with no lookup for a source rejects.
   The lookup port's shared suite runs against CoFID, USDA and TFDA and the dispatching set, pins
@@ -493,7 +498,7 @@ skill's checker and the Swift decoder both read it for codec codes):
   also after an archive restore; a leave-out or an undo alone on a reopened log writes a new
   resolution version; an identity-only correction of a reopened log keeps earlier leave-outs; a
   reopened log reads no record and shows saved values after the corpus pin moves; `as_sold`
-  against `raw` withholds; Confirm offers no field for an estimated nutrient's value;
+  against `raw` is kept, in both directions; Confirm offers no field for an estimated nutrient's value;
   the domain still rejects `approved_estimate` as measured or bounded; the manifest's bytes and
   hash are unchanged and still verify, also when no provenance cites it. Log is never
   pre-selected; an estimate-only entry is not a generic estimate.
@@ -610,4 +615,6 @@ contract: acceptance follows the re-review named in section 9.
   contradiction; the evidence was renamed `pfd-estimate-left-out-v1`.
 - 16 November 2026: the owner confirmed the never-re-admissible list of section 3.1 as what P3
   means.
-- Open for the owner: whether `as_sold` against a `raw` record should withhold. These fixes have had no review of their own.
+- 16 November 2026: the owner decided that `as_sold` and `raw` do not contradict (the
+  recommendation was to withhold). Section 3.2 and its tests say so. No owner question is open;
+  the fixes since c98b2eb have had no review of their own. These fixes have had no review of their own.
