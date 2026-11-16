@@ -4763,8 +4763,11 @@ The window is `2026-11-16T22:01:11Z` (recorded when PR #499 was confirmed merged
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | #424 assistant-pasted estimates proposal, reading, drafting and one Qodo pass folded in | 2,678,206 (2,526,308) | 151,864 | 44,954 | 2,723,160 | $2.62 |
+| #424 assistant-pasted estimates proposal, blind gate and invariant reviews with two subagents and the revision | 2,833,249 (2,546,766) | 286,433 | 71,122 | 2,904,371 | $3.42 |
 
 Method: `phase_usage.py --format claude --since 2026-11-16T22:01:11Z --until 2026-11-16T22:12:09Z --include-subagents` on the session transcript. Exact USD 2.6193896. The cache-write tokens are part of the input figure, and all of them are 1-hour writes. The total is input plus output.
+
+Reviews row: the same session with its two review subagents, window `2026-11-16T22:16:26Z` to `2026-11-16T22:23:26Z`, same script and rates, exact USD 3.4191362; 268,107 of the cache writes are 5-minute writes. It covers launching the reviews, checking their findings against the code and the revision. The turns between the two windows (the first commit, push, pull request and handover) and after the second (this edit, commit, push and handover) are unmeasured.
 
 Excluded:
 - the session's turns before the window (two checks that found PR #499 still open);

@@ -2,8 +2,8 @@
 
 Status: **proposal, 16 November 2026. Not accepted, not implemented, and not to be merged before
 the owner accepts it.** Documentation only: no app code, skill code or fixture changes with this
-document, and `privacy-and-egress.md` is not edited here. Section 12 lists the seven decisions that
-are the owner's, each with a recommendation; section 13 says plainly what has and has not been
+document, and `privacy-and-egress.md` is not edited here. Section 12 lists the eight decisions that
+are the owner's, each with a recommendation; section 14 says plainly what has and has not been
 reviewed. It has no issue of its own yet and closes nothing. Programme #424.
 
 It is a delta on [estimates on catalogue v2](personal-food-catalogue-estimates-v2-proposal.md)
@@ -50,9 +50,10 @@ record which assistant the owner used.
   change to those verifiers, not an addition.
 - **When it is offered.** New logs and reopened logs. Not on the re-resolution screen and not on
   the quick add sheet (section 8).
-- **Depends on** the estimates v2 phase having landed (its provenance kind, capture manifest,
-  leave-out state, labels and daily export version 3). This is a later phase with its own issue
-  and a fresh architecture gate.
+- **Depends on** a chain of two phases that have not landed. In code today the food contract is 9
+  and the daily export is version 1. Daily export v2 comes first, then the estimates v2 phase (its
+  provenance kind, capture manifest, leave-out state, labels, food contract 10 and daily export
+  version 3), then this. It is a later phase with its own issue and a fresh architecture gate.
 
 ## 3. The prompt, `assistant-estimate-prompt-v1`
 
@@ -72,8 +73,8 @@ In this order. A line whose value does not exist is left out, never written empt
 | `Food:` | the name shown on Confirm | candidate or correction |
 | `Brand:` | the brand shown on Confirm, when there is one and the preview's **Include brand** switch is on (decision A1) | candidate or correction |
 | `Variety:` | the variant shown on Confirm | candidate or correction |
-| `State:` | the entry's state in the plain words Confirm shows | confirmed identity |
-| `Details:` | each decisive detail that is known, in the words Confirm shows (bone, skin, drained, packing medium) | confirmed identity |
+| `State:` | the preparation state, in fixed words | confirmed identity |
+| `Details:` | each decisive detail that is known, in fixed words: bone, skin, drained, packing medium (its text as stored), fortification and the nutrients declared as added | confirmed identity |
 | `Basis:` | `per 100 g` or `per 100 ml` | candidate basis |
 | Known values | one line per nutrient with a value that is not an estimate: key, value, canonical unit and one closed phrase for its source ("from the label", "from the product's Open Food Facts record", "from a food composition table") | the log being confirmed |
 | Estimated values | one line per catalogue estimate that is kept: key, value, unit, "estimated" or "estimated from a similar food", and its tier | capture manifest |
@@ -88,11 +89,17 @@ for each value, never anything higher; suggest a tier only for the listed estima
 only when it would be lower; not change a known value; and reply with exactly one block. They
 contain no health, target or diet wording.
 
+The fixed words for `State:` and `Details:` come from one closed table owned by the application
+layer and pinned by the prompt version, not from Confirm's display copy, so a wording change on
+Confirm changes neither the prompt nor a request code. Name, brand, variety and packing medium are
+sent as stored, **including any words the owner typed when correcting them**.
+
 **Never in the prompt:** the amount eaten, the time or date, notes, any other entry, totals,
 health data, the barcode, pack size, shop, price, receipt text, entry, record or release
 identifiers, source addresses, digests, and the catalogue's free-text states and assumptions
-(those are private workspace text). The name is sent as Confirm shows it, so a name that itself
-holds a brand word still holds it with the switch off; the preview shows the exact text so the
+(those are private workspace text). The name is sent as Confirm shows it. Catalogue names can
+come from receipt product titles, so a name may itself hold a brand, an own-brand shop word or a
+pack size, and it still holds them with the switch off; the preview shows the exact text so the
 owner sees that before copying.
 
 ### 3.2 Example (synthetic)
@@ -140,7 +147,10 @@ itself back is rejected (`not_json`), never read as a reply.
 
 `request` is the first 16 lower-case hex digits of the SHA-256 of the canonical JSON of the
 prompt's **subject**: prompt version, name, brand as printed (null when not printed), variant,
-state, details and basis. It binds a reply to the food and details it was written for. It is not
+and the typed identity tokens (the raw values of preparation, bone, skin, drained, packing medium,
+fortification and declared fortificants) with the basis. It hashes tokens, never display words.
+One food therefore has at most two valid codes, with and without the brand; a paste is accepted
+for either, and the capture records which prompt text it answers. It binds a reply to the food and details it was written for. It is not
 a secret and proves nothing about who wrote the reply; the owner's tick is what counts. Known
 values, estimates and the missing list are not in the subject, so leaving a value out does not
 invalidate a reply. The amount is never in it.
@@ -151,7 +161,8 @@ invalidate a reply. The amount is never in it.
 
 The block is the text between a line that is exactly `<<<assistant-estimate-reply-v1` and the next
 line that is exactly `>>>` (leading and trailing white space on those two lines is ignored).
-Everything outside the block is ignored: never parsed, never shown, never stored.
+Everything outside the block is ignored: never parsed, never shown, never stored, and no hash of
+it is kept.
 
 Inside the block is one JSON object with exactly these keys:
 
@@ -168,13 +179,21 @@ Inside the block is one JSON object with exactly these keys:
 - `unit` is that key's canonical unit, spelt exactly (`kcal`, `g`, `mg`, `mcg`, `mL`).
 - `quality` is `medium` or `low` on a value, and `high`, `medium` or `low` on a tier row (a tier
   row can only lower, section 5.3, so `high` there is read and then not offered).
+- Every string in the block is at most 40 characters from `a` to `z`, `0` to `9`, `_` and `-`
+  (`unit` may also hold `L`). Anything else is a fault of shape (`keys`) and rejects the whole
+  reply, so the stored block can hold no sentence, name or address.
 - There is no free-text field, no per-serving field, no conversion and no field for a source,
   link or comment. A new field is a new schema version.
 
 ### 4.2 Strict parsing, `assistant-estimate-parser-v1`
 
-One pure function from the pasted text and the Confirm state to either a rejection or a list of
-rows. **A fault in the shape rejects the whole reply; a fault in one row's meaning rejects that
+One pure function from the pasted text and a closed **parse context** to either a rejection or a
+list of rows. The context is the parser's only view of the log, and it is stored in the capture so
+that verification can reproduce every row code from the capture alone (section 6.2). It holds the
+entry's basis, the valid request codes, and for each of the 39 keys exactly one class:
+`eligible`; `stronger_source` (a label, Open Food Facts or merged record value, with the value
+when the key is a parent); `catalogue_estimate` (with its tier and whether it is kept); or
+`not_fillable` (bounded, conflicting or unscalable). **A fault in the shape rejects the whole reply; a fault in one row's meaning rejects that
 row and leaves the others.** Every rejection is shown to the owner in plain words, where the paste
 was made. Nothing is repaired, guessed, rounded, converted or defaulted.
 
@@ -187,7 +206,7 @@ Whole-reply rejections, checked in this order (the first one found is shown):
 | `no_block` | no opening line, or no closing line after it | No reply block was found. Ask your assistant to answer in the format from the prompt. |
 | `more_than_one_block` | a second opening line | More than one reply block was found. Paste a single reply. |
 | `not_json` | the block is not one JSON object, or holds a repeated key | The reply block could not be read. |
-| `keys` | a missing or unexpected key at the top level or in any row; a wrong JSON type anywhere (`value` not a JSON number, any other field not a string, an array or row of another type); or an array over 39 rows | The reply block has missing or unexpected fields. |
+| `keys` | a missing or unexpected key at the top level or in any row; a wrong JSON type anywhere (`value` not a JSON number, any other field not a string, an array or row of another type); a string outside the limits of section 4.1; or an array over 39 rows | The reply block has missing or unexpected fields. |
 | `schema` | `schema` is another value | This reply uses a format this version of the app does not read. |
 | `different_request` | `request` is not the code of the food and details now on Confirm | This reply was written for a different food or different details. Copy the prompt again. |
 | `basis` | `basis` differs from the entry's | The reply is per 100 ml and this food is per 100 g. Values are never converted. (Or the reverse.) |
@@ -201,8 +220,9 @@ Row rejections (the row is listed under "Not used", with its reason, and cannot 
 | `unknown_nutrient` | key not in the inventory | Not a nutrient this app records. |
 | `unit` | a string that is not the key's canonical unit | Wrong unit: expected <the key's canonical unit>. Values are never converted. |
 | `value` | a JSON number that is negative or too large to hold as a finite value | Not a usable number. |
-| `impossible_value` | on a per 100 g entry, a mass above 100 g (in the key's unit), or energy above 900 kcal; on a per 100 ml entry, energy above 900 kcal | More than 100 g of the food can hold. |
-| `exceeds_parent` | saturated, monounsaturated or polyunsaturated fat above total fat, or sugar above carbohydrates, where the parent is known on the log or ticked from the same reply | More than the total fat (or carbohydrate) of this food. |
+| `impossible_value` | on a per 100 g entry, a mass above 100 g (in the key's unit), or energy above 900 kcal; on a per 100 ml entry, energy above 900 kcal | More than 100 g of the food can hold. (For energy: More energy than any food holds.) |
+| `exceeds_parent` | saturated, monounsaturated or polyunsaturated fat above total fat, or sugar above carbohydrates, where the parent is a known value in the parse context | More than the total fat (or carbohydrate) of this food. |
+| `not_fillable` | the key holds a bounded value, conflicting values or a value that cannot be scaled | This nutrient has more than one value or a range, and is not filled here. |
 | `already_known` | the key has a value on the log from a label, an Open Food Facts record or a merged record | Already known from a stronger source. It is not replaced. |
 | `has_catalogue_estimate` | the key has a catalogue estimate, whether kept, withheld or left out (decision A5) | This food already has a catalogue estimate for it. |
 | `quality` | a string outside the list | Quality not recognised. |
@@ -214,13 +234,19 @@ So the two tables never compete: a field of the wrong JSON type is a fault of sh
 the whole reply with `keys`, and the row codes `value`, `unit` and `quality` apply only to a field
 of the right type with an unusable content.
 
-`exceeds_parent` is the one rule that depends on other ticks: a child row whose parent is an
-unticked row of the same reply is checked against it when either is ticked, and the later tick is
-refused with the reason. The bounds are mechanical, not a judgement of the food. Stated limits: no
-other arithmetic is checked (macronutrients are not summed, energy is not recomputed), and per 100
-ml mass values have no bound because no density is ever inferred.
+Row codes are fixed when the reply is parsed and never depend on ticks. One further check is a
+**tick rule**, not a row code, and is never stored: a child whose parent is another row of the
+same reply cannot be ticked above that parent while the parent is ticked, and the later tick is
+refused with the `exceeds_parent` wording. The save service is the authority: at Log it re-runs
+eligibility, the ceiling, the bounds and the parent rule on the final nutrient set, and refuses a
+state that fails, whatever the screen allowed. A row with an unknown key is listed by its position
+in the reply ("Row 3"), since no text from the reply is rendered. The bounds are mechanical, not
+a judgement of the food. Stated limits: no other arithmetic is checked (macronutrients are not
+summed, energy is not recomputed); per 100 ml mass values have no bound because no density is
+ever inferred; and water, in mL, has no bound on a per 100 g entry.
 
-**A zero** is accepted as a value (decision A7) and shown as 0 in the nutrient's canonical unit, with its label. The parser
+**A zero** is accepted as a value (decision A7) and its row and VoiceOver label say it in words ("none: 0 g"), so a zero is never ticked as if
+it were a blank. The parser
 cannot tell an estimated zero from a lazy one; the prompt forbids zero for unknown, each row is
 ticked singly, and there is no "tick all".
 
@@ -233,13 +259,18 @@ act.
 ### 5.1 Which nutrients a value may fill
 
 A value row is eligible only for a nutrient that, on the candidate as bound to Confirm, is
-`.unknown` **and** has no catalogue estimate in the capture manifest. So:
+`.unknown` with status `resolved` and reason `not_declared` or `no_compatible_source`, **and** has
+no catalogue estimate in the capture manifest. In code a conflict is also stored as `.unknown`
+(reason `conflicting_evidence`, status `conflict`, with its candidates), and Your food database
+candidates produce one when label values disagree; that key, and one with reason
+`missing_conversion`, is never eligible. So:
 
 - a label value, an Open Food Facts value and a merged record's value are never replaced;
 - a catalogue estimate is never replaced, also when it was withheld (estimates v2 section 3.2) or
   left out by the owner. The eligible set is therefore fixed when the candidate is bound and does
   not move when a value is withheld, returns, is left out or is restored;
-- a bounded or conflicting value is not unknown and is not eligible.
+- a bounded value, conflicting values and an unscalable value are never filled (`not_fillable`):
+  bounds stay bounds, and a reply never settles a conflict between label values.
 
 ### 5.2 Ranking, per nutrient
 
@@ -259,9 +290,9 @@ assistant estimate is then the only value for that key, always under its own lab
 candidate with no known nutrient at all is not offered by search today and never reaches Confirm,
 and that does not change. Assistant estimates belong to one log, never to the catalogue, so they
 cannot make an empty entry visible, and they take no part in search, ranking, the fat partition or
-escalation sufficiency. The route for an empty entry stays the catalogue build. On a log that does
-reach Confirm, a ticked assistant value is a known value for the "Log needs one known nutrient"
-rule, since its row can be attributed in the export.
+escalation sufficiency. The route for an empty entry stays the catalogue build. On a log that does reach Confirm, a ticked assistant value does **not** satisfy estimates v2's
+"Log needs one known nutrient" rule (decision A8): when withholding and leaving out leave no other
+nutrient known, Log stays blocked with its reason, so a reply is never a log's only nutrition.
 
 ### 5.3 Tier suggestions for existing estimates (decision A4)
 
@@ -269,6 +300,8 @@ A ticked tier row **lowers** the tier shown for that catalogue estimate, for thi
 never raises one (the codec's ceilings rest on evidence a reply cannot supply), never changes the
 value, its provenance bytes, the capture manifest, the ranking or the contradiction veto, and
 never touches the catalogue. The lasting correction is the owner's review sheet at the next build.
+A tier tick on a key that is then withheld or left out is cleared and never saved, so choices
+evidence lists kept estimates only.
 
 **Which tier governs.** Estimates v2 says the tier shown comes from the evidence record in the
 capture manifest. This route adds one rule on top, as a dated amendment to that contract: the tier
@@ -305,7 +338,9 @@ the manifest's tier is shown.
   Each row is at least 44 pt, has a VoiceOver label that reads the nutrient, value, label and
   state, and never relies on colour.
 - Pasting again asks first ("Replace the pasted reply? Your ticks will be cleared").
-- Log stays the one save. Until Log nothing is stored, and a cancelled Confirm keeps nothing.
+- Log stays the one save. Until Log nothing is stored, and a cancelled Confirm keeps nothing: the
+  suggestion state (the pasted block, its capture and the ticks) is transient Confirm state that
+  is never encoded with `FoodConfirmationState`, as `answersLabelFortification` is today.
 
 ### 5.6 When details or basis change after the paste
 
@@ -329,17 +364,22 @@ at build time, which is untrue here. Rules, in `NutrientEntry` validation:
   `manifestReference` `assistant-reply-capture-v1#<nutrient key>`; `transforms` empty; all required;
 - its source release is one per capture, with `sourceID` `assistant-pasted-reply` and release ID
   `assistant-reply:sha256:<capture hash>`, committed with the log and linked from the resolution
-  version like any other provenance release. The phase gate pins the remaining `SourceRelease`
-  fields against the type (not read for this proposal, section 13).
+  version like any other provenance release. That identifier stays on the device: the daily
+  export writes a constant in its place (section 9). The phase gate pins the remaining required
+  fields with truthful constants: the release's `releasedAt`, `artifactHash`, `schemaVersion`,
+  `pipelineVersion`, `licence`, `attribution` and `manifestHash`, and the evidence's `locale` and
+  `captureMethod`.
 
 ### 6.2 Reply capture `assistant-reply-capture-v1`
 
 - **Content** (canonical JSON): `schema`, `prompt_version`, `parser_version`, `request`, the
   subject object, the exact prompt text that request code stands for, the **reply block verbatim**,
-  the SHA-256 of the whole pasted text, the entry's basis, and each parsed row with its result
-  code. No tick is in it. Only the block is kept, never the text around it, so a stray paste of
-  something else does not end up in the ledger.
-- **When.** Built when a paste is accepted, with the evidence ID from `LedgerIDGenerating` and
+  the parse context of section 4.2, and each parsed row with its result code. No tick is in it.
+  Only the block is kept, never the text around it and no hash of that text, and the block's
+  strings are limited by section 4.1, so a stray paste of something else does not end up in the
+  ledger.
+- **When.** Built by a service call when a paste is accepted (the reducer stays pure and receives
+  the finished capture in an action), with the evidence ID from `LedgerIDGenerating` and
   `capturedAt` from `LedgerClock`, because validation needs `evidenceID` and `responseHash` before
   any save. It is committed only with a Log whose saved version uses it (a ticked value or a
   lowered tier). A reply with nothing ticked is not stored.
@@ -350,11 +390,15 @@ at build time, which is untrue here. Rules, in `NutrientEntry` validation:
 - **How reopen finds it.** Through each assistant value's provenance `evidenceID`, and, for a
   version that holds no assistant value (ticks removed, or a tier lowered only), through the
   decision's embedded candidate, which carries the bound candidate's evidence IDs plus the
-  capture's: the mechanism estimates v2 section 5 defines for leave-out evidence. No stored type
-  gains a field.
+  capture's, appended last (readers that take the first evidence ID are unaffected): the
+  mechanism estimates v2 section 5 defines for leave-out evidence. No stored type gains a field.
+  Evidence IDs accumulate across versions, so **the current capture** is the one the effective
+  version's assistant values cite; with none, the one its choices evidence names; with neither,
+  the last one listed. Rows of any other capture are not shown.
 - **Verification** on save and on reopen, in the application: the payload hash equals `byteHash`
   and each value's `responseHash`; the parser, re-run on the stored block against the stored
-  subject and basis, returns the stored rows; every saved assistant value equals a parsed row
+  parse context, returns the stored rows, and that context agrees with the decision's embedded
+  candidate and the capture manifest; every saved assistant value equals a parsed row
   (key, value, unit, tier). A mismatch shows "Evidence not available" and never changes a stored
   value or its estimate state. A missing evidence row is a store integrity failure and the log
   does not load, as for any listed evidence.
@@ -374,8 +418,8 @@ No new `UnknownReason`, and no new stored raw value beyond `assistant_estimate`.
 | Case | Stored value | Provenance | How reopen tells it apart |
 |---|---|---|---|
 | Assistant value ticked | `.augmented` | `assistant_estimate` | provenance; tier from the capture row |
-| Suggested, not ticked | `.unknown`, `no_compatible_source` | none | the key is a usable row of a capture the version cites; shown in details as "Suggested by your assistant, not used" |
-| Suggested, never stored | `.unknown`, `no_compatible_source` | none | no capture is cited; reads as any unknown |
+| Suggested, not ticked | the candidate's own unknown value, unchanged (its reason is not rewritten) | none | the key is a usable row of the current capture; shown in details as "Suggested by your assistant, not used" |
+| Suggested, never stored | the candidate's own unknown value, unchanged | none | no capture is cited; reads as any unknown |
 | Catalogue estimate, tier lowered | `.augmented`, `approved_estimate`, bytes unchanged | unchanged | the key is in the effective version's choices evidence |
 
 ### 6.5 Saving
@@ -403,7 +447,8 @@ No new `UnknownReason`, and no new stored raw value beyond `assistant_estimate`.
 Following estimates v2's allocation: **food contract 11**. `foodContractVersion` rises to 11; the
 floor returns 11 for a record holding `assistant_estimate` provenance, `assistant-reply-capture-v1`
 or `assistant-estimate-choices-v1` evidence, checked before the contract 10 rule, which is left as
-it is; a metadata-only migration `v11_assistant_estimate` sets `food-ledger-v11`. An archive or
+it is; a metadata-only migration `v11_assistant_estimate` sets `food-ledger-v11`, and
+`FoodLedgerGRDBStore.schemaVersion` and the store's open check accept it. An archive or
 store holding none of the three keeps its contract and its bytes. If 11, daily export version 4 or
 a name used here is taken when the phase starts, the phase takes the next free one and says so.
 
@@ -435,10 +480,14 @@ Each route named by estimates v2, and what assistant estimates do on it.
   candidate; this one cannot be, because assistant values live in the saved version and not in the
   candidate, so it is detected from the version's provenance and the decision's evidence list.
   Quick add gains an ineligibility reason for it, and the save service refuses a one-step save of
-  a state holding a capture. On the Confirm that opens, the earlier reply is offered again when
-  its request code matches the details carried, with every row unticked and the line "From your
-  assistant's reply of <date>" (decision A6). Ticking a row then cites the already-stored capture,
-  which the existing retained-evidence rule does not write twice. If the code does not match, the
+  a state holding a capture. A new log built from a saved decision drops that decision's capture and
+  choices evidence IDs, as estimates v2 does for leave-out IDs (today `relogInput` copies the
+  saved candidate's evidence IDs whole). On the Confirm that opens, the earlier reply block is
+  offered again when its request code matches the details carried, with every row unticked and
+  the line "From your assistant's reply of <date>" (decision A6). It is parsed afresh against the
+  new log's parse context, so a row may be classified differently from before, and a **new**
+  capture is built from it; that capture joins the new log only when a row is ticked. With nothing
+  ticked the new log cites no capture and keeps its contract. If the code does not match, the
   reply is not offered.
 - **Daily totals** keep `includesEstimates`; a partial total stays a known minimum.
 - **Search, the catalogue and import** are untouched. An assistant value never enters a catalogue
@@ -457,8 +506,13 @@ version 3's shape plus the fields below**, recorded as a dated amendment to
 - Origin `assistant_estimate` joins the closed origin table. The value exports `state:
   "estimated"`, `calculated: false`, `source_kind` `assistant_estimate`, and `estimate_quality`,
   required, `medium` or `low` only (a `high` is rejected for this kind).
-- No `content_hash`, no address, no prompt text and no reply text: the capture never leaves the
-  device through the export.
+- No `content_hash`, no address, no prompt text and no reply text. Today the export writes each
+  provenance's stored `source_release_id`; for this kind it writes the constant
+  `assistant-pasted-reply` instead, never the per-capture identifier, so no digest of the prompt
+  or reply leaves the device through the export.
+- An unknown value takes its row origin from the entry's first provenance in catalogue order
+  today. That lookup skips `assistant_estimate` provenance, so an unknown is never attributed to
+  the assistant; decision A8 guarantees another provenance exists.
 - Every `approved_estimate` value in a version 4 file carries `estimate_quality_basis`, closed
   list `catalogue` or `lowered_on_assistant_advice`, and `estimate_quality` is the tier shown for
   that log. In a version 3 file the key is absent.
@@ -483,11 +537,11 @@ the owner approves, and checks `privacy-policy.txt` against it. Proposed wording
 
 New row in "Allowed egress":
 
-> | Clipboard, this iPhone only, expiring after ten minutes | The assistant prompt for one food on Confirm: the food's name, variety, state and details as shown there, its brand unless the user switches it off, the basis, the nutrient values already known with a plain phrase for each source, the estimated values with their quality tier, the nutrients still unknown, and fixed instructions with the reply format. Never the amount eaten, a time or date, a note, a barcode, a shop, a price, receipt text, an identifier, a source address, health data or any other entry | Only when the user taps Copy prompt on Confirm and then Copy on the preview that shows the exact text. The app sends it nowhere and has no destination of its own; where the user pastes it is the user's choice | assistant-pasted-estimates-v1 |
+> | Clipboard, this iPhone only, expiring after ten minutes | The assistant prompt for one food on Confirm: the food's name, variety, state and details (bone, skin, drained, packing medium, fortification), including any words the user typed when correcting them, its brand unless the user switches it off, the basis, a 16-digit code derived from that description, the nutrient values already known with a plain phrase for each source, the estimated values with their quality tier and whether each is from the same or a similar food, the nutrients still unknown, and fixed instructions with the reply format. The name is sent as shown, so a brand, shop or pack-size word inside it is sent too, and the preview shows it. Never the amount eaten, a time or date, a note, a barcode, the shop or price of a purchase, receipt text, an entry, record or release identifier, a source address, health data or any other entry | Only when the user taps Copy prompt on Confirm and then Copy on the preview that shows the exact text. The app sends it nowhere and has no destination of its own; where the user pastes it is the user's choice | assistant-pasted-estimates-v1 |
 
 New sentences under "Stays on the device unless the user sends it":
 
-> **A pasted assistant reply** is read on the device, through the system paste control, which reads the clipboard only when tapped, and is never sent anywhere. The app contacts no assistant. The reply block the user accepted a value from is kept with that logged entry, together with the prompt it answers, and is carried by food archives the user exports or backs up; text pasted around the block is not kept. The Drive food export carries the accepted values with origin `assistant_estimate` and their tier, never the prompt or the reply.
+> **A pasted assistant reply** is read on the device, through the system paste control, which reads the clipboard only when tapped, and is never sent anywhere. The app contacts no assistant. The reply block the user accepted a value from is kept with that logged entry, together with the prompt it answers, and is carried by food archives the user exports or backs up; text pasted around the block is not kept. The Drive food export carries the accepted values with origin `assistant_estimate` and their tier, and whether a catalogue estimate's tier was lowered on the assistant's advice, never the prompt, the reply or a hash of either.
 
 What the owner should weigh: once copied, the prompt is the owner's to paste, and it then reaches
 whichever assistant and provider they choose, under that provider's terms, which the app cannot
@@ -510,10 +564,13 @@ screenshot of Confirm also shows the amount.
 | Quick add ineligibility, re-log offer, re-resolution drop and notice | `FoodLedgerApplication` | existing ports |
 | Export origin, version 4 shape rule | `FoodLedgerApplication` (`FoodDailyExportOrigin`, the shared shape rule) | closed table |
 | Migration `v11_assistant_estimate`, store open check | the GRDB store | metadata only |
-| The section, preview, paste control, rows, labels, copy for every rejection code, clipboard write (local only, ten-minute expiry) | `FoodLedgerPresentation` and the app target | presentation only; labels come from stored provenance and evidence, never a view-only flag |
+| The section, preview, rows, labels and copy for every rejection code | `FoodLedgerPresentation` | presentation only; labels come from stored provenance and evidence, never a view-only flag |
+| The text paste control | one new file in `FoodLedgerPresentation`, named in the phase gate, holding a SwiftUI `PasteButton` for plain text only | `check-boundaries.sh` allows clipboard reads only in `FoodLabelPhotoUI/LabelPastePicker.swift` today; that rule is extended to exactly this second file, with a failing fixture |
+| The clipboard write (local only, ten-minute expiry) | the app target, as Copy JSON does it, passed to the preview as a closure | `FoodLedgerPresentation` may not import UIKit |
 
-**Ports.** None new. The parser and prompt builder need no clock, identifier or hash of their own
-beyond the injected ones named above. The clipboard is touched only in presentation, by the user's
+**Ports.** No new protocol. The parser and prompt builder need no clock, identifier or hash of
+their own beyond the injected ones named above. The one new seam is the clipboard-write closure
+injected from the app target; the clipboard is read only by the paste control, on the user's
 tap. `GenericRecordNutrientLookup` is not used by this route.
 
 **Dependency direction.** Unchanged: presentation and infrastructure depend on application, which
@@ -544,7 +601,8 @@ with the parser version it names.
 
 **Extension axes.** Other Confirm routes (generic rows, Open Food Facts products), each with its
 own verifier change; a reply version with new fields; record names in the prompt for similar-food
-estimates. Each is a versioned contract change, not configuration. The eligibility rule, the
+estimates, which also widens the clipboard payload and so needs an egress amendment and the
+owner's approval. Each is a versioned contract change, not configuration. The eligibility rule, the
 ceiling, the ranking position and the evidence binding stay closed.
 
 **Contract tests** (synthetic fixtures only, in a new `docs/fixtures/assistant-estimates-v1/`: prompt
@@ -563,6 +621,24 @@ goldens, reply texts and a manifest of expected codes):
   names the key's own canonical unit for a kcal, g, mg, mcg and mL key; the per 100 g bounds at and just over each limit; `exceeds_parent`
   against a known parent and against a ticked sibling, in both tick orders; a zero is accepted; an
   instruction written inside and outside the block changes nothing.
+- Reviews of 16 November 2026 added: capture verification reproduces every row code from the
+  stored payload alone, and altering any parse-context field fails it; a string over 40
+  characters or outside the character set gives `keys`; request code goldens do not change with
+  display wording, and change with fortification; a conflicting key and a bounded key give
+  `not_fillable` and keep their stored value; a tier tick on a key then withheld or left out is
+  not saved; the save service refuses a ticked row that is ineligible, above `medium`, above its
+  parent (including after a leave-out undo on the parent) or bound to another request code,
+  whatever the reducer did; an assistant value alone does not unblock Log; an entry whose first
+  known value in catalogue order is an assistant estimate exports its unknowns with the
+  non-assistant row origin; a version 4 file holds no capture digest (seeded marker); with choices
+  evidence altered the value exports the manifest tier with basis `catalogue` and the log shows
+  "Evidence not available"; a re-log or favourite with nothing ticked holds no capture or choices
+  ID and its contract floor is not 11, and with one tick it cites a new capture; with several
+  captures accumulated the reader picks the current one; a tick-only save on a reopened log
+  reproduces the saved outcome for a selected, a rejected and an estimate entry; the GRDB and
+  in-memory stores pass the same tests for both evidence kinds; `assistant_estimate` is rejected
+  as a conflict candidate; an encoded `FoodConfirmationState` holds no suggestion state; a
+  failing boundary fixture for a paste control outside the two allowed files.
 - Eligibility and ranking: a label value, an Open Food Facts value, a merged record's value and a
   catalogue estimate (kept, withheld, left out) each refuse a value row with the right code; a
   bounded value refuses; an unknown key with no catalogue estimate accepts.
@@ -577,8 +653,7 @@ goldens, reply texts and a manifest of expected codes):
   no capture; a second paste clears ticks after the question; a correction of details clears ticks
   and blocks the rows, and returning to the subject leaves them unticked; a basis change clears
   them; a change of amount or a leave-out does not; a withheld catalogue estimate that returns
-  after a correction is unaffected and no assistant value sits on its key; an assistant value
-  counts for "Log needs one known nutrient".
+  after a correction is unaffected and no assistant value sits on its key.
 - Save and reopen: each row of the table in section 6.4; a tick alone on a reopened log writes a
   new resolution version, keeps identity, decision record and outcome, and is not a correction;
   untouched nutrients keep their provenance bytes; a save failure leaves neither capture nor log;
@@ -608,7 +683,8 @@ identical-results test above.
 
 ## 12. Decisions for the owner
 
-None is decided. In the order they should be asked, each with a recommendation.
+None is decided. In the order they should be asked, each with a recommendation. A8 was added by
+the invariant review.
 
 - **A1. May the brand be in the prompt?** *Recommended: yes, shown in the preview, with an
   "Include brand" switch that starts on.* A brand lets the assistant look at the maker's own
@@ -626,7 +702,10 @@ None is decided. In the order they should be asked, each with a recommendation.
 - **A4. What does a tier suggestion do?** *Recommended: a ticked suggestion lowers the tier shown
   for that log only, and never raises one.* Alternatives: show it as advice with nothing to tick
   and nothing stored (smaller: no choices evidence and no `estimate_quality_basis` in the export);
-  or leave tier suggestions out of v1.
+  or leave tier suggestions out of v1. The architecture gate's view, stated for the owner: tier
+  lowering is the costliest part of this route (a second evidence kind, an amendment to estimates
+  v2, a precedence rule and a new export field) for a change to one log's display, and leaving it
+  out removes most of the amendment surface.
 - **A5. A catalogue estimate that is withheld or left out.** *Recommended: the reply cannot fill
   that nutrient.* It keeps "one source per nutrient" fixed for the log and means a returning
   catalogue estimate never meets an assistant value. Alternative: let a reply fill a withheld key
@@ -640,21 +719,61 @@ None is decided. In the order they should be asked, each with a recommendation.
   Alternative: refuse every zero from a reply, which is stricter about "unknown is never zero" and
   loses true zeros such as fibre in butter.
 
-## 13. Review record
+- **A8. May an assistant value be a log's only known nutrient?** *Recommended: no.* When every
+  other value was withheld or left out, Log stays blocked. It keeps a model's reply from ever
+  being the whole of a log's nutrition and keeps every exported unknown attributable to a real
+  source. Alternative: yes, which fills a little more and needs an export rule for an entry
+  whose only provenance is the assistant.
+
+## 13. Left to the phase gate
+
+Both reviews of 16 November 2026 left these to the implementation phase's own gate. None changes
+the contract's rules; each must be settled against the code before production work.
+
+- A tick-only save on a reopened log writes a new product version and a new resolution at ordinal
+  1 under today's save path, so quick add's detector would read it as corrected; the new
+  ineligibility case is tested ahead of the sheet case, and the assertion text must not start with
+  the corrected-confirmation wording. List the sites.
+- `CandidateDecision.init` recomputes the outcome from contradictions, so the saved outcome is
+  reproduced and asserted equal, not copied.
+- The new `sourceID` reaches generic consumers (Food Log row source lists, views that fall back
+  to the raw identifier): enumerate them and give the display name.
+- Repeated keys and a bare `NaN` are not detectable with Foundation's JSON readers, so the parser
+  needs its own strict reader; "same state, same bytes" needs a pinned number format in the prompt.
+- View reply escapes control and bidirectional characters, although section 4.1's limits leave
+  little room for them.
+- Whether Your food database candidates can carry `missing_conversion`, and the database
+  candidate's release `sourceID`, were not confirmed in code; section 5.1's wording covers both.
+
+## 14. Review record
 
 - 16 November 2026: written in one session. Read in full for it: `AGENTS.md`, estimates v2,
   estimates v1, `privacy-and-egress.md` and daily export v2. Read in part: the Confirm save path
   (`FoodConfirmation.swift`, the types at the top and `save` through `relogState`), and
   [pasted label AI text v1](pasted-label-ai-text-v1.md) sections 4.4 to 4.9 with its outline only.
-- **Not read, so every statement about them rests on estimates v2's description:**
-  `FoodReresolutionService`, the quick add service, `FoodDailyExport` beyond its origin table,
-  `SourceRelease` and `CaptureEvidence` validation, `FoodDetailsSheet` and `privacy-policy.txt`.
-  The phase gate must check each against the code before any production change.
-- **No architecture-gate or invariant-reviewer pass has been run on this text.** No owner
-  decision has been taken.
+- **Not read by the author:** `FoodReresolutionService`, the quick add service, `FoodDailyExport`
+  beyond its origin table, `SourceRelease` and `CaptureEvidence` validation, `FoodDetailsSheet`
+  and `privacy-policy.txt`. The reviewers below read the first four; `FoodDetailsSheet` in part;
+  nobody has read `privacy-policy.txt`, `DailyFoodExportIdentityPolicy` or the re-resolution
+  providers for this text. No owner decision has been taken.
 - 16 November 2026: one local Qodo pass on 46f1b8d (auto depth, issue and compliance reviewers,
   coverage complete), four findings, all accepted and folded in: the version 4 validator line read
   as forbidding catalogue estimates; a wrong JSON type had both a whole-reply and a row outcome;
   rejection and zero copy named mg for every nutrient; and a lowered tier had two authorities
-  against estimates v2, now stated as an amendment with a precedence rule. **These fixes have had
-  no review of their own.**
+  against estimates v2, now stated as an amendment with a precedence rule.
+- 16 November 2026: blind architecture-gate and invariant reviews by two subagents on 0113764,
+  each checking the claims against the code the author had not read. Both PASS WITH CHANGES, six
+  blocking findings each, overlapping. Neither found a route from an assistant value to a measured
+  value, to a tier above `medium`, to a default selection or to a save without a tick and Log; the
+  save path, re-resolution, quick add, port and stored-shape claims were confirmed in code. Folded
+  in, each checked first: a conflict between label values is stored as `.unknown` and was
+  eligible (now `not_fillable`); the per-reply release identifier would have reached the Drive
+  export (now a constant); strings in the block were unbounded (now limited); fortification was
+  missing from the details and the request code; a tier tick could outlive its estimate; the
+  egress row was incomplete; verification could not reproduce context-dependent row codes (now a
+  stored parse context, with the sibling rule a tick rule and save as the authority); unknowns
+  could be attributed to the assistant in the export (row origin skips it, and decision A8); the
+  paste control and clipboard write had no legal home under the boundary script; re-log carried
+  capture IDs by default; the request code hashed display words; the whole-paste hash is gone.
+  Section 13 lists what they left to the phase gate. **These fixes have had no review of their
+  own.**
