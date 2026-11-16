@@ -683,11 +683,11 @@ identical-results test above.
 
 ## 12. Decisions for the owner
 
-None is decided. In the order they should be asked, each with a recommendation. A8 was added by
+A1 is decided; A2 to A8 are open. In the order they should be asked, each with a recommendation. A8 was added by
 the invariant review.
 
-- **A1. May the brand be in the prompt?** *Recommended: yes, shown in the preview, with an
-  "Include brand" switch that starts on.* A brand lets the assistant look at the maker's own
+- **A1. May the brand be in the prompt? Decided by the owner on 16 November 2026: yes, shown in
+  the preview, with an "Include brand" switch that starts on** (the recommendation). A brand lets the assistant look at the maker's own
   figures, which is most of the value for a packaged food, and the owner already shows the brand
   when they screenshot a pack. Cost: the brand reaches whichever assistant the owner pastes into.
   Alternatives: switch starts off; brand never included (weaker estimates for branded foods, and
@@ -755,7 +755,7 @@ the contract's rules; each must be settled against the code before production wo
   beyond its origin table, `SourceRelease` and `CaptureEvidence` validation, `FoodDetailsSheet`
   and `privacy-policy.txt`. The reviewers below read the first four; `FoodDetailsSheet` in part;
   nobody has read `privacy-policy.txt`, `DailyFoodExportIdentityPolicy` or the re-resolution
-  providers for this text. No owner decision has been taken.
+  providers for this text.
 - 16 November 2026: one local Qodo pass on 46f1b8d (auto depth, issue and compliance reviewers,
   coverage complete), four findings, all accepted and folded in: the version 4 validator line read
   as forbidding catalogue estimates; a wrong JSON type had both a whole-reply and a row outcome;
@@ -777,3 +777,5 @@ the contract's rules; each must be settled against the code before production wo
   capture IDs by default; the request code hashed display words; the whole-paste hash is gone.
   Section 13 lists what they left to the phase gate. **These fixes have had no review of their
   own.**
+- 16 November 2026: the owner decided A1 (brand included, switch starts on). A2 to A8 are open,
+  and the proposal as a whole is not accepted.
