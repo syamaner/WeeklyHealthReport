@@ -396,10 +396,13 @@ here:
   reason whose texts are the leave-out's own, pinned in the phase gate beside the existing ones.
   The version's nutrients are the candidate's (or the correction's) with the left-out and
   withheld keys unknown; the phase gate names the save and reopen guards such a version passes.
-  Undo is offered after Log too, under section 3.2. **On the same candidate, an estimate key that
-  is unknown in the saved version stays unknown through a later change unless the owner undoes a
-  verified leave-out**, so altered evidence or a correction rebuilt from the candidate can never
-  bring a left-out value back. Re-resolution is governed by its own bullet below.
+  Undo is offered after Log too, under section 3.2. **On the same candidate, a key the owner left out stays unknown through a later change unless
+  the owner undoes a verified leave-out**, so altered evidence or a correction rebuilt from the
+  candidate can never bring a left-out value back. A key that was only withheld is different: a
+  later correction of details re-runs section 3.2 from the manifest, so removing the
+  contradiction brings the estimate back with its label, and no leave-out evidence is involved.
+  A saved unknown estimate key with neither verified leave-out evidence nor a passing re-check
+  stays unknown. Re-resolution is governed by its own bullet below.
 - **Quick add and re-log always go through Confirm.** A pinned or re-logged entry that holds an
   approved estimate, a withheld value or a left-out value never uses the one-step sheet. It opens
   Confirm, section 3.2 runs at bind against the carried details, the labels and tiers are shown,
@@ -651,7 +654,9 @@ skill's checker and the Swift decoder both read it for codec codes):
   carry none; a version 3 export value without `estimate_quality` is rejected; a leave-out alone
   compares as edited and writes a product version and assertion; a key both withheld and left out
   is stored as withheld, and undo on a reopened log runs the check and withholds on an unreadable
-  record; with leave-out evidence altered, a later correction keeps the saved unknowns; a
+  record; with leave-out evidence altered, a later correction keeps the saved unknowns; a withheld key
+  returns with its label when a correction of details removes the contradiction, and stays
+  unknown when the record cannot be read; a
   leave-out on a new log still asks and records identity decisions and stores the uncorrected
   outcome; the leave-out assertion and edit reason texts are pinned, new and reopened; after
   undoing every leave-out the stale item is ignored, and of three successive changes only the
@@ -791,3 +796,7 @@ a whole on the same day (section 9).
   The seventh round's fixes had no review of their own at acceptance; the items the reviewers
   left to the phase gate are in section 5 and the contract tests. Recorded with the acceptance:
   dated amendment notes in estimates v1, the E3 disposition and the identity contract (A2).
+- 16 November 2026, before the PR was marked ready: main was merged in (one conflict, the ledger
+  file, both sections kept) and a last Qodo pass on the whole branch raised two findings, both
+  fixed: the egress paragraph still called this contract a proposal, and a withheld value could
+  not return after its contradiction was corrected.
