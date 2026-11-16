@@ -9,9 +9,11 @@ reviewed. It has no issue of its own yet and closes nothing. Programme #424.
 It is a delta on [estimates on catalogue v2](personal-food-catalogue-estimates-v2-proposal.md)
 (accepted 16 November 2026, not implemented), called "estimates v2" below, and through it on
 [approved estimates v1](personal-food-catalogue-estimates-v1.md). It repeats neither. Everything in
-those contracts that this one does not name stays as written, and nothing here amends an accepted
-contract: where a number or a list would grow (food contract, daily export version, the label
-list), this proposal takes the next free value and says so.
+those contracts that this one does not name stays as written. Where a number or a list would grow
+(food contract, daily export version, the label list), this proposal takes the next free value and
+says so. Accepting it would need dated amendment notes in two accepted contracts, written at
+acceptance and not here: estimates v2 sections 3.3 and 5, for the lowered tier of section 5.3 (if
+decision A4 is taken as recommended), and daily export v2, for version 4 (section 9).
 
 ## 1. What this adds, and what it does not
 
@@ -185,7 +187,7 @@ Whole-reply rejections, checked in this order (the first one found is shown):
 | `no_block` | no opening line, or no closing line after it | No reply block was found. Ask your assistant to answer in the format from the prompt. |
 | `more_than_one_block` | a second opening line | More than one reply block was found. Paste a single reply. |
 | `not_json` | the block is not one JSON object, or holds a repeated key | The reply block could not be read. |
-| `keys` | a missing or unexpected key at the top level or in any row, a wrong JSON type, or an array over 39 rows | The reply block has missing or unexpected fields. |
+| `keys` | a missing or unexpected key at the top level or in any row; a wrong JSON type anywhere (`value` not a JSON number, any other field not a string, an array or row of another type); or an array over 39 rows | The reply block has missing or unexpected fields. |
 | `schema` | `schema` is another value | This reply uses a format this version of the app does not read. |
 | `different_request` | `request` is not the code of the food and details now on Confirm | This reply was written for a different food or different details. Copy the prompt again. |
 | `basis` | `basis` differs from the entry's | The reply is per 100 ml and this food is per 100 g. Values are never converted. (Or the reverse.) |
@@ -197,16 +199,20 @@ Row rejections (the row is listed under "Not used", with its reason, and cannot 
 | Code | When | Shown as |
 |---|---|---|
 | `unknown_nutrient` | key not in the inventory | Not a nutrient this app records. |
-| `unit` | unit is not the key's canonical unit | Wrong unit: expected mg. Values are never converted. |
-| `value` | not a finite, non-negative number | Not a usable number. |
+| `unit` | a string that is not the key's canonical unit | Wrong unit: expected <the key's canonical unit>. Values are never converted. |
+| `value` | a JSON number that is negative or too large to hold as a finite value | Not a usable number. |
 | `impossible_value` | on a per 100 g entry, a mass above 100 g (in the key's unit), or energy above 900 kcal; on a per 100 ml entry, energy above 900 kcal | More than 100 g of the food can hold. |
 | `exceeds_parent` | saturated, monounsaturated or polyunsaturated fat above total fat, or sugar above carbohydrates, where the parent is known on the log or ticked from the same reply | More than the total fat (or carbohydrate) of this food. |
 | `already_known` | the key has a value on the log from a label, an Open Food Facts record or a merged record | Already known from a stronger source. It is not replaced. |
 | `has_catalogue_estimate` | the key has a catalogue estimate, whether kept, withheld or left out (decision A5) | This food already has a catalogue estimate for it. |
-| `quality` | a token outside the list | Quality not recognised. |
+| `quality` | a string outside the list | Quality not recognised. |
 | `tier_above_ceiling` | `high` on a value | An assistant's estimate cannot be rated above "some doubt". |
 | `no_estimate` | a tier row for a key with no kept catalogue estimate | There is no estimate to rate. |
 | `tier_not_lower` | a tier row equal to or above the estimate's tier | Not lower than the tier this estimate already has. Tiers are never raised here. |
+
+So the two tables never compete: a field of the wrong JSON type is a fault of shape and rejects
+the whole reply with `keys`, and the row codes `value`, `unit` and `quality` apply only to a field
+of the right type with an unusable content.
 
 `exceeds_parent` is the one rule that depends on other ticks: a child row whose parent is an
 unticked row of the same reply is checked against it when either is ticked, and the later tick is
@@ -214,7 +220,7 @@ refused with the reason. The bounds are mechanical, not a judgement of the food.
 other arithmetic is checked (macronutrients are not summed, energy is not recomputed), and per 100
 ml mass values have no bound because no density is ever inferred.
 
-**A zero** is accepted as a value (decision A7) and shown as "0 mg" with its label. The parser
+**A zero** is accepted as a value (decision A7) and shown as 0 in the nutrient's canonical unit, with its label. The parser
 cannot tell an estimated zero from a lazy one; the prompt forbids zero for unknown, each row is
 ticked singly, and there is no "tick all".
 
@@ -263,6 +269,14 @@ A ticked tier row **lowers** the tier shown for that catalogue estimate, for thi
 never raises one (the codec's ceilings rest on evidence a reply cannot supply), never changes the
 value, its provenance bytes, the capture manifest, the ranking or the contradiction veto, and
 never touches the catalogue. The lasting correction is the owner's review sheet at the next build.
+
+**Which tier governs.** Estimates v2 says the tier shown comes from the evidence record in the
+capture manifest. This route adds one rule on top, as a dated amendment to that contract: the tier
+shown and exported for a log is the manifest's, unless the effective resolution version's verified
+choices evidence (section 6.3) names a lower tier for that nutrient, in which case it is that
+lower one. The manifest stays the record of the tier the catalogue gave; a choices item that
+fails verification, names a tier that is not lower, or belongs to another version is ignored, and
+the manifest's tier is shown.
 
 ### 5.4 The ceiling and the visible label
 
@@ -453,7 +467,8 @@ version 3's shape plus the fields below**, recorded as a dated amendment to
   by the user for that entry. It is not measured and does not come from a label or a food
   composition table."
 - Validator row for 4: version 3's row, with at least one `assistant_estimate` value or lowered
-  tier required and zero `approved_estimate` values allowed. A version 2 or 3 file carrying any of
+  tier required. It may hold any number of `approved_estimate` values, including none (version 3
+  requires at least one; version 4 does not). A version 2 or 3 file carrying any of
   these fields is rejected. 2, 3 and 4 replace each other for a date under the same Drive file ID.
   A build without this change rejects a version 4 file in `validate` and so fails closed.
 - An unticked or dropped suggestion exports as unknown, never zero.
@@ -541,9 +556,11 @@ goldens, reply texts and a manifest of expected codes):
   assumption text yields a prompt with no marker); the request code changes with each subject field
   and with nothing else; pasting the prompt itself gives `not_json`.
 - Parser: one fixture per whole-reply code and per row code, with the precedence order pinned; a
-  block inside a code fence and one with text before and after are read; a repeated JSON key, a
-  string number, a boolean, `NaN`, a negative, an extra key at each level and a 40-row array are
-  rejected with their codes; the per 100 g bounds at and just over each limit; `exceeds_parent`
+  block inside a code fence and one with text before and after are read; a repeated JSON key
+  and a bare `NaN` give `not_json`; a string number, a boolean and a null as `value`, an extra key
+  at each level and a 40-row array give `keys` even beside a usable row; a negative and an
+  out-of-range number give the row code `value` and leave the other rows usable; a wrong unit
+  names the key's own canonical unit for a kcal, g, mg, mcg and mL key; the per 100 g bounds at and just over each limit; `exceeds_parent`
   against a known parent and against a ticked sibling, in both tick orders; a zero is accepted; an
   instruction written inside and outside the block changes nothing.
 - Eligibility and ranking: a label value, an Open Food Facts value, a merged record's value and a
@@ -552,7 +569,8 @@ goldens, reply texts and a manifest of expected codes):
 - Ceiling: `high` on a value is refused by the parser, by `NutrientEntry` validation and by the
   export validator; `.measured` and `.bounded` reject `assistant_estimate`; each required
   provenance field is rejected when missing.
-- Tiers: a lower tier ticks and shows; equal and higher are not offered; a tier row for a key
+- Tiers: a lower tier ticks, shows and exports, on save and on reopen; with the choices evidence
+  altered, or naming a tier that is not lower, the manifest's tier is shown; equal and higher are not offered; a tier row for a key
   with no kept estimate is refused; a lowered tier changes no value, provenance byte or manifest
   byte.
 - Confirm: nothing is ticked after a paste; there is no bulk tick; Log with nothing ticked stores
@@ -632,5 +650,11 @@ None is decided. In the order they should be asked, each with a recommendation.
   `FoodReresolutionService`, the quick add service, `FoodDailyExport` beyond its origin table,
   `SourceRelease` and `CaptureEvidence` validation, `FoodDetailsSheet` and `privacy-policy.txt`.
   The phase gate must check each against the code before any production change.
-- **No architecture-gate or invariant-reviewer pass has been run on this text.** The local Qodo
-  pass is recorded below. No owner decision has been taken.
+- **No architecture-gate or invariant-reviewer pass has been run on this text.** No owner
+  decision has been taken.
+- 16 November 2026: one local Qodo pass on 46f1b8d (auto depth, issue and compliance reviewers,
+  coverage complete), four findings, all accepted and folded in: the version 4 validator line read
+  as forbidding catalogue estimates; a wrong JSON type had both a whole-reply and a row outcome;
+  rejection and zero copy named mg for every nutrient; and a lowered tier had two authorities
+  against estimates v2, now stated as an amendment with a precedence rule. **These fixes have had
+  no review of their own.**
