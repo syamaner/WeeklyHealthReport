@@ -457,7 +457,8 @@ workspace and is sent generic food descriptions only: no brand, shop, receipt te
 nutrient value or entry ID. `privacy-and-egress.md` must name its destination, payload and the
 owner's approval date, as it does for other developer tooling. The first use, on 16 November
 2026 with the owner's approval of each payload list, ran before that record existed; the record
-is owed and is added only with the owner's approval of its wording. A further destination or
+was added the same day, with the owner's approval of its wording, in the change that carries
+this sentence. A further destination or
 payload needs a fresh approval and its record first; the repository receives this contract,
 code and synthetic fixtures only.
 
@@ -750,5 +751,6 @@ contract: acceptance follows the re-review named in section 9.
   Folded in: quick add and re-log always go through Confirm; the changed-facts predicate decides
   only whether new records are written, so a leave-out is not a correction; six evaluator counts,
   four of them must-be-zero; the closed label list; the reader takes only the effective version's
-  leave-out item; a missing evidence row fails closed. Not yet done: the classifier's record in
-  `privacy-and-egress.md`, which waits for the owner. These fixes have had no review of their own.
+  leave-out item; a missing evidence row fails closed. The classifier's record was then added to
+  `privacy-and-egress.md` with the owner's approval of its wording. These fixes have had no
+  review of their own.
