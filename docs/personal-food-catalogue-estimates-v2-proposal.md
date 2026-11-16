@@ -224,10 +224,11 @@ rule (reject when the record's preparation is unknown) was offered in decision P
   - The re-admission list is private and stays in the owner's workspace; it holds until the owner
     withdraws a row, after which the value counts as refused again. The file carries no marker
     beyond the `assumption` text.
-  - The evaluator reports four counts: refused estimates not re-admitted, which must be zero;
-    re-admitted estimates above `medium`, which must be zero; re-admitted estimates; and
-    estimates on entries with no E3 counterpart. The private change
-    report lists the re-admitted rows.
+  - **The evaluator's counts, six in all.** Four must be zero: a close reference passed off as
+    the same food (first obligation above); refused estimates not re-admitted; re-admitted
+    estimates above `medium`; and aggregator estimates above `medium` whose underlying source is
+    not stated (section 3.3). Two are reported as numbers: re-admitted estimates, and estimates on
+    entries with no E3 counterpart. The private change report lists the re-admitted rows.
 
 ### 3.2 What Confirm must do with it
 
@@ -272,8 +273,11 @@ not corrected reads no record and shows its saved values as saved, also after th
 moved, and a change of quantity alone is not a correction of details. Undoing a
 leave-out on a reopened log is the one other trigger: it runs the check for that nutrient with
 the manifest's source, hash and record ID, and a record that cannot be read withholds it.
-**Withholding wins over leaving out:** a withheld key is never in the leave-out set, so an undo
-can never restore a value the check would withhold. A value that was withheld
+The manifest it reads must have the payload hash named in the leave-out evidence.
+**Withholding wins over leaving out:** the saved leave-out evidence never lists a withheld key, so
+an undo can never restore a value the check would withhold. The Confirm set itself keeps the
+owner's choice until the owner undoes it: a key left out, then withheld, then no longer withheld
+before Log is still left out. A value that was withheld
 when the log was saved shows the one notice "Estimate left out when this was logged", since the
 reason is not stored.
 
@@ -294,8 +298,8 @@ meaning and sets no target.
   probability or free text is stored in the file.
 - **Shown** as green, amber and red, always with text: "good match", "some doubt", "rough". The
   visible label joins the method and the tier, so a similar food is never shown as the food's
-  own: "Estimated, good match", "Estimated, some doubt", "Estimated from a similar food, some
-  doubt", "Estimated from a similar food, rough". The colour marks that label, never the nutrient
+  own. The list is closed: "Estimated, good match", "Estimated, some doubt", "Estimated, rough",
+  "Estimated from a similar food, some doubt", "Estimated from a similar food, rough". The colour marks that label, never the nutrient
   value; it never appears without its text on any surface; totals carry no tier. The reasons sit
   in details with the source type, states and assumption.
 - **Ceilings the codec enforces** (`estimate-quality`), so no classifier or typing slip can
@@ -305,7 +309,7 @@ meaning and sets no target.
   the ceiling is `medium`, except that an estimate whose `state_basis` is `unknown` is at most
   `low`. Below a ceiling the builder may always go lower. One more ceiling is a builder rule with
   an evaluator count, since the file cannot show it: an aggregator page whose underlying source
-  is not stated is at most `medium`.
+  is not stated is at most `medium`, and the count of those above it must be zero (section 3.1).
 - **Who sets it.** The builder proposes a tier from the evidence, and may take advice from a
   classifier run at build time, outside the app, on generic food descriptions only (section 6). The tier is
   written only for a row the owner accepted on the review sheet with that tier shown. A model's
@@ -372,17 +376,28 @@ here:
 - **Leave-out state and versions.** The set of left-out nutrient keys is Confirm state of its own,
   outside `FoodCorrection` (if that state is persisted, the set decodes as empty when absent). On
   a reopened log it is seeded from the effective resolution version's verified leave-out evidence.
-  **One application predicate, "the log's food facts changed", replaces today's test of the
-  correction alone:** a correction is present, or the leave-out set differs from its seed (for a
-  new log, is not empty). Every site that today treats "no correction" as "unchanged" (the save
-  path, the edit comparison and the log policy) adopts it, and the phase gate lists them. When it
-  is true the save takes the path a correction takes today: a new product version, a user
-  assertion, a resolution version and a candidate decision with the accepted outcome, never the
-  saved ones reused. The version's nutrients are the candidate's (or the correction's) with the
-  left-out and withheld keys unknown; the phase gate names the save and reopen guards such a
-  version passes. Undo is offered after Log too, under section 3.2. **An estimate key that is
-  unknown in the saved version stays unknown through a later change unless the owner undoes a
-  verified leave-out**, so missing or altered evidence can never bring a left-out value back.
+  **One application predicate, "the log's food facts changed":** a correction is present, or the
+  leave-out set differs from its seed (for a new log, is not empty). It replaces today's test of
+  the correction alone **only where that test decides whether new records are written**: the
+  save path's choice between new and reused records, the edit comparison, and the log policy's
+  unchanged check; the phase gate lists the sites. It does not replace the correction test
+  anywhere else, so a leave-out alone is not a correction: identity differences are still asked
+  and recorded, label and layer admission are unchanged, and the candidate decision's outcome is
+  computed as for an uncorrected save (`selected`, or what the contradiction rule gives), never
+  forced to `rejected`. When the predicate is true a new product version, resolution version and
+  candidate decision are written, never the saved ones reused, with a user assertion and an edit
+  reason whose texts are the leave-out's own, pinned in the phase gate beside the existing ones.
+  The version's nutrients are the candidate's (or the correction's) with the left-out and
+  withheld keys unknown; the phase gate names the save and reopen guards such a version passes.
+  Undo is offered after Log too, under section 3.2. **On the same candidate, an estimate key that
+  is unknown in the saved version stays unknown through a later change unless the owner undoes a
+  verified leave-out**, so altered evidence or a correction rebuilt from the candidate can never
+  bring a left-out value back. Re-resolution is governed by its own bullet below.
+- **Quick add and re-log always go through Confirm.** A pinned or re-logged entry that holds an
+  approved estimate, a withheld value or a left-out value never uses the one-step sheet. It opens
+  Confirm, section 3.2 runs at bind against the carried details, the labels and tiers are shown,
+  and earlier leave-outs are not carried, with the re-resolution notice. Quick add gains its own
+  ineligibility reason for this.
 - **Leave-out evidence `pfd-estimate-left-out-v1`.** It exists for one purpose: so that a
   reopened log can say "Left out by you" and not the withheld notice. One item per saved
   resolution version whose set is not empty; evidence is immutable, so the earlier items stay.
@@ -397,8 +412,11 @@ here:
   `captureMethodVersion` `pfd-estimate-left-out-v1`, committed in the log's `LedgerMutation`.
   Other `.labelText` readers select by `captureMethodVersion` and ignore it, and its reader
   ignores theirs (one test each way). Verified in the application on save and on reopen exactly as
-  the manifest is; missing or altered evidence shows "Evidence not available" and never changes
-  stored values. Outside the log's own details a left-out value reads as any unknown does
+  the manifest is; altered evidence shows "Evidence not available" and never changes
+  stored values. A missing evidence row is a store integrity failure, as for any listed evidence
+  today: the log does not load, which fails closed. Since decisions accumulate evidence IDs across
+  versions, the reader accepts only the item whose resolution version ID is the effective
+  version's; earlier items may stay listed and are ignored. Outside the log's own details a left-out value reads as any unknown does
   ("Unknown, no matching source", export reason `no_compatible_source`); that wording is accepted
   for this release, and no new reason is added.
 - **Stored shapes** (no new `UnknownReason` and no new stored raw value beyond `approved_estimate`):
@@ -435,9 +453,12 @@ and the
 implementing change records that in `privacy-and-egress.md` with the other two. The private catalogue, its review sheets and
 its change reports stay in the owner's private workspace. **The build-time classifier of section
 3.3 is not part of the app and adds nothing to the app's egress list.** It runs from the private
-workspace, against a destination the owner approves by name before any call, and it is sent
-generic food descriptions only: no brand, shop, receipt text, amount, date, nutrient value or
-entry ID. The private skill records that approval; the repository receives this contract,
+workspace and is sent generic food descriptions only: no brand, shop, receipt text, amount, date,
+nutrient value or entry ID. `privacy-and-egress.md` must name its destination, payload and the
+owner's approval date, as it does for other developer tooling. The first use, on 16 November
+2026 with the owner's approval of each payload list, ran before that record existed; the record
+is owed and is added only with the owner's approval of its wording. A further destination or
+payload needs a fresh approval and its record first; the repository receives this contract,
 code and synthetic fixtures only.
 
 ## 7. Architecture gate
@@ -533,7 +554,7 @@ skill's checker and the Swift decoder both read it for codec codes):
 - Every inherited rejection fixture, re-based on v2, keeps its code string, except `own-reference`.
 - Inherited codes: one fixture each for `token`, `date`, `digest` and `derivation`; an estimates v1
   file's full code list is exactly `schema`; an unknown schema with `estimate_evidence` likewise.
-- Codec table: one fixture per code (`estimate-quality` for each ceiling, with a missing tier giving `evidence-keys` and an unknown
+- Codec table: one fixture per code (`estimate-quality` for each ceiling, including a page estimate with `state_basis` `unknown` rejected at `medium` and accepted at `low`, with a missing tier giving `evidence-keys` and an unknown
   tier `token`; an accepted `high` for each of the two methods; a similar-food estimate accepted at `medium` and `low` on an own close-match record and
   on a non-own record; an own close-match record cited as the same food gives `estimate-own-method`;
   `estimate-own-merge`, `estimate-own-held` for a `raw` and a `cooked` entry with a same-food record, and a `raw` entry accepted with its own `close` record; `estimate-own-method` for an own same-food record cited as `carried_from_similar_food`, an own `close` record cited as `carried_from_same_food`, `direct` and `derived`,
@@ -594,8 +615,9 @@ skill's checker and the Swift decoder both read it for codec codes):
   reconciliation and recovery.
 - Search: an entry that gains its first known nutrient from an estimate becomes visible; an
   estimated fat value takes part in the requested-fat partition; escalation sufficiency counts it.
-- Re-admission, in the evaluator with synthetic lists: the four counts, including a re-admitted
-  estimate above `medium` and a close reference passed off as the same food, both refused; a withdrawn row counts as
+- Evaluator counts, with synthetic lists: each of the six, with a failing case for each of the
+  four that must be zero (pass-off, refused not re-admitted, re-admitted above `medium`,
+  aggregator above `medium` with no stated source); a withdrawn row counts as
   refused again; a never-re-admissible class is refused even when listed; a list row with no
   accepted sheet row is refused; a re-admitted own record on a `raw` entry still gives
   `estimate-own-held`.
@@ -604,7 +626,12 @@ skill's checker and the Swift decoder both read it for codec codes):
   carry none; a version 3 export value without `estimate_quality` is rejected; a leave-out alone
   compares as edited and writes a product version and assertion; a key both withheld and left out
   is stored as withheld, and undo on a reopened log runs the check and withholds on an unreadable
-  record; with leave-out evidence missing, a later correction keeps the saved unknowns; the
+  record; with leave-out evidence altered, a later correction keeps the saved unknowns; a
+  leave-out on a new log still asks and records identity decisions and stores the uncorrected
+  outcome; the leave-out assertion and edit reason texts are pinned, new and reopened; after
+  undoing every leave-out the stale item is ignored, and of three successive changes only the
+  newest is read; a key left out, withheld and released before Log stays left out; quick add and
+  re-log of an entry with an estimate, a withheld key or a left-out key open Confirm; the
   manifest carries the tier and a reopened log shows the tier it was logged with after the
   database is replaced; the tier changes no value, provenance kind, ranking or veto; a
   similar-food estimate is withheld on a known contradiction like any other; export version 3
@@ -716,4 +743,12 @@ contract: acceptance follows the re-review named in section 9.
   label names a similar food; one "food facts changed" predicate covers leave-outs; the evidence
   ID rides on the decision's embedded candidate; withholding wins over leaving out and undo is
   checked; export and privacy text name the new fields and the build-time classifier; the schema
-  order sentence. These fixes have had no review of their own. These fixes have had no review of their own.
+  order sentence. These fixes have had no review of their own.
+- 16 November 2026: sixth gates (two blind subagents, both NEEDS WORK with two blocking findings
+  each, the rest left to the phase gate) and one Qodo pass (one new finding, the same as a gate's).
+  No route to a measured value, a label overwrite, a zero or an app network call was found.
+  Folded in: quick add and re-log always go through Confirm; the changed-facts predicate decides
+  only whether new records are written, so a leave-out is not a correction; six evaluator counts,
+  four of them must-be-zero; the closed label list; the reader takes only the effective version's
+  leave-out item; a missing evidence row fails closed. Not yet done: the classifier's record in
+  `privacy-and-egress.md`, which waits for the owner. These fixes have had no review of their own.
