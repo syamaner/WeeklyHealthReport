@@ -1,7 +1,7 @@
 # Personal food database: labelled estimates on catalogue v2 (proposal)
 
 Status: **proposal, 15 November 2026, revised 16 November 2026 after a blind review (section 9).
-Not accepted, nothing implemented.** Section 8 lists the decisions; P1, P4 and P6 are decided, three are open. No app
+Not accepted, nothing implemented.** Section 8 lists the decisions; P1, P2, P4 and P6 are decided, two are open. No app
 code, skill code or fixture changes with this document. Programme #424, base contracts #419.
 
 It is a delta on two accepted contracts and repeats neither:
@@ -479,10 +479,10 @@ In order; each open one has a recommendation.
   companion is not importable by the app, and an estimates v2 release ships with no Part B result
   of its own until one is run on it. Accepting this adds dated amendment notes to estimates v1 and
   the E3 disposition.
-- **P2. How do same-food entries with no cooking state get values?** Recommended: section 3 (a
-  labelled, per-nutrient estimate from the entry's own same-food record, as identity amendment A2
-  with its contradiction veto). Stricter variant, if wanted: also reject an own-record estimate
-  whose record preparation the adapter holds as unknown; safer, fewer entries filled. Alternative:
+- **P2. How do same-food entries with no cooking state get values? Decided 16 November 2026:
+  section 3** (a labelled, per-nutrient estimate from the entry's own same-food record, as identity
+  amendment A2 with its contradiction veto). Not taken: the stricter variant, to also reject an own-record estimate
+  whose record preparation the adapter holds as unknown; safer, fewer entries filled; and
   an "as sold" state that merges; mechanical and with no free text, but it amends the merge rule,
   shows no "Estimated" label and settles every facet from the record.
 - **P3. Which E3 builder obligations bind the v2 catalogue?** Recommended: all of estimates v1
@@ -530,4 +530,5 @@ In order; each open one has a recommendation.
 - 16 November 2026: the owner decided P6 (leave out only). Section 5 lost the typed label value,
   its stored shape and its export case; the evidence item now holds left-out keys only.
 - 16 November 2026: the owner decided P1 (estimates v2 only).
+- 16 November 2026: the owner decided P2 (labelled estimates from the entry's own record).
 - Still owed before acceptance: a short re-review of sections 3.1, 3.2 and 5.
