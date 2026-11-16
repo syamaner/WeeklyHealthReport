@@ -1,7 +1,7 @@
 # Personal food database: labelled estimates on catalogue v2 (proposal)
 
 Status: **proposal, 15 November 2026, revised 16 November 2026 after a blind review (section 9).
-Not accepted, nothing implemented.** Section 8 lists the decisions; P4 is decided, five are open. No app
+Not accepted, nothing implemented.** Section 8 lists the decisions; P4 and P6 are decided, four are open. No app
 code, skill code or fixture changes with this document. Programme #424, base contracts #419.
 
 It is a delta on two accepted contracts and repeats neither:
@@ -210,8 +210,8 @@ answer those questions, every `national_composition` estimate is re-checked agai
 - Otherwise the estimate stays, labelled "Estimated".
 
 The check is one pure application policy over the estimate, the record's identity and the confirmed
-identity. It runs when Confirm is bound, after each correction, and on re-resolution of a saved log
-of a saved log. A reopened log that is not corrected shows its saved values as saved.
+identity. It runs when Confirm is bound, after each correction of details, and on re-resolution of a saved
+log. A reopened log that is not corrected shows its saved values as saved.
 
 Why this route and not a wider merge (decision P2): an "as sold" merge would give the entry the
 record's identity for every facet (amendment A1), silently settling drained, bone and packing, the
@@ -248,60 +248,52 @@ here:
   (`correction(for:)` in `FoodDetailsSheet.swift`, `FoodCorrection`). So:
   - *Identity-only corrections* keep every estimate and its "Estimated" label, subject to the
     re-check of section 3.2.
-  - *Per-nutrient correction* is added for estimated nutrients only, with two actions (decision
-    P6). **Leave out**: the nutrient is unknown for this log. **Enter the label value**: the owner
-    types the value printed on the pack. The field names the nutrient, its canonical unit and the
-    entry's basis (per 100 g or per 100 ml); it starts empty and is never pre-filled with the
-    estimate; only an exact value is accepted. No conversion is offered or inferred: a value
-    printed per serving, in another unit or as salt is not entered here and goes through the
-    label routes. It is saved as the owner's declaration, measured, as
-    import v1 decision 11 treats values the owner typed from a pack. There is no "revised
-    estimate": a typed number is the owner's declaration or it is not entered.
-  - Nutrients the owner does not touch keep their provenance byte for byte. Undoing a correction
+  - *Leave out* is the one per-nutrient action, on estimated nutrients only (decision P6): the
+    nutrient is unknown for this log. There is no field to type a value and no "revised
+    estimate", so Confirm has no route from an estimate to a measured value. A value printed on
+    the pack goes through the existing label routes, or into the catalogue as a label value on
+    the next build.
+  - Nutrients the owner does not touch keep their provenance byte for byte. Undoing a leave-out
     before Log returns the nutrient to the captured estimate, subject to section 3.2.
 - **Log needs one known nutrient.** While withholding and leaving out leave no nutrient of the log
   known, Log is blocked and the reason is shown there ("Nothing to log: every value was left
   out"). Today the builder offers no candidate without a known nutrient; this keeps that rule
-  after correction, and keeps an all-unknown row out of the daily export, which cannot attribute
+  after a leave-out, and keeps an all-unknown row out of the daily export, which cannot attribute
   one.
 - **The capture manifest (`pfd-estimate-capture-v1`) is never edited.** It is built only for a
   candidate with at least one estimated nutrient, so a log without estimates keeps its contract.
   It is built once when the candidate is bound to Confirm and stays exactly as captured, so the record of what was offered
-  survives a correction or a withheld value. A correction changes the log being confirmed, never
+  survives a leave-out or a withheld value. A leave-out changes the log being confirmed, never
   the imported database or the manifest. A manifest that no saved provenance cites any more (every
-  estimate withheld, left out or replaced) is still saved, found through the candidate's bound
+  estimate withheld or left out) is still saved, found through the candidate's bound
   evidence IDs, and still verified on reopen.
-- **Correction evidence `pfd-estimate-correction-v1`.** One item per saved resolution version in
-  which at least one estimate was left out or replaced; evidence is immutable, so a later
-  correction of the saved log writes a new item with the new version and the earlier one stays.
-  Its content names the resolution version ID it belongs to, and reopen finds it among the log's
-  capture evidence by `captureMethodVersion` and that ID, so it is found even when no provenance
-  cites it (every estimate left out, none typed). Inline `CaptureEvidence`, kind `.labelText`,
-  `originalPayload` `.text(<canonical JSON>)`, `byteHash` its SHA-256, `captureMethodVersion`
-  `pfd-estimate-correction-v1`, committed in the log's `LedgerMutation`. Content: `schema`, the
-  resolution version ID, the capture manifest's hash, the entry's `basis`, and for each corrected nutrient the key, the action
-  (`left_out` or `label_value`), the estimate's value and unit it replaced, and for `label_value`
-  the typed value and unit. Other `.labelText` readers select by `captureMethodVersion` and ignore
-  it, and its reader ignores theirs (one test each way). Verified in the application on save and on
-  reopen exactly as the manifest is; missing or altered evidence shows "Evidence not available" and
-  never changes stored values.
+- **Leave-out evidence `pfd-estimate-correction-v1`.** It exists for one purpose: so that a
+  reopened log can say "Left out by you" and not the withheld notice. One item per saved
+  resolution version in which at least one estimate was left out; evidence is immutable, so a
+  later change to the saved log writes a new item with the new version and the earlier one stays.
+  Its content is `schema`, the resolution version ID it belongs to, the capture manifest's hash
+  and the sorted keys of the nutrients left out. It holds no nutrient value; the estimate that was
+  offered is in the manifest. Reopen finds it among the log's capture evidence by
+  `captureMethodVersion` and that ID, since no provenance cites it. Inline `CaptureEvidence`, kind
+  `.labelText`, `originalPayload` `.text(<canonical JSON>)`, `byteHash` its SHA-256,
+  `captureMethodVersion` `pfd-estimate-correction-v1`, committed in the log's `LedgerMutation`.
+  Other `.labelText` readers select by `captureMethodVersion` and ignore it, and its reader
+  ignores theirs (one test each way). Verified in the application on save and on reopen exactly as
+  the manifest is; missing or altered evidence shows "Evidence not available" and never changes
+  stored values.
 - **Stored shapes** (no new `UnknownReason` and no new stored raw value beyond `approved_estimate`):
 
   | Case | Stored value | Provenance | How reopen tells it apart |
   |---|---|---|---|
   | Estimate kept | `.augmented` | `approved_estimate`, as estimates v1 section 5.1 | provenance |
-  | Withheld by section 3.2 | `.unknown`, reason `no_compatible_source` | none | the key is in the manifest and not in the correction evidence; the notice is shown again |
-  | Left out by the owner | `.unknown`, reason `no_compatible_source` | none | the key is in the correction evidence as `left_out`; shown as "Left out by you" |
-  | Label value typed | `.measured` | `manual_declaration`; `sourceID` `personal-food-database`; `manifestReference` `pfd-estimate-correction-v1#<nutrient key>`; `sourceReleaseID` the database release; `evidenceID` and `responseHash` the correction evidence's; `capturedAt` from the injected clock | provenance |
-
-  The application refuses to save a typed value without that evidence, since domain validation of
-  a measured `manual_declaration` asks for none.
+  | Withheld by section 3.2 | `.unknown`, reason `no_compatible_source` | none | the key is in the manifest and not in the leave-out evidence; the notice is shown again |
+  | Left out by the owner | `.unknown`, reason `no_compatible_source` | none | the key is in the leave-out evidence; shown as "Left out by you" |
 - **Re-resolution** of a saved log builds a fresh candidate from the active release, as it does
   today, and so a fresh manifest (the same bytes and hash when the release and entry are
-  unchanged, with a new evidence ID). Section 3.2 runs on it. Earlier corrections are **not**
-  carried: the saved version, with its typed and left-out values, stays as it is in the
-  append-only record, and the owner sees the new candidate on Confirm with the notice "Changes
-  you made to estimated values before are not carried over" and decides again before Log. With
+  unchanged, with a new evidence ID). Section 3.2 runs on it. Earlier leave-outs are **not**
+  carried: the saved version, with its left-out values, stays as it is in the
+  append-only record, and the owner sees the new candidate on Confirm with the notice "Values
+  you left out before are not carried over" and decides again before Log. With
   the database removed the entry cannot be re-resolved, as today.
 - **Nothing is selected or saved automatically.** One Log action, the quantity is always the user's,
   and import never logs. An entry whose values are all estimates is not a generic estimate under
@@ -314,7 +306,7 @@ No new destination. Import reads a local file; search and Confirm run offline; t
 no URL. The two effects already recorded in estimates v1 section 7 apply unchanged: a public page
 URL of an approved estimate (query string and fragment dropped) can appear in the daily export the
 user sends, and archives carry the capture manifests. One addition: archives also carry the
-correction evidence of section 5 (typed values and the estimate values they replaced), and the
+leave-out evidence of section 5 (nutrient keys only, no values), and the
 implementing change records that in `privacy-and-egress.md` with the other two. The private catalogue, its review sheets and
 its change reports stay in the owner's private workspace; the repository receives this contract,
 code and synthetic fixtures only.
@@ -328,10 +320,10 @@ code and synthetic fixtures only.
 | Strict estimates v2 decoding: v2 rules, estimate rules, the codec rules of section 3.1 | `FoodLedgerDomain`, in the existing codec, sharing its validation functions so the schemas cannot drift | pure |
 | `approved_estimate` provenance kind and its contract version | `FoodLedgerDomain` and `CanonicalFoodProjection` (the owner of `foodContractVersion` and the floor), **food contract 10**: see "Version allocation" | pure, closed versions |
 | Estimate eligibility against the record and the confirmed identity (sections 3.1 and 3.2) | the per-facet comparison in `FoodLedgerDomain` beside `IdentityCompatibility`; one pure policy in `FoodLedgerApplication` used by the importer, Confirm and re-resolution | pure |
-| Per-nutrient correction (section 5): rule and evidence type in `FoodLedgerDomain`, orchestration in `FoodLedgerApplication` beside `FoodCorrection`, the two actions in `FoodLedgerPresentation` | new work | no new port |
+| Leaving out an estimated nutrient (section 5): rule and evidence type in `FoodLedgerDomain`, orchestration in `FoodLedgerApplication` beside `FoodCorrection`, the one action in `FoodLedgerPresentation` | new work | no new port |
 | Binding estimates when a candidate is built and when a log is re-resolved | `FoodLedgerApplication` (the candidate builder and the search adapter's re-resolution) | existing ports |
 | Import: validate, check values and contradictions against the bundled record, derive the ID, replace atomically | `FoodLedgerApplication` (`PersonalFoodDatabaseImporting`), through `Digesting`, `GenericRecordNutrientLookup` and `PersonalFoodDatabaseStoring` | ports only |
-| Capture manifest and correction evidence, committed with the log, verified on save and reopen | `FoodLedgerApplication`; types in `FoodLedgerDomain` | existing ports |
+| Capture manifest and leave-out evidence, committed with the log, verified on save and reopen | `FoodLedgerApplication`; types in `FoodLedgerDomain` | existing ports |
 | Stored bytes and manifest (third known schema) | `FoodLedgerPersonalDatabase` | complete file protection |
 | "Estimated" labels, details, notices and Settings copy for each new rule code | `FoodLedgerPresentation`, from stored provenance and evidence, never a view-only flag | presentation only |
 | Writing the file | the `personal-food-catalogue` skill, outside the app | private workspace |
@@ -388,8 +380,8 @@ label value. Approval is not logging. One source per nutrient. A carried value e
 record, within the inherited tolerance. An estimate never changes a reference's role or an entry's
 identity. A `national_composition` estimate never survives a known contradiction with the confirmed
 identity, and no approved estimate survives a basis change; where the record's facet is unknown the
-label and the owner's approval are the safeguard, and the contract says so. A typed correction is
-an owner declaration with its own verified evidence, never a silent edit of an estimate. v1 and v2
+label and the owner's approval are the safeguard, and the contract says so. Confirm has no
+route from an estimate to a measured value: an estimate is kept, withheld or left out. v1 and v2
 files, and every stored record, archive and export, decode and re-encode unchanged. No network
 call.
 
@@ -436,42 +428,39 @@ skill's checker and the Swift decoder both read it for codec codes):
   cases. Both comparisons cover the same facets.
 - Precedence: label, then estimate, then merged record; a label and an estimate on one key is
   rejected; an estimate does not promote a candidate; the separate candidate carries no estimates.
-- Correction: an estimated value shows "Estimated" and its details; identity-only correction keeps
-  label and provenance; the typed field starts empty; each row of the stored-shapes table has a
-  case, with its reopen wording; untouched nutrients keep their provenance bytes; repeating,
-  undoing and cancelling a correction each have a case; leaving out or withholding every value
-  blocks Log with its reason; all estimates left out but one label value kept, then reopened,
-  shows "Left out by you"; a second correction of a saved log writes a second evidence item and
-  the newest version's governs; the field shows nutrient, unit and basis; a typed value without
-  its evidence cannot be saved; the domain accepts the typed value's provenance shape and still
-  rejects `approved_estimate` as measured or bounded; the manifest's bytes and hash are unchanged and still
-  verify, also when no provenance cites it. Log is never pre-selected; an estimate-only entry is
-  not a generic estimate.
-- Evidence that is missing or altered (manifest or correction) is refused on save and on reopen,
+- Leave-out: an estimated value shows "Estimated" and its details; identity-only correction keeps
+  label and provenance; each row of the stored-shapes table has a case, with its reopen wording;
+  untouched nutrients keep their provenance bytes; repeating, undoing and cancelling a leave-out
+  each have a case; leaving out or withholding every value blocks Log with its reason; all
+  estimates left out but one label value kept, then reopened, shows "Left out by you"; a second
+  change to a saved log writes a second evidence item and the newest version's governs; the
+  evidence holds keys and no value; Confirm offers no field for an estimated nutrient's value;
+  the domain still rejects `approved_estimate` as measured or bounded; the manifest's bytes and
+  hash are unchanged and still verify, also when no provenance cites it. Log is never
+  pre-selected; an estimate-only entry is not a generic estimate.
+- Evidence that is missing or altered (manifest or leave-out) is refused on save and on reopen,
   including after the database is removed and after an archive restore.
 - Re-resolution: same release gives the same manifest bytes and hash; a different release gives a
-  new manifest; in both the earlier corrections are not carried, the notice is shown and the saved
+  new manifest; in both the earlier leave-outs are not carried, the notice is shown and the saved
   version is unchanged; with the database removed there is no re-resolution.
 - A candidate with no estimate writes no manifest and its log keeps its contract.
 - Versions: an archive without estimates keeps its contract and bytes; every store becomes
   `food-ledger-v10`; the floor returns 10 for a log holding an approved estimate, for one holding
-  only the manifest, for one holding only correction evidence and for `approved_estimate` found
+  only the manifest, for one holding only leave-out evidence and for `approved_estimate` found
   only in a candidate decision or conflict candidate; a contract 9 binary declines it; the open
   check refuses v9 metadata on a v10 schema and the v10 migration is metadata only; the store
   round-trips an estimates v2 manifest.
   Every closed `ProvenanceSourceKind` site listed in estimates v1 is re-run at contract 10.
 - Saved logs hold `approved_estimate` as `.augmented`, survive replace, remove and archive restore,
-  and export `state: "estimated"`; a typed value exports as `entered_by_you` with no
-  `content_hash` and no page URL; a withheld or left-out value exports as unknown, never zero,
-  and keeps the day's totals partial; a day whose only estimate was replaced by a typed value is
-  written as version 2.
+  and export `state: "estimated"`; a withheld or left-out value exports as unknown, never zero,
+  and keeps the day's totals partial; a day whose only estimate was left out is written as
+  version 2.
 - Daily export: each bullet of the version 3 rules above, through serialisation, Drive validation,
   reconciliation and recovery.
 - Search: an entry that gains its first known nutrient from an estimate becomes visible; an
-  estimated fat value takes part in the requested-fat partition; escalation sufficiency counts it;
-  a typed `manual_declaration` on a database candidate changes no other Confirm requirement.
+  estimated fat value takes part in the requested-fat partition; escalation sufficiency counts it.
 - Simulator journey: import a synthetic estimates v2 file, search, open Confirm, read the estimate
-  details, leave one value out, type one label value, log, remove the database, reopen the log.
+  details, leave one value out, log, remove the database, reopen the log.
 
 Validation is the gates in `AGENTS.md` **plus the FoodSearchQuality and FoodQueryEvaluation steps
 of the CI workflow**: the sort itself is untouched, but its inputs are not. Estimates count towards
@@ -506,13 +495,12 @@ In order; each open one has a recommendation.
   separate candidate.
 - **P5. Order of work.** Recommended: one implementation phase after acceptance, after daily
   export v2 has landed, with its own issue and a fresh architecture gate: codec and rule codes,
-  provenance kind and contract 10, lookup port, eligibility policy, manifest, correction and its
+  provenance kind and contract 10, lookup port, eligibility policy, manifest, leave-out and its
   evidence, Confirm, export version 3 and Drive admission, privacy record. It is a large review
   surface; nothing ships until estimate provenance is bound end to end.
-- **P6. What can the owner do to one estimated value on Confirm?** Recommended: leave it out, or
-  enter the label value (section 5). Alternative: leave out only, with typed values going through
-  the existing label routes; smaller, and no route from an estimate to a measured value on Confirm
-  at all, but it does not meet "correct each value before Log".
+- **P6. One estimated value on Confirm. Decided 16 November 2026: leave out only.** There is no
+  typed value on Confirm in this release; a pack value goes through the existing label routes
+  (section 5).
 
 ## 9. Review record
 
@@ -539,4 +527,6 @@ In order; each open one has a recommendation.
   nutrient is known; the manifest carries the corpus hash; correction evidence is per resolution
   version and found by its version ID; re-resolution carries no corrections; four missing
   inherited codes; the typed field's unit and basis; `sourceID`; smaller wording points.
+- 16 November 2026: the owner decided P6 (leave out only). Section 5 lost the typed label value,
+  its stored shape and its export case; the evidence item now holds left-out keys only.
 - Still owed before acceptance: a short re-review of sections 3.1, 3.2 and 5.
