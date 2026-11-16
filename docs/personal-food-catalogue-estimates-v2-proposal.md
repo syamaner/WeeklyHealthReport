@@ -1,7 +1,7 @@
 # Personal food database: labelled estimates on catalogue v2 (proposal)
 
 Status: **proposal, 15 November 2026, revised 16 November 2026 after a blind review (section 9).
-Not accepted, nothing implemented.** Section 8 lists the decisions; P4 and P6 are decided, four are open. No app
+Not accepted, nothing implemented.** Section 8 lists the decisions; P1, P4 and P6 are decided, three are open. No app
 code, skill code or fixture changes with this document. Programme #424, base contracts #419.
 
 It is a delta on two accepted contracts and repeats neither:
@@ -474,8 +474,8 @@ estimates v1 section 7 requires. Device acceptance is the owner's.
 
 In order; each open one has a recommendation.
 
-- **P1. Which estimates schema does the app implement?** Recommended: only
-  `personal-food-catalogue-estimates-v2`, with the support table of section 2. Cost: an R2
+- **P1. Which estimates schema does the app implement? Decided 16 November 2026: only
+  `personal-food-catalogue-estimates-v2`,** with the support table of section 2. Cost, accepted: an R2
   companion is not importable by the app, and an estimates v2 release ships with no Part B result
   of its own until one is run on it. Accepting this adds dated amendment notes to estimates v1 and
   the E3 disposition.
@@ -529,4 +529,5 @@ In order; each open one has a recommendation.
   inherited codes; the typed field's unit and basis; `sourceID`; smaller wording points.
 - 16 November 2026: the owner decided P6 (leave out only). Section 5 lost the typed label value,
   its stored shape and its export case; the evidence item now holds left-out keys only.
+- 16 November 2026: the owner decided P1 (estimates v2 only).
 - Still owed before acceptance: a short re-review of sections 3.1, 3.2 and 5.
