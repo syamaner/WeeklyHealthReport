@@ -4691,6 +4691,7 @@ The whole session is measured, from `2026-11-15T21:22:16Z` to `2026-11-15T21:30:
 | #424 estimates v2 proposal, P6 decided and section 5 reduced to leave out only (16 November) | 1,945,079 (1,868,325) | 76,734 | 8,978 | 1,954,057 | $1.17 |
 | #424 estimates v2 proposal, P1, P2, P3 and P5 decided, re-admission rule written (16 November) | 1,956,050 (1,938,656) | 17,358 | 12,345 | 1,968,395 | $0.77 |
 | #424 estimates v2 proposal, fourth gates with two subagents and the revision (16 November) | 3,042,426 (2,844,893) | 197,463 | 53,326 | 3,095,752 | $2.72 |
+| #424 estimates v2 proposal, close matches admitted and the quality tier added (16 November) | 3,493,335 (3,470,183) | 23,100 | 21,637 | 3,514,972 | $1.31 |
 
 Method: `phase_usage.py --format claude --since 2026-11-15T00:00:00Z --until 2026-11-15T21:30:58Z --include-subagents` on the session transcript. Exact USD 3.6627944. The cache-write tokens are part of the input figure; 47,573 of them are 5-minute writes. The total is input plus output.
 
@@ -4703,6 +4704,8 @@ P6 row: the same session, window `2026-11-16T16:46:11Z` to `2026-11-16T18:29:03Z
 Decisions row: the same session, window `2026-11-16T18:29:03Z` to `2026-11-16T19:00:09Z`, same script and rates, exact USD 0.7736392, all cache writes 1-hour, no subagent. It continues from the P6 row with no gap, so it also holds that row's commit, push and handover, and it covers recording the owner's decisions P1, P2, P3 and P5 and writing the row-by-row re-admission rule. All six decisions are now recorded. The commit, push and handover after the window are unmeasured.
 
 Fourth gates row: the same session with its two review subagents, window `2026-11-16T19:00:09Z` to `2026-11-16T19:12:10Z`, same script and rates, exact USD 2.7150676; 166,805 of the cache writes are 5-minute writes. It continues from the decisions row with no gap, so it also holds that row's commit, push and handover. The Qodo run, and the commit, push and handover after the window, are unmeasured.
+
+Close matches row: the same session, window `2026-11-16T19:12:10Z` to `2026-11-16T19:23:30Z`, same script and rates, exact USD 1.3117846, all cache writes 1-hour, no subagent. It continues from the fourth gates row with no gap, so it also holds that row's commit, push and handover, the owner's confirmation of the re-admission list, the as sold decision, and the rewrite that admits close matches and adds the quality tier (decisions P4 reopened and P7). The commit, push and handover after the window are unmeasured.
 
 Excluded:
 - the session's turns after the cut-off (local Qodo review, commit, pull request, handover);

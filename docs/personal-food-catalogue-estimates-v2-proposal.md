@@ -1,7 +1,7 @@
 # Personal food database: labelled estimates on catalogue v2 (proposal)
 
 Status: **proposal, 15 November 2026, revised 16 November 2026 after a blind review (section 9).
-Not accepted, nothing implemented.** Section 8 lists the decisions; all six are decided, and acceptance of the contract is still the owner's. No app
+Not accepted, nothing implemented.** Section 8 lists the decisions; all are decided (P4 reopened and a quality tier added as P7 later that day), and acceptance of the contract is still the owner's. No app
 code, skill code or fixture changes with this document. Programme #424, base contracts #419.
 
 It is a delta on two accepted contracts and repeats neither:
@@ -47,8 +47,9 @@ fields of estimates v1, with the own-reference rule changed (section 3).**
 
 - Top level: exactly v2's keys plus `estimate_evidence`. Entry: exactly v2's keys plus
   `estimated_nutrients`. Both required, both may be empty.
-- `estimated_nutrients` and `estimate_evidence` are exactly estimates v1 sections 2.1 and 2.2: the
-  same keys, closed vocabularies, limits, `pfe:` evidence IDs and transform list (its section 6).
+- `estimated_nutrients` and `estimate_evidence` are estimates v1 sections 2.1 and 2.2: the
+  same keys, closed vocabularies, limits, `pfe:` evidence IDs and transform list (its section 6),
+  plus one required key on each evidence record, `quality` (section 3.3).
 - Every import v2 rule applies to the v2 part (projection v6, the serving transform, its rule codes),
   and every estimates v1 rule of section 2.3 applies to the estimate part, except the own-reference
   rule as changed below.
@@ -94,9 +95,14 @@ ineligible; A2 lets an owner-approved, labelled estimate cover an **unknown** at
 wording (a `candidate` record never merges) but is narrowed in effect: the entry itself can now
 show values that came from its candidate record, as labelled estimates.
 
-**First release: same food only (owner decision P4, 16 November 2026).** A `national_composition`
-estimate with `method` `carried_from_similar_food` is rejected in this schema, own record or not.
-The 213 close-match entries keep their separate "Generic" candidate and nothing else.
+**Close matches are admitted (owner decision P4, reopened 16 November 2026).** The owner's stated
+aim is to fill as much as possible with reasonable, labelled estimates. A `national_composition`
+estimate with `method` `carried_from_similar_food` is accepted, from the entry's own close-match
+record or from another record, so the 213 close-match entries can carry values. It gives the entry
+nothing of the similar food's identity; it is shown as "Estimated from a similar food" with the
+record's name in details (estimates v1 section 7); every importer check and the contradiction veto
+of this section apply to it as to any other composition estimate; and its quality tier can never
+be the highest (section 3.3). The separate "Generic" candidate is still offered.
 
 ### 3.1 What the file must satisfy
 
@@ -104,11 +110,11 @@ Codec rules (pure, from the file alone), in this order for each estimate:
 
 | Rule | Code |
 |---|---|
-| A `national_composition` estimate with `method` `carried_from_similar_food` | `estimate-similar` |
 | Own record with `role` `merge` (the merged record already supplies its values) | `estimate-own-merge` |
-| Own `candidate` record whose match is not `same_food_same_state`, or whose `method` is not `carried_from_same_food` | `estimate-own-method` |
+| Own `candidate` record whose `method` does not agree with its match: `same_food_same_state` takes `carried_from_same_food` only, a close match takes `carried_from_similar_food` only, and `direct` and `derived` are never an own record's method | `estimate-own-method` |
 | Own `candidate` record whose `state_basis` is `unknown` | `estimate-own-state` |
 | Own `candidate` record on an entry whose `state` is `raw` or `cooked` (a same-food record that did not merge for such an entry was held or demoted on purpose, for example by the E3 disposition, and must not refill it) | `estimate-own-held` |
+| An evidence record whose `quality` is missing, outside the closed list, or above the ceiling of section 3.3 | `estimate-quality` |
 | Any `national_composition` estimate on an entry whose `basis` is not `per_100_g` (no density is ever inferred; such an entry takes page estimates stated per 100 ml, or stays unknown) | `estimate-basis` |
 
 The table is applied only to an evidence record that is bound to exactly one value of an existing
@@ -165,11 +171,11 @@ rule (reject when the record's preparation is unknown) was offered in decision P
 
 **Builder obligations added to estimates v1 section 3.1** (not checkable by the importer):
 
-- The own-record rows apply only when the estimate cites the entry's `generic_reference`. Dropping
-  or changing that reference so that a close-match record can be cited as another record's
-  `carried_from_same_food` is forbidden; the evaluator counts estimates whose record is the
-  entry's former or close reference; those not re-admitted (below) must be zero, and close
-  references are never re-admissible.
+- The own-record rows apply only when the estimate cites the entry's `generic_reference`. A close-match
+  record is cited as `carried_from_similar_food` and never as `carried_from_same_food`: dropping
+  or changing the entry's reference to pass one off as the same food is forbidden, and the
+  evaluator counts same-food estimates whose record is the entry's former or close reference;
+  those not re-admitted (below) must be zero.
 - An entry whose reference the E3 disposition demoted, removed or held at `candidate` takes no
   estimate from that record by any route (E3 disposition sections 4 and 4.1). A record or value E3
   withheld for a food stays refused for that food. This is the default; the one exception is the
@@ -193,7 +199,7 @@ rule (reject when the record's preparation is unknown) was offered in decision P
     3.1, E3 decision D3), so that count stays zero; the 2 unresolved A1 values; a record under a
     per-entry exclusion for wrong identity, incompatible state or variety mismatch (evaluation v1's
     per-entry exclusion; amendment A2 never covers a known contradiction); a value excluded for
-    its own wrong basis, transcription or derivation; a close-match reference; and a class with
+    its own wrong basis, transcription or derivation; and a class with
     no truthful `source_type` (recipe estimate, prior release, a transform outside the closed
     list). A row of one of these classes on the list is counted as refused.
   - One row is one entry ID, one nutrient key, the `source_type` and the `source_reference`, with
@@ -205,7 +211,7 @@ rule (reject when the record's preparation is unknown) was offered in decision P
   - A re-admitted value is a labelled estimate and nothing more. Every codec, importer and Confirm
     rule applies unchanged, so re-admission overrides no mechanical rule: a `raw` or `cooked` entry
     still cannot take its own held record (`estimate-own-held`), a contradiction still rejects or
-    withholds, and a close match is still `estimate-similar`. Stated plainly: a record that is
+    withholds, and a similar-food estimate still cannot take the highest tier. Stated plainly: a record that is
     not the entry's own (for example one whose reference E3 removed) passes those rules on a `raw`
     or `cooked` entry, so there the row-level approval is the only safeguard.
   - Its `assumption` text says that the evaluation withheld the source and the owner re-admitted
@@ -269,6 +275,36 @@ facets most likely to be wrong for tinned food, and it would show no per-value l
 value shows "Estimated" with its assumption, a contradiction withholds the value, and the merge
 rule stays closed. What the merge has in its favour: its values are read from the bundled corpus,
 never copied into a file, and nothing rests on free text.
+
+### 3.3 Quality tier (owner decision P7, 16 November 2026)
+
+Every estimate carries a tier that says how strong its evidence is, so that weaker estimates can
+be admitted and still be told apart. It describes the evidence, never the food: it has no health
+meaning and sets no target.
+
+- **Wire.** `quality` on each evidence record, closed list `high`, `medium`, `low`. No score,
+  probability or free text is stored in the file.
+- **Shown** as green, amber and red, always with text beside the colour: "Estimated, good match",
+  "Estimated, some doubt", "Estimated, rough". The reasons sit in details with the source type,
+  states and assumption.
+- **Ceilings the codec enforces** (`estimate-quality`), so no classifier or typing slip can
+  overstate an estimate. `high` is allowed only for `method` `carried_from_same_food` or `direct` with
+  `state_basis` `source_states_it`. `carried_from_similar_food`, `derived`, a `state_basis` of
+  `stated_assumption` or `unknown`, and a page with `page_access` `indexed_copy` are at most
+  `medium`. Below a ceiling the builder may always go lower.
+- **Who sets it.** The builder proposes a tier from the evidence, and may take advice from a
+  classifier run at build time, outside the app, on generic food descriptions only. The tier is
+  written only for a row the owner accepted on the review sheet with that tier shown. A model's
+  answer never authorises a value or a tier by itself, and a low classifier confidence is shown to
+  the owner, not resolved silently. The app runs no classifier and makes no network call for this.
+- **A re-admitted value** (section 3.1) is at most `medium`. The file has no marker for it, so
+  this is a builder rule with an evaluator count.
+- **What the tier never does.** It never changes a value, its provenance kind, the ranking of
+  section 4, the contradiction veto or what Log saves; a `high` estimate is still augmented and
+  never measured, and a `low` one is still offered and can be left out.
+- **Stored.** The capture manifest carries the tier beside each estimate, so a saved log shows the
+  tier it was logged with, also after the database is replaced. Daily export version 3 carries it
+  as one more estimate field, `estimate_quality`, so a reader of the export can weigh the value.
 
 ## 4. Ranking of sources, per nutrient
 
@@ -354,6 +390,10 @@ here:
   append-only record, and the owner sees the new candidate on Confirm with the notice "Values
   you left out before are not carried over" and decides again before Log. With
   the database removed the entry cannot be re-resolved, as today.
+- **Quality tier.** Each estimated nutrient shows its tier (section 3.3) as text with the colour,
+  never colour alone, with a VoiceOver label that reads the text. The tier comes from the capture
+  manifest, which carries `quality` beside each estimate (one more field than estimates v1 section
+  5.2 lists).
 - **Nothing is selected or saved automatically.** One Log action, the quantity is always the user's,
   and import never logs. An entry whose values are all estimates is not a generic estimate under
   `FoodConfirmationPolicy`, so the identity questions of import v1 decision 12 still apply.
@@ -384,7 +424,7 @@ code and synthetic fixtures only.
 | Import: validate, check values and contradictions against the bundled record, derive the ID, replace atomically | `FoodLedgerApplication` (`PersonalFoodDatabaseImporting`), through `Digesting`, `GenericRecordNutrientLookup` and `PersonalFoodDatabaseStoring` | ports only |
 | Capture manifest and leave-out evidence, committed with the log, verified on save and reopen | `FoodLedgerApplication`; types in `FoodLedgerDomain` | existing ports |
 | Stored bytes and manifest (third known schema) | `FoodLedgerPersonalDatabase` | complete file protection |
-| "Estimated" labels, details, notices and Settings copy for each new rule code | `FoodLedgerPresentation`, from stored provenance and evidence, never a view-only flag | presentation only |
+| "Estimated" labels with the quality tier's text and colour, details, notices and Settings copy for each new rule code | `FoodLedgerPresentation`, from stored provenance and evidence, never a view-only flag | presentation only |
 | Writing the file | the `personal-food-catalogue` skill, outside the app | private workspace |
 
 **The lookup port.** `GenericRecordNutrientLookup` is planned by estimates v1 section 4.3 and not
@@ -445,8 +485,7 @@ files, and every stored record, archive and export, decode and re-encode unchang
 call.
 
 **Extension axes.** The store remains the one variation point. A new source type, method, transform
-or state is a new schema version, not configuration. Admitting `carried_from_similar_food` later is
-a new schema version with its own gate.
+or state is a new schema version, not configuration. A new quality tier or ceiling is likewise a new schema version.
 
 **Contract tests** (synthetic fixtures only, in a new
 `docs/fixtures/personal-food-database-estimates-v2/` with a manifest of expected rule codes; the
@@ -464,7 +503,9 @@ skill's checker and the Swift decoder both read it for codec codes):
 - Every inherited rejection fixture, re-based on v2, keeps its code string, except `own-reference`.
 - Inherited codes: one fixture each for `token`, `date`, `digest` and `derivation`; an estimates v1
   file's full code list is exactly `schema`; an unknown schema with `estimate_evidence` likewise.
-- Codec table: one fixture per code (`estimate-similar` on an own and a non-own record,
+- Codec table: one fixture per code (`estimate-quality` for a missing tier, an unknown tier and each
+  ceiling; a similar-food estimate accepted at `medium` and `low` on an own close-match record and
+  on a non-own record; an own close-match record cited as the same food gives `estimate-own-method`;
   `estimate-own-merge`, `estimate-own-held` for a `raw` and a `cooked` entry, `estimate-own-method` for a `close` match, `direct` and `derived`,
   `estimate-own-state`, `estimate-basis` on an own and a non-own record); the accepted case; a record
   matching two rows gets both in table order; a record with a dangling `entry_id` or a bad
@@ -527,6 +568,11 @@ skill's checker and the Swift decoder both read it for codec codes):
   refused again; a never-re-admissible class is refused even when listed; a list row with no
   accepted sheet row is refused; a re-admitted own record on a `raw` entry still gives
   `estimate-own-held`.
+- Quality tier: each tier shows its text label beside the colour and its reasons in details; the
+  manifest carries the tier and a reopened log shows the tier it was logged with after the
+  database is replaced; the tier changes no value, provenance kind, ranking or veto; a
+  similar-food estimate is withheld on a known contradiction like any other; export version 3
+  carries `estimate_quality` and a version 2 file carrying it is rejected.
 - Simulator journey: import a synthetic estimates v2 file, search, open Confirm, read the estimate
   details, leave one value out, log, remove the database, reopen the log.
 
@@ -561,9 +607,9 @@ contract: acceptance follows the re-review named in section 9.
   which is why it is recorded as an amendment to E3 and overrides no mechanical rule. Limit,
   stated: the lists are keyed to the pinned release, so entries with no counterpart there are
   counted, not checked.
-- **P4. Close matches. Decided 16 November 2026: same food only for the first release.**
-  `carried_from_similar_food` is rejected in this schema; the 213 close-match entries keep their
-  separate candidate.
+- **P4. Close matches. Decided 16 November 2026, then reopened the same day: close matches are
+  admitted** as `carried_from_similar_food` estimates, labelled as from a similar food and never
+  in the highest tier (sections 3 and 3.3). The first decision was same food only.
 - **P5. Order of work. Decided 16 November 2026: one implementation phase** after acceptance, after daily
   export v2 has landed, with its own issue and a fresh architecture gate: codec and rule codes,
   provenance kind and contract 10, lookup port, eligibility policy, manifest, leave-out and its
@@ -572,6 +618,10 @@ contract: acceptance follows the re-review named in section 9.
 - **P6. One estimated value on Confirm. Decided 16 November 2026: leave out only.** There is no
   typed value on Confirm in this release; a pack value goes through the existing label routes
   (section 5).
+
+- **P7. Quality tier. Decided 16 November 2026:** every estimate carries `high`, `medium` or `low`,
+  shown as green, amber and red with text, with codec ceilings; a build-time classifier may
+  advise, and the owner accepts each tier on the review sheet (section 3.3).
 
 ## 9. Review record
 
@@ -617,4 +667,8 @@ contract: acceptance follows the re-review named in section 9.
   means.
 - 16 November 2026: the owner decided that `as_sold` and `raw` do not contradict (the
   recommendation was to withhold). Section 3.2 and its tests say so. No owner question is open;
-  the fixes since c98b2eb have had no review of their own. These fixes have had no review of their own.
+  the fixes since c98b2eb have had no review of their own.
+- 16 November 2026: the owner stated the aim (fill as much as possible with reasonable, labelled
+  estimates), reopened P4 to admit close matches and added the quality tier (P7).
+  `estimate-similar` is gone and `estimate-quality` is new. None of this has been reviewed, and
+  section 3.3 is new text. Owed before acceptance: one review round on everything since c98b2eb. These fixes have had no review of their own.
