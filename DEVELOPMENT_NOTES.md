@@ -4751,6 +4751,29 @@ Excluded:
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
 
+## WHR-424-ASSISTANT-ESTIMATES-PROPOSAL-2026-11-16: Claude Code assistant-pasted estimates, proposal (#424)
+
+The session (`claude-fable-5-2`, session `d0504ad2-ae29-4c47-92ae-906da8e3fb07`), started by another session, did the following:
+- read `AGENTS.md`, estimates v2, estimates v1, the egress list and daily export v2 in full, and the Confirm save path and the pasted-label AI text contract in part;
+- wrote `docs/assistant-pasted-estimates-v1-proposal.md` with its architecture gate and owner decisions A1 to A7, and the index line. No code;
+- ran one local Qodo pass and folded in its four findings.
+
+The window is `2026-11-16T22:01:11Z` (recorded when PR #499 was confirmed merged and the branch was cut) to `2026-11-16T22:12:09Z`. No subagent was used.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| #424 assistant-pasted estimates proposal, reading, drafting and one Qodo pass folded in | 2,678,206 (2,526,308) | 151,864 | 44,954 | 2,723,160 | $2.62 |
+| #424 assistant-pasted estimates proposal, blind gate and invariant reviews with two subagents and the revision | 2,833,249 (2,546,766) | 286,433 | 71,122 | 2,904,371 | $3.42 |
+
+Method: `phase_usage.py --format claude --since 2026-11-16T22:01:11Z --until 2026-11-16T22:12:09Z --include-subagents` on the session transcript. Exact USD 2.6193896. The cache-write tokens are part of the input figure, and all of them are 1-hour writes. The total is input plus output.
+
+Reviews row: the same session with its two review subagents, window `2026-11-16T22:16:26Z` to `2026-11-16T22:23:26Z`, same script and rates, exact USD 3.4191362; 268,107 of the cache writes are 5-minute writes. It covers launching the reviews, checking their findings against the code and the revision. The turns between the two windows (the first commit, push, pull request and handover) and after the second (this edit, commit, push and handover) are unmeasured.
+
+Excluded:
+- the session's turns before the window (two checks that found PR #499 still open);
+- the Qodo review run itself;
+- the turns after the cut-off (this ledger edit, commit, push, pull request and handover).
+
 ## WHR-312-PR2-2026-11-16: Claude Code food daily export v2, readers accept schema 2 (#312)
 
 One session (`claude-fable-5-2`, `32ff8170-52ac-43c9-801e-2e408752f002`) with its two review subagents (`architecture-gate`, `invariant-reviewer`) did the following:
