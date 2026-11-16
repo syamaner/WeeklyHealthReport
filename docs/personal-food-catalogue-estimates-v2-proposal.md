@@ -1,7 +1,9 @@
-# Personal food database: labelled estimates on catalogue v2 (proposal)
+# Personal food database: labelled estimates on catalogue v2 (contract)
 
-Status: **proposal, 15 November 2026, revised 16 November 2026 after a blind review (section 9).
-Not accepted, nothing implemented.** Section 8 lists the decisions; all are decided (P4 reopened and a quality tier added as P7 later that day), and acceptance of the contract is still the owner's. No app
+Status: **accepted by the owner on 16 November 2026, after seven review rounds (section 9). Not
+implemented.** Proposed on 15 November 2026; section 8 records the owner's seven decisions. The
+file keeps its original name so that existing links hold. Implementation is one phase, after
+daily export v2 has landed, with its own issue and architecture gate (decision P5). No app
 code, skill code or fixture changes with this document. Programme #424, base contracts #419.
 
 It is a delta on two accepted contracts and repeats neither:
@@ -672,8 +674,8 @@ estimates v1 section 7 requires. Device acceptance is the owner's.
 
 ## 8. Decisions for the owner
 
-All seven were decided by the owner on 16 November 2026. Deciding them is not accepting the
-contract: acceptance follows the re-review named in section 9.
+All seven were decided by the owner on 16 November 2026. The owner then accepted the contract as
+a whole on the same day (section 9).
 
 - **P1. Which estimates schema does the app implement? Decided 16 November 2026: only
   `personal-food-catalogue-estimates-v2`,** with the support table of section 2. Cost, accepted: an R2
@@ -785,3 +787,7 @@ contract: acceptance follows the re-review named in section 9.
   restored candidate and refused at save; the evidence tests are split; re-admission has a sheet
   of its own; the bare "Estimated" wording is gone. The egress paragraph's missing facts (key,
   provider routing, storage) were then added with the owner's approval of the wording.
+- 16 November 2026: the egress paragraph was completed, and **the owner accepted the contract.**
+  The seventh round's fixes had no review of their own at acceptance; the items the reviewers
+  left to the phase gate are in section 5 and the contract tests. Recorded with the acceptance:
+  dated amendment notes in estimates v1, the E3 disposition and the identity contract (A2).

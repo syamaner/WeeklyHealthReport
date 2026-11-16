@@ -14,6 +14,16 @@ resolved without moving a bar or turning uncertainty into a pass, and records wh
 approved estimates. This file itself changes no tool, freeze record, seal, bar or private file;
 plan revision 6 adds a freeze row (section 5) and amends one review v2 rule (section 2).
 
+**Amendment, 16 November 2026 ([estimates on catalogue v2](personal-food-catalogue-estimates-v2-proposal.md), section 3.1, accepted).**
+Sections 4 and 4.1 and section 5 point 3 gain one exception: the owner may re-admit one refused
+source value for one entry, row by row, on a fresh approval. Only a national composition value
+withheld by a section 6 consequence or by the removal-only mechanics of section 3, and not found
+wrong in itself, can return. Never re-admissible: a value whose stated underlying source is Open
+Food Facts, the 2 unresolved A1 values, a record under a per-entry identity, state or variety
+exclusion, a value wrong in itself, and a class with no truthful source type. A re-admitted value
+is a labelled estimate at no more than the middle quality tier and overrides no mechanical rule.
+This note re-admits nothing by itself, and R1, its release ID and its evaluation are unchanged.
+
 ## 1. Where E3 stands
 
 | Measure (bars `v2_proposed`) | Handover count | Bar | State |

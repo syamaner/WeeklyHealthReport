@@ -4695,6 +4695,7 @@ The whole session is measured, from `2026-11-15T21:22:16Z` to `2026-11-15T21:30:
 | #424 estimates v2 proposal, fifth gates with two subagents and the revision (16 November) | 3,180,268 (2,984,156) | 196,058 | 44,870 | 3,225,138 | $2.56 |
 | #424 estimates v2 proposal, sixth gates with two subagents and the revision, with private classifier work in the window (16 November) | 18,250,039 (17,967,842) | 282,007 | 91,330 | 18,341,369 | $7.09 |
 | #424 estimates v2 proposal, egress record and seventh gates with two subagents and the revision (16 November) | 5,989,901 (5,779,117) | 210,712 | 47,321 | 6,037,222 | $3.23 |
+| #424 estimates v2 contract, egress record completed, owner acceptance and amendment notes (16 November) | 3,677,088 (3,664,829) | 12,235 | 10,902 | 3,687,990 | $1.05 |
 
 Method: `phase_usage.py --format claude --since 2026-11-15T00:00:00Z --until 2026-11-15T21:30:58Z --include-subagents` on the session transcript. Exact USD 3.6627944. The cache-write tokens are part of the input figure; 47,573 of them are 5-minute writes. The total is input plus output.
 
@@ -4715,6 +4716,8 @@ Fifth gates row: the same session with its two review subagents, window `2026-11
 Sixth gates row: the same session with its two review subagents, window `2026-11-16T19:35:31Z` to `2026-11-16T21:15:56Z`, same script and rates, exact USD 7.0934424; 194,514 of the cache writes are 5-minute writes. It continues from the fifth gates row with no gap. Most of this window is not proposal work: it also holds that row's commit, push and handover and about an hour and a half of private catalogue work outside the repository (a classifier trial and two classifier passes, with their preparation and merging), which cannot be separated by time alone. The classifier's own requests and the Qodo run are unmeasured, as are the commit, push and handover after the window.
 
 Seventh gates row: the same session with its two review subagents, window `2026-11-16T21:15:56Z` to `2026-11-16T21:47:43Z`, same script and rates, exact USD 3.2349014; 184,442 of the cache writes are 5-minute writes. It continues from the sixth gates row with no gap, so it also holds that row's commit, push and handover, and the two commits that added the egress policy paragraph. The Qodo run, and the commit, push and handover after the window, are unmeasured.
+
+Acceptance row: the same session, window `2026-11-16T21:47:43Z` to `2026-11-16T21:52:07Z`, same script and rates, exact USD 1.0489818, all cache writes 1-hour, no subagent. It continues from the seventh gates row with no gap, so it also holds that row's commit, push and handover, the completed egress record, the owner's acceptance and the amendment notes in three contracts. The commit, push and handover after the window are unmeasured. The rows of this section add up to the measured part of the phase; they are a comparison at recorded rates, not a bill and not evidence of quality or productivity.
 
 Excluded:
 - the session's turns after the cut-off (local Qodo review, commit, pull request, handover);

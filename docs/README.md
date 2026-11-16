@@ -45,7 +45,7 @@ Start with [`../AGENTS.md`](../AGENTS.md) for working rules and [privacy and egr
 - [Personal food database R2 builder v1](personal-food-database-r2-builder-v1.md) (#424): the estimate companion format and the `build-r2` tool that adds owner-approved estimates to R1; draft, phase R2a, synthetic tests only
 - [Personal food database import v1, phase 1](personal-food-database-import-v1-phase-1.md) (#424): splits the import v1 app work into P1a (pure codec), P1b (store, importer and Settings) and P1c (search, merge, Confirm and save), with the P1a architecture gate and its review changes; P1a implemented on synthetic fixtures
 - [Personal food database approved estimates v1](personal-food-catalogue-estimates-v1.md) (#419): versioned contract and architecture gate for importing owner-approved estimates with per-nutrient evidence; accepted 9 November 2026, not implemented
-- [Personal food database labelled estimates on catalogue v2 (proposal)](personal-food-catalogue-estimates-v2-proposal.md) (#424): delta proposal for a `personal-food-catalogue-estimates-v2` schema (import v2 plus the estimates v1 fields), letting a labelled estimate cite the entry's own candidate record; not accepted, no code
+- [Personal food database labelled estimates on catalogue v2](personal-food-catalogue-estimates-v2-proposal.md) (#424): delta contract for a `personal-food-catalogue-estimates-v2` schema (import v2 plus the estimates v1 fields), letting a labelled estimate with a quality tier cite the entry's own candidate record or a similar food; accepted 16 November 2026, not implemented
 - [Storage and backup decision](food-library-storage-and-backup-decision.md)
 - [HealthKit food write plan](food-healthkit-write-plan.md) (planning; HealthKit stays read-only)
 

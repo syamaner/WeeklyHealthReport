@@ -14,6 +14,19 @@ acceptance bars, seals, the pinned release and the `personal-food-catalogue-v1` 
 they are. Supplements and count-based quantities stay out of scope; the name reserved for a future
 supplement schema is not used here.
 
+**Amendment, 16 November 2026 ([estimates on catalogue v2](personal-food-catalogue-estimates-v2-proposal.md), accepted).**
+The app implements `personal-food-catalogue-estimates-v2` only; this format stays the R2
+builder's and is not importable by the app. That contract is a delta on this one and changes
+these points, each in its own section there; everything else here stands.
+- Numbers: approved estimates take food contract 10 (not 9) and daily export version 3 (not 2).
+- Section 2.3's own-reference rule is replaced, in the v2 schema only, by a table that lets a
+  labelled estimate cite the entry's own candidate record; `carried_from_similar_food` from a
+  close match is admitted; each evidence record gains a required `quality` tier.
+- Section 3.1's must-be-zero count becomes "refused and not re-admitted", with the other counts
+  named there.
+- Section 5.2's capture manifest gains `corpus_sha256` beside each composition estimate.
+- Section 7's bare "Estimated" label becomes a closed list of labels that carry the tier.
+
 ## 1. Required behaviour
 
 - **An estimate stays an estimate** through import, Confirm, Log, reopen, archive restore and the
