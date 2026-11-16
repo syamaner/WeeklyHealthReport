@@ -121,9 +121,9 @@ mostly unknown facets, the identity questions of import v1 decision 12 are still
 separate "Generic" candidate is still offered with only its own record's values. Because the owner
 can then answer those questions, the estimate is re-checked against the answers:
 
-- If the confirmed identity sets a preparation kind or drained state that is known on the record
-  and different, or changes the serving basis away from per 100 g, every own-record estimate on
-  that log is **withheld**: the nutrient is unknown for that log, with the plain notice "Estimate
+- If the confirmed identity sets any decisive facet (preparation kind, bone, skin, drained state,
+  packing medium, fortification) to a value that is known on the record and different, or changes
+  the serving basis away from per 100 g, every own-record estimate on that log is **withheld**: the nutrient is unknown for that log, with the plain notice "Estimate
   left out: it is for a different preparation". Nothing is substituted.
 - The same basis guard applies to every `national_composition` estimate, own record or not: a
   correction to per 100 ml never reinterprets a per 100 g value.
@@ -221,6 +221,14 @@ it is; a metadata-only migration `v10_approved_estimate` sets `food-ledger-v10`,
 binaries decline the store instead of failing on an unknown kind. If 10 is taken by the time the
 phase starts, the phase takes the next free number and says so in its gate.
 
+The daily export has the same collision. Estimates v1 section 7 raised `food_daily_schema_version`
+to 2 for a document holding an approved estimate, but
+[daily export v2](food-daily-export-contract-v2.md) (decided, not implemented) takes 2 for every
+document. Approved estimates therefore take **version 3**, written only for a document holding at
+least one `approved_estimate` value; a document without one keeps whatever version the build
+writes for it (1 today, 2 once daily export v2 lands). The phase's export amendment is a delta on
+whichever of those is current.
+
 **Dependency direction.** Unchanged: presentation and infrastructure depend on application, which
 depends on domain. No new target. One port beyond today's: `GenericRecordNutrientLookup`, planned
 by estimates v1 and not yet built; here its result also carries the record's `DecisiveIdentity` and
@@ -254,9 +262,9 @@ both the skill's checker and the Swift decoder):
   `estimate-contradiction` for raw against cooked, a fortified record and a record without a known
   100 g edible quantity); the matching carried method on a compatible record is accepted. Python
   checker and Swift importer give the same codes in the same order for a file with several faults.
-- Confirm re-check: answering a preparation or drained state the record contradicts, or changing
-  the basis, withholds the estimate as unknown with its notice; an answer the record does not
-  contradict keeps it; dry against prepared and drained against undrained each have a case.
+- Confirm re-check: answering any decisive facet the record contradicts, or changing the basis,
+  withholds the estimate as unknown with its notice; an answer the record does not contradict
+  keeps it; each facet has a case, including dry against prepared and drained against undrained.
 - A carried value that differs from its bundled record by more than the inherited tolerance, cites
   an unpinned corpus, a missing record, or a record with no quantified value (missing, trace,
   bounded, "N") is rejected with four distinct rule codes; at zero only exact equality passes. The
@@ -276,9 +284,9 @@ both the skill's checker and the Swift decoder):
   contract 9 binary declines it.
 - Saved logs hold `approved_estimate` as `.augmented`, survive replace, remove and archive restore,
   and export `state: "estimated"`. Daily export: a document with no estimate exports
-  byte-identically at version 1, one with an estimate at version 2, and **both** pass
-  serialisation, Drive validation (which accepts a single version today), reconciliation and
-  recovery.
+  byte-identically to what the same build wrote before this change, one with an estimate at the
+  version allocated below, and **every** version the build can write passes serialisation, Drive
+  validation (which accepts a single version today), reconciliation and recovery.
 - Search: an entry that gains its first known nutrient from an estimate becomes visible; an
   estimated fat value takes part in the requested-fat partition; escalation sufficiency counts it;
   a re-resolved log binds the same estimates and manifest.
@@ -306,13 +314,14 @@ In order; each has a recommendation.
   label, cannot carry a subset of nutrients, and "as sold" alone says nothing about drained state
   or edible basis.
 - **P3. Which E3 builder obligations bind the v2 catalogue?** Recommended: all of estimates v1
-  section 3.1 stays (approval per value, never an Open Food Facts value by any route, the
-  aggregator's underlying source recorded and counted, zero only where the source states zero, one
-  source per nutrient). Only one clause is replaced: "withheld by an E3 consequence, a per-entry
-  exclusion or as unresolved" is keyed to entry IDs of the pinned evaluation release, which the v2
-  catalogue does not share. For the v2 catalogue a source that E3 rejected for that food is offered
-  again only as its own row in the private review sheet with the earlier rejection shown, and
-  enters only on a fresh owner approval; a schema change alone never re-admits it.
+  section 3.1 stays, the no-laundering rule included (E3 disposition section 4.1): a record or
+  value E3 withheld for a food stays refused for that food in the v2 catalogue. Those lists are
+  keyed to entry IDs of the pinned evaluation release, so the builder carries them across by the
+  private mapping of old entries to v2 entries and reports the refused count, which must be zero
+  in the file. As E3 already says, an independent source is admissible even when its number
+  agrees: the evidence decides, not the number. Alternative: let the owner re-admit a refused
+  source row by row on a fresh approval with the earlier rejection shown; more coverage, but it
+  reopens a decided disposition.
 - **P4. Close matches.** Recommended: allow `carried_from_similar_food` from the entry's own close
   record under section 3 (contradictions rejected at import and withheld on Confirm), one accepted
   row at a time in the private review sheet, with the nutrients that the difference affects left
@@ -338,4 +347,7 @@ In order; each has a recommendation.
   a contradiction veto, sections 3.1 and 3.2); decoder promises contradicted P1 (support table,
   section 2); search evaluations wrongly exempted (now required); P3 too loose (clauses named);
   new rejections had no codes and "must equal" contradicted the inherited tolerance (table in 3.1).
+- 16 November 2026: local Qodo pass on that revision, three findings fixed: the Confirm veto now
+  covers every decisive facet; P3 keeps the no-laundering rule; the daily export version no longer
+  collides with daily export v2 (version 3).
 - Still owed before acceptance: a repeat of both gates on this revision.
