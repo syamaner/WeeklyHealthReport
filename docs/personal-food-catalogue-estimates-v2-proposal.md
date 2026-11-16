@@ -784,4 +784,4 @@ contract: acceptance follows the re-review named in section 9.
   carries the saved identity, decision record and outcome; quick add is detected from the
   restored candidate and refused at save; the evidence tests are split; re-admission has a sheet
   of its own; the bare "Estimated" wording is gone. The egress paragraph's missing facts (key,
-  provider routing, storage) wait for the owner's approval of the wording.
+  provider routing, storage) were then added with the owner's approval of the wording.
