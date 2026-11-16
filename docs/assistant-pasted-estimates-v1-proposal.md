@@ -684,7 +684,7 @@ identical-results test above.
 
 ## 12. Decisions for the owner
 
-A1 to A6 are decided; A7 and A8 are open. In the order they should be asked, each with a recommendation. A8 was added by
+A1 to A7 are decided; A8 is open. In the order they should be asked, each with a recommendation. A8 was added by
 the invariant review.
 
 - **A1. May the brand be in the prompt? Decided by the owner on 16 November 2026: yes, shown in
@@ -725,7 +725,8 @@ the invariant review.
   offered again, every row unticked, when the details match** (the recommendation). Alternatives: never carried, so each new log needs a fresh
   paste; or carried already ticked, which is not recommended because it selects by default. A
   value wanted on every log belongs in the catalogue.
-- **A7. A suggested zero.** *Recommended: accepted, as a labelled estimate the owner ticks.*
+- **A7. A suggested zero. Decided by the owner on 16 November 2026: accepted, as a labelled
+  estimate the owner ticks, written out in words ("none: 0 g")** (the recommendation).
   Alternative: refuse every zero from a reply, which is stricter about "unknown is never zero" and
   loses true zeros such as fibre in butter.
 
@@ -800,3 +801,5 @@ the contract's rules; each must be settled against the code before production wo
   is withheld or left out). A6 to A8 are open, and the proposal as a whole is not accepted.
 - 16 November 2026: the owner decided A6 (on re-log and quick add the earlier reply is offered
   again, unticked). A7 and A8 are open, and the proposal as a whole is not accepted.
+- 16 November 2026: the owner decided A7 (a suggested zero is accepted and shown in words). A8 is
+  open, and the proposal as a whole is not accepted.
