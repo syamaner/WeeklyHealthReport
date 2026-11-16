@@ -168,34 +168,56 @@ rule (reject when the record's preparation is unknown) was offered in decision P
 - The own-record rows apply only when the estimate cites the entry's `generic_reference`. Dropping
   or changing that reference so that a close-match record can be cited as another record's
   `carried_from_same_food` is forbidden; the evaluator counts estimates whose record is the
-  entry's former or close reference, and the count must be zero.
+  entry's former or close reference; those not re-admitted (below) must be zero, and close
+  references are never re-admissible.
 - An entry whose reference the E3 disposition demoted, removed or held at `candidate` takes no
   estimate from that record by any route (E3 disposition sections 4 and 4.1). A record or value E3
   withheld for a food stays refused for that food. This is the default; the one exception is the
   re-admission below.
 - Those lists are keyed to entry IDs of the pinned evaluation release. The builder carries them
   across by the private mapping of old entries to v2 entries; the **evaluator**, not the builder,
-  reports the refused count, which must be zero in the file. An entry with no counterpart in the
+  reports the count of refused estimates not re-admitted, which must be zero in the file. An entry with no counterpart in the
   pinned release cannot be checked this way; such entries are counted separately as "no E3
   counterpart" so the limit of the rule stays visible.
 - **Re-admission, row by row (owner decision P3, 16 November 2026).** The owner may re-admit one
-  refused source for one entry on a fresh approval. This amends E3 disposition sections 4 and 4.1
-  and is recorded there as a dated amendment when this proposal is accepted. Its limits:
-  - One row is one entry and one record. The review sheet row shows that E3 refused it and why,
-    and the owner accepts that row; there is no batch acceptance, and the builder or an agent
-    never re-admits on the owner's behalf.
-  - A re-admitted value is an ordinary labelled estimate and nothing more. Every codec, importer
-    and Confirm rule applies unchanged, so re-admission overrides no mechanical rule: a `raw` or
-    `cooked` entry still cannot take its own held record (`estimate-own-held`), a contradiction
-    still rejects or withholds, and a close match is still `estimate-similar`. In practice it
-    reaches entries whose state is not `raw` or `cooked`.
+  refused source value for one entry on a fresh approval. It is recorded as a dated amendment,
+  when this proposal is accepted, to each rule it touches: E3 disposition sections 4, 4.1 and 5
+  point 3, and the must-be-zero count of estimates v1 section 3.1 (which becomes "refused and not
+  re-admitted"). Its limits:
+  - **What can be re-admitted (closed list).** Only a `national_composition` value or record that
+    E3 withheld by a stratum consequence (its section 6) or by the removal-only mechanics of its
+    section 3 (a reference removed or demoted because another value was withheld), and that no
+    review found wrong in itself.
+  - **Never re-admissible**, because the rule that refuses each is not amended here: a value whose
+    stated underlying source is Open Food Facts, by whatever page or route (estimates v1 section
+    3.1, E3 decision D3), so that count stays zero; the 2 unresolved A1 values; a record under a
+    per-entry exclusion for wrong identity, incompatible state or variety mismatch (evaluation v1's
+    per-entry exclusion; amendment A2 never covers a known contradiction); a value excluded for
+    its own wrong basis, transcription or derivation; a close-match reference; and a class with
+    no truthful `source_type` (recipe estimate, prior release, a transform outside the closed
+    list). A row of one of these classes on the list is counted as refused.
+  - One row is one entry ID, one nutrient key, the `source_type` and the `source_reference`, with
+    the corpus hash and the date. A row covers that value only, never a later value of the same
+    record. The list is derived from the review sheet: each row matches a sheet row that showed
+    the E3 refusal and its reason and carries the owner's accept mark, and the evaluator checks
+    that match. There is no batch acceptance, and the builder or an agent never re-admits on the
+    owner's behalf.
+  - A re-admitted value is a labelled estimate and nothing more. Every codec, importer and Confirm
+    rule applies unchanged, so re-admission overrides no mechanical rule: a `raw` or `cooked` entry
+    still cannot take its own held record (`estimate-own-held`), a contradiction still rejects or
+    withholds, and a close match is still `estimate-similar`. Stated plainly: a record that is
+    not the entry's own (for example one whose reference E3 removed) passes those rules on a `raw`
+    or `cooked` entry, so there the row-level approval is the only safeguard.
+  - Its `assumption` text says that the evaluation withheld the source and the owner re-admitted
+    it, so the details on Confirm show it (E3 section 4: a weaker class is shown as such).
   - It never restores a `merge` role, changes a reference's role or the entry's identity, and it
     never makes a value measured.
-  - The re-admission list (entry, source, record, date) is private and stays in the owner's
-    workspace; it holds until the owner withdraws a row. The file carries no marker for it.
-  - The evaluator reports two counts from that list: refused estimates not re-admitted, which
-    must be zero, and re-admitted estimates, reported as a number. The private change report
-    lists the re-admitted rows.
+  - The re-admission list is private and stays in the owner's workspace; it holds until the owner
+    withdraws a row, after which the value counts as refused again. The file carries no marker
+    beyond the `assumption` text.
+  - The evaluator reports three counts: refused estimates not re-admitted, which must be zero;
+    re-admitted estimates; and estimates on entries with no E3 counterpart. The private change
+    report lists the re-admitted rows.
 
 ### 3.2 What Confirm must do with it
 
@@ -209,14 +231,15 @@ answer those questions, every `national_composition` estimate is re-checked agai
   `GenericRecordNutrientLookup` (section 7) and holds it in the Confirm state for that log. The
   lookup key must come from saved data, so the capture manifest carries one more field than
   estimates v1 section 5.2 lists: `corpus_sha256` beside each `national_composition` estimate (a
-  stated amendment; the manifest is not implemented yet). On a reopened log the identity is read
-  again with the manifest's source, hash and record ID, never with the active release's.
+  stated amendment; the manifest is not implemented yet). When the details of a reopened log are corrected, the identity is
+  read again with the manifest's source, hash and record ID, never with the active release's.
   **When a record cannot be read** (corpus pin moved, record missing), every estimate that cites it
   is withheld, with its own notice: "Estimate left out: its source record could not be read".
 - **The comparison** is per facet and uses the equality the existing `IdentityCompatibility` rule
   uses, with one difference only: a facet that is `unknown` on either side does not contradict.
   Preparation compares the whole state (kind, and method when both sides name one), so `as_sold`
-  against a `cooked`, `reheated` or `named` record is a contradiction like any other. Packing
+  against a `raw`, `cooked`, `reheated` or `named` record is a contradiction like any other; only
+  `unknown` on either side never contradicts. Packing
   medium is exact text equality. The function lives in `FoodLedgerDomain` beside
   `IdentityCompatibility`, with a test that both cover the same facets. A facet (preparation, bone, skin, drained state, packing medium, fortification) that is
   known on both sides and different withholds every estimate citing that record.
@@ -229,8 +252,12 @@ answer those questions, every `national_composition` estimate is re-checked agai
 - Otherwise the estimate stays, labelled "Estimated".
 
 The check is one pure application policy over the estimate, the record's identity and the confirmed
-identity. It runs when Confirm is bound, after each correction of details, and on re-resolution of a saved
-log. A reopened log that is not corrected shows its saved values as saved.
+identity. It runs when a candidate is bound to Confirm, after each correction of details, and on
+re-resolution of a saved log. **Reopening alone runs nothing:** a reopened log whose details are
+not corrected reads no record and shows its saved values as saved, also after the corpus pin has
+moved, and a change of quantity alone is not a correction of details. A value that was withheld
+when the log was saved shows the one notice "Estimate left out when this was logged", since the
+reason is not stored.
 
 Why this route and not a wider merge (decision P2): an "as sold" merge would give the entry the
 record's identity for every facet (amendment A1), silently settling drained, bone and packing, the
@@ -286,26 +313,35 @@ here:
   the imported database or the manifest. A manifest that no saved provenance cites any more (every
   estimate withheld or left out) is still saved, found through the candidate's bound
   evidence IDs, and still verified on reopen.
-- **Leave-out evidence `pfd-estimate-correction-v1`.** It exists for one purpose: so that a
+- **Leave-out state and versions.** The set of left-out nutrient keys is Confirm state of its own,
+  outside `FoodCorrection`. On a reopened log it is seeded from the effective resolution version's
+  leave-out evidence, so an identity-only correction keeps earlier leave-outs. A non-empty set on a
+  new log, or any change to the set on a reopened log (a leave-out or an undo, which is offered
+  after Log too), counts as a change exactly as a correction does today: a new candidate decision
+  and resolution version are written, never the saved ones reused. The version's nutrients are
+  the candidate's (or the correction's) with the left-out keys unknown.
+- **Leave-out evidence `pfd-estimate-left-out-v1`.** It exists for one purpose: so that a
   reopened log can say "Left out by you" and not the withheld notice. One item per saved
-  resolution version in which at least one estimate was left out; evidence is immutable, so a
-  later change to the saved log writes a new item with the new version and the earlier one stays.
+  resolution version whose set is not empty; evidence is immutable, so the earlier items stay.
   Its content is `schema`, the resolution version ID it belongs to, the capture manifest's hash
   and the sorted keys of the nutrients left out. It holds no nutrient value; the estimate that was
-  offered is in the manifest. Reopen finds it among the log's capture evidence by
-  `captureMethodVersion` and that ID, since no provenance cites it. Inline `CaptureEvidence`, kind
+  offered is in the manifest. **It is reached the way all evidence is, by ID:** that version's
+  candidate decision lists the candidate's evidence IDs plus this item's, and the bound candidate
+  is not changed. Inline `CaptureEvidence`, kind
   `.labelText`, `originalPayload` `.text(<canonical JSON>)`, `byteHash` its SHA-256,
-  `captureMethodVersion` `pfd-estimate-correction-v1`, committed in the log's `LedgerMutation`.
+  `captureMethodVersion` `pfd-estimate-left-out-v1`, committed in the log's `LedgerMutation`.
   Other `.labelText` readers select by `captureMethodVersion` and ignore it, and its reader
   ignores theirs (one test each way). Verified in the application on save and on reopen exactly as
   the manifest is; missing or altered evidence shows "Evidence not available" and never changes
-  stored values.
+  stored values. Outside the log's own details a left-out value reads as any unknown does
+  ("Unknown, no matching source", export reason `no_compatible_source`); that wording is accepted
+  for this release, and no new reason is added.
 - **Stored shapes** (no new `UnknownReason` and no new stored raw value beyond `approved_estimate`):
 
   | Case | Stored value | Provenance | How reopen tells it apart |
   |---|---|---|---|
   | Estimate kept | `.augmented` | `approved_estimate`, as estimates v1 section 5.1 | provenance |
-  | Withheld by section 3.2 | `.unknown`, reason `no_compatible_source` | none | the key is in the manifest and not in the leave-out evidence; the notice is shown again |
+  | Withheld by section 3.2 | `.unknown`, reason `no_compatible_source` | none | the key is in the manifest and not in the leave-out evidence; shown as "Estimate left out when this was logged" |
   | Left out by the owner | `.unknown`, reason `no_compatible_source` | none | the key is in the leave-out evidence; shown as "Left out by you" |
 - **Re-resolution** of a saved log builds a fresh candidate from the active release, as it does
   today, and so a fresh manifest (the same bytes and hash when the release and entry are
@@ -363,7 +399,7 @@ planned contract 9, migration `v9_approved_estimate` and `food-ledger-v9`. Contr
 been taken by estimate layers on Open Food Facts products (`v9_off_label_estimate`). Approved
 estimates therefore take **contract 10**. The sites that change: `foodContractVersion` rises to 10;
 the floor returns 10 for a record holding `approved_estimate` provenance, `pfd-estimate-capture-v1`
-or `pfd-estimate-correction-v1` evidence, checked before the contract 9 rule, which is left exactly
+or `pfd-estimate-left-out-v1` evidence, checked before the contract 9 rule, which is left exactly
 as it is; a metadata-only migration `v10_approved_estimate` sets `food-ledger-v10`;
 `FoodLedgerGRDBStore.schemaVersion` and the store's open check accept `food-ledger-v10`. As with
 v9, the migration moves every store to `food-ledger-v10` on open, so contract 9 binaries decline
@@ -442,7 +478,7 @@ skill's checker and the Swift decoder both read it for codec codes):
 - Confirm re-check: each decisive facet has a withheld case and a kept case, including preparation
   method, `as_sold` against `cooked` (withheld), `unknown` against `cooked` (kept), drained against
   undrained and packing text; a basis change withholds a page estimate too; a record that cannot
-  be read withholds with its own notice; on a reopened log after the database was removed or
+  be read withholds with its own notice; when a reopened log's details are corrected after the database was removed or
   replaced the lookup uses the manifest's corpus hash, with the corpus-moved and record-present
   cases. Both comparisons cover the same facets.
 - Precedence: label, then estimate, then merged record; a label and an estimate on one key is
@@ -453,7 +489,11 @@ skill's checker and the Swift decoder both read it for codec codes):
   each have a case; leaving out or withholding every value blocks Log with its reason; all
   estimates left out but one label value kept, then reopened, shows "Left out by you"; a second
   change to a saved log writes a second evidence item and the newest version's governs; the
-  evidence holds keys and no value; Confirm offers no field for an estimated nutrient's value;
+  evidence holds keys and no value and is loaded on reopen through the decision's evidence IDs,
+  also after an archive restore; a leave-out or an undo alone on a reopened log writes a new
+  resolution version; an identity-only correction of a reopened log keeps earlier leave-outs; a
+  reopened log reads no record and shows saved values after the corpus pin moves; `as_sold`
+  against `raw` withholds; Confirm offers no field for an estimated nutrient's value;
   the domain still rejects `approved_estimate` as measured or bounded; the manifest's bytes and
   hash are unchanged and still verify, also when no provenance cites it. Log is never
   pre-selected; an estimate-only entry is not a generic estimate.
@@ -478,6 +518,10 @@ skill's checker and the Swift decoder both read it for codec codes):
   reconciliation and recovery.
 - Search: an entry that gains its first known nutrient from an estimate becomes visible; an
   estimated fat value takes part in the requested-fat partition; escalation sufficiency counts it.
+- Re-admission, in the evaluator with synthetic lists: the three counts; a withdrawn row counts as
+  refused again; a never-re-admissible class is refused even when listed; a list row with no
+  accepted sheet row is refused; a re-admitted own record on a `raw` entry still gives
+  `estimate-own-held`.
 - Simulator journey: import a synthetic estimates v2 file, search, open Confirm, read the estimate
   details, leave one value out, log, remove the database, reopen the log.
 
@@ -556,5 +600,13 @@ contract: acceptance follows the re-review named in section 9.
 - 16 November 2026: the owner decided P3 (refusals bind by default; row-by-row re-admission on a
   fresh approval). The re-admission text of section 3.1 is new and has had no review.
 - 16 November 2026: the owner decided P5 (one implementation phase after daily export v2).
-- Still owed before acceptance: a short re-review of sections 3.1, 3.2 and 5, with the
-  re-admission rule looked at on its own.
+- 16 November 2026: fourth gates (two blind subagents, both NEEDS WORK) and one Qodo pass (two
+  findings) on c98b2eb. No route from an estimate to a measured value, a label overwrite or a
+  zero was found. Folded in: re-admission got a closed list of what can and cannot return, a
+  per-value row tied to the review sheet, three evaluator counts and named amendments; the false
+  claim that it reaches only non-`raw`, non-`cooked` entries was corrected; the leave-out set is
+  Confirm state that forces a new version and its evidence is reached through the decision's
+  evidence IDs; reopening alone reads no record; `as_sold` against `raw` is pinned as a
+  contradiction; the evidence was renamed `pfd-estimate-left-out-v1`.
+- Open for the owner: whether the never-re-admissible list is what P3 meant, and whether
+  `as_sold` against a `raw` record should withhold. These fixes have had no review of their own.
