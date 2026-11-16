@@ -12,8 +12,8 @@ It is a delta on [estimates on catalogue v2](personal-food-catalogue-estimates-v
 those contracts that this one does not name stays as written. Where a number or a list would grow
 (food contract, daily export version, the label list), this proposal takes the next free value and
 says so. Accepting it would need dated amendment notes in two accepted contracts, written at
-acceptance and not here: estimates v2 sections 3.3 and 5, for the lowered tier of section 5.3 (if
-decision A4 is taken as recommended), and daily export v2, for version 4 (section 9).
+acceptance and not here: estimates v2 sections 3.3 and 5, for the lowered tier of section 5.3
+(decision A4, decided), and daily export v2, for version 4 (section 9).
 
 ## 1. What this adds, and what it does not
 
@@ -684,7 +684,7 @@ identical-results test above.
 
 ## 12. Decisions for the owner
 
-A1 to A3 are decided; A4 to A8 are open. In the order they should be asked, each with a recommendation. A8 was added by
+A1 to A4 are decided; A5 to A8 are open. In the order they should be asked, each with a recommendation. A8 was added by
 the invariant review.
 
 - **A1. May the brand be in the prompt? Decided by the owner on 16 November 2026: yes, shown in
@@ -706,8 +706,11 @@ the invariant review.
   entries only in v1** (the recommendation). It is where
   the gaps are, and it leaves the label and web verifiers untouched. Alternative: every Confirm
   route, which changes those verifiers and their admission rules and is a larger phase.
-- **A4. What does a tier suggestion do?** *Recommended: a ticked suggestion lowers the tier shown
-  for that log only, and never raises one.* Alternatives: show it as advice with nothing to tick
+- **A4. What does a tier suggestion do? Decided by the owner on 16 November 2026: a ticked
+  suggestion lowers the tier shown for that log only, and never raises one** (the
+  recommendation, taken with the cost below stated). So sections 5.3, 6.3 and the
+  `estimate_quality_basis` field of section 9 stand, and acceptance of the proposal adds the dated
+  amendment note to estimates v2 sections 3.3 and 5. Alternatives: show it as advice with nothing to tick
   and nothing stored (smaller: no choices evidence and no `estimate_quality_basis` in the export);
   or leave tier suggestions out of v1. The architecture gate's view, stated for the owner: tier
   lowering is the costliest part of this route (a second evidence kind, an amendment to estimates
@@ -790,3 +793,6 @@ the contract's rules; each must be settled against the code before production wo
   on this iPhone only. A3 to A8 are open, and the proposal as a whole is not accepted.
 - 16 November 2026: the owner decided A3 (Your food database entries only in v1). A4 to A8 are
   open, and the proposal as a whole is not accepted.
+- 16 November 2026: the owner decided A4 (a ticked tier suggestion lowers the tier for that log
+  only), with the architecture review's cost put to them. A5 to A8 are open, and the proposal as a
+  whole is not accepted.
