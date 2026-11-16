@@ -69,7 +69,7 @@ public struct FoodWebDiscoveryView: View {
                     ForEach(Array(result.leads.enumerated()), id: \.offset) { _, lead in
                         if FoodWebLinkPolicy.isAllowed(lead.url) {
                             VStack(alignment: .leading, spacing: 6) {
-                                Text(lead.title).font(.headline)
+                                Text(GenericFoodProposalReviewCopy.leadTitle(lead)).font(.headline)
                                 Text("Google citation URL: \(lead.url.host ?? "Source website")")
                                     .font(.caption)
                                 Link("Open Google-cited page", destination: lead.url)

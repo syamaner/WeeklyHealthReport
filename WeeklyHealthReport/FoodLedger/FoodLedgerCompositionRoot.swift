@@ -121,7 +121,8 @@ final class FoodLedgerCompositionRoot {
         self.userDefaults = userDefaults
         foodMarket = FoodMarketPreference(defaults: userDefaults)
         let clock = SystemLedgerClock()
-        let openRouter = OpenRouterFoodProvider(extractionRoute: .grok, selectionRoute: .applicability)
+        // Transient model-call failures are resent unchanged under the #500 retry amendment.
+        let openRouter = OpenRouterFoodProvider(extractionRoute: .grok, selectionRoute: .applicability, retry: .live)
         webDiscovery = FoodWebDiscoveryViewModel(provider: openRouter, keys: openRouterKeys,
             providerName: "OpenRouter", operatorName: "OpenRouter", keyManagementName: "OpenRouter settings")
         proposalReviewer = GenericFoodProposalReviewer(discovery: openRouter, capture: PublicFoodSourceCapture(),

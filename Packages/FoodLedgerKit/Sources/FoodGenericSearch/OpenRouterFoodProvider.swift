@@ -5,7 +5,30 @@ import FoodLedgerDomain
 public struct OpenRouterFoodHTTPReply: Sendable {
     public let status: Int
     public let data: Data
-    public init(status: Int, data: Data) { self.status = status; self.data = data }
+    /// The reply's `Retry-After` header text, read only to pace a retry (#500).
+    public let retryAfter: String?
+    public init(status: Int, data: Data, retryAfter: String? = nil) {
+        self.status = status; self.data = data; self.retryAfter = retryAfter
+    }
+}
+
+/// Whether and how web lookup model calls are retried (#500). `disabled` makes exactly one
+/// attempt, as evaluation tools and replays require; the app composes `live`. The clock, sleeper
+/// and jitter are injected so tests are deterministic and cancellation is observed while waiting.
+public struct OpenRouterFoodRetry: Sendable {
+    public let enabled: Bool
+    public let now: @Sendable () -> Date
+    public let sleep: @Sendable (TimeInterval) async throws -> Void
+    public let jitter: @Sendable () -> Double
+    public init(enabled: Bool, now: @escaping @Sendable () -> Date,
+                sleep: @escaping @Sendable (TimeInterval) async throws -> Void,
+                jitter: @escaping @Sendable () -> Double) {
+        self.enabled = enabled; self.now = now; self.sleep = sleep; self.jitter = jitter
+    }
+    public static let disabled = OpenRouterFoodRetry(enabled: false, now: { Date() }, sleep: { _ in }, jitter: { 0 })
+    public static let live = OpenRouterFoodRetry(enabled: true, now: { Date() },
+        sleep: { try await Task.sleep(nanoseconds: UInt64(max(0, $0) * 1_000_000_000)) },
+        jitter: { Double.random(in: 0..<1) })
 }
 
 /// Candidate routes are infrastructure choices; every route emits the same
@@ -66,14 +89,18 @@ public struct OpenRouterFoodProvider: FoodWebDiscovering, FoodProposalExtracting
     private let selectionRoute: SelectionRoute
     private let transport: Transport
     private let extractionRoute: OpenRouterFoodExtractionRoute
+    private let retry: OpenRouterFoodRetry
     public init(extractionRoute: OpenRouterFoodExtractionRoute = .luna,
                 selectionRoute: SelectionRoute = .jev,
+                retry: OpenRouterFoodRetry = .disabled,
                 transport: @escaping Transport = Self.liveTransport) {
         self.extractionRoute = extractionRoute; self.transport = transport; self.selectionRoute = selectionRoute
+        self.retry = retry
     }
 
     public func validate(key: String) async throws {
-        let reply = try await request(path: "v1/key", key: key, body: nil)
+        // Key validation is not a web lookup model call and is never retried.
+        let reply = try await request(path: "v1/key", key: key, body: nil, retries: false)
         guard let object = try? StrictFoodProposalJSON.object(reply), object["data"] is [String: Any] else {
             throw FoodWebDiscoveryError.invalidResponse
         }
@@ -347,63 +374,129 @@ public struct OpenRouterFoodProvider: FoodWebDiscovering, FoodProposalExtracting
               !terms.contains(key) else { throw FoodWebDiscoveryError.invalidQuery }
     }
 
-    private func request(path: String, key: String, body: Data?) async throws -> Data {
+    /// One model call. With retries composed, a transient failure resends the identical request
+    /// (same endpoint, headers and body bytes) under `FoodWebModelCallRetryPolicy`; the last
+    /// attempt's classification is what the caller sees.
+    private func request(path: String, key: String, body: Data?, retries: Bool = true) async throws -> Data {
         guard FoodWebKeySyntax.isValid(key) else { throw FoodWebDiscoveryError.credentialRejected }
         guard body.flatMap({ String(data: $0, encoding: .utf8) })?.contains(key) != true else { throw FoodWebDiscoveryError.invalidQuery }
         var request = URLRequest(url: URL(string: "https://openrouter.ai/api/" + path)!)
-        request.httpMethod = body == nil ? "GET" : "POST"; request.httpBody = body; request.timeoutInterval = 90
+        request.httpMethod = body == nil ? "GET" : "POST"; request.httpBody = body
+        request.timeoutInterval = FoodWebModelCallRetryPolicy.attemptTimeout
         request.setValue("Bearer " + key, forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        guard retries, retry.enabled else {
+            switch try await attempt(request, key: key) {
+            case let .success(data): return data
+            case let .failure(failure): throw failure.error
+            }
+        }
+        let started = retry.now()
+        var attemptNumber = 1
+        while true {
+            let failure: AttemptFailure
+            switch try await attempt(request, key: key) {
+            case let .success(data): return data
+            case let .failure(value): failure = value
+            }
+            let now = retry.now()
+            switch FoodWebModelCallRetryPolicy.next(afterAttempt: attemptNumber, outcome: failure.outcome,
+                                                     elapsed: now.timeIntervalSince(started), now: now, jitter: retry.jitter()) {
+            case .stop: throw failure.error
+            case let .retry(after, planned):
+                do { try await retry.sleep(after) } catch { throw CancellationError() }
+                try Task.checkCancellation()
+                // Re-read the clock: a late wake-up must not start an attempt past the deadline.
+                let timeout = min(planned, FoodWebModelCallRetryPolicy.attemptTimeout(
+                    elapsed: retry.now().timeIntervalSince(started)))
+                guard timeout >= FoodWebModelCallRetryPolicy.minimumAttemptTime else { throw failure.error }
+                request.timeoutInterval = timeout
+                attemptNumber += 1
+            }
+        }
+    }
+
+    private struct AttemptFailure: Error {
+        let error: FoodWebDiscoveryError
+        let outcome: FoodWebModelCallRetryPolicy.Outcome
+    }
+
+    /// One send and its classification. Cancellation is thrown; every other failure is returned
+    /// with its retry outcome, so the caller decides whether to resend.
+    private func attempt(_ request: URLRequest, key: String) async throws -> Result<Data, AttemptFailure> {
         let reply: OpenRouterFoodHTTPReply
         do { try Task.checkCancellation(); reply = try await transport(request); try Task.checkCancellation() }
         catch is CancellationError { throw CancellationError() }
         catch let error as URLError {
             if error.code == .cancelled { throw CancellationError() }
-            throw error.code == .timedOut ? FoodWebDiscoveryError.timedOut : FoodWebDiscoveryError.connectionFailed
+            return error.code == .timedOut ? .failure(.init(error: .timedOut, outcome: .timedOut))
+                : .failure(.init(error: .connectionFailed, outcome: .transportError))
         }
-        catch { throw FoodWebDiscoveryError.serviceUnavailable }
+        // The transport's own rejections (non-HTTP reply, URL mismatch, oversized body) keep their
+        // kind, so an unreadable reply is recorded as invalid, not as a server error.
+        catch let error as FoodWebDiscoveryError { return .failure(.init(error: error, outcome: .notRetryable)) }
+        catch { return .failure(.init(error: .serviceUnavailable, outcome: .notRetryable)) }
+        // A retryable status is classified before the body is looked at, so an unreadable,
+        // oversized or key-echoing error page still counts as transient. The body is never
+        // read, surfaced or kept on this path.
+        if reply.status != 200, FoodWebModelCallRetryPolicy.retryableStatuses.contains(reply.status) {
+            return .failure(.init(error: classify(reply.status), outcome: .httpStatus(reply.status, retryAfter: reply.retryAfter)))
+        }
         // Never expose provider error bodies or echoed credentials in UI/logs.
         guard reply.data.count <= 200_000, let text = String(data: reply.data, encoding: .utf8), !text.contains(key) else {
-            throw FoodWebDiscoveryError.invalidResponse
+            return .failure(.init(error: .invalidResponse, outcome: .notRetryable))
         }
-        switch reply.status {
-        case 200:
-            // OpenRouter can carry an upstream failure inside an HTTP-200
-            // envelope. Classify its numeric code without exposing its body.
-            if let object = try? StrictFoodProposalJSON.object(reply.data), let error = object["error"] as? [String: Any] {
-                switch error["code"] as? Int {
-                case 401: throw FoodWebDiscoveryError.credentialRejected
-                case 403: throw FoodWebDiscoveryError.permissionDenied
-                case 402, 429: throw FoodWebDiscoveryError.quotaExceeded
-                case 400, 404, 422: throw FoodWebDiscoveryError.requestRejected
-                default: throw FoodWebDiscoveryError.serviceUnavailable
-                }
-            }
-            return reply.data
-        case 401: throw FoodWebDiscoveryError.credentialRejected
-        case 403: throw FoodWebDiscoveryError.permissionDenied
-        case 402, 429: throw FoodWebDiscoveryError.quotaExceeded
-        case 400, 404, 422: throw FoodWebDiscoveryError.requestRejected
-        default: throw FoodWebDiscoveryError.serviceUnavailable
+        guard reply.status == 200 else {
+            return .failure(.init(error: classify(reply.status), outcome: .httpStatus(reply.status, retryAfter: reply.retryAfter)))
         }
+        // OpenRouter can carry an upstream failure inside an HTTP-200
+        // envelope. Classify its numeric code without exposing its body;
+        // only a bare error object (no choices) with a retryable code is resent.
+        if let object = try? StrictFoodProposalJSON.object(reply.data), let error = object["error"] as? [String: Any] {
+            let code = error["code"] as? Int
+            let outcome: FoodWebModelCallRetryPolicy.Outcome = code.map { object["choices"] == nil
+                ? .httpStatus($0, retryAfter: reply.retryAfter) : .notRetryable } ?? .notRetryable
+            return .failure(.init(error: classify(code), outcome: outcome))
+        }
+        return .success(reply.data)
     }
+
+    private func classify(_ status: Int?) -> FoodWebDiscoveryError {
+            switch status {
+            case 401: .credentialRejected
+            case 403: .permissionDenied
+            case 402, 429: .quotaExceeded
+            case 400, 404, 422: .requestRejected
+            default: .serviceUnavailable
+            }
+        }
 
     public static func liveTransport(_ request: URLRequest) async throws -> OpenRouterFoodHTTPReply {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.httpCookieStorage = nil; configuration.httpShouldSetCookies = false
         configuration.urlCredentialStorage = nil; configuration.urlCache = nil
-        configuration.timeoutIntervalForRequest = 90; configuration.timeoutIntervalForResource = 90
+        // Each attempt is bounded by the request's own timeout, which a retry may shorten (#500).
+        // A small positive floor only, so a last-moment attempt cannot stretch past the deadline.
+        let limit = min(max(request.timeoutInterval, 0.1), FoodWebModelCallRetryPolicy.attemptTimeout)
+        configuration.timeoutIntervalForRequest = limit; configuration.timeoutIntervalForResource = limit
         let session = URLSession(configuration: configuration, delegate: NoRedirects(), delegateQueue: nil)
         defer { session.invalidateAndCancel() }
         let (bytes, response) = try await session.bytes(for: request)
         guard let response = response as? HTTPURLResponse, response.url == request.url else { throw FoodWebDiscoveryError.invalidResponse }
+        let retryAfter = response.value(forHTTPHeaderField: "Retry-After")
+        // A retryable error status is returned without reading its body (#500), so an
+        // oversized error page cannot turn a transient failure into a final one.
+        if FoodWebModelCallRetryPolicy.retryableStatuses.contains(response.statusCode) {
+            return OpenRouterFoodHTTPReply(status: response.statusCode, data: Data(), retryAfter: retryAfter)
+        }
         var data = Data()
         for try await byte in bytes {
             try Task.checkCancellation()
             guard data.count < 200_000 else { throw FoodWebDiscoveryError.invalidResponse }
             data.append(byte)
         }
-        return OpenRouterFoodHTTPReply(status: response.statusCode, data: data)
+        return OpenRouterFoodHTTPReply(status: response.statusCode, data: data,
+                                       retryAfter: retryAfter)
     }
     private final class NoRedirects: NSObject, URLSessionTaskDelegate {
         func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,

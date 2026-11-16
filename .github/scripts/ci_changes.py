@@ -116,6 +116,8 @@ CODE_READ_DOCS = {
     "docs/off-values-label-v1.md",
     # Cited by the Open Food Facts parity tests for the v6 projection difference.
     "docs/off-barcode-candidate-plan-v1.md",
+    # Cited by the web lookup model-call retry policy, its adapter and tests (#500).
+    "docs/generic-food-proposal-integration-v1.md",
 }
 CODE_READ_DOC_PREFIXES = ("docs/fixtures/",)
 # Never documentation, whatever the lists above say: CI, its scripts and this
