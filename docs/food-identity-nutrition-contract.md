@@ -355,6 +355,18 @@ other facet. Owner values are `measured`; Open Food Facts and generic values are
 saved resolution links every release its values cite. Every other source keeps the rules above
 unchanged.
 
+**Amendment A2, 16 November 2026 (Your food database, labelled estimates).** Recorded by
+[estimates on catalogue v2](personal-food-catalogue-estimates-v2-proposal.md) section 3; not yet
+implemented. For a Your food database entry, an owner-approved estimate may supply a nutrient from
+a composition record that did not merge, including the entry's own candidate record and a similar
+food's record, under these limits. It may cover a decisive attribute that is **unknown** and never
+one that is **contradictory**: a facet known on both sides and different rejects the value at
+import or withholds it on Confirm, and for this check alone `as_sold` and `raw` do not contradict
+each other. The value is `augmented`, never `measured`, never overwrites a label value, and is
+shown under a visible label that says it is estimated and, for a similar food, says so. It gives
+the entry nothing of the record's identity. Amendment A1 and every other rule above are
+unchanged.
+
 ## 9. Correction, reformulation and re-resolution
 
 - **Evidence correction:** evidence never changes. Add a correcting assertion and a

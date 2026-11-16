@@ -4674,6 +4674,59 @@ Excluded:
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
 
+## WHR-424-ESTIMATES-V2-PROPOSAL-2026-11-15: Claude Code estimates on catalogue v2, proposal (#424)
+
+The session (`claude-fable-5-2`, session `da6b123c-cf92-4d58-9bb7-540385b44d83`) did the following:
+- read the import v1 and v2, estimates v1, R2 builder and egress contracts;
+- measured the owner's private catalogue (counts only) and drafted private review sheets, outside the repository;
+- wrote `docs/personal-food-catalogue-estimates-v2-proposal.md` with its architecture gate and owner decisions P1 to P5. No code.
+
+The whole session is measured, from `2026-11-15T21:22:16Z` to `2026-11-15T21:30:58Z` (transcript timestamps), so the private catalogue work is inside the boundary. One web research subagent was still running at the cut-off; its tokens up to then are included and the rest are unmeasured.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| #424 estimates v2 proposal, whole session with subagent | 3,572,261 (3,318,227) | 253,988 | 55,489 | 3,627,750 | $3.66 |
+| #424 estimates v2 proposal, revision after the blind review (16 November) | 1,785,413 (1,668,591) | 116,796 | 19,060 | 1,804,473 | $1.65 |
+| #424 estimates v2 proposal, two gate rounds with four subagents and two further revisions (16 November) | 6,483,682 (5,794,097) | 689,455 | 154,541 | 6,638,223 | $8.36 |
+| #424 estimates v2 proposal, P6 decided and section 5 reduced to leave out only (16 November) | 1,945,079 (1,868,325) | 76,734 | 8,978 | 1,954,057 | $1.17 |
+| #424 estimates v2 proposal, P1, P2, P3 and P5 decided, re-admission rule written (16 November) | 1,956,050 (1,938,656) | 17,358 | 12,345 | 1,968,395 | $0.77 |
+| #424 estimates v2 proposal, fourth gates with two subagents and the revision (16 November) | 3,042,426 (2,844,893) | 197,463 | 53,326 | 3,095,752 | $2.72 |
+| #424 estimates v2 proposal, close matches admitted and the quality tier added (16 November) | 3,493,335 (3,470,183) | 23,100 | 21,637 | 3,514,972 | $1.31 |
+| #424 estimates v2 proposal, fifth gates with two subagents and the revision (16 November) | 3,180,268 (2,984,156) | 196,058 | 44,870 | 3,225,138 | $2.56 |
+| #424 estimates v2 proposal, sixth gates with two subagents and the revision, with private classifier work in the window (16 November) | 18,250,039 (17,967,842) | 282,007 | 91,330 | 18,341,369 | $7.09 |
+| #424 estimates v2 proposal, egress record and seventh gates with two subagents and the revision (16 November) | 5,989,901 (5,779,117) | 210,712 | 47,321 | 6,037,222 | $3.23 |
+| #424 estimates v2 contract, egress record completed, owner acceptance and amendment notes (16 November) | 3,677,088 (3,664,829) | 12,235 | 10,902 | 3,687,990 | $1.05 |
+
+Method: `phase_usage.py --format claude --since 2026-11-15T00:00:00Z --until 2026-11-15T21:30:58Z --include-subagents` on the session transcript. Exact USD 3.6627944. The cache-write tokens are part of the input figure; 47,573 of them are 5-minute writes. The total is input plus output.
+
+Revision row: the same session, window `2026-11-16T11:53:30Z` to `2026-11-16T12:10:09Z`, same script and rates, exact USD 1.6493902, all cache writes 1-hour. It covers checking the review's findings against the code, the revision and two local Qodo passes' handling. The reviewing agent's own session, the Qodo runs and the turns after the window are unmeasured.
+
+Gate rounds row: the same session with its four review subagents, window `2026-11-16T12:10:09Z` to `2026-11-16T16:46:11Z`, same script and rates, exact USD 8.3614934; 468,102 of the cache writes are 5-minute writes. It continues from the revision row with no gap, so it also holds that row's push and handover. The document now has decisions P1 to P6. Qodo runs and the turns after the window are unmeasured.
+
+P6 row: the same session, window `2026-11-16T16:46:11Z` to `2026-11-16T18:29:03Z`, same script and rates, exact USD 1.167177, all cache writes 1-hour, no subagent. It continues from the gate rounds row with no gap, so it also holds that row's push and handover, and it covers the owner's P6 decision and the edit that removed the typed label value. The commit, push and handover after the window are unmeasured.
+
+Decisions row: the same session, window `2026-11-16T18:29:03Z` to `2026-11-16T19:00:09Z`, same script and rates, exact USD 0.7736392, all cache writes 1-hour, no subagent. It continues from the P6 row with no gap, so it also holds that row's commit, push and handover, and it covers recording the owner's decisions P1, P2, P3 and P5 and writing the row-by-row re-admission rule. All six decisions are now recorded. The commit, push and handover after the window are unmeasured.
+
+Fourth gates row: the same session with its two review subagents, window `2026-11-16T19:00:09Z` to `2026-11-16T19:12:10Z`, same script and rates, exact USD 2.7150676; 166,805 of the cache writes are 5-minute writes. It continues from the decisions row with no gap, so it also holds that row's commit, push and handover. The Qodo run, and the commit, push and handover after the window, are unmeasured.
+
+Close matches row: the same session, window `2026-11-16T19:12:10Z` to `2026-11-16T19:23:30Z`, same script and rates, exact USD 1.3117846, all cache writes 1-hour, no subagent. It continues from the fourth gates row with no gap, so it also holds that row's commit, push and handover, the owner's confirmation of the re-admission list, the as sold decision, and the rewrite that admits close matches and adds the quality tier (decisions P4 reopened and P7). The commit, push and handover after the window are unmeasured.
+
+Fifth gates row: the same session with its two review subagents, window `2026-11-16T19:23:30Z` to `2026-11-16T19:35:31Z`, same script and rates, exact USD 2.5557522; 169,053 of the cache writes are 5-minute writes. It continues from the close matches row with no gap, so it also holds that row's commit, push and handover, and reading public classifier documentation and drafting a private trial payload outside the repository. The Qodo run, and the commit, push and handover after the window, are unmeasured.
+
+Sixth gates row: the same session with its two review subagents, window `2026-11-16T19:35:31Z` to `2026-11-16T21:15:56Z`, same script and rates, exact USD 7.0934424; 194,514 of the cache writes are 5-minute writes. It continues from the fifth gates row with no gap. Most of this window is not proposal work: it also holds that row's commit, push and handover and about an hour and a half of private catalogue work outside the repository (a classifier trial and two classifier passes, with their preparation and merging), which cannot be separated by time alone. The classifier's own requests and the Qodo run are unmeasured, as are the commit, push and handover after the window.
+
+Seventh gates row: the same session with its two review subagents, window `2026-11-16T21:15:56Z` to `2026-11-16T21:47:43Z`, same script and rates, exact USD 3.2349014; 184,442 of the cache writes are 5-minute writes. It continues from the sixth gates row with no gap, so it also holds that row's commit, push and handover, and the two commits that added the egress policy paragraph. The Qodo run, and the commit, push and handover after the window, are unmeasured.
+
+Acceptance row: the same session, window `2026-11-16T21:47:43Z` to `2026-11-16T21:52:07Z`, same script and rates, exact USD 1.0489818, all cache writes 1-hour, no subagent. It continues from the seventh gates row with no gap, so it also holds that row's commit, push and handover, the completed egress record, the owner's acceptance and the amendment notes in three contracts. The commit, push and handover after the window are unmeasured. The rows of this section add up to the measured part of the phase; they are a comparison at recorded rates, not a bill and not evidence of quality or productivity.
+
+Excluded:
+- the session's turns after the cut-off (local Qodo review, commit, pull request, handover);
+- the subagent's turns after the cut-off;
+- the Qodo review run;
+- this ledger edit.
+
+Pricing: this session ran on `claude-fable-5-2`, for which this ledger records no rate. It is priced at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, so the figure is a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
 ## WHR-500-LOOKUP-RETRY-2026-11-16: Claude Code web lookup selection failure and retries (#500)
 
 One implementation subagent (`claude-opus-5-5`, transcript `agent-a3422508c334646b3` under session `af79238e-bf1c-4e94-955a-e13124c352b8`) did the following:
