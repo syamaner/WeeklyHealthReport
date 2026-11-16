@@ -331,6 +331,77 @@ final class GenericFoodProposalReviewPresentationTests: XCTestCase {
         }
     }
 
+    // MARK: - #500 selection failure, duplicate names and lead titles
+
+    func testEachSelectionFailureHasPlainCopyAndOnlyRejectionWithholdsLookUpAgain() throws {
+        let original = try ProposalPresentationFixture.result(selection: nil)
+        var texts: Set<String> = []
+        for failure in FoodProposalSelectionFailure.allCases {
+            let review = GenericFoodProposalReview(foodTerms: original.foodTerms, discovery: nil, documents: original.documents,
+                validation: original.validation, selection: nil, selectionFailure: failure)
+            XCTAssertTrue(review.rankingUnavailable)
+            let copy = GenericFoodProposalReviewCopy.noSuggestion(review)
+            XCTAssertTrue(copy.text.hasPrefix("No source can be used because "), failure.rawValue)
+            XCTAssertFalse(copy.text.contains("\u{2014}"), "No em dashes")
+            XCTAssertFalse(copy.text.contains(failure.rawValue), "No diagnostic labels on screen")
+            XCTAssertEqual(copy.offersLookUpAgain, failure != .requestRejected, failure.rawValue)
+            texts.insert(copy.text)
+            XCTAssertEqual(GenericFoodProposalReviewCopy.summary(review, suggested: nil), "Found 1 source · the check did not finish")
+            XCTAssertEqual(GenericFoodProposalReviewCopy.status(try XCTUnwrap(review.validation.candidates.first), in: review),
+                           "Not checked for this food")
+        }
+        XCTAssertEqual(texts.count, FoodProposalSelectionFailure.allCases.count, "Each failure kind reads differently")
+        XCTAssertTrue(GenericFoodProposalReviewCopy.selectionFailureText(.timedOut).contains("took too long"))
+        XCTAssertTrue(GenericFoodProposalReviewCopy.selectionFailureText(.rateLimited).contains("rate or credit limit"))
+        XCTAssertTrue(GenericFoodProposalReviewCopy.selectionFailureText(.choiceNotOffered).contains("not offered"))
+    }
+
+    func testUnrecordedOrDeclinedChecksKeepTheirExistingCopy() throws {
+        let unrecorded = try ProposalPresentationFixture.result(selection: nil)
+        let legacy = GenericFoodProposalReviewCopy.noSuggestion(unrecorded)
+        XCTAssertTrue(legacy.text.hasPrefix("Checking whether a source suits this food was unavailable"))
+        XCTAssertTrue(legacy.offersLookUpAgain)
+        XCTAssertEqual(GenericFoodProposalReviewCopy.summary(unrecorded, suggested: nil), "Found 1 source · none suits this food")
+        let declined = try ProposalPresentationFixture.result(selection: "none")
+        XCTAssertEqual(GenericFoodProposalReviewCopy.noSuggestion(declined),
+                       .init(text: "No usable source was found for this food.", offersLookUpAgain: false))
+        XCTAssertEqual(GenericFoodProposalReviewCopy.status(try XCTUnwrap(declined.validation.candidates.first), in: declined),
+                       "Not suggested for this food")
+    }
+
+    func testDeveloperToolsNameTheSelectionFailureWithoutKeyOrPayload() async throws {
+        let reviewer = ControlledProposalReview(); let model = make(reviewer); model.foodTerms = "milk"
+        let original = try ProposalPresentationFixture.result(selection: nil)
+        let failed = GenericFoodProposalReview(foodTerms: "milk", discovery: nil, documents: original.documents,
+            validation: original.validation, selection: nil, selectionFailure: .timedOut)
+        let task = Task { await model.search() }; await reviewer.waitForRequest()
+        await reviewer.complete(failed); await task.value
+        XCTAssertTrue(model.diagnosticLines.contains("Ranking available: false"))
+        XCTAssertTrue(model.diagnosticLines.contains("Ranking failure: timed_out"))
+        XCTAssertFalse(model.diagnosticLines.joined().contains("synthetic-proposal-key-contract-only"))
+        XCTAssertFalse(model.diagnosticLines.joined().contains("Energy 100kcal"), "No captured payload")
+    }
+
+    func testDuplicateCandidateNamesShowWhatDistinguishesThem() throws {
+        let byBasis = try ProposalPresentationFixture.candidates([("Whey Protein", "Per 100g", nil), ("Whey Protein", "Per 30g", nil),
+                                                                  ("Casein", "Per 100g", nil)])
+        XCTAssertEqual(GenericFoodProposalReviewCopy.distinguishingDetails(byBasis), ["c1": "Per 100g", "c2": "Per 30g"])
+        let byPreparation = try ProposalPresentationFixture.candidates([("Whey Protein", "Per 100g", "Made with water"),
+                                                                        ("Whey Protein", "Per 100g", "Made with milk")])
+        XCTAssertEqual(GenericFoodProposalReviewCopy.distinguishingDetails(byPreparation), ["c1": "Made with water", "c2": "Made with milk"])
+        let identical = try ProposalPresentationFixture.candidates([("Whey Protein", "Per 100g", nil), ("Whey Protein", "Per 100g", nil)])
+        XCTAssertEqual(GenericFoodProposalReviewCopy.distinguishingDetails(identical), ["c1": "Entry 1 of 2", "c2": "Entry 2 of 2"])
+        let unique = try ProposalPresentationFixture.candidates([("Whey Protein", "Per 100g", nil), ("Casein", "Per 30g", nil)])
+        XCTAssertTrue(GenericFoodProposalReviewCopy.distinguishingDetails(unique).isEmpty)
+    }
+
+    func testLeadTitlesCollapseWhitespaceAndLineBreaks() {
+        let url = URL(string: "https://shop.example.com/whey")!
+        XCTAssertEqual(GenericFoodProposalReviewCopy.leadTitle(FoodWebLead(title: "  Whey\n\n  Protein \t 1 kg\r\n", url: url)),
+                       "Whey Protein 1 kg")
+        XCTAssertEqual(GenericFoodProposalReviewCopy.leadTitle(FoodWebLead(title: " \n ", url: url)), "shop.example.com")
+    }
+
     private func make(_ reviewer: any GenericFoodProposalReviewing, keys: ProposalCredentials = ProposalCredentials(),
                       initialMarket: FoodReviewMarket = .unspecified, saveMarket: @escaping (FoodReviewMarket) -> Void = { _ in }) -> GenericFoodProposalReviewViewModel {
         GenericFoodProposalReviewViewModel(reviewer: reviewer, credentials: keys,
@@ -369,6 +440,28 @@ private actor ControlledProposalReview: GenericFoodProposalReviewing {
 }
 
 private enum ProposalPresentationFixture {
+    /// Several eligible candidates on one synthetic page, each with its own name, basis and preparation.
+    static func candidates(_ specs: [(name: String, basis: String, preparation: String?)]) throws -> [BoundFoodProposal] {
+        let text = "Whey Protein Per 100g Per 30g Energy 100kcal"
+        let document = try GenericFoodDocumentProjector.project(Data(text.utf8), url: URL(string: "https://shop.example.com/whey")!,
+            mediaType: "text/plain", retrievedAt: Date(timeIntervalSince1970: 0), origin: "synthetic_fixture")
+        let ref: [[String: Any]] = [["block_id": "b1", "quote": text]]
+        let nutrients: [[String: Any]] = FoodProposalNutrientKey.allCases.map { key in
+            ["key": key.rawValue, "state": key == .energy ? "declared" : "unknown", "value": key == .energy ? "100" as Any : NSNull(),
+             "unit": key == .energy ? "kcal" as Any : NSNull(), "evidence": key == .energy ? ref : [],
+             "unknown_reason": key == .energy ? NSNull() : "not_observed" as Any]
+        }
+        let candidates: [[String: Any]] = specs.enumerated().map { index, spec in
+            ["id": "c\(index + 1)", "document_id": document.id, "name": spec.name, "brand": NSNull(),
+             "preparation": spec.preparation as Any? ?? NSNull(), "identity_evidence": ref, "panel_evidence": ref,
+             "basis": ["amount": spec.basis.filter(\.isNumber), "unit": "g", "label": spec.basis, "evidence": ref], "nutrients": nutrients, "limitations": []]
+        }
+        let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let extraction = try decoder.decode(FoodProposalExtraction.self, from: JSONSerialization.data(withJSONObject:
+            ["version": FoodProposalExtraction.schemaVersion, "candidates": candidates, "preferred_id": "c1"]))
+        return try FoodProposalBinding.validate(extraction, documents: [document]).candidates
+    }
+
     static func result(name: String = "Milk", preferred: String = "c1", selection: String? = "c1") throws -> GenericFoodProposalReview {
         let text = "Milk Yoghurt Per 100g Energy 100kcal"
         let document = try GenericFoodDocumentProjector.project(Data(text.utf8), url: URL(string: "https://example.com/food")!,

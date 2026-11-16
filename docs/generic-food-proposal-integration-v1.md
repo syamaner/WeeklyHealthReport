@@ -113,7 +113,9 @@ index against the same offered leads. An abstention or failed selection preserve
 the leads for inspection but does not capture or extract automatically. Supplied
 URLs skip both discovery and lead selection. Maximum calls become one discovery,
 one lead selection, one extraction and the existing optional candidate selector;
-the overall 150-second deadline and no-retry rule remain. Ordinary new websites
+the overall 150-second deadline and no-retry rule remain (the no-retry rule is
+amended for model calls only by the model call retry amendment below, #500).
+Ordinary new websites
 still require no code. Source selection is a fallible applicability judgement,
 never source verification or nutrition admission; binding and explicit user review
 remain mandatory. Tests cover bounds, negative choices, cancellation, partial
@@ -133,6 +135,43 @@ or independent acceptance. Grok costs more and its observed 90-second timeout
 remains an availability limitation. No automatic fallback or retry is introduced.
 The provider adapter's injectable default remains Luna for existing callers and
 matched tests; the app composition root makes its extraction choice explicit.
+
+### Model call retry amendment (#500)
+
+Status: proposed in #500 and in force only once the owner has explicitly approved
+it; the PR that carries it must not merge before that approval.
+
+On device, a web lookup extracted two eligible candidates and then lost the
+applicability check to an unrecorded failure, so no source could be used. Every
+OpenRouter model call of a web lookup (discovery, lead selection, extraction and
+the applicability check) may now be sent again, but only under these terms:
+
+* Only a transient failure is retried: a transport error, a timeout, or HTTP 408,
+  429, 500, 502, 503 or 504 (as a status, or as the code of an OpenRouter error
+  object in an HTTP 200 reply that carries no choices). Key rejection (401, 403),
+  a credit limit (402), a rejected request (400, 404, 422) and every content
+  failure (unreadable, refused, wrong model or provider, out-of-set answer) are
+  never retried.
+* A retry resends the identical request: the same endpoint, headers and body
+  bytes. No new destination, no new data and no change of model or provider.
+* At most 3 attempts per model call, with exponential backoff (1 s, then 2 s,
+  scaled by jitter) that honours `Retry-After` in its seconds and HTTP-date
+  forms. A wait longer than 10 s is not made; the call fails instead. Each call
+  has a 120-second whole-call deadline with at most 90 seconds per attempt, and
+  the review's overall 150-second deadline still bounds the whole lookup.
+* Waiting is cancellable: stopping the lookup, or changing the query, market or
+  key, cancels the wait and sends nothing further.
+* Website page fetches are not model calls. They keep the no-retry rule and the
+  three-connection limit unchanged.
+* Key validation is not retried. Evaluation tools and replays compose the
+  adapter with retries disabled, so their request journals and denominators are
+  unchanged.
+
+The applicability check's failure kind (transport, timed out, rate limited,
+server error, invalid response, choice not offered or request rejected) is
+carried in the review result and shown in Settings › Developer tools, never with
+the key or any payload. It is not persisted: the stored review gate record keeps
+its existing `rankingAvailable` field and shape.
 
 ### Public HTML size gate (05:45 London)
 

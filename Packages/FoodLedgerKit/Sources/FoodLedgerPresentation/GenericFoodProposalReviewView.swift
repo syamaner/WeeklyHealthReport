@@ -113,6 +113,7 @@ public final class GenericFoodProposalReviewViewModel: ObservableObject {
         guard let result else { return [] }
         var lines = ["Web lookup terms: \(result.foodTerms)", "Choice policy: \(GenericFoodProposalReview.choicePolicyVersion)",
                      "Suggested choice: \(result.suggestedChoice)", "Ranking available: \(!result.rankingUnavailable)"]
+        if let failure = result.selectionFailure { lines.append("Ranking failure: \(failure.rawValue)") }
         if let confidence = result.selection?.rawConfidence { lines.append("Uncalibrated model confidence: \(confidence)") }
         lines += result.validation.candidates.map { "Proposal \($0.id): \($0.candidate.name) · eligible \($0.selectionEligible)" }
         lines += result.validation.rejected.map { "Rejected \($0.id): \($0.reason)" }
@@ -210,12 +211,20 @@ public struct GenericFoodProposalReviewView: View {
             if let message = model.message { Section { Text(message) } }
             if let result = model.result {
                 Section {
-                    Text(Self.summary(result, suggested: model.suggestedProposal)).font(.subheadline)
+                    Text(GenericFoodProposalReviewCopy.summary(result, suggested: model.suggestedProposal)).font(.subheadline)
                 }
                 if let proposal = model.suggestedProposal {
                     suggestedSection(proposal, result: result)
                 } else {
-                    Section { Text(Self.noSuggestion(result)) }
+                    let noSuggestion = GenericFoodProposalReviewCopy.noSuggestion(result)
+                    Section {
+                        Text(noSuggestion.text)
+                        if noSuggestion.offersLookUpAgain && credentials.keyIsUsable {
+                            Button("Look up again") { scope = nil; useMessage = nil; Task { await model.search() } }
+                                .frame(minHeight: 44)
+                                .disabled(!model.canSearch)
+                        }
+                    }
                 }
                 otherSourcesSection(result)
             } else if !model.alternativeSources.isEmpty {
@@ -239,6 +248,9 @@ public struct GenericFoodProposalReviewView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(content.name).font(.headline)
                 if let brand = content.brand { Text(brand).font(.subheadline) }
+                if let detail = GenericFoodProposalReviewCopy.distinguishingDetails(result.validation.candidates)[proposal.id] {
+                    Text(detail).font(.subheadline)
+                }
                 Text([content.sourceHost, content.basisLabel.map { "per " + $0 }].compactMap { $0 }.joined(separator: " · "))
                     .font(.caption).foregroundStyle(.secondary)
             }
@@ -300,17 +312,20 @@ public struct GenericFoodProposalReviewView: View {
     @ViewBuilder private func otherSourcesSection(_ result: GenericFoodProposalReview?) -> some View {
         let suggestedID = model.suggestedProposal?.id
         let others = result?.validation.candidates.filter { $0.id != suggestedID } ?? []
+        // Over every candidate, so one sharing the suggested source's name is told apart too.
+        let details = GenericFoodProposalReviewCopy.distinguishingDetails(result?.validation.candidates ?? [])
         if !others.isEmpty || !model.alternativeSources.isEmpty {
             Section("Other sources") {
                 ForEach(others) { proposal in
                     VStack(alignment: .leading, spacing: 3) {
                         Text(proposal.candidate.name)
-                        Text(Self.status(proposal)).font(.caption).foregroundStyle(.secondary)
+                        if let detail = details[proposal.id] { Text(detail).font(.subheadline) }
+                        Text(GenericFoodProposalReviewCopy.status(proposal, in: result)).font(.caption).foregroundStyle(.secondary)
                     }
                 }
                 ForEach(model.alternativeSources) { lead in
                     if FoodWebLinkPolicy.isAllowed(lead.url) {
-                        Button("Check \(lead.title)") {
+                        Button("Check \(GenericFoodProposalReviewCopy.leadTitle(lead))") {
                             model.sourceAddress = lead.url.absoluteString
                             Task { await model.search() }
                         }.disabled(!credentials.keyIsUsable)
@@ -320,32 +335,6 @@ public struct GenericFoodProposalReviewView: View {
         }
     }
 
-    static func summary(_ result: GenericFoodProposalReview, suggested: BoundFoodProposal?) -> String {
-        let count = max(result.discovery?.leads.count ?? 0, result.documents.count)
-        let sources = count == 1 ? "Found 1 source" : "Found \(count) sources"
-        return sources + (suggested == nil ? " · none suits this food" : " · 1 suits this food")
-    }
-
-    static func noSuggestion(_ result: GenericFoodProposalReview) -> String {
-        if result.rankingUnavailable || result.selection == nil {
-            return "Checking whether a source suits this food was unavailable, so no source can be used. You can look it up again."
-        }
-        if result.validation.candidates.contains(where: { $0.status == .conflictingCandidates }) {
-            return "The source gives conflicting values for this food, so it cannot be used."
-        }
-        if result.suggestedChoice == "clarify" {
-            return "The source does not clearly match your description. Add detail, such as the brand or how it was prepared, and look it up again."
-        }
-        return "No usable source was found for this food."
-    }
-
-    static func status(_ proposal: BoundFoodProposal) -> String {
-        if proposal.status == .conflictingCandidates { return "Conflicting values" }
-        if !proposal.selectionEligible {
-            return proposal.candidate.basis.label == nil ? "Needs more information · no nutrition basis" : "Needs more information"
-        }
-        return "Not suggested for this food"
-    }
 }
 
 /// Key entry and privacy terms for OpenRouter web lookup.
@@ -365,7 +354,7 @@ public struct OpenRouterFoodKeyView: View {
                 Text("OpenRouter finds public food sources and reads their nutrition into proposals for you to review.")
                 Text("Validation sends only the key to OpenRouter. A search sends your displayed terms, and extraction sends captured public source text. Model requests require providers configured for no data collection and zero data retention; search services have their own terms.")
                 Text("Your key stays in this device's Keychain, without sync or backup migration. Requests already sent cannot be recalled. Set credit limits in OpenRouter; the app has no monetary spending cap.")
-                Text("Each review uses at most one search request, one source-selection request, three website connections including redirects, one extraction request, and one applicability check. Supplying a source address skips search and source selection. There are no automatic retries.")
+                Text("Each review uses at most one search request, one source-selection request, three website connections including redirects, one extraction request, and one applicability check. Supplying a source address skips search and source selection. A model request that fails for a temporary reason, such as a timeout or a busy service, is sent again unchanged at most twice; website connections are never retried.")
                 Link("OpenRouter privacy", destination: URL(string: "https://openrouter.ai/privacy")!)
                 Link("Manage OpenRouter keys and limits", destination: URL(string: "https://openrouter.ai/settings/keys")!)
             }
