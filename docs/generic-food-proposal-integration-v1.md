@@ -138,8 +138,8 @@ matched tests; the app composition root makes its extraction choice explicit.
 
 ### Model call retry amendment (#500)
 
-Status: proposed in #500 and in force only once the owner has explicitly approved
-it; the PR that carries it must not merge before that approval.
+Status: approved by the owner on 16 November 2026 ("Yes, approve", #500); in force from the
+merge of the PR that carries it.
 
 On device, a web lookup extracted two eligible candidates and then lost the
 applicability check to an unrecorded failure, so no source could be used. Every
