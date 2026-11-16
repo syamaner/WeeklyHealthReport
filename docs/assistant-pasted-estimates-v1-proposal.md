@@ -1,18 +1,19 @@
-# Assistant-pasted estimates v1 (proposal)
+# Assistant-pasted estimates v1 (contract)
 
-Status: **proposal, 16 November 2026. Not accepted, not implemented, and not to be merged before
-the owner accepts it.** Documentation only: no app code, skill code or fixture changes with this
-document, and `privacy-and-egress.md` is not edited here. Section 12 records the owner's eight decisions,
-all taken on 16 November 2026; section 14 says plainly what has and has not been
-reviewed. It has no issue of its own yet and closes nothing. Programme #424.
+Status: **accepted by the owner on 16 November 2026, after one local review and one round of blind
+reviews (section 14). Not implemented.** Proposed the same day; section 12 records the owner's
+eight decisions. The file keeps its original name so that existing links hold. Documentation
+only: no app code, skill code or fixture changes with this document, and `privacy-and-egress.md`
+is edited only by the implementing change. Implementation is a later phase with its own issue and
+architecture gate, after daily export v2 and the estimates v2 phase. Section 14 says plainly what
+has and has not been reviewed. It has no issue of its own yet and closes nothing. Programme #424.
 
 It is a delta on [estimates on catalogue v2](personal-food-catalogue-estimates-v2-proposal.md)
 (accepted 16 November 2026, not implemented), called "estimates v2" below, and through it on
 [approved estimates v1](personal-food-catalogue-estimates-v1.md). It repeats neither. Everything in
 those contracts that this one does not name stays as written. Where a number or a list would grow
 (food contract, daily export version, the label list), this proposal takes the next free value and
-says so. Accepting it would need dated amendment notes in two accepted contracts, written at
-acceptance and not here: estimates v2 sections 3.3 and 5, for the lowered tier of section 5.3
+says so. Acceptance added dated amendment notes to two accepted contracts: estimates v2 sections 3.3 and 5, for the lowered tier of section 5.3
 (decision A4, decided), and daily export v2, for version 4 (section 9).
 
 ## 1. What this adds, and what it does not
@@ -684,8 +685,8 @@ identical-results test above.
 
 ## 12. Decisions for the owner
 
-All eight were decided by the owner on 16 November 2026, each as recommended. Deciding them is
-not acceptance: the proposal as a whole still waits for the owner's acceptance. A8 was added by
+All eight were decided by the owner on 16 November 2026, each as recommended. The owner then
+accepted the contract as a whole on the same day (section 14). A8 was added by
 the invariant review.
 
 - **A1. May the brand be in the prompt? Decided by the owner on 16 November 2026: yes, shown in
@@ -809,3 +810,7 @@ the contract's rules; each must be settled against the code before production wo
   nutrient). All eight decisions are taken, each as recommended. **The proposal as a whole is not
   accepted**, and the fixes folded in after the blind reviews have still had no review of their
   own.
+- 16 November 2026: **the owner accepted the contract.** A repeat review of the revision made after
+  the blind reviews was recommended first and not taken, so those fixes had no review of their own
+  at acceptance; the items the reviewers left to the phase gate are in section 13. Recorded with
+  the acceptance: dated amendment notes in estimates v2 and daily export v2.

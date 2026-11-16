@@ -2,6 +2,8 @@
 
 Status: **decided under owner delegation, 31 October 2026; not implemented.** Open questions Q1 to Q8 (section 11) take the recommended answers under the owner's delegation. Architecture gate on 68f3f59a: PASS WITH CHANGES; findings F1 to F8 and the Q4 and Q7 clarifications are folded in below. Refreshed on 9 November 2026 for two changes merged after the draft, the label estimate layer ([label estimate merge v1](label-estimate-merge-v1.md), #383) and the Ciqual 2025 admission ([Ciqual 2025 admission v1](ciqual-2025-admission-v1.md), #384); neither changes the fields, codes or rules below (section 7).
 
+**Amendment, 16 November 2026 ([assistant-pasted estimates v1](assistant-pasted-estimates-v1-proposal.md) section 9, accepted, not implemented).** A later version 4 is defined as version 3's shape ([estimates on catalogue v2](personal-food-catalogue-estimates-v2-proposal.md), itself this contract's shape plus the estimate fields) plus origin `assistant_estimate`, `estimate_quality_basis` on `approved_estimate` values and one constant sentence in `notes`. It is written only for a document holding an assistant estimate or a lowered tier; every other document keeps its version and its bytes. Nothing in this contract's version 2 changes.
+
 This contract amends [food daily export contract v1](food-daily-export-contract-v1.md) (#287). Everything v1 says stays in force unless a section below changes it. It closes the follow-up recorded in [count portion estimate v1](count-portion-estimate-v1.md) (C13 and section 9) and the export gap noted for the whole-milk volume rule in [CoFID whole-milk volume admission v1](cofid-whole-milk-volume-admission-v1.md).
 
 ## 1. Problem

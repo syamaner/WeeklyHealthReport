@@ -11,6 +11,15 @@ It is a delta on two accepted contracts and repeats neither:
 implemented) and [import v2](personal-food-catalogue-import-v2.md) (approved 13 November 2026,
 implemented). Everything in those documents that this one does not name stays as written.
 
+**Amendment, 16 November 2026 ([assistant-pasted estimates v1](assistant-pasted-estimates-v1-proposal.md), accepted, not implemented).**
+That contract is a delta on this one and changes two points; everything else here stands.
+- Sections 3.3 and 5, which tier is shown: the tier shown and exported for a log is the capture
+  manifest's, unless the effective resolution version's verified choices evidence
+  (`assistant-estimate-choices-v1`) names a lower tier for that nutrient, in which case it is that
+  lower one. A tier is never raised, and the manifest is never edited.
+- Section 3.3's closed label list gains "Estimated by your assistant, some doubt" and "Estimated
+  by your assistant, rough", for the separate `assistant_estimate` kind only.
+
 ## 1. Why a delta is needed
 
 Two things happened after the estimates contract was accepted.
