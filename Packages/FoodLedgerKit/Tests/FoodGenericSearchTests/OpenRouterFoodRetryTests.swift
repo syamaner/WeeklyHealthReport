@@ -47,7 +47,8 @@ final class OpenRouterFoodRetryTests: XCTestCase {
             (.status(404, retryAfter: nil), .requestRejected), (.status(422, retryAfter: nil), .requestRejected),
             (.envelope(code: 401), .credentialRejected), (.envelope(code: 402), .quotaExceeded),
             (.ok(try success(model: "other/model")), .invalidResponse),
-            (.ok(Data(key.utf8)), .invalidResponse), (.envelopeWithChoices(code: 503), .serviceUnavailable)]
+            (.ok(Data(key.utf8)), .invalidResponse), (.envelopeWithChoices(code: 503), .serviceUnavailable),
+            (.transportRejected, .invalidResponse)]
         for (step, expected) in steps {
             let script = Script([step, .ok(try success())])
             do { _ = try await provider(script).chooseSource(foodTerms: "synthetic food", leads: leads, key: key); XCTFail("Expected failure \(step)") }
@@ -160,13 +161,14 @@ final class OpenRouterFoodRetryTests: XCTestCase {
     }
 
     enum Step: CustomStringConvertible {
-        case ok(Data), status(Int, retryAfter: String?), statusBody(Int, Data), urlError(URLError.Code), envelope(code: Int), envelopeWithChoices(code: Int)
+        case ok(Data), status(Int, retryAfter: String?), statusBody(Int, Data), urlError(URLError.Code), envelope(code: Int), envelopeWithChoices(code: Int), transportRejected
         var description: String {
             switch self {
             case .ok: "ok"
             case let .status(status, _): "status \(status)"
             case let .statusBody(status, _): "status \(status) with body"
             case let .urlError(code): "url error \(code.rawValue)"
+            case .transportRejected: "transport rejected the reply"
             case let .envelope(code): "envelope \(code)"
             case let .envelopeWithChoices(code): "envelope with choices \(code)"
             }
@@ -205,6 +207,7 @@ final class OpenRouterFoodRetryTests: XCTestCase {
             case let .status(status, retryAfter): return .init(status: status, data: Data("{}".utf8), retryAfter: retryAfter)
             case let .statusBody(status, data): return .init(status: status, data: data)
             case let .urlError(code): throw URLError(code)
+            case .transportRejected: throw FoodWebDiscoveryError.invalidResponse
             case let .envelope(code):
                 return .init(status: 200, data: Data(#"{"error":{"code":\#(code),"message":"synthetic"}}"#.utf8))
             case let .envelopeWithChoices(code):

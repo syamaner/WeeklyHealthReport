@@ -432,6 +432,9 @@ public struct OpenRouterFoodProvider: FoodWebDiscovering, FoodProposalExtracting
             return error.code == .timedOut ? .failure(.init(error: .timedOut, outcome: .timedOut))
                 : .failure(.init(error: .connectionFailed, outcome: .transportError))
         }
+        // The transport's own rejections (non-HTTP reply, URL mismatch, oversized body) keep their
+        // kind, so an unreadable reply is recorded as invalid, not as a server error.
+        catch let error as FoodWebDiscoveryError { return .failure(.init(error: error, outcome: .notRetryable)) }
         catch { return .failure(.init(error: .serviceUnavailable, outcome: .notRetryable)) }
         // A retryable status is classified before the body is looked at, so an unreadable,
         // oversized or key-echoing error page still counts as transient. The body is never
