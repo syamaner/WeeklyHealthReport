@@ -4687,10 +4687,13 @@ The whole session is measured, from `2026-11-15T21:22:16Z` to `2026-11-15T21:30:
 | --- | ---: | ---: | ---: | ---: | ---: |
 | #424 estimates v2 proposal, whole session with subagent | 3,572,261 (3,318,227) | 253,988 | 55,489 | 3,627,750 | $3.66 |
 | #424 estimates v2 proposal, revision after the blind review (16 November) | 1,785,413 (1,668,591) | 116,796 | 19,060 | 1,804,473 | $1.65 |
+| #424 estimates v2 proposal, two gate rounds with four subagents and two further revisions (16 November) | 6,483,682 (5,794,097) | 689,455 | 154,541 | 6,638,223 | $8.36 |
 
 Method: `phase_usage.py --format claude --since 2026-11-15T00:00:00Z --until 2026-11-15T21:30:58Z --include-subagents` on the session transcript. Exact USD 3.6627944. The cache-write tokens are part of the input figure; 47,573 of them are 5-minute writes. The total is input plus output.
 
 Revision row: the same session, window `2026-11-16T11:53:30Z` to `2026-11-16T12:10:09Z`, same script and rates, exact USD 1.6493902, all cache writes 1-hour. It covers checking the review's findings against the code, the revision and two local Qodo passes' handling. The reviewing agent's own session, the Qodo runs and the turns after the window are unmeasured.
+
+Gate rounds row: the same session with its four review subagents, window `2026-11-16T12:10:09Z` to `2026-11-16T16:46:11Z`, same script and rates, exact USD 8.3614934; 468,102 of the cache writes are 5-minute writes. It continues from the revision row with no gap, so it also holds that row's push and handover. The document now has decisions P1 to P6. Qodo runs and the turns after the window are unmeasured.
 
 Excluded:
 - the session's turns after the cut-off (local Qodo review, commit, pull request, handover);
