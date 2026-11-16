@@ -70,8 +70,10 @@ becomes its third value. Support, with decision P1 as recommended:
 The codec today rejects on the top-level key set before it reads `schema`. With a second key set
 that order is fixed as: (1) the key set is v2's or v2's plus `estimate_evidence`, else `top-keys`;
 (2) `schema` is a known value, else `schema`; (3) the key set is the one that schema requires, else
-`top-keys`. So an estimates v1 file gives `schema`, a v1 or v2 file carrying `estimate_evidence`
-gives `top-keys`, and no existing v1 or v2 fixture changes its code.
+`top-keys`. When the key set includes `estimate_evidence` and the schema is not estimates v2, checking stops
+there and `schema` is the only code; an unknown schema with v2's key set continues under v1 rules
+as today. So an estimates v1 file gives exactly `schema`, a v1 or v2 file carrying
+`estimate_evidence` gives `top-keys`, and no existing v1 or v2 fixture changes its code.
 
 Each schema's rules apply only to files that declare it. Stored releases, manifests, records,
 archives and exports decode and re-encode unchanged. The store keeps its fixed file name (import v2
@@ -106,7 +108,13 @@ Codec rules (pure, from the file alone), in this order for each estimate:
 | Own record with `role` `merge` (the merged record already supplies its values) | `estimate-own-merge` |
 | Own `candidate` record whose match is not `same_food_same_state`, or whose `method` is not `carried_from_same_food` | `estimate-own-method` |
 | Own `candidate` record whose `state_basis` is `unknown` | `estimate-own-state` |
+| Own `candidate` record on an entry whose `state` is `raw` or `cooked` (a same-food record that did not merge for such an entry was held or demoted on purpose, for example by the E3 disposition, and must not refill it) | `estimate-own-held` |
 | Any `national_composition` estimate on an entry whose `basis` is not `per_100_g` (no density is ever inferred; such an entry takes page estimates stated per 100 ml, or stays unknown) | `estimate-basis` |
+
+The table is applied only to an evidence record that is bound to exactly one value of an existing
+entry and whose tokens are valid; a record the inherited checks already failed gets no table code.
+A record gets every row it matches, in table order. `estimate-own-held` costs no coverage: the 102
+target entries are by definition those whose state is not `raw` or `cooked`.
 
 Importer rules (need the bundled record), run **only on a file the codec accepted**, so a rejection
 holds codec codes or importer codes, never both. For each `national_composition` estimate, own
@@ -116,15 +124,18 @@ record or not, in this order: `corpus-mismatch`, `record-missing`, `value-unquan
 
 **Traversal.** The codec keeps its rule of appending codes in the order found, repeats kept. The
 inherited estimate checks run as in the R2 tool and keep its code strings (`evidence-keys`,
-`not-approved`, `type-fields`, `corpus-undeclared`, `source-reference`, `open-food-facts-host`,
-`free-text`, `derivation-missing`, `derivation-shape`, `derivation-unexpected`, `evidence-id`,
+`not-approved`, `token`, `date`, `digest`, `type-fields`, `corpus-undeclared`, `source-reference`,
+`open-food-facts-host`, `free-text`, `derivation`, `derivation-missing`, `derivation-shape`, `derivation-unexpected`, `evidence-id`,
 `evidence-duplicate`, `evidence-order`, `estimated-nutrients`, `estimate-keys`,
 `label-and-estimate`, `evidence-dangling`, `evidence-mismatch`, `evidence-unused-or-shared`);
-`own-reference` is retired in this schema and replaced by the table above. After them the codec
+`own-reference` is retired in this schema and replaced by the table above; `items`, `item-keys`,
+`unknown-nutrient`, `unit` and `value` on the estimate part reuse the existing enum cases. After them the codec
 walks `estimate_evidence` in file order and applies the table to each record in table order. The
 importer walks the same list in the same order. All new strings join `PersonalFoodDatabaseRuleCode`
-in an estimates-only set, as `v2Only` does for import v2. The Python checker has parity for codec
-codes only; importer codes are Swift tests with a stub lookup and the shared adapter suite.
+in an estimates-only set, as `v2Only` does for import v2. The skill's checker gains the
+estimate rules, ported from the R2 tool onto the v2 part, and has parity for codec codes only;
+importer codes are Swift tests with a stub lookup and the shared adapter suite. Each fixture in the
+manifest names its stage (codec or importer), and the Python checker asserts codec fixtures only.
 
 **Value comparison** is the inherited one: at zero the file value and the record's value must be
 exactly equal, otherwise they differ when more than 0.5 per cent of the record's value apart. A
@@ -133,14 +144,17 @@ record with no quantified value can never yield one. Unknown stays unknown.
 **Contradiction (closed list, mechanical), for every `national_composition` estimate.** The file is
 rejected with `estimate-contradiction` when any of these holds:
 
-- the entry's `state` is `raw` or `cooked` and the record's preparation kind is `raw` or `cooked`
-  and different;
+- the entry's `state` is `raw` or `cooked` and the record's preparation contradicts it under the
+  comparison of section 3.2 (so the import list is that comparison applied to what the file
+  already knows, and a value the importer accepts is not withheld at first bind with no answer
+  changed);
 - the record is fortified (an entry is never a fortified food, as for a merge);
 - the record is not per 100 g with a known 100 g edible quantity.
 
 **What the mechanical checks cannot see, stated plainly.** An entry `state` of `canned`, `frozen`,
 `dried`, `smoked` or `unknown` maps to preparation unknown in the app, and those are the entries
-this route exists for, so for them the list above checks fortification and basis only. A facet the
+this route exists for, so for them the list above checks fortification and basis only, and after
+`estimate-own-held` the first bullet can fire only for a record that is not the entry's own. A facet the
 adapter holds as unknown on the record cannot veto either: USDA and TFDA records never state
 fortification, so the fortified-record rule can fire for CoFID only. In both cases the safeguards
 are the two free-text states, the `assumption`, the owner's approval of each value and the
@@ -151,6 +165,10 @@ P2 offers the stricter rule.
 
 **Builder obligations added to estimates v1 section 3.1** (not checkable by the importer):
 
+- The own-record rows apply only when the estimate cites the entry's `generic_reference`. Dropping
+  or changing that reference so that a close-match record can be cited as another record's
+  `carried_from_same_food` is forbidden; the evaluator counts estimates whose record is the
+  entry's former or close reference, and the count must be zero.
 - An entry whose reference the E3 disposition demoted, removed or held at `candidate` takes no
   estimate from that record by any route (E3 disposition sections 4 and 4.1). A record or value E3
   withheld for a food stays refused for that food.
@@ -168,27 +186,32 @@ unknown facets, the identity questions of import v1 decision 12 are still asked,
 answer those questions, every `national_composition` estimate is re-checked against the answers.
 
 - **Where the record's identity comes from.** When the candidate is bound to Confirm, the
-  application reads each cited record's `DecisiveIdentity` and edible quantity through
-  `GenericRecordNutrientLookup` (section 7) and holds them in the Confirm state for that log. They
-  are not added to the capture manifest, whose content stays as estimates v1 section 5.2 defines.
+  application reads each cited record's `DecisiveIdentity` through
+  `GenericRecordNutrientLookup` (section 7) and holds it in the Confirm state for that log. The
+  lookup key must come from saved data, so the capture manifest carries one more field than
+  estimates v1 section 5.2 lists: `corpus_sha256` beside each `national_composition` estimate (a
+  stated amendment; the manifest is not implemented yet). On a reopened log the identity is read
+  again with the manifest's source, hash and record ID, never with the active release's.
   **When a record cannot be read** (corpus pin moved, record missing), every estimate that cites it
-  is withheld.
+  is withheld, with its own notice: "Estimate left out: its source record could not be read".
 - **The comparison** is per facet and uses the equality the existing `IdentityCompatibility` rule
-  uses, with one difference: a facet unknown on either side does not contradict. Preparation
-  compares the whole state (kind, and method when both sides name one); `as_sold` and `unknown` on
-  the confirmed side assert no cooking state and contradict nothing; packing medium is exact text
-  equality. A facet (preparation, bone, skin, drained state, packing medium, fortification) that is
+  uses, with one difference only: a facet that is `unknown` on either side does not contradict.
+  Preparation compares the whole state (kind, and method when both sides name one), so `as_sold`
+  against a `cooked`, `reheated` or `named` record is a contradiction like any other. Packing
+  medium is exact text equality. The function lives in `FoodLedgerDomain` beside
+  `IdentityCompatibility`, with a test that both cover the same facets. A facet (preparation, bone, skin, drained state, packing medium, fortification) that is
   known on both sides and different withholds every estimate citing that record.
 - **Basis.** Changing the serving basis away from the entry's own withholds **every approved
   estimate** on the log, page estimates included: a value is never reinterpreted from per 100 g to
   per 100 ml or back.
 - **Withheld** means the nutrient is unknown for that log, with the plain notice "Estimate left
-  out: it does not match these details". Nothing is substituted.
+  out: it does not match these details". Nothing is substituted. Developer tools show which facet
+  withheld it.
 - Otherwise the estimate stays, labelled "Estimated".
 
 The check is one pure application policy over the estimate, the record's identity and the confirmed
 identity. It runs when Confirm is bound, after each correction, and on re-resolution of a saved log
-(against the saved identity). A reopened log that is not corrected shows its saved values as saved.
+of a saved log. A reopened log that is not corrected shows its saved values as saved.
 
 Why this route and not a wider merge (decision P2): an "as sold" merge would give the entry the
 record's identity for every facet (amendment A1), silently settling drained, bone and packing, the
@@ -222,27 +245,41 @@ here:
 
 - **Correction before Log is new work, not an existing flow.** Today "Correct food details"
   changes identity and details only and carries the candidate's nutrients through unchanged
-  (`FoodDetailsSheet.correction`, `FoodCorrection`). So:
+  (`correction(for:)` in `FoodDetailsSheet.swift`, `FoodCorrection`). So:
   - *Identity-only corrections* keep every estimate and its "Estimated" label, subject to the
     re-check of section 3.2.
   - *Per-nutrient correction* is added for estimated nutrients only, with two actions (decision
     P6). **Leave out**: the nutrient is unknown for this log. **Enter the label value**: the owner
-    types the value printed on the pack. The field starts empty and is never pre-filled with the
-    estimate; only an exact value is accepted. It is saved as the owner's declaration, measured, as
+    types the value printed on the pack. The field names the nutrient, its canonical unit and the
+    entry's basis (per 100 g or per 100 ml); it starts empty and is never pre-filled with the
+    estimate; only an exact value is accepted. No conversion is offered or inferred: a value
+    printed per serving, in another unit or as salt is not entered here and goes through the
+    label routes. It is saved as the owner's declaration, measured, as
     import v1 decision 11 treats values the owner typed from a pack. There is no "revised
     estimate": a typed number is the owner's declaration or it is not entered.
   - Nutrients the owner does not touch keep their provenance byte for byte. Undoing a correction
     before Log returns the nutrient to the captured estimate, subject to section 3.2.
-- **The capture manifest (`pfd-estimate-capture-v1`) is never edited.** It is built once when the
-  candidate is bound to Confirm and stays exactly as captured, so the record of what was offered
+- **Log needs one known nutrient.** While withholding and leaving out leave no nutrient of the log
+  known, Log is blocked and the reason is shown there ("Nothing to log: every value was left
+  out"). Today the builder offers no candidate without a known nutrient; this keeps that rule
+  after correction, and keeps an all-unknown row out of the daily export, which cannot attribute
+  one.
+- **The capture manifest (`pfd-estimate-capture-v1`) is never edited.** It is built only for a
+  candidate with at least one estimated nutrient, so a log without estimates keeps its contract.
+  It is built once when the candidate is bound to Confirm and stays exactly as captured, so the record of what was offered
   survives a correction or a withheld value. A correction changes the log being confirmed, never
   the imported database or the manifest. A manifest that no saved provenance cites any more (every
-  estimate withheld, left out or replaced) is still saved and still verified on reopen.
-- **Correction evidence `pfd-estimate-correction-v1`.** One item per log, written only when at
-  least one estimate was left out or replaced. Inline `CaptureEvidence`, kind `.labelText`,
+  estimate withheld, left out or replaced) is still saved, found through the candidate's bound
+  evidence IDs, and still verified on reopen.
+- **Correction evidence `pfd-estimate-correction-v1`.** One item per saved resolution version in
+  which at least one estimate was left out or replaced; evidence is immutable, so a later
+  correction of the saved log writes a new item with the new version and the earlier one stays.
+  Its content names the resolution version ID it belongs to, and reopen finds it among the log's
+  capture evidence by `captureMethodVersion` and that ID, so it is found even when no provenance
+  cites it (every estimate left out, none typed). Inline `CaptureEvidence`, kind `.labelText`,
   `originalPayload` `.text(<canonical JSON>)`, `byteHash` its SHA-256, `captureMethodVersion`
   `pfd-estimate-correction-v1`, committed in the log's `LedgerMutation`. Content: `schema`, the
-  capture manifest's hash, the entry's `basis`, and for each corrected nutrient the key, the action
+  resolution version ID, the capture manifest's hash, the entry's `basis`, and for each corrected nutrient the key, the action
   (`left_out` or `label_value`), the estimate's value and unit it replaced, and for `label_value`
   the typed value and unit. Other `.labelText` readers select by `captureMethodVersion` and ignore
   it, and its reader ignores theirs (one test each way). Verified in the application on save and on
@@ -255,12 +292,17 @@ here:
   | Estimate kept | `.augmented` | `approved_estimate`, as estimates v1 section 5.1 | provenance |
   | Withheld by section 3.2 | `.unknown`, reason `no_compatible_source` | none | the key is in the manifest and not in the correction evidence; the notice is shown again |
   | Left out by the owner | `.unknown`, reason `no_compatible_source` | none | the key is in the correction evidence as `left_out`; shown as "Left out by you" |
-  | Label value typed | `.measured` | `manual_declaration`; `sourceID` and `manifestReference` `pfd-estimate-correction-v1#<nutrient key>`; `sourceReleaseID` the database release; `evidenceID` and `responseHash` the correction evidence's; `capturedAt` from the injected clock | provenance |
+  | Label value typed | `.measured` | `manual_declaration`; `sourceID` `personal-food-database`; `manifestReference` `pfd-estimate-correction-v1#<nutrient key>`; `sourceReleaseID` the database release; `evidenceID` and `responseHash` the correction evidence's; `capturedAt` from the injected clock | provenance |
 
   The application refuses to save a typed value without that evidence, since domain validation of
   a measured `manual_declaration` asks for none.
-- **Re-resolution** of a saved log re-runs section 3.2 against the saved identity, never replaces a
-  typed value and keeps a left-out nutrient unknown.
+- **Re-resolution** of a saved log builds a fresh candidate from the active release, as it does
+  today, and so a fresh manifest (the same bytes and hash when the release and entry are
+  unchanged, with a new evidence ID). Section 3.2 runs on it. Earlier corrections are **not**
+  carried: the saved version, with its typed and left-out values, stays as it is in the
+  append-only record, and the owner sees the new candidate on Confirm with the notice "Changes
+  you made to estimated values before are not carried over" and decides again before Log. With
+  the database removed the entry cannot be re-resolved, as today.
 - **Nothing is selected or saved automatically.** One Log action, the quantity is always the user's,
   and import never logs. An entry whose values are all estimates is not a generic estimate under
   `FoodConfirmationPolicy`, so the identity questions of import v1 decision 12 still apply.
@@ -271,7 +313,9 @@ here:
 No new destination. Import reads a local file; search and Confirm run offline; the importer fetches
 no URL. The two effects already recorded in estimates v1 section 7 apply unchanged: a public page
 URL of an approved estimate (query string and fragment dropped) can appear in the daily export the
-user sends, and archives carry the capture manifests. The private catalogue, its review sheets and
+user sends, and archives carry the capture manifests. One addition: archives also carry the
+correction evidence of section 5 (typed values and the estimate values they replaced), and the
+implementing change records that in `privacy-and-egress.md` with the other two. The private catalogue, its review sheets and
 its change reports stay in the owner's private workspace; the repository receives this contract,
 code and synthetic fixtures only.
 
@@ -283,7 +327,7 @@ code and synthetic fixtures only.
 |---|---|---|
 | Strict estimates v2 decoding: v2 rules, estimate rules, the codec rules of section 3.1 | `FoodLedgerDomain`, in the existing codec, sharing its validation functions so the schemas cannot drift | pure |
 | `approved_estimate` provenance kind and its contract version | `FoodLedgerDomain` and `CanonicalFoodProjection` (the owner of `foodContractVersion` and the floor), **food contract 10**: see "Version allocation" | pure, closed versions |
-| Estimate eligibility against the record and the confirmed identity (sections 3.1 and 3.2) | `FoodLedgerApplication`, one pure policy used by the importer, Confirm and re-resolution | pure |
+| Estimate eligibility against the record and the confirmed identity (sections 3.1 and 3.2) | the per-facet comparison in `FoodLedgerDomain` beside `IdentityCompatibility`; one pure policy in `FoodLedgerApplication` used by the importer, Confirm and re-resolution | pure |
 | Per-nutrient correction (section 5): rule and evidence type in `FoodLedgerDomain`, orchestration in `FoodLedgerApplication` beside `FoodCorrection`, the two actions in `FoodLedgerPresentation` | new work | no new port |
 | Binding estimates when a candidate is built and when a log is re-resolved | `FoodLedgerApplication` (the candidate builder and the search adapter's re-resolution) | existing ports |
 | Import: validate, check values and contradictions against the bundled record, derive the ID, replace atomically | `FoodLedgerApplication` (`PersonalFoodDatabaseImporting`), through `Digesting`, `GenericRecordNutrientLookup` and `PersonalFoodDatabaseStoring` | ports only |
@@ -295,7 +339,8 @@ code and synthetic fixtures only.
 **The lookup port.** `GenericRecordNutrientLookup` is planned by estimates v1 section 4.3 and not
 yet built. Here its one method is `record(source, corpusSHA256, recordID) ->
 Result<GenericRecordFacts, GenericRecordLookupFailure>`, where `GenericRecordFacts` is a domain
-value holding the record's `NutrientSet`, `DecisiveIdentity` and edible quantity, and the failures
+value holding the record's `NutrientSet`, `DecisiveIdentity` and edible quantity (the importer
+uses all three, Confirm the identity only), and the failures
 are `corpusMismatch` and `recordMissing`. It is owned by `FoodLedgerApplication`. The CoFID, USDA
 and TFDA conformances live beside the existing `GenericRecordResolving` ones in
 `PersonalFoodDatabaseResolvers.swift`, so the existing no-URL boundary rule covers them. One shared
@@ -311,8 +356,9 @@ or `pfd-estimate-correction-v1` evidence, checked before the contract 9 rule, wh
 as it is; a metadata-only migration `v10_approved_estimate` sets `food-ledger-v10`;
 `FoodLedgerGRDBStore.schemaVersion` and the store's open check accept `food-ledger-v10`. As with
 v9, the migration moves every store to `food-ledger-v10` on open, so contract 9 binaries decline
-the store; an archive without estimates keeps its contract and its bytes. If 10 is taken by the
-time the phase starts, the phase takes the next free number and says so in its gate.
+the store; an archive without estimates keeps its contract and its bytes. If 10, daily export
+version 3 or the amendment name A2 is taken by the time the phase starts, the phase takes the next
+free one and says so in its gate.
 
 **Daily export version 3 (supersedes estimates v1 section 7's daily export bullet, its decision C4
 and its version 2 test line, on the number only).** Estimates v1 raised `food_daily_schema_version`
@@ -365,45 +411,65 @@ skill's checker and the Swift decoder both read it for codec codes):
 - A v2 file re-labelled as estimates v2 with empty estimate fields is accepted; a scaled
   per-serving value and an estimate on different keys of one entry are accepted.
 - Every inherited rejection fixture, re-based on v2, keeps its code string, except `own-reference`.
+- Inherited codes: one fixture each for `token`, `date`, `digest` and `derivation`; an estimates v1
+  file's full code list is exactly `schema`; an unknown schema with `estimate_evidence` likewise.
 - Codec table: one fixture per code (`estimate-similar` on an own and a non-own record,
-  `estimate-own-merge`, `estimate-own-method` for a `close` match, `direct` and `derived`,
-  `estimate-own-state`, `estimate-basis` on an own and a non-own record); the accepted case; a file
-  with two faulty entries has a pinned code order with repeats; a codec rejection carries no
-  importer code.
+  `estimate-own-merge`, `estimate-own-held` for a `raw` and a `cooked` entry, `estimate-own-method` for a `close` match, `direct` and `derived`,
+  `estimate-own-state`, `estimate-basis` on an own and a non-own record); the accepted case; a record
+  matching two rows gets both in table order; a record with a dangling `entry_id` or a bad
+  `method` gets no table code; a file with two faulty entries has a pinned code order with
+  repeats; a codec rejection carries no importer code.
 - Importer: unpinned corpus, missing record, unquantified value (missing, trace, bounded, "N") and
   a value outside the tolerance give the four codes; at zero only exact equality passes;
-  `estimate-contradiction` for raw against cooked, a fortified record and a record without a known
-  100 g edible quantity, each on an own record, a non-own record and an entry with no reference.
-  The lookup port's shared suite runs against CoFID, USDA and TFDA and pins fortification unknown
-  on USDA and TFDA.
+  `estimate-contradiction` for a `raw` or `cooked` entry against a record that is `cooked`, `raw`,
+  `as_sold`, `reheated` or `named`, a fortified record and a record without a known 100 g edible
+  quantity, on a non-own record and on an entry with no reference; fortification and edible
+  quantity also on an own record. The importer with no lookup for a source rejects.
+  The lookup port's shared suite runs against CoFID, USDA and TFDA and the dispatching set, pins
+  fortification unknown on USDA and TFDA, pins what a fortified CoFID record returns, and the
+  conformances pass the no-URL boundary rule (with a failing fixture for it).
 - Confirm re-check: each decisive facet has a withheld case and a kept case, including preparation
-  method, `as_sold` against `cooked` (kept), drained against undrained and packing text; a basis
-  change withholds a page estimate too; a record that cannot be read withholds, on a new log and
-  after a correction on a reopened one.
+  method, `as_sold` against `cooked` (withheld), `unknown` against `cooked` (kept), drained against
+  undrained and packing text; a basis change withholds a page estimate too; a record that cannot
+  be read withholds with its own notice; on a reopened log after the database was removed or
+  replaced the lookup uses the manifest's corpus hash, with the corpus-moved and record-present
+  cases. Both comparisons cover the same facets.
 - Precedence: label, then estimate, then merged record; a label and an estimate on one key is
   rejected; an estimate does not promote a candidate; the separate candidate carries no estimates.
 - Correction: an estimated value shows "Estimated" and its details; identity-only correction keeps
   label and provenance; the typed field starts empty; each row of the stored-shapes table has a
   case, with its reopen wording; untouched nutrients keep their provenance bytes; repeating,
-  undoing and cancelling a correction, and correcting every estimate, each have a case; a typed
-  value without its evidence cannot be saved; the manifest's bytes and hash are unchanged and still
+  undoing and cancelling a correction each have a case; leaving out or withholding every value
+  blocks Log with its reason; all estimates left out but one label value kept, then reopened,
+  shows "Left out by you"; a second correction of a saved log writes a second evidence item and
+  the newest version's governs; the field shows nutrient, unit and basis; a typed value without
+  its evidence cannot be saved; the domain accepts the typed value's provenance shape and still
+  rejects `approved_estimate` as measured or bounded; the manifest's bytes and hash are unchanged and still
   verify, also when no provenance cites it. Log is never pre-selected; an estimate-only entry is
   not a generic estimate.
 - Evidence that is missing or altered (manifest or correction) is refused on save and on reopen,
   including after the database is removed and after an archive restore.
-- Re-resolution: a log with one estimate withheld, one left out and one typed keeps all three.
+- Re-resolution: same release gives the same manifest bytes and hash; a different release gives a
+  new manifest; in both the earlier corrections are not carried, the notice is shown and the saved
+  version is unchanged; with the database removed there is no re-resolution.
+- A candidate with no estimate writes no manifest and its log keeps its contract.
 - Versions: an archive without estimates keeps its contract and bytes; every store becomes
   `food-ledger-v10`; the floor returns 10 for a log holding an approved estimate, for one holding
-  only the manifest and for one holding only correction evidence; a contract 9 binary declines it.
+  only the manifest, for one holding only correction evidence and for `approved_estimate` found
+  only in a candidate decision or conflict candidate; a contract 9 binary declines it; the open
+  check refuses v9 metadata on a v10 schema and the v10 migration is metadata only; the store
+  round-trips an estimates v2 manifest.
   Every closed `ProvenanceSourceKind` site listed in estimates v1 is re-run at contract 10.
 - Saved logs hold `approved_estimate` as `.augmented`, survive replace, remove and archive restore,
-  and export `state: "estimated"`; a typed value exports as `entered_by_you`; a withheld or
-  left-out value exports as unknown with no page URL.
+  and export `state: "estimated"`; a typed value exports as `entered_by_you` with no
+  `content_hash` and no page URL; a withheld or left-out value exports as unknown, never zero,
+  and keeps the day's totals partial; a day whose only estimate was replaced by a typed value is
+  written as version 2.
 - Daily export: each bullet of the version 3 rules above, through serialisation, Drive validation,
   reconciliation and recovery.
 - Search: an entry that gains its first known nutrient from an estimate becomes visible; an
   estimated fat value takes part in the requested-fat partition; escalation sufficiency counts it;
-  a re-resolved log binds the same estimates and manifest.
+  a typed `manual_declaration` on a database candidate changes no other Confirm requirement.
 - Simulator journey: import a synthetic estimates v2 file, search, open Confirm, read the estimate
   details, leave one value out, type one label value, log, remove the database, reopen the log.
 
@@ -467,4 +533,10 @@ In order; each open one has a recommendation.
   the evaluator's count; full-preparation comparison; the empty typed field; basis guard on every
   estimate; re-resolution; the lookup port's signature. Limits stated instead of fixed: facets the
   record holds as unknown cannot veto. The owner then decided P4 (same food only).
-- Still owed before acceptance: a repeat of both gates on this revision.
+- 16 November 2026: third gates on that revision, NEEDS WORK on both with fewer and smaller
+  findings, all folded in: `as_sold` now contradicts a cooked record; `estimate-own-held` keeps a
+  held or demoted same-food record from refilling a raw or cooked entry; Log is blocked while no
+  nutrient is known; the manifest carries the corpus hash; correction evidence is per resolution
+  version and found by its version ID; re-resolution carries no corrections; four missing
+  inherited codes; the typed field's unit and basis; `sourceID`; smaller wording points.
+- Still owed before acceptance: a short re-review of sections 3.1, 3.2 and 5.
