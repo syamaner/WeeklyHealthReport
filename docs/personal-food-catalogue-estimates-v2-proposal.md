@@ -207,9 +207,10 @@ rule (reject when the record's preparation is unknown) was offered in decision P
   - One row is one entry ID, one nutrient key, the `source_type`, the `source_reference` and the
     `method`, with the corpus hash and the date. A former close reference re-admits only as
     `carried_from_similar_food`. A row covers that value only, never a later value of the same
-    record. The list is derived from the review sheet: each row matches a sheet row that showed
-    the E3 refusal and its reason and carries the owner's accept mark, and the evaluator checks
-    that match. There is no batch acceptance, and the builder or an agent never re-admits on the
+    record. The list is derived from a re-admission sheet of its own, in the private workspace, since the
+    existing review sheets hold neither source references nor refusal reasons: one row per value,
+    with those row fields, the E3 refusal class and its reason, and an accept column. The
+    evaluator checks that each list row matches a sheet row carrying the owner's accept mark. There is no batch acceptance, and the builder or an agent never re-admits on the
     owner's behalf.
   - A re-admitted value is a labelled estimate and nothing more. Every codec, importer and Confirm
     rule applies unchanged, so re-admission overrides no mechanical rule: a `raw` or `cooked` entry
@@ -264,7 +265,7 @@ answer those questions, every `national_composition` estimate is re-checked agai
 - **Withheld** means the nutrient is unknown for that log, with the plain notice "Estimate left
   out: it does not match these details". Nothing is substituted. Developer tools show which facet
   withheld it.
-- Otherwise the estimate stays, labelled "Estimated".
+- Otherwise the estimate stays, with its label from the closed list of section 3.3.
 
 The check is one pure application policy over the estimate, the record's identity and the confirmed
 identity. It runs when a candidate is bound to Confirm, after each correction of details, and on
@@ -344,7 +345,8 @@ owner has confirmed it; `page_unconfirmed` values never reach a file.
 
 ## 5. Confirm, correction and saving
 
-Estimates v1 section 7 applies as written: "Estimated" in text beside each estimated nutrient, the
+Estimates v1 section 7 applies, with its bare "Estimated" replaced by the closed label list of
+section 3.3: the label in text beside each estimated nutrient, the
 source type, the two states, the assumption and "Page not read directly" in details, record
 identifiers behind details, and the existing "Nutrients from more than one source" notice. Added
 here:
@@ -384,7 +386,10 @@ here:
   anywhere else, so a leave-out alone is not a correction: identity differences are still asked
   and recorded, label and layer admission are unchanged, and the candidate decision's outcome is
   computed as for an uncorrected save (`selected`, or what the contradiction rule gives), never
-  forced to `rejected`. When the predicate is true a new product version, resolution version and
+  forced to `rejected`. On a reopened log, where today no identity question is asked again, a
+  leave-out-only save carries the saved identity, decision record and outcome unchanged into the
+  new assertion and decision, so a log saved as an estimate keeps its estimate status and a
+  previously corrected log keeps its outcome. When the predicate is true a new product version, resolution version and
   candidate decision are written, never the saved ones reused, with a user assertion and an edit
   reason whose texts are the leave-out's own, pinned in the phase gate beside the existing ones.
   The version's nutrients are the candidate's (or the correction's) with the left-out and
@@ -397,7 +402,11 @@ here:
   approved estimate, a withheld value or a left-out value never uses the one-step sheet. It opens
   Confirm, section 3.2 runs at bind against the carried details, the labels and tiers are shown,
   and earlier leave-outs are not carried, with the re-resolution notice. Quick add gains its own
-  ineligibility reason for this.
+  ineligibility reason for this. It is detected from the restored candidate (an
+  `approved_estimate` value or a capture manifest), never from the pinned version's saved
+  provenance, so a favourite whose estimates were all withheld or left out is caught too; and
+  the save service refuses a one-step save of a state holding a manifest. A new log built from a
+  saved decision drops that decision's leave-out evidence IDs.
 - **Leave-out evidence `pfd-estimate-left-out-v1`.** It exists for one purpose: so that a
   reopened log can say "Left out by you" and not the withheld notice. One item per saved
   resolution version whose set is not empty; evidence is immutable, so the earlier items stay.
@@ -426,13 +435,17 @@ here:
   | Estimate kept | `.augmented` | `approved_estimate`, as estimates v1 section 5.1 | provenance |
   | Withheld by section 3.2 | `.unknown`, reason `no_compatible_source` | none | the key is in the manifest and not in the leave-out evidence; shown as "Estimate left out when this was logged" |
   | Left out by the owner | `.unknown`, reason `no_compatible_source` | none | the key is in the leave-out evidence; shown as "Left out by you" |
-- **Re-resolution** of a saved log builds a fresh candidate from the active release, as it does
-  today, and so a fresh manifest (the same bytes and hash when the release and entry are
-  unchanged, with a new evidence ID). Section 3.2 runs on it. Earlier leave-outs are **not**
-  carried: the saved version, with its left-out values, stays as it is in the
-  append-only record, and the owner sees the new candidate on Confirm with the notice "Values
-  you left out before are not carried over" and decides again before Log. With
-  the database removed the entry cannot be re-resolved, as today.
+- **Re-resolution** of a saved log is not Confirm: today it has its own screen and its own service
+  (`FoodReresolutionService`), which stores the fresh candidate's nutrients whole. It builds the
+  candidate from the active release, as today, and so a fresh manifest (the same bytes and hash
+  when the release and entry are unchanged, with a new evidence ID). **New work in that service
+  and screen:** section 3.2 runs against the log's saved details and withheld keys are stored as
+  unknown; the manifest is committed with the new version; an all-unknown result is blocked with
+  its reason; and the screen shows each estimate's label and tier, the withheld notice, and
+  "Values you left out before are not carried over". Earlier leave-outs are **not** carried: the
+  saved version, with its left-out values, stays as it is in the append-only record. Leave-out is
+  not offered on that screen; the owner reopens the log to leave a value out. With the database
+  removed the entry cannot be re-resolved, as today.
 - **Quality tier.** Each estimated nutrient shows its tier (section 3.3) as text with the colour,
   never colour alone, with a VoiceOver label that reads the text. The tier comes from the evidence
   record held in the capture manifest.
@@ -595,9 +608,13 @@ skill's checker and the Swift decoder both read it for codec codes):
   the domain still rejects `approved_estimate` as measured or bounded; the manifest's bytes and
   hash are unchanged and still verify, also when no provenance cites it. Log is never
   pre-selected; an estimate-only entry is not a generic estimate.
-- Evidence that is missing or altered (manifest or leave-out) is refused on save and on reopen,
+- Evidence (manifest or leave-out): altered evidence shows "Evidence not available" and changes no
+  stored value; a missing evidence row is a store integrity failure and the log does not load;
+  both are separate cases, on save and on reopen,
   including after the database is removed and after an archive restore.
-- Re-resolution: same release gives the same manifest bytes and hash; a different release gives a
+- Re-resolution, in its own service: a contradicted estimate is stored as unknown, an all-unknown
+  result is blocked, the manifest is saved, labels, tiers and both notices are shown, and no
+  leave-out is offered. Same release gives the same manifest bytes and hash; a different release gives a
   new manifest; in both the earlier leave-outs are not carried, the notice is shown and the saved
   version is unchanged; with the database removed there is no re-resolution.
 - A candidate with no estimate writes no manifest and its log keeps its contract.
@@ -622,7 +639,12 @@ skill's checker and the Swift decoder both read it for codec codes):
   refused again; a never-re-admissible class is refused even when listed; a list row with no
   accepted sheet row is refused; a re-admitted own record on a `raw` entry still gives
   `estimate-own-held`.
-- Quality tier: each tier shows its text label beside the colour and its reasons in details; a
+- Quality tier: each of the five labels renders with its colour and its reasons in details, and
+  no label exists for a similar-food estimate at `high`; a leave-out and an undo on a reopened
+  log keep estimate status, decision record and outcome, for a decided-estimate log and for a
+  previously corrected one; a one-step save of a state holding a manifest is refused; a favourite
+  whose estimates were all withheld opens Confirm; the pasted-label reader ignores leave-out
+  evidence; a
   similar-food estimate's visible label says so; the colour never appears without text and totals
   carry none; a version 3 export value without `estimate_quality` is rejected; a leave-out alone
   compares as edited and writes a product version and assertion; a key both withheld and left out
@@ -754,3 +776,12 @@ contract: acceptance follows the re-review named in section 9.
   leave-out item; a missing evidence row fails closed. The classifier's record was then added to
   `privacy-and-egress.md` with the owner's approval of its wording. These fixes have had no
   review of their own.
+- 16 November 2026: seventh gates (two blind subagents, both NEEDS WORK, five blocking findings
+  between them, all a sentence or two) and one Qodo pass (one finding). No route to a measured
+  value or a zero and no app network call was found; the file rules, tier ceilings and six counts
+  were reported consistent. Folded in: re-resolution has its own service and screen, where the
+  check, the manifest, the labels and the notices are new work; a leave-out on a reopened log
+  carries the saved identity, decision record and outcome; quick add is detected from the
+  restored candidate and refused at save; the evidence tests are split; re-admission has a sheet
+  of its own; the bare "Estimated" wording is gone. The egress paragraph's missing facts (key,
+  provider routing, storage) wait for the owner's approval of the wording.
