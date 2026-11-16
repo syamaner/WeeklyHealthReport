@@ -1,7 +1,7 @@
 # Personal food database: labelled estimates on catalogue v2 (proposal)
 
 Status: **proposal, 15 November 2026, revised 16 November 2026 after a blind review (section 9).
-Not accepted, nothing implemented.** Section 8 lists the decisions; P1, P2, P3, P4 and P6 are decided, one is open. No app
+Not accepted, nothing implemented.** Section 8 lists the decisions; all six are decided, and acceptance of the contract is still the owner's. No app
 code, skill code or fixture changes with this document. Programme #424, base contracts #419.
 
 It is a delta on two accepted contracts and repeats neither:
@@ -491,7 +491,8 @@ estimates v1 section 7 requires. Device acceptance is the owner's.
 
 ## 8. Decisions for the owner
 
-In order; each open one has a recommendation.
+All six were decided by the owner on 16 November 2026. Deciding them is not accepting the
+contract: acceptance follows the re-review named in section 9.
 
 - **P1. Which estimates schema does the app implement? Decided 16 November 2026: only
   `personal-food-catalogue-estimates-v2`,** with the support table of section 2. Cost, accepted: an R2
@@ -514,7 +515,7 @@ In order; each open one has a recommendation.
 - **P4. Close matches. Decided 16 November 2026: same food only for the first release.**
   `carried_from_similar_food` is rejected in this schema; the 213 close-match entries keep their
   separate candidate.
-- **P5. Order of work.** Recommended: one implementation phase after acceptance, after daily
+- **P5. Order of work. Decided 16 November 2026: one implementation phase** after acceptance, after daily
   export v2 has landed, with its own issue and a fresh architecture gate: codec and rule codes,
   provenance kind and contract 10, lookup port, eligibility policy, manifest, leave-out and its
   evidence, Confirm, export version 3 and Drive admission, privacy record. It is a large review
@@ -554,5 +555,6 @@ In order; each open one has a recommendation.
 - 16 November 2026: the owner decided P2 (labelled estimates from the entry's own record).
 - 16 November 2026: the owner decided P3 (refusals bind by default; row-by-row re-admission on a
   fresh approval). The re-admission text of section 3.1 is new and has had no review.
+- 16 November 2026: the owner decided P5 (one implementation phase after daily export v2).
 - Still owed before acceptance: a short re-review of sections 3.1, 3.2 and 5, with the
   re-admission rule looked at on its own.
