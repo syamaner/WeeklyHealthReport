@@ -608,5 +608,6 @@ contract: acceptance follows the re-review named in section 9.
   Confirm state that forces a new version and its evidence is reached through the decision's
   evidence IDs; reopening alone reads no record; `as_sold` against `raw` is pinned as a
   contradiction; the evidence was renamed `pfd-estimate-left-out-v1`.
-- Open for the owner: whether the never-re-admissible list is what P3 meant, and whether
-  `as_sold` against a `raw` record should withhold. These fixes have had no review of their own.
+- 16 November 2026: the owner confirmed the never-re-admissible list of section 3.1 as what P3
+  means.
+- Open for the owner: whether `as_sold` against a `raw` record should withhold. These fixes have had no review of their own.
