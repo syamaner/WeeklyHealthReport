@@ -193,7 +193,8 @@ list of rows. The context is the parser's only view of the log, and it is stored
 that verification can reproduce every row code from the capture alone (section 6.2). It holds the
 entry's basis, the valid request codes, and for each of the 39 keys exactly one class:
 `eligible`; `stronger_source` (a label, Open Food Facts or merged record value, with the value
-when the key is a parent); `catalogue_estimate` (with its tier and whether it is kept); or
+when the key is a parent); `catalogue_estimate` (with its tier, whether it is kept, and its value
+when it is kept and the key is a parent); or
 `not_fillable` (bounded, conflicting or unscalable). **A fault in the shape rejects the whole reply; a fault in one row's meaning rejects that
 row and leaves the others.** Every rejection is shown to the owner in plain words, where the paste
 was made. Nothing is repaired, guessed, rounded, converted or defaulted.
@@ -222,7 +223,7 @@ Row rejections (the row is listed under "Not used", with its reason, and cannot 
 | `unit` | a string that is not the key's canonical unit | Wrong unit: expected <the key's canonical unit>. Values are never converted. |
 | `value` | a JSON number that is negative or too large to hold as a finite value | Not a usable number. |
 | `impossible_value` | on a per 100 g entry, a mass above 100 g (in the key's unit), or energy above 900 kcal; on a per 100 ml entry, energy above 900 kcal | More than 100 g of the food can hold. (For energy: More energy than any food holds.) |
-| `exceeds_parent` | saturated, monounsaturated or polyunsaturated fat above total fat, or sugar above carbohydrates, where the parent is a known value in the parse context | More than the total fat (or carbohydrate) of this food. |
+| `exceeds_parent` | saturated, monounsaturated or polyunsaturated fat above total fat, or sugar above carbohydrates, where the parent is a known value in the parse context, a kept catalogue estimate included | More than the total fat (or carbohydrate) of this food. |
 | `not_fillable` | the key holds a bounded value, conflicting values or a value that cannot be scaled | This nutrient has more than one value or a range, and is not filled here. |
 | `already_known` | the key has a value on the log from a label, an Open Food Facts record or a merged record | Already known from a stronger source. It is not replaced. |
 | `has_catalogue_estimate` | the key has a catalogue estimate, whether kept, withheld or left out (decision A5) | This food already has a catalogue estimate for it. |
@@ -814,3 +815,9 @@ the contract's rules; each must be settled against the code before production wo
   the blind reviews was recommended first and not taken, so those fixes had no review of their own
   at acceptance; the items the reviewers left to the phase gate are in section 13. Recorded with
   the acceptance: dated amendment notes in estimates v2 and daily export v2.
+- 16 November 2026, before the merge the owner asked for: Qodo's review of the PR head was a
+  skipped run (no findings, review not complete), so one more local Qodo pass was run on the whole
+  branch at 4ce8a6f (coverage complete). One new finding, fixed: the parse context did not hold a
+  kept catalogue estimate's value for a parent nutrient, so a child above it would have been
+  offered and then refused at Log. The four findings of the first pass were reported again by ID
+  and are the ones already fixed.
