@@ -4865,3 +4865,17 @@ Excluded:
 - the four local Qodo review runs, and the scratch build, page downloads and offline projection, which use no API tokens.
 
 Pricing: as in the rows above, `claude-fable-5-2` is priced at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. It is an API-equivalent comparison under a Claude subscription, not a bill, and says nothing about quality or productivity.
+
+## WHR-508-PHASE1-2026-11-17: Claude Code Web lookup larger pages, phase 1 (#508)
+
+The session (`claude-opus-5-5`, session `53477cde-964b-4887-b49c-4409aa61450e`) implemented phase 1 of [the part-read pages contract](docs/web-lookup-part-read-pages-v1-proposal.md): the larger page bounds and the stored format and admission of manifest v3, under [its gate](docs/web-lookup-larger-pages-phase1-gate.md), delivered as one pull request.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Larger pages phase 1, pickup to gates | 31,437,710 (30,897,034) | 540,314 | 159,203 | 31,596,913 | $12.92 |
+
+Method: `phase_usage.py --format claude --since 2026-11-17T18:20:31Z --until 2026-11-17T19:40:52Z --include-subagents` on the session transcript. Exact USD 12.9155148. The cache-write tokens are part of the input figure: 257,304 are 5-minute writes and 283,010 are 1-hour writes. The boundary is the session's first message, so the window holds the whole phase from pickup: reading the issue and contract, the gate, one blind architecture-gate subagent, two owner questions, the implementation and tests, the validation gates and one blind invariant-review subagent. The total is input plus output.
+
+Excluded: this ledger edit and everything after the window (the gate reruns, handover, and any commit, push or pull request). The validation gates and evaluation steps use no API tokens.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. It is an API-equivalent comparison under a Claude subscription, not a bill, and says nothing about quality or productivity.

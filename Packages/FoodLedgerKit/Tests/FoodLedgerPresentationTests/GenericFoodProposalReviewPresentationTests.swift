@@ -287,6 +287,22 @@ final class GenericFoodProposalReviewPresentationTests: XCTestCase {
         XCTAssertEqual(keys.rejections, 0)
     }
 
+    /// #508 phase 1: Use this source prepares manifest v3, and Developer tools names the format
+    /// a saved review would use without claiming one was saved.
+    func testUseThisSourcePreparesManifestV3AndDiagnosticsNameItsFormat() async throws {
+        let reviewer = ControlledProposalReview(); let model = make(reviewer, initialMarket: .unspecified)
+        model.foodTerms = "milk"
+        let task = Task { await model.search() }; await reviewer.waitForRequest()
+        await reviewer.complete(try ProposalPresentationFixture.result()); await task.value
+        XCTAssertTrue(model.diagnosticLines.contains(
+            "Review format if used: reviewed-web-proposal-v3 · food-proposal-review-choice-v4 · web-lookup-review-v2"))
+        XCTAssertFalse(model.diagnosticLines.contains { $0.hasPrefix("Saved review") })
+        let input = try model.prepare(try XCTUnwrap(model.suggestedProposal), querySnapshot: "milk", scope: .representativeEstimate)
+        XCTAssertEqual(input.evidence.first?.captureMethodVersion.value, "reviewed-web-proposal-v3")
+        XCTAssertEqual(input.sourceReleases.first?.pipelineVersion.value,
+                       "reviewed-web-proposal-v3:food-proposal-binding-v7:reviewed-web-admission-v7")
+    }
+
     /// #196: a market change while a result is open makes it stale; Use this source cannot prepare it.
     func testMarketChangeWithOpenResultInvalidatesItAndBlocksPreparation() async throws {
         let reviewer = ControlledProposalReview(); let model = make(reviewer, initialMarket: .unspecified)

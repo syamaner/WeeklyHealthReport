@@ -1,6 +1,6 @@
 import Foundation
 import FoodGenericSearch
-import FoodLedgerApplication
+@_spi(ReviewedWebRegression) import FoodLedgerApplication
 import FoodLedgerDomain
 import FoodLedgerGRDB
 import XCTest
@@ -54,7 +54,7 @@ final class ReviewManifestV2ContractTests: XCTestCase {
 
     func test02GoldenV2BytesPinKeysOrderMarketSuffixAndGateBlock() throws {
         let (review, proposal) = try ReviewedWebFixtures.review(query: "tofu pudding [market: United Kingdom]")
-        let input = try confirmation(clock: fractionalClock).prepare(review: review, proposal: proposal,
+        let input = try confirmation(clock: fractionalClock).prepareVersion2(review: review, proposal: proposal,
             scope: .representativeEstimate, locale: LedgerText("en_GB"))
         let text = try ReviewedWebFixtures.manifestText(input)
         let encoder = FoundationCanonicalJSONEncoder()
@@ -150,14 +150,14 @@ final class ReviewManifestV2ContractTests: XCTestCase {
             try ("representative-only exact", ReviewedWebFixtures.review(representativeOnly: true).0, ReviewedWebFixtures.review().1, .exactProduct)
         ]
         for (name, review, proposal, scope) in cases {
-            XCTAssertThrowsError(try confirmation().prepare(review: review, proposal: proposal, scope: scope, locale: LedgerText("en_GB")), name) {
+            XCTAssertThrowsError(try confirmation().prepareVersion2(review: review, proposal: proposal, scope: scope, locale: LedgerText("en_GB")), name) {
                 XCTAssertEqual($0 as? GenericFoodProposalError, .invalidSelection, name)
             }
         }
         let (review, proposal) = try ReviewedWebFixtures.review()
-        XCTAssertNoThrow(try confirmation().prepare(review: review, proposal: proposal, scope: .representativeEstimate, locale: LedgerText("en_GB")))
+        XCTAssertNoThrow(try confirmation().prepareVersion2(review: review, proposal: proposal, scope: .representativeEstimate, locale: LedgerText("en_GB")))
         let (restricted, restrictedProposal) = try ReviewedWebFixtures.review(representativeOnly: true)
-        XCTAssertNoThrow(try confirmation().prepare(review: restricted, proposal: restrictedProposal, scope: .representativeEstimate, locale: LedgerText("en_GB")))
+        XCTAssertNoThrow(try confirmation().prepareVersion2(review: restricted, proposal: restrictedProposal, scope: .representativeEstimate, locale: LedgerText("en_GB")))
     }
 
     func test05RecordedGateIsRecheckedAtSaveAndReopen() throws {
@@ -479,7 +479,7 @@ final class ReviewManifestV2ContractTests: XCTestCase {
     }
     private func preparedV2(_ scope: FoodProposalReviewScope, serving: Bool = true) throws -> PopulatedFoodConfirmation {
         let (review, proposal) = try ReviewedWebFixtures.review(serving: serving)
-        return try confirmation().prepare(review: review, proposal: proposal, scope: scope, locale: LedgerText("zh_TW"))
+        return try confirmation().prepareVersion2(review: review, proposal: proposal, scope: scope, locale: LedgerText("zh_TW"))
     }
     private func nonPreferred() throws -> (String, GenericFoodProposalReview, BoundFoodProposal, FoodProposalReviewScope) {
         let (review, _) = try ReviewedWebFixtures.review(second: true)

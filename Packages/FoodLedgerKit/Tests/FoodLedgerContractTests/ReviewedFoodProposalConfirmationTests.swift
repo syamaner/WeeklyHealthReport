@@ -5,8 +5,10 @@ import FoodLedgerDomain
 import XCTest
 
 /// Every reviewed-source contract runs against manifest v1 (this class, frozen shape written by
-/// released builds) and manifest v2 (`ReviewedFoodProposalConfirmationV2Tests`, single review
-/// action and recorded gate). Contract test 6 of generic-food-review-manifest-v2.md.
+/// released builds), manifest v2 (`ReviewedFoodProposalConfirmationV2Tests`, single review
+/// action and recorded gate, now written only by the regression writer) and manifest v3
+/// (`ReviewedFoodProposalConfirmationV3Tests`, the production writer since #508).
+/// Contract test 6 of generic-food-review-manifest-v2.md.
 class ReviewedFoodProposalConfirmationTests: XCTestCase {
     var manifestVersion: String { ReviewedFoodProposalConfirmation.version1 }
 
@@ -402,6 +404,9 @@ class ReviewedFoodProposalConfirmationTests: XCTestCase {
             return try confirmation.prepareVersion1(bound, query: review.foodTerms, scope: scope,
                 acknowledgement: acknowledgement, locale: LedgerText("zh_TW"))
         }
+        if manifestVersion == ReviewedFoodProposalConfirmation.version {
+            return try confirmation.prepareVersion2(review: review, proposal: bound, scope: scope, locale: LedgerText("zh_TW"))
+        }
         return try confirmation.prepare(review: review, proposal: bound, scope: scope, locale: LedgerText("zh_TW"))
     }
 }
@@ -416,6 +421,22 @@ final class ReviewedFoodProposalConfirmationV2Tests: ReviewedFoodProposalConfirm
         XCTAssertNotNil(FoodReviewedWebProposalPolicy.scope(input, candidate: input.candidates[0]))
         for (from, to) in [("\"action\":\"use_this_source\"", "\"action\":\"reviewed\""),
                            ("\"presentation\":\"web-lookup-review-v1\"", "\"presentation\":\"web-lookup-review-v9\"")] {
+            let tampered = try ReviewedWebFixtures.rewrite(input, replacing: from, with: to)
+            XCTAssertNil(FoodReviewedWebProposalPolicy.scope(tampered, candidate: tampered.candidates[0]), to)
+        }
+    }
+}
+
+final class ReviewedFoodProposalConfirmationV3Tests: ReviewedFoodProposalConfirmationTests {
+    override var manifestVersion: String { ReviewedFoodProposalConfirmation.version3 }
+
+    /// v3 keeps the one action, on screen contract web-lookup-review-v2 only.
+    override func testEveryReviewAcknowledgementIsRequired() throws {
+        let input = try prepare(scope: .representativeEstimate)
+        XCTAssertNotNil(FoodReviewedWebProposalPolicy.scope(input, candidate: input.candidates[0]))
+        for (from, to) in [("\"action\":\"use_this_source\"", "\"action\":\"reviewed\""),
+                           ("\"presentation\":\"web-lookup-review-v2\"", "\"presentation\":\"web-lookup-review-v1\""),
+                           ("\"presentation\":\"web-lookup-review-v2\"", "\"presentation\":\"web-lookup-review-v9\"")] {
             let tampered = try ReviewedWebFixtures.rewrite(input, replacing: from, with: to)
             XCTAssertNil(FoodReviewedWebProposalPolicy.scope(tampered, candidate: tampered.candidates[0]), to)
         }
