@@ -533,7 +533,7 @@ free one and says so in its gate.
 **Daily export version 3 (supersedes estimates v1 section 7's daily export bullet, its decision C4
 and its version 2 test line, on the number only).** Estimates v1 raised `food_daily_schema_version`
 to 2 for a document holding an approved estimate, but
-[daily export v2](food-daily-export-contract-v2.md) (decided, not implemented) takes 2 for every
+[daily export v2](food-daily-export-contract-v2.md) (implemented 16 November 2026, #312) takes 2 for every
 document. Version 3 is defined only as daily export v2's shape plus the estimate fields, so the
 estimates phase depends on daily export v2 having landed. It is recorded as a dated amendment to
 daily export v2, with goldens in `docs/fixtures/food-daily-v3/`:
