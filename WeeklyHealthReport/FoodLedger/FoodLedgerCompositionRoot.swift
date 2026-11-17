@@ -417,7 +417,7 @@ final class FoodLedgerCompositionRoot {
 
     /// Checks a new log's approved estimates when it is bound to Confirm, and again after a
     /// correction of details or an undo (estimates on catalogue v2 section 3.2).
-    private var estimateBinder: @MainActor (inout FoodConfirmationState) -> Void {
+    private var estimateBinder: @MainActor @Sendable (inout FoodConfirmationState) -> Void {
         { [confirmations] state in confirmations.bindEstimates(&state) }
     }
 

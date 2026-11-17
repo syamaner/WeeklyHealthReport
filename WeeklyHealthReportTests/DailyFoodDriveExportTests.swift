@@ -77,7 +77,8 @@ final class DailyFoodDriveExportTests: XCTestCase {
         // #312 (F8): the per-schema map in the shared shape rule replaces the policy's flat set.
         XCTAssertEqual(FoodDailyExportShape.acceptedSummaryVersions, [
             1: ["food-intake-summary-v4", "food-intake-summary-v5", "food-intake-summary-v6"],
-            2: ["food-intake-summary-v6"]
+            2: ["food-intake-summary-v6"],
+            3: ["food-intake-summary-v6"]  // estimates on catalogue v2: schema 2's shape plus the estimate fields
         ])
         XCTAssertEqual(FoodDailyExportShape.acceptedSummaryVersions[FoodDailyExportDocument.schemaVersion]?
             .contains(DailyFoodExportIdentityPolicy.summaryVersion), true, "what this build writes is accepted")
@@ -252,6 +253,7 @@ final class DailyFoodDriveExportTests: XCTestCase {
     /// estimate, are refused.
     func testPolicyAcceptsSchemaThreeAndRefusesAMixedFile() throws {
         let policy = DailyFoodExportIdentityPolicy()
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../docs/fixtures").standardizedFileURL
         let v3 = try Data(contentsOf: root.appendingPathComponent("food-daily-v3/food-daily-estimates-day.json"))
         XCTAssertEqual(try FoodDailyExportSerializer.decode(v3).foodDailySchemaVersion, 3)
         let identity = try policy.validate(payload: v3, reportDate: "2023-11-14")
