@@ -1,6 +1,6 @@
 # Web lookup: larger pages, part-read pages and panel choice v1 (proposal)
 
-Status: **proposal of 17 November 2026. The owner took decisions W1 to W9 and answered questions O1 to O3 the same day (sections 2 and 8.5). The text written after those decisions has not yet been accepted as a whole, and nothing is implemented** (#508). It would amend [generic web proposal integration v1](generic-food-proposal-integration-v1.md) and [generic food review manifest v2](generic-food-review-manifest-v2.md). The file keeps its original name so that links hold. Documentation only: no app code, test or fixture changes with this document, and `privacy-and-egress.md` and `privacy-policy.txt` are edited only by the implementing change, with the wording in section 10. The pull request that adds this document closes nothing.
+Status: **accepted by the owner on 17 November 2026, not implemented** (#508). The owner took decisions W1 to W9 and answered questions O1 to O3 the same day (sections 2 and 8.5), then accepted the text as a whole. When implemented it amends [generic web proposal integration v1](generic-food-proposal-integration-v1.md) and [generic food review manifest v2](generic-food-review-manifest-v2.md). The file keeps its original name so that links hold. Documentation only: no app code, test or fixture changes with this document, and `privacy-and-egress.md` and `privacy-policy.txt` are edited only by the implementing change, with the wording in section 10. The pull request that adds this document closes nothing.
 
 It has three parts, in the order a page meets them:
 
@@ -72,7 +72,7 @@ The same scratch build was run over 43 projections of public product pages: the 
 | W8 | Competing panels | The person can pick between them; the model's suggestion is a pre-selection they can override (added by the owner) |
 | W9 | Page bounds | Raise them so that ordinary product pages are read whole, with part-reading as the fallback beyond; the owner chose the larger of two offered limits: 2,048 blocks and 100,000 characters |
 
-The owner also answered questions O1 to O3 the same day; the answers are in section 8.5. What remains for the owner is acceptance of this text as a whole.
+The owner also answered questions O1 to O3 the same day; the answers are in section 8.5. The owner then accepted this text as a whole.
 
 ## 3. What this supersedes
 
@@ -330,4 +330,5 @@ PDF and plain-text sources; panels outside tables and definition lists; host-spe
 - The owner then took decisions W1 to W9, two of which (W8 and W9) added the panel choice and the larger bounds. Sections 4, 8, 9 and 10 and the changes that follow from them were written after those decisions.
 - The revised version had one blind hostile review against the source (ready with changes) and one local Qodo review. Their findings are folded in: per-version admission so that v1 and v2 accept nothing new, a retained v2 regression writer, an offer table keyed on the recorded answer and limited to competing panels for `clarify`, the offered candidates stored in full, the `text/plain` bound, the screen wording for a list with no pre-selection, the limits on a 100,000-character review, and the egress wording. The edits made after those reviews have had no review of their own.
 - The owner then answered questions O1 to O3 (section 8.5); each answer matches what the text already proposed. A local Qodo review at that point raised three findings. One was folded in: when the check names a candidate, only the candidates that compete with it are offered, and v3 admission rejects an offered set that mixes products (the earlier text offered every choosable candidate, which could have let a person confirm a different product from the same page). One was already met by section 8.4 (`offered` holds complete candidates). One restated the no-way-back cost in section 7, which the owner accepted under W4. This last edit has had no review of its own.
+- The owner accepted the text as a whole on 17 November 2026, knowing that the narrowed offer rule had not been reviewed separately. The implementing change has its own architecture gate, which re-checks it.
 - Not validated on a device. The measurements in section 1 have the limits listed in section 1.3.
