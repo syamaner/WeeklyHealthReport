@@ -195,6 +195,12 @@ Tests must cover an ordinary page above the previous limit, rejection above the
 new limit and PDF rejection above its unchanged limit. A new keyless capture
 experiment is separately labelled; original acquisition failures remain frozen.
 
+Amended by [web lookup part-read pages v1](web-lookup-part-read-pages-v1-proposal.md)
+section 4 (#508, phase 1): the 512-block and 30,000-text-character limits for HTML
+and `text/plain` are replaced by 2,048 blocks and 100,000 characters. Projection v6
+keeps its name. PDF keeps its own limits. Stored v1 and v2 review manifests keep the
+old limits. The "no truncation" sentence stands until the part-read phase lands.
+
 ### Evidence request size gate (05:37 London)
 
 The FAGE paired input sent 7,338 source-text characters and 79,596 locator

@@ -9,6 +9,12 @@ import FoodLedgerDomain
 import XCTest
 
 final class GenericFoodPDFProjectorTests: XCTestCase {
+    // Contract #508 test 4: PDF keeps its own bound although the document bound is higher.
+    func testPDFKeepsItsOwnBoundAfterTheDocumentBoundRose() {
+        XCTAssertEqual(GenericFoodPDFProjector.bounds, FoodDocumentBounds(blocks: 512, characters: 30_000))
+        XCTAssertNotEqual(GenericFoodPDFProjector.bounds, FoodDocumentBounds.current)
+    }
+
     private let url = URL(string: "https://unfamiliar.example/menu.pdf")!
 
     func testTextPDFKeepsLiteralTextPageCoordinatesAndOriginalHash() throws {

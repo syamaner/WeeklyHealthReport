@@ -129,8 +129,11 @@ public struct CanonicalFoodProjection: Codable, Equatable, Sendable {
         if provenance.contains(where: { entry in
             ([entry.value] + entry.conflictCandidates).contains { $0.provenance.contains { $0.sourceKind == .appReferenceDefinition } }
         }) { return 6 }
-        // Reviewed web manifest v2 (single review action, recorded gate): contract 5.
-        if records.evidence.contains(where: { $0.captureMethodVersion.value == ReviewedFoodProposalConfirmation.version }) { return 5 }
+        // Reviewed web manifest v2 (single review action, recorded gate) and v3 (offered candidates
+        // and the person's choice, #508): contract 5. Contract 10 is already allocated to other accepted
+        // contracts (phase 1 gate, section 4); under owner decision W7 v3 takes no higher number.
+        if records.evidence.contains(where: { [ReviewedFoodProposalConfirmation.version, ReviewedFoodProposalConfirmation.version3]
+            .contains($0.captureMethodVersion.value) }) { return 5 }
         if records.assertions.contains(where: { $0.confirmation != nil }) { return 4 }
         if records.logItemVersions.contains(where: { $0.weightDeclaration != nil }) { return 3 }
         return records.logItemVersions.contains { log in

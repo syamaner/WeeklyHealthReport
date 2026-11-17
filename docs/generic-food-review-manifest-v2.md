@@ -1,6 +1,6 @@
 # Generic food review manifest v2 (#196)
 
-Status: **approved by the owner on 11 October 2026; implemented on `feat/196-add-food-search`.** Architecture gate passed with changes, folded in. Deviations from the approved text are in section 9.
+Status: **approved by the owner on 11 October 2026; implemented on `feat/196-add-food-search`.** Architecture gate passed with changes, folded in. Deviations from the approved text are in section 9. Since #508 phase 1 ([web lookup part-read pages v1](web-lookup-part-read-pages-v1-proposal.md), [phase 1 gate](web-lookup-larger-pages-phase1-gate.md)) production writes `reviewed-web-proposal-v3`; v2 is written only by a regression writer, every stored v2 review is admitted as before, and a v2 manifest whose document exceeds 512 blocks or 30,000 characters, or carries a part-read record or locator, is rejected.
 This is the change [ux-revamp-v1.md](ux-revamp-v1.md) calls "Single-step web review" (section "Contract changes > 3"). It amends the review manifest defined in [generic-food-proposal-integration-v1.md](generic-food-proposal-integration-v1.md) ("Confirmation extension", "Review suggestion gate", "Admission v4 architecture and repair") and composes with [food-confirmation-contract-v5.md](food-confirmation-contract-v5.md). Phase plan: [ux-revamp-phase-3-search.md](ux-revamp-phase-3-search.md).
 
 ## Naming

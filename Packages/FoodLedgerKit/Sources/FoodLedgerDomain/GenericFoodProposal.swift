@@ -17,6 +17,41 @@ public struct FoodDocumentBlock: Codable, Equatable, Sendable {
     }
 }
 
+/// Closed bounds on a captured document's projected text. `current` is what capture and
+/// `CapturedFoodDocument.validate()` admit (larger pages, #508). `reviewManifestV1V2` is the
+/// bound every stored v1 and v2 review manifest was written under; their admission keeps it,
+/// so the higher bound never widens what an existing review accepts. Both are closed contract
+/// values: lowering `current` would stop stored larger documents validating, so any change to it
+/// is a contract change with its own migration (#508).
+public struct FoodDocumentBounds: Equatable, Sendable {
+    public let blocks: Int
+    public let characters: Int
+    public init(blocks: Int, characters: Int) { self.blocks = blocks; self.characters = characters }
+    public static let current = FoodDocumentBounds(blocks: 2_048, characters: 100_000)
+    public static let reviewManifestV1V2 = FoodDocumentBounds(blocks: 512, characters: 30_000)
+}
+
+/// The record of a document read in part (`food-document-block-selection-v1`). Absent for
+/// every whole page, so existing documents encode with identical bytes. Never sent to a provider.
+public struct FoodDocumentPartialRead: Codable, Equatable, Sendable {
+    public static let selectionPolicy = "food-document-block-selection-v1"
+    /// The projection version carried by the locators of kept blocks.
+    public static let selectedProjectionVersion = "swift-food-document-blocks-v7-selected"
+    /// The bound a full projection must exceed for this policy to apply. Fixed with the policy,
+    /// not read from `FoodDocumentBounds.current`, so a stored part-read document keeps
+    /// validating if the capture bound ever changes (that would be a new policy version).
+    public static let selectionPolicyBounds = FoodDocumentBounds(blocks: 2_048, characters: 100_000)
+    public let policy: String
+    public let fullBlocks: Int
+    public let fullCharacters: Int
+    public let keptBlocks: Int
+    public let keptCharacters: Int
+    public init(policy: String = selectionPolicy, fullBlocks: Int, fullCharacters: Int, keptBlocks: Int, keptCharacters: Int) {
+        self.policy = policy; self.fullBlocks = fullBlocks; self.fullCharacters = fullCharacters
+        self.keptBlocks = keptBlocks; self.keptCharacters = keptCharacters
+    }
+}
+
 public struct CapturedFoodDocument: Codable, Equatable, Sendable {
     public let id: String
     public let url: String
@@ -24,22 +59,45 @@ public struct CapturedFoodDocument: Codable, Equatable, Sendable {
     public let captureOrigin: String
     public let retrievedAt: String
     public let blocks: [FoodDocumentBlock]
+    /// Present only for a document read in part; omitted from the encoding otherwise.
+    public let partialRead: FoodDocumentPartialRead?
     public init(id: String, url: String, rawSha256: String, captureOrigin: String,
-                retrievedAt: String, blocks: [FoodDocumentBlock]) throws {
+                retrievedAt: String, blocks: [FoodDocumentBlock], partialRead: FoodDocumentPartialRead? = nil) throws {
         self.id = id; self.url = url; self.rawSha256 = rawSha256
         self.captureOrigin = captureOrigin; self.retrievedAt = retrievedAt; self.blocks = blocks
+        self.partialRead = partialRead
         try validate()
+    }
+    public var characterCount: Int { blocks.reduce(0, { $0 + $1.text.count }) }
+    public func fits(_ bounds: FoodDocumentBounds) -> Bool {
+        blocks.count <= bounds.blocks && characterCount <= bounds.characters
+    }
+    /// True when any locator carries the part-read projection version.
+    public var hasSelectedLocator: Bool {
+        blocks.contains { $0.locator.hasSuffix(";projection:" + FoodDocumentPartialRead.selectedProjectionVersion) }
     }
     public func validate() throws {
         guard !id.isEmpty, id.count <= 100, !captureOrigin.isEmpty, !retrievedAt.isEmpty,
               let address = URL(string: url), address.scheme == "https", address.host != nil,
               address.user == nil, address.password == nil, address.port == nil || address.port == 443,
               rawSha256.count == 64, rawSha256.allSatisfy({ "0123456789abcdef".contains($0) }),
-              !blocks.isEmpty, blocks.count <= 512,
+              !blocks.isEmpty, fits(.current),
               Set(blocks.map(\.id)).count == blocks.count,
-              blocks.reduce(0, { $0 + $1.text.count }) <= 30_000,
               blocks.allSatisfy({ !$0.id.isEmpty && $0.id.count <= 100 && !$0.text.isEmpty
                   && !$0.kind.isEmpty && !$0.locator.isEmpty && $0.locator.count <= 500 }) else {
+            throw GenericFoodProposalError.invalidDocument
+        }
+        if let partialRead {
+            let selected = ";projection:" + FoodDocumentPartialRead.selectedProjectionVersion
+            guard partialRead.policy == FoodDocumentPartialRead.selectionPolicy,
+                  partialRead.keptBlocks == blocks.count, partialRead.keptCharacters == characterCount,
+                  partialRead.fullBlocks >= partialRead.keptBlocks, partialRead.fullCharacters >= partialRead.keptCharacters,
+                  partialRead.fullBlocks > FoodDocumentPartialRead.selectionPolicyBounds.blocks
+                      || partialRead.fullCharacters > FoodDocumentPartialRead.selectionPolicyBounds.characters,
+                  blocks.allSatisfy({ $0.locator.hasSuffix(selected) }) else {
+                throw GenericFoodProposalError.invalidDocument
+            }
+        } else if hasSelectedLocator {
             throw GenericFoodProposalError.invalidDocument
         }
     }
@@ -117,8 +175,11 @@ public struct BoundFoodProposal: Equatable, Sendable, Identifiable {
     public let candidate: FoodProposalCandidate
     public let document: CapturedFoodDocument
     public fileprivate(set) var status: Status
-    public var selectionEligible: Bool {
-        status == .literalBound && candidate.basis.unit != nil
+    public var selectionEligible: Bool { status == .literalBound && choosable }
+    /// Literally bound, with a basis unit, at least one declared nutrient and no conflict inside
+    /// itself: `selectionEligible` without the status test (contract #508, section 8.2).
+    public var choosable: Bool {
+        candidate.basis.unit != nil
             && candidate.nutrients.contains { $0.state == .declared }
             && !candidate.nutrients.contains { $0.unknownReason == .conflict }
     }
@@ -335,10 +396,17 @@ public enum FoodProposalBinding {
         return ranges
     }
 
-    private static func conflicting(_ left: FoodProposalCandidate, _ right: FoodProposalCandidate) -> Bool {
-        guard left.documentId == right.documentId, left.name == right.name, left.brand == right.brand,
-              left.preparation == right.preparation, left.basis.amount == right.basis.amount,
-              left.basis.unit == right.basis.unit else { return false }
+    /// The same name, brand, preparation, basis amount and basis unit from one document: the
+    /// exact equality the conflict rule uses, shared by the offer rule and manifest v3 admission.
+    public static func sameIdentity(_ left: FoodProposalCandidate, _ right: FoodProposalCandidate) -> Bool {
+        left.documentId == right.documentId && left.name == right.name && left.brand == right.brand
+            && left.preparation == right.preparation && left.basis.amount == right.basis.amount
+            && left.basis.unit == right.basis.unit
+    }
+
+    /// Two candidates of the same identity that differ in a declared value.
+    public static func conflicting(_ left: FoodProposalCandidate, _ right: FoodProposalCandidate) -> Bool {
+        guard sameIdentity(left, right) else { return false }
         // Wording differences in the basis label cannot hide a numeric conflict.
         return left.nutrients.contains { value in
             guard value.state == .declared, let other = right.nutrients.first(where: { $0.key == value.key }),
