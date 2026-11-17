@@ -79,6 +79,8 @@ enum PersonalFoodDatabaseRules {
     static func set(_ values: [String]) -> Set<PFDText> { Set(values.map { PFDText(bytes: Array($0.utf8)) }) }
 
     static let topKeys = set(["schema", "generated", "sources", "generic_corpora", "items"])
+    /// Estimates v2 (contract section 2): v2's keys plus `estimate_evidence`.
+    static let topKeysEstimates = topKeys.union([PFDText("estimate_evidence")])
     static let itemKeys = set(["id", "brand", "title", "titles", "aliases", "concept", "variety", "fallback_chain",
                                "category", "product_type", "state", "basis", "label_nutrients", "generic_reference"])
     static let valueKeys = set(["value", "unit", "source_kind", "source_release", "record_id", "match"])
@@ -270,14 +272,27 @@ struct PersonalFoodDatabaseChecker {
     private mutating func err(_ code: PersonalFoodDatabaseRuleCode) { codes.append(code) }
 
     mutating func check(_ doc: PFDValue) {
-        guard let keys = doc.keys, keys == R.topKeys,
+        // Estimates contract section 2, in this order: (1) the key set is v2's or v2's plus
+        // `estimate_evidence`; (2) the schema is a known value; (3) the key set is the one that
+        // schema needs.
+        guard let keys = doc.keys, keys == R.topKeys || keys == R.topKeysEstimates,
               let schema = doc["schema"], let generated = doc["generated"], let sources = doc["sources"],
               let corporaValue = doc["generic_corpora"], let itemsValue = doc["items"] else {
             return err(.topKeys)
         }
+        func names(_ s: PersonalFoodDatabaseSchema) -> Bool { schema.isString(PFDText(bytes: Array(s.rawValue.utf8))) }
+        let estimates = names(.estimatesV2)
+        if keys == R.topKeysEstimates {
+            if !estimates, !names(.v1), !names(.v2) { return err(.schema) }
+            if !estimates { return err(.topKeys) }
+            if itemsValue.items == nil || doc["estimate_evidence"]?.items == nil { return err(.items) }
+        } else if estimates {
+            return err(.topKeys)
+        }
+        let itemKeys = estimates ? R.itemKeys.union([PFDText("estimated_nutrients")]) : R.itemKeys
         // An unknown schema keeps the v1 rules for the rest of the file, as `export_v1` does.
-        let v2 = schema.isString(PFDText(bytes: Array(PersonalFoodDatabaseSchema.v2.rawValue.utf8)))
-        if !schema.isString(PFDText(bytes: Array(PersonalFoodDatabaseSchema.v1.rawValue.utf8))) && !v2 { err(.schema) }
+        let v2 = names(.v2) || estimates
+        if !names(.v1) && !v2 { err(.schema) }
         if generated.text.flatMap({ PersonalFoodDatabaseDate(ascii: $0.bytes) }) == nil { err(.generated) }
 
         var declared: [PFDText: Declared] = [:]  // release ID -> source ID and pipeline
@@ -330,8 +345,20 @@ struct PersonalFoodDatabaseChecker {
         if items.count > PersonalFoodDatabaseCodec.limitItems { err(.count) }
         var ids = Set<PFDText>()
         var previous = PFDText(bytes: [])
+        var marks: [Int] = []  // codes raised before each entry
+        var duplicateIDs = Set<PFDText>()
+        defer {
+            if estimates {
+                marks.append(codes.count)
+                let failed = Set((0..<items.count).filter { marks[$0 + 1] > marks[$0] })
+                var estimateChecker = PersonalFoodDatabaseEstimateChecker()
+                estimateChecker.check(doc, failedItems: failed, duplicateIDs: duplicateIDs)
+                codes += estimateChecker.codes
+            }
+        }
         for item in items {
-            guard item.keys == R.itemKeys else {
+            marks.append(codes.count)
+            guard item.keys == itemKeys else {
                 err(.itemKeys)
                 continue
             }
@@ -346,6 +373,7 @@ struct PersonalFoodDatabaseChecker {
             }
             if ids.contains(id) {
                 err(.idDuplicate)
+                duplicateIDs.insert(id)
             } else if id <= previous {
                 err(.idOrder)
             }
@@ -547,11 +575,20 @@ enum PersonalFoodDatabaseBuilder {
                   let hash = c["corpus_sha256"]?.text?.string else { return nil }
             corpora[source] = hash
         }
+        var records: [PFDText: PFDValue] = [:]
+        for rec in doc["estimate_evidence"]?.items ?? [] {
+            guard let id = rec["id"]?.text else { return nil }
+            records[id] = rec
+        }
         var entries: [PersonalFoodDatabaseEntry] = []
         entries.reserveCapacity(itemValues.count)
         for item in itemValues {
-            guard let entry = entry(item) else { return nil }
-            entries.append(entry)
+            guard let base = entry(item), let estimates = estimates(item, records: records) else { return nil }
+            entries.append(PersonalFoodDatabaseEntry(
+                id: base.id, brand: base.brand, title: base.title, titles: base.titles, aliases: base.aliases,
+                concept: base.concept, variety: base.variety, fallbackChain: base.fallbackChain, category: base.category,
+                productType: base.productType, state: base.state, basis: base.basis, labelNutrients: base.labelNutrients,
+                genericReference: base.genericReference, estimatedNutrients: estimates))
         }
         return PersonalFoodDatabaseFile(schema: schema, generated: generated, sources: sources, genericCorpora: corpora,
                                         entries: entries)

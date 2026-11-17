@@ -510,6 +510,7 @@
  "rule_codes": [
   "bom",
   "corpus",
+  "corpus-mismatch",
   "corpus-undeclared",
   "count",
   "date",
@@ -521,6 +522,7 @@
   "duplicate-key",
   "encoding",
   "estimate-basis",
+  "estimate-contradiction",
   "estimate-keys",
   "estimate-own-held",
   "estimate-own-merge",
@@ -552,6 +554,7 @@
   "not-approved",
   "open-food-facts-host",
   "record-id",
+  "record-missing",
   "reference",
   "reference-corpus",
   "release-kind",
@@ -582,7 +585,9 @@
   "unknown-nutrient",
   "value",
   "value-keys",
+  "value-mismatch",
   "value-shape",
+  "value-unquantified",
   "vocabulary"
  ],
  "estimates_only_rule_codes": [
@@ -614,7 +619,12 @@
   "estimate-own-state",
   "estimate-own-held",
   "estimate-quality",
-  "estimate-basis"
+  "estimate-basis",
+  "corpus-mismatch",
+  "record-missing",
+  "value-unquantified",
+  "value-mismatch",
+  "estimate-contradiction"
  ],
  "importer_rule_codes": [
   "corpus-mismatch",

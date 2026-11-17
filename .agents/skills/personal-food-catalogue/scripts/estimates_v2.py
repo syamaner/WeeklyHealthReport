@@ -256,7 +256,8 @@ def check(doc, report, failed_items, duplicate_ids):
                 continue
             used[rid] = used.get(rid, 0) + 1
             cited_by[rid] = n
-            if rec.get("entry_id") != it["id"] or rec.get("nutrient") != key:
+            # Only two strings can agree, so the Swift codec needs no Python value equality.
+            if not isinstance(it["id"], str) or rec.get("entry_id") != it["id"] or rec.get("nutrient") != key:
                 err("evidence-mismatch", where)
             if rec.get("method") == "derived" and rec.get("derivation") is not None \
                     and not transform_matches(rec["derivation"], key, v["value"]):

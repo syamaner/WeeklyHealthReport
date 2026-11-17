@@ -183,7 +183,9 @@ final class FoodLedgerCompositionRoot {
         // protected data returns (phase 1 plan section 5.1 item 7). Search never waits for it.
         personalFoodDatabase = PersonalFoodDatabaseSettingsViewModel(
             importer: PersonalFoodDatabaseImporter(store: databaseStore, digester: SHA256Digester(),
-                clock: SystemLedgerClock(), releases: ledgerStore),
+                clock: SystemLedgerClock(), releases: ledgerStore,
+                // Estimates on catalogue v2: composition estimates are checked against the bundled records.
+                lookup: GenericRecordLookupSet([.cofid: cofid, .usda: usda, .tfda: tfda])),
             changed: {
                 index.invalidate()
                 await Task.detached(priority: .utility) { index.warm() }.value

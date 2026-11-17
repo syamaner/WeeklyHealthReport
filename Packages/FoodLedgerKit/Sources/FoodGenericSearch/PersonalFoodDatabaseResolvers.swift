@@ -48,3 +48,44 @@ extension TFDAGenericFoodSearch: GenericRecordResolving {
         return String(reference.recordID.dropFirst("tfda:".count))
     }
 }
+
+// Estimates on catalogue v2 (contract section 7): each record's facts for the importer and Confirm,
+// taken from the same candidate `resolve` builds, so the two always agree. A corpus hash other than
+// the adapter's pin is told apart from a missing record.
+
+private func facts(_ candidate: PopulatedFoodCandidate) -> GenericRecordFacts {
+    GenericRecordFacts(nutrients: candidate.candidate.nutrients, identity: candidate.candidate.identity,
+                       edibleQuantity: candidate.candidate.edibleQuantity)
+}
+
+extension CoFIDGenericFoodSearch: GenericRecordNutrientLookup {
+    public func record(source: PersonalFoodDatabaseGenericSource, corpusSHA256: String, recordID: String)
+        -> Result<GenericRecordFacts, GenericRecordLookupFailure> {
+        guard source == .cofid, corpusSHA256 == Self.corpusCanonicalSHA256 else { return .failure(.corpusMismatch) }
+        guard let candidate = referencedCandidate(recordID, evidenceIDs: [], queryAlias: "") else { return .failure(.recordMissing) }
+        return .success(facts(candidate))
+    }
+}
+
+extension USDAGenericFoodSearch: GenericRecordNutrientLookup {
+    public func record(source: PersonalFoodDatabaseGenericSource, corpusSHA256: String, recordID: String)
+        -> Result<GenericRecordFacts, GenericRecordLookupFailure> {
+        guard source == .usda, corpusSHA256 == Self.corpusSHA256 else { return .failure(.corpusMismatch) }
+        guard let (candidate, _) = referencedCandidate(recordID, evidenceIDs: [], queryAlias: "record") else {
+            return .failure(.recordMissing)
+        }
+        return .success(facts(candidate))
+    }
+}
+
+extension TFDAGenericFoodSearch: GenericRecordNutrientLookup {
+    public func record(source: PersonalFoodDatabaseGenericSource, corpusSHA256: String, recordID: String)
+        -> Result<GenericRecordFacts, GenericRecordLookupFailure> {
+        guard source == .tfda, corpusSHA256 == Self.corpusSHA256 else { return .failure(.corpusMismatch) }
+        guard recordID.hasPrefix("tfda:"),
+              let candidate = referencedCandidate(String(recordID.dropFirst("tfda:".count)), evidenceIDs: []) else {
+            return .failure(.recordMissing)
+        }
+        return .success(facts(candidate))
+    }
+}

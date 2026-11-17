@@ -836,13 +836,19 @@ URLS = {  # phase gate section 3.1 item 7; both checkers read this list
 }
 
 
+# Raised only by the app's importer, against the bundled record (contract section 3.1); in the enum's
+# estimates-only set, never emitted by either codec.
+IMPORTER_RULE_CODES = ["corpus-mismatch", "record-missing", "value-unquantified", "value-mismatch",
+                       "estimate-contradiction"]
+
+
 def estimate_rule_codes():
     """v2's codes plus the estimates-only set, which must be exactly what estimates_v2.py can emit."""
     src = Path(EV.__file__).read_text()
     emitted = (set(re.findall(r'err\("([a-z0-9-]+)"', src)) | set(re.findall(r'codes\.append\("([a-z0-9-]+)"\)', src)))
     shared = {"unknown-nutrient", "unit", "value"}  # existing enum cases reused on the estimate part
     assert emitted - shared == set(EV.RULE_CODES), sorted(emitted - shared ^ set(EV.RULE_CODES))
-    return sorted(set(rule_codes()) | set(EV.RULE_CODES))
+    return sorted(set(rule_codes()) | set(EV.RULE_CODES) | set(IMPORTER_RULE_CODES))
 
 
 def code_list(data):
@@ -869,9 +875,8 @@ def write_estimates_v2(fixtures: Path):
         (fixtures / f"accept-{name}.json").write_text(json.dumps(make(), ensure_ascii=False) + "\n")
         manifest["accept"][f"accept-{name}.json"] = stage
     manifest["rule_codes"] = estimate_rule_codes()
-    manifest["estimates_only_rule_codes"] = list(EV.RULE_CODES)
-    manifest["importer_rule_codes"] = ["corpus-mismatch", "record-missing", "value-unquantified", "value-mismatch",
-                                       "estimate-contradiction"]
+    manifest["estimates_only_rule_codes"] = list(EV.RULE_CODES) + IMPORTER_RULE_CODES
+    manifest["importer_rule_codes"] = IMPORTER_RULE_CODES
     manifest["stub_lookup"] = {"pins": {"cofid": PIN}, "records": [
         {"source": "cofid", "record_id": rid, "nutrients": nutrients, "preparation": kind, "preparation_method": method,
          "fortification": fortification, "per_100_g_edible": edible}
@@ -888,7 +893,7 @@ def verify_estimates_v2(fixtures: Path, manifest):
     errs = E.check_bytes(golden_bytes) + E.check_export_conventions(json.loads(golden_bytes))
     assert errs == [], f"estimates v2 golden rejected: {errs}"
     assert manifest["rule_codes"] == estimate_rule_codes(), "manifest rule codes differ from the checkers"
-    assert manifest["estimates_only_rule_codes"] == list(EV.RULE_CODES)
+    assert manifest["estimates_only_rule_codes"] == list(EV.RULE_CODES) + IMPORTER_RULE_CODES
     assert set(rule_codes()) < set(manifest["rule_codes"]), "v2 codes must be a strict subset"
     assert manifest["urls"] == URLS and manifest["canonical_units"] == E.CANON_UNITS
     for url in URLS["accept"]:

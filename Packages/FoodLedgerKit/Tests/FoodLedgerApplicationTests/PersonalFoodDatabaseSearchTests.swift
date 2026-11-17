@@ -237,6 +237,24 @@ final class PersonalFoodDatabaseSearchTests: XCTestCase {
         return []
     }
 
+    /// Estimates on catalogue v2, phase gate section 1: until the wiring step binds estimates, an
+    /// accepted estimates v2 file behaves exactly as its v2 part. No estimate reaches a candidate.
+    func testAnEstimatesV2FileBehavesAsItsV2PartUntilEstimatesAreBound() throws {
+        let estimates = try Data(contentsOf: Self.fixtures.deletingLastPathComponent()
+            .appendingPathComponent("personal-food-database-estimates-v2/golden.json"))
+        let (search, index, _) = try makeSearch(estimates)
+        XCTAssertEqual(index.snapshot()?.file.schema, .estimatesV2)
+        XCTAssertEqual(index.snapshot()?.release.schemaVersion.value, "personal-food-catalogue-estimates-v2")
+        // An entry whose only values are estimates is not offered; one with label values shows those only.
+        XCTAssertTrue(matches(try search.search(request("synthetic tinned fish"))).isEmpty)
+        let bar = try XCTUnwrap(matches(try search.search(request("synthetic serving bar"))).first)
+        let fibre = try XCTUnwrap(bar.candidate.candidate.nutrients.entries.first { $0.key == .fiber })
+        XCTAssertEqual(fibre.value, .unknown(.notDeclared))
+        XCTAssertTrue(bar.candidate.candidate.nutrients.entries.flatMap { $0.value.provenance }.allSatisfy {
+            $0.sourceKind == .exactProductDataset || $0.sourceKind == .manualDeclaration
+        })
+    }
+
     func testStepsExactNameAndGenericRow() throws {
         let (search, _, _) = try makeSearch(Self.golden())
         let exact = matches(try search.search(request("synthetic example oats")))

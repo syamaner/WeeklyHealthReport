@@ -27,8 +27,40 @@ public enum PersonalFoodDatabaseRuleCode: String, CaseIterable, Error, Sendable 
     /// one release disagreeing on the serving size.
     case servingImplausible = "serving-implausible", servingMismatch = "serving-mismatch"
 
+    // Estimates v2 (docs/personal-food-catalogue-estimates-v2-proposal.md). Inherited estimate checks,
+    // with the R2 tool's code strings:
+    case evidenceKeys = "evidence-keys", notApproved = "not-approved", token, date, digest
+    case typeFields = "type-fields", corpusUndeclared = "corpus-undeclared", sourceReference = "source-reference"
+    case openFoodFactsHost = "open-food-facts-host", freeText = "free-text"
+    case derivation, derivationMissing = "derivation-missing", derivationShape = "derivation-shape"
+    case derivationUnexpected = "derivation-unexpected"
+    case evidenceID = "evidence-id", evidenceDuplicate = "evidence-duplicate", evidenceOrder = "evidence-order"
+    case estimatedNutrients = "estimated-nutrients", estimateKeys = "estimate-keys"
+    case labelAndEstimate = "label-and-estimate", evidenceDangling = "evidence-dangling"
+    case evidenceMismatch = "evidence-mismatch", evidenceUnusedOrShared = "evidence-unused-or-shared"
+    /// The codec table of contract section 3.1, in table order.
+    case estimateOwnMerge = "estimate-own-merge", estimateOwnMethod = "estimate-own-method"
+    case estimateOwnState = "estimate-own-state", estimateOwnHeld = "estimate-own-held"
+    case estimateQuality = "estimate-quality", estimateBasis = "estimate-basis"
+    /// Raised only by the importer, against the bundled record, on a file the codec accepted.
+    case corpusMismatch = "corpus-mismatch", recordMissing = "record-missing"
+    case valueUnquantified = "value-unquantified", valueMismatch = "value-mismatch"
+    case estimateContradiction = "estimate-contradiction"
+
     /// The codes a `personal-food-catalogue-v1` file can never get.
     public static let v2Only: Set<Self> = [.servingImplausible, .servingMismatch]
+
+    /// The codes only the importer raises (contract section 3.1), in its order per estimate.
+    public static let importerOnly: [Self] = [.corpusMismatch, .recordMissing, .valueUnquantified, .valueMismatch,
+                                              .estimateContradiction]
+
+    /// The codes only a `personal-food-catalogue-estimates-v2` file can get.
+    public static let estimatesOnly: Set<Self> = Set(importerOnly).union([
+        .evidenceKeys, .notApproved, .token, .date, .digest, .typeFields, .corpusUndeclared, .sourceReference,
+        .openFoodFactsHost, .freeText, .derivation, .derivationMissing, .derivationShape, .derivationUnexpected,
+        .evidenceID, .evidenceDuplicate, .evidenceOrder, .estimatedNutrients, .estimateKeys, .labelAndEstimate,
+        .evidenceDangling, .evidenceMismatch, .evidenceUnusedOrShared, .estimateOwnMerge, .estimateOwnMethod,
+        .estimateOwnState, .estimateOwnHeld, .estimateQuality, .estimateBasis])
 }
 
 /// The file schemas the importer accepts. v1 files keep the v1 rules exactly; v2 adds Open Food
@@ -36,6 +68,11 @@ public enum PersonalFoodDatabaseRuleCode: String, CaseIterable, Error, Sendable 
 public enum PersonalFoodDatabaseSchema: String, CaseIterable, Sendable {
     case v1 = "personal-food-catalogue-v1"
     case v2 = "personal-food-catalogue-v2"
+    /// v2 plus labelled estimates (docs/personal-food-catalogue-estimates-v2-proposal.md).
+    case estimatesV2 = "personal-food-catalogue-estimates-v2"
+
+    /// True for the schemas that take the import v2 rules on their v2 part.
+    var usesV2Rules: Bool { self != .v1 }
 }
 
 /// A rejected file: the rule codes in the order found. It never carries an entry ID, title or
@@ -198,6 +235,21 @@ public struct PersonalFoodDatabaseEntry: Equatable, Sendable {
     /// In file order; possibly empty.
     public let labelNutrients: [PersonalFoodDatabaseLabelNutrient]
     public let genericReference: PersonalFoodDatabaseGenericReference?
+    /// Owner-approved estimates, in file order; empty for a v1 or v2 file. Never on a key that
+    /// `labelNutrients` holds (rule `label-and-estimate`).
+    public let estimatedNutrients: [PersonalFoodDatabaseEstimate]
+
+    public init(id: String, brand: String?, title: String, titles: [String], aliases: [String], concept: String?,
+                variety: String?, fallbackChain: [String], category: PersonalFoodDatabaseCategory,
+                productType: PersonalFoodDatabaseProductType, state: PersonalFoodDatabaseState,
+                basis: PersonalFoodDatabaseBasis, labelNutrients: [PersonalFoodDatabaseLabelNutrient],
+                genericReference: PersonalFoodDatabaseGenericReference?,
+                estimatedNutrients: [PersonalFoodDatabaseEstimate] = []) {
+        self.id = id; self.brand = brand; self.title = title; self.titles = titles; self.aliases = aliases
+        self.concept = concept; self.variety = variety; self.fallbackChain = fallbackChain; self.category = category
+        self.productType = productType; self.state = state; self.basis = basis; self.labelNutrients = labelNutrients
+        self.genericReference = genericReference; self.estimatedNutrients = estimatedNutrients
+    }
 }
 
 /// One label value under its nutrient key, kept in file order. A struct (not a tuple) so the

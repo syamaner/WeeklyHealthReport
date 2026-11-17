@@ -118,13 +118,17 @@ public actor PersonalFoodDatabaseImporter: PersonalFoodDatabaseImporting {
     private let digester: any Digesting
     private let clock: any LedgerClock
     private let releases: any FoodConfirmationReading
+    /// The bundled records an estimates v2 file's composition estimates are checked against. Without
+    /// one no corpus is pinned, so such a file is rejected (closed by default).
+    private let lookup: any GenericRecordNutrientLookup
     /// The last file hash whose own schema was read and found to match its manifest. The store
     /// verifies the file hash on every read, so equal hashes mean equal bytes and the schema need not
     /// be parsed again (PR #487 review: `status()` should not parse the whole file each time).
     private var verifiedSchema: (digest: SHA256Digest, schema: String)?
 
     public init(store: any PersonalFoodDatabaseStoring, digester: any Digesting, clock: any LedgerClock,
-                releases: any FoodConfirmationReading) {
+                releases: any FoodConfirmationReading, lookup: any GenericRecordNutrientLookup = GenericRecordLookupSet([:])) {
+        self.lookup = lookup
         self.store = store
         self.digester = digester
         self.clock = clock
@@ -220,6 +224,9 @@ public actor PersonalFoodDatabaseImporter: PersonalFoodDatabaseImporting {
         case let .success(decoded): file = decoded
         case let .failure(rejection): return .failure(OutcomeBox(value: .rejected(rejection.codes)))
         }
+        // Estimates contract section 3.1: the bundled-record rules run only on a file the codec accepted.
+        let estimateCodes = PersonalFoodDatabaseEstimateAdmission.codes(file: file, lookup: lookup)
+        guard estimateCodes.isEmpty else { return .failure(OutcomeBox(value: .rejected(estimateCodes))) }
         guard let digest = try? digester.sha256(bytes) else { return .failure(OutcomeBox(value: .writeFailed)) }
         do {
             let candidates = try [PersonalFoodDatabaseRelease.sourceRelease(fileSHA256: digest, generated: file.generated,
