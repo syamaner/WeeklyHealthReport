@@ -41,16 +41,23 @@ final class ApprovedEstimateConfirmContractTests: XCTestCase {
         }
     }
 
-    static func service(_ harness: TestHarness, lookup: (any GenericRecordNutrientLookup)? = Lookup()) throws -> FoodConfirmationService {
+    /// A fixed UTC calendar, so a saved log's reporting day never depends on the machine's zone.
+    static var utc: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        return calendar
+    }
+
+    static func service(_ harness: TestHarness, lookup: (any GenericRecordNutrientLookup)? = Lookup(),
+                        ids: any LedgerIDGenerating = RandomLedgerIDGenerator()) throws -> FoodConfirmationService {
         try FoodConfirmationService(ledger: LedgerFixtures.service(harness.committer), reader: harness.reader,
-            clock: LedgerFixtures.clock, ids: RandomLedgerIDGenerator(), digester: LedgerFixtures.digester, estimateRecords: lookup)
+            clock: LedgerFixtures.clock, ids: ids, digester: LedgerFixtures.digester, calendar: utc, estimateRecords: lookup)
     }
 
     /// The route's own confirmation for some entries: one search evidence item and one capture
     /// manifest per candidate with estimates, exactly as the database route builds it.
-    static func input(_ titles: [String]) throws -> PopulatedFoodConfirmation {
+    static func input(_ titles: [String], ids: any LedgerIDGenerating = RandomLedgerIDGenerator()) throws -> PopulatedFoodConfirmation {
         let file = try file(), release = try release(file)
-        let ids = RandomLedgerIDGenerator()
         let search = try CaptureEvidence(evidenceID: ids.makeID(EvidenceTag.self), kind: .genericSearch,
             capturedAt: LedgerFixtures.clock.now(), locale: LedgerText("en_GB"), captureMethod: LedgerText("typed_generic_food_search"),
             captureMethodVersion: LedgerText(PersonalFoodDatabaseCandidateBuilder.methodVersion), originalPayload: .text(LedgerText("synthetic")))
@@ -87,8 +94,8 @@ final class ApprovedEstimateConfirmContractTests: XCTestCase {
 
     /// A bound, corrected, accepted state with an amount.
     static func state(_ service: FoodConfirmationService, _ titles: [String], _ kind: PreparationKind = .asSold,
-                      grams: Double = 150) throws -> FoodConfirmationState {
-        var state = FoodConfirmationState(input: try input(titles), prefillSourceQuantity: false)
+                      grams: Double = 150, ids: any LedgerIDGenerating = RandomLedgerIDGenerator()) throws -> FoodConfirmationState {
+        var state = FoodConfirmationState(input: try input(titles, ids: ids), prefillSourceQuantity: false)
         service.bindEstimates(&state)
         try correct(&state, kind)
         FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(grams, .grams))

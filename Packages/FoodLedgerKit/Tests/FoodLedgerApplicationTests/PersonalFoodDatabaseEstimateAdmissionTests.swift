@@ -140,6 +140,12 @@ final class PersonalFoodDatabaseEstimateAdmissionTests: XCTestCase {
             return XCTFail("the golden estimates file should install")
         }
         XCTAssertEqual(try store.activeRelease()?.manifest.schema, PersonalFoodDatabaseSchema.estimatesV2.rawValue)
+        // Settings counts the estimated values, from the file, also on a cold start.
+        XCTAssertEqual(first.estimatedValueCount, 11)
+        let cold = PersonalFoodDatabaseImporter(store: store, digester: SHA256Digester(), clock: FixedClock(),
+            releases: PersonalFoodDatabaseImporterTests.Releases(), lookup: try StubLookup(m.stub_lookup))
+        guard case let .installed(summary) = await cold.status() else { return XCTFail("installed") }
+        XCTAssertEqual(summary.estimatedValueCount, 11)
         let outcome = await importer.importFile(try Self.fixture("reject-importer-value-outside-tolerance.json"))
         XCTAssertEqual(outcome, .rejected([.valueMismatch]))
         let codec = await importer.importFile(try Self.fixture("reject-own-merge.json"))

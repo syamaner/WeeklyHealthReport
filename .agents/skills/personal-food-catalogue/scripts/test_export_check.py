@@ -797,7 +797,7 @@ ESTIMATE_ACCEPT = {  # name -> (stage that accepts it, document)
     "value-at-tolerance": ("importer", lambda: _est(lambda d: val(d, CHEESE, "protein").update(value=18.05))),
     # an estimate beside a merged record: the estimate precedes the record on its own key only
     "estimate-beside-merged-record": ("importer", lambda: _est(lambda d: (
-        put(d, OATS, "protein", 12.5, page()), put(d, OATS, "fiber", 9.0, page(quality="medium", method="derived") if False else page())))),
+        put(d, OATS, "protein", 12.5, page()), put(d, OATS, "fiber", 9.0, page())))),
     "raw-entry-as-sold-record": ("importer", lambda: _est(lambda d: put(
         d, GREENS, "protein", 18.0, national("cofid:as-sold", "carried_from_similar_food", "stated_assumption", "low")))),
 }
