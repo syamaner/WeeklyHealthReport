@@ -3,6 +3,7 @@
 
   python3 -I test_export_check.py <scripts_dir> --write <fixtures_dir>      regenerate the v1 files
   python3 -I test_export_check.py <scripts_dir> --write-v2 <fixtures_dir>   regenerate the v2 files
+  python3 -I test_export_check.py <scripts_dir> --write-estimates-v2 <fixtures_dir>   regenerate the estimates v2 files
   python3 -I test_export_check.py <scripts_dir> <fixtures_dir>              check every file's verdict
 
 v1 fixtures live in docs/fixtures/personal-food-database-v1 and stay byte for byte as they were;
@@ -248,6 +249,8 @@ def codes(data):
 
 def verify(fixtures: Path):
     manifest = json.loads((fixtures / "manifest.json").read_text())
+    if manifest.get("schema") == E.SCHEMA_ESTIMATES_V2:
+        return verify_estimates_v2(fixtures, manifest)
     if manifest.get("schema") == E.SCHEMA_V2:
         return verify_v2(fixtures, manifest)
     golden_bytes = (fixtures / manifest["golden"]).read_bytes()
@@ -527,8 +530,400 @@ def verify_v2(fixtures: Path, manifest):
         sys.exit(1)
 
 
+# Labelled estimates on catalogue v2 (docs/personal-food-catalogue-estimates-v2-proposal.md; phase gate
+# docs/personal-food-catalogue-estimates-v2-phase.md). Codec fixtures are asserted here and by the Swift
+# codec; importer fixtures pass the codec and are asserted by the Swift importer with the stub lookup
+# the manifest describes. Every food, record and value is synthetic.
+import estimates_v2 as EV  # noqa: E402
+
+PAGE = "https://www.example.com/products/synthetic"
+COFID = lambda rid, match, role="candidate": {"source": "cofid", "corpus_sha256": PIN, "record_id": rid,
+                                               "match": match, "role": role}
+
+
+def evidence_id(entry_id, nutrient):
+    return "pfe:" + hashlib.sha256(f"pfe-v1|{entry_id}|{nutrient}".encode()).hexdigest()[:16]
+
+
+def national(record, method, state_basis="source_states_it", quality="medium", **over):
+    r = {"approved_as_estimate": True, "source_type": "national_composition", "composition_source": "cofid",
+         "source_reference": record, "page_access": None, "source_digest": None, "retrieved_on": None,
+         "source_state": "as described by the record", "target_state": "as sold", "state_basis": state_basis,
+         "method": method, "assumption": "Synthetic assumption for a fixture.", "derivation": None,
+         "quality": quality}
+    r.update(over)
+    return r
+
+
+def page(method="direct", state_basis="source_states_it", quality="high", source_type="manufacturer_page",
+         access="direct_read", **over):
+    r = {"approved_as_estimate": True, "source_type": source_type, "composition_source": None,
+         "source_reference": PAGE, "page_access": access, "source_digest": None, "retrieved_on": "2026-11-15",
+         "source_state": "as sold", "target_state": "as sold", "state_basis": state_basis, "method": method,
+         "assumption": "Synthetic assumption for a fixture.", "derivation": None, "quality": quality}
+    r.update(over)
+    return r
+
+
+def put(d, title, nutrient, value, record):
+    """Adds (or replaces) one estimate and its evidence record, keeping both lists in order."""
+    it = find(d, title)
+    rid = evidence_id(it["id"], nutrient)
+    it["estimated_nutrients"][nutrient] = {"value": value, "unit": E.CANON_UNITS[nutrient], "evidence_id": rid}
+    it["estimated_nutrients"] = dict(sorted(it["estimated_nutrients"].items()))
+    d["estimate_evidence"] = sorted([r for r in d["estimate_evidence"] if r["id"] != rid]
+                                    + [{"id": rid, "entry_id": it["id"], "nutrient": nutrient, **record}],
+                                    key=lambda r: r["id"])
+
+
+def rec(d, title, nutrient):
+    rid = evidence_id(find(d, title)["id"], nutrient)
+    return next(r for r in d["estimate_evidence"] if r["id"] == rid)
+
+
+def val(d, title, nutrient):
+    return find(d, title)["estimated_nutrients"][nutrient]
+
+
+FISH, CHEESE, GREENS, RICE, CRISPS = ("Synthetic Tinned Fish", "Synthetic Soft Cheese", "Synthetic Raw Greens",
+                                      "Synthetic Cooked Rice", "Synthetic Crisps")
+BAR, DRINK, OATS = "Synthetic Serving Bar", "Synthetic Panel Drink", "Synthetic Example Oats"
+
+
+def golden_estimates():
+    d = golden_v2()
+    d["schema"] = E.SCHEMA_ESTIMATES_V2
+    d["generated"] = "2026-11-17"
+    plain = dict(concept=None, fallback_chain=[], product_type="packaged_single_ingredient")
+    d["items"] = sorted(d["items"] + [
+        entry(None, FISH, category="fish", state="canned",
+              generic_reference=COFID("cofid:fish", "same_food_same_state"), **plain),
+        entry(None, CHEESE, category="dairy", state="unknown", generic_reference=COFID("cofid:cheese", "close"), **plain),
+        entry(None, GREENS, category="vegetable", state="raw", generic_reference=COFID("cofid:greens", "close"),
+              concept=None, fallback_chain=[], product_type="fresh_whole"),
+        entry(None, RICE, category="grain_cereal", state="cooked", **plain),
+        entry("Example Brand", CRISPS, category="snack", state="unknown", concept=None, fallback_chain=[],
+              product_type="packaged_composite"),
+    ], key=lambda x: x["id"])
+    for it in d["items"]:
+        it["estimated_nutrients"] = {}
+    d["estimate_evidence"] = []
+    # same food, from the entry's own candidate record: the only national route to `high`
+    put(d, FISH, "protein", 20.0, national("cofid:fish", "carried_from_same_food", quality="high"))
+    put(d, FISH, "fat_total", 10.0, national("cofid:fish", "carried_from_same_food", "stated_assumption"))
+    put(d, FISH, "sugar", 0, national("cofid:fish", "carried_from_same_food"))  # a quantified zero
+    # similar food: the entry's own close record at medium, another record at low
+    put(d, CHEESE, "calcium", 400.0, national("cofid:cheese", "carried_from_similar_food", "stated_assumption"))
+    put(d, CHEESE, "protein", 18.0, national("cofid:other-cheese", "carried_from_similar_food", "stated_assumption", "low"))
+    # a raw entry may take its own close record (estimate-own-held is for same-food records only)
+    put(d, GREENS, "vitamin_c", 30.0, national("cofid:greens", "carried_from_similar_food", "stated_assumption"))
+    put(d, RICE, "protein", 18.0, national("cofid:cooked-rice", "carried_from_similar_food", "stated_assumption", "low",
+                                           target_state="cooked"))
+    # page estimates: direct at `high`; beside scaled label values; on a per 100 ml entry
+    put(d, BAR, "fiber", 6.5, page())
+    put(d, DRINK, "sugar", 4.5, page())
+    put(d, CRISPS, "sodium", 500.0, page("derived", quality="medium", source_type="aggregator", access="indexed_copy",
+                                         derivation={"transform_id": "salt_to_sodium_v1",
+                                                     "version": "pasted-label-conversions-v1",
+                                                     "source_value": {"value": 1.25, "unit": "g"}}))
+    put(d, CRISPS, "fiber", 3.0, page(state_basis="unknown", quality="low", source_type="aggregator",
+                                      source_digest="1" * 64))
+    return d
+
+
+def _est(f):
+    d = golden_estimates()
+    f(d)
+    return d
+
+
+def _fish_on_raw_entry(d, **over):
+    """A raw entry with a same-food candidate record: its own record is held on purpose."""
+    find(d, FISH)["state"] = "raw"
+    rec(d, FISH, "protein").update(over)
+
+
+def _two_faulty(d):
+    rec(d, FISH, "protein").update(retrieved_on="2026-02-30")          # date
+    rec(d, CHEESE, "calcium").update(quality="high")                    # estimate-quality (table, last)
+    rec(d, BAR, "fiber").update(retrieved_on=None)                      # date
+    val(d, CRISPS, "fiber").update(unit="mg")                           # unit
+
+
+# name -> (stage, expected codes in order, mutation). "codec" lists are the checker's exact output.
+ESTIMATE_CASES = {
+    # key and schema order (contract section 2)
+    "estimates-v1-schema": ("codec", ["schema"], lambda d: d.update(schema="personal-food-catalogue-estimates-v1")),
+    "unknown-schema-with-evidence": ("codec", ["schema"], lambda d: d.update(schema="personal-food-catalogue-v9")),
+    "v2-schema-with-evidence": ("codec", ["top-keys"], lambda d: d.update(schema=E.SCHEMA_V2)),
+    "v1-schema-with-evidence": ("codec", ["top-keys"], lambda d: d.update(schema=E.SCHEMA_V1)),
+    "missing-estimate-evidence": ("codec", ["top-keys"], lambda d: d.pop("estimate_evidence")),
+    "missing-estimated-nutrients": ("codec", ["item-keys", "evidence-unused-or-shared"],
+                                    lambda d: find(d, GREENS).pop("estimated_nutrients")),
+    "evidence-not-a-list": ("codec", ["items"], lambda d: d.update(estimate_evidence={})),
+    # inherited estimate checks, one or more each
+    "evidence-missing-quality": ("codec", ["evidence-keys"], lambda d: rec(d, BAR, "fiber").pop("quality")),
+    "quality-unknown-token": ("codec", ["token"], lambda d: rec(d, BAR, "fiber").update(quality="excellent")),
+    "method-unknown-token": ("codec", ["token"], lambda d: rec(d, BAR, "fiber").update(method="guessed")),
+    "not-approved": ("codec", ["not-approved"], lambda d: rec(d, BAR, "fiber").update(approved_as_estimate="true")),
+    "page-without-date": ("codec", ["date"], lambda d: rec(d, BAR, "fiber").update(retrieved_on=None)),
+    "date-not-real": ("codec", ["date"], lambda d: rec(d, FISH, "protein").update(retrieved_on="2026-02-30")),
+    "digest-not-hex": ("codec", ["digest"], lambda d: rec(d, BAR, "fiber").update(source_digest="abc")),
+    "page-with-composition-source": ("codec", ["type-fields"], lambda d: rec(d, BAR, "fiber").update(composition_source="cofid")),
+    "national-with-page-access": ("codec", ["type-fields"], lambda d: rec(d, CHEESE, "protein").update(page_access="direct_read")),
+    "corpus-undeclared": ("codec", ["corpus-undeclared"],
+                          lambda d: rec(d, CHEESE, "protein").update(composition_source="usda", source_reference="usda:1")),
+    "tfda-reference-without-prefix": ("codec", ["source-reference"],
+                                      lambda d: rec(d, CHEESE, "protein").update(composition_source="tfda")),
+    "page-url-with-query": ("codec", ["source-reference"], lambda d: rec(d, BAR, "fiber").update(source_reference=PAGE + "?id=1")),
+    "page-url-not-https": ("codec", ["source-reference"], lambda d: rec(d, BAR, "fiber").update(source_reference="http://www.example.com/a")),
+    "page-on-open-food-facts": ("codec", ["open-food-facts-host"],
+                                lambda d: rec(d, BAR, "fiber").update(source_reference="https://world.openfoodfacts.org/product/1")),
+    "assumption-empty": ("codec", ["free-text"], lambda d: rec(d, BAR, "fiber").update(assumption="  ")),
+    "source-state-too-long": ("codec", ["free-text"], lambda d: rec(d, BAR, "fiber").update(source_state="s" * 201)),
+    "target-state-control-character": ("codec", ["free-text"], lambda d: rec(d, BAR, "fiber").update(target_state="as\u0007sold")),
+    "derivation-arithmetic": ("codec", ["derivation"], lambda d: val(d, CRISPS, "sodium").update(value=600.0)),
+    "derivation-missing": ("codec", ["derivation-missing"], lambda d: rec(d, CRISPS, "sodium").update(derivation=None)),
+    "derivation-shape": ("codec", ["derivation-shape", "derivation"], lambda d: rec(d, CRISPS, "sodium")["derivation"].pop("version")),
+    "derivation-unexpected": ("codec", ["derivation-unexpected"],
+                              lambda d: rec(d, BAR, "fiber").update(derivation=rec(d, CRISPS, "sodium")["derivation"])),
+    "evidence-id-form": ("codec", ["evidence-id", "evidence-dangling"], lambda d: rec(d, BAR, "fiber").update(id="pfe:XYZ")),
+    "evidence-duplicate": ("codec", ["evidence-duplicate"],
+                           lambda d: d["estimate_evidence"].insert(1, copy.deepcopy(d["estimate_evidence"][0]))),
+    "evidence-out-of-order": ("codec", ["evidence-order"],
+                              lambda d: d["estimate_evidence"].append(d["estimate_evidence"].pop(0))),
+    "estimated-nutrients-not-an-object": ("codec", ["estimated-nutrients"],
+                                          lambda d: find(d, OATS).update(estimated_nutrients=[])),
+    "estimate-extra-key": ("codec", ["estimate-keys", "evidence-unused-or-shared"],
+                           lambda d: val(d, BAR, "fiber").update(basis="per_100_g")),
+    "label-and-estimate": ("codec", ["label-and-estimate"],
+                           lambda d: put(d, BAR, "protein", 10.0, page())),
+    "evidence-dangling": ("codec", ["evidence-dangling", "evidence-unused-or-shared"],
+                          lambda d: val(d, BAR, "fiber").update(evidence_id="pfe:" + "0" * 16)),
+    "evidence-names-another-nutrient": ("codec", ["evidence-mismatch"], lambda d: rec(d, BAR, "fiber").update(nutrient="protein")),
+    "evidence-unused": ("codec", ["evidence-unused-or-shared"], lambda d: find(d, BAR)["estimated_nutrients"].pop("fiber")),
+    "evidence-shared": ("codec", ["evidence-mismatch", "evidence-unused-or-shared", "evidence-unused-or-shared"],
+                        lambda d: val(d, DRINK, "sugar").update(evidence_id=val(d, BAR, "fiber")["evidence_id"])),
+    "estimate-unknown-nutrient": ("codec", ["unknown-nutrient", "evidence-unused-or-shared"],
+                                  lambda d: find(d, BAR)["estimated_nutrients"].update(
+                                      vitamin_z=find(d, BAR)["estimated_nutrients"].pop("fiber"))),
+    "estimate-wrong-unit": ("codec", ["unit"], lambda d: val(d, BAR, "fiber").update(unit="mg")),
+    "estimate-value-boolean": ("codec", ["value"], lambda d: val(d, BAR, "fiber").update(value=True)),
+    "estimate-value-negative": ("codec", ["value"], lambda d: val(d, BAR, "fiber").update(value=-1)),
+    # the codec table (contract section 3.1)
+    "own-merge": ("codec", ["estimate-own-merge"],
+                  lambda d: put(d, OATS, "protein", 11.0, national("cofid:example", "carried_from_same_food", quality="high"))),
+    "own-same-food-cited-as-similar": ("codec", ["estimate-own-method"],
+                                       lambda d: rec(d, FISH, "fat_total").update(method="carried_from_similar_food")),
+    "own-close-cited-as-same-food": ("codec", ["estimate-own-method"],
+                                     lambda d: rec(d, CHEESE, "calcium").update(method="carried_from_same_food")),
+    "own-record-direct": ("codec", ["estimate-own-method"], lambda d: rec(d, FISH, "fat_total").update(method="direct")),
+    "own-record-derived": ("codec", ["estimate-own-method"], lambda d: put(
+        d, FISH, "sodium", 500.0, national("cofid:fish", "derived", derivation={
+            "transform_id": "salt_to_sodium_v1", "version": "pasted-label-conversions-v1",
+            "source_value": {"value": 1.25, "unit": "g"}}))),
+    "own-state-unknown": ("codec", ["estimate-own-state"],
+                          lambda d: rec(d, FISH, "fat_total").update(state_basis="unknown", quality="low")),
+    "own-held-raw": ("codec", ["estimate-own-held", "estimate-own-held", "estimate-own-held"], _fish_on_raw_entry),
+    "own-held-cooked": ("codec", ["estimate-own-held", "estimate-own-held", "estimate-own-held"],
+                        lambda d: find(d, FISH).update(state="cooked")),
+    "quality-similar-food-high": ("codec", ["estimate-quality"], lambda d: rec(d, CHEESE, "calcium").update(quality="high")),
+    "quality-stated-assumption-high": ("codec", ["estimate-quality"], lambda d: rec(d, FISH, "fat_total").update(quality="high")),
+    "quality-indexed-copy-high": ("codec", ["estimate-quality"], lambda d: rec(d, BAR, "fiber").update(page_access="indexed_copy")),
+    "quality-non-own-record-high": ("codec", ["estimate-quality"], lambda d: rec(d, CHEESE, "protein").update(
+        method="carried_from_same_food", state_basis="source_states_it", quality="high")),
+    "quality-state-unknown-medium": ("codec", ["estimate-quality"], lambda d: rec(d, CRISPS, "fiber").update(quality="medium")),
+    "basis-non-own-record": ("codec", ["estimate-basis"], lambda d: put(
+        d, DRINK, "sugar", 4.5, national("cofid:juice", "carried_from_similar_food", "stated_assumption", "low"))),
+    "basis-own-record": ("codec", ["estimate-basis"], lambda d: (
+        find(d, DRINK).update(generic_reference=COFID("cofid:juice", "close")),
+        put(d, DRINK, "sugar", 4.5, national("cofid:juice", "carried_from_similar_food", "stated_assumption", "low")))),
+    "table-rows-in-order": ("codec", ["estimate-own-held", "estimate-own-held", "estimate-own-method", "estimate-own-state",
+                                      "estimate-own-held", "estimate-quality"],
+                            lambda d: _fish_on_raw_entry(d, method="carried_from_similar_food", state_basis="unknown")),
+    # a record the inherited checks failed, or whose entry failed, gets no table code
+    "no-table-code-entry-missing": ("codec", ["evidence-mismatch"], lambda d: (
+        rec(d, CHEESE, "calcium").update(entry_id="pfc:" + "0" * 12, quality="high"))),
+    "no-table-code-bad-method": ("codec", ["token"], lambda d: (
+        rec(d, CHEESE, "calcium").update(method="guessed", quality="high"))),
+    "no-table-code-entry-failed-v2": ("codec", ["item-types"], lambda d: (
+        find(d, CHEESE).update(aliases=None), rec(d, CHEESE, "calcium").update(quality="high"))),
+    "two-faulty-entries": ("codec", ["date", "date", "unit", "estimate-quality"], _two_faulty),
+    # importer stage: the codec accepts these; the app's importer rejects them against the stub lookup
+    "importer-corpus-not-pinned": ("importer", ["corpus-mismatch"], lambda d: (
+        d["generic_corpora"].append({"source": "usda", "corpus_sha256": "9" * 64}),
+        rec(d, CHEESE, "protein").update(composition_source="usda", source_reference="usda:cheese"))),
+    "importer-record-missing": ("importer", ["record-missing"], lambda d: rec(d, CHEESE, "protein").update(source_reference="cofid:absent")),
+    "importer-value-unquantified": ("importer", ["value-unquantified"],
+                                    lambda d: rec(d, CHEESE, "protein").update(source_reference="cofid:unquantified")),
+    "importer-value-outside-tolerance": ("importer", ["value-mismatch"], lambda d: val(d, CHEESE, "protein").update(value=18.2)),
+    "importer-zero-not-exact": ("importer", ["value-mismatch"], lambda d: val(d, FISH, "sugar").update(value=0.0001)),
+    "importer-raw-entry-cooked-record": ("importer", ["estimate-contradiction"], lambda d: put(
+        d, GREENS, "protein", 18.0, national("cofid:cooked", "carried_from_similar_food", "stated_assumption", "low"))),
+    "importer-raw-entry-reheated-record": ("importer", ["estimate-contradiction"], lambda d: put(
+        d, GREENS, "protein", 18.0, national("cofid:reheated", "carried_from_similar_food", "stated_assumption", "low"))),
+    "importer-raw-entry-named-record": ("importer", ["estimate-contradiction"], lambda d: put(
+        d, GREENS, "protein", 18.0, national("cofid:named", "carried_from_similar_food", "stated_assumption", "low"))),
+    "importer-cooked-entry-raw-record": ("importer", ["estimate-contradiction"], lambda d: rec(d, RICE, "protein").update(source_reference="cofid:raw")),
+    "importer-cooked-entry-as-sold-record": ("importer", ["estimate-contradiction"], lambda d: rec(d, RICE, "protein").update(source_reference="cofid:as-sold")),
+    "importer-cooked-entry-reheated-record": ("importer", ["estimate-contradiction"], lambda d: rec(d, RICE, "protein").update(source_reference="cofid:reheated")),
+    "importer-cooked-entry-named-record": ("importer", ["estimate-contradiction"], lambda d: rec(d, RICE, "protein").update(source_reference="cofid:named")),
+    "importer-fortified-record": ("importer", ["estimate-contradiction"], lambda d: rec(d, CHEESE, "protein").update(source_reference="cofid:fortified")),
+    "importer-record-not-per-100-g": ("importer", ["estimate-contradiction"], lambda d: rec(d, CHEESE, "protein").update(source_reference="cofid:not-100-g")),
+    "importer-fortified-record-no-reference": ("importer", ["estimate-contradiction"], lambda d: rec(d, RICE, "protein").update(source_reference="cofid:fortified-cooked")),
+    "importer-own-record-fortified": ("importer", ["estimate-contradiction"], lambda d: (
+        find(d, CHEESE)["generic_reference"].update(record_id="cofid:fortified-cheese"),
+        rec(d, CHEESE, "calcium").update(source_reference="cofid:fortified-cheese"))),
+    "importer-own-record-not-per-100-g": ("importer", ["estimate-contradiction"], lambda d: (
+        find(d, CHEESE)["generic_reference"].update(record_id="cofid:not-100-g-cheese"),
+        rec(d, CHEESE, "calcium").update(source_reference="cofid:not-100-g-cheese"))),
+}
+
+
+def _relabelled_v2():
+    d = golden_v2()
+    d["schema"] = E.SCHEMA_ESTIMATES_V2
+    for it in d["items"]:
+        it["estimated_nutrients"] = {}
+    d["estimate_evidence"] = []
+    return d
+
+
+ESTIMATE_ACCEPT = {  # name -> (stage that accepts it, document)
+    "v2-relabelled-with-empty-estimates": ("importer", _relabelled_v2),
+    "state-unknown-page-at-low": ("importer", golden_estimates),  # the golden's crisps fibre; kept as a named case
+    "similar-food-own-close-at-low": ("importer", lambda: _est(lambda d: rec(d, CHEESE, "calcium").update(quality="low"))),
+    "similar-food-non-own-at-medium": ("importer", lambda: _est(lambda d: rec(d, CHEESE, "protein").update(quality="medium"))),
+    "value-at-tolerance": ("importer", lambda: _est(lambda d: val(d, CHEESE, "protein").update(value=18.05))),
+    "raw-entry-as-sold-record": ("importer", lambda: _est(lambda d: put(
+        d, GREENS, "protein", 18.0, national("cofid:as-sold", "carried_from_similar_food", "stated_assumption", "low")))),
+}
+
+# The stub lookup for importer-stage fixtures: what the Swift tests answer for each record.
+STUB_RECORDS = [
+    # (record id, nutrients, preparation kind, method, fortification, per 100 g edible)
+    ("cofid:fish", {"protein": 20.0, "fat_total": 10.0, "sugar": 0}, "unknown", None, "unfortified", True),
+    ("cofid:cheese", {"calcium": 400.0}, "unknown", None, "unfortified", True),
+    ("cofid:other-cheese", {"protein": 18.0}, "unknown", None, "unfortified", True),
+    ("cofid:greens", {"vitamin_c": 30.0}, "raw", None, "unfortified", True),
+    ("cofid:cooked-rice", {"protein": 18.0}, "cooked", None, "unfortified", True),
+    ("cofid:unquantified", {"protein": None}, "unknown", None, "unfortified", True),
+    ("cofid:cooked", {"protein": 18.0}, "cooked", None, "unfortified", True),
+    ("cofid:reheated", {"protein": 18.0}, "reheated", None, "unfortified", True),
+    ("cofid:named", {"protein": 18.0}, "named", "grilled", "unfortified", True),
+    ("cofid:raw", {"protein": 18.0}, "raw", None, "unfortified", True),
+    ("cofid:as-sold", {"protein": 18.0}, "as_sold", None, "unfortified", True),
+    ("cofid:fortified", {"protein": 18.0}, "unknown", None, "fortified", True),
+    ("cofid:fortified-cooked", {"protein": 18.0}, "cooked", None, "fortified", True),
+    ("cofid:not-100-g", {"protein": 18.0}, "unknown", None, "unfortified", False),
+    ("cofid:fortified-cheese", {"calcium": 400.0}, "unknown", None, "fortified", True),
+    ("cofid:not-100-g-cheese", {"calcium": 400.0}, "unknown", None, "unfortified", False),
+]
+
+URLS = {  # phase gate section 3.1 item 7; both checkers read this list
+    "accept": ["https://www.example.com/products/synthetic", "https://example.com", "https://example.com/",
+               "https://example.com:8443/a/b.html", "https://example.com./a", "https://a-b.example.co.uk/x;y=1",
+               "https://EXAMPLE.com/Path", "https://xn--caf-dma.example/menu"],
+    "reject": ["http://www.example.com/a", "HTTPS://www.example.com/a", "https://www.example.com/a?b=1",
+               "https://www.example.com/a#b", "https://user@www.example.com/a", "https://user:pw@www.example.com/a",
+               "https://localhost/a", "https://app.LOCALHOST/a", "https://example/a", "https://127.0.0.1/a",
+               "https://example.0x7f/a", "https://example.123/a", "https://[::1]/a", "https://www.example.com:/a",
+               "https://www.example.com:0/a", "https://www.example.com:65536/a", "https://www.example.com:123456/a",
+               "https://www_x.example.com/a", "https://www..example.com/a", "https://.example.com/a",
+               "https://www.example.com/café", "https://www.example.com/a b", "https://www.example.com/a\u007f",
+               "https://", "", "https://www.example.com/" + "a" * 2048],
+    "open_food_facts": ["https://world.openfoodfacts.org/product/1", "https://openfoodfacts.org/", "https://UK.OpenFoodFacts.org./x"],
+}
+
+
+def estimate_rule_codes():
+    """v2's codes plus the estimates-only set, which must be exactly what estimates_v2.py can emit."""
+    src = Path(EV.__file__).read_text()
+    emitted = (set(re.findall(r'err\("([a-z0-9-]+)"', src)) | set(re.findall(r'codes\.append\("([a-z0-9-]+)"\)', src)))
+    shared = {"unknown-nutrient", "unit", "value"}  # existing enum cases reused on the estimate part
+    assert emitted - shared == set(EV.RULE_CODES), sorted(emitted - shared ^ set(EV.RULE_CODES))
+    return sorted(set(rule_codes()) | set(EV.RULE_CODES))
+
+
+def code_list(data):
+    return [e.split(":", 1)[0] for e in E.check_bytes(data)]
+
+
+def write_estimates_v2(fixtures: Path):
+    fixtures.mkdir(parents=True, exist_ok=True)
+    for old_file in [*fixtures.glob("reject-*.json"), *fixtures.glob("accept-*.json")]:
+        old_file.unlink()
+    manifest = {"contract": "docs/personal-food-catalogue-estimates-v2-proposal.md", "schema": E.SCHEMA_ESTIMATES_V2,
+                "golden": "golden.json",
+                "note": "codec fixtures give exactly the listed codes from both checkers; importer fixtures pass the "
+                        "codec and give exactly the listed codes from the app importer with the stub lookup",
+                "reject": {}}
+    (fixtures / "golden.json").write_text(json.dumps(golden_estimates(), indent=1, ensure_ascii=False) + "\n")
+    for name, (stage, expected, f) in ESTIMATE_CASES.items():
+        d = golden_estimates()
+        f(d)
+        (fixtures / f"reject-{name}.json").write_text(json.dumps(d, ensure_ascii=False) + "\n")
+        manifest["reject"][f"reject-{name}.json"] = {"stage": stage, "codes": expected}
+    manifest["accept"] = {}
+    for name, (stage, make) in ESTIMATE_ACCEPT.items():
+        (fixtures / f"accept-{name}.json").write_text(json.dumps(make(), ensure_ascii=False) + "\n")
+        manifest["accept"][f"accept-{name}.json"] = stage
+    manifest["rule_codes"] = estimate_rule_codes()
+    manifest["estimates_only_rule_codes"] = list(EV.RULE_CODES)
+    manifest["importer_rule_codes"] = ["corpus-mismatch", "record-missing", "value-unquantified", "value-mismatch",
+                                       "estimate-contradiction"]
+    manifest["stub_lookup"] = {"pins": {"cofid": PIN}, "records": [
+        {"source": "cofid", "record_id": rid, "nutrients": nutrients, "preparation": kind, "preparation_method": method,
+         "fortification": fortification, "per_100_g_edible": edible}
+        for rid, nutrients, kind, method, fortification, edible in STUB_RECORDS]}
+    manifest["urls"] = URLS
+    manifest["canonical_units"] = E.CANON_UNITS
+    (fixtures / "manifest.json").write_text(json.dumps(manifest, indent=1) + "\n")
+    print(f"wrote golden.json, {len(manifest['reject'])} rejection and {len(manifest['accept'])} accept fixtures to {fixtures}")
+
+
+def verify_estimates_v2(fixtures: Path, manifest):
+    golden_bytes = (fixtures / manifest["golden"]).read_bytes()
+    assert json.loads(golden_bytes) == golden_estimates(), "golden.json differs from the generator; regenerate it"
+    errs = E.check_bytes(golden_bytes) + E.check_export_conventions(json.loads(golden_bytes))
+    assert errs == [], f"estimates v2 golden rejected: {errs}"
+    assert manifest["rule_codes"] == estimate_rule_codes(), "manifest rule codes differ from the checkers"
+    assert manifest["estimates_only_rule_codes"] == list(EV.RULE_CODES)
+    assert set(rule_codes()) < set(manifest["rule_codes"]), "v2 codes must be a strict subset"
+    assert manifest["urls"] == URLS and manifest["canonical_units"] == E.CANON_UNITS
+    for url in URLS["accept"]:
+        host = EV.page_host(url)
+        assert host is not None and not EV.off_host(host), url
+    for url in URLS["reject"]:
+        assert EV.page_host(url) is None, url
+    for url in URLS["open_food_facts"]:
+        assert EV.off_host(EV.page_host(url)), url
+    for f in manifest["accept"]:
+        errs = E.check_bytes((fixtures / f).read_bytes())
+        assert errs == [], f"{f} rejected: {errs}"
+    # every existing v1 and v2 fixture keeps its verdict when the estimates rules exist (contract section 2)
+    assert code_list(json.dumps({**golden_v2(), "estimate_evidence": []}).encode()) == ["top-keys"]
+    assert code_list(json.dumps({**golden(), "estimate_evidence": []}).encode()) == ["top-keys"]
+    wrong = []
+    for f, case in manifest["reject"].items():
+        got = code_list((fixtures / f).read_bytes())
+        if got != (case["codes"] if case["stage"] == "codec" else []):
+            wrong.append((f, case, got))
+    stages = [c["stage"] for c in manifest["reject"].values()]
+    print(f"estimates v2 golden accepted (release pfc:sha256:{hashlib.sha256(golden_bytes).hexdigest()[:16]}...); "
+          f"{stages.count('codec') - sum(w[1]['stage'] == 'codec' for w in wrong)} of {stages.count('codec')} codec fixtures give "
+          f"exactly their codes; {stages.count('importer') - sum(w[1]['stage'] == 'importer' for w in wrong)} of "
+          f"{stages.count('importer')} importer fixtures pass the codec")
+    if wrong:
+        for w in wrong:
+            print("  WRONG:", w)
+        sys.exit(1)
+
+
 if __name__ == "__main__":
-    if sys.argv[2] == "--write-v2":
+    if sys.argv[2] == "--write-estimates-v2":
+        write_estimates_v2(Path(sys.argv[3]))
+    elif sys.argv[2] == "--write-v2":
         write_v2(Path(sys.argv[3]))
     elif sys.argv[2] == "--write":
         write(Path(sys.argv[3]))

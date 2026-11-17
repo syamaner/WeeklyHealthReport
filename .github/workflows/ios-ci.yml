@@ -96,6 +96,8 @@ jobs:
             .agents/skills/personal-food-catalogue/scripts docs/fixtures/personal-food-database-v1
           python3 -I .agents/skills/personal-food-catalogue/scripts/test_export_check.py \
             .agents/skills/personal-food-catalogue/scripts docs/fixtures/personal-food-database-v2
+          python3 -I .agents/skills/personal-food-catalogue/scripts/test_export_check.py \
+            .agents/skills/personal-food-catalogue/scripts docs/fixtures/personal-food-database-estimates-v2
 
   food-healthkit-planning:
     name: HealthKit planning reference contracts
