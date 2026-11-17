@@ -4796,3 +4796,26 @@ Excluded:
 - local test and gate runs, which use no API tokens.
 
 Pricing: this session ran on `claude-fable-5-2`, for which this ledger records no rate. It is priced at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, so the figure is a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
+## WHR-312-PR3-2026-11-16: Claude Code food daily export v2, the writer emits schema 2 (#312)
+
+One session (`claude-fable-5-2`, `32ff8170-52ac-43c9-801e-2e408752f002`, the same session as WHR-312-PR2-2026-11-16) with its two review subagents (`architecture-gate`, `invariant-reviewer`) did the following:
+- wrote the PR 3 architecture gate and folded in its review before production code;
+- added the builder's `amount_method` derivation, the notes sentence, the missing-conversion block and the builder's own shape check, and moved the writer to schema 2;
+- showed that the builder reproduces PR 2's four hand-built fixtures byte for byte without re-recording, and generated two more goldens;
+- added contract tests 1 to 6, 9 and 10, reworked the tests that assumed a schema-1 writer, updated the contracts, the egress links, the docs index and the release notes, ran the gates and folded in the blind review.
+
+The window is `2026-11-16T23:26:28Z` to `2026-11-17T00:00:42Z`, from the PR 3 brief to the first commit. It does not overlap the PR 2 row; the session's turns between the two windows (the PR 2 pull request, its decisions and its merge) are in neither.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| #312 PR 3 writer, gate to first commit | 21,438,164 (21,053,200) | 384,820 | 114,015 | 21,552,179 | $8.80 |
+
+Method: `phase_usage.py --format claude --since 2026-11-16T23:26:28Z --include-subagents` on the session transcript. Exact USD 8.803624. The cache-write tokens are part of the input figure, and 255,484 of them are 5-minute writes. The total is input plus output.
+
+Excluded:
+- the session's turns after the window (this ledger edit, the pull request, the handover and any later fix);
+- the Qodo review run;
+- local test and gate runs, which use no API tokens.
+
+Pricing: this session ran on `claude-fable-5-2`, for which this ledger records no rate. It is priced at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, so the figure is a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.

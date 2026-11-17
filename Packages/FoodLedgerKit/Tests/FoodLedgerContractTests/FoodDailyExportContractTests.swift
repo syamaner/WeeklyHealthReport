@@ -5,9 +5,11 @@ import FoodLedgerDomain
 import FoodLedgerTestSupport
 import XCTest
 
-/// Food daily export contract v1 (#287), Tests: the pure builder over synthetic ledgers and real
-/// saves, the closed origin rule, summary parity, the byte form and the golden files under
-/// `docs/fixtures/food-daily-v1/`. Set `RECORD_FOOD_DAILY_GOLDENS=1` to rewrite the goldens.
+/// Food daily export contract v1 (#287) as amended by v2 (#312), Tests: the pure builder over
+/// synthetic ledgers and real saves, the closed origin rule, summary parity, the byte form and
+/// the golden files. The builder writes schema 2, so its goldens live under
+/// `docs/fixtures/food-daily-v2/`; `RECORD_FOOD_DAILY_GOLDENS=1` rewrites only that folder (F4).
+/// `docs/fixtures/food-daily-v1/` is frozen: read, never written.
 final class FoodDailyExportContractTests: XCTestCase {
     private typealias F = PastedLabelFixtures
     private static let day = "2023-11-14"
@@ -188,7 +190,8 @@ final class FoodDailyExportContractTests: XCTestCase {
         XCTAssertEqual(document.entries.count, 1, "the entry on another reporting date is not in the file")
         let entry = document.entries[0]
         XCTAssertEqual(entry.scaleFactor, 3)
-        XCTAssertEqual(entry.quantity, FoodDailyExportQuantity(amount: 300, unit: "g", weightBasis: "estimated"))
+        XCTAssertEqual(entry.quantity, FoodDailyExportQuantity(amount: 300, unit: "g", weightBasis: "estimated", amountMethod:
+            FoodDailyExportAmountMethod(code: "estimated_by_eye", isEstimate: true, entered: nil, source: nil)))
         XCTAssertEqual(entry.basis, FoodDailyExportBasis(kind: "per_100_g", name: nil, portion: nil))
         XCTAssertEqual(entry.nutrients.map(\.key), NutrientKey.allCases.map(\.rawValue))
 
@@ -512,7 +515,7 @@ final class FoodDailyExportContractTests: XCTestCase {
         let golden = try Data(contentsOf: url)
         let decoded = try FoodDailyExportSerializer.decode(golden)
         XCTAssertEqual(decoded.summaryVersion, "food-intake-summary-v4")
-        XCTAssertEqual(decoded.foodDailySchemaVersion, FoodDailyExportDocument.schemaVersion, "the file shape is unchanged")
+        XCTAssertEqual(decoded.foodDailySchemaVersion, 1, "a frozen schema-1 file")
         XCTAssertEqual(try FoodDailyExportSerializer.encode(decoded), golden)
         XCTAssertEqual(decoded.summary.first { $0.key == "energy_consumed" }?.state, "complete")
     }
@@ -525,7 +528,7 @@ final class FoodDailyExportContractTests: XCTestCase {
             let golden = try Data(contentsOf: directory.appendingPathComponent("food-daily-" + name + "-summary-v5.json"))
             let decoded = try FoodDailyExportSerializer.decode(golden)
             XCTAssertEqual(decoded.summaryVersion, "food-intake-summary-v5", name)
-            XCTAssertEqual(decoded.foodDailySchemaVersion, FoodDailyExportDocument.schemaVersion, "the file shape is unchanged")
+            XCTAssertEqual(decoded.foodDailySchemaVersion, 1, "a frozen schema-1 file")
             XCTAssertEqual(try FoodDailyExportSerializer.encode(decoded), golden, name)
         }
     }
@@ -552,7 +555,7 @@ final class FoodDailyExportContractTests: XCTestCase {
         let goldens: [(String, LedgerMutation)] = [("mixed-day", saved), ("empty-day", LedgerMutation()), ("plain-water-only", waterOnly),
                                                    ("typical-weight-day", try Self.typicalWeightDay(try Self.memoryHarness()))]
         let directory = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .appendingPathComponent("../../../../docs/fixtures/food-daily-v1").standardizedFileURL
+            .appendingPathComponent("../../../../docs/fixtures/food-daily-v2").standardizedFileURL
         let record = ProcessInfo.processInfo.environment["RECORD_FOOD_DAILY_GOLDENS"] == "1"
         for (name, records) in goldens {
             let bytes = try FoodDailyExportSerializer.encode(FoodDailyExportBuilder.make(Self.request(records)))
@@ -641,7 +644,7 @@ extension FoodDailyExportContractTests {
         let bytes = try FoodDailyExportSerializer.encode(document)
         XCTAssertEqual(try FoodDailyExportSerializer.encode(FoodDailyExportSerializer.decode(bytes)), bytes)
         let directory = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .appendingPathComponent("../../../../docs/fixtures/food-daily-v1").standardizedFileURL
+            .appendingPathComponent("../../../../docs/fixtures/food-daily-v2").standardizedFileURL
         let golden = try Data(contentsOf: directory.appendingPathComponent("food-daily-mixed-day.json"))
         let ciqualKeys = try Self.keys(bytes), goldenKeys = try Self.keys(golden)
         XCTAssertTrue(ciqualKeys.isSubset(of: goldenKeys), "\(ciqualKeys.subtracting(goldenKeys))")

@@ -4199,6 +4199,39 @@ extension DailyHealthExportTests {
         return records
     }
 
+    /// #312 (Q7): one current entry on the export day whose head names a quantity conversion the
+    /// snapshot does not hold. No store allows it (the reference is a foreign key); if it ever
+    /// happens the day's food file is blocked rather than exported as a direct amount.
+    private static func missingConversionFoodRecords() throws -> LedgerMutation {
+        func id<Tag>(_ number: Int) throws -> LedgerID<Tag> {
+            try LedgerID(String(format: "00000000-0000-0000-0000-%012x", number))
+        }
+        let date = Date(timeIntervalSince1970: 1_788_678_000)
+        var records = LedgerMutation()
+        records.products.append(Product(productID: try id(20), createdAt: date))
+        records.productVersions.append(try ProductVersion(
+            productVersionID: id(21), productID: id(20), ordinal: VersionOrdinal(1), name: LedgerText("Synthetic eggs"),
+            itemClass: .food, packFacts: PackFacts(),
+            identity: DecisiveIdentity(preparation: PreparationState(kind: .unknown), bone: .unknown, skin: .unknown,
+                                       drained: .unknown, packingMedium: .unknown, fortification: .unknown,
+                                       servingBasis: .per100Grams),
+            evidenceIDs: [try id(1)], assertionIDs: [], createdAt: date))
+        records.resolutions.append(NutritionResolution(resolutionID: try id(22), productVersionID: try id(21),
+                                                       basis: .per100Grams, createdAt: date))
+        records.resolutionVersions.append(try NutritionResolutionVersion(
+            resolutionVersionID: id(30), resolutionID: id(22), ordinal: VersionOrdinal(1),
+            methodVersion: LedgerText("fixture_resolution_v1"), sourceReleaseIDs: [try ExternalIdentifier("fixture:v1")],
+            nutrients: NutrientSet(entries: NutrientKey.allCases.map { try NutrientEntry(key: $0, value: .unknown(.noCompatibleSource)) }),
+            createdAt: date))
+        records.logItems.append(LogItem(logItemID: try id(10), createdAt: date))
+        records.logItemVersions.append(try LogItemVersion(
+            logItemVersionID: id(11), logItemID: id(10), ordinal: VersionOrdinal(1), occurredAt: date,
+            reportingDate: LedgerText("2026-09-06"), composition: .product(id(21)),
+            edibleQuantity: PositiveQuantity(value: 132, unit: .grams), quantityConversionVersionID: id(40),
+            originalResolutionVersionID: id(30), effectiveResolutionVersionID: id(30), createdAt: date))
+        return records
+    }
+
     @MainActor
     private func makeFoodSession(
         drive: PreparationDriveTransportFixture,
@@ -4428,6 +4461,18 @@ extension DailyHealthExportTests {
         await blocked.exportPreview()
         let uploaded = await drive.uploadedNames
         XCTAssertEqual(uploaded, ["health-daily-2026-09-06.json"], "never an empty-day file in its place")
+
+        // #312 (Q7): a head that names a conversion the snapshot does not hold blocks the food file.
+        let records = try Self.missingConversionFoodRecords()
+        XCTAssertThrowsError(try FoodDailyExportBuilder.make(FoodDailyExportRequest(
+            records: records, reportDate: "2026-09-06", timeZone: TimeZone(identifier: "Europe/London")!,
+            dataAsOf: Date(timeIntervalSince1970: 1_788_678_000), exportedAt: Date(timeIntervalSince1970: 1_788_678_000),
+            appContext: FoodDailyExportAppContext(appVersion: "0.0.0", appBuild: "0")))) {
+            XCTAssertEqual($0 as? FoodDailyExportError, .missingReference, "the conversion, not the product, is what is missing")
+        }
+        let missingConversion = try await makeFoodSession(drive: drive, food: FixedFoodLedger(records: records)).session
+        XCTAssertEqual(missingConversion.foodPreparation, .blocked(.missingReference))
+        XCTAssertNotNil(missingConversion.preview, "the health file is unaffected")
 
         let unreadable = try await makeFoodSession(drive: drive, food: FixedFoodLedger(records: nil)).session
         XCTAssertEqual(unreadable.foodPreparation, .blocked(.unreadable))

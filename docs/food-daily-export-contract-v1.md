@@ -1,5 +1,7 @@
 # Food daily export contract v1 (#287)
 
+Amended by [food daily export contract v2](food-daily-export-contract-v2.md) (#312): from 16 November 2026 the app writes `food_daily_schema_version` 2, which adds `quantity.amount_method` and `notes.quantity_estimates`. Everything below stays in force unless v2 changes it, and files written as schema 1 stay valid and keep the meaning they were written with.
+
 Status: **owner-approved 23 October 2026** (decisions D1 to D3, recorded inline, and the egress amendment; the privacy policy wording lands with the implementation). Architecture gate: passed on re-review 23 October 2026, with its corrections folded in.
 
 ## Purpose

@@ -90,16 +90,14 @@ final class FoodDailyExportV2ReaderContractTests: XCTestCase {
         }
     }
 
-    /// The writer is unchanged in this PR: it still declares schema 1, its constant notes carry
-    /// no v2 sentence and an empty day's bytes carry neither v2 key.
-    func testTheWriterStillEmitsSchemaOne() throws {
-        XCTAssertEqual(FoodDailyExportDocument.schemaVersion, 1)
-        XCTAssertNil(FoodDailyExportNotes.current.quantityEstimates)
+    /// PR 3: the writer emits schema 2 with the constant notes sentence; the DTO still leaves
+    /// both v2 fields out when they are absent, which is what keeps a schema-1 file's bytes.
+    func testTheWriterEmitsSchemaTwo() throws {
+        XCTAssertEqual(FoodDailyExportDocument.schemaVersion, 2)
+        XCTAssertEqual(FoodDailyExportNotes.current.quantityEstimates, Self.quantityEstimatesNote)
         XCTAssertEqual(FoodDailyExportQuantity(amount: 1, unit: "g", weightBasis: "unknown").amountMethod, nil)
         let quantity = try JSONEncoder().encode(FoodDailyExportQuantity(amount: 1, unit: "g", weightBasis: "unknown"))
         XCTAssertFalse(String(decoding: quantity, as: UTF8.self).contains("amount_method"), "absent, not null, in a v1 file")
-        let notes = try JSONEncoder().encode(FoodDailyExportNotes.current)
-        XCTAssertFalse(String(decoding: notes, as: UTF8.self).contains("quantity_estimates"))
     }
 
     // MARK: v2 fixtures

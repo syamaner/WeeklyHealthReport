@@ -1,13 +1,15 @@
 import Foundation
 import FoodLedgerDomain
 
-// Food daily export v1 (`docs/food-daily-export-contract-v1.md`, #287): one selected day's food
-// log as its own JSON file. These are export DTOs, not domain types: the builder projects a
+// Food daily export (`docs/food-daily-export-contract-v1.md`, #287, amended by
+// `docs/food-daily-export-contract-v2.md`, #312): one selected day's food log as its own JSON file. These are export DTOs, not domain types: the builder projects a
 // ledger snapshot into them, and the serializer owns the only byte form.
 
 /// The whole file. Keys are written explicitly in snake_case; `sortedKeys` orders the bytes.
 public struct FoodDailyExportDocument: Codable, Equatable, Sendable {
-    public static let schemaVersion = 1
+    /// The schema this build writes (contract v2, #312). Files already written as schema 1 stay
+    /// valid and are still read; `FoodDailyExportShape` holds what each schema number admits.
+    public static let schemaVersion = 2
 
     public let foodDailySchemaVersion: Int
     public let reportDate: String
@@ -44,15 +46,15 @@ public struct FoodDailyExportNotes: Codable, Equatable, Sendable {
     public static let current = FoodDailyExportNotes(
         occurredAt: "occurred_at is rendered in time_zone, the zone frozen when the file was prepared. Log entries do not store the zone in force when the food was logged.",
         unknownValues: "Unknown is never zero. A total with any unknown, bounded or unscalable contribution is a known minimum. Most micronutrients are unknown on most days because printed labels usually list only macronutrients and salt.",
-        plainWater: "plain_water counts only plain water entries. The water nutrient in summary already includes plain water and water in foods; do not add the two together."
+        plainWater: "plain_water counts only plain water entries. The water nutrient in summary already includes plain water and water in foods; do not add the two together.",
+        quantityEstimates: "quantity.amount_method.is_estimate marks an amount that was estimated (a typical weight, the whole-milk volume rule or an estimate by eye). Every nutrient value in that entry is scaled from the estimated amount, including values whose state is measured. is_estimate false means no estimate rule was recorded for the amount, not that the amount was measured. The code recorded means the method is not described."
     )
 
     public let occurredAt: String
     public let unknownValues: String
     public let plainWater: String
     /// Schema 2 only (`docs/food-daily-export-contract-v2.md` 3.4, #312): the constant sentence
-    /// about estimated amounts. Absent from a schema-1 file, so it is encoded only when present;
-    /// this build reads it and does not write it.
+    /// about estimated amounts. Absent from a schema-1 file, so it is encoded only when present.
     public let quantityEstimates: String?
 
     init(occurredAt: String, unknownValues: String, plainWater: String, quantityEstimates: String? = nil) {
@@ -158,8 +160,7 @@ public struct FoodDailyExportQuantity: Codable, Equatable, Sendable {
     /// `declared` (weighed), `estimated`, or `unknown` when no weight declaration was recorded.
     public let weightBasis: String
     /// Schema 2 only (contract v2 3.1, #312): how the amount was obtained. Absent from every
-    /// entry of a schema-1 file, so it is encoded only when present; this build reads it and
-    /// does not write it.
+    /// entry of a schema-1 file, so it is encoded only when present.
     public let amountMethod: FoodDailyExportAmountMethod?
 
     public init(amount: Double, unit: String, weightBasis: String, amountMethod: FoodDailyExportAmountMethod? = nil) {
@@ -442,10 +443,22 @@ public struct FoodDailyExportPlainWater: Codable, Equatable, Sendable {
     }
 }
 
+/// A stored amount the closed `amount_method` table (contract v2 3.2) has no row for. None is
+/// reachable from a save route; each means no file, like a document the shape rule rejects.
+enum FoodDailyExportAmountMethodError: Error, Equatable {
+    /// A method that needs its conversion was read without one.
+    case conversionNotStored
+    /// A source-backed estimate whose conversion names no source release.
+    case sourceReleaseNotStored
+    /// A label servings conversion whose entered amount is not a count of servings.
+    case labelConversionNotInServings
+}
+
 public enum FoodDailyExportError: Error, Equatable, Sendable {
     case exportedBeforeDataAsOf
     case invalidTimeZone
-    /// A log entry's product or effective resolution version is not in the snapshot.
+    /// A log entry's product, effective resolution version or quantity conversion is not in the
+    /// snapshot.
     case missingReference
     /// A provenance source kind has no origin in the closed rule (needs a contract revision).
     case unmappedSource(String)
@@ -529,12 +542,16 @@ public enum FoodDailyExportBuilder {
         let plainWater = FoodDailyExportPlainWater(
             knownAmount: water?.knownAmount, unit: NutrientUnit.millilitres.rawValue,
             state: water.map(state) ?? "none_known", incompleteContributions: water?.incompleteContributions ?? 0)
-        return FoodDailyExportDocument(
+        let document = FoodDailyExportDocument(
             foodDailySchemaVersion: FoodDailyExportDocument.schemaVersion, reportDate: request.reportDate,
             timeZone: request.timeZone.identifier, dataAsOf: timestamp.string(request.dataAsOf),
             exportedAt: timestamp.string(request.exportedAt), nutrientCatalogueVersion: NutrientSet.catalogueVersion,
             summaryVersion: FoodIntakeSummary.version, entries: entries, summary: summary, plainWater: plainWater,
             notes: .current, appContext: request.appContext)
+        // Fail closed: the writer never emits a file its own readers would reject (for example a
+        // stored combination where the method and the estimate rule disagree). No document then.
+        try FoodDailyExportShape.validate(document)
+        return document
     }
 
     static func state(_ total: FoodIntakeTotal) -> String {
@@ -552,6 +569,17 @@ public enum FoodDailyExportBuilder {
               let resolution = records.resolutions.first(where: { $0.resolutionID == version.resolutionID }) else {
             throw FoodDailyExportError.missingReference
         }
+        // Q7 (contract v2 section 7): a contributing head that names a conversion the snapshot
+        // does not hold produces no file. Checked before the method is read, because the
+        // projection treats a missing conversion as a direct amount.
+        var conversion: QuantityConversionVersion?
+        if let conversionID = head.quantityConversionVersionID {
+            guard let stored = records.quantityConversions.first(where: { $0.quantityConversionVersionID == conversionID }) else {
+                throw FoodDailyExportError.missingReference
+            }
+            conversion = stored
+        }
+        let amountMethod = try amountMethod(row, head: head, conversion: conversion)
         let scale = FoodIntakeSummary.scale(quantity: head.edibleQuantity, basis: resolution.basis)
         let manifest = pastedLabelManifest(version, records: records)
         let rowOrigin = try sourceRowOrigin(version.nutrients, manifest: manifest)
@@ -576,9 +604,64 @@ public enum FoodDailyExportBuilder {
             occurredAt: timestamp.string(head.occurredAt), displayName: product.name.value,
             itemClass: product.itemClass.rawValue,
             quantity: FoodDailyExportQuantity(amount: head.edibleQuantity.value, unit: head.edibleQuantity.unit.rawValue,
-                                              weightBasis: weightBasis),
+                                              weightBasis: weightBasis, amountMethod: amountMethod),
             versions: versions, basis: basis(resolution.basis), scaleFactor: scale, basisOrigin: basisOrigin,
             nutrients: nutrients)
+    }
+
+    /// `quantity.amount_method` (contract v2 3.1 and 3.2): the export spelling of the projection
+    /// row's `quantityMethod`, the value the Food Log row and the saved entry show, so the method
+    /// is not derived a second time. `is_estimate` is the one estimate rule that also feeds the
+    /// summary's `includes_estimates`. `entered` and `source` are stated per code; a value that
+    /// does not apply is nil here and an explicit null in the bytes, never zero. The typed text
+    /// of a legacy method (`recorded`) is not read into the file. A state the closed table has
+    /// no row for throws, so no file is produced.
+    static func amountMethod(_ row: FoodIntakeLogRow, head: LogItemVersion,
+                             conversion: QuantityConversionVersion?) throws -> FoodDailyExportAmountMethod {
+        typealias Entered = FoodDailyExportAmountMethod.Entered
+        typealias Source = FoodDailyExportAmountMethod.Source
+        let isEstimate = FoodQuantityEstimate.isEstimate(head, conversion: conversion)
+        func method(_ code: String, entered: Entered?, source: Source? = nil) -> FoodDailyExportAmountMethod {
+            FoodDailyExportAmountMethod(code: code, isEstimate: isEstimate, entered: entered, source: source)
+        }
+        func converted() throws -> (entered: Entered, conversion: QuantityConversionVersion) {
+            guard let conversion else { throw FoodDailyExportAmountMethodError.conversionNotStored }
+            return (Entered(amount: conversion.sourceQuantity.value, unit: conversion.sourceQuantity.unit.rawValue), conversion)
+        }
+        func source(size: FoodEdibleWeightGuideSize?) throws -> (entered: Entered, source: Source) {
+            let stored = try converted()
+            guard let release = stored.conversion.sourceReleaseID else { throw FoodDailyExportAmountMethodError.sourceReleaseNotStored }
+            return (stored.entered, Source(methodVersion: stored.conversion.methodVersion.value, sourceReleaseID: release.value,
+                                           size: size?.rawValue))
+        }
+        switch row.quantityMethod {
+        case .direct:
+            guard let conversion else { return method("direct", entered: nil) }
+            // A label servings conversion (pasted or photo): the servings the person entered, in
+            // the word the Food Log row uses (F1). Anything else has no row in the closed table.
+            guard row.amountIsServings, conversion.sourceQuantity.unit == .count else {
+                throw FoodDailyExportAmountMethodError.labelConversionNotInServings
+            }
+            return method("direct", entered: Entered(amount: conversion.sourceQuantity.value, unit: "serving"))
+        case .weighed, .estimatedByEye:
+            // The original input only when it differs from the exported (net) amount (F5); an
+            // absent original input is not the same as the exported amount, so it stays null.
+            let original = head.weightDeclaration?.originalInput
+            let entered = original.flatMap { $0 == head.edibleQuantity ? nil : Entered(amount: $0.value, unit: $0.unit.rawValue) }
+            return method(row.quantityMethod == .weighed ? "weighed" : "estimated_by_eye", entered: entered)
+        case .kitchenScale:
+            return method("kitchen_scale", entered: try converted().entered)
+        case .packageWeight:
+            return method("package_weight", entered: try converted().entered)
+        case .recorded:
+            return method("recorded", entered: try converted().entered)
+        case let .typicalWeight(size, _):
+            let stored = try source(size: size)
+            return method("typical_weight", entered: stored.entered, source: stored.source)
+        case .wholeMilkVolume:
+            let stored = try source(size: nil)
+            return method("whole_milk_volume", entered: stored.entered, source: stored.source)
+        }
     }
 
     /// The stored pasted-label manifest of the entry's source, read the way the saved entry reads it.
