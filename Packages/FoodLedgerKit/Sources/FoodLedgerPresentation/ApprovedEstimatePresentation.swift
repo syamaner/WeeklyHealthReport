@@ -1,6 +1,5 @@
 import FoodLedgerApplication
 import FoodLedgerDomain
-import Foundation
 import SwiftUI
 
 // Approved estimates from Your food database, as Confirm, the saved entry and the re-resolution

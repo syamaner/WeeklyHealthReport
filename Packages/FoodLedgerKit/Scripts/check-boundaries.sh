@@ -544,7 +544,8 @@ check_personal_database_search_edges() {
   local pkg="$1" violations="" file
   while IFS= read -r file; do
     if [[ -n "$file" ]]; then violations+="Your food database application code names a file or network API in $file"$'\n'; fi
-  done < <(find "$pkg/Sources/FoodLedgerApplication" -name 'PersonalFoodDatabase*.swift' -exec \
+  # Approved estimates (#511): the manifest, eligibility and confirmation files follow the same rule.
+  done < <(find "$pkg/Sources/FoodLedgerApplication" \( -name 'PersonalFoodDatabase*.swift' -o -name 'ApprovedEstimate*.swift' \) -exec \
     grep -lE '(FileManager|URLSession|URLRequest|NWConnection|contentsOf:)' {} + 2>/dev/null || true)
   local resolvers="$pkg/Sources/FoodGenericSearch/PersonalFoodDatabaseResolvers.swift"
   if [[ ! -f "$resolvers" ]]; then
@@ -568,12 +569,13 @@ self_test_personal_database_search_edges() {
   if ! check_personal_database_search_edges "$base" 2>/dev/null; then
     echo "check-boundaries self-test: the personal database search baseline must pass" >&2; status=1
   fi
-  for fixture in file_manager url_session resolver_load resolver_network resolver_foundation; do
+  for fixture in file_manager url_session estimate_url_session resolver_load resolver_network resolver_foundation; do
     target="$scratch/$fixture/Packages/FoodLedgerKit"
     mkdir -p "$(dirname "$target")"; cp -R "$base" "$target"
     case "$fixture" in
       file_manager) echo 'let files = FileManager.default' >> "$target/Sources/FoodLedgerApplication/PersonalFoodDatabaseSearch.swift" ;;
       url_session) echo 'let session = URLSession.shared' >> "$target/Sources/FoodLedgerApplication/PersonalFoodDatabaseSearch.swift" ;;
+      estimate_url_session) echo 'let session = URLSession.shared' > "$target/Sources/FoodLedgerApplication/ApprovedEstimateConfirmation.swift" ;;
       resolver_load) echo 'let page = try Data(contentsOf: url)' >> "$target/Sources/FoodGenericSearch/PersonalFoodDatabaseResolvers.swift" ;;
       resolver_network) echo '@preconcurrency import Network' >> "$target/Sources/FoodGenericSearch/PersonalFoodDatabaseResolvers.swift" ;;
       resolver_foundation) echo 'import Foundation' >> "$target/Sources/FoodGenericSearch/PersonalFoodDatabaseResolvers.swift" ;;

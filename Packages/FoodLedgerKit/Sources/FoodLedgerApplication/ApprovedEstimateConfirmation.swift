@@ -99,9 +99,21 @@ public enum ApprovedEstimateSource {
         guard let stored = manifestEvidence(candidate, evidence: evidence),
               let data = verifiedPayload(stored, digester: digester),
               let manifest = ApprovedEstimateCaptureManifest.decode(data) else { return nil }
-        let bound = candidate.nutrients.entries.flatMap { $0.value.provenance }.filter { $0.sourceKind == .approvedEstimate }
-        guard bound.allSatisfy({ $0.evidenceID == stored.evidenceID && $0.responseHash == stored.byteHash }),
-              manifest.entryID == candidate.recordID.value else { return nil }
+        guard manifest.entryID == candidate.recordID.value,
+              manifest.databaseReleaseID == candidate.sourceReleaseID.value else { return nil }
+        // The manifest must describe the candidate's own values, not merely accompany them with
+        // matching identifiers: each estimated nutrient is exactly the captured estimate (amount,
+        // unit, evidence record and release), and nothing else carries the provenance kind.
+        for entry in candidate.nutrients.entries {
+            let values = [entry.value] + entry.conflictCandidates
+            guard values.contains(where: isEstimate) else { continue }
+            guard entry.conflictCandidates.isEmpty, case let .augmented(exact) = entry.value, exact.provenance.count == 1,
+                  let provenance = exact.provenance.first, provenance.sourceKind == .approvedEstimate,
+                  provenance.evidenceID == stored.evidenceID, provenance.responseHash == stored.byteHash,
+                  provenance.sourceReleaseID.value == manifest.databaseReleaseID,
+                  let captured = manifest.estimate(entry.key), captured.value == exact.amount,
+                  captured.unit == exact.unit.rawValue, provenance.recordID?.value == captured.evidence.id else { return nil }
+        }
         return (manifest, stored)
     }
 

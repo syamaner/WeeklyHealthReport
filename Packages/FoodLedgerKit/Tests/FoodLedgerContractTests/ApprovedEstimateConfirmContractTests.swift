@@ -537,6 +537,40 @@ final class ApprovedEstimateConfirmContractTests: XCTestCase {
                                                                            candidate: plain.candidateDecision.candidate))
     }
 
+    /// Qodo (local review, 17 November 2026): the manifest must describe the candidate's own values. A
+    /// candidate whose estimated amount differs from the captured one, with every identifier and
+    /// hash still valid, has no verified manifest, so it cannot be saved as an approved estimate.
+    func testACandidateWhoseEstimatedAmountDiffersFromItsManifestIsRefused() throws {
+        let harness = try XCTUnwrap(try LedgerFixtures.harnesses().first)
+        defer { harness.cleanup() }
+        let input = try Self.input([Self.crisps])
+        let offered = input.candidates[0]
+        let changed = try NutrientSet(entries: offered.candidate.nutrients.entries.map { entry in
+            guard entry.key == .fiber, case let .augmented(exact) = entry.value else { return entry }
+            return try NutrientEntry(key: entry.key, value: .augmented(ExactNutrientValue(
+                amount: exact.amount * 3, unit: exact.unit, sourceValue: exact.sourceValue, provenance: exact.provenance)))
+        })
+        let tampered = try PopulatedFoodCandidate(candidate: ProviderNeutralCandidate(
+            sourceReleaseID: offered.candidate.sourceReleaseID, recordID: offered.candidate.recordID,
+            identity: offered.candidate.identity, edibleQuantity: offered.candidate.edibleQuantity, nutrients: changed,
+            evidenceIDs: offered.candidate.evidenceIDs, matchMetadata: offered.candidate.matchMetadata),
+            name: offered.name, brand: offered.brand, itemClass: offered.itemClass)
+        XCTAssertNotNil(ApprovedEstimateSource.verifiedManifest(offered.candidate, evidence: input.evidence, digester: LedgerFixtures.digester))
+        XCTAssertNil(ApprovedEstimateSource.verifiedManifest(tampered.candidate, evidence: input.evidence, digester: LedgerFixtures.digester))
+        let service = try Self.service(harness)
+        var state = FoodConfirmationState(input: try PopulatedFoodConfirmation(evidence: input.evidence,
+            sourceReleases: input.sourceReleases, candidates: [tampered], expectedIdentity: tampered.candidate.identity,
+            expectedEdibleQuantity: tampered.candidate.edibleQuantity), prefillSourceQuantity: false)
+        service.bindEstimates(&state)
+        XCTAssertEqual(Set(state.withheldEstimates.values), [.evidenceUnavailable], "nothing is shown as an estimate")
+        try Self.correct(&state)
+        FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(50, .grams))
+        FoodConfirmationReducer.reduce(state: &state, action: .accept)
+        XCTAssertThrowsError(try service.save(state, operationID: LedgerFixtures.operationID(11_099))) {
+            XCTAssertEqual($0 as? FoodConfirmationSaveError, .invalidApprovedEstimate)
+        }
+    }
+
     func testAlteredEvidenceIsNotAvailableAndNeverChangesAStoredValue() throws {
         let digester = LedgerFixtures.digester
         let input = try Self.input([Self.crisps])

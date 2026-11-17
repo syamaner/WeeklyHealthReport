@@ -500,6 +500,7 @@
   }
  },
  "accept": {
+  "accept-page-estimates-only.json": "importer",
   "accept-v2-relabelled-with-empty-estimates.json": "importer",
   "accept-state-unknown-page-at-low.json": "importer",
   "accept-similar-food-own-close-at-low.json": "importer",

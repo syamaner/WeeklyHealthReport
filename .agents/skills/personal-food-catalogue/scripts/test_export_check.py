@@ -789,7 +789,19 @@ def _relabelled_v2():
     return d
 
 
+def _page_estimates_only():
+    """The golden without its composition estimates: nothing in it needs a bundled record, so the app
+    imports it whatever corpora it pins. For the simulator journey and a first check on a device."""
+    d = golden_estimates()
+    national = {r["id"] for r in d["estimate_evidence"] if r["source_type"] == "national_composition"}
+    d["estimate_evidence"] = [r for r in d["estimate_evidence"] if r["id"] not in national]
+    for it in d["items"]:
+        it["estimated_nutrients"] = {k: v for k, v in it["estimated_nutrients"].items() if v["evidence_id"] not in national}
+    return d
+
+
 ESTIMATE_ACCEPT = {  # name -> (stage that accepts it, document)
+    "page-estimates-only": ("importer", _page_estimates_only),
     "v2-relabelled-with-empty-estimates": ("importer", _relabelled_v2),
     "state-unknown-page-at-low": ("importer", golden_estimates),  # the golden's crisps fibre; kept as a named case
     "similar-food-own-close-at-low": ("importer", lambda: _est(lambda d: rec(d, CHEESE, "calcium").update(quality="low"))),
