@@ -2,7 +2,7 @@
 """Rebuild the catalogue from what is already in work/, then export and report.
 
 Offline: runs no fetch. Order: validate_mappings -> assemble -> assemble_extras ->
-export_v1 -> coverage report.
+export_v1 -> apply_estimates -> coverage report.
 
 Usage: python3 -I build.py <workspace> <repo_root>
 """
@@ -34,6 +34,8 @@ def main(ws: Path, repo: Path):
     run(HERE / "assemble.py", work, res / "cofid-2021-generic-search-v1.json", out, res / "usda-generic-v1.json")
     run(HERE / "assemble_extras.py", work, out / "personal-food-catalogue.json", res)
     run(HERE / "export_v1.py", ws, repo)
+    # Adds the owner's accepted estimates; without work/accepted-estimates.json the plain v2 file stands.
+    run(HERE / "apply_estimates.py", ws, repo)
     items = [i for i in json.load(open(out / "personal-food-catalogue.json"))["items"] if i["kind"] == "food"]
     has = lambda i, k: (i["nutrients"].get(k) or {}).get("value") is not None
     n = len(items)

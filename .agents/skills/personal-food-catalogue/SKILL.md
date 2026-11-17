@@ -34,10 +34,13 @@ below serves that, and enrichment work is judged by it:
   `label_evidence`, keyed by the label source, for as long as the entry still uses that source's
   values. When several intake items describe the same product, only the one the intake rules choose
   (confirmation, then having a label at all, then capture date) reaches the entry, so the intake files, not the working
-  catalogue, hold every page's note. **Known limit:** the v1 file carries only what the
-  import contract allows, so a confirmed page value exports like any other confirmed value, and the
-  working catalogue and intake file stay the evidence record; carrying it into the v1 file needs a
-  contract amendment. Prefer national composition databases and manufacturer pages over aggregator sites.
+  catalogue, hold every page's note. **Page values as estimates:** a value printed on the food's
+  own label still exports as a confirmed label value. A value the owner accepts as an estimate (from
+  a manufacturer or aggregator page, or carried from a composition record) takes the estimates
+  route instead: one row in `work/accepted-estimates.json` with the page URL, the date read, the
+  state the page describes and the value, written into the estimates v2 file as a labelled estimate
+  with its tier (workflow step 7), never as a label value. Prefer national composition databases and
+  manufacturer pages over aggregator sites.
 - **Identity and state first.** The right food in the right state (as sold, raw, cooked, drained,
   dry, prepared) and the right cut or variety matter more than any single value; a raw record for a
   cooked food is the worst error.
@@ -129,11 +132,27 @@ input  ──►  intake file  ──►  intake.py add  ──►  mapping (age
    only on an app build that accepts v2; an older build refuses it as an unknown schema. The export writes label values plus one **reference** to a generic record (owner
    decision: generic values are referenced, the app reads them from its bundled corpus), withholds
    unconfirmed values, and refuses to write a file the app would reject.
-7. **Review before reporting.** Read every new label match and every new generic match for the
+7. **Accepted estimates** (part of the build; nothing to run by hand). After the export, `build.py`
+   runs `apply_estimates.py $W <repo>`. Without `work/accepted-estimates.json` the plain v2 file
+   stands and nothing else is written. With it (format `pfc-accepted-estimates-v1`, see
+   [`references/accepted-estimates-format.md`](references/accepted-estimates-format.md)), each row
+   the owner accepted on a review sheet becomes a labelled estimate under
+   [estimates on catalogue v2](../../../docs/personal-food-catalogue-estimates-v2-proposal.md): a
+   national composition value is read from the app's bundled corpus, never typed; a row is withheld,
+   with a counted reason, when the entry has a label value or a merged record's value on that key,
+   when it is a composite, when the source is Open Food Facts, when the E3 disposition refused the
+   source and the owner has not re-admitted that value, or when the app's codec would reject it. The
+   result is `out/personal-food-catalogue-estimates-v2.json` (import that file instead of the plain
+   one, on an app build that accepts estimates v2) and the private
+   `out/estimates-change-report.json`. With no estimate admitted the plain v2 file stands. The run
+   refuses to write when any of the evaluator's four must-be-zero counts is not zero. The owner
+   accepts each value and its tier on the sheet; never accept, re-admit or raise a tier on the
+   owner's behalf. The script prints counts, rule codes and entry IDs only.
+8. **Review before reporting.** Read every new label match and every new generic match for the
    added items (title against matched name). Fix rules, not individual results, when a pattern is
    wrong, and re-run. Known traps: brand words inside other words, flavour or packing-medium
    differences, cooked against raw, smoked against unsmoked, fat level, US enriched records.
-8. **Report** to the owner: items added, how each was matched, items still empty and why, values
+9. **Report** to the owner: items added, how each was matched, items still empty and why, values
    awaiting confirmation, coverage change, and anything that needs their decision (one question
    at a time, with a recommendation).
 
@@ -174,6 +193,11 @@ Facts, OpenRouter label reading) run is unchanged and decided by the existing es
 | `test_attach_label.py` | Synthetic tests for `assemble_extras.attach_label`: basis rules and kept page evidence |
 | `purchase_counts.py`, `test_purchase_counts.py` | The private `pfd-purchase-counts-v1` file for an import file (evaluation plan section 3.2), and its synthetic tests |
 | `test_http_client.py` | Local fake-server test of pacing, Retry-After, 403 and the circuit breaker |
+| `estimates_v2.py` | The estimate rules of `personal-food-catalogue-estimates-v2` for the checker in `export_v1.check_bytes` (pure) |
+| `estimates_input.py` | The accepted-estimates input `pfc-accepted-estimates-v1`: validator, whole-entry expansion, admission with counted reasons, assembly, the additive proof and the counts-only change report (pure) |
+| `estimate_counts.py` | The three private refusal and re-admission lists and the evaluator's six counts (pure) |
+| `apply_estimates.py` | Run by `build.py` after the export: writes the estimates v2 file and the private change report, or leaves the plain v2 file standing |
+| `test_estimates_input.py`, `test_estimate_counts.py` | Synthetic tests for the three scripts above, with an end-to-end run on a temporary workspace |
 
 ## After changing this skill
 
@@ -181,10 +205,13 @@ Keep it compatible with Codex and Claude Code: canonical files here, relative sy
 `.claude/skills/personal-food-catalogue`. Documentation-only changes need `git diff --check`.
 After touching scripts, run `python3 -I scripts/test_http_client.py scripts`,
 `python3 -I scripts/test_off_rules.py scripts`, `python3 -I scripts/test_outbound_gate.py scripts`,
-`python3 -I scripts/test_owner_approval.py scripts`, `python3 -I scripts/test_private_config.py scripts`, `python3 -I scripts/test_compile_all.py scripts`, `python3 -I scripts/test_guards_and_edges.py scripts`, `python3 -I scripts/test_purchase_counts.py scripts`, `python3 -I scripts/test_attach_label.py scripts` and
+`python3 -I scripts/test_owner_approval.py scripts`, `python3 -I scripts/test_private_config.py scripts`, `python3 -I scripts/test_compile_all.py scripts`, `python3 -I scripts/test_guards_and_edges.py scripts`, `python3 -I scripts/test_purchase_counts.py scripts`, `python3 -I scripts/test_attach_label.py scripts`,
+`python3 -I scripts/test_estimates_input.py scripts`, `python3 -I scripts/test_estimate_counts.py scripts` and
 `python3 -I scripts/test_export_check.py scripts docs/fixtures/personal-food-database-v1` and the same
-with `docs/fixtures/personal-food-database-v2` (from the repository root; CI runs the two fixture
-checks). When a rejection rule changes, regenerate the shared fixtures with `--write
-docs/fixtures/personal-food-database-v1` or `--write-v2 docs/fixtures/personal-food-database-v2` and
-review the diff: the Swift importer tests read them too, and the v1 folder must not change.
+with `docs/fixtures/personal-food-database-v2` and `docs/fixtures/personal-food-database-estimates-v2`
+(from the repository root; CI runs the three fixture checks). When a rejection rule changes,
+regenerate the shared fixtures with `--write docs/fixtures/personal-food-database-v1`, `--write-v2
+docs/fixtures/personal-food-database-v2` or `--write-estimates-v2
+docs/fixtures/personal-food-database-estimates-v2` and review the diff: the Swift importer tests read
+them too, and the v1 folder must not change.
 When `OpenFoodFactsLookup.swift` changes, update `off_rules.py` and its tests in the same change.
