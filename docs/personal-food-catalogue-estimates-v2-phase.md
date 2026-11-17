@@ -1,6 +1,7 @@
 # Personal food database: labelled estimates on catalogue v2, phase gate (#511)
 
-Status: **gate revision 2, 17 November 2026, before production code.** It plans the one
+Status: **gate revision 3, 17 November 2026. The second blind review passed it with changes, all
+folded in (section 6).** It plans the one
 implementation phase (decision P5) of the accepted contract
 [estimates on catalogue v2](personal-food-catalogue-estimates-v2-proposal.md), called "the
 contract" below. It changes no rule of the contract. Where it pins something the contract leaves to
@@ -27,10 +28,10 @@ last code step (S9). Until then an accepted estimates v2 file behaves as its v2 
 | S1 | Skill checker: the estimate rules and the section 3.1 table on the v2 part, shared fixtures in `docs/fixtures/personal-food-database-estimates-v2/`, CI step. |
 | S2 | Skill writer: private input format, validator, assembly, builder refusals, re-admission, the six counts, change report. |
 | S3 | Domain codec: third schema value, key and schema order, estimate model, rule codes, Settings copy. Lookup port, three conformances, importer checks, store manifest round trip. The codec accepts the schema in the same step as the importer checks it. |
-| S4 | `approved_estimate` provenance kind with its closed sites, including `FoodDailyExportOrigin.bySourceKind`; the two evidence method-version constants; food contract 10, floor and metadata-only migration; daily export version 3 writer and validator. A document with an estimate is version 3 from the first step in which the kind exists. |
-| S5 | Pure pieces with tests: manifest and leave-out evidence types, the per-facet comparison, the eligibility policy, builder precedence behind a parameter that only tests pass. |
+| S4 | `approved_estimate` provenance kind with its closed sites, including `FoodDailyExportOrigin.bySourceKind`; the capture manifest and leave-out evidence types with their strict decoding and the two method-version constants (the export reads the tier from the manifest); food contract 10, floor and metadata-only migration; daily export version 3 writer and validator. A document with an estimate is version 3 from the first step in which the kind exists. |
+| S5 | Pure pieces with tests: the per-facet comparison, the eligibility policy, builder precedence behind a parameter that only tests pass. |
 | S6 | Confirm state, effective nutrients, leave-out and its evidence, save, reopen, quick add and re-log. |
-| S7 | Re-resolution service. |
+| S7 | Re-resolution service; an all-unknown result throws `FoodReresolutionError.nothingKnown`. |
 | S8 | Presentation: labels with the tier in words, details, notices, the re-resolution screen, Settings count, Developer tools. |
 | S9 | Wiring: the search route and the re-resolution provider pass estimates to the builder; search visibility, fat partition and escalation tests; the search evaluations. |
 | S10 | `privacy-and-egress.md`, contract status notes, simulator journey, ledger row. |
@@ -196,7 +197,8 @@ The contract's list in section 7 is the list. Homes:
    result is additive over the plain v2 document and refuses to write a file `check_bytes` rejects.
 7. **Importer-stage rules are not mirrored in Python** (the contract gives parity for codec codes
    only). The change report says, in counts, how many estimates the app will check against a
-   bundled record.
+   bundled record, and how many cite a `raw` record on an entry whose state is not `raw` where
+   the corpus data lets the skill tell.
 
 ### 3.3 App: where the manifest is built and which evidence is saved
 
@@ -212,9 +214,17 @@ which the callers take from the injected clock. The route gains `CanonicalEncodi
 A search confirmation can hold several candidates. Today a first save writes every evidence item
 of the input. From this phase a save leaves out `pfd-estimate-capture-v1` evidence that the
 selected candidate does not list, so one entry's log never stores another entry's manifest. No
-other evidence kind is filtered.
+other evidence kind is filtered. `FoodReresolutionService.prepareAcceptance` applies the same
+filter for the accepted candidate. The `StoredFoodConfirmation` a save returns holds the evidence
+the store reads back for it (filtered manifests absent, a new leave-out item present).
 
 ### 3.4 App: Confirm state and the check
+
+**Estimate keys** are the candidate's nutrient keys whose value carries `approved_estimate`
+provenance. They come from the candidate, never from the manifest's payload, so every rule below
+still works when the manifest fails its hash. The **saved leave-out set** is the left-out keys
+minus the withheld keys (withholding wins); it is what the evidence item, the claim text and the
+seed hold, and no item is written when it is empty.
 
 **Members.** `FoodConfirmationState` gains three, all defaulting to empty:
 
@@ -225,10 +235,11 @@ other evidence kind is filtered.
 - `estimateSeed: ApprovedEstimateSeed`, set only by `reopen`: the left-out keys from the effective
   version's verified leave-out evidence, and `evidenceAvailable`, false when the manifest or the
   leave-out item fails its hash. With evidence unavailable the seed is empty and every saved
-  unknown manifest key is frozen as unknown.
+  unknown estimate key is frozen as unknown; this is reported as "Evidence not available" and is
+  never an integrity failure.
 
-Two app sites rebuild a state from another (`FoodLedgerCompositionRoot.swift`, the fill-carrying
-rebuild and reopen). They use one helper, `carryingEstimateState(from:)`, so the members survive.
+Three app sites rebuild a state from another (`FoodLedgerCompositionRoot.swift`: re-log, the
+milk-volume rebuild `withMilkVolumeSource`, and reopen). They use one helper, `carryingEstimateState(from:)`, so the members survive.
 
 **Binding.** `FoodConfirmationService.bindEstimates(_:)` reads, for every candidate of the input,
 each record its manifest cites and fills `estimateRecords`. It runs wherever a state for a new log
@@ -247,10 +258,10 @@ or an unreadable record).
 
 | State | Result |
 |---|---|
-| New log | the candidate's (or the correction's) nutrients, with every withheld or left-out manifest key `.unknown(.noCompatibleSource)` |
+| New log | the candidate's (or the correction's) nutrients, with every withheld or left-out estimate key `.unknown(.noCompatibleSource)` |
 | Reopened, no correction, leave-out set equal to its seed | the saved resolution's nutrients, untouched; no record is read |
 | Reopened, no correction, leave-out set differs from its seed | the saved resolution's nutrients; a newly left-out key becomes unknown; an undone key takes the manifest's estimate only when the policy passes it for that key with the bound records; every other saved unknown stays unknown |
-| Reopened with a correction | the correction's nutrients with every withheld or left-out manifest key unknown, the withheld set from the manifest and the bound records; with evidence unavailable every saved unknown manifest key stays unknown |
+| Reopened with a correction | the correction's nutrients with every withheld or left-out estimate key unknown, the withheld set from the manifest and the bound records; with evidence unavailable every saved unknown estimate key stays unknown |
 
 Sites, each marked:
 
@@ -259,9 +270,9 @@ Sites, each marked:
 | `FoodConfirmation.swift` save: reviewed-web guard, label guard | not affected (other routes) |
 | `FoodConfirmation.swift` save: the resolution version's nutrients | effective |
 | `FoodConfirmationView.swift`: scaled-serving notes, nutrition review, displayed values, totals | effective |
-| `FoodConfirmationView.swift`: the source reference section | effective for manifest keys, so a withheld or left-out value is never shown as a value |
+| `FoodConfirmationView.swift`: the source reference section | effective for estimate keys, so a withheld or left-out value is never shown as a value |
 | `FoodDetailsSheet.swift` `correction(for:)`, `FoodConfirmationView.swift` and `FoodDetailsFillPolicy.swift` corrections built from the candidate | stay on the candidate (the manifest is the record of what was offered; withholding is applied on top) |
-| `FoodDetailsFillPolicy.isFill` and `isStoredFill` equality | equal except manifest keys saved as unknown, so details are still carried to a re-log |
+| `FoodDetailsFillPolicy.isStoredFill` equality (`isFill` needs no change) | equal except estimate keys saved as unknown, so details are still carried to a re-log |
 | `FoodReresolutionService.prepareAcceptance`, `FoodReresolution` diff | the fresh candidate's nutrients with withheld keys unknown (S7) |
 | `FoodSearchStatusPresentation.databaseScaledServingNotes` | effective |
 
@@ -270,7 +281,7 @@ corrected reopened log and an undo it rebinds a local copy of the state through 
 before `FoodLogPolicy.requirements` and before computing what it writes.
 
 **Saved-version guard**, on save and on reopen: for a database candidate that lists a manifest and
-has no correction, the version's nutrients equal the candidate's except that a manifest key may be
+has no correction, the version's nutrients equal the candidate's except that an estimate key may be
 `.unknown(.noCompatibleSource)`. Anything else is an integrity failure on reopen and
 `invalidApprovedEstimate` on save.
 
@@ -288,7 +299,8 @@ seed (for a new log, is not empty). It replaces the correction test at exactly t
    a new log without decisions;
 5. the log item version's `correctionReason`;
 6. the commit type, which is still computed as today from the assertion and the weight
-   declaration; a leave-out adds no commit type.
+   declaration; a leave-out adds no commit type. `changesProduct` also drives `keptEstimate` for
+   label estimate layers, which a database candidate can never carry (tested).
 
 It does not replace the correction test in `FoodLogPolicy.pendingDifferences`,
 `FoodLogPolicy.savesEstimate`, the label and layer admission branches of `save`, the candidate
@@ -299,7 +311,9 @@ decision's requested outcome, or `QuickAddPolicy.pinnedIsUncorrected`.
 the reopened input's: the input's expected quantity is the logged amount, a database candidate is
 always 100 g or 100 ml, and `CandidateDecision` refuses `selected` with any difference. Its
 embedded candidate is the bound candidate with the leave-out evidence ID appended to its evidence
-IDs and nothing else changed. The assertion's `confirmation` is the decision record of the saved
+IDs and nothing else changed. **Every save whose saved leave-out set is not empty** (a new log
+and a corrected reopened log included) appends the item's ID to the new decision's embedded
+candidate in the same way, because the store reaches evidence only through that list. The assertion's `confirmation` is the decision record of the saved
 version's assertion that has one, or none. The product version keeps the saved identity.
 
 **Pinned texts** (persisted data, not UI copy):
@@ -375,3 +389,11 @@ Neither blocks the work; each is built as recommended and is one constant or one
   evidence, and a saved-version guard (M5); responsibilities and test homes (M6); the boundary
   rule, the dropped clock, hand-written state coding, the failure type beside the port and the
   lazy import (L1 to L5).
+- 17 November 2026, revision 2: second blind `architecture-gate` review, PASS WITH CHANGES, ten
+  findings, none blocking, all folded into revision 3: every save with a saved leave-out set
+  lists its item on the decision's candidate; the saved leave-out set is defined once as left out
+  minus withheld; the manifest types move to S4 beside the export that reads them; re-resolution
+  filters other candidates' manifests; estimate keys come from the candidate, so altered evidence
+  is never an integrity failure; the milk-volume rebuild is a third carrying site; the returned
+  record equals the store's; `isFill` is untouched; the layer commit type is unreachable here;
+  the raw-record count and the all-unknown re-resolution error have homes.
