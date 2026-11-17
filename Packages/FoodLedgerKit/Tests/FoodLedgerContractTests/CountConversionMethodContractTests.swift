@@ -135,3 +135,36 @@ private final class MethodSequenceIDs: LedgerIDGenerating, @unchecked Sendable {
         return try LedgerID(String(format: "00000000-0000-0000-0000-%012x", value))
     }
 }
+
+/// Food daily export contract v2 (#312), from real saves: a direct weight on a counted food
+/// exports the method and the count entered, the amount the Food Log row shows.
+extension CountConversionMethodContractTests {
+    func testADirectWeightOnACountedFoodExportsItsMethodAndTheCountEntered() throws {
+        for (basis, code, estimate) in [(UserWeightBasis.estimated, "estimated_by_eye", true), (.measured, "weighed", false)] {
+            try forEachStore { harness, _, service in
+                var state = try eggsInput()
+                FoodConfirmationReducer.reduce(state: &state, action: .beginDirectWeight)
+                FoodConfirmationReducer.reduce(state: &state, action: .setDirectWeight(168))
+                FoodConfirmationReducer.reduce(state: &state, action: .setWeightBasis(basis))
+                FoodConfirmationReducer.reduce(state: &state, action: .accept)
+                let saved = try service.save(state, operationID: LedgerFixtures.operationID(430))
+                let day = saved.logItemVersion.reportingDate.value
+                let records = try XCTUnwrap(harness.committer as? any FoodArchiveLedgerAccess).archiveState().records
+                let document = try FoodDailyExportBuilder.make(FoodDailyExportRequest(
+                    records: records, reportDate: day, timeZone: TimeZone(identifier: "Europe/London")!,
+                    dataAsOf: saved.logItemVersion.occurredAt.addingTimeInterval(86_400),
+                    exportedAt: saved.logItemVersion.occurredAt.addingTimeInterval(86_400),
+                    appContext: FoodDailyExportAppContext(appVersion: "0.0.0", appBuild: "0")))
+                let quantity = try XCTUnwrap(document.entries.first, harness.name).quantity
+                XCTAssertEqual(quantity.amount, 168, harness.name)
+                XCTAssertEqual(quantity.amountMethod, FoodDailyExportAmountMethod(
+                    code: code, isEstimate: estimate, entered: .init(amount: 3, unit: "count"), source: nil), "\(harness.name) \(code)")
+                let row = try XCTUnwrap(FoodIntakeProjection(records: records, reportingDate: day).rows.first, harness.name)
+                XCTAssertEqual(row.enteredAmount, try PositiveQuantity(value: 3, unit: .count), "the Food Log row's entered amount")
+                // The eggs' own values are estimates (a generic food), so the day total is marked
+                // either way; the entry-level flag is what tells the two amounts apart.
+                XCTAssertEqual(document.summary.first { $0.key == NutrientKey.energyConsumed.rawValue }?.includesEstimates, true, harness.name)
+            }
+        }
+    }
+}

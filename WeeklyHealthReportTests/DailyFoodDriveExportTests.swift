@@ -81,8 +81,10 @@ final class DailyFoodDriveExportTests: XCTestCase {
         ])
         XCTAssertEqual(FoodDailyExportShape.acceptedSummaryVersions[FoodDailyExportDocument.schemaVersion]?
             .contains(DailyFoodExportIdentityPolicy.summaryVersion), true, "what this build writes is accepted")
-        let text = String(decoding: try foodBytes(), as: UTF8.self)
+        // Schema 1, as builds before #312 PR 3 wrote it: v4, v5 and v6 all validate.
+        let text = String(decoding: try Self.schemaOne(fromEmptyDay: try foodBytes()), as: UTF8.self)
         XCTAssertTrue(text.contains(#""summary_version":"food-intake-summary-v6""#))
+        XCTAssertNoThrow(try policy.validate(payload: Data(text.utf8), reportDate: reportDate), "schema 1 with v6")
         for earlier in ["food-intake-summary-v4", "food-intake-summary-v5"] {
             let payload = Data(text.replacingOccurrences(of: "food-intake-summary-v6", with: earlier).utf8)
             XCTAssertEqual(try FoodDailyExportSerializer.encode(FoodDailyExportSerializer.decode(payload)), payload, "a canonical \(earlier) payload")
@@ -109,13 +111,13 @@ final class DailyFoodDriveExportTests: XCTestCase {
     /// Contract 3.4, the constant sentence a schema-2 file carries.
     static let quantityEstimatesNote = "quantity.amount_method.is_estimate marks an amount that was estimated (a typical weight, the whole-milk volume rule or an estimate by eye). Every nutrient value in that entry is scaled from the estimated amount, including values whose state is measured. is_estimate false means no estimate rule was recorded for the amount, not that the amount was measured. The code recorded means the method is not described."
 
-    /// An empty-day schema-1 payload as the schema-2 file of the same instants: the schema number
-    /// and the notes sentence in sorted-key position (an empty day has no entry to carry
-    /// `amount_method`). The app does not write this yet; a later build will.
-    static func schemaTwo(fromEmptyDay payload: Data) throws -> Data {
+    /// The builder's empty-day schema-2 payload as the schema-1 file of the same instants, as
+    /// builds before #312 PR 3 wrote it: the schema number, and no `quantity_estimates` sentence
+    /// (an empty day has no entry to carry `amount_method`).
+    static func schemaOne(fromEmptyDay payload: Data) throws -> Data {
         var text = String(decoding: payload, as: UTF8.self)
-        for (old, new) in [(#""food_daily_schema_version":1,"#, #""food_daily_schema_version":2,"#),
-                           (#"","unknown_values":""#, #"","quantity_estimates":"\#(quantityEstimatesNote)","unknown_values":""#)] {
+        for (old, new) in [(#""food_daily_schema_version":2,"#, #""food_daily_schema_version":1,"#),
+                           (#","quantity_estimates":"\#(quantityEstimatesNote)""#, "")] {
             guard text.components(separatedBy: old).count == 2 else { throw DailyDriveExportFailure.invalidPayload }
             text = text.replacingOccurrences(of: old, with: new)
         }
@@ -135,14 +137,16 @@ final class DailyFoodDriveExportTests: XCTestCase {
         }
     }
 
-    /// The app still writes schema 1 (PR 3 changes the writer), and the policy now reads schema 2
-    /// with the same file name, owner key and ordering token form.
+    /// The app writes schema 2 (#312 PR 3) and still reads schema 1, with the same file name,
+    /// owner key and ordering token form for both.
     func testPolicyAcceptsSchemaTwoWithUnchangedIdentityAndOrdering() throws {
         let policy = DailyFoodExportIdentityPolicy()
-        let v1 = try foodBytes()
-        XCTAssertTrue(String(decoding: v1, as: UTF8.self).contains(#""food_daily_schema_version":1,"#), "the writer is unchanged")
-        let v2 = try Self.schemaTwo(fromEmptyDay: v1)
-        XCTAssertEqual(try FoodDailyExportSerializer.decode(v2).foodDailySchemaVersion, 2)
+        let v2 = try foodBytes()
+        XCTAssertTrue(String(decoding: v2, as: UTF8.self).contains(#""food_daily_schema_version":2,"#), "the writer emits schema 2")
+        XCTAssertTrue(String(decoding: v2, as: UTF8.self).contains(#""quantity_estimates":"\#(Self.quantityEstimatesNote)""#))
+        let v1 = try Self.schemaOne(fromEmptyDay: v2)
+        XCTAssertEqual(try FoodDailyExportSerializer.decode(v1).foodDailySchemaVersion, 1)
+        XCTAssertEqual(try FoodDailyExportSerializer.encode(FoodDailyExportSerializer.decode(v1)), v1, "a canonical schema-1 payload")
         let first = try policy.validate(payload: v1, reportDate: reportDate)
         let second = try policy.validate(payload: v2, reportDate: reportDate)
         XCTAssertEqual(second.orderingToken, first.orderingToken, "the token names the ordering format, not the schema")
@@ -150,7 +154,7 @@ final class DailyFoodDriveExportTests: XCTestCase {
         XCTAssertNotEqual(second.payloadSHA256, first.payloadSHA256)
         XCTAssertEqual(second.payloadSHA256, DailyDriveExportCoordinator.sha256(v2))
         // Ordering across schemas is by cutoff and then preparation time, as within schema 1.
-        let later = try policy.validate(payload: try Self.schemaTwo(fromEmptyDay: try foodBytes(exportedAfter: 60)), reportDate: reportDate)
+        let later = try policy.validate(payload: try foodBytes(exportedAfter: 60), reportDate: reportDate)
         XCTAssertEqual(try policy.compare(first.orderingToken, later.orderingToken), .orderedAscending)
         XCTAssertEqual(try policy.compare(later.orderingToken, first.orderingToken), .orderedDescending)
         XCTAssertThrowsError(try policy.validate(payload: v2, reportDate: "2026-09-05"), "another day's schema-2 file")
@@ -158,7 +162,7 @@ final class DailyFoodDriveExportTests: XCTestCase {
 
     /// F8: schema 2 accepts summary v6 only; schema 1 keeps v4, v5 and v6.
     func testPolicyAppliesThePerSchemaSummaryMap() throws {
-        let v2 = String(decoding: try Self.schemaTwo(fromEmptyDay: try foodBytes()), as: UTF8.self)
+        let v2 = String(decoding: try foodBytes(), as: UTF8.self)
         for earlier in ["food-intake-summary-v4", "food-intake-summary-v5", "food-intake-summary-v9"] {
             let payload = Data(v2.replacingOccurrences(of: "food-intake-summary-v6", with: earlier).utf8)
             XCTAssertEqual(try FoodDailyExportSerializer.encode(FoodDailyExportSerializer.decode(payload)), payload, "canonical bytes")
@@ -169,8 +173,8 @@ final class DailyFoodDriveExportTests: XCTestCase {
     /// Fail closed: an unknown schema number, a mixed file, a broken closed-table row, a missing
     /// key and a null where the key must be absent are all invalid payloads.
     func testPolicyRejectsUnknownSchemasMixedFilesAndBrokenAmountMethods() throws {
-        let v1 = String(decoding: try foodBytes(), as: UTF8.self)
-        let v2 = String(decoding: try Self.schemaTwo(fromEmptyDay: try foodBytes()), as: UTF8.self)
+        let v1 = String(decoding: try Self.schemaOne(fromEmptyDay: try foodBytes()), as: UTF8.self)
+        let v2 = String(decoding: try foodBytes(), as: UTF8.self)
         for schema in [0, 3, 4] {
             for text in [v1, v2] {
                 let payload = Data(text.replacing(#/"food_daily_schema_version":\d,/#,
@@ -239,7 +243,7 @@ final class DailyFoodDriveExportTests: XCTestCase {
                 counts[folder, default: 0] += 1
             }
         }
-        XCTAssertEqual(counts, ["food-daily-v1": 8, "food-daily-v2": 4])
+        XCTAssertEqual(counts, ["food-daily-v1": 8, "food-daily-v2": 6])
     }
 
     func testEachPolicyRejectsTheOtherFilesPayload() throws {

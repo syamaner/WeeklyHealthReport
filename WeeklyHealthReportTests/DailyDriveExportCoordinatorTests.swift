@@ -957,7 +957,8 @@ extension DailyDriveExportCoordinatorTests {
     /// 2026-09-06T08:00:00+01:00.
     private static let foodCutoff = Date(timeIntervalSince1970: 1_788_678_000)
 
-    private func foodSchemaOne(preparedAfter seconds: TimeInterval) throws -> Data {
+    /// The builder's payload (schema 2 from #312 PR 3).
+    private func foodSchemaTwo(preparedAfter seconds: TimeInterval) throws -> Data {
         let document = try FoodDailyExportBuilder.make(FoodDailyExportRequest(
             records: LedgerMutation(), reportDate: reportDate, timeZone: TimeZone(identifier: "Europe/London")!,
             dataAsOf: Self.foodCutoff, exportedAt: Self.foodCutoff.addingTimeInterval(seconds),
@@ -974,8 +975,8 @@ extension DailyDriveExportCoordinatorTests {
             try await coordinator.export(payload: payload, reportDate: reportDate, accountID: accountID, folderID: folderID,
                                          tokenProvider: token)
         }
-        let version1 = try foodSchemaOne(preparedAfter: 1)
-        let version2 = try DailyFoodDriveExportTests.schemaTwo(fromEmptyDay: try foodSchemaOne(preparedAfter: 60))
+        let version1 = try DailyFoodDriveExportTests.schemaOne(fromEmptyDay: try foodSchemaTwo(preparedAfter: 1))
+        let version2 = try foodSchemaTwo(preparedAfter: 60)
         XCTAssertEqual(try FoodDailyExportSerializer.decode(version1).foodDailySchemaVersion, 1)
         XCTAssertEqual(try FoodDailyExportSerializer.decode(version2).foodDailySchemaVersion, 2)
 
@@ -994,7 +995,7 @@ extension DailyDriveExportCoordinatorTests {
 
         // Stale-cutoff rejection is not relaxed across schemas: the older schema-1 bytes, and an
         // older schema-2 file, cannot replace the verified schema-2 file.
-        for stale in [version1, try DailyFoodDriveExportTests.schemaTwo(fromEmptyDay: try foodSchemaOne(preparedAfter: 30))] {
+        for stale in [version1, try foodSchemaTwo(preparedAfter: 30)] {
             do {
                 _ = try await export(stale)
                 XCTFail("an older snapshot must not replace the verified schema-2 file")
