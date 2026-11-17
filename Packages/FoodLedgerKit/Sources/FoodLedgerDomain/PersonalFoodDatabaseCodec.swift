@@ -29,6 +29,13 @@ public enum PersonalFoodDatabaseCodec {
         return .success(file)
     }
 
+    /// How many estimated values a file holds, read with the strict reader but none of the rules: the
+    /// members of every entry's `estimated_nutrients`. For the Settings row; zero for a v1 or v2 file.
+    public static func estimatedValueCount(_ data: Data) -> Int {
+        guard case let .success(root) = PersonalFoodDatabaseJSON.read(data), let items = root["items"]?.items else { return 0 }
+        return items.reduce(0) { $0 + ($1["estimated_nutrients"]?.members?.count ?? 0) }
+    }
+
     /// The file's own top-level `schema` when it is one this codec accepts, read with the same strict
     /// reader but none of the rules: a cheap check that a stored manifest names the file's schema.
     public static func declaredSchema(_ data: Data) -> PersonalFoodDatabaseSchema? {

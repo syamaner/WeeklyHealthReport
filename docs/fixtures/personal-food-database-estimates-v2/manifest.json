@@ -505,6 +505,7 @@
   "accept-similar-food-own-close-at-low.json": "importer",
   "accept-similar-food-non-own-at-medium.json": "importer",
   "accept-value-at-tolerance.json": "importer",
+  "accept-estimate-beside-merged-record.json": "importer",
   "accept-raw-entry-as-sold-record.json": "importer"
  },
  "rule_codes": [

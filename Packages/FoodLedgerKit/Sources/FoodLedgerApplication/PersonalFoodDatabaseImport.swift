@@ -62,12 +62,16 @@ public struct PersonalFoodDatabaseSummary: Equatable, Sendable {
     public let generated: PersonalFoodDatabaseDate
     public let importedAt: Date
     public let entryCount: Int
+    /// The file's approved estimates (estimates on catalogue v2); zero for a v1 or v2 file. Counted
+    /// from the file, not stored in the manifest, whose byte form is unchanged.
+    public let estimatedValueCount: Int
 
-    public init(_ manifest: PersonalFoodDatabaseManifest) {
+    public init(_ manifest: PersonalFoodDatabaseManifest, estimatedValueCount: Int = 0) {
         releaseID = manifest.releaseID
         generated = manifest.generated
         importedAt = manifest.importedAt
         entryCount = manifest.entryCount
+        self.estimatedValueCount = estimatedValueCount
     }
 }
 
@@ -124,7 +128,7 @@ public actor PersonalFoodDatabaseImporter: PersonalFoodDatabaseImporting {
     /// The last file hash whose own schema was read and found to match its manifest. The store
     /// verifies the file hash on every read, so equal hashes mean equal bytes and the schema need not
     /// be parsed again (PR #487 review: `status()` should not parse the whole file each time).
-    private var verifiedSchema: (digest: SHA256Digest, schema: String)?
+    private var verifiedSchema: (digest: SHA256Digest, schema: String, estimatedValues: Int)?
 
     public init(store: any PersonalFoodDatabaseStoring, digester: any Digesting, clock: any LedgerClock,
                 releases: any FoodConfirmationReading, lookup: any GenericRecordNutrientLookup = GenericRecordLookupSet([:])) {
@@ -139,7 +143,7 @@ public actor PersonalFoodDatabaseImporter: PersonalFoodDatabaseImporting {
     /// disabled (storage decision section 3), so Settings never shows a damaged file as installed.
     public func status() async -> PersonalFoodDatabaseStatus {
         switch loadActive() {
-        case let .present(active): .installed(PersonalFoodDatabaseSummary(active.manifest))
+        case let .present(active): .installed(summary(active.manifest))
         case .absent: .none
         case .locked: .locked
         case .damaged, .unreadable: .damaged
@@ -188,13 +192,14 @@ public actor PersonalFoodDatabaseImporter: PersonalFoodDatabaseImporting {
         )
         do {
             try store.install(bytes: bytes, manifest: manifest)
-            verifiedSchema = (digest, manifest.schema)  // the file was just decoded with this schema
+            // the file was just decoded with this schema
+            verifiedSchema = (digest, manifest.schema, PersonalFoodDatabaseCodec.estimatedValueCount(bytes))
         } catch PersonalFoodDatabaseStoreError.locked {
             return .locked
         } catch {
             return .writeFailed
         }
-        return replacing ? .installed(PersonalFoodDatabaseSummary(manifest)) : .added(PersonalFoodDatabaseSummary(manifest))
+        return replacing ? .installed(summary(manifest)) : .added(summary(manifest))
     }
 
     public func remove() async -> PersonalFoodDatabaseRemoveOutcome {
@@ -252,10 +257,17 @@ public actor PersonalFoodDatabaseImporter: PersonalFoodDatabaseImporting {
         case .unreadable: return .unreadable
         case .absent, .damaged: return .none
         case let .present(active):
-            if active.manifest.fileSHA256 == digest { return .same(PersonalFoodDatabaseSummary(active.manifest)) }
+            if active.manifest.fileSHA256 == digest { return .same(summary(active.manifest)) }
             guard case let .success(file) = PersonalFoodDatabaseCodec.decode(active.bytes) else { return .none }
             return .other((try? file.sources.map { try $0.sourceRelease() }) ?? [])
         }
+    }
+
+    /// The summary with the estimate count of the file last verified for this manifest.
+    private func summary(_ manifest: PersonalFoodDatabaseManifest) -> PersonalFoodDatabaseSummary {
+        PersonalFoodDatabaseSummary(manifest, estimatedValueCount: verifiedSchema.flatMap {
+            $0.digest == manifest.fileSHA256 ? $0.estimatedValues : nil
+        } ?? 0)
     }
 
     private enum ActiveLoad {
@@ -273,7 +285,8 @@ public actor PersonalFoodDatabaseImporter: PersonalFoodDatabaseImporting {
                 return .present(active)
             }
             guard PersonalFoodDatabaseCodec.declaredSchema(active.bytes)?.rawValue == active.manifest.schema else { return .damaged }
-            verifiedSchema = (active.manifest.fileSHA256, active.manifest.schema)
+            verifiedSchema = (active.manifest.fileSHA256, active.manifest.schema,
+                              PersonalFoodDatabaseCodec.estimatedValueCount(active.bytes))
             return .present(active)
         } catch PersonalFoodDatabaseStoreError.locked {
             return .locked

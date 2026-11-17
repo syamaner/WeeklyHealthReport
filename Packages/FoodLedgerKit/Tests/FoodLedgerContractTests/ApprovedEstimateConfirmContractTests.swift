@@ -413,6 +413,123 @@ final class ApprovedEstimateConfirmContractTests: XCTestCase {
         }
     }
 
+    // MARK: Re-resolution (its own service) and carried details
+
+    struct FreshProvider: FoodReresolutionProviding {
+        let target: FoodReresolutionTarget
+        let input: PopulatedFoodConfirmation
+        func targets() throws -> [FoodReresolutionTarget] { [target] }
+        func candidates(for record: StoredFoodConfirmation, target: FoodReresolutionTarget, at: Date) throws -> GenericFoodSearchOutcome {
+            .confirmation(GenericFoodConfirmationRoute(confirmation: input, matches: input.candidates.map {
+                GenericFoodMatch(candidate: $0, isExactName: true,
+                                 personalDatabase: PersonalFoodDatabaseMatchContext(step: .titleOrAlias, isGenericReference: false))
+            }))
+        }
+    }
+
+    static func reresolution(_ harness: TestHarness, titles: [String], lookup: (any GenericRecordNutrientLookup)?)
+        throws -> (FoodReresolutionService, FoodReresolutionTarget) {
+        let fresh = try input(titles)
+        let target = FoodReresolutionTarget(sourceRelease: try release(try file()),
+                                            methodVersion: try LedgerText(PersonalFoodDatabaseCandidateBuilder.methodVersion))
+        let archive = try XCTUnwrap(harness.committer as? any FoodArchiveLedgerAccess)
+        return (FoodReresolutionService(ledger: try LedgerFixtures.service(harness.committer),
+            reader: FoodReresolutionHistory(archive: archive, confirmations: harness.reader),
+            provider: FreshProvider(target: target, input: fresh), clock: LedgerFixtures.clock, ids: RandomLedgerIDGenerator(),
+            estimateRecords: lookup, digester: LedgerFixtures.digester), target)
+    }
+
+    func testReresolutionChecksFreshEstimatesAgainstTheSavedDetailsAndSavesTheFreshManifest() throws {
+        for harness in try LedgerFixtures.harnesses() {
+            defer { harness.cleanup() }
+            // Saved while the cheese record could not be read: calcium withheld, protein kept.
+            var missing = Lookup()
+            missing.preparations["cofid:cheese"] = nil
+            let service = try Self.service(harness, lookup: missing)
+            let saved = try service.save(try Self.state(service, [Self.cheese, Self.bar]), operationID: LedgerFixtures.operationID(11_090))
+            XCTAssertEqual(Self.value(saved.resolutionVersion.nutrients, .calcium), .unknown(.noCompatibleSource))
+            let leftOut = saved
+
+            // Re-resolved with the record readable again: nothing contradicts, so both estimates are stored.
+            let (reresolve, target) = try Self.reresolution(harness, titles: [Self.cheese, Self.bar], lookup: Lookup())
+            let proposals = try reresolve.proposals(logItemID: saved.logItem.logItemID, target: target)
+            let proposal = try XCTUnwrap(proposals.first { $0.candidate.name.value == Self.cheese }, harness.name)
+            XCTAssertEqual(proposal.withheldEstimates, [:], harness.name)
+            XCTAssertTrue(Self.isEstimate(Self.value(proposal.nutrients, .protein)))
+            let prepared = try reresolve.prepareAcceptance(proposal, reason: try LedgerText("Rebuilt food database"), confirmsIdentityGaps: true)
+            try reresolve.accept(prepared)
+            let after = try XCTUnwrap(try harness.reader.foodConfirmation(logItemID: saved.logItem.logItemID))
+            XCTAssertTrue(Self.isEstimate(Self.value(after.resolutionVersion.nutrients, .calcium)), harness.name)
+            // The fresh manifest is saved with the new version; the other candidate's is not.
+            let manifests = after.evidence.filter(ApprovedEstimateSource.isManifest)
+            XCTAssertEqual(manifests.map(\.evidenceID), proposal.candidate.candidate.evidenceIDs.suffix(1), harness.name)
+            let other = try XCTUnwrap(proposal.input.evidence.filter(ApprovedEstimateSource.isManifest).first { $0.evidenceID != manifests[0].evidenceID })
+            XCTAssertNil(try harness.reader.evidence(id: other.evidenceID), harness.name)
+            // The same release and entry give the same manifest bytes and hash as the first capture.
+            let first = try XCTUnwrap(saved.evidence.first(where: ApprovedEstimateSource.isManifest))
+            XCTAssertEqual(manifests[0].byteHash, first.byteHash)
+            XCTAssertNotEqual(manifests[0].evidenceID, first.evidenceID)
+            XCTAssertNotEqual(after.resolutionVersion.resolutionVersionID, leftOut.resolutionVersion.resolutionVersionID)
+
+            // Values left out before are not carried over: the crisps' fibre was left out by the
+            // owner; re-resolution stores the fresh candidate's estimate, and the saved version with
+            // its left-out value stays as it is in the append-only record.
+            var crisps = try Self.state(service, [Self.crisps])
+            FoodConfirmationReducer.reduce(state: &crisps, action: .leaveOutEstimate(.fiber))
+            let before = try service.save(crisps, operationID: LedgerFixtures.operationID(11_092))
+            let (again, crispsTarget) = try Self.reresolution(harness, titles: [Self.crisps], lookup: Lookup())
+            let fresh = try XCTUnwrap(try again.proposals(logItemID: before.logItem.logItemID, target: crispsTarget).first, harness.name)
+            XCTAssertTrue(Self.isEstimate(Self.value(fresh.nutrients, .fiber)), harness.name)
+            try again.accept(try again.prepareAcceptance(fresh, reason: try LedgerText("Rebuilt food database"), confirmsIdentityGaps: true))
+            let reopened = try XCTUnwrap(try Self.service(harness).reopen(logItemID: before.logItem.logItemID))
+            XCTAssertEqual(reopened.savedEstimateStates, [:], "no leave-out belongs to the effective version")
+            XCTAssertTrue(Self.isEstimate(Self.value(reopened.effectiveNutrients, .fiber)), harness.name)
+        }
+    }
+
+    func testAReresolutionThatWouldLeaveNothingKnownIsBlockedAndAContradictionIsStoredUnknown() throws {
+        for harness in try LedgerFixtures.harnesses() {
+            defer { harness.cleanup() }
+            let service = try Self.service(harness)
+            // The fish holds estimates only. Saved with one left out, so a re-resolution differs.
+            var state = try Self.state(service, [Self.fish])
+            FoodConfirmationReducer.reduce(state: &state, action: .leaveOutEstimate(.sugar))
+            let saved = try service.save(state, operationID: LedgerFixtures.operationID(11_095))
+            // No lookup: every composition estimate of the fresh candidate is withheld.
+            let (closed, target) = try Self.reresolution(harness, titles: [Self.fish], lookup: nil)
+            let withheld = try XCTUnwrap(try closed.proposals(logItemID: saved.logItem.logItemID, target: target).first)
+            XCTAssertEqual(Set(withheld.withheldEstimates.keys), [.protein, .fatTotal, .sugar], harness.name)
+            XCTAssertEqual(Self.value(withheld.nutrients, .protein), .unknown(.noCompatibleSource), "stored as unknown, never substituted")
+            XCTAssertThrowsError(try closed.prepareAcceptance(withheld, reason: try LedgerText("Rebuilt"), confirmsIdentityGaps: true)) {
+                XCTAssertEqual($0 as? FoodReresolutionError, .nothingKnown, harness.name)
+            }
+            // A record whose preparation contradicts the saved details withholds its estimate.
+            var cooked = Lookup()
+            cooked.preparations["cofid:fish"] = .cooked
+            let (checked, _) = try Self.reresolution(harness, titles: [Self.fish], lookup: cooked)
+            let proposal = try XCTUnwrap(try checked.proposals(logItemID: saved.logItem.logItemID, target: target).first)
+            XCTAssertEqual(Set(proposal.withheldEstimates.values), [.facet(.preparation)], harness.name)
+        }
+    }
+
+    func testDetailsAreStillCarriedToARelogWhenAnEstimateWasWithheldOrLeftOut() throws {
+        let harness = try XCTUnwrap(try LedgerFixtures.harnesses().first)
+        defer { harness.cleanup() }
+        let service = try Self.service(harness)
+        var state = try Self.state(service, [Self.crisps])
+        FoodConfirmationReducer.reduce(state: &state, action: .leaveOutEstimate(.fiber))
+        let saved = try service.save(state, operationID: LedgerFixtures.operationID(11_097))
+        XCTAssertTrue(ApprovedEstimateSource.matchesExceptHiddenEstimates(saved.resolutionVersion.nutrients,
+                                                                          candidate: saved.candidateDecision.candidate))
+        let relog = try XCTUnwrap(try service.relogState(logItemID: saved.logItem.logItemID))
+        XCTAssertEqual(relog.correction?.identity, saved.productVersion.identity, "the saved food details are carried")
+        XCTAssertEqual(relog.correctionOrigin, .carried)
+        // A saved value that is neither the candidate's nor a hidden estimate is not this shape.
+        let plain = try service.save(try Self.state(service, [Self.oats]), operationID: LedgerFixtures.operationID(11_098))
+        XCTAssertFalse(ApprovedEstimateSource.matchesExceptHiddenEstimates(plain.resolutionVersion.nutrients,
+                                                                           candidate: plain.candidateDecision.candidate))
+    }
+
     func testAlteredEvidenceIsNotAvailableAndNeverChangesAStoredValue() throws {
         let digester = LedgerFixtures.digester
         let input = try Self.input([Self.crisps])

@@ -58,6 +58,16 @@ public enum ApprovedEstimateSource {
         Set(candidate.nutrients.entries.filter { isEstimate($0.value) }.map(\.key))
     }
 
+    /// Whether `saved` is the candidate's nutrients except that an estimate key may be unknown: the
+    /// only shape a saved version of such a candidate takes without a nutrient correction.
+    public static func matchesExceptHiddenEstimates(_ saved: NutrientSet, candidate: ProviderNeutralCandidate) -> Bool {
+        let keys = estimateKeys(candidate)
+        guard !keys.isEmpty else { return false }
+        return zip(saved.entries, candidate.nutrients.entries).allSatisfy { stored, offered in
+            stored == offered || (keys.contains(stored.key) && stored.value == .unknown(.noCompatibleSource))
+        }
+    }
+
     public static func isManifest(_ evidence: CaptureEvidence) -> Bool {
         evidence.kind == .labelText && evidence.captureMethodVersion.value == ApprovedEstimateProvenance.captureMethodVersion
     }
@@ -236,6 +246,12 @@ extension FoodConfirmationState {
             return entry
         }
         return (try? NutrientSet(entries: entries)) ?? saved
+    }
+
+    /// The nutrients Confirm shows and totals. For a candidate without an approved estimate it is
+    /// exactly what the view read before (the correction's, else the candidate's).
+    public var displayNutrients: NutrientSet {
+        estimateKeys.isEmpty ? correction?.nutrients ?? selectedCandidate.candidate.nutrients : effectiveNutrients
     }
 
     /// Whether withholding and leaving out leave no nutrient of the log known ("Nothing to log:

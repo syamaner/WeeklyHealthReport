@@ -577,4 +577,106 @@ final class PersonalFoodDatabaseSearchTests: XCTestCase {
         index.warm()
         XCTAssertNil(index.snapshot())
     }
+
+    // MARK: Estimates on catalogue v2 (contract sections 4 and 7), with estimates bound
+
+    static func estimatesFixture(_ name: String = "golden.json") throws -> Data {
+        try Data(contentsOf: fixtures.deletingLastPathComponent().appendingPathComponent("personal-food-database-estimates-v2/\(name)"))
+    }
+
+    func makeEstimateSearch(_ bytes: Data, resolver: FakeResolver = FakeResolver())
+        throws -> (PersonalFoodDatabaseFoodSearch, PersonalFoodDatabaseIndex) {
+        let store = InMemoryPersonalFoodDatabaseStore()
+        try store.install(bytes: bytes, manifest: manifest(bytes))
+        let index = PersonalFoodDatabaseIndex(store: store, resolver: resolver)
+        index.warm()
+        let ids = IDs()
+        return (PersonalFoodDatabaseFoodSearch(index: index, resolver: resolver, ids: ids,
+            estimates: ApprovedEstimateManifestBuilder(ids: ids, digester: SHA256Digester())), index)
+    }
+
+    func isEstimate(_ value: NutrientValue?) -> Bool { value.map(ApprovedEstimateSource.isEstimate) ?? false }
+
+    func testAnEntryThatGainsItsFirstKnownNutrientFromAnEstimateBecomesVisible() throws {
+        var resolver = FakeResolver()
+        resolver.records = ["cofid:example", "cofid:fish"]
+        let (search, _) = try makeEstimateSearch(try Self.estimatesFixture(), resolver: resolver)
+        guard case let .confirmation(route) = try search.search(request("synthetic tinned fish")) else { return XCTFail("visible") }
+        let entry = try XCTUnwrap(route.matches.first { $0.personalDatabase?.isGenericReference == false })
+        let nutrients = entry.candidate.candidate.nutrients.entries
+        XCTAssertTrue(isEstimate(nutrients.first { $0.key == .protein }?.value))
+        // The estimate takes part in the requested-fat partition and counts as a known value.
+        XCTAssertEqual(FoodQueryCandidateAssessment.fatPer100Grams(entry.candidate), 10)
+        // Its capture manifest is the candidate's own evidence, in the confirmation's evidence.
+        let manifest = try XCTUnwrap(route.confirmation.evidence.first(where: ApprovedEstimateSource.isManifest))
+        XCTAssertEqual(entry.candidate.candidate.evidenceIDs.last, manifest.evidenceID)
+        XCTAssertEqual(manifest.capturedAt, try request("x").capturedAt, "the request's own time, no second clock")
+        XCTAssertNotNil(ApprovedEstimateSource.verifiedManifest(entry.candidate.candidate, evidence: route.confirmation.evidence,
+                                                                digester: SHA256Digester()))
+        // An estimate does not promote a candidate reference: the entry keeps its unknown identity,
+        // and the separate generic candidate is still offered with only its own record's values.
+        XCTAssertEqual(entry.candidate.candidate.identity.preparation.kind, .unknown)
+        XCTAssertFalse(FoodConfirmationPolicy.isGenericEstimate(route.confirmation, candidate: entry.candidate))
+        let generic = try XCTUnwrap(route.matches.first { $0.personalDatabase?.isGenericReference == true })
+        XCTAssertFalse(generic.candidate.candidate.nutrients.entries.contains { isEstimate($0.value) })
+        XCTAssertFalse(generic.candidate.candidate.evidenceIDs.contains(manifest.evidenceID))
+    }
+
+    func testPrecedenceIsLabelThenEstimateThenMergedRecord() throws {
+        let (search, _) = try makeEstimateSearch(try Self.estimatesFixture("accept-estimate-beside-merged-record.json"))
+        let oats = try XCTUnwrap(matches(try search.search(request("synthetic example oats"))).first).candidate.candidate
+        func value(_ key: NutrientKey) -> NutrientValue? { oats.nutrients.entries.first { $0.key == key }?.value }
+        // The owner's label value is measured and stands; an estimate precedes the merged record on
+        // its own key; the record still supplies every other unknown key.
+        guard case .measured? = value(.energyConsumed) else { return XCTFail("label first") }
+        XCTAssertTrue(isEstimate(value(.protein)), "estimate before the merged record's 11 g")
+        guard case let .augmented(protein)? = value(.protein) else { return XCTFail("augmented") }
+        XCTAssertEqual(protein.amount, 12.5)
+        XCTAssertTrue(isEstimate(value(.fiber)))
+        XCTAssertEqual(oats.identity.preparation.kind, .raw, "the merge itself is unchanged")
+        // No nutrient has both a label value and an estimate (the codec rejects such a file).
+        XCTAssertEqual(codes("reject-label-and-estimate.json"), ["label-and-estimate"])
+    }
+
+    func codes(_ name: String) -> [String] {
+        guard let data = try? Self.estimatesFixture(name), case let .failure(rejection) = PersonalFoodDatabaseCodec.decode(data) else { return [] }
+        return rejection.codes.map(\.rawValue)
+    }
+
+    func testEscalationSufficiencyCountsEstimatedValues() throws {
+        // Five required nutrients: with estimates filling the gaps an entry reads as complete, so
+        // the online lookup may no longer be offered for it. The evaluations report that change.
+        let (search, _) = try makeEstimateSearch(try Self.estimatesFixture())
+        let outcome = try search.search(request("synthetic tinned fish"))
+        let coverage = ConservativeFoodSearchCoverageAssessment().assess(outcome, for: try request("synthetic tinned fish"))
+        XCTAssertEqual(coverage.first?.nutrition, .incomplete, "protein, fat and sugar alone are not the five required")
+        let bound = try makeEstimateSearch(try Self.estimatesFixture()).0
+        let unbound = try makeSearch(try Self.estimatesFixture()).0
+        XCTAssertFalse(matches(try bound.search(request("synthetic tinned fish"))).isEmpty)
+        XCTAssertTrue(matches(try unbound.search(request("synthetic tinned fish"))).isEmpty, "without the builder nothing is bound")
+    }
+
+    func testReresolutionGivesTheSameManifestBytesAndHashUnderANewEvidenceID() throws {
+        let bytes = try Self.estimatesFixture()
+        let store = InMemoryPersonalFoodDatabaseStore()
+        try store.install(bytes: bytes, manifest: manifest(bytes))
+        let resolver = FakeResolver()
+        let index = PersonalFoodDatabaseIndex(store: store, resolver: resolver)
+        index.warm()
+        let ids = IDs()
+        let builder = ApprovedEstimateManifestBuilder(ids: ids, digester: SHA256Digester())
+        let snapshot = try XCTUnwrap(index.snapshot())
+        let entry = try XCTUnwrap(snapshot.file.entries.first { $0.title == "Synthetic Crisps" })
+        let locale = try LedgerText("en_GB")
+        let first = try XCTUnwrap(builder.capture(entry: entry, file: snapshot.file, databaseRelease: snapshot.release,
+                                                  capturedAt: Date(timeIntervalSince1970: 1), locale: locale))
+        let second = try XCTUnwrap(builder.capture(entry: entry, file: snapshot.file, databaseRelease: snapshot.release,
+                                                   capturedAt: Date(timeIntervalSince1970: 2), locale: locale))
+        XCTAssertEqual(first.evidence.originalPayload, second.evidence.originalPayload, "no time and no evidence ID in the payload")
+        XCTAssertEqual(first.binding.manifestHash, second.binding.manifestHash)
+        XCTAssertNotEqual(first.evidence.evidenceID, second.evidence.evidenceID)
+        let oats = try XCTUnwrap(snapshot.file.entries.first { $0.title == "Synthetic Example Oats" })
+        XCTAssertNil(try builder.capture(entry: oats, file: snapshot.file, databaseRelease: snapshot.release,
+                                         capturedAt: Date(timeIntervalSince1970: 1), locale: locale), "no estimate, no manifest")
+    }
 }

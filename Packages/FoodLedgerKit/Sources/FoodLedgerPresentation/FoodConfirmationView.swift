@@ -52,6 +52,14 @@ public final class FoodConfirmationViewModel: ObservableObject {
     /// Shown beside When when the Food Log day could not be used (owner decision D).
     public let whenNotice: String?
     public var quantitySuggestion: ParsedFoodQuery.Quantity? { searchInterpretation?.quantitySuggestion }
+    private let estimateBinder: (@MainActor (inout FoodConfirmationState) -> Void)?
+    /// The entry's approved estimates with their labels, tiers and notices (estimates on catalogue v2).
+    public var estimateRows: [ApprovedEstimateRow] { ApprovedEstimatePresentation.rows(state) }
+    /// The source reference entries: the candidate's, with a withheld or left-out estimate shown as
+    /// unknown, so such a value is never shown as a value.
+    public var sourceReferenceEntries: [NutrientEntry] {
+        state.estimateKeys.isEmpty ? state.selectedCandidate.candidate.nutrients.entries : state.effectiveNutrients.entries
+    }
     public var displayedName: LedgerText { state.correction?.name ?? state.reopened?.productVersion.name ?? state.selectedCandidate.name }
     public var displayedBrand: LedgerText? { state.correction?.brand ?? state.reopened?.productVersion.brand ?? state.selectedCandidate.brand }
     /// Import v2: "Some values scaled from a 28 g serving" lines for a Your food database entry, shown
@@ -82,8 +90,15 @@ public final class FoodConfirmationViewModel: ObservableObject {
         labelEstimate: LabelEstimateModel? = nil,
         estimateSaveAction: (@MainActor (FoodConfirmationState, LabelEstimateChoice) throws -> StoredFoodConfirmation)? = nil,
         labelEstimateNotCarried: Bool = false,
+        estimateBinder: (@MainActor (inout FoodConfirmationState) -> Void)? = nil,
         saveAction: @escaping @MainActor (FoodConfirmationState) throws -> StoredFoodConfirmation
     ) {
+        // Approved estimates (estimates on catalogue v2 section 3.2): a new log's estimates are
+        // checked when it is bound to Confirm. A reopened log reads no record until its details are
+        // corrected or a leave-out is undone. Without a binder every composition estimate is withheld.
+        var state = state
+        if state.reopened == nil { estimateBinder?(&state) }
+        self.estimateBinder = estimateBinder
         self.state = state
         self.labelEstimate = estimateSaveAction == nil ? nil : labelEstimate
         self.estimateSaveAction = estimateSaveAction
@@ -497,7 +512,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
         return FoodIntakeSummary(contributions: [FoodIntakeContribution(
             quantity: quantity,
             basis: (state.correction?.identity ?? state.selectedCandidate.candidate.identity).servingBasis,
-            nutrients: state.correction?.nutrients ?? state.selectedCandidate.candidate.nutrients,
+            nutrients: state.displayNutrients,
             quantityIsEstimate: quantityIsEstimate
         )]).totals
     }
@@ -507,7 +522,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
     }
 
     private static func nutritionReview(_ state: FoodConfirmationState, totals: [FoodIntakeTotal]) -> FoodNutritionReviewPresentation {
-        FoodNutritionReviewPresentation(nutrients: state.correction?.nutrients ?? state.selectedCandidate.candidate.nutrients,
+        FoodNutritionReviewPresentation(nutrients: state.displayNutrients,
             sourceBasis: (state.correction?.identity ?? state.selectedCandidate.candidate.identity).servingBasis,
             edibleQuantity: try? state.calculatedEdibleQuantity(), totals: totals)
     }
@@ -799,14 +814,14 @@ public final class FoodConfirmationViewModel: ObservableObject {
     /// The energy value is a calculated one (pasted label, kJ only; contract section 3.5), so
     /// it shows "about" wherever it is stated, the Log button and banner included.
     public var energyIsCalculated: Bool {
-        let nutrients = state.correction?.nutrients ?? state.selectedCandidate.candidate.nutrients
+        let nutrients = state.displayNutrients
         return nutrients.entries.first { $0.key == .energyConsumed }.map { NutrientDerivation.isCalculated($0.value) } ?? false
     }
 
     /// A value shown on Confirm with its calculated marking: "about 371 kcal · Calculated" for a
     /// calculated nutrient (section 3.5), otherwise the value as given.
     public func markingCalculated(_ key: NutrientKey, _ value: String) -> String {
-        let nutrients = state.correction?.nutrients ?? state.selectedCandidate.candidate.nutrients
+        let nutrients = state.displayNutrients
         guard let entry = nutrients.entries.first(where: { $0.key == key }), NutrientDerivation.isCalculated(entry.value) else { return value }
         // An exact amount reads "about …"; a bound keeps its own wording and gains the tag.
         return value.first?.isNumber == true ? "about \(value) · Calculated" : "\(value) · Calculated"
@@ -817,7 +832,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
     /// bound for a bound, and the "Calculated" tag. `consumed` is the amount eaten when the row
     /// shows intake; `source` true shows the stored source value. Other values are unchanged.
     public func displayValue(_ key: NutrientKey, _ value: String, consumed: Double? = nil, source: Bool = false) -> String {
-        let nutrients = state.correction?.nutrients ?? state.selectedCandidate.candidate.nutrients
+        let nutrients = state.displayNutrients
         guard let entry = nutrients.entries.first(where: { $0.key == key }), NutrientDerivation.isCalculated(entry.value) else { return value }
         let tag = NutrientOriginText.tag(.calculated(rule: ""))
         let exact: Bool = switch entry.value { case .measured, .augmented: true; default: false }
@@ -907,6 +922,13 @@ public final class FoodConfirmationViewModel: ObservableObject {
 
     public func send(_ action: FoodConfirmationAction) {
         FoodConfirmationReducer.reduce(state: &state, action: action)
+        // The estimate check runs again after each correction of details, on undo of a leave-out and
+        // when another candidate is selected; a change of quantity alone is not one of these.
+        switch action {
+        case .applyCorrection, .restoreEstimate, .selectCandidate:
+            if !state.estimateKeys.isEmpty { estimateBinder?(&state) }
+        default: break
+        }
         switch action {
         case .setPortionGuide, .beginSaving, .saveFailed, .saved, .accept: break
         default: normalisePortionGuide()
@@ -1210,6 +1232,7 @@ public struct FoodConfirmationView: View {
                     }
                 }
                 compactNutritionSection
+                estimatesSection
             }
             .disabled(model.savedResult != nil)
             if model.offersFavourite {
@@ -2067,13 +2090,65 @@ public struct FoodConfirmationView: View {
         }
     }
 
+    /// Estimates on catalogue v2 section 5: each estimated nutrient with its label from the closed
+    /// list (the tier in words, the colour only beside it), its details, and the one per-nutrient
+    /// action, Leave out. There is no field to type a value for an estimated nutrient.
+    @ViewBuilder private var estimatesSection: some View {
+        let rows = model.estimateRows
+        if !rows.isEmpty {
+            Section(ApprovedEstimateText.sectionTitle) {
+                Text(ApprovedEstimateText.sectionNote).font(.caption).foregroundStyle(.secondary)
+                ForEach(rows) { row in
+                    VStack(alignment: .leading, spacing: 6) {
+                        LabeledContent(row.title, value: row.value ?? "Unknown")
+                        if let label = row.label, row.status == .offered {
+                            HStack(spacing: 6) {
+                                Circle().fill(Self.tierColour(row.quality)).frame(width: 10, height: 10).accessibilityHidden(true)
+                                Text(label).font(.subheadline)
+                            }
+                        }
+                        if let notice = row.notice { Text(notice).font(.subheadline).foregroundStyle(.secondary) }
+                        if !row.details.isEmpty {
+                            DisclosureGroup("Details") {
+                                ForEach(row.details, id: \.self) { Text($0).font(.caption) }
+                            }.font(.caption)
+                        }
+                        if row.canLeaveOut {
+                            Button(ApprovedEstimateText.leaveOut) { model.send(.leaveOutEstimate(row.key)) }
+                                .frame(minHeight: 44).accessibilityLabel("\(ApprovedEstimateText.leaveOut): \(row.title)")
+                                .accessibilityIdentifier("estimate-leave-out-\(row.key.rawValue)")
+                        } else if row.canPutBack {
+                            Button(ApprovedEstimateText.putBack) { model.send(.restoreEstimate(row.key)) }
+                                .frame(minHeight: 44).accessibilityLabel("\(ApprovedEstimateText.putBack): \(row.title)")
+                                .accessibilityIdentifier("estimate-put-back-\(row.key.rawValue)")
+                        }
+                    }
+                    .accessibilityElement(children: .contain)
+                    .accessibilityLabel(row.accessibilityLabel)
+                    .accessibilityIdentifier("estimate-row-\(row.key.rawValue)")
+                }
+            }
+        }
+    }
+
+    /// The tier's colour, shown only beside its label: green, amber and red for good match, some
+    /// doubt and rough. It marks the label, never the nutrient value.
+    static func tierColour(_ quality: PersonalFoodDatabaseEstimateQuality?) -> Color {
+        switch quality {
+        case .high: .green
+        case .medium: .orange
+        case .low: .red
+        case nil: .secondary
+        }
+    }
+
     private var nutritionSection: some View {
         let totals = model.consumedNutrition
         return Group {
             Section(model.nutritionReferenceTitle) {
                 Text("Source reference values, not the amount eaten. Provenance and bounds are preserved.")
                     .font(.caption)
-                ForEach(model.state.selectedCandidate.candidate.nutrients.entries, id: \.key.rawValue) { entry in
+                ForEach(model.sourceReferenceEntries, id: \.key.rawValue) { entry in
                     let value = model.displayValue(entry.key, Self.nutrientValue(entry), source: true)
                     LabeledContent(Self.nutrientLabel(entry.key), value: value)
                         .accessibilityLabel("\(Self.nutrientLabel(entry.key)), \(value)")
@@ -2081,7 +2156,7 @@ public struct FoodConfirmationView: View {
             }
             Section("Consumed nutrition for the amount eaten") {
                 Text(model.consumedNutritionBasisLabel).font(.caption)
-                ForEach(model.state.selectedCandidate.candidate.nutrients.entries, id: \.key.rawValue) { entry in
+                ForEach(model.sourceReferenceEntries, id: \.key.rawValue) { entry in
                     let total = totals.first { $0.key == entry.key }
                     LabeledContent(Self.nutrientLabel(entry.key), value: total?.knownAmount.map {
                         model.displayValue(entry.key,

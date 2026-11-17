@@ -303,6 +303,9 @@ struct PersonalFoodDatabaseSettingsView: View {
                     Text(PersonalFoodDatabaseSettingsText.none)
                 case let .installed(summary):
                     LabeledContent("Foods", value: PersonalFoodDatabaseSettingsText.foods(summary.entryCount))
+                    if summary.estimatedValueCount > 0 {
+                        LabeledContent("Estimates", value: PersonalFoodDatabaseSettingsText.estimatedValues(summary.estimatedValueCount))
+                    }
                     LabeledContent("Built", value: summary.generated.utcMidnight.formatted(Self.generatedStyle))
                     LabeledContent("Imported", value: summary.importedAt.formatted(date: .long, time: .shortened))
                     if let unresolved = model.unresolvedReferenceCount, unresolved > 0 {

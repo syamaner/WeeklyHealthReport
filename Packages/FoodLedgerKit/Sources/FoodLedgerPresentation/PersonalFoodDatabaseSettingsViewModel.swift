@@ -48,6 +48,9 @@ public enum PersonalFoodDatabaseSettingsText {
         }
     }
 
+    /// The Settings row's count of estimated values (estimates v1 section 7).
+    public static func estimatedValues(_ count: Int) -> String { count == 1 ? "1 estimated value" : "\(count) estimated values" }
+
     /// One short reason for the first rule group present, never file content.
     static func reason(for codes: [PersonalFoodDatabaseRuleCode]) -> String {
         let set = Set(codes)
