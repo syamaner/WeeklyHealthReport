@@ -4846,19 +4846,22 @@ The session (`claude-fable-5-2`, session `da6b123c-cf92-4d58-9bb7-540385b44d83`)
 | Part-read pages, design to proposal | 11,228,135 (10,930,914) | 297,119 | 108,072 | 11,336,207 | $6.12 |
 | Owner decisions W1 to W9, wider measurement, revised proposal | 12,251,853 (12,069,495) | 182,264 | 80,627 | 12,332,480 | $5.10 |
 | Owner answers O1 to O3, narrowed offer rule | 4,347,713 (4,169,778) | 177,899 | 18,835 | 4,366,548 | $2.63 |
-| Subtotal | 27,827,701 (27,170,187) | 657,282 | 207,534 | 28,035,235 | $13.85 |
+| Acceptance, independent review, merge, answer O4 | 4,269,795 (4,069,699) | 200,024 | 34,794 | 4,304,589 | $2.88 |
+| Subtotal | 32,097,496 (31,239,886) | 857,306 | 242,328 | 32,339,824 | $16.73 |
 
 Method: `phase_usage.py --format claude --since 2026-11-17T08:33:45Z --until 2026-11-17T09:06:55Z --include-subagents` on the session transcript. Exact USD 6.1207798. The cache-write tokens are part of the input figure: 201,401 are 5-minute writes and 95,718 are 1-hour writes. The window includes two blind review subagents. The total is input plus output.
 
-Second row: the same command with `--since 2026-11-17T09:06:55Z --until 2026-11-17T11:16:08Z`. Exact USD 5.095695. Of its cache-write tokens, 129,744 are 5-minute writes and 52,520 are 1-hour writes. The window includes one blind review subagent, and the commit, pull request and handover turns of the first row. The subtotal is the sum of the three rows (exact USD 13.8504664).
+Second row: the same command with `--since 2026-11-17T09:06:55Z --until 2026-11-17T11:16:08Z`. Exact USD 5.095695. Of its cache-write tokens, 129,744 are 5-minute writes and 52,520 are 1-hour writes. The window includes one blind review subagent, and the commit, pull request and handover turns of the first row. The subtotal is the sum of the four rows (exact USD 16.7334532).
 
 Third row: the same command with `--since 2026-11-17T11:16:08Z --until 2026-11-17T15:04:53Z`. Exact USD 2.6339916. All of its cache-write tokens are 1-hour writes. The window includes the second ledger edit, commit, push and pull request update of the second row, the owner's answers and the edit that records them; it has no subagent.
+
+Fourth row: the same command with `--since 2026-11-17T15:04:53Z --until 2026-11-17T17:07:56Z`. Exact USD 2.8829868. Of its cache-write tokens, 75,771 are 5-minute writes and 124,253 are 1-hour writes. The window includes the third ledger edit and its commit, the acceptance edits, one blind invariant-review subagent, the merge of the accepted text and the edit that records answer O4, which went in a separate pull request.
 
 Included although not part of this phase: one short answer about a private catalogue given inside the window.
 
 Excluded:
 - the diagnosis turn before the window, and the session's earlier work that day on a private catalogue and on the build 37 record;
-- the turns after the third window (the third ledger edit, commit, push and pull request update);
+- the turns after the fourth window (the fourth ledger edit, commit, push and pull request);
 - the four local Qodo review runs, and the scratch build, page downloads and offline projection, which use no API tokens.
 
 Pricing: as in the rows above, `claude-fable-5-2` is priced at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. It is an API-equivalent comparison under a Claude subscription, not a bill, and says nothing about quality or productivity.
