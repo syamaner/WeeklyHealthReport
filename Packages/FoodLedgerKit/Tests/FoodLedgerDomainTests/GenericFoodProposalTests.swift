@@ -239,7 +239,87 @@ final class GenericFoodProposalTests: XCTestCase {
     func testDocumentLimitsAndDuplicateBlockIDsAreRejected() throws {
         let block = FoodDocumentBlock(id: "b1", kind: "p", text: sourceText, locator: "p:1")
         XCTAssertThrowsError(try document(blocks: [block, block]))
-        XCTAssertThrowsError(try document(blocks: [.init(id: "b1", kind: "p", text: String(repeating: "a", count: 30_001), locator: "p:1")]))
+        XCTAssertThrowsError(try document(blocks: [.init(id: "b1", kind: "p", text: String(repeating: "a", count: 100_001), locator: "p:1")]))
+        let manyBlocks = (1...2_049).map { FoodDocumentBlock(id: "b\($0)", kind: "p", text: "a", locator: "p:\($0)") }
+        XCTAssertThrowsError(try document(blocks: manyBlocks))
+        XCTAssertNoThrow(try document(blocks: Array(manyBlocks.prefix(2_048))))
+    }
+
+    // Contract #508 test 11: the current bound and the v1/v2 manifest bound at their edges.
+    func testCurrentAndReviewManifestBoundsAtTheirEdges() throws {
+        XCTAssertEqual(FoodDocumentBounds.reviewManifestV1V2, FoodDocumentBounds(blocks: 512, characters: 30_000))
+        let at30k = try document(blocks: [.init(id: "b1", kind: "p", text: String(repeating: "a", count: 30_000), locator: "p:1")])
+        XCTAssertTrue(at30k.fits(.reviewManifestV1V2))
+        let over30k = try document(blocks: [.init(id: "b1", kind: "p", text: String(repeating: "a", count: 30_001), locator: "p:1")])
+        XCTAssertFalse(over30k.fits(.reviewManifestV1V2))
+        XCTAssertTrue(over30k.fits(.current))
+        let at100k = try document(blocks: [.init(id: "b1", kind: "p", text: String(repeating: "a", count: 100_000), locator: "p:1")])
+        XCTAssertTrue(at100k.fits(.current))
+        let blocks = { (count: Int) in (1...count).map { FoodDocumentBlock(id: "b\($0)", kind: "p", text: "a", locator: "p:\($0)") } }
+        XCTAssertTrue(try document(blocks: blocks(512)).fits(.reviewManifestV1V2))
+        XCTAssertFalse(try document(blocks: blocks(513)).fits(.reviewManifestV1V2))
+        XCTAssertTrue(try document(blocks: blocks(513)).fits(.current))
+    }
+
+    // Contract #508 test 11: the part-read record against the actual blocks and locators.
+    func testPartialReadRecordValidatesAgainstBlocksAndLocators() throws {
+        let selected = ";projection:" + FoodDocumentPartialRead.selectedProjectionVersion
+        XCTAssertEqual(FoodDocumentPartialRead.selectedProjectionVersion, "swift-food-document-blocks-v7-selected")
+        XCTAssertEqual(FoodDocumentPartialRead.selectionPolicy, "food-document-block-selection-v1")
+        let kept = [FoodDocumentBlock(id: "b7", kind: "h1", text: "Tofu", locator: "h1:1" + selected),
+                    FoodDocumentBlock(id: "b42", kind: "tr", text: sourceText, locator: "tr:1" + selected)]
+        let characters = kept.reduce(0) { $0 + $1.text.count }
+        let record = FoodDocumentPartialRead(fullBlocks: 2_600, fullCharacters: 20_000, keptBlocks: 2, keptCharacters: characters)
+        let partRead = try document(blocks: kept, partialRead: record)
+        XCTAssertEqual(partRead.partialRead, record)
+        XCTAssertTrue(partRead.hasSelectedLocator)
+        // Round trip with the record.
+        let data = try JSONEncoder().encode(partRead)
+        XCTAssertEqual(try JSONDecoder().decode(CapturedFoodDocument.self, from: data), partRead)
+        // Kept counts must equal the blocks; full counts must cover them and exceed a bound.
+        XCTAssertThrowsError(try document(blocks: kept, partialRead: .init(fullBlocks: 2_600, fullCharacters: 20_000, keptBlocks: 3, keptCharacters: characters)))
+        XCTAssertThrowsError(try document(blocks: kept, partialRead: .init(fullBlocks: 2_600, fullCharacters: 20_000, keptBlocks: 2, keptCharacters: characters + 1)))
+        XCTAssertThrowsError(try document(blocks: kept, partialRead: .init(fullBlocks: 2_048, fullCharacters: 100_000, keptBlocks: 2, keptCharacters: characters)))
+        XCTAssertNoThrow(try document(blocks: kept, partialRead: .init(fullBlocks: 10, fullCharacters: 100_001, keptBlocks: 2, keptCharacters: characters)))
+        XCTAssertThrowsError(try document(blocks: kept, partialRead: .init(fullBlocks: 1, fullCharacters: 200_000, keptBlocks: 2, keptCharacters: characters)))
+        XCTAssertThrowsError(try document(blocks: kept, partialRead: .init(policy: "food-document-block-selection-v2", fullBlocks: 2_600,
+            fullCharacters: 20_000, keptBlocks: 2, keptCharacters: characters)))
+        // Locator and record must agree, both ways.
+        XCTAssertThrowsError(try document(blocks: kept))
+        let wholeLocators = kept.map { FoodDocumentBlock(id: $0.id, kind: $0.kind, text: $0.text, locator: "p:1;projection:swift-food-document-blocks-v6") }
+        XCTAssertThrowsError(try document(blocks: wholeLocators, partialRead: record))
+        let mixed = [kept[0], wholeLocators[1]]
+        XCTAssertThrowsError(try document(blocks: mixed, partialRead: record))
+        XCTAssertThrowsError(try document(blocks: mixed))
+    }
+
+    // Contract #508 test 11: a whole document encodes exactly as before, with no partial_read key.
+    func testWholeDocumentEncodingHasNoPartialReadKey() throws {
+        let whole = try document(blocks: [.init(id: "b1", kind: "p", text: sourceText, locator: "p:1")])
+        let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
+        let text = String(decoding: try encoder.encode(whole), as: UTF8.self)
+        XCTAssertFalse(text.contains("partialRead"))
+        XCTAssertEqual(Set((try JSONSerialization.jsonObject(with: encoder.encode(whole)) as? [String: Any] ?? [:]).keys),
+                       ["id", "url", "rawSha256", "captureOrigin", "retrievedAt", "blocks"])
+    }
+
+    // Contract #508 section 8.2: choosable is eligibility without the status test.
+    func testChoosableIgnoresOnlyTheConflictStatus() throws {
+        var other = candidate(); other["id"] = "c2"
+        var basis = other["basis"] as! [String: Any]; basis["label"] = "一碗"; other["basis"] = basis
+        var nutrients = other["nutrients"] as! [[String: Any]]
+        nutrients[0]["value"] = "250"; nutrients[0]["evidence"] = [["block_id": "b1", "quote": "熱量250大卡"]]
+        other["nutrients"] = nutrients
+        let result = try decodeAndValidate([candidate(), other], text: sourceText + " 另一處標示熱量250大卡")
+        XCTAssertTrue(result.candidates.allSatisfy { $0.status == .conflictingCandidates && !$0.selectionEligible && $0.choosable })
+        XCTAssertTrue(FoodProposalBinding.sameIdentity(result.candidates[0].candidate, result.candidates[1].candidate))
+        XCTAssertTrue(FoodProposalBinding.conflicting(result.candidates[0].candidate, result.candidates[1].candidate))
+        XCTAssertFalse(FoodProposalBinding.conflicting(result.candidates[0].candidate, result.candidates[0].candidate))
+        // A conflict inside one candidate stays unusable.
+        var inner = candidate()
+        var innerNutrients = inner["nutrients"] as! [[String: Any]]; innerNutrients[2]["unknown_reason"] = "conflict"; inner["nutrients"] = innerNutrients
+        XCTAssertFalse(try validate(inner).candidates[0].choosable)
+        XCTAssertTrue(try validate(candidate()).candidates[0].choosable)
     }
 
     private func candidate() -> [String: Any] {
@@ -256,9 +336,9 @@ final class GenericFoodProposalTests: XCTestCase {
                 "basis": ["amount": "1", "unit": "serving", "label": "每份一碗", "evidence": ref],
                 "nutrients": nutrients, "limitations": []]
     }
-    private func document(blocks: [FoodDocumentBlock]) throws -> CapturedFoodDocument {
+    private func document(blocks: [FoodDocumentBlock], partialRead: FoodDocumentPartialRead? = nil) throws -> CapturedFoodDocument {
         try CapturedFoodDocument(id: "d1", url: "https://example.com/food", rawSha256: String(repeating: "a", count: 64),
-            captureOrigin: "synthetic", retrievedAt: "2026-10-04T00:00:00Z", blocks: blocks)
+            captureOrigin: "synthetic", retrievedAt: "2026-10-04T00:00:00Z", blocks: blocks, partialRead: partialRead)
     }
     private func validate(_ candidate: [String: Any], additionalBlocks: [FoodDocumentBlock] = []) throws -> FoodProposalValidation {
         try decodeAndValidate([candidate], additionalBlocks: additionalBlocks)

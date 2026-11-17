@@ -27,7 +27,9 @@ public enum GenericFoodDocumentProjector {
             let value = text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
             if value.isEmpty { return }
             total += value.count
-            guard total <= 30_000, blocks.count < 512 else { throw FoodSourceAcquisitionError.responseTooLarge }
+            guard total <= FoodDocumentBounds.current.characters, blocks.count < FoodDocumentBounds.current.blocks else {
+                throw FoodSourceAcquisitionError.responseTooLarge
+            }
             blocks.append(.init(id: "b\(blocks.count + 1)", kind: kind, text: value, locator: locator + ";projection:" + version))
         }
         if mediaType == "text/plain" {
