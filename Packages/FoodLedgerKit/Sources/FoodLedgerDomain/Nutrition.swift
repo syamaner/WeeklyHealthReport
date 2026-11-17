@@ -152,6 +152,28 @@ public enum ProvenanceSourceKind: String, Codable, CaseIterable, Sendable {
     case reviewedWebProposal = "reviewed_web_proposal"
     /// An app-compiled, hashed reference definition (plain water, food archive contract 6).
     case appReferenceDefinition = "app_reference_definition"
+    /// An owner-approved estimate from Your food database (estimates on catalogue v2, food archive
+    /// contract 10). Only ever augmented: approval never makes a value measured.
+    case approvedEstimate = "approved_estimate"
+}
+
+/// The fixed provenance form of an `approved_estimate` value (estimates v1 section 5.1): what binds a
+/// saved value to its capture manifest.
+public enum ApprovedEstimateProvenance {
+    public static let sourceID = "personal-food-database"
+    public static let captureMethodVersion = "pfd-estimate-capture-v1"
+    public static let leftOutMethodVersion = "pfd-estimate-left-out-v1"
+    public static let evidenceIDPrefix = "pfe:"
+
+    public static func manifestReference(_ key: NutrientKey) -> String { "\(captureMethodVersion)#\(key.rawValue)" }
+
+    /// All five of record, evidence, manifest hash and reference are required, in their exact form.
+    static func isValid(_ provenance: NutrientProvenance, key: NutrientKey) -> Bool {
+        provenance.sourceID.value == sourceID
+            && provenance.recordID?.value.hasPrefix(evidenceIDPrefix) == true
+            && provenance.evidenceID != nil && provenance.responseHash != nil
+            && provenance.manifestReference?.value == manifestReference(key)
+    }
 }
 
 public struct NutrientProvenance: Codable, Equatable, Sendable {
@@ -345,7 +367,8 @@ public struct NutrientEntry: Codable, Equatable, Sendable {
                 case .userVerifiedPanel, .manualDeclaration, .exactProductDataset: true
                 // An exact app reference value names its reference record.
                 case .appReferenceDefinition: $0.recordID != nil
-                case .genericCompositionDataset, .recipeReconstruction, .reviewedWebProposal: false
+                // An approved estimate is never measured.
+                case .genericCompositionDataset, .recipeReconstruction, .reviewedWebProposal, .approvedEstimate: false
                 }
             }) else { throw FoodLedgerValidationError.invalidProvenance }
         case let .augmented(exact):
@@ -359,6 +382,8 @@ public struct NutrientEntry: Codable, Equatable, Sendable {
                 case .reviewedWebProposal:
                     provenance.recordID != nil && provenance.evidenceID != nil
                         && provenance.responseHash != nil && provenance.manifestReference != nil
+                case .approvedEstimate:
+                    ApprovedEstimateProvenance.isValid(provenance, key: key)
                 case .userVerifiedPanel, .manualDeclaration, .appReferenceDefinition:
                     false
                 }

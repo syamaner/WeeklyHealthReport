@@ -65,6 +65,14 @@ extension FoodLedgerGRDBStore {
             try db.execute(sql: "UPDATE ledger_metadata SET value = 'food-ledger-v9' WHERE key = 'schema_identity'")
             try db.execute(sql: "PRAGMA user_version = 9")
         }
+        migrator.registerMigration("v10_approved_estimate") { db in
+            // Approved estimates from Your food database (estimates on catalogue v2, food contract
+            // 10): a new provenance source kind and two inline evidence method versions, all in
+            // existing columns. Metadata only: no table is created and no immutable row is
+            // rewritten. Older binaries decline schema 10 instead of failing to decode the kind.
+            try db.execute(sql: "UPDATE ledger_metadata SET value = 'food-ledger-v10' WHERE key = 'schema_identity'")
+            try db.execute(sql: "PRAGMA user_version = 10")
+        }
         return migrator
     }
 

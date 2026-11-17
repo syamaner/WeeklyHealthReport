@@ -1,4 +1,5 @@
 import Foundation
+import FoodLedgerDomain
 
 /// Why a decoded food daily file does not have the shape its schema number promises.
 public enum FoodDailyExportShapeError: Error, Equatable, Sendable {
@@ -20,6 +21,13 @@ public enum FoodDailyExportShapeError: Error, Equatable, Sendable {
     case unexpectedSize
     case unknownSize(String)
     case unknownEnteredUnit(String)
+    /// A schema-1 or schema-2 file carrying an `approved_estimate` value or an estimate field.
+    case unexpectedEstimate
+    /// A schema-3 file with no `approved_estimate` value.
+    case missingEstimate
+    /// An `approved_estimate` value without its four tokens, or with one outside its closed list,
+    /// or an estimate field on a value of another source kind.
+    case invalidEstimateFields
 }
 
 /// The per-version shape rule of the food daily file (`docs/food-daily-export-contract-v2.md`
@@ -37,8 +45,33 @@ public enum FoodDailyExportShape {
     /// and v6; schema 2 exists only with v6.
     public static let acceptedSummaryVersions: [Int: Set<String>] = [
         1: ["food-intake-summary-v4", "food-intake-summary-v5", "food-intake-summary-v6"],
-        2: ["food-intake-summary-v6"]
+        2: ["food-intake-summary-v6"],
+        3: ["food-intake-summary-v6"]
     ]
+
+    /// Whether any value of the entry is an approved estimate (conflict candidates included).
+    public static func holdsApprovedEstimate(_ entry: FoodDailyExportEntry) -> Bool {
+        provenance(entry).contains(where: \.isApprovedEstimate)
+    }
+
+    static func provenance(_ entry: FoodDailyExportEntry) -> [FoodDailyExportProvenance] {
+        entry.nutrients.flatMap { [$0] + ($0.candidates ?? []) }.flatMap { $0.provenance ?? [] }
+    }
+
+    /// Schema 3 (estimates on catalogue v2): every `approved_estimate` provenance carries its four
+    /// tokens from the closed lists, and no other provenance carries one.
+    static func validateEstimateFields(_ provenance: FoodDailyExportProvenance) throws {
+        guard provenance.isApprovedEstimate else {
+            guard !provenance.hasEstimateField else { throw FoodDailyExportShapeError.invalidEstimateFields }
+            return
+        }
+        guard provenance.estimateSourceType.flatMap(PersonalFoodDatabaseEstimateSourceType.init(rawValue:)) != nil,
+              provenance.estimateMethod.flatMap(PersonalFoodDatabaseEstimateMethod.init(rawValue:)) != nil,
+              provenance.estimateStateBasis.flatMap(PersonalFoodDatabaseEstimateStateBasis.init(rawValue:)) != nil,
+              provenance.estimateQuality.flatMap(PersonalFoodDatabaseEstimateQuality.init(rawValue:)) != nil else {
+            throw FoodDailyExportShapeError.invalidEstimateFields
+        }
+    }
 
     /// The closed `code` set with the `is_estimate` each code must carry (contract 3.2).
     public static let codes: [String: Bool] = [
@@ -58,13 +91,20 @@ public enum FoodDailyExportShape {
         guard summaryVersions.contains(document.summaryVersion) else {
             throw FoodDailyExportShapeError.summaryVersionNotAccepted(schema: schema, summaryVersion: document.summaryVersion)
         }
+        let provenance = document.entries.flatMap(provenance)
+        if schema == 3 {
+            guard provenance.contains(where: \.isApprovedEstimate) else { throw FoodDailyExportShapeError.missingEstimate }
+            try provenance.forEach(validateEstimateFields)
+        } else if provenance.contains(where: { $0.isApprovedEstimate || $0.hasEstimateField }) {
+            throw FoodDailyExportShapeError.unexpectedEstimate
+        }
         switch schema {
         case 1:
             guard document.entries.allSatisfy({ $0.quantity.amountMethod == nil }) else {
                 throw FoodDailyExportShapeError.unexpectedAmountMethod
             }
             guard document.notes.quantityEstimates == nil else { throw FoodDailyExportShapeError.unexpectedQuantityEstimates }
-        case 2:
+        case 2, 3:
             for entry in document.entries {
                 guard let method = entry.quantity.amountMethod else { throw FoodDailyExportShapeError.missingAmountMethod }
                 try validate(method)

@@ -445,7 +445,8 @@ final class FoodDailyExportContractTests: XCTestCase {
         let expected: [ProvenanceSourceKind: String] = [
             .userVerifiedPanel: "label_checked_by_you", .manualDeclaration: "entered_by_you",
             .exactProductDataset: "product_database", .genericCompositionDataset: "food_database",
-            .recipeReconstruction: "recipe", .reviewedWebProposal: "web_review", .appReferenceDefinition: "app_reference"
+            .recipeReconstruction: "recipe", .reviewedWebProposal: "web_review", .appReferenceDefinition: "app_reference",
+            .approvedEstimate: "approved_estimate"  // estimates on catalogue v2, daily export version 3
         ]
         XCTAssertEqual(Set(expected.keys), Set(ProvenanceSourceKind.allCases), "a new kind needs a contract revision")
         for kind in ProvenanceSourceKind.allCases {
