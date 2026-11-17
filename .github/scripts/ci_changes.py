@@ -40,6 +40,9 @@ CODE_READ_DOCS = {
     "docs/food-daily-export-contract-v2.md",
     # Cited by contract tests and fixtures; edits run full CI.
     "docs/generic-food-review-manifest-v2.md",
+    # Cited by the manifest v3 contract tests (#508).
+    "docs/web-lookup-part-read-pages-v1-proposal.md",
+    "docs/web-lookup-larger-pages-phase1-gate.md",
     # Cited by the today-so-far projection, its tests and Developer tools.
     "docs/today-so-far-projection-v1.md",
     # Cited by the list grammars (food-list-lexical-v4 to v7) and their golden-table tests.
