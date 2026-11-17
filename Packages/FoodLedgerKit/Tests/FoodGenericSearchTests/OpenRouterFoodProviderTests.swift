@@ -255,8 +255,77 @@ final class OpenRouterFoodProviderTests: XCTestCase {
         try JSONSerialization.data(withJSONObject: ["model": model, "provider": provider,
             "choices": [["finish_reason": finish, "message": ["content": content]]]])
     }
+    // Contract #508 test 13 (phase 1): a whole page at the new bounds keeps the request shape,
+    // and the part-read record is never sent, on the catalogue routes or the `.jev` route.
+    func testLargerPageKeepsRequestShapeAndPartReadRecordIsNeverSent() throws {
+        let rows = (1...1_500).map { "<li>Menu item \($0)</li>" }.joined()
+        let large = try GenericFoodDocumentProjector.project(Data(("<h1>Plain yoghurt</h1><p>Per 100g energy 61kcal</p>" + rows).utf8),
+            url: URL(string: "https://example.com/yoghurt")!, mediaType: "text/html", retrievedAt: Date(timeIntervalSince1970: 0), origin: "synthetic_fixture")
+        XCTAssertEqual(large.blocks.count, 1_502)
+        let largeBody = try StrictFoodProposalJSON.object(OpenRouterFoodProvider.extractionBody(foodTerms: "plain yoghurt", documents: [large]))
+        let smallBody = try StrictFoodProposalJSON.object(OpenRouterFoodProvider.extractionBody(foodTerms: "plain yoghurt", documents: [document()]))
+        XCTAssertEqual(Set(largeBody.keys), Set(smallBody.keys))
+        let catalogue = try FoodProposalEvidenceCatalog(documents: [large]).requestDocuments()
+        XCTAssertEqual(Set(catalogue[0].keys), ["id", "url", "raw_sha256", "capture_origin", "retrieved_at", "evidence_catalog_version", "blocks"])
+        XCTAssertEqual((catalogue[0]["blocks"] as? [[String: String]])?.count, 1_502)
+
+        let selected = ";projection:" + FoodDocumentPartialRead.selectedProjectionVersion
+        let partRead = try CapturedFoodDocument(id: "doc_part", url: "https://example.com/yoghurt", rawSha256: String(repeating: "a", count: 64),
+            captureOrigin: "synthetic_fixture", retrievedAt: "1970-01-01T00:00:00Z",
+            blocks: [.init(id: "b1", kind: "h1", text: "Plain yoghurt", locator: "h1:1" + selected),
+                     .init(id: "b137", kind: "tr", text: "Per 100g energy 61kcal", locator: "tr:1" + selected)],
+            partialRead: .init(fullBlocks: 2_600, fullCharacters: 50_000, keptBlocks: 2, keptCharacters: 35))
+        for body in [try OpenRouterFoodProvider.extractionBody(foodTerms: "plain yoghurt", documents: [partRead])] {
+            let text = String(decoding: body, as: UTF8.self)
+            XCTAssertFalse(text.contains("partial_read") || text.contains("partialRead") || text.contains("full_blocks"))
+            XCTAssertFalse(text.contains(FoodDocumentPartialRead.selectedProjectionVersion), "Catalogue routes send no locators")
+        }
+        // The request bodies of both selection routes, as sent.
+        let candidate = try FoodProposalCandidate.syntheticPartRead(documentID: partRead.id)
+        let validation = try FoodProposalBinding.validate(.init(candidates: [candidate], preferredId: "c1"), documents: [partRead])
+        XCTAssertEqual(validation.candidates.count, 1, "\(validation.rejected)")
+        let applicability = String(decoding: try OpenRouterFoodProvider.applicabilityBody(foodTerms: "plain yoghurt", documents: [partRead],
+                                                                                         validation: validation), as: UTF8.self)
+        XCTAssertFalse(applicability.contains("partial_read") || applicability.contains("partialRead") || applicability.contains("full_blocks"))
+        let selectionBody = try StrictFoodProposalJSON.object(OpenRouterFoodProvider.selectionBody(foodTerms: "plain yoghurt",
+                                                                                                   documents: [partRead], validation: validation))
+        let state = try XCTUnwrap(selectionBody["state"] as? [String: Any])
+        let sent = try XCTUnwrap(state["documents"] as? [[String: Any]])
+        XCTAssertEqual(Set(sent[0].keys), ["id", "url", "raw_sha256", "capture_origin", "retrieved_at", "blocks"])
+        XCTAssertFalse(String(decoding: try OpenRouterFoodProvider.selectionBody(foodTerms: "plain yoghurt", documents: [partRead],
+                                                                                 validation: validation), as: UTF8.self).contains("partial_read"))
+        let jev = try XCTUnwrap(OpenRouterFoodProvider.providerDocuments([partRead]) as? [[String: Any]])
+        XCTAssertNil(jev[0]["partial_read"])
+        XCTAssertEqual(Set(jev[0].keys), ["id", "url", "raw_sha256", "capture_origin", "retrieved_at", "blocks"])
+        let blocks = try XCTUnwrap(jev[0]["blocks"] as? [[String: Any]])
+        XCTAssertEqual(blocks.map { $0["id"] as? String }, ["b1", "b137"])
+        XCTAssertEqual(blocks.map { $0["locator"] as? String }, ["h1:1" + selected, "tr:1" + selected], "The jev route still sends locators")
+        let whole = try XCTUnwrap(OpenRouterFoodProvider.providerDocuments([document()]) as? [[String: Any]])
+        XCTAssertEqual(Set(whole[0].keys), ["id", "url", "raw_sha256", "capture_origin", "retrieved_at", "blocks"])
+    }
+
     private func document() throws -> CapturedFoodDocument {
         try GenericFoodDocumentProjector.project(Data("<h1>Plain yoghurt</h1><p>Per 100g energy 61kcal</p>".utf8),
             url: URL(string: "https://example.com/yoghurt")!, mediaType: "text/html", retrievedAt: Date(timeIntervalSince1970: 0), origin: "synthetic_fixture")
+    }
+}
+
+private extension FoodProposalCandidate {
+    /// A per-100 g yoghurt candidate bound to block b137 of the synthetic part-read document.
+    static func syntheticPartRead(documentID: String) throws -> FoodProposalCandidate {
+        let reference: [[String: Any]] = [["block_id": "b137", "quote": "Per 100g energy 61kcal"]]
+        let identity: [[String: Any]] = [["block_id": "b1", "quote": "Plain yoghurt"]]
+        let nutrients: [[String: Any]] = FoodProposalNutrientKey.allCases.map { key in
+            let known = key == .energy
+            return ["key": key.rawValue, "state": known ? "declared" : "unknown", "value": known ? "61" as Any : NSNull(),
+                    "unit": known ? "kcal" as Any : NSNull(), "evidence": known ? reference : [],
+                    "unknown_reason": known ? NSNull() : "not_observed" as Any]
+        }
+        let object: [String: Any] = ["id": "c1", "document_id": documentID, "name": "Plain yoghurt", "brand": NSNull(),
+            "preparation": NSNull(), "identity_evidence": identity, "panel_evidence": identity + reference,
+            "basis": ["amount": "100", "unit": "g", "label": "Per 100g", "evidence": reference],
+            "nutrients": nutrients, "limitations": []]
+        let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(FoodProposalCandidate.self, from: JSONSerialization.data(withJSONObject: object))
     }
 }

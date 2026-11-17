@@ -10,6 +10,8 @@ public enum GenericFoodPDFProjector {
     public static let version = "swift-food-pdf-rows-v1"
     public static let maximumPages = 10
     public static let maximumBytes = 1_000_000
+    /// PDF keeps its own output bound; it does not follow `FoodDocumentBounds.current` (#508).
+    public static let bounds = FoodDocumentBounds(blocks: 512, characters: 30_000)
 
     public static func project(_ raw: Data, url: URL, retrievedAt: Date,
                                origin: String = "publisher_http") throws -> CapturedFoodDocument {
@@ -28,7 +30,7 @@ public enum GenericFoodPDFProjector {
                 // Do not call a mixed text/scan document complete after skipping a page.
                 throw FoodSourceAcquisitionError.unsupportedContent
             }
-            guard page.numberOfCharacters <= 30_000 - total else { throw FoodSourceAcquisitionError.responseTooLarge }
+            guard page.numberOfCharacters <= Self.bounds.characters - total else { throw FoodSourceAcquisitionError.responseTooLarge }
             guard let selection = page.selection(for: NSRange(location: 0, length: page.numberOfCharacters)) else {
                 throw FoodSourceAcquisitionError.unsupportedContent
             }
@@ -63,7 +65,7 @@ public enum GenericFoodPDFProjector {
                 let text = ordered.map(\.text).joined(separator: " | ")
                 let bounds = ordered.dropFirst().reduce(ordered[0].bounds) { $0.union($1.bounds) }
                 total += text.count
-                guard total <= 30_000, blocks.count < 512 else { throw FoodSourceAcquisitionError.responseTooLarge }
+                guard total <= Self.bounds.characters, blocks.count < Self.bounds.blocks else { throw FoodSourceAcquisitionError.responseTooLarge }
                 let rectangle = [bounds.minX, bounds.minY, bounds.width, bounds.height]
                     .map { String(format: "%.2f", locale: Locale(identifier: "en_US_POSIX"), Double($0)) }.joined(separator: ",")
                 blocks.append(.init(id: "b\(blocks.count + 1)", kind: "pdf_row", text: text,

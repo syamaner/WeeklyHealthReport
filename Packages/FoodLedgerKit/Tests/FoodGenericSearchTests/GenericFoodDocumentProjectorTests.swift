@@ -10,15 +10,16 @@ final class GenericFoodDocumentProjectorTests: XCTestCase {
         let document = try project(source)
         XCTAssertEqual(document.blocks.map(\.text), ["Tofu", "Per100g protein6g"])
         XCTAssertThrowsError(try project(String(repeating: " ", count: GenericFoodDocumentProjector.maximumBytes + 1)))
-        // Increasing raw HTML capacity never increases admitted source text.
-        XCTAssertThrowsError(try project("<p>" + String(repeating: "x", count: 30_001) + "</p>"))
+        // Raw HTML capacity and the admitted text bound are separate: text over the
+        // current bound (#508) is refused, however much raw HTML capacity remains.
+        XCTAssertThrowsError(try project("<p>" + String(repeating: "x", count: 100_001) + "</p>"))
     }
 
     func testBoundedCaptureFailuresAreDistinguishedFromUnsupportedEncoding() {
         let boundedInputs = [
             String(repeating: " ", count: GenericFoodDocumentProjector.maximumBytes + 1),
-            "<p>" + String(repeating: "x", count: 30_001) + "</p>",
-            String(repeating: "<p>x</p>", count: 513),
+            "<p>" + String(repeating: "x", count: 100_001) + "</p>",
+            String(repeating: "<p>x</p>", count: 2_049),
             String(repeating: "<div>", count: 66) + "x" + String(repeating: "</div>", count: 66),
             "<div>" + String(repeating: "<span></span>", count: 50_001) + "</div>"
         ]
@@ -34,6 +35,52 @@ final class GenericFoodDocumentProjectorTests: XCTestCase {
         XCTAssertThrowsError(try project("")) { error in
             XCTAssertEqual(error as? GenericFoodProposalError, .invalidDocument)
         }
+    }
+
+    // Contract #508 test 1: the larger bounds at their edges, for HTML and text/plain.
+    func testLargerBoundsAdmitExactlyTheirEdges() throws {
+        XCTAssertEqual(FoodDocumentBounds.current, FoodDocumentBounds(blocks: 2_048, characters: 100_000))
+        let blocks = try project(String(repeating: "<p>x</p>", count: 2_048))
+        XCTAssertEqual(blocks.blocks.count, 2_048)
+        XCTAssertEqual(blocks.blocks.last?.id, "b2048")
+        let characters = try project("<p>" + String(repeating: "x", count: 100_000) + "</p>")
+        XCTAssertEqual(characters.characterCount, 100_000)
+        // 99,999 characters in one block and one more block of two characters.
+        XCTAssertThrowsError(try project("<p>" + String(repeating: "x", count: 99_999) + "</p><p>yy</p>")) {
+            XCTAssertEqual($0 as? FoodSourceAcquisitionError, .responseTooLarge)
+        }
+        XCTAssertThrowsError(try project(String(repeating: "<p>x</p>", count: 2_049))) {
+            XCTAssertEqual($0 as? FoodSourceAcquisitionError, .responseTooLarge)
+        }
+        let plain = { (text: String) in try GenericFoodDocumentProjector.project(Data(text.utf8), url: self.url,
+            mediaType: "text/plain", retrievedAt: Date(timeIntervalSince1970: 0)) }
+        XCTAssertEqual(try plain(Array(repeating: "x", count: 2_048).joined(separator: "\n")).blocks.count, 2_048)
+        XCTAssertEqual(try plain(String(repeating: "x", count: 100_000)).characterCount, 100_000)
+        XCTAssertThrowsError(try plain(Array(repeating: "x", count: 2_049).joined(separator: "\n"))) {
+            XCTAssertEqual($0 as? FoodSourceAcquisitionError, .responseTooLarge)
+        }
+        XCTAssertThrowsError(try plain(String(repeating: "x", count: 100_001))) {
+            XCTAssertEqual($0 as? FoodSourceAcquisitionError, .responseTooLarge)
+        }
+    }
+
+    // Contract #508 test 2: a page between the old and new bounds projects whole, by the same
+    // walk and with the v6 string; within the old bounds the output is what it was.
+    func testPageBetweenOldAndNewBoundsProjectsWholeWithTheV6String() throws {
+        XCTAssertEqual(GenericFoodDocumentProjector.version, "swift-food-document-blocks-v6")
+        let rows = (1...700).map { "<tr><td>Row \($0)</td><td>\($0) g</td></tr>" }.joined()
+        let page = "<h1>Large page</h1><table>" + rows + "</table><p>" + String(repeating: "z", count: 40_000) + "</p>"
+        let document = try project(page)
+        XCTAssertEqual(document.blocks.count, 702)
+        XCTAssertGreaterThan(document.characterCount, 30_000)
+        XCTAssertFalse(document.fits(.reviewManifestV1V2))
+        XCTAssertTrue(document.blocks.allSatisfy { $0.locator.hasSuffix(";projection:swift-food-document-blocks-v6") })
+        XCTAssertNil(document.partialRead)
+        XCTAssertEqual(document.blocks.map(\.id), (1...702).map { "b\($0)" })
+        // The same walk: the first 512 blocks of a 513-block page equal a 512-block page's blocks.
+        let small = try project(String(repeating: "<p>x</p>", count: 512))
+        let larger = try project(String(repeating: "<p>x</p>", count: 513))
+        XCTAssertEqual(Array(larger.blocks.prefix(512)), small.blocks)
     }
 
     func testUnknownPublicHostNeedsNoWebsiteSpecificAdapter() throws {
@@ -115,7 +162,7 @@ final class GenericFoodDocumentProjectorTests: XCTestCase {
         XCTAssertEqual(plain.blocks.map(\.locator), ["line:1", "line:3"].map { $0 + ";projection:" + GenericFoodDocumentProjector.version })
     }
     func testOversizedOrEmptyDocumentsFailWithoutTruncatingEvidence() {
-        XCTAssertThrowsError(try project("<p>" + String(repeating: "a", count: 30_001) + "</p>"))
+        XCTAssertThrowsError(try project("<p>" + String(repeating: "a", count: 100_001) + "</p>"))
         XCTAssertThrowsError(try project("<style>nothing readable</style>"))
         XCTAssertThrowsError(try project(String(repeating: "a", count: 1_000_001)))
     }

@@ -38,6 +38,9 @@ public typealias FoodProposalReviewManifest = FoodProposalReviewManifestV1
 public struct FoodProposalReviewAction: Codable, Equatable, Sendable {
     public static let useThisSource = "use_this_source"
     public static let webLookupReviewV1 = "web-lookup-review-v1"
+    /// Screen contract of manifest v3 only (#508). Never admitted by a v2 manifest.
+    public static let webLookupReviewV2 = "web-lookup-review-v2"
+    /// Presentations admitted by manifest v2. Per manifest version; v3 has its own set.
     public static let knownPresentations: Set<String> = [webLookupReviewV1]
     public let action: String
     public let presentation: String
@@ -128,6 +131,161 @@ public struct FoodProposalReviewManifestV2: Codable, Equatable, Sendable {
     }
 }
 
+/// The review action of manifest v3: the same single action on screen contract
+/// `web-lookup-review-v2`, with its own closed presentation set.
+public struct FoodProposalReviewActionV3: Codable, Equatable, Sendable {
+    public static let knownPresentations: Set<String> = [FoodProposalReviewAction.webLookupReviewV2]
+    public let action: String
+    public let presentation: String
+
+    init(action: String = FoodProposalReviewAction.useThisSource, presentation: String = FoodProposalReviewAction.webLookupReviewV2) {
+        self.action = action; self.presentation = presentation
+    }
+    private enum CodingKeys: String, CodingKey, CaseIterable { case action, presentation }
+    public init(from decoder: any Decoder) throws {
+        try StrictManifestKeys.require(CodingKeys.self, in: decoder)
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        action = try container.decode(String.self, forKey: .action)
+        presentation = try container.decode(String.self, forKey: .presentation)
+        guard isKnown else {
+            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown review action or presentation"))
+        }
+    }
+    public var isKnown: Bool { action == FoodProposalReviewAction.useThisSource && Self.knownPresentations.contains(presentation) }
+}
+
+/// The gate of manifest v3: the model's answer (`selectionChoice`, never authority) beside the
+/// candidate the person confirmed (`personChoice`). Its choice policy is known only to v3.
+public struct FoodProposalReviewGateRecordV3: Codable, Equatable, Sendable {
+    public static let choicePolicyVersion = "food-proposal-review-choice-v4"
+    public static let knownChoicePolicies: Set<String> = [choicePolicyVersion]
+    public let choicePolicy: String
+    public let rankingAvailable: Bool
+    public let selectionChoice: String
+    public let personChoice: String
+    public let representativeSourceOnly: Bool
+
+    init(choicePolicy: String = Self.choicePolicyVersion, rankingAvailable: Bool, selectionChoice: String,
+         personChoice: String, representativeSourceOnly: Bool) {
+        self.choicePolicy = choicePolicy; self.rankingAvailable = rankingAvailable; self.selectionChoice = selectionChoice
+        self.personChoice = personChoice; self.representativeSourceOnly = representativeSourceOnly
+    }
+    private enum CodingKeys: String, CodingKey, CaseIterable {
+        case choicePolicy, rankingAvailable, selectionChoice, personChoice, representativeSourceOnly
+    }
+    public init(from decoder: any Decoder) throws {
+        try StrictManifestKeys.require(CodingKeys.self, in: decoder)
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        choicePolicy = try container.decode(String.self, forKey: .choicePolicy)
+        rankingAvailable = try container.decode(Bool.self, forKey: .rankingAvailable)
+        selectionChoice = try container.decode(String.self, forKey: .selectionChoice)
+        personChoice = try container.decode(String.self, forKey: .personChoice)
+        representativeSourceOnly = try container.decode(Bool.self, forKey: .representativeSourceOnly)
+        guard Self.knownChoicePolicies.contains(choicePolicy), !selectionChoice.isEmpty, !personChoice.isEmpty else {
+            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown choice policy or empty choice"))
+        }
+    }
+}
+
+/// Manifest v3 (`reviewed-web-proposal-v3`, #508): the candidates offered, the model's answer
+/// and the person's choice, on a document that may be larger or read in part.
+/// Strict decoding: any extra or missing key at this level, in `review` or in `gate` throws.
+public struct FoodProposalReviewManifestV3: Codable, Equatable, Sendable {
+    public static let maximumOffered = 3
+    public let version: String
+    public let query: String
+    public let document: CapturedFoodDocument
+    public let candidate: FoodProposalCandidate
+    public let offered: [FoodProposalCandidate]
+    public let scope: FoodProposalReviewScope
+    public let review: FoodProposalReviewActionV3
+    public let gate: FoodProposalReviewGateRecordV3
+    public let reviewedAt: Date
+
+    init(query: String, document: CapturedFoodDocument, candidate: FoodProposalCandidate, offered: [FoodProposalCandidate],
+         scope: FoodProposalReviewScope, review: FoodProposalReviewActionV3, gate: FoodProposalReviewGateRecordV3, reviewedAt: Date) {
+        version = ReviewedFoodProposalConfirmation.version3; self.query = query; self.document = document
+        self.candidate = candidate; self.offered = offered; self.scope = scope; self.review = review
+        self.gate = gate; self.reviewedAt = reviewedAt
+    }
+    private enum CodingKeys: String, CodingKey, CaseIterable { case version, query, document, candidate, offered, scope, review, gate, reviewedAt }
+    public init(from decoder: any Decoder) throws {
+        try StrictManifestKeys.require(CodingKeys.self, in: decoder)
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        version = try container.decode(String.self, forKey: .version)
+        guard version == ReviewedFoodProposalConfirmation.version3 else {
+            throw DecodingError.dataCorruptedError(forKey: .version, in: container, debugDescription: "Not a v3 manifest")
+        }
+        query = try container.decode(String.self, forKey: .query)
+        document = try container.decode(CapturedFoodDocument.self, forKey: .document)
+        candidate = try container.decode(FoodProposalCandidate.self, forKey: .candidate)
+        offered = try container.decode([FoodProposalCandidate].self, forKey: .offered)
+        scope = try container.decode(FoodProposalReviewScope.self, forKey: .scope)
+        review = try container.decode(FoodProposalReviewActionV3.self, forKey: .review)
+        gate = try container.decode(FoodProposalReviewGateRecordV3.self, forKey: .gate)
+        reviewedAt = try container.decode(Date.self, forKey: .reviewedAt)
+    }
+
+    /// Strict at every level (owner decision, 17 November 2026): the stored JSON must have exactly
+    /// the keys its decoded value encodes, so no unknown key survives anywhere in the document,
+    /// the part-read record, the candidate or an offered candidate. Optional members are absent,
+    /// never `null`. Re-encodes with the canonical writer's configuration so the two cannot drift.
+    /// v1 and v2 are not affected.
+    static func hasOnlyKnownKeys(_ data: Data, decoded: Self) -> Bool {
+        guard let raw = try? JSONSerialization.jsonObject(with: data),
+              let encoded = try? FoundationCanonicalJSONEncoder().encode(decoded),
+              let known = try? JSONSerialization.jsonObject(with: encoded) else { return false }
+        return sameKeys(raw, known)
+    }
+    private static func sameKeys(_ raw: Any, _ known: Any) -> Bool {
+        if let raw = raw as? [String: Any], let known = known as? [String: Any] {
+            return Set(raw.keys) == Set(known.keys) && raw.allSatisfy { key, value in known[key].map { sameKeys(value, $0) } ?? false }
+        }
+        if let raw = raw as? [Any], let known = known as? [Any] {
+            return raw.count == known.count && zip(raw, known).allSatisfy { sameKeys($0, $1) }
+        }
+        return !(raw is [String: Any]) && !(raw is [Any]) && !(known is [String: Any]) && !(known is [Any])
+    }
+
+    /// Closed v3 admission (contract #508 section 8.4 with its section 13 notes), checked at save
+    /// and reopen. The rules shared with v2 (release, evidence, values) stay in
+    /// `FoodReviewedWebProposalPolicy.scope`.
+    public var isAdmissible: Bool { admissionFailure == nil }
+
+    /// The first rule a manifest breaks, for tests and Developer tools; `nil` when admissible.
+    public var admissionFailure: String? {
+        guard review.isKnown else { return "review" }
+        guard gate.isKnownPolicy else { return "choice_policy" }
+        guard gate.rankingAvailable else { return "ranking_unavailable" }
+        guard gate.selectionChoice != "none" else { return "selection_none" }
+        guard gate.personChoice == candidate.id else { return "person_choice" }
+        guard !offered.isEmpty, offered.count <= Self.maximumOffered,
+              Set(offered.map(\.id)).count == offered.count else { return "offered_count" }
+        guard offered.contains(candidate) else { return "candidate_not_offered" }
+        guard (try? document.validate()) != nil else { return "document" }
+        guard let bound = try? FoodProposalBinding.validate(.init(candidates: offered, preferredId: candidate.id), documents: [document]),
+              bound.rejected.isEmpty, bound.candidates.count == offered.count,
+              bound.candidates.allSatisfy(\.choosable) else { return "offered_not_choosable" }
+        guard !offered.contains(where: { FoodProposalQueryPolicy.hasBasisConflict(query: query, basis: $0.basis) }) else {
+            return "offered_basis_conflict"
+        }
+        guard offered.allSatisfy({ FoodProposalBinding.sameIdentity($0, candidate) }) else { return "offered_mixed_identity" }
+        if gate.selectionChoice == "clarify" {
+            guard offered.count >= 2, offered.allSatisfy({ member in
+                offered.contains { $0.id != member.id && FoodProposalBinding.conflicting(member, $0) }
+            }) else { return "clarify_without_conflict" }
+        } else {
+            guard offered.contains(where: { $0.id == gate.selectionChoice }) else { return "selection_not_offered" }
+        }
+        guard !(gate.representativeSourceOnly && scope == .exactProduct) else { return "representative_only" }
+        return nil
+    }
+}
+
+extension FoodProposalReviewGateRecordV3 {
+    var isKnownPolicy: Bool { Self.knownChoicePolicies.contains(choicePolicy) && !selectionChoice.isEmpty }
+}
+
 /// Compares the keys actually present with a closed key set. `KeyedDecodingContainer.allKeys`
 /// for a typed key enum silently drops unknown keys, so a dynamic key container is used.
 enum StrictManifestKeys {
@@ -159,6 +317,7 @@ enum StrictManifestKeys {
 public enum FoodProposalReviewManifestRecord: Equatable, Sendable {
     case v1(FoodProposalReviewManifestV1)
     case v2(FoodProposalReviewManifestV2)
+    case v3(FoodProposalReviewManifestV3)
 
     public static func decode(_ data: Data) -> FoodProposalReviewManifestRecord? {
         struct Probe: Decodable { let version: String }
@@ -169,34 +328,50 @@ public enum FoodProposalReviewManifestRecord: Equatable, Sendable {
             return (try? decoder.decode(FoodProposalReviewManifestV1.self, from: data)).map(Self.v1)
         case ReviewedFoodProposalConfirmation.version:
             return (try? decoder.decode(FoodProposalReviewManifestV2.self, from: data)).map(Self.v2)
+        case ReviewedFoodProposalConfirmation.version3:
+            guard let manifest = try? decoder.decode(FoodProposalReviewManifestV3.self, from: data),
+                  FoodProposalReviewManifestV3.hasOnlyKnownKeys(data, decoded: manifest) else { return nil }
+            return .v3(manifest)
         default: return nil
         }
     }
-    public var version: String { switch self { case let .v1(m): m.version; case let .v2(m): m.version } }
-    public var query: String { switch self { case let .v1(m): m.query; case let .v2(m): m.query } }
-    public var document: CapturedFoodDocument { switch self { case let .v1(m): m.document; case let .v2(m): m.document } }
-    public var candidate: FoodProposalCandidate { switch self { case let .v1(m): m.candidate; case let .v2(m): m.candidate } }
-    public var scope: FoodProposalReviewScope { switch self { case let .v1(m): m.scope; case let .v2(m): m.scope } }
+    public var version: String { switch self { case let .v1(m): m.version; case let .v2(m): m.version; case let .v3(m): m.version } }
+    public var query: String { switch self { case let .v1(m): m.query; case let .v2(m): m.query; case let .v3(m): m.query } }
+    public var document: CapturedFoodDocument { switch self { case let .v1(m): m.document; case let .v2(m): m.document; case let .v3(m): m.document } }
+    public var candidate: FoodProposalCandidate { switch self { case let .v1(m): m.candidate; case let .v2(m): m.candidate; case let .v3(m): m.candidate } }
+    public var scope: FoodProposalReviewScope { switch self { case let .v1(m): m.scope; case let .v2(m): m.scope; case let .v3(m): m.scope } }
     /// v1 needs its complete three-part acknowledgement; v2 needs the single known action
-    /// and a recorded gate that permitted exactly this candidate and scope.
+    /// and a recorded gate that permitted exactly this candidate and scope. v1 and v2 keep the
+    /// document bound they were written under and never admit a part-read document (#508);
+    /// v3 applies its own closed admission.
     public var reviewIsAdmissible: Bool {
         switch self {
-        case let .v1(m): m.acknowledgement.isComplete
+        case let .v1(m): m.acknowledgement.isComplete && Self.fitsVersion1Or2(m.document)
         case let .v2(m): m.review.isKnown && m.gate.permits(candidateID: m.candidate.id, scope: m.scope)
+            && Self.fitsVersion1Or2(m.document)
+        case let .v3(m): m.isAdmissible
         }
+    }
+    @_spi(ReviewedWebRegression)
+    public static func fitsVersion1Or2(_ document: CapturedFoodDocument) -> Bool {
+        document.fits(.reviewManifestV1V2) && document.partialRead == nil && !document.hasSelectedLocator
     }
 }
 
 /// Explicit review prepares a confirmation, never a saved log entry. Complete
 /// source material and original unknowns survive the eventual ledger write.
 public struct ReviewedFoodProposalConfirmation: Sendable {
+    /// Manifest v2. The constant is not repointed; production writes `version3` (#508).
     public static let version = "reviewed-web-proposal-v2"
     public static let version1 = "reviewed-web-proposal-v1"
+    public static let version3 = "reviewed-web-proposal-v3"
     /// Closed admission: each manifest version is tied to exactly one stored pipeline
-    /// triple. v1 is every record written since 6b5f279 (admission v5); v2 is admission v6.
+    /// triple, written as literals so that no later constant change moves one. v1 is every
+    /// record written since 6b5f279 (admission v5); v2 is admission v6; v3 is admission v7.
     public static let admittedPipelines: [String: String] = [
-        version1: version1 + ":food-proposal-binding-v7:reviewed-web-admission-v5",
-        version: version + ":" + FoodProposalBinding.version + ":" + FoodReviewedWebProposalPolicy.version
+        version1: "reviewed-web-proposal-v1:food-proposal-binding-v7:reviewed-web-admission-v5",
+        version: "reviewed-web-proposal-v2:food-proposal-binding-v7:reviewed-web-admission-v6",
+        version3: "reviewed-web-proposal-v3:food-proposal-binding-v7:reviewed-web-admission-v7"
     ]
     private let ids: any LedgerIDGenerating
     private let clock: any LedgerClock
@@ -210,10 +385,31 @@ public struct ReviewedFoodProposalConfirmation: Sendable {
 
     /// The single review step. The applicability gate is enforced here, in the application:
     /// only the current suggested eligible candidate of a successful check can prepare, and
-    /// a representative-only source cannot be used as an exact product. The gate decision is
-    /// recorded in the manifest and re-checked from that record at save and reopen.
+    /// a representative-only source cannot be used as an exact product. Writes manifest v3
+    /// (#508) with that one candidate offered and chosen; the gate decision is recorded in the
+    /// manifest and re-checked from that record at save and reopen.
     public func prepare(review: GenericFoodProposalReview, proposal: BoundFoodProposal, scope: FoodProposalReviewScope,
                         locale: LedgerText) throws -> PopulatedFoodConfirmation {
+        guard review.permitsConfirmation(of: proposal), let selection = review.selection,
+              !(review.representativeSourceOnly && scope == .exactProduct) else {
+            throw GenericFoodProposalError.invalidSelection
+        }
+        let capturedAt = try Self.validated(proposal, query: review.foodTerms, bounds: .current)
+        let gate = FoodProposalReviewGateRecordV3(rankingAvailable: !review.rankingUnavailable,
+            selectionChoice: selection.choice, personChoice: proposal.candidate.id,
+            representativeSourceOnly: review.representativeSourceOnly)
+        let manifest = FoodProposalReviewManifestV3(query: review.foodTerms, document: proposal.document,
+            candidate: proposal.candidate, offered: [proposal.candidate], scope: scope,
+            review: FoodProposalReviewActionV3(), gate: gate, reviewedAt: clock.now())
+        guard manifest.isAdmissible else { throw GenericFoodProposalError.invalidSelection }
+        return try build(manifestData: encoder.encode(manifest), version: Self.version3, proposal: proposal,
+                         scope: scope, capturedAt: capturedAt, locale: locale)
+    }
+
+    /// Regression fixtures only: writes the frozen v2 shape. Production never calls this.
+    @_spi(ReviewedWebRegression)
+    public func prepareVersion2(review: GenericFoodProposalReview, proposal: BoundFoodProposal, scope: FoodProposalReviewScope,
+                                locale: LedgerText) throws -> PopulatedFoodConfirmation {
         guard review.permitsConfirmation(of: proposal), let selection = review.selection,
               !(review.representativeSourceOnly && scope == .exactProduct) else {
             throw GenericFoodProposalError.invalidSelection
@@ -221,7 +417,7 @@ public struct ReviewedFoodProposalConfirmation: Sendable {
         let gate = FoodProposalReviewGateRecord(rankingAvailable: !review.rankingUnavailable,
             selectionChoice: selection.choice, representativeSourceOnly: review.representativeSourceOnly)
         guard gate.permits(candidateID: proposal.candidate.id, scope: scope) else { throw GenericFoodProposalError.invalidSelection }
-        let capturedAt = try Self.validated(proposal, query: review.foodTerms)
+        let capturedAt = try Self.validated(proposal, query: review.foodTerms, bounds: .reviewManifestV1V2)
         let manifest = FoodProposalReviewManifestV2(query: review.foodTerms, document: proposal.document,
             candidate: proposal.candidate, scope: scope, review: FoodProposalReviewAction(), gate: gate, reviewedAt: clock.now())
         return try build(manifestData: encoder.encode(manifest), version: Self.version, proposal: proposal,
@@ -233,15 +429,19 @@ public struct ReviewedFoodProposalConfirmation: Sendable {
     public func prepareVersion1(_ proposal: BoundFoodProposal, query: String, scope: FoodProposalReviewScope,
                                 acknowledgement: FoodProposalAcknowledgement, locale: LedgerText) throws -> PopulatedFoodConfirmation {
         guard acknowledgement.isComplete else { throw GenericFoodProposalError.invalidSelection }
-        let capturedAt = try Self.validated(proposal, query: query)
+        let capturedAt = try Self.validated(proposal, query: query, bounds: .reviewManifestV1V2)
         let manifest = FoodProposalReviewManifestV1(version: Self.version1, query: query, document: proposal.document,
             candidate: proposal.candidate, scope: scope, acknowledgement: acknowledgement, reviewedAt: clock.now())
         return try build(manifestData: encoder.encode(manifest), version: Self.version1, proposal: proposal,
                          scope: scope, capturedAt: capturedAt, locale: locale)
     }
 
-    private static func validated(_ proposal: BoundFoodProposal, query: String) throws -> Date {
+    /// v1 and v2 writers pass `.reviewManifestV1V2`, so they refuse a larger or part-read
+    /// document before encoding instead of writing a manifest admission would reject.
+    private static func validated(_ proposal: BoundFoodProposal, query: String, bounds: FoodDocumentBounds) throws -> Date {
         guard proposal.selectionEligible, !query.isEmpty, query.count <= 300,
+              proposal.document.fits(bounds),
+              bounds == .current || FoodProposalReviewManifestRecord.fitsVersion1Or2(proposal.document),
               !FoodProposalQueryPolicy.hasBasisConflict(query: query, basis: proposal.candidate.basis),
               let capturedAt = ISO8601DateFormatter().date(from: proposal.document.retrievedAt) else {
             throw GenericFoodProposalError.invalidSelection
@@ -320,7 +520,8 @@ public struct ReviewedFoodProposalConfirmation: Sendable {
 /// Closed admission profile, not a provider plug-in. Review scope is never inferred
 /// from a name match or confidence; it is retained in a versioned source release.
 public enum FoodReviewedWebProposalPolicy {
-    public static let version = "reviewed-web-admission-v6"
+    /// The admission version of the current writer (manifest v3, #508). Stored triples are literals.
+    public static let version = "reviewed-web-admission-v7"
     public static func applies(_ input: PopulatedFoodConfirmation, candidate: PopulatedFoodCandidate) -> Bool {
         input.sourceReleases.contains { $0.sourceReleaseID == candidate.candidate.sourceReleaseID && $0.sourceID.value == "reviewed-web-proposal" }
             || candidate.candidate.nutrients.entries.flatMap { $0.value.provenance }.contains { $0.sourceKind == .reviewedWebProposal }

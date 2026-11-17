@@ -112,6 +112,7 @@ public final class GenericFoodProposalReviewViewModel: ObservableObject {
     public var diagnosticLines: [String] {
         guard let result else { return [] }
         var lines = ["Web lookup terms: \(result.foodTerms)", "Choice policy: \(GenericFoodProposalReview.choicePolicyVersion)",
+                     "Review format if used: \(ReviewedFoodProposalConfirmation.version3) · \(FoodProposalReviewGateRecordV3.choicePolicyVersion) · \(FoodProposalReviewAction.webLookupReviewV2)",
                      "Suggested choice: \(result.suggestedChoice)", "Ranking available: \(!result.rankingUnavailable)"]
         if let failure = result.selectionFailure { lines.append("Ranking failure: \(failure.rawValue)") }
         if let confidence = result.selection?.rawConfidence { lines.append("Uncalibrated model confidence: \(confidence)") }
@@ -252,7 +253,10 @@ public struct GenericFoodProposalReviewView: View {
     }
 
     @ViewBuilder private func suggestedSection(_ proposal: BoundFoodProposal, result: GenericFoodProposalReview) -> some View {
-        let content = FoodWebLookupReviewContent(document: proposal.document, candidate: proposal.candidate, scope: scope)
+        // New reviews are saved as manifest v3, whose screen contract is web-lookup-review-v2 (#508).
+        let content = FoodWebLookupReviewContent(document: proposal.document, candidate: proposal.candidate, scope: scope,
+                                                 presentation: FoodProposalReviewAction.webLookupReviewV2)
+            ?? FoodWebLookupReviewContent(document: proposal.document, candidate: proposal.candidate, scope: scope)
         Section("Suggested source") {
             VStack(alignment: .leading, spacing: 4) {
                 Text(content.name).font(.headline)
@@ -274,11 +278,12 @@ public struct GenericFoodProposalReviewView: View {
             if result.representativeSourceOnly { Text("This source supports a similar food estimate, not an exact product.") }
         }
         Section("Nutrition from this source") {
+            if let partRead = content.partRead { Text(partRead).font(.subheadline) }
             ForEach(content.declared, id: \.key) { nutrient in
                 LabeledContent(FoodNutritionReviewPresentation.label(nutrient.key.ledgerKey), value: nutrient.value + " " + nutrient.unit)
             }
             ForEach(content.notStated, id: \.self) { key in
-                LabeledContent(FoodNutritionReviewPresentation.label(key.ledgerKey), value: "Not stated")
+                LabeledContent(FoodNutritionReviewPresentation.label(key.ledgerKey), value: content.notStatedText)
             }
             ForEach(content.notUsable, id: \.self) { key in
                 LabeledContent(FoodNutritionReviewPresentation.label(key.ledgerKey), value: "Not usable")

@@ -60,6 +60,21 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
         XCTAssertEqual(calls.filter { $0 == "chooseSource" }.count, 1)
     }
 
+    // #508 phase 1: a first lead between the old and new bounds is no longer refused as too
+    // large, so it is reviewed and the second lead is never captured.
+    func testFirstLeadBetweenOldAndNewBoundsIsReviewedWithoutASecondCapture() async throws {
+        let ports = ReviewPorts(extraBlocks: 700)
+        let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports,
+            sourceSelection: ports, selection: ports)
+        let result = try await service.review(foodTerms: "tofu", key: key)
+        let calls = await ports.calls
+        XCTAssertEqual(calls, ["discover", "chooseSource", "capture", "extract", "select"])
+        XCTAssertEqual(result.sourceAttempts.map(\.host), ["publisher.example"])
+        XCTAssertEqual(result.documents.first?.blocks.count, 701)
+        XCTAssertFalse(try XCTUnwrap(result.documents.first).fits(.reviewManifestV1V2))
+        XCTAssertEqual(result.suggestedChoice, "c1")
+    }
+
     func testEmptyFirstSourceUsesOneDistinctAlternativeWithoutRediscovery() async throws {
         let ports = ReviewPorts(emptyFirstOnly: true)
         let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports,
@@ -352,16 +367,17 @@ private actor ReviewPorts: FoodWebDiscovering, FoodDocumentCapturing, FoodPropos
     let suspendSourceChoice: Bool
     let leadURLs: [URL]
     let capturedURL: URL?
+    let extraBlocks: Int
     init(empty: Bool = false, emptyFirstOnly: Bool = false, captureError: FoodSourceAcquisitionError? = nil,
          extractionError: FoodWebDiscoveryError? = nil, selectionError: FoodWebDiscoveryError? = nil, selectionChoice: String = "c1",
          suspendCapture: Bool = false, sourceChoice: FoodSourceLeadDecision = .selected(index: 0, purpose: .primaryProduct, reason: "Source"),
          sourceError: FoodWebDiscoveryError? = nil, suspendSourceChoice: Bool = false,
          leadURLs: [URL] = [URL(string: "https://publisher.example/tofu")!, URL(string: "https://other.example/tofu")!],
-         capturedURL: URL? = nil) {
+         capturedURL: URL? = nil, extraBlocks: Int = 0) {
         self.empty = empty; self.emptyFirstOnly = emptyFirstOnly; self.captureError = captureError; self.extractionError = extractionError
         self.selectionError = selectionError; self.selectionChoice = selectionChoice; self.suspendCapture = suspendCapture
         self.sourceChoice = sourceChoice; self.sourceError = sourceError; self.suspendSourceChoice = suspendSourceChoice
-        self.leadURLs = leadURLs; self.capturedURL = capturedURL
+        self.leadURLs = leadURLs; self.capturedURL = capturedURL; self.extraBlocks = extraBlocks
     }
     func chooseSource(foodTerms: String, leads: [FoodWebLead], key: String) async throws -> FoodSourceLeadDecision {
         calls.append("chooseSource")
@@ -381,7 +397,8 @@ private actor ReviewPorts: FoodWebDiscovering, FoodDocumentCapturing, FoodPropos
         if let captureError { throw captureError }
         return try CapturedFoodDocument(id: "d1", url: (capturedURL ?? url).absoluteString, rawSha256: String(repeating: "a", count: 64),
             captureOrigin: "synthetic_fixture", retrievedAt: "2026-10-04T00:00:00Z",
-            blocks: [.init(id: "b1", kind: "text", text: "Tofu Per 100 g Protein 6 g", locator: "line1")])
+            blocks: [.init(id: "b1", kind: "text", text: "Tofu Per 100 g Protein 6 g", locator: "line1")]
+                + (0..<extraBlocks).map { .init(id: "b\($0 + 2)", kind: "li", text: "Menu item \($0)", locator: "li\($0)") })
     }
     func extract(foodTerms: String, documents: [CapturedFoodDocument], key: String) async throws -> FoodProposalExtraction {
         calls.append("extract")
