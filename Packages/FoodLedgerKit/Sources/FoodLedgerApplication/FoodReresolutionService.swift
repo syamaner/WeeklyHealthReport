@@ -170,6 +170,10 @@ public final class FoodReresolutionService: Sendable {
     /// No write occurs here. Retain this value unchanged until save is acknowledged.
     public func prepareAcceptance(_ proposal: FoodReresolutionProposal, reason: LedgerText, confirmsIdentityGaps: Bool = false) throws -> PreparedFoodReresolution {
         guard !proposal.isNoOp else { throw FoodReresolutionError.noChange }
+        // The service never trusts the proposal's copy of what was withheld: it checks again.
+        guard proposal.withheldEstimates == withheldEstimates(proposal.candidate, input: proposal.input, before: proposal.before) else {
+            throw FoodReresolutionError.staleProposal
+        }
         // Withholding left nothing known: an all-unknown version is never written.
         guard proposal.withheldEstimates.isEmpty
                 || proposal.nutrients.entries.contains(where: { if case .unknown = $0.value { false } else { true } }) else {

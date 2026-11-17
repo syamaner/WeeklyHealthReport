@@ -164,7 +164,9 @@ public enum ApprovedEstimatePresentation {
             var value: String?
             if case let .augmented(exact)? = shown, status == .offered { value = number(exact.amount, unit: exact.unit) }
             let notice: String? = switch status {
-            case .offered: nil
+            // A saved value whose manifest no longer verifies has no label to show: say so, so
+            // it is never a bare value under "Estimated values".
+            case .offered: evidence == nil ? ApprovedEstimateText.evidenceNotAvailable : nil
             case .leftOut, .saved(.leftOutByYou): ApprovedEstimateText.leftOutByYou
             case let .withheld(reason): ApprovedEstimateText.notice(reason)
             case .saved(.leftOutWhenLogged): ApprovedEstimateText.leftOutWhenLogged

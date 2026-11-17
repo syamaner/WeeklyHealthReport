@@ -181,4 +181,45 @@ final class ApprovedEstimatePresentationTests: XCTestCase {
         XCTAssertEqual(PersonalFoodDatabaseCodec.estimatedValueCount(try Data(contentsOf: Self.golden)), 11)
         XCTAssertEqual(PersonalFoodDatabaseCodec.estimatedValueCount(try Data(contentsOf: PersonalFoodDatabasePresentationTests.goldenV2)), 0)
     }
+
+    private struct Clock: LedgerClock {
+        func now() -> Date { Date(timeIntervalSince1970: 1_794_000_000) }
+    }
+
+    /// Invariant review, 17 November 2026: a saved estimate whose capture manifest no longer verifies
+    /// is never a bare value under "Estimated values". Logged through the real save path, reopened,
+    /// then read without its verified manifest.
+    func testASavedEstimateWithoutVerifiedEvidenceSaysEvidenceNotAvailable() throws {
+        let store = InMemoryFoodLedgerStore(encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
+        let ledger = FoodLedgerService(actorID: try LedgerID("00000000-0000-0000-0000-00000000a511"), committer: store,
+            clock: Clock(), encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
+        let service = FoodConfirmationService(ledger: ledger, reader: store, clock: Clock(), ids: RandomLedgerIDGenerator(),
+                                              digester: SHA256Digester())
+        var state = try state("synthetic crisps")
+        service.bindEstimates(&state)
+        let selected = state.selectedCandidate
+        let identity = try DecisiveIdentity(preparation: PreparationState(kind: .asSold), bone: .notApplicable, skin: .notApplicable,
+            drained: .notApplicable, packingMedium: .named(LedgerText("none")), fortification: .unfortified, servingBasis: .per100Grams)
+        FoodConfirmationReducer.reduce(state: &state, action: .applyCorrection(FoodCorrection(name: selected.name, brand: selected.brand,
+            variant: selected.variant, identity: identity, nutrients: selected.candidate.nutrients, reason: try LedgerText("details"))))
+        FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(40, .grams))
+        FoodConfirmationReducer.reduce(state: &state, action: .leaveOutEstimate(.fiber))
+        FoodConfirmationReducer.reduce(state: &state, action: .accept)
+        let saved = try service.save(state, operationID: try LedgerID("00000000-0000-0000-0000-00000000b511"))
+        var reopened = try XCTUnwrap(try service.reopen(logItemID: saved.logItem.logItemID))
+        // As saved: the kept estimate with its label, the left-out one with "Left out by you".
+        var rows = ApprovedEstimatePresentation.rows(reopened)
+        XCTAssertEqual(rows.map(\.label), ["Estimated, rough", "Estimated, some doubt"])
+        XCTAssertEqual(rows.map(\.notice), ["Left out by you", nil])
+        XCTAssertEqual(rows.map(\.value), [nil, "500 mg"])
+        XCTAssertTrue(rows[0].canPutBack)
+        // Without verified evidence nothing is shown as a labelled estimate, and every row says why.
+        reopened.estimateManifests = [:]
+        reopened.estimateSeed = ApprovedEstimateSeed(evidenceAvailable: false)
+        reopened.leftOutEstimates = []
+        rows = ApprovedEstimatePresentation.rows(reopened)
+        XCTAssertEqual(rows.map(\.label), [nil, nil])
+        XCTAssertEqual(rows.map(\.notice), ["Evidence not available", "Evidence not available"])
+        XCTAssertEqual(reopened.effectiveNutrients, saved.resolutionVersion.nutrients, "no stored value changes")
+    }
 }

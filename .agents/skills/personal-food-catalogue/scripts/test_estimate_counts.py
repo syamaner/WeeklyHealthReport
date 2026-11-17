@@ -120,6 +120,19 @@ class Status(unittest.TestCase):
         self.assertEqual(self.status(C.Lists(refusals(refusal(FISH, self.ev, "protein")), readmissions(one),
                                              sheet(on_sheet(one)))), I.READMITTED)
 
+    def test_a_refused_page_is_refused_under_another_spelling_of_its_host(self):
+        # Invariant review, 17 November 2026: a refused page must not be written again because its
+        # host is spelt in another case or with a trailing dot. A bundled record ID is compared as written.
+        key = C.reference_key
+        page = "https://www.example.com/products/synthetic"
+        self.assertEqual(key("aggregator", page), key("aggregator", "https://WWW.Example.com/products/synthetic"))
+        self.assertEqual(key("aggregator", page), key("aggregator", "https://www.example.com./products/synthetic"))
+        self.assertNotEqual(key("aggregator", page), key("aggregator", "https://www.example.com/products/other"))
+        self.assertNotEqual(key("aggregator", page), key("aggregator", "https://www.example.com:8443/products/synthetic"))
+        self.assertNotEqual(key("aggregator", page), key("aggregator", "https://www.example.com/Products/synthetic"))
+        self.assertEqual(key("national_composition", "cofid:Example"), "cofid:Example")
+        self.assertEqual(key("aggregator", "not a url"), "not a url")
+
     def test_a_list_row_without_an_accepted_sheet_row_is_refused(self):
         one = listed(FISH, "protein", self.ev)
         refused = refusals(refusal(FISH, self.ev))

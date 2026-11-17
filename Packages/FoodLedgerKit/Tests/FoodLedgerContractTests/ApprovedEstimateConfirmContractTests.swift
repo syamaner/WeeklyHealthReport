@@ -378,6 +378,12 @@ final class ApprovedEstimateConfirmContractTests: XCTestCase {
             // The other entry's manifest was never stored.
             let other = try XCTUnwrap(state.input.evidence.filter(ApprovedEstimateSource.isManifest).first { $0.evidenceID != manifests[0].evidenceID })
             XCTAssertNil(try harness.reader.evidence(id: other.evidenceID), harness.name)
+            // Logging the entry without estimates from the same search: the returned record lists no
+            // other candidate's manifest either, as the store reads it back.
+            var second = try Self.state(service, [Self.oats, Self.fish])
+            FoodConfirmationReducer.reduce(state: &second, action: .accept)
+            let logged = try service.save(second, operationID: LedgerFixtures.operationID(11_072))
+            XCTAssertNil(logged.evidence.first(where: ApprovedEstimateSource.isManifest), harness.name)
             // A candidate with no estimate lists no manifest and keeps its contract.
             var plain = FoodConfirmationState(input: try Self.input([Self.oats]), prefillSourceQuantity: false)
             try Self.correct(&plain)

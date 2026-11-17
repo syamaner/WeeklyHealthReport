@@ -1056,7 +1056,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
         }
         return StoredFoodConfirmation(
             // What the store reads back: without another candidate's manifest, with a new leave-out item.
-            evidence: (previous?.evidence ?? (holdsEstimates ? inputEvidence : state.input.evidence)) + (leftOutEvidence.map { [$0] } ?? []),
+            evidence: (previous?.evidence ?? inputEvidence) + (leftOutEvidence.map { [$0] } ?? []),
             sourceReleases: returnedReleases,
             product: product,
             productVersion: productVersion,

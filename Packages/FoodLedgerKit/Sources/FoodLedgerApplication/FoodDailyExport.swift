@@ -730,13 +730,20 @@ public enum FoodDailyExportBuilder {
     struct EstimateManifests {
         let records: LedgerMutation
 
-        func evidence(_ provenance: NutrientProvenance, key: NutrientKey) throws -> PersonalFoodDatabaseEstimateEvidence {
+        func evidence(_ provenance: NutrientProvenance, key: NutrientKey, amount: Double,
+                      unit: NutrientUnit) throws -> PersonalFoodDatabaseEstimateEvidence {
+            // The manifest must be the one the value names (its stored hash is the provenance's) and
+            // must hold this very value, so an altered or swapped manifest never supplies the
+            // exported tokens or page address.
             guard let id = provenance.evidenceID,
                   let stored = records.evidence.first(where: { $0.evidenceID == id }),
                   stored.captureMethodVersion.value == ApprovedEstimateProvenance.captureMethodVersion,
+                  let hash = stored.byteHash, hash == provenance.responseHash,
                   case let .text(payload) = stored.originalPayload,
                   let manifest = ApprovedEstimateCaptureManifest.decode(Data(payload.value.utf8)),
-                  let typed = manifest.estimate(key)?.evidence.typed, typed.id == provenance.recordID?.value else {
+                  manifest.databaseReleaseID == provenance.sourceReleaseID.value,
+                  let captured = manifest.estimate(key), captured.value == amount, captured.unit == unit.rawValue,
+                  let typed = captured.evidence.typed, typed.id == provenance.recordID?.value else {
                 // Fail closed: an estimate whose manifest cannot be read produces no file.
                 throw FoodDailyExportError.missingReference
             }
@@ -761,10 +768,12 @@ public enum FoodDailyExportBuilder {
             try values.map { try self.value($0, key: key, includeKey: false, scale: scale, manifest: manifest,
                                              rowOrigin: rowOrigin, conflict: nil, estimates: estimates) }
         }
-        let provenance = try value.provenance.map { provenance in
-            provenance.sourceKind == .approvedEstimate
-                ? Self.estimateProvenance(provenance, evidence: try estimates.evidence(provenance, key: key))
-                : Self.provenance(provenance)
+        let provenance = try value.provenance.map { provenance -> FoodDailyExportProvenance in
+            guard provenance.sourceKind == .approvedEstimate else { return Self.provenance(provenance) }
+            // An approved estimate is always an exact augmented value (`NutrientEntry` validation).
+            guard case let .augmented(exact) = value else { throw FoodDailyExportError.missingReference }
+            return Self.estimateProvenance(provenance, evidence: try estimates.evidence(
+                provenance, key: key, amount: exact.amount, unit: exact.unit))
         }
         let calculated = NutrientDerivation.isCalculated(value)
         let exportKey = includeKey ? key.rawValue : nil
@@ -807,7 +816,10 @@ public enum FoodDailyExportBuilder {
             transforms: provenance.transforms.map {
                 FoodDailyExportTransform(transformID: $0.transformID.value, transformVersion: $0.transformVersion.value)
             },
-            sourceURL: page ? publicSourceURL(evidence.sourceReference) : nil, contentHash: evidence.sourceDigest,
+            // HTTPS only (the file rule), and the artefact digest only for a page, as
+            // `privacy-and-egress.md` records.
+            sourceURL: page && evidence.sourceReference.hasPrefix("https://") ? publicSourceURL(evidence.sourceReference) : nil,
+            contentHash: page ? evidence.sourceDigest : nil,
             estimateSourceType: evidence.sourceType.rawValue, estimateMethod: evidence.method.rawValue,
             estimateStateBasis: evidence.stateBasis.rawValue, estimateQuality: evidence.quality.rawValue)
     }

@@ -151,6 +151,21 @@ def parse_sheet(data) -> dict:
                   "estimate re-admission sheet")
 
 
+def reference_key(source_type, reference):
+    """What two source references are compared on. A bundled record ID is compared as written. A
+    page address is compared on its host as the checker reads it (lower case, no trailing dot) and
+    the rest after the authority, so a refused page is not written again under another spelling of
+    the same host. An address the checker would not accept is compared as written."""
+    if source_type == "national_composition" or not isinstance(reference, str):
+        return reference
+    host = E.page_host(reference)
+    if host is None:
+        return reference
+    authority, slash, rest = reference[len(E.URL_PREFIX):].partition("/")
+    port = authority.partition(":")[2]
+    return f"{host}:{port}/{rest}"
+
+
 class Lists:
     """The three private lists, any of them absent (None). An absent refusal list refuses nothing;
     an absent re-admission list or sheet re-admits nothing."""
@@ -174,9 +189,11 @@ class Lists:
         """`clear` (on no refusal list), `refused`, `class` (listed and accepted, but of a class
         that is never re-admissible) or `readmitted`. `corpus_sha256` is the catalogue's own hash
         for the evidence's corpus, None for a page."""
+        wanted = reference_key(evidence["source_type"], evidence["source_reference"])
         hits = [r for r in self.refusals
                 if r["entry_id"] == entry_id and r["source_type"] == evidence["source_type"]
-                and r["source_reference"] == evidence["source_reference"] and r.get("nutrient", nutrient) == nutrient]
+                and reference_key(r["source_type"], r["source_reference"]) == wanted
+                and r.get("nutrient", nutrient) == nutrient]
         if not hits:
             return I.CLEAR
         row = self.listed.get((entry_id, nutrient, evidence["source_type"], evidence["source_reference"],

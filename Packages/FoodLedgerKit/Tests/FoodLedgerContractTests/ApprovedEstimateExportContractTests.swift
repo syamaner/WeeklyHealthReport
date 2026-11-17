@@ -128,6 +128,41 @@ final class ApprovedEstimateExportContractTests: XCTestCase {
         }
     }
 
+    /// Invariant review, 17 November 2026: the exported tokens and page address come only from the
+    /// manifest the value names and that holds this very value. An altered manifest produces no file.
+    func testAnAlteredOrSwappedManifestProducesNoFile() throws {
+        let (_, saved) = try Self.export([(Confirm.bar, [])])
+        let log = saved[0]
+        func request(_ evidence: [CaptureEvidence]) -> FoodDailyExportRequest {
+            var records = LedgerMutation(evidence: evidence, products: [log.product], productVersions: [log.productVersion],
+                resolutions: [log.resolution], resolutionVersions: [log.resolutionVersion], logItems: [log.logItem],
+                logItemVersions: [log.logItemVersion], candidateDecisions: [log.candidateDecision], sourceReleases: log.sourceReleases)
+            records.assertions = log.assertions
+            return FoodDailyExportRequest(records: records, reportDate: Self.day, timeZone: TimeZone(identifier: "UTC")!,
+                dataAsOf: LedgerFixtures.date.addingTimeInterval(60), exportedAt: LedgerFixtures.date.addingTimeInterval(120), appContext: Self.app)
+        }
+        XCTAssertEqual(try FoodDailyExportBuilder.make(request(log.evidence)).foodDailySchemaVersion, 3)
+        func altered(_ edit: (String) -> String, hash: SHA256Digest? = nil) throws -> [CaptureEvidence] {
+            try log.evidence.map { item in
+                guard ApprovedEstimateSource.isManifest(item), case let .text(payload) = item.originalPayload else { return item }
+                return try CaptureEvidence(evidenceID: item.evidenceID, kind: item.kind, capturedAt: item.capturedAt, locale: item.locale,
+                    captureMethod: item.captureMethod, captureMethodVersion: item.captureMethodVersion,
+                    originalPayload: .text(LedgerText(edit(payload.value))), byteHash: hash ?? item.byteHash)
+            }
+        }
+        // The value changed in the manifest (the tier or page could be changed the same way).
+        let value = try altered { $0.replacingOccurrences(of: "\"value\":6.5", with: "\"value\":7.5") }
+        XCTAssertNotEqual(value, log.evidence)
+        XCTAssertThrowsError(try FoodDailyExportBuilder.make(request(value))) {
+            XCTAssertEqual($0 as? FoodDailyExportError, .missingReference)
+        }
+        // A manifest stored under another hash than the value's provenance names.
+        let swapped = try altered({ $0 }, hash: try SHA256Digest(String(repeating: "0", count: 64)))
+        XCTAssertThrowsError(try FoodDailyExportBuilder.make(request(swapped))) {
+            XCTAssertEqual($0 as? FoodDailyExportError, .missingReference)
+        }
+    }
+
     /// `RECORD_FOOD_DAILY_V3_GOLDENS=1` writes only `docs/fixtures/food-daily-v3/`.
     func testTheEstimatesDayGoldenIsByteStable() throws {
         let directory = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
