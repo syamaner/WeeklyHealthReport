@@ -1,13 +1,14 @@
 # Personal food database: labelled estimates on catalogue v2, phase gate (#511)
 
 Status: **gate revision 3, 17 November 2026. The second blind review passed it with changes, all
-folded in (section 6).** It plans the one
+folded in (section 7). Built on 17 November 2026; section 6 lists the differences.** It plans the one
 implementation phase (decision P5) of the accepted contract
 [estimates on catalogue v2](personal-food-catalogue-estimates-v2-proposal.md), called "the
 contract" below. It changes no rule of the contract. Where it pins something the contract leaves to
 "the phase gate", or reads an ambiguous sentence one way, it says so in section 3, and the contract
 wins on any disagreement. Two points narrow an inherited rule and are listed for the owner in
-section 5. Programme #424, issue #511. Review record in section 6.
+section 5. Programme #424, issue #511. Section 6 says how the build differs from this gate;
+the review record is section 7.
 
 Numbers checked at the start of the phase, as the contract's version allocation asks: food
 contract 9 is the current one (`CanonicalFoodProjection.foodContractVersion`, `food-ledger-v9`), so
@@ -371,7 +372,34 @@ Neither blocks the work; each is built as recommended and is one constant or one
    the owner accepted an estimate for a key the merged record already quantifies, the merged
    value stands.
 
-## 6. Review record
+## 6. As built: differences from this gate
+
+Recorded on 17 November 2026, after the code. Each is narrower or simpler than the text above;
+none changes a rule of the contract.
+
+1. **Confirm state coding (3.4, invariant 2.3.7).** The four new members (the gate named three;
+   the verified manifests are a fourth) are left out of the state's coding keys, as
+   `answersLabelFortification` already is, so they are never encoded and decode as empty. No
+   hand-written coding was needed, and a state saved before this change decodes exactly as before.
+2. **Saved-version guard (3.4).** Enforced on save only: a new log needs its manifest to verify,
+   and a correction of such a candidate never carries a nutrient that differs from the
+   candidate's (`invalidApprovedEstimate`). It is not applied on reopen, where a false positive
+   would stop a saved log from loading; reopen reports altered evidence through the seed.
+3. **Binding sites (3.4).** The Confirm view model takes one binder and calls it when a new log
+   opens, after a correction of details, on undo and when another candidate is selected, so the
+   four Confirm factories pass the same closure; the list import route binds in its
+   `prepareConfirmation` step.
+4. **Importer order (3.1).** For each composition estimate the importer reports the first failing
+   value check (`corpus-mismatch`, `record-missing`, `value-unquantified`, `value-mismatch`) and
+   then `estimate-contradiction` whenever the record was read. A derived composition estimate's
+   file value is compared with the record's value for its key, as any other.
+5. **Simulator journey (2.5).** The repository has no UI test target; the journey of the
+   contract's last test bullet is walked by the `journey-qa` role in the simulator with a
+   synthetic file, as earlier phases did.
+6. **Settings.** The estimate count is read from the file when its schema is verified and is not
+   stored in the manifest, whose byte form is unchanged.
+
+## 7. Review record
 
 - 17 November 2026, revision 1: blind `architecture-gate` review, NEEDS WORK, four blocking
   findings and fifteen others, each checked against the code and accepted. Folded into revision

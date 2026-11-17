@@ -1,6 +1,7 @@
 import FoodLedgerApplication
 import FoodLedgerDomain
 import Foundation
+import SwiftUI
 
 // Approved estimates from Your food database, as Confirm, the saved entry and the re-resolution
 // screen word them (estimates on catalogue v2 sections 3.2, 3.3 and 5). Built from the candidate's
@@ -210,5 +211,67 @@ public enum ApprovedEstimatePresentation {
         }
         lines.append(ApprovedEstimateText.notCarried)
         return lines
+    }
+}
+
+/// The one renderer of an entry's approved estimates, on Confirm (with Leave out and Put back) and
+/// on the saved entry (read only). Each estimated nutrient shows its label from the closed list: the
+/// tier in words, with its colour only beside those words, never alone and never on the value.
+public struct ApprovedEstimateSection: View {
+    private let rows: [ApprovedEstimateRow]
+    private let leaveOut: ((NutrientKey) -> Void)?
+    private let putBack: ((NutrientKey) -> Void)?
+
+    public init(rows: [ApprovedEstimateRow], leaveOut: ((NutrientKey) -> Void)? = nil, putBack: ((NutrientKey) -> Void)? = nil) {
+        self.rows = rows; self.leaveOut = leaveOut; self.putBack = putBack
+    }
+
+    /// Green, amber and red for good match, some doubt and rough.
+    public static func tierColour(_ quality: PersonalFoodDatabaseEstimateQuality?) -> Color {
+        switch quality {
+        case .high: .green
+        case .medium: .orange
+        case .low: .red
+        case nil: .secondary
+        }
+    }
+
+    public var body: some View {
+        if !rows.isEmpty {
+            Section(ApprovedEstimateText.sectionTitle) {
+                if leaveOut != nil {
+                    Text(ApprovedEstimateText.sectionNote).font(.caption).foregroundStyle(.secondary)
+                }
+                ForEach(rows) { row in
+                    VStack(alignment: .leading, spacing: 6) {
+                        LabeledContent(row.title, value: row.value ?? "Unknown")
+                        if let label = row.label, row.status == .offered {
+                            HStack(spacing: 6) {
+                                Circle().fill(Self.tierColour(row.quality)).frame(width: 10, height: 10).accessibilityHidden(true)
+                                Text(label).font(.subheadline)
+                            }
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel(label)
+                        }
+                        if let notice = row.notice { Text(notice).font(.subheadline).foregroundStyle(.secondary) }
+                        if !row.details.isEmpty {
+                            DisclosureGroup("Details") {
+                                ForEach(row.details, id: \.self) { Text($0).font(.caption) }
+                            }.font(.caption)
+                        }
+                        if row.canLeaveOut, let leaveOut {
+                            Button(ApprovedEstimateText.leaveOut) { leaveOut(row.key) }
+                                .frame(minHeight: 44).accessibilityLabel("\(ApprovedEstimateText.leaveOut): \(row.title)")
+                                .accessibilityIdentifier("estimate-leave-out-\(row.key.rawValue)")
+                        } else if row.canPutBack, let putBack {
+                            Button(ApprovedEstimateText.putBack) { putBack(row.key) }
+                                .frame(minHeight: 44).accessibilityLabel("\(ApprovedEstimateText.putBack): \(row.title)")
+                                .accessibilityIdentifier("estimate-put-back-\(row.key.rawValue)")
+                        }
+                    }
+                    .accessibilityIdentifier("estimate-row-\(row.key.rawValue)")
+                }
+            }
+        }
     }
 }

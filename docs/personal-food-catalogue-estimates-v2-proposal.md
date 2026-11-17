@@ -6,6 +6,10 @@ file keeps its original name so that existing links hold. Implementation is one 
 daily export v2 has landed, with its own issue and architecture gate (decision P5). No app
 code, skill code or fixture changes with this document. Programme #424, base contracts #419.
 
+**Implementation, 17 November 2026 (#511).** Built in one phase under the
+[phase gate](personal-food-catalogue-estimates-v2-phase.md), which records what the phase pinned
+and where it narrowed an inherited rule (its sections 3 and 5). No rule of this contract changed.
+
 It is a delta on two accepted contracts and repeats neither:
 [approved estimates v1](personal-food-catalogue-estimates-v1.md) (accepted 9 November 2026, not yet
 implemented) and [import v2](personal-food-catalogue-import-v2.md) (approved 13 November 2026,

@@ -765,6 +765,13 @@ final class FoodLedgerCompositionRoot {
         }
     }
 
+    /// A saved entry's approved estimates as it was logged: labels and tiers from its capture
+    /// manifest, and how each saved unknown estimate reads. Reads no bundled record.
+    func savedEstimateRows(_ logItemID: LogItemID) -> [ApprovedEstimateRow] {
+        guard let state = try? confirmations.reopen(logItemID: logItemID) else { return [] }
+        return ApprovedEstimatePresentation.rows(state)
+    }
+
     func recentIntakeDays(before date: Date, calendar: Calendar = .current) throws -> [FoodIntakeDayPreview] {
         FoodIntakeDayPreview.pastWeek(records: try store.archiveState().records, now: date, calendar: calendar)
     }

@@ -2090,56 +2090,11 @@ public struct FoodConfirmationView: View {
         }
     }
 
-    /// Estimates on catalogue v2 section 5: each estimated nutrient with its label from the closed
-    /// list (the tier in words, the colour only beside it), its details, and the one per-nutrient
-    /// action, Leave out. There is no field to type a value for an estimated nutrient.
-    @ViewBuilder private var estimatesSection: some View {
-        let rows = model.estimateRows
-        if !rows.isEmpty {
-            Section(ApprovedEstimateText.sectionTitle) {
-                Text(ApprovedEstimateText.sectionNote).font(.caption).foregroundStyle(.secondary)
-                ForEach(rows) { row in
-                    VStack(alignment: .leading, spacing: 6) {
-                        LabeledContent(row.title, value: row.value ?? "Unknown")
-                        if let label = row.label, row.status == .offered {
-                            HStack(spacing: 6) {
-                                Circle().fill(Self.tierColour(row.quality)).frame(width: 10, height: 10).accessibilityHidden(true)
-                                Text(label).font(.subheadline)
-                            }
-                        }
-                        if let notice = row.notice { Text(notice).font(.subheadline).foregroundStyle(.secondary) }
-                        if !row.details.isEmpty {
-                            DisclosureGroup("Details") {
-                                ForEach(row.details, id: \.self) { Text($0).font(.caption) }
-                            }.font(.caption)
-                        }
-                        if row.canLeaveOut {
-                            Button(ApprovedEstimateText.leaveOut) { model.send(.leaveOutEstimate(row.key)) }
-                                .frame(minHeight: 44).accessibilityLabel("\(ApprovedEstimateText.leaveOut): \(row.title)")
-                                .accessibilityIdentifier("estimate-leave-out-\(row.key.rawValue)")
-                        } else if row.canPutBack {
-                            Button(ApprovedEstimateText.putBack) { model.send(.restoreEstimate(row.key)) }
-                                .frame(minHeight: 44).accessibilityLabel("\(ApprovedEstimateText.putBack): \(row.title)")
-                                .accessibilityIdentifier("estimate-put-back-\(row.key.rawValue)")
-                        }
-                    }
-                    .accessibilityElement(children: .contain)
-                    .accessibilityLabel(row.accessibilityLabel)
-                    .accessibilityIdentifier("estimate-row-\(row.key.rawValue)")
-                }
-            }
-        }
-    }
-
-    /// The tier's colour, shown only beside its label: green, amber and red for good match, some
-    /// doubt and rough. It marks the label, never the nutrient value.
-    static func tierColour(_ quality: PersonalFoodDatabaseEstimateQuality?) -> Color {
-        switch quality {
-        case .high: .green
-        case .medium: .orange
-        case .low: .red
-        case nil: .secondary
-        }
+    /// Estimates on catalogue v2 section 5: each estimated nutrient with its label, details and the
+    /// one per-nutrient action, Leave out. There is no field to type a value for an estimated nutrient.
+    private var estimatesSection: some View {
+        ApprovedEstimateSection(rows: model.estimateRows, leaveOut: { model.send(.leaveOutEstimate($0)) },
+                                putBack: { model.send(.restoreEstimate($0)) })
     }
 
     private var nutritionSection: some View {
