@@ -107,7 +107,11 @@ final class ReviewManifestV3ContractTests: XCTestCase {
         let v2 = try confirmation().prepareVersion2(review: review, proposal: proposal, scope: .representativeEstimate, locale: LedgerText("zh_TW"))
         let v1 = try ReviewedWebFixtures.v1Fixture("representative-serving").input
         let v3 = try confirmation().prepare(review: review, proposal: proposal, scope: .representativeEstimate, locale: LedgerText("zh_TW"))
-        for input in [v1, v2, v3] { XCTAssertNotNil(admitted(input)) }
+        for input in [v1, v2, v3] {
+            XCTAssertNotNil(admitted(input))
+            XCTAssertNotNil(try FoodReviewedWebProposalPolicy.restoredSourceCandidate(input, candidate: input.candidates[0]),
+                            "positive control for the restore checks below")
+        }
         let selected = ";projection:" + FoodDocumentPartialRead.selectedProjectionVersion
         let shapes: [(String, String)] = [
             ("513 blocks", extraBlocks(count: 512)),
@@ -273,7 +277,8 @@ final class ReviewManifestV3ContractTests: XCTestCase {
             ("candidate", #"{"candidate":{"#, #"{"candidate":{"extra":1,"#),
             ("offered member", #""offered":["# + c1, #""offered":["# + offeredExtra),
             ("nutrient", #""key":"energy","#, #""extra":1,"key":"energy","#),
-            ("reference", #"{"blockId":"b1","#, #"{"blockId":"b1","extra":1,"#)
+            ("reference", #"{"blockId":"b1","#, #"{"blockId":"b1","extra":1,"#),
+            ("explicit null for an absent optional", #"{"candidate":{"#, #"{"candidate":{"brand":null,"#)
         ]
         for (name, from, to) in mutations {
             XCTAssertTrue(text.contains(from), name)

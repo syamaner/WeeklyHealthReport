@@ -228,11 +228,12 @@ public struct FoodProposalReviewManifestV3: Codable, Equatable, Sendable {
 
     /// Strict at every level (owner decision, 17 November 2026): the stored JSON must have exactly
     /// the keys its decoded value encodes, so no unknown key survives anywhere in the document,
-    /// the part-read record, the candidate or an offered candidate. v1 and v2 are not affected.
+    /// the part-read record, the candidate or an offered candidate. Optional members are absent,
+    /// never `null`. Re-encodes with the canonical writer's configuration so the two cannot drift.
+    /// v1 and v2 are not affected.
     static func hasOnlyKnownKeys(_ data: Data, decoded: Self) -> Bool {
-        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .millisecondsSince1970
         guard let raw = try? JSONSerialization.jsonObject(with: data),
-              let encoded = try? encoder.encode(decoded),
+              let encoded = try? FoundationCanonicalJSONEncoder().encode(decoded),
               let known = try? JSONSerialization.jsonObject(with: encoded) else { return false }
         return sameKeys(raw, known)
     }
@@ -351,6 +352,7 @@ public enum FoodProposalReviewManifestRecord: Equatable, Sendable {
         case let .v3(m): m.isAdmissible
         }
     }
+    @_spi(ReviewedWebRegression)
     public static func fitsVersion1Or2(_ document: CapturedFoodDocument) -> Bool {
         document.fits(.reviewManifestV1V2) && document.partialRead == nil && !document.hasSelectedLocator
     }

@@ -20,6 +20,8 @@ final class GenericFoodPDFProjectorTests: XCTestCase {
     func testPDFOverItsOwnRowBoundIsRefusedAlthoughWithinTheDocumentBound() throws {
         let within = try project(denseFixture(pages: 5, linesPerPage: 90))
         XCTAssertEqual(within.blocks.count, 450)
+        // Characters stay far below the PDF character bound, so only the row bound can refuse 630 rows.
+        XCTAssertLessThan(within.characterCount * 7 / 5, GenericFoodPDFProjector.bounds.characters)
         let data = try denseFixture(pages: 7, linesPerPage: 90)
         XCTAssertThrowsError(try project(data)) {
             XCTAssertEqual($0 as? FoodSourceAcquisitionError, .responseTooLarge)
