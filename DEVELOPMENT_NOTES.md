@@ -4819,3 +4819,20 @@ Excluded:
 - local test and gate runs, which use no API tokens.
 
 Pricing: this session ran on `claude-fable-5-2`, for which this ledger records no rate. It is priced at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, so the figure is a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
+## WHR-BUILD37-RELEASE-2026-11-17: Claude Code TestFlight 0.3.0 (37) delivery
+
+The session (`claude-fable-5-2`, session `da6b123c-cf92-4d58-9bb7-540385b44d83`) verified and merged PR 506 under the owner's overnight authorisation, archived `main` at `34a29d1`, exported and uploaded build 37, set What to Test, added the build to Internal Testing and wrote [the build 37 record](docs/releases/internal-testflight-0.3.0-build37.md).
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Build 37 delivery, merge to release record | 11,730,589 (11,703,122) | 27,425 | 17,759 | 11,748,348 | $2.92 |
+
+Method: `phase_usage.py --format claude --since 2026-11-17T00:40:00Z --until 2026-11-17T00:55:08Z --include-subagents` on the session transcript. Exact USD 2.9153724. The cache-write tokens are part of the input figure, all 1-hour writes; no subagent ran in the window. The total is input plus output.
+
+Excluded:
+- the session's earlier work that night on a private catalogue, and the turns after the window (this ledger edit, the pull request and the handover);
+- the PR 506 session, which has its own row;
+- the Qodo review run, and the archive, export and upload, which use no API tokens.
+
+Pricing: as in the row above, `claude-fable-5-2` is priced at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23. It is an API-equivalent comparison, not a bill, and says nothing about quality or productivity.
