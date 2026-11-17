@@ -534,11 +534,16 @@ public struct FoodDailyExportRequest: Sendable {
     public let dataAsOf: Date
     public let exportedAt: Date
     public let appContext: FoodDailyExportAppContext
+    /// Recomputes a capture manifest's hash before an approved estimate's tokens or page address are
+    /// exported from it. Without it a snapshot holding an approved estimate produces no file
+    /// (closed by default); a snapshot without one needs no digester and exports as before.
+    public let digester: (any Digesting)?
 
     public init(records: LedgerMutation, reportDate: String, timeZone: TimeZone, dataAsOf: Date, exportedAt: Date,
-                appContext: FoodDailyExportAppContext) {
+                appContext: FoodDailyExportAppContext, digester: (any Digesting)? = nil) {
         self.records = records; self.reportDate = reportDate; self.timeZone = timeZone
         self.dataAsOf = dataAsOf; self.exportedAt = exportedAt; self.appContext = appContext
+        self.digester = digester
     }
 }
 
@@ -561,7 +566,7 @@ public enum FoodDailyExportBuilder {
             for total in row.totals where total.knownAmount != nil && (!row.isPlainWater || total.key == .water) {
                 contributors[total.key, default: []].append(row.logItemVersionID.rawValue)
             }
-            return try entry(row, records: records, timestamp: timestamp)
+            return try entry(row, records: records, timestamp: timestamp, digester: request.digester)
         }
         let summary = projection.summary.totals.map { total in
             FoodDailyExportTotal(
@@ -596,7 +601,7 @@ public enum FoodDailyExportBuilder {
     }
 
     private static func entry(_ row: FoodIntakeLogRow, records: LedgerMutation,
-                              timestamp: FoodDailyExportTimestamp) throws -> FoodDailyExportEntry {
+                              timestamp: FoodDailyExportTimestamp, digester: (any Digesting)?) throws -> FoodDailyExportEntry {
         guard let head = records.logItemVersions.first(where: { $0.logItemVersionID == row.logItemVersionID }),
               case let .product(productID) = head.composition,
               let product = records.productVersions.first(where: { $0.productVersionID == productID }),
@@ -618,7 +623,7 @@ public enum FoodDailyExportBuilder {
         let scale = FoodIntakeSummary.scale(quantity: head.edibleQuantity, basis: resolution.basis)
         let manifest = pastedLabelManifest(version, records: records)
         let rowOrigin = try sourceRowOrigin(version.nutrients, manifest: manifest)
-        let estimates = EstimateManifests(records: records)
+        let estimates = EstimateManifests(records: records, digester: digester)
         let nutrients = try version.nutrients.entries.map { entry in
             try value(entry.value, key: entry.key, includeKey: true, scale: scale, manifest: manifest,
                       rowOrigin: rowOrigin, conflict: entry.status == .conflict ? entry.conflictCandidates : nil,
@@ -729,17 +734,20 @@ public enum FoodDailyExportBuilder {
     /// installed database (estimates v1 section 7).
     struct EstimateManifests {
         let records: LedgerMutation
+        let digester: (any Digesting)?
 
         func evidence(_ provenance: NutrientProvenance, key: NutrientKey, amount: Double,
                       unit: NutrientUnit) throws -> PersonalFoodDatabaseEstimateEvidence {
-            // The manifest must be the one the value names (its stored hash is the provenance's) and
-            // must hold this very value, so an altered or swapped manifest never supplies the
-            // exported tokens or page address.
-            guard let id = provenance.evidenceID,
+            // The manifest must be the one the value names: its payload hashes, recomputed here, to
+            // the stored hash and to the provenance's. It must also hold this very value. So an
+            // altered or swapped manifest (a changed tier or page address included) never supplies
+            // the exported tokens or page address.
+            guard let digester, let id = provenance.evidenceID,
                   let stored = records.evidence.first(where: { $0.evidenceID == id }),
                   stored.captureMethodVersion.value == ApprovedEstimateProvenance.captureMethodVersion,
                   let hash = stored.byteHash, hash == provenance.responseHash,
                   case let .text(payload) = stored.originalPayload,
+                  (try? digester.sha256(Data(payload.value.utf8))) == hash,
                   let manifest = ApprovedEstimateCaptureManifest.decode(Data(payload.value.utf8)),
                   manifest.databaseReleaseID == provenance.sourceReleaseID.value,
                   let captured = manifest.estimate(key), captured.value == amount, captured.unit == unit.rawValue,

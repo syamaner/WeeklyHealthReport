@@ -50,6 +50,7 @@ public enum ApprovedEstimateText {
     public static let notCarried = "Values you left out before are not carried over"
     public static let pageNotReadDirectly = "Page not read directly"
     public static let similarFood = "Estimated from a similar food"
+    public static let savedRowsUnavailable = "The estimate details for this entry could not be read. Its saved values are unchanged."
     public static let leaveOut = "Leave out"
     public static let putBack = "Put back"
     public static let sectionTitle = "Estimated values"
@@ -254,7 +255,10 @@ public struct ApprovedEstimateSection: View {
                 }
                 ForEach(rows) { row in
                     VStack(alignment: .leading, spacing: 6) {
+                        // VoiceOver reads the nutrient with its value, label and notice in one phrase:
+                        // the tier is in the words, never in the colour.
                         LabeledContent(row.title, value: row.value ?? "Unknown")
+                            .accessibilityLabel(row.accessibilityLabel)
                         if let label = row.label, row.status == .offered {
                             HStack(spacing: 6) {
                                 Circle().fill(Self.tierColour(row.quality)).frame(width: 10, height: 10).accessibilityHidden(true)

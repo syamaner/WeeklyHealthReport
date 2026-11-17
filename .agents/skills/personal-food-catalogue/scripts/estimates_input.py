@@ -34,7 +34,8 @@ ENTRY_ID = re.compile(r"pfc:[0-9a-f]{12}")
 RELEASE_ID = re.compile(r"pfc:sha256:[0-9a-f]{64}")
 # Admission, first reason wins (phase gate section 3.2 item 4), in exactly this order.
 REASONS = ("label_kept", "merged_kept", "composite", "open_food_facts_source", "refused_source",
-           "readmission_class", "unquantified", "basis", "transform", "codec")
+           "readmission_class", "unquantified", "basis", "fortified_record", "state_contradiction", "transform",
+           "codec")
 # What a refusal-status callable may answer (estimate_counts.Lists.status).
 CLEAR, REFUSED, CLASS, READMITTED = "clear", "refused", "class", "readmitted"
 BOM = b"\xef\xbb\xbf"
@@ -281,6 +282,14 @@ def reason(est, item, corpora, read_record, refusal_status):
         # No density is ever inferred: a record is per 100 g, so only a per 100 g entry takes it.
         if item["basis"] != "per_100_g" or facts.get("per_100_g") is False:
             return "basis", []
+        # What the app's importer rejects with `estimate-contradiction` where the bundled data shows
+        # it (contract section 3.1): a fortified record, and a raw or cooked entry against a record
+        # whose stated preparation differs. Unknown never contradicts. Withheld here and counted, so
+        # one such row never makes the phone refuse the whole file.
+        if facts.get("fortification") == "fortified":
+            return "fortified_record", []
+        if item["state"] in ("raw", "cooked") and facts.get("preparation") not in (None, "unknown", item["state"]):
+            return "state_contradiction", []
     if ev["method"] == "derived" and not E.transform_matches(ev["derivation"], key, est["value"]):
         return "transform", []
     codes = codec_codes(est, item, corpora)

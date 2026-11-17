@@ -138,6 +138,7 @@ def main(ws: Path, repo: Path):
         _retire(out)
         print(f"no {INPUT_NAME}: nothing to add, the plain v2 file stands (release {release})")
         return
+    lists_read = {name: (work / name).exists() for name in (REFUSALS_NAME, READMISSIONS_NAME, SHEET_NAME)}
     try:
         accepted = I.parse((work / INPUT_NAME).read_bytes())
         lists = C.Lists(_optional(work / REFUSALS_NAME, C.parse_refusals),
@@ -172,10 +173,16 @@ def main(ws: Path, repo: Path):
               "release_id": I.release_id(data), "written": bool(admitted) and not problems and not failed,
               "counts": counts, "evaluator_counts": six["counts"], "evaluator_checks": six["checks"],
               "readmission_lists": six["lists"], "readmitted_rows": six["readmitted_rows"],
+              # Which private lists were present: an absent refusals list refuses nothing, and the
+              # report must say so rather than show a zero that was never checked.
+              "lists_read": lists_read,
               "rule_codes": problems}
     _write(out / REPORT_NAME, json.dumps(report, indent=1, ensure_ascii=False).encode())
     print(f"accepted estimates: {counts}")
     print(f"evaluator counts: {six['counts']}; lists: {six['lists']}")
+    missing = [name for name, present in lists_read.items() if not present]
+    print(f"private lists read: {[n for n, p in lists_read.items() if p]}"
+          + (f"; NOT PRESENT (nothing checked against them): {missing}" if missing else ""))
     if problems or failed:
         _refuse(out, "the estimates file would be rejected or a must-be-zero count is not zero", problems + failed)
     if not admitted:

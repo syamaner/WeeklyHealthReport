@@ -767,8 +767,9 @@ final class FoodLedgerCompositionRoot {
 
     /// A saved entry's approved estimates as it was logged: labels and tiers from its capture
     /// manifest, and how each saved unknown estimate reads. Reads no bundled record.
-    func savedEstimateRows(_ logItemID: LogItemID) -> [ApprovedEstimateRow] {
-        guard let state = try? confirmations.reopen(logItemID: logItemID) else { return [] }
+    /// Nil when the entry could not be read, which the saved entry shows as a failed state.
+    func savedEstimateRows(_ logItemID: LogItemID) -> [ApprovedEstimateRow]? {
+        guard let reopened = try? confirmations.reopen(logItemID: logItemID), let state = reopened else { return nil }
         return ApprovedEstimatePresentation.rows(state)
     }
 

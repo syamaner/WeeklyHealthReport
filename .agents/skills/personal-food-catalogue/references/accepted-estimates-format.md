@@ -95,7 +95,8 @@ wins.
 
 Each estimate is admitted or withheld; the first reason wins, each is counted and none stops the
 run: `label_kept`, `merged_kept`, `composite`, `open_food_facts_source`, `refused_source`,
-`readmission_class`, `unquantified`, `basis`, `transform`, `codec` (with the codec's own code, for
+`readmission_class`, `unquantified`, `basis`, `fortified_record`, `state_contradiction`, `transform`,
+`codec` (with the codec's own code, for
 example `estimate-own-held`, in the counts). `basis` is a national composition estimate on an entry
 that is not per 100 g, or from a record that is not; no density is ever inferred.
 

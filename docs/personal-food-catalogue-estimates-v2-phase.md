@@ -176,7 +176,10 @@ The contract's list in section 7 is the list. Homes:
    record quantifies the key); `composite` (a national composition estimate on a
    `packaged_composite` entry); `open_food_facts_source`; `refused_source` (on the refusal list and
    not re-admitted); `readmission_class` (re-admitted but of a never-re-admissible class);
-   `unquantified` (the record has no quantified value for the key); `basis`; `transform`; `codec`
+   `unquantified` (the record has no quantified value for the key); `basis`; `fortified_record` and
+   `state_contradiction` (what the importer would reject as `estimate-contradiction`, where the
+   bundled data shows it: a fortified record, or a raw or cooked entry against a record whose
+   stated preparation differs); `transform`; `codec`
    (the row would raise a section 3.1 code, for example `estimate-own-held`, named in the count).
    `merged_kept` narrows estimates v1 decision C6 on the builder side only (section 5): the app
    rule stays label, then estimate, then merged record. Its stated limit: the app merges a record
@@ -399,6 +402,19 @@ none changes a rule of the contract.
 6. **Settings.** The estimate count is read from the file when its schema is verified and is not
    stored in the manifest, whose byte form is unchanged.
 
+7. **Names and homes that differ from sections 2 and 3.** The lazy import of `estimates_v2` is in
+   `export_v1._check`, not `check_bytes`. The Swift estimate checks are a separate
+   `PersonalFoodDatabaseEstimateChecker` that the codec's checker calls, not an extension of it.
+   The changed-facts predicate is `FoodConfirmationState.foodFactsChanged`. Two app sites use
+   `carryingEstimateState` (reopen and the milk-volume rebuild); a re-log starts a new log and is
+   bound when Confirm opens. The search route gains an `ApprovedEstimateManifestBuilder`, which
+   holds the encoder, digester and ID generator.
+8. **Daily export.** `FoodDailyExportRequest` takes a `Digesting`: an estimate's tokens and page
+   address are exported only from a manifest whose payload rehashes to the hash its value names.
+   Without a digester a snapshot holding an approved estimate produces no file.
+9. **Writer.** It also withholds what the importer would reject where the bundled data shows it
+   (3.2 item 4), and its change report records which of the three private lists were present.
+
 ## 7. Review record
 
 - 17 November 2026, revision 1: blind `architecture-gate` review, NEEDS WORK, four blocking
@@ -425,3 +441,14 @@ none changes a rule of the contract.
   is never an integrity failure; the milk-volume rebuild is a third carrying site; the returned
   record equals the store's; `isFill` is untouched; the layer commit type is unreachable here;
   the raw-record count and the all-unknown re-resolution error have homes.
+- 17 November 2026, on the code: local Qodo review (one finding, fixed and resolved; a later pass
+  failed in Qodo's repository preparation), a blind `invariant-reviewer` (PASS WITH CHANGES, six
+  findings, applied), a `journey-qa` walk in the simulator (one defect, fixed and re-checked), and
+  an independent review by two further blind reviewers at 47c149a0 (PASS WITH NOTES, eleven
+  findings). From the last: the export rehashes the manifest; re-resolution shows its own reason
+  when nothing would be known; the change report records which private lists were read; the two
+  writer test files run in CI; the writer withholds importer-rejected rows; the saved entry reads
+  its estimate rows once and shows a failed state; VoiceOver reads the row's label; section 6
+  item 7 corrects the names above. Left open: an archive round trip for a contract 10 log, and
+  whether the Python record readers and the Swift adapters always agree on which keys a record
+  quantifies.

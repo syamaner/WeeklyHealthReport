@@ -203,7 +203,9 @@ struct DailyFoodExportService {
             let records = try reader.dailyFoodExportSnapshot()
             let document = try FoodDailyExportBuilder.make(FoodDailyExportRequest(
                 records: records, reportDate: health.reportDate, timeZone: zone, dataAsOf: dataAsOf,
-                exportedAt: exportedAt, appContext: appContext))
+                exportedAt: exportedAt, appContext: appContext,
+                // An approved estimate's capture manifest is rehashed before its tokens are exported.
+                digester: SHA256Digester()))
             return .prepared(DailyFoodExportPreview(document: document, bytes: try FoodDailyExportSerializer.encode(document)))
         } catch let error as FoodIntakeProjectionError {
             switch error {

@@ -222,4 +222,56 @@ final class ApprovedEstimatePresentationTests: XCTestCase {
         XCTAssertEqual(rows.map(\.notice), ["Evidence not available", "Evidence not available"])
         XCTAssertEqual(reopened.effectiveNutrients, saved.resolutionVersion.nutrients, "no stored value changes")
     }
+
+    private struct FreshProvider: FoodReresolutionProviding {
+        let target: FoodReresolutionTarget
+        let input: PopulatedFoodConfirmation
+        func targets() throws -> [FoodReresolutionTarget] { [target] }
+        func candidates(for record: StoredFoodConfirmation, target: FoodReresolutionTarget, at: Date) throws -> GenericFoodSearchOutcome {
+            .confirmation(GenericFoodConfirmationRoute(confirmation: input, matches: input.candidates.map {
+                GenericFoodMatch(candidate: $0, isExactName: true,
+                                 personalDatabase: PersonalFoodDatabaseMatchContext(step: .titleOrAlias, isGenericReference: false))
+            }))
+        }
+    }
+
+    /// Independent review, 17 November 2026 (contract section 5): a re-resolution that would leave
+    /// nothing known is blocked with its own reason, not the general "could not prepare" text.
+    func testAReresolutionThatLeavesNothingKnownShowsItsReason() throws {
+        let store = InMemoryFoodLedgerStore(encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
+        let ledger = FoodLedgerService(actorID: try LedgerID("00000000-0000-0000-0000-00000000a512"), committer: store,
+            clock: Clock(), encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
+        let service = FoodConfirmationService(ledger: ledger, reader: store, clock: Clock(), ids: RandomLedgerIDGenerator(),
+                                              digester: SHA256Digester())
+        var state = try state("synthetic crisps")
+        service.bindEstimates(&state)
+        let selected = state.selectedCandidate
+        let identity = try DecisiveIdentity(preparation: PreparationState(kind: .asSold), bone: .notApplicable, skin: .notApplicable,
+            drained: .notApplicable, packingMedium: .named(LedgerText("none")), fortification: .unfortified, servingBasis: .per100Grams)
+        FoodConfirmationReducer.reduce(state: &state, action: .applyCorrection(FoodCorrection(name: selected.name, brand: selected.brand,
+            variant: selected.variant, identity: identity, nutrients: selected.candidate.nutrients, reason: try LedgerText("details"))))
+        FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(40, .grams))
+        FoodConfirmationReducer.reduce(state: &state, action: .accept)
+        let saved = try service.save(state, operationID: try LedgerID("00000000-0000-0000-0000-00000000b512"))
+        // A fresh candidate whose estimates cannot be verified (no digester wired): all withheld.
+        let fresh = try self.state("synthetic crisps").input
+        let release = try XCTUnwrap(fresh.sourceReleases.first { $0.sourceID.value == PersonalFoodDatabaseRelease.sourceID })
+        let target = FoodReresolutionTarget(sourceRelease: release, methodVersion: try LedgerText(PersonalFoodDatabaseCandidateBuilder.methodVersion))
+        let model = FoodReresolutionViewModel(service: FoodReresolutionService(ledger: ledger,
+            reader: FoodReresolutionHistory(archive: store, confirmations: store),
+            provider: FreshProvider(target: target, input: fresh), clock: Clock(), ids: RandomLedgerIDGenerator()))
+        model.load()
+        model.selectedTargetID = target.identifier
+        model.preview(saved)
+        XCTAssertEqual(model.proposals.count, 1)
+        XCTAssertEqual(ApprovedEstimatePresentation.reresolutionNotes(model.proposals[0]).last, ApprovedEstimateText.notCarried)
+        model.select(0)
+        model.reason = "Rebuilt food database"
+        model.confirmsIdentityGaps = true
+        model.save()
+        XCTAssertEqual(model.message, FoodReresolutionViewModel.nothingKnownMessage)
+        XCTAssertTrue(FoodReresolutionViewModel.nothingKnownMessage.hasPrefix("Nothing to save: every estimate was left out"))
+        XCTAssertEqual(try XCTUnwrap(store.foodConfirmation(logItemID: saved.logItem.logItemID)).resolutionVersion, saved.resolutionVersion,
+                       "nothing was saved")
+    }
 }

@@ -31,6 +31,11 @@ RECORDS = {
     ("usda", USDA): {"nutrients": {"protein": 9.0, "iron": 1.5}, "preparation": "raw", "fortification": None,
                      "per_100_g": True},
 }
+FORTIFIED, COOKED = "cofid:synthetic:row:0003", "cofid:synthetic:row:0004"
+RECORDS[("cofid", FORTIFIED)] = {"nutrients": {"protein": 8.0}, "preparation": "unknown", "fortification": "fortified",
+                                 "per_100_g": True}
+RECORDS[("cofid", COOKED)] = {"nutrients": {"protein": 4.0}, "preparation": "cooked", "fortification": "unfortified",
+                              "per_100_g": True}
 SALT = {"transform_id": "salt_to_sodium_v1", "version": "pasted-label-conversions-v1",
         "source_value": {"value": 1.0, "unit": "g"}}
 
@@ -214,8 +219,8 @@ class Admission(unittest.TestCase):
 
     def test_the_reasons_are_the_gate_list_in_order(self):
         self.assertEqual(I.REASONS, ("label_kept", "merged_kept", "composite", "open_food_facts_source",
-                                     "refused_source", "readmission_class", "unquantified", "basis", "transform",
-                                     "codec"))
+                                     "refused_source", "readmission_class", "unquantified", "basis",
+                                     "fortified_record", "state_contradiction", "transform", "codec"))
 
     def test_label_kept(self):
         fish, release = labelled("Synthetic Tinned Fish", "protein", 19.0, generic_reference=reference())
@@ -270,6 +275,22 @@ class Admission(unittest.TestCase):
         self.check(doc, [row(drink, national(source="usda", ref=USDA), "protein")], 0, basis=1)
         self.check(doc, [row(PULSE, national(ref=COFID_OTHER), "protein")], 0, basis=1)  # record not per 100 g
         self.check(doc, [row(drink, page(), "protein", 0.4)], 1)
+
+    def test_rows_the_importer_would_reject_are_withheld_and_counted(self):
+        # Independent review, 17 November 2026: the app rejects a whole file for a fortified record,
+        # or for a raw or cooked entry against a record whose stated preparation differs
+        # (`estimate-contradiction`). Where the bundled data shows it, the row is withheld here.
+        similar = dict(method="carried_from_similar_food", state_basis="stated_assumption", quality="low")
+        raw, cooked = item("Synthetic Raw Leaf", state="raw"), item("Synthetic Cooked Grain", state="cooked")
+        doc = plain(FISH, raw, cooked)
+        self.check(doc, [row(FISH, national(ref=FORTIFIED, **similar), "protein")], 0, fortified_record=1)
+        self.check(doc, [row(raw, national(ref=COOKED, **similar), "protein")], 0, state_contradiction=1)
+        self.check(doc, [row(cooked, national(source="usda", ref=USDA, **similar), "protein")], 0, state_contradiction=1)
+        # Unknown never contradicts, an equal preparation agrees, and an entry that is neither raw nor
+        # cooked is not checked on preparation (the label and the owner's approval carry that).
+        self.check(doc, [row(raw, national(ref=COFID, **similar), "protein")], 1)
+        self.check(doc, [row(cooked, national(ref=COOKED, **similar), "protein")], 1)
+        self.check(doc, [row(FISH, national(ref=COOKED, **similar), "protein")], 1)
 
     def test_transform(self):
         doc = plain(PULSE)
@@ -477,6 +498,9 @@ class EndToEnd(unittest.TestCase):
         self.assertIn(usda_key, by_id[pulse["id"]]["estimated_nutrients"])
         self.assertIn(I.release_id(written), text)
         report = json.loads((out / self.AP.REPORT_NAME).read_bytes())
+        # No refusals list was present: the report says so, so a zero count is not read as a check.
+        self.assertEqual(report["lists_read"], {self.AP.REFUSALS_NAME: False, self.AP.READMISSIONS_NAME: False,
+                                                self.AP.SHEET_NAME: False})
         self.assertTrue(report["written"])
         self.assertEqual(report["counts"]["checked_against_bundled_record"], len(result["estimate_evidence"]) - (len(good) - 2))
         self.assertEqual(report["evaluator_counts"], {k: 0 for k in report["evaluator_counts"]})

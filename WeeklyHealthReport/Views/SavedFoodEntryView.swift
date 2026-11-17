@@ -16,7 +16,9 @@ struct SavedFoodEntryView: View {
     /// Settings › Developer tools is on: a label estimate also lists both releases and decisions.
     private let developerTools: Bool
     /// The entry's approved estimates with their labels and notices (estimates on catalogue v2); read only here.
-    private let estimateRows: () -> [ApprovedEstimateRow]
+    private let estimateRows: () -> [ApprovedEstimateRow]?
+    /// Read once when the entry appears (a store read and a hash), never in `body`.
+    @State private var estimates: [ApprovedEstimateRow]? = []
     @State private var showsEdit = false
     @State private var misreadReport: PastedLabelMisreadPreviewModel?
     @Environment(\.dismiss) private var dismiss
@@ -24,7 +26,7 @@ struct SavedFoodEntryView: View {
     init(model: @autoclosure @escaping () -> SavedFoodEntryViewModel,
          favourites: @autoclosure @escaping () -> FavouriteSaveModel? = nil,
          calendar: Calendar, now: @escaping () -> Date, photoBytes: @escaping (AttachmentDescriptor) -> Data? = { _ in nil },
-         developerTools: Bool = false, estimateRows: @escaping () -> [ApprovedEstimateRow] = { [] }) {
+         developerTools: Bool = false, estimateRows: @escaping () -> [ApprovedEstimateRow]? = { [] }) {
         self.estimateRows = estimateRows
         self.photoBytes = photoBytes
         self.developerTools = developerTools
@@ -37,6 +39,7 @@ struct SavedFoodEntryView: View {
     var body: some View {
         content
             .navigationTitle(title)
+            .task { estimates = estimateRows() }
             .toolbar {
                 if model.phase == .loaded {
                     ToolbarItem(placement: .primaryAction) {
@@ -118,7 +121,13 @@ struct SavedFoodEntryView: View {
             nutrition(detail)
             // Estimates on catalogue v2: each estimated nutrient with its label and tier in words, and
             // "Left out by you" or "Estimate left out when this was logged" for a saved unknown.
-            ApprovedEstimateSection(rows: estimateRows())
+            if let estimates {
+                ApprovedEstimateSection(rows: estimates)
+            } else {
+                Section(ApprovedEstimateText.sectionTitle) {
+                    Text(ApprovedEstimateText.savedRowsUnavailable).font(.subheadline).foregroundStyle(.secondary)
+                }
+            }
             if detail.pastedLabel != nil { pastedLabel(detail) }
             if detail.labelPhoto != nil { labelPhoto(detail) }
             if let estimate = detail.labelEstimate { labelEstimate(estimate) }

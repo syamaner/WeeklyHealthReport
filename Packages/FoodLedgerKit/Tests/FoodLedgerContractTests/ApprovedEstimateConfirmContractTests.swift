@@ -1,5 +1,6 @@
 import Foundation
 @testable import FoodLedgerApplication
+import FoodLedgerArchive
 import FoodLedgerDomain
 import FoodLedgerTestSupport
 import XCTest
@@ -164,6 +165,48 @@ final class ApprovedEstimateConfirmContractTests: XCTestCase {
         XCTAssertEqual(floor(LedgerMutation(evidence: saved.evidence.filter(ApprovedEstimateSource.isManifest))), 10, "only the manifest")
         XCTAssertEqual(floor(LedgerMutation(evidence: saved.evidence.filter(ApprovedEstimateSource.isLeftOut))), 10, "only leave-out evidence")
         XCTAssertLessThan(floor(LedgerMutation(evidence: saved.evidence.filter { $0.kind == .genericSearch })), 10)
+    }
+
+    /// Independent review, 17 November 2026: a log with an approved estimate and a leave-out makes a
+    /// contract 10 archive that verifies, restores into either store byte for byte, and reopens with
+    /// its estimate, its manifest and "Left out by you". An older binary's ceiling refuses it.
+    func testAContractTenArchiveRoundTripsAndReopensWithItsEvidence() throws {
+        for harness in try LedgerFixtures.harnesses() {
+            defer { harness.cleanup() }
+            let archive = try XCTUnwrap(harness.committer as? any FoodArchiveLedgerAccess)
+            func generate(_ access: any FoodArchiveLedgerAccess) throws -> FoodArchiveBundle {
+                try FoodArchiveGenerator().generate(state: access.archiveState(), ledgerID: LedgerText("approved-estimate"),
+                    createdAt: LedgerFixtures.date, creatingActorID: LedgerFixtures.id(900, ActorTag.self))
+            }
+            let service = try Self.service(harness)
+            // Without an estimate the archive keeps the floor contract.
+            _ = try service.save(try Self.state(service, [Self.oats]), operationID: LedgerFixtures.operationID(11_100))
+            XCTAssertEqual(try FoodArchiveVerifier().verify(generate(archive)).manifest.foodContractVersion, 6, harness.name)
+            var state = try Self.state(service, [Self.crisps])
+            FoodConfirmationReducer.reduce(state: &state, action: .leaveOutEstimate(.fiber))
+            let saved = try service.save(state, operationID: LedgerFixtures.operationID(11_101))
+            let bundle = try generate(archive)
+            let verified = try FoodArchiveVerifier().verify(bundle)
+            XCTAssertEqual(verified.manifest.foodContractVersion, 10, harness.name)
+            XCTAssertEqual(verified.manifest.migrationIdentifiers.map(\.value).last, "food-ledger-v10", harness.name)
+            // What a contract 9 binary would have to accept: refused.
+            XCTAssertThrowsError(try CanonicalFoodProjection(records: archive.archiveState().records, foodContractVersion: 9)) {
+                XCTAssertEqual($0 as? FoodArchiveError, .unsupportedFoodContract(9), harness.name)
+            }
+            for destination in try LedgerFixtures.harnesses() {
+                defer { destination.cleanup() }
+                let live = try XCTUnwrap(destination.committer as? any FoodArchiveLedgerAccess)
+                let importer = FoodArchiveImportService(live: live, staging: InMemoryFoodArchiveStaging())
+                _ = try importer.apply(importer.dryRun(bundle))
+                XCTAssertEqual(try generate(live), bundle, "\(harness.name)->\(destination.name)")
+                // No database is installed at the destination: the log reads its own saved evidence.
+                let reopened = try XCTUnwrap(try Self.service(destination, lookup: nil).reopen(logItemID: saved.logItem.logItemID))
+                XCTAssertEqual(reopened.savedEstimateStates, [.fiber: .leftOutByYou], "\(harness.name)->\(destination.name)")
+                XCTAssertTrue(Self.isEstimate(Self.value(reopened.effectiveNutrients, .sodium)))
+                XCTAssertNotNil(reopened.estimateManifest, "the assumptions travel with the archive")
+                XCTAssertTrue(reopened.estimateSeed.evidenceAvailable)
+            }
+        }
     }
 
     // MARK: Withheld

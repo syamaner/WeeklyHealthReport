@@ -37,7 +37,7 @@ final class ApprovedEstimateExportContractTests: XCTestCase {
         let archive = try XCTUnwrap(harness.committer as? any FoodArchiveLedgerAccess)
         let request = FoodDailyExportRequest(records: try archive.archiveState().records, reportDate: day,
             timeZone: TimeZone(identifier: "UTC")!, dataAsOf: LedgerFixtures.date.addingTimeInterval(60),
-            exportedAt: LedgerFixtures.date.addingTimeInterval(120), appContext: app)
+            exportedAt: LedgerFixtures.date.addingTimeInterval(120), appContext: app, digester: LedgerFixtures.digester)
         return (try FoodDailyExportBuilder.make(request), saved)
     }
 
@@ -122,7 +122,7 @@ final class ApprovedEstimateExportContractTests: XCTestCase {
             candidateDecisions: [log.candidateDecision], sourceReleases: log.sourceReleases)
         records.assertions = log.assertions
         let request = FoodDailyExportRequest(records: records, reportDate: Self.day, timeZone: TimeZone(identifier: "UTC")!,
-            dataAsOf: LedgerFixtures.date.addingTimeInterval(60), exportedAt: LedgerFixtures.date.addingTimeInterval(120), appContext: Self.app)
+            dataAsOf: LedgerFixtures.date.addingTimeInterval(60), exportedAt: LedgerFixtures.date.addingTimeInterval(120), appContext: Self.app, digester: LedgerFixtures.digester)
         XCTAssertThrowsError(try FoodDailyExportBuilder.make(request)) {
             XCTAssertEqual($0 as? FoodDailyExportError, .missingReference, "fail closed")
         }
@@ -139,7 +139,7 @@ final class ApprovedEstimateExportContractTests: XCTestCase {
                 logItemVersions: [log.logItemVersion], candidateDecisions: [log.candidateDecision], sourceReleases: log.sourceReleases)
             records.assertions = log.assertions
             return FoodDailyExportRequest(records: records, reportDate: Self.day, timeZone: TimeZone(identifier: "UTC")!,
-                dataAsOf: LedgerFixtures.date.addingTimeInterval(60), exportedAt: LedgerFixtures.date.addingTimeInterval(120), appContext: Self.app)
+                dataAsOf: LedgerFixtures.date.addingTimeInterval(60), exportedAt: LedgerFixtures.date.addingTimeInterval(120), appContext: Self.app, digester: LedgerFixtures.digester)
         }
         XCTAssertEqual(try FoodDailyExportBuilder.make(request(log.evidence)).foodDailySchemaVersion, 3)
         func altered(_ edit: (String) -> String, hash: SHA256Digest? = nil) throws -> [CaptureEvidence] {
@@ -150,13 +150,34 @@ final class ApprovedEstimateExportContractTests: XCTestCase {
                     originalPayload: .text(LedgerText(edit(payload.value))), byteHash: hash ?? item.byteHash)
             }
         }
+        // The tier or the page address altered under an unchanged stored hash: the payload no longer
+        // hashes to it, so neither is exported (independent review, 17 November 2026).
+        for edit in [("\"quality\":\"high\"", "\"quality\":\"low\""),
+                     ("https://www.example.com/products/synthetic", "https://www.example.org/other")] {
+            let changed = try altered { $0.replacingOccurrences(of: edit.0, with: edit.1) }
+            XCTAssertNotEqual(changed, log.evidence, edit.0)
+            XCTAssertThrowsError(try FoodDailyExportBuilder.make(request(changed)), edit.0) {
+                XCTAssertEqual($0 as? FoodDailyExportError, .missingReference)
+            }
+        }
+        // Without a digester nothing can be verified: closed by default.
+        let unverified = request(log.evidence)
+        XCTAssertThrowsError(try FoodDailyExportBuilder.make(FoodDailyExportRequest(records: unverified.records,
+            reportDate: unverified.reportDate, timeZone: unverified.timeZone, dataAsOf: unverified.dataAsOf,
+            exportedAt: unverified.exportedAt, appContext: unverified.appContext))) {
+            XCTAssertEqual($0 as? FoodDailyExportError, .missingReference)
+        }
+        // The export is the only guard on a restored manifest's address: a query string and a
+        // fragment never leave.
+        XCTAssertEqual(FoodDailyExportBuilder.publicSourceURL("https://www.example.com/products/synthetic?x=1#y"),
+                       "https://www.example.com/products/synthetic")
         // The value changed in the manifest (the tier or page could be changed the same way).
         let value = try altered { $0.replacingOccurrences(of: "\"value\":6.5", with: "\"value\":7.5") }
         XCTAssertNotEqual(value, log.evidence)
         XCTAssertThrowsError(try FoodDailyExportBuilder.make(request(value))) {
             XCTAssertEqual($0 as? FoodDailyExportError, .missingReference)
         }
-        // A manifest stored under another hash than the value's provenance names.
+        // A manifest whose stored hash is not the one the value's provenance names.
         let swapped = try altered({ $0 }, hash: try SHA256Digest(String(repeating: "0", count: 64)))
         XCTAssertThrowsError(try FoodDailyExportBuilder.make(request(swapped))) {
             XCTAssertEqual($0 as? FoodDailyExportError, .missingReference)
