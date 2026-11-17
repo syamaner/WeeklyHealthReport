@@ -130,9 +130,16 @@ public struct ApprovedEstimateRow: Equatable, Identifiable, Sendable {
 }
 
 public enum ApprovedEstimatePresentation {
-    static func number(_ amount: Double, unit: NutrientUnit) -> String {
+    /// The estimate's own value with its basis, so it is never read as the amount eaten: "500 mg
+    /// per 100 g". The consumed amount is in the nutrition section.
+    static func number(_ amount: Double, unit: NutrientUnit, basis: ResolutionBasis) -> String {
         let text = amount == amount.rounded() ? String(Int(amount)) : String(amount)
-        return "\(text) \(unit.rawValue)"
+        let per: String = switch basis {
+        case .per100Grams: " per 100 g"
+        case .per100Millilitres: " per 100 mL"
+        default: ""
+        }
+        return "\(text) \(unit.rawValue)\(per)"
     }
 
     /// The estimated nutrients of the state's selected candidate, in nutrient catalogue order.
@@ -162,7 +169,9 @@ public enum ApprovedEstimatePresentation {
                 status = .saved(state.estimateSeed.evidenceAvailable ? .leftOutWhenLogged : .evidenceNotAvailable)
             }
             var value: String?
-            if case let .augmented(exact)? = shown, status == .offered { value = number(exact.amount, unit: exact.unit) }
+            if case let .augmented(exact)? = shown, status == .offered {
+                value = number(exact.amount, unit: exact.unit, basis: state.selectedCandidate.candidate.identity.servingBasis)
+            }
             let notice: String? = switch status {
             // A saved value whose manifest no longer verifies has no label to show: say so, so
             // it is never a bare value under "Estimated values".
@@ -258,14 +267,20 @@ public struct ApprovedEstimateSection: View {
                         if !row.details.isEmpty {
                             DisclosureGroup("Details") {
                                 ForEach(row.details, id: \.self) { Text($0).font(.caption) }
-                            }.font(.caption)
+                            }
+                            .font(.caption)
+                            .frame(minHeight: 44)
                         }
                         if row.canLeaveOut, let leaveOut {
+                            // Borderless: in a list row a plain button takes every tap on the row, so
+                            // opening Details would also leave the value out (journey QA, #511).
                             Button(ApprovedEstimateText.leaveOut) { leaveOut(row.key) }
+                                .buttonStyle(.borderless)
                                 .frame(minHeight: 44).accessibilityLabel("\(ApprovedEstimateText.leaveOut): \(row.title)")
                                 .accessibilityIdentifier("estimate-leave-out-\(row.key.rawValue)")
                         } else if row.canPutBack, let putBack {
                             Button(ApprovedEstimateText.putBack) { putBack(row.key) }
+                                .buttonStyle(.borderless)
                                 .frame(minHeight: 44).accessibilityLabel("\(ApprovedEstimateText.putBack): \(row.title)")
                                 .accessibilityIdentifier("estimate-put-back-\(row.key.rawValue)")
                         }

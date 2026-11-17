@@ -86,12 +86,12 @@ final class ApprovedEstimatePresentationTests: XCTestCase {
         let fibre = rows[0], sodium = rows[1]
         XCTAssertEqual(fibre.label, "Estimated, rough")
         XCTAssertEqual(sodium.label, "Estimated, some doubt")
-        XCTAssertEqual(fibre.value, "3 g")
-        XCTAssertEqual(sodium.value, "500 mg")
+        XCTAssertEqual(fibre.value, "3 g per 100 g", "the basis is stated, so it is never read as the amount eaten")
+        XCTAssertEqual(sodium.value, "500 mg per 100 g")
         XCTAssertTrue(fibre.canLeaveOut && !fibre.canPutBack)
         XCTAssertNil(fibre.notice)
         // VoiceOver reads the label's text: the colour never stands alone.
-        XCTAssertEqual(sodium.accessibilityLabel, "Sodium, 500 mg, Estimated, some doubt")
+        XCTAssertEqual(sodium.accessibilityLabel, "Sodium, 500 mg per 100 g, Estimated, some doubt")
         XCTAssertEqual(sodium.details.first, "Food database website")
         XCTAssertTrue(sodium.details.contains("Page not read directly"))
         XCTAssertTrue(sodium.details.contains("Source describes: as sold"))
@@ -211,7 +211,7 @@ final class ApprovedEstimatePresentationTests: XCTestCase {
         var rows = ApprovedEstimatePresentation.rows(reopened)
         XCTAssertEqual(rows.map(\.label), ["Estimated, rough", "Estimated, some doubt"])
         XCTAssertEqual(rows.map(\.notice), ["Left out by you", nil])
-        XCTAssertEqual(rows.map(\.value), [nil, "500 mg"])
+        XCTAssertEqual(rows.map(\.value), [nil, "500 mg per 100 g"])
         XCTAssertTrue(rows[0].canPutBack)
         // Without verified evidence nothing is shown as a labelled estimate, and every row says why.
         reopened.estimateManifests = [:]
