@@ -226,6 +226,26 @@ public struct FoodProposalReviewManifestV3: Codable, Equatable, Sendable {
         reviewedAt = try container.decode(Date.self, forKey: .reviewedAt)
     }
 
+    /// Strict at every level (owner decision, 17 November 2026): the stored JSON must have exactly
+    /// the keys its decoded value encodes, so no unknown key survives anywhere in the document,
+    /// the part-read record, the candidate or an offered candidate. v1 and v2 are not affected.
+    static func hasOnlyKnownKeys(_ data: Data, decoded: Self) -> Bool {
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .millisecondsSince1970
+        guard let raw = try? JSONSerialization.jsonObject(with: data),
+              let encoded = try? encoder.encode(decoded),
+              let known = try? JSONSerialization.jsonObject(with: encoded) else { return false }
+        return sameKeys(raw, known)
+    }
+    private static func sameKeys(_ raw: Any, _ known: Any) -> Bool {
+        if let raw = raw as? [String: Any], let known = known as? [String: Any] {
+            return Set(raw.keys) == Set(known.keys) && raw.allSatisfy { key, value in known[key].map { sameKeys(value, $0) } ?? false }
+        }
+        if let raw = raw as? [Any], let known = known as? [Any] {
+            return raw.count == known.count && zip(raw, known).allSatisfy { sameKeys($0, $1) }
+        }
+        return !(raw is [String: Any]) && !(raw is [Any]) && !(known is [String: Any]) && !(known is [Any])
+    }
+
     /// Closed v3 admission (contract #508 section 8.4 with its section 13 notes), checked at save
     /// and reopen. The rules shared with v2 (release, evidence, values) stay in
     /// `FoodReviewedWebProposalPolicy.scope`.
@@ -308,7 +328,9 @@ public enum FoodProposalReviewManifestRecord: Equatable, Sendable {
         case ReviewedFoodProposalConfirmation.version:
             return (try? decoder.decode(FoodProposalReviewManifestV2.self, from: data)).map(Self.v2)
         case ReviewedFoodProposalConfirmation.version3:
-            return (try? decoder.decode(FoodProposalReviewManifestV3.self, from: data)).map(Self.v3)
+            guard let manifest = try? decoder.decode(FoodProposalReviewManifestV3.self, from: data),
+                  FoodProposalReviewManifestV3.hasOnlyKnownKeys(data, decoded: manifest) else { return nil }
+            return .v3(manifest)
         default: return nil
         }
     }
@@ -329,7 +351,7 @@ public enum FoodProposalReviewManifestRecord: Equatable, Sendable {
         case let .v3(m): m.isAdmissible
         }
     }
-    static func fitsVersion1Or2(_ document: CapturedFoodDocument) -> Bool {
+    public static func fitsVersion1Or2(_ document: CapturedFoodDocument) -> Bool {
         document.fits(.reviewManifestV1V2) && document.partialRead == nil && !document.hasSelectedLocator
     }
 }

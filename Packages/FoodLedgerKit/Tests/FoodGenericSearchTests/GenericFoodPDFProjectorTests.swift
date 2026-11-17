@@ -15,6 +15,18 @@ final class GenericFoodPDFProjectorTests: XCTestCase {
         XCTAssertNotEqual(GenericFoodPDFProjector.bounds, FoodDocumentBounds.current)
     }
 
+    // Contract #508 test 4: a PDF over its own 512-row bound, but well within the document
+    // bound of 2,048 blocks, is still refused.
+    func testPDFOverItsOwnRowBoundIsRefusedAlthoughWithinTheDocumentBound() throws {
+        let within = try project(denseFixture(pages: 5, linesPerPage: 90))
+        XCTAssertEqual(within.blocks.count, 450)
+        let data = try denseFixture(pages: 7, linesPerPage: 90)
+        XCTAssertThrowsError(try project(data)) {
+            XCTAssertEqual($0 as? FoodSourceAcquisitionError, .responseTooLarge)
+        }
+        XCTAssertLessThan(630, FoodDocumentBounds.current.blocks)
+    }
+
     private let url = URL(string: "https://unfamiliar.example/menu.pdf")!
 
     func testTextPDFKeepsLiteralTextPageCoordinatesAndOriginalHash() throws {
@@ -85,6 +97,28 @@ final class GenericFoodPDFProjectorTests: XCTestCase {
     private func project(_ data: Data) throws -> CapturedFoodDocument {
         try GenericFoodDocumentProjector.project(data, url: url, mediaType: "application/pdf",
             retrievedAt: Date(timeIntervalSince1970: 0), origin: "synthetic_fixture")
+    }
+
+    /// Many short rows per page in a small font, for row-count bounds.
+    private func denseFixture(pages: Int, linesPerPage: Int) throws -> Data {
+        let output = NSMutableData()
+        let consumer = try XCTUnwrap(CGDataConsumer(data: output as CFMutableData))
+        var bounds = CGRect(x: 0, y: 0, width: 600, height: 800)
+        let context = try XCTUnwrap(CGContext(consumer: consumer, mediaBox: &bounds, nil))
+        let font = CTFontCreateWithName("Helvetica" as CFString, 6, nil)
+        for page in 0..<pages {
+            context.beginPDFPage(nil)
+            context.setFillColor(CGColor(gray: 0, alpha: 1))
+            for line in 0..<linesPerPage {
+                context.textPosition = CGPoint(x: 30, y: 780 - line * 8)
+                let attributed = NSAttributedString(string: "Row \(page)-\(line) per 100 g",
+                    attributes: [NSAttributedString.Key(kCTFontAttributeName as String): font])
+                CTLineDraw(CTLineCreateWithAttributedString(attributed), context)
+            }
+            context.endPDFPage()
+        }
+        context.closePDF()
+        return output as Data
     }
 
     /// An in-memory software fixture, never a delivered PDF or nutrition source.

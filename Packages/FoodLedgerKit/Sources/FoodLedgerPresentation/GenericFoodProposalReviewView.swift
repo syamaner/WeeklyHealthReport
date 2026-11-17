@@ -112,7 +112,7 @@ public final class GenericFoodProposalReviewViewModel: ObservableObject {
     public var diagnosticLines: [String] {
         guard let result else { return [] }
         var lines = ["Web lookup terms: \(result.foodTerms)", "Choice policy: \(GenericFoodProposalReview.choicePolicyVersion)",
-                     "Saved review: \(ReviewedFoodProposalConfirmation.version3) · \(FoodProposalReviewGateRecordV3.choicePolicyVersion) · \(FoodProposalReviewAction.webLookupReviewV2)",
+                     "Review format if used: \(ReviewedFoodProposalConfirmation.version3) · \(FoodProposalReviewGateRecordV3.choicePolicyVersion) · \(FoodProposalReviewAction.webLookupReviewV2)",
                      "Suggested choice: \(result.suggestedChoice)", "Ranking available: \(!result.rankingUnavailable)"]
         if let failure = result.selectionFailure { lines.append("Ranking failure: \(failure.rawValue)") }
         if let confidence = result.selection?.rawConfidence { lines.append("Uncalibrated model confidence: \(confidence)") }

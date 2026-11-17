@@ -79,6 +79,13 @@ final class ReviewManifestV3ContractTests: XCTestCase {
     // MARK: Larger documents: v3 admits them, v1 and v2 never do
 
     func testWritersRefuseLargerDocumentsForV1AndV2AndV3AcceptsThem() throws {
+        // Positive control: the same fixture within the old bound is accepted by both old writers.
+        let (smallReview, smallProposal, _) = try twoPanelReview()
+        XCTAssertNoThrow(try confirmation().prepareVersion2(review: smallReview, proposal: smallProposal, scope: .representativeEstimate,
+                                                            locale: LedgerText("en_GB")))
+        XCTAssertNoThrow(try confirmation().prepareVersion1(smallProposal, query: smallReview.foodTerms, scope: .representativeEstimate,
+            acknowledgement: .init(identityAndScopeReviewed: true, basisReviewed: true, nutrientsAndUnknownsReviewed: true),
+            locale: LedgerText("en_GB")))
         let (review, proposal, _) = try twoPanelReview(extraLines: 600)
         XCTAssertEqual(proposal.document.blocks.count, 602)
         XCTAssertFalse(proposal.document.fits(.reviewManifestV1V2))
@@ -129,8 +136,21 @@ final class ReviewManifestV3ContractTests: XCTestCase {
             XCTAssertNoThrow(try FoodProposalBinding.validate(.init(candidates: [record.candidate], preferredId: record.candidate.id),
                                                               documents: [record.document]), label)
             XCTAssertFalse(record.reviewIsAdmissible, label)
+            XCTAssertNil(try FoodReviewedWebProposalPolicy.restoredSourceCandidate(partRead, candidate: partRead.candidates[0]), label)
             XCTAssertNil(admitted(partRead), "\(label) partialRead")
         }
+        // The selected-locator clause on its own: a decoded document (decoding does not validate)
+        // with a selected locator and no record fails the v1/v2 fit.
+        let selectedOnly = #"{"blocks":[{"id":"b1","kind":"p","locator":"p:1"# + selected + #"","text":"x"}],"captureOrigin":"synthetic","id":"d1","rawSha256":""#
+            + String(repeating: "a", count: 64) + #"","retrievedAt":"2026-10-04T00:00:00Z","url":"https://example.com/food"}"#
+        let decoded = try JSONDecoder().decode(CapturedFoodDocument.self, from: Data(selectedOnly.utf8))
+        XCTAssertTrue(decoded.hasSelectedLocator)
+        XCTAssertNil(decoded.partialRead)
+        XCTAssertTrue(decoded.fits(.reviewManifestV1V2))
+        XCTAssertFalse(FoodProposalReviewManifestRecord.fitsVersion1Or2(decoded))
+        let plain = try JSONDecoder().decode(CapturedFoodDocument.self, from: Data(selectedOnly.replacingOccurrences(of: selected, with: "").utf8))
+        XCTAssertTrue(FoodProposalReviewManifestRecord.fitsVersion1Or2(plain))
+
         // The same larger document is admitted under v3.
         let v3Text = try ReviewedWebFixtures.manifestText(v3)
         XCTAssertNotNil(admitted(try ReviewedWebFixtures.rebind(v3, manifest: v3Text.replacingOccurrences(
@@ -238,6 +258,41 @@ final class ReviewManifestV3ContractTests: XCTestCase {
             return XCTFail("v3")
         }
         XCTAssertEqual(manifest.admissionFailure, "representative_only")
+    }
+
+    // Owner decision, 17 November 2026: v3 rejects an unknown key at every level; v2 is unchanged.
+    func testV3RejectsUnknownKeysAtEveryLevelAndV2IsUnchanged() throws {
+        let (input, c1, _, _) = try preparedTwoPanel()
+        let text = try ReviewedWebFixtures.manifestText(input)
+        XCTAssertNotNil(FoodProposalReviewManifestRecord.decode(Data(text.utf8)))
+        let offeredExtra = c1.replacingOccurrences(of: #"{"basis":"#, with: #"{"extra":1,"basis":"#)
+        XCTAssertNotEqual(offeredExtra, c1)
+        let mutations: [(String, String, String)] = [
+            ("document", #""document":{"#, #""document":{"extra":1,"#),
+            ("block", #""blocks":[{"#, #""blocks":[{"extra":1,"#),
+            ("candidate", #"{"candidate":{"#, #"{"candidate":{"extra":1,"#),
+            ("offered member", #""offered":["# + c1, #""offered":["# + offeredExtra),
+            ("nutrient", #""key":"energy","#, #""extra":1,"key":"energy","#),
+            ("reference", #"{"blockId":"b1","#, #"{"blockId":"b1","extra":1,"#)
+        ]
+        for (name, from, to) in mutations {
+            XCTAssertTrue(text.contains(from), name)
+            let mutated = text.replacingOccurrences(of: from, with: to)
+            XCTAssertNil(FoodProposalReviewManifestRecord.decode(Data(mutated.utf8)), name)
+            XCTAssertNil(admitted(try ReviewedWebFixtures.rebind(input, manifest: mutated)), name)
+        }
+        // An unknown key inside a valid part-read record.
+        let partRead = try validPartRead(text)
+        XCTAssertNotNil(FoodProposalReviewManifestRecord.decode(Data(partRead.utf8)), "a valid part-read v3 document decodes")
+        let extraInRecord = partRead.replacingOccurrences(of: #""partialRead":{"#, with: #""partialRead":{"extra":1,"#)
+        XCTAssertNotEqual(extraInRecord, partRead)
+        XCTAssertNil(FoodProposalReviewManifestRecord.decode(Data(extraInRecord.utf8)))
+        // v2 keeps its existing nested leniency (stored bytes must keep reopening).
+        let (review, proposal) = try ReviewedWebFixtures.review()
+        let v2 = try confirmation().prepareVersion2(review: review, proposal: proposal, scope: .representativeEstimate, locale: LedgerText("zh_TW"))
+        let v2Text = try ReviewedWebFixtures.manifestText(v2)
+        let v2Mutated = v2Text.replacingOccurrences(of: #""document":{"#, with: #""document":{"extra":1,"#)
+        XCTAssertNotNil(FoodProposalReviewManifestRecord.decode(Data(v2Mutated.utf8)))
     }
 
     func testV2RejectsEveryV3Shape() throws {
