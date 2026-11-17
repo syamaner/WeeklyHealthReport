@@ -16,6 +16,9 @@ public enum FoodReresolutionError: Error, Equatable {
     case unavailableTarget, noCompatibleCandidate, incompatibleIdentity, identityConfirmationRequired, staleProposal, missingLog, noChange
     /// Re-resolution of an entry with a label estimate layer (label-estimate-merge-v1 section 5).
     case labelEstimateLayer
+    /// Every approved estimate of the fresh candidate was withheld and nothing else is known
+    /// (estimates on catalogue v2 section 5): an all-unknown version is never written.
+    case nothingKnown
 }
 
 public protocol FoodReresolutionProviding: Sendable {
@@ -31,8 +34,14 @@ public struct FoodReresolutionProposal: Equatable, Sendable {
     public let candidate: PopulatedFoodCandidate
     public let diff: NutritionResolutionDiff
     public let identityGaps: [IdentityContradiction]
+    /// Approved estimates of the fresh candidate that the log's saved details withhold (estimates on
+    /// catalogue v2 sections 3.2 and 5), with the reason. Stored as unknown; nothing is substituted.
+    public let withheldEstimates: [NutrientKey: ApprovedEstimateWithholding]
+    /// What accepting stores: the candidate's nutrients with every withheld estimate unknown.
+    public let nutrients: NutrientSet
 
-    public init(before: StoredFoodConfirmation, target: FoodReresolutionTarget, input: PopulatedFoodConfirmation, candidate: PopulatedFoodCandidate) throws {
+    public init(before: StoredFoodConfirmation, target: FoodReresolutionTarget, input: PopulatedFoodConfirmation, candidate: PopulatedFoodCandidate,
+                withheldEstimates: [NutrientKey: ApprovedEstimateWithholding] = [:]) throws {
         guard candidate.candidate.sourceReleaseID == target.sourceRelease.sourceReleaseID,
               candidate.candidate.matchMetadata?.methodVersion == target.methodVersion,
               input.sourceReleases.contains(target.sourceRelease), input.candidates.contains(candidate) else {
@@ -45,7 +54,11 @@ public struct FoodReresolutionProposal: Equatable, Sendable {
         self.target = target
         self.input = input
         self.candidate = candidate
-        diff = NutritionResolutionDiff(before: before.resolutionVersion.nutrients, after: candidate.candidate.nutrients)
+        self.withheldEstimates = withheldEstimates
+        nutrients = try NutrientSet(entries: candidate.candidate.nutrients.entries.map { entry in
+            withheldEstimates[entry.key] == nil ? entry : try NutrientEntry(key: entry.key, value: .unknown(.noCompatibleSource))
+        })
+        diff = NutritionResolutionDiff(before: before.resolutionVersion.nutrients, after: nutrients)
         identityGaps = IdentityCompatibility.contradictions(
             between: before.productVersion.identity, and: candidate.candidate.identity,
             expectedEdibleQuantity: candidate.candidate.edibleQuantity,
@@ -59,7 +72,7 @@ public struct FoodReresolutionProposal: Equatable, Sendable {
     }
 
     public var sourceReleaseIDs: [ExternalIdentifier] {
-        Set(candidate.candidate.nutrients.entries.flatMap { [$0.value] + $0.conflictCandidates }
+        Set(nutrients.entries.flatMap { [$0.value] + $0.conflictCandidates }
             .flatMap { $0.provenance.map(\.sourceReleaseID) } + [target.sourceRelease.sourceReleaseID])
             .sorted { $0.value < $1.value }
     }

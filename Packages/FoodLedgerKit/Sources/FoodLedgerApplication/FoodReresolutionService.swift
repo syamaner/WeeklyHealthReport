@@ -106,8 +106,16 @@ public final class FoodReresolutionService: Sendable {
     private let provider: any FoodReresolutionProviding
     private let clock: any LedgerClock
     private let ids: any LedgerIDGenerating
+    private let estimateRecords: (any GenericRecordNutrientLookup)?
+    private let digester: (any Digesting)?
 
-    public init(ledger: FoodLedgerService, reader: any FoodReresolutionReading, provider: any FoodReresolutionProviding, clock: any LedgerClock, ids: any LedgerIDGenerating) {
+    /// `estimateRecords` and `digester` let a fresh candidate's approved estimates be checked
+    /// against the log's saved details (estimates on catalogue v2 section 5). Without them every
+    /// approved estimate of a fresh candidate is withheld (closed by default).
+    public init(ledger: FoodLedgerService, reader: any FoodReresolutionReading, provider: any FoodReresolutionProviding, clock: any LedgerClock, ids: any LedgerIDGenerating,
+                estimateRecords: (any GenericRecordNutrientLookup)? = nil, digester: (any Digesting)? = nil) {
+        self.estimateRecords = estimateRecords
+        self.digester = digester
         self.ledger = ledger
         self.reader = reader
         self.provider = provider
@@ -127,13 +135,46 @@ public final class FoodReresolutionService: Sendable {
         guard case let .confirmation(route) = try provider.candidates(for: before, target: target, at: clock.now()) else { return [] }
         return try route.confirmation.candidates.compactMap { candidate in
             guard FoodReresolutionProposal.hasNoKnownContradictions(before: before, candidate: candidate) else { return nil }
-            return try FoodReresolutionProposal(before: before, target: target, input: route.confirmation, candidate: candidate)
+            return try FoodReresolutionProposal(before: before, target: target, input: route.confirmation, candidate: candidate,
+                                                withheldEstimates: withheldEstimates(candidate, input: route.confirmation, before: before))
         }
+    }
+
+    /// Section 3.2 against the log's saved details, for a fresh candidate's approved estimates.
+    /// Earlier leave-outs are not carried, and leave-out is not offered here.
+    private func withheldEstimates(_ candidate: PopulatedFoodCandidate, input: PopulatedFoodConfirmation,
+                                   before: StoredFoodConfirmation) -> [NutrientKey: ApprovedEstimateWithholding] {
+        let keys = ApprovedEstimateSource.estimateKeys(candidate.candidate)
+        guard !keys.isEmpty else { return [:] }
+        guard let digester, let verified = ApprovedEstimateSource.verifiedManifest(candidate.candidate, evidence: input.evidence,
+                                                                                    digester: digester) else {
+            return Dictionary(uniqueKeysWithValues: keys.map { ($0, ApprovedEstimateWithholding.evidenceUnavailable) })
+        }
+        var records: [ApprovedEstimateRecordKey: ApprovedEstimateRecordState] = [:]
+        for estimate in verified.manifest.estimates {
+            guard let key = ApprovedEstimateRecordKey(estimate), records[key] == nil else { continue }
+            if let source = PersonalFoodDatabaseGenericSource(rawValue: key.source),
+               case let .success(facts)? = estimateRecords?.record(source: source, corpusSHA256: key.corpusSHA256, recordID: key.recordID) {
+                records[key] = .identity(facts.identity)
+            } else {
+                records[key] = .unreadable
+            }
+        }
+        var withheld = ApprovedEstimateEligibility.withheld(manifest: verified.manifest, records: records,
+            confirmed: before.productVersion.identity, candidateBasis: candidate.candidate.identity.servingBasis)
+            .filter { keys.contains($0.key) }
+        for key in keys where verified.manifest.estimate(key) == nil { withheld[key] = .evidenceUnavailable }
+        return withheld
     }
 
     /// No write occurs here. Retain this value unchanged until save is acknowledged.
     public func prepareAcceptance(_ proposal: FoodReresolutionProposal, reason: LedgerText, confirmsIdentityGaps: Bool = false) throws -> PreparedFoodReresolution {
         guard !proposal.isNoOp else { throw FoodReresolutionError.noChange }
+        // Withholding left nothing known: an all-unknown version is never written.
+        guard proposal.withheldEstimates.isEmpty
+                || proposal.nutrients.entries.contains(where: { if case .unknown = $0.value { false } else { true } }) else {
+            throw FoodReresolutionError.nothingKnown
+        }
         try validateCurrent(proposal.before, target: proposal.target)
         let parent = try resolutionHead(proposal.before.resolution.resolutionID)
         let now = clock.now()
@@ -170,7 +211,7 @@ public final class FoodReresolutionService: Sendable {
             resolutionVersionID: ids.makeID(ResolutionVersionTag.self), resolutionID: parent.resolutionID,
             ordinal: VersionOrdinal(parent.ordinal.value + 1), supersedesResolutionVersionID: parent.resolutionVersionID,
             methodVersion: proposal.target.methodVersion, sourceReleaseIDs: releaseIDs,
-            nutrients: candidate.nutrients, decisionIDs: [decision.candidateDecisionID],
+            nutrients: proposal.nutrients, decisionIDs: [decision.candidateDecisionID],
             assertionIDs: assertion.map { [$0.assertionID] } ?? [], createdAt: now
         )
         let old = proposal.before.logItemVersion
@@ -184,7 +225,10 @@ public final class FoodReresolutionService: Sendable {
             correctionReason: LedgerText("Opt-in nutrition re-resolution: \(reason.value)"), createdAt: now
         )
         let operationID = try ids.makeID(OperationTag.self)
+        // The fresh manifest is committed with the new version; another candidate's is never stored.
+        let acceptedEvidenceIDs = Set(candidate.evidenceIDs)
         let newEvidence = try proposal.input.evidence.filter { evidence in
+            guard !ApprovedEstimateSource.isManifest(evidence) || acceptedEvidenceIDs.contains(evidence.evidenceID) else { return false }
             guard let existing = try reader.evidence(evidence.evidenceID) else { return true }
             guard existing == evidence else { throw FoodLedgerValidationError.invalidProvenance }
             return false
