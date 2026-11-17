@@ -1,6 +1,6 @@
 # Web lookup: larger pages, part-read pages and panel choice v1 (proposal)
 
-Status: **proposal of 17 November 2026. The owner took decisions W1 to W9 the same day (section 2). The text written after those decisions has not yet been accepted as a whole, and nothing is implemented** (#508). It would amend [generic web proposal integration v1](generic-food-proposal-integration-v1.md) and [generic food review manifest v2](generic-food-review-manifest-v2.md). The file keeps its original name so that links hold. Documentation only: no app code, test or fixture changes with this document, and `privacy-and-egress.md` and `privacy-policy.txt` are edited only by the implementing change, with the wording in section 10. The pull request that adds this document closes nothing.
+Status: **proposal of 17 November 2026. The owner took decisions W1 to W9 and answered questions O1 to O3 the same day (sections 2 and 8.5). The text written after those decisions has not yet been accepted as a whole, and nothing is implemented** (#508). It would amend [generic web proposal integration v1](generic-food-proposal-integration-v1.md) and [generic food review manifest v2](generic-food-review-manifest-v2.md). The file keeps its original name so that links hold. Documentation only: no app code, test or fixture changes with this document, and `privacy-and-egress.md` and `privacy-policy.txt` are edited only by the implementing change, with the wording in section 10. The pull request that adds this document closes nothing.
 
 It has three parts, in the order a page meets them:
 
@@ -72,7 +72,7 @@ The same scratch build was run over 43 projections of public product pages: the 
 | W8 | Competing panels | The person can pick between them; the model's suggestion is a pre-selection they can override (added by the owner) |
 | W9 | Page bounds | Raise them so that ordinary product pages are read whole, with part-reading as the fallback beyond; the owner chose the larger of two offered limits: 2,048 blocks and 100,000 characters |
 
-Still open for the owner: questions O1 to O3 in section 8.5.
+The owner also answered questions O1 to O3 the same day; the answers are in section 8.5. What remains for the owner is acceptance of this text as a whole.
 
 ## 3. What this supersedes
 
@@ -183,9 +183,9 @@ The table is keyed on the answer the check recorded (`selection.choice`, with th
 | Recorded answer of the check | Offered |
 |---|---|
 | A choosable candidate, and no other choosable candidate | That candidate, as today |
-| A choosable candidate, and other choosable candidates exist | Every choosable candidate; the suggestion is pre-selected and the person can change it |
+| A choosable candidate, and other choosable candidates exist | The suggestion and only the choosable candidates that compete with it (the same name, brand, preparation and basis as the suggestion); the suggestion is pre-selected and the person can change it. A choosable candidate for a different product is not offered, so the person cannot confirm another food's values |
 | `clarify`, and two or more choosable candidates conflict with each other (same name, brand, preparation and basis, a different declared value) | Those conflicting candidates; nothing is pre-selected and the person must pick before the action is enabled |
-| `clarify` in any other case | Nothing, as today (question O1) |
+| `clarify` in any other case | Nothing, as today (answer O1) |
 | `none`; the check not run, unavailable or failed | Nothing, as today |
 
 A market conflict ends the run before any review exists, as today. Two candidates with the same name and the same values (a page that prints one panel twice) do not conflict; they are both offered as they are, and removing such duplicates is left to the phase gate.
@@ -206,15 +206,15 @@ Manifest v3 is manifest v2 with:
 - the optional `document.partialRead` of section 6;
 - `review.presentation`: `web-lookup-review-v2` (section 9).
 
-Admission for v3 rejects, at save and at reopen: `rankingAvailable` false; `selectionChoice` `none`; `personChoice` different from `candidate.id`; a confirmed candidate that is not in `offered`; an offered candidate that does not bind to the retained document or is not choosable; an offered candidate whose basis conflicts with the request; `selectionChoice` `clarify` unless at least two offered candidates conflict with each other; a `selectionChoice` that names a candidate not in `offered`; more than three offered candidates or a repeated id; `representativeSourceOnly` true with `exact_product` scope; an unknown choice policy or presentation; a `partialRead` that fails section 6. Presentation cannot construct a permitting gate or supply `offered`; both come from the reviewer's result.
+Admission for v3 rejects, at save and at reopen: `rankingAvailable` false; `selectionChoice` `none`; `personChoice` different from `candidate.id`; a confirmed candidate that is not in `offered`; an offered candidate that does not bind to the retained document or is not choosable; an offered candidate whose basis conflicts with the request; `selectionChoice` `clarify` unless at least two offered candidates conflict with each other; a `selectionChoice` that names a candidate not in `offered`; offered candidates that do not all share one name, brand, preparation and basis; more than three offered candidates or a repeated id; `representativeSourceOnly` true with `exact_product` scope; an unknown choice policy or presentation; a `partialRead` that fails section 6. Presentation cannot construct a permitting gate or supply `offered`; both come from the reviewer's result.
 
 New builds write v3 for every web review, so production has one writer. An archive holding v3 evidence needs at least food contract 5, as v2 does; whether it needs a higher number is left to the phase gate. Following decision W7, no work is planned to make an older build refuse or read a v3 review gracefully.
 
-### 8.5 Open questions for the owner
+### 8.5 Owner answers to questions O1 to O3 (17 November 2026)
 
-- **O1.** When the check answers `clarify` and the cause is not competing panels (one candidate only, or candidates that are different products), should the person be able to use a candidate anyway? Today they cannot, and this proposal leaves it so: the check downgrades its answer to `clarify` when it judges the identity, preparation or basis a mismatch or uncertain, and it does not record which. Recommendation: leave it blocked in v1.
-- **O2.** The copy for the panel list in section 9 (the words that mark the suggestion, the prompt when nothing is pre-selected, "Different values"). Recommendation: approve as proposed there.
-- **O3.** Egress: a page whose candidates conflict gets an applicability request that is skipped today (section 10). It follows from W8 but widens when a request happens, so it needs its own yes. Recommendation: approve.
+- **O1, answered: keep it blocked.** When the check answers `clarify` and the cause is not competing panels (one candidate only, or candidates that are different products), the person cannot use a candidate, as today. The check downgrades its answer to `clarify` when it judges the identity, preparation or basis a mismatch or uncertain, and it does not record which, so the app could not say what to look out for.
+- **O2, answered: approved as proposed.** The copy for the panel list in section 9 stands: "Suggested", "Choose a panel", "This page gives more than one set of values. Choose the one that matches your food." and "Different values".
+- **O3, answered: approved.** A page whose candidates conflict gets the applicability request that is skipped today (section 10). The destination and the kind of content are unchanged; what changes is when a request happens. The approval covers this proposal's text. The wording in `privacy-and-egress.md` and `privacy-policy.txt` changes only with the implementing change and is shown to the owner before it lands.
 
 ## 9. Screen contract `web-lookup-review-v2`
 
@@ -223,7 +223,7 @@ Written for every v3 review. `web-lookup-review-v1` and its golden content are u
 Content: everything in `web-lookup-review-v1`, with these differences:
 
 - **Panel choice.** When more than one candidate is offered, the screen lists each with its name, its distinguishing details (the existing `distinguishingDetails`), its basis label and its declared values. Candidates that conflict with each other have the same name, brand, preparation and basis, so their distinguishing details can only number them; each such row therefore also shows the nearest kept heading above its panel and its first quoted line, and the person chooses on those and on the values. One row is selected at a time; the details, quotes and limitations shown below are those of the selected candidate.
-- **Words (question O2).** The suggested candidate carries the word "Suggested". Candidates that differ in a declared value carry "Different values" in place of "Conflicting values". When nothing is pre-selected the section is titled "Choose a panel", with the line "This page gives more than one set of values. Choose the one that matches your food.", the summary line does not say that none suits, and the reason the action is disabled is shown beside it. The sentence that the source "gives conflicting values for this food, so it cannot be used" is not shown for a v3 review; a candidate with a conflict inside itself keeps its existing status text.
+- **Words (answer O2).** The suggested candidate carries the word "Suggested". Candidates that differ in a declared value carry "Different values" in place of "Conflicting values". When nothing is pre-selected the section is titled "Choose a panel", with the line "This page gives more than one set of values. Choose the one that matches your food.", the summary line does not say that none suits, and the reason the action is disabled is shown beside it. The sentence that the source "gives conflicting values for this food, so it cannot be used" is not shown for a v3 review; a candidate with a conflict inside itself keeps its existing status text.
 - **Part-read line.** For a part-read document only: "Only part of this page was read."
 - **Group title.** For a part-read document only, the "Not stated" group is titled "Not in the part read". Its membership is unchanged (every nutrient that is neither declared nor unusable). "Not usable" is unchanged. Unknown stays unknown and is never shown or saved as zero.
 
@@ -237,7 +237,7 @@ Destinations and content class (captured public source text) do not change. Thre
 
 - **Amount.** The most page text one captured document can carry rises from 30,000 characters in 512 blocks to 100,000 characters in 2,048 blocks. A run still captures at most two pages.
 - **Timing.** A page over today's bounds has none of its page text sent today. Under this proposal it is sent, whole or in part. In a discovery run the discovery and lead-choice requests are already sent before any capture, today and under this proposal.
-- **Requests (question O3).** A page whose candidates conflict with each other gets the applicability request, which today is skipped for it. It carries the conflicting candidates with their page quotes, and is subject to the existing limit of three attempts.
+- **Requests (answer O3).** A page whose candidates conflict with each other gets the applicability request, which today is skipped for it. It carries the conflicting candidates with their page quotes, and is subject to the existing limit of three attempts.
 
 The 100,000 characters are of distinct page text; the catalogue repeats up to 100 characters of overlap per excerpt of a long block. On the production route the part-read record, locators and original block ids are not sent. Picking a panel, preparing a confirmation and saving send nothing.
 
@@ -292,7 +292,7 @@ Stored shapes and admission:
 Review and choice:
 
 14. One case per row of the offer table in section 8.3, including that the action is disabled until a pick when nothing is pre-selected; `clarify` with non-conflicting candidates; the check not run and no selector composed; a non-suggested candidate with a basis conflict is not offered and cannot be prepared; three candidates of which two conflict; two identical candidates.
-15. Two candidates that differ in a declared value are both choosable and both offered; a candidate with a conflict inside itself is not.
+15. Two candidates that differ in a declared value are both choosable and both offered; a candidate with a conflict inside itself is not. When the check names a candidate and the page also yields a choosable candidate for a different product, that other candidate is not offered, and a v3 manifest whose `offered` mixes products is rejected.
 16. The applicability check runs for a page whose candidates conflict with each other, and its answer is recorded.
 17. Presentation: golden content for `web-lookup-review-v2` with one candidate, with several, and part-read; the suggestion is named in words; an unknown presentation fails closed; the content rebuilt from a retained v3 manifest equals the content shown; presentation cannot supply `offered` or construct a permitting gate; picking a panel, preparing and saving make no network request.
 18. Capture port: shared contract tests for the public capture and the fakes, for both permission values.
@@ -329,4 +329,5 @@ PDF and plain-text sources; panels outside tables and definition lists; host-spe
 - The first version of this document (part-read only) had one blind hostile review against the source at `main` 37cad25 and two local Qodo reviews; their findings were folded in.
 - The owner then took decisions W1 to W9, two of which (W8 and W9) added the panel choice and the larger bounds. Sections 4, 8, 9 and 10 and the changes that follow from them were written after those decisions.
 - The revised version had one blind hostile review against the source (ready with changes) and one local Qodo review. Their findings are folded in: per-version admission so that v1 and v2 accept nothing new, a retained v2 regression writer, an offer table keyed on the recorded answer and limited to competing panels for `clarify`, the offered candidates stored in full, the `text/plain` bound, the screen wording for a list with no pre-selection, the limits on a 100,000-character review, and the egress wording. The edits made after those reviews have had no review of their own.
+- The owner then answered questions O1 to O3 (section 8.5); each answer matches what the text already proposed. A local Qodo review at that point raised three findings. One was folded in: when the check names a candidate, only the candidates that compete with it are offered, and v3 admission rejects an offered set that mixes products (the earlier text offered every choosable candidate, which could have let a person confirm a different product from the same page). One was already met by section 8.4 (`offered` holds complete candidates). One restated the no-way-back cost in section 7, which the owner accepted under W4. This last edit has had no review of its own.
 - Not validated on a device. The measurements in section 1 have the limits listed in section 1.3.
