@@ -38,7 +38,7 @@ A trial part-read rule kept every table that had a per-100 header or at least th
 
 ### 1.2 Wider measurement (17 November 2026)
 
-The same scratch build was run over 43 projections of public product pages: the seven above and 36 more (two of the 36 repeat pages already in the seven). Forty-seven addresses on 25 hosts were tried, at most eight per host; 17 returned a block, a challenge or an error to a plain download and are not represented.
+The same scratch build was run over 43 projections of public product pages: the seven above and 36 more (two of the 36 repeat pages already in the seven). Forty-seven addresses on 25 hosts were tried, at most eight per host; 17 returned a block, a challenge or an error to a plain download. Eleven of those gave nothing to project. The other six returned a challenge or error body that projects to two blocks; those six are counted among the 43 although they are not product pages. They carry no nutrition, so the counts below of pages with nutrition and of refusals are unaffected, but they lower the smallest and median figures in the table.
 
 | | Smallest | Median | 75th percentile | 90th percentile | Largest |
 |---|---:|---:|---:|---:|---:|
@@ -317,6 +317,15 @@ The evaluation steps for search and query changes in `.github/workflows/ios-ci.y
 - The refusal copy for pages that are still refused.
 - The interaction with [AI search by name v1](ai-name-search-v1-proposal.md) (#488), which also reads page addresses.
 - Whether the context windows hold on the fresh set, and whether list-style panels are common enough beyond the new bounds to need a later version.
+- Notes from the independent review at acceptance (17 November 2026), none of which blocked accepting this text; each is settled before code:
+  - Offer table row 3 cannot tell a conflict between panels from a doubt about the food itself. The check turns a named candidate into `clarify` when any of its four facets (identity, exclusions, basis, nutrient meaning) is not supported (`OpenRouterFoodProvider.swift:274-283`) and does not keep the facets, so a page for a different brand with two batch panels could reach row 3. Either manifest v3 records the facets and row 3 requires the others to be supported, or the risk is named in section 11 with a visible line that the check did not confirm the match. This bears on answer O1 and goes back to the owner.
+  - Two candidates with the same name and the same values are both offered only under row 2; under `clarify` they do not conflict and nothing is offered. Test 14 needs one expectation per row.
+  - The table needs a row, and a test, for a recorded answer that names a candidate whose basis conflicts with the request: nothing is offered.
+  - "The same name, brand, preparation and basis" is pinned to the equality the conflict rule already uses (exact strings, basis amount and unit), in the offer rule, in admission and on the screen alike.
+  - "A confirmed candidate that is not in `offered`" means equality of the whole candidate, not of its id alone.
+  - Under `clarify`, admission accepts a third candidate of the same identity that conflicts with neither of the others, which row 3 would not offer; the two are aligned.
+  - With an untouched pre-selection the record cannot tell a pick from a tap, as in v2 today; the wording "the person's explicit pick" in section 8.1 is softened, and whether the "no automatic selection" line in `AGENTS.md` needs a note about the pre-selection goes to the owner.
+  - A v1 or v2 manifest whose document carries `partialRead` must be rejected by an explicit admission rule; it is not rejected by decoding alone.
 - Whether this is one implementation phase or three (bounds, part-read, choice). The parts are separable in that order, and since no sampled page exceeds the new bounds, part-read may reasonably come last.
 
 ## 14. Out of scope
@@ -330,5 +339,5 @@ PDF and plain-text sources; panels outside tables and definition lists; host-spe
 - The owner then took decisions W1 to W9, two of which (W8 and W9) added the panel choice and the larger bounds. Sections 4, 8, 9 and 10 and the changes that follow from them were written after those decisions.
 - The revised version had one blind hostile review against the source (ready with changes) and one local Qodo review. Their findings are folded in: per-version admission so that v1 and v2 accept nothing new, a retained v2 regression writer, an offer table keyed on the recorded answer and limited to competing panels for `clarify`, the offered candidates stored in full, the `text/plain` bound, the screen wording for a list with no pre-selection, the limits on a 100,000-character review, and the egress wording. The edits made after those reviews have had no review of their own.
 - The owner then answered questions O1 to O3 (section 8.5); each answer matches what the text already proposed. A local Qodo review at that point raised three findings. One was folded in: when the check names a candidate, only the candidates that compete with it are offered, and v3 admission rejects an offered set that mixes products (the earlier text offered every choosable candidate, which could have let a person confirm a different product from the same page). One was already met by section 8.4 (`offered` holds complete candidates). One restated the no-way-back cost in section 7, which the owner accepted under W4. This last edit has had no review of its own.
-- The owner accepted the text as a whole on 17 November 2026, knowing that the narrowed offer rule had not been reviewed separately. The implementing change has its own architecture gate, which re-checks it.
+- The owner accepted the text as a whole on 17 November 2026, knowing that the narrowed offer rule had not been reviewed separately. One blind invariant review then ran at the accepted text: pass with notes, nothing blocking. Its notes are listed in section 13 for the implementing change's architecture gate, and it corrected the account of the sample in section 1.2.
 - Not validated on a device. The measurements in section 1 have the limits listed in section 1.3.

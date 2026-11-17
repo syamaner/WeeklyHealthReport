@@ -4839,7 +4839,7 @@ Pricing: as in the row above, `claude-fable-5-2` is priced at the Claude Opus 5.
 
 ## WHR-508-PROPOSAL-2026-11-17: Claude Code Web lookup part-read pages, proposal (#508)
 
-The session (`claude-fable-5-2`, session `da6b123c-cf92-4d58-9bb7-540385b44d83`) diagnosed a device report that Web lookup refuses an ordinary product page, designed a bounded selection, measured seven public pages offline with a scratch copy of the projector, and wrote [the part-read pages proposal](docs/web-lookup-part-read-pages-v1-proposal.md). Documentation only; nothing is accepted or implemented.
+The session (`claude-fable-5-2`, session `da6b123c-cf92-4d58-9bb7-540385b44d83`) diagnosed a device report that Web lookup refuses an ordinary product page, designed a bounded selection, measured seven public pages offline with a scratch copy of the projector, and wrote [the part-read pages proposal](docs/web-lookup-part-read-pages-v1-proposal.md). Documentation only. The owner accepted the proposal on 17 November 2026; nothing is implemented.
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -4850,7 +4850,7 @@ The session (`claude-fable-5-2`, session `da6b123c-cf92-4d58-9bb7-540385b44d83`)
 
 Method: `phase_usage.py --format claude --since 2026-11-17T08:33:45Z --until 2026-11-17T09:06:55Z --include-subagents` on the session transcript. Exact USD 6.1207798. The cache-write tokens are part of the input figure: 201,401 are 5-minute writes and 95,718 are 1-hour writes. The window includes two blind review subagents. The total is input plus output.
 
-Second row: the same command with `--since 2026-11-17T09:06:55Z --until 2026-11-17T11:16:08Z`. Exact USD 5.095695. Of its cache-write tokens, 129,744 are 5-minute writes and 52,520 are 1-hour writes. The window includes one blind review subagent, and the commit, pull request and handover turns of the first row. The subtotal is the sum of the two rows (exact USD 11.2164748).
+Second row: the same command with `--since 2026-11-17T09:06:55Z --until 2026-11-17T11:16:08Z`. Exact USD 5.095695. Of its cache-write tokens, 129,744 are 5-minute writes and 52,520 are 1-hour writes. The window includes one blind review subagent, and the commit, pull request and handover turns of the first row. The subtotal is the sum of the three rows (exact USD 13.8504664).
 
 Third row: the same command with `--since 2026-11-17T11:16:08Z --until 2026-11-17T15:04:53Z`. Exact USD 2.6339916. All of its cache-write tokens are 1-hour writes. The window includes the second ledger edit, commit, push and pull request update of the second row, the owner's answers and the edit that records them; it has no subagent.
 
