@@ -24,6 +24,13 @@ exclusion, a value wrong in itself, and a class with no truthful source type. A 
 is a labelled estimate at no more than the middle quality tier and overrides no mechanical rule.
 This note re-admits nothing by itself, and R1, its release ID and its evaluation are unchanged.
 
+**Amendment, 18 November 2026 ([label photo estimates](personal-food-catalogue-off-estimates-v1-proposal.md), accepted, not implemented).**
+The A1 consequence still stands, and D3 is unchanged. Estimates read from Open Food Facts label
+photos become a new labelled source type in a new estimates schema, refused for any entry and
+nutrient this disposition withheld (section 4.1 applies to them in full, until a dated amendment
+to that contract's section 2.5 says otherwise). R1, its release ID, its
+seals and its evaluation are unchanged, and no text may describe these estimates as evaluated.
+
 ## 1. Where E3 stands
 
 | Measure (bars `v2_proposed`) | Handover count | Bar | State |
