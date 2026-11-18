@@ -46,6 +46,9 @@ public enum PersonalFoodDatabaseRuleCode: String, CaseIterable, Error, Sendable 
     case corpusMismatch = "corpus-mismatch", recordMissing = "record-missing"
     case valueUnquantified = "value-unquantified", valueMismatch = "value-mismatch"
     case estimateContradiction = "estimate-contradiction"
+    // Label photo estimates (docs/personal-food-catalogue-off-estimates-v1-phase.md section 4): a
+    // `personal-food-catalogue-estimates-v3` file only.
+    case photoFields = "photo-fields", photoRelation = "photo-relation", photoMissing = "photo-missing"
 
     /// The codes a `personal-food-catalogue-v1` file can never get.
     public static let v2Only: Set<Self> = [.servingImplausible, .servingMismatch]
@@ -61,6 +64,9 @@ public enum PersonalFoodDatabaseRuleCode: String, CaseIterable, Error, Sendable 
         .evidenceID, .evidenceDuplicate, .evidenceOrder, .estimatedNutrients, .estimateKeys, .labelAndEstimate,
         .evidenceDangling, .evidenceMismatch, .evidenceUnusedOrShared, .estimateOwnMerge, .estimateOwnMethod,
         .estimateOwnState, .estimateOwnHeld, .estimateQuality, .estimateBasis])
+
+    /// The codes only a `personal-food-catalogue-estimates-v3` file can get, beyond `estimatesOnly`.
+    public static let estimatesV3Only: Set<Self> = [.photoFields, .photoRelation, .photoMissing]
 }
 
 /// The file schemas the importer accepts. v1 files keep the v1 rules exactly; v2 adds Open Food
@@ -70,6 +76,12 @@ public enum PersonalFoodDatabaseSchema: String, CaseIterable, Sendable {
     case v2 = "personal-food-catalogue-v2"
     /// v2 plus labelled estimates (docs/personal-food-catalogue-estimates-v2-proposal.md).
     case estimatesV2 = "personal-food-catalogue-estimates-v2"
+    /// Estimates v2 plus the `product_dataset_photo` source type, written only when such an
+    /// estimate exists (docs/personal-food-catalogue-off-estimates-v1-proposal.md section 2.1).
+    case estimatesV3 = "personal-food-catalogue-estimates-v3"
+
+    /// True for the schemas that carry `estimate_evidence`.
+    public var carriesEstimates: Bool { self == .estimatesV2 || self == .estimatesV3 }
 
     /// True for the schemas that take the import v2 rules on their v2 part.
     var usesV2Rules: Bool { self != .v1 }

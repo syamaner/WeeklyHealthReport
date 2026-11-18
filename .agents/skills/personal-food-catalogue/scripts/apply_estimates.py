@@ -37,6 +37,9 @@ READMISSIONS_NAME = "estimate-readmissions.json"
 SHEET_NAME = "estimate-readmission-sheet.json"
 OUTPUT_NAME = "personal-food-catalogue-estimates-v2.json"
 SUPERSEDED_NAME = "personal-food-catalogue-estimates-v2.superseded.json"
+# Label photo phase gate section 1: a run that admits a photo estimate writes v3 under its own name.
+OUTPUT_NAME_V3 = "personal-food-catalogue-estimates-v3.json"
+SUPERSEDED_NAME_V3 = "personal-food-catalogue-estimates-v3.superseded.json"
 REPORT_NAME = "estimates-change-report.json"
 
 
@@ -98,12 +101,14 @@ def _write(path: Path, data: bytes):
     return path
 
 
-def _retire(out: Path):
-    """Renames an estimates file left by an earlier run; it no longer matches the plain v2 file."""
-    old = out / OUTPUT_NAME
-    if old.exists():
-        old.replace(check_output(out / SUPERSEDED_NAME))
-        print(f"renamed the earlier estimates file to {SUPERSEDED_NAME}")
+def _retire(out: Path, keep: str = ""):
+    """Renames an estimates file left by an earlier run, of either name except `keep`; it no longer
+    matches the plain v2 file."""
+    for name, superseded in ((OUTPUT_NAME, SUPERSEDED_NAME), (OUTPUT_NAME_V3, SUPERSEDED_NAME_V3)):
+        old = out / name
+        if name != keep and old.exists():
+            old.replace(check_output(out / superseded))
+            print(f"renamed the earlier estimates file to {superseded}")
 
 
 def _refuse(out: Path, text: str, lines=()):
@@ -195,12 +200,14 @@ def main(ws: Path, repo: Path):
         _retire(out)
         print(f"no estimate admitted: the plain v2 file stands (release {release})")
         return
-    path = _write(out / OUTPUT_NAME, data)
+    name = OUTPUT_NAME_V3 if out_doc["schema"] == export_v1.SCHEMA_ESTIMATES_V3 else OUTPUT_NAME
+    _retire(out, keep=name)
+    path = _write(out / name, data)
     print(f"wrote {path.name} ({len(data) / 1e6:.2f} MB, {counts['admitted']} estimates on "
           f"{counts['entries_with_estimates']} entries, {counts['checked_against_bundled_record']} to be checked "
           f"against a bundled record by the app)")
     print(f"release {I.release_id(data)}")
-    print(f"import this file, not {export_v1.OUTPUT_NAME}, on an app build that accepts estimates v2")
+    print(f"import this file, not {export_v1.OUTPUT_NAME}, on an app build that accepts {out_doc['schema']}")
 
 
 if __name__ == "__main__":

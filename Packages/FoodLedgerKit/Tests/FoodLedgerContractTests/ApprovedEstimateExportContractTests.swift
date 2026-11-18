@@ -21,7 +21,8 @@ final class ApprovedEstimateExportContractTests: XCTestCase {
     static let app = FoodDailyExportAppContext(appVersion: "0.1.1", appBuild: "42")
 
     /// Saves the given entries on one synthetic day and returns the snapshot's export.
-    static func export(_ entries: [(title: String, leftOut: [NutrientKey])], lookup: Confirm.Lookup = .init())
+    static func export(_ entries: [(title: String, leftOut: [NutrientKey])], lookup: Confirm.Lookup = .init(),
+                       fixture: String = "personal-food-database-estimates-v2")
         throws -> (document: FoodDailyExportDocument, saved: [StoredFoodConfirmation]) {
         let harness = try XCTUnwrap(try LedgerFixtures.harnesses().first)
         defer { harness.cleanup() }
@@ -29,7 +30,7 @@ final class ApprovedEstimateExportContractTests: XCTestCase {
         let service = try Confirm.service(harness, lookup: lookup, ids: ids)
         var saved: [StoredFoodConfirmation] = []
         for (index, entry) in entries.enumerated() {
-            var state = try Confirm.state(service, [entry.title], grams: 50, ids: ids)
+            var state = try Confirm.state(service, [entry.title], grams: 50, ids: ids, fixture: fixture)
             for key in entry.leftOut { FoodConfirmationReducer.reduce(state: &state, action: .leaveOutEstimate(key)) }
             saved.append(try service.save(state, operationID: try ids.makeID(OperationTag.self),
                                           idempotencyKey: try LedgerText("export-\(index)")))
