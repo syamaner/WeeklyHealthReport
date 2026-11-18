@@ -48,6 +48,8 @@ CODE_READ_DOCS = {
     "docs/web-lookup-part-read-pages-v1-proposal.md",
     "docs/web-lookup-larger-pages-phase1-gate.md",
     "docs/web-lookup-panel-choice-phase2-gate.md",
+    # Cited by the part-read selection, its tests and the capture port contract (#508 phase 3).
+    "docs/web-lookup-part-read-phase3-gate.md",
     # Cited by the today-so-far projection, its tests and Developer tools.
     "docs/today-so-far-projection-v1.md",
     # Cited by the list grammars (food-list-lexical-v4 to v7) and their golden-table tests.

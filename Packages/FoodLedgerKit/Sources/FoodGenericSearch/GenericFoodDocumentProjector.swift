@@ -6,6 +6,11 @@ import FoodLedgerDomain
 
 /// Format-based capture: DOM text, table rows and JSON-LD, without executing page
 /// content. Block coordinates belong to this projection version, not rendered CSS.
+///
+/// Part-read pages (#508 phase 3, docs/web-lookup-part-read-phase3-gate.md): without permission an
+/// HTML page over `FoodDocumentBounds.current` is refused at the bound, as before. With permission the
+/// walk continues to the end and `FoodDocumentBlockSelection` chooses the kept blocks; every error after
+/// the bound other than cancellation is `responseTooLarge`. Whole pages are unchanged byte for byte.
 public enum GenericFoodDocumentProjector {
     public static let version = "swift-food-document-blocks-v6"
     public static let maximumBytes = 3_000_000
@@ -13,7 +18,17 @@ public enum GenericFoodDocumentProjector {
     private static let atomic: Set<String> = ["h1", "h2", "h3", "h4", "h5", "h6", "p", "li", "tr", "caption", "dt", "dd", "div"]
 
     public static func project(_ raw: Data, url: URL, mediaType: String, retrievedAt: Date,
-                               origin: String = "publisher_http") throws -> CapturedFoodDocument {
+                               origin: String = "publisher_http",
+                               partRead: FoodDocumentPartReadPermission = .refused) throws -> CapturedFoodDocument {
+        try project(raw, url: url, mediaType: mediaType, retrievedAt: retrievedAt, origin: origin, partRead: partRead,
+                    boundPassed: {}, selectionStarts: {})
+    }
+
+    /// Test seams for cancellation: `boundPassed` runs once when a permitted walk passes the bound,
+    /// `selectionStarts` once the walk has finished, just before selection.
+    static func project(_ raw: Data, url: URL, mediaType: String, retrievedAt: Date, origin: String,
+                        partRead: FoodDocumentPartReadPermission, boundPassed: () -> Void,
+                        selectionStarts: () -> Void) throws -> CapturedFoodDocument {
         try Task.checkCancellation()
         if mediaType == "application/pdf" {
             return try GenericFoodPDFProjector.project(raw, url: url, retrievedAt: retrievedAt, origin: origin)
@@ -21,16 +36,22 @@ public enum GenericFoodDocumentProjector {
         guard !raw.isEmpty else { throw GenericFoodProposalError.invalidDocument }
         guard raw.count <= maximumBytes else { throw FoodSourceAcquisitionError.responseTooLarge }
         guard let source = String(data: raw, encoding: .utf8) else { throw FoodSourceAcquisitionError.unsupportedContent }
-        var blocks: [FoodDocumentBlock] = []
+        struct Emitted { let kind: String; let text: String; let path: String; let unit: String? }
+        var emitted: [Emitted] = []
         var total = 0
-        func emit(_ kind: String, _ text: String, _ locator: String) throws {
+        var passedBound = false
+        let selects = partRead == .permitted && mediaType == "text/html"
+        func emit(_ kind: String, _ text: String, _ locator: String, unit: String? = nil) throws {
             let value = text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
             if value.isEmpty { return }
             total += value.count
-            guard total <= FoodDocumentBounds.current.characters, blocks.count < FoodDocumentBounds.current.blocks else {
-                throw FoodSourceAcquisitionError.responseTooLarge
+            if !passedBound, total > FoodDocumentBounds.current.characters || emitted.count >= FoodDocumentBounds.current.blocks {
+                guard selects else { throw FoodSourceAcquisitionError.responseTooLarge }
+                passedBound = true
+                boundPassed()
+                try Task.checkCancellation()
             }
-            blocks.append(.init(id: "b\(blocks.count + 1)", kind: kind, text: value, locator: locator + ";projection:" + version))
+            emitted.append(.init(kind: kind, text: value, path: locator, unit: unit))
         }
         if mediaType == "text/plain" {
             for (index, line) in source.components(separatedBy: .newlines).enumerated() {
@@ -80,12 +101,15 @@ public enum GenericFoodDocumentProjector {
                     return hasNestedRowOrStructuredData(child)
                 }
             }
-            func walk(_ node: Node, path: String) throws {
+            // `table` and `dl` are the paths of the nearest ancestor table and definition list: the
+            // structural unit keys of part-read selection. They never enter a block or locator.
+            func walk(_ node: Node, path: String, table: String?, dl: String?) throws {
                 try Task.checkCancellation()
                 if let value = node as? TextNode { try emit("text", value.getWholeText(), path); return }
                 guard let element = node as? Element else { return }
                 let tag = element.tagName()
                 if ignored.contains(tag) { return }
+                let tableUnit = table.map { "table:" + $0 }
                 if tag == "script" {
                     if try element.attr("type").lowercased() == "application/ld+json" {
                         let rawJSON = element.data()
@@ -102,11 +126,13 @@ public enum GenericFoodDocumentProjector {
                 // row's column relationship. Nested tables still retain their
                 // own rows, and structured data must not be silently discarded.
                 if tag == "tr", !hasNestedRowOrStructuredData(element) {
-                    try emit(tag, text(element), path); return
+                    try emit(tag, text(element), path, unit: tableUnit); return
                 }
                 if atomic.contains(tag), !hasAtomicDescendant(element) {
-                    try emit(tag, text(element), path); return
+                    try emit(tag, text(element), path, unit: ["tr", "caption"].contains(tag) ? tableUnit : nil); return
                 }
+                let ownTable = tag == "table" ? path : table
+                let ownList = tag == "dl" ? path : dl
                 let children = element.getChildNodes()
                 var index = 0
                 while index < children.count {
@@ -129,19 +155,45 @@ public enum GenericFoodDocumentProjector {
                                   whitespace.getWholeText().trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { following += 1 }
                             if following == children.count || (children[following] as? Element)?.tagName() != "dd" {
                                 try emit("definition_row", text(term) + " | " + text(description),
-                                         path + "/dt[\(index)]+dd[\(next)]")
+                                         path + "/dt[\(index)]+dd[\(next)]", unit: ownList.map { "dl:" + $0 })
                                 index = next + 1; continue
                             }
                         }
                     }
-                    try walk(child, path: path + "/\(child.nodeName())[\(index)]")
+                    try walk(child, path: path + "/\(child.nodeName())[\(index)]", table: ownTable, dl: ownList)
                     index += 1
                 }
             }
-            try walk(document, path: "document")
+            do { try walk(document, path: "document", table: nil, dl: nil) }
+            catch is CancellationError { throw CancellationError() }
+            catch { throw passedBound ? FoodSourceAcquisitionError.responseTooLarge : error }
         } else { throw FoodSourceAcquisitionError.unsupportedContent }
         let hash = SHA256.hash(data: raw).map { String(format: "%02x", $0) }.joined()
-        return try CapturedFoodDocument(id: "doc_" + hash.prefix(16), url: url.absoluteString,
-            rawSha256: hash, captureOrigin: origin, retrievedAt: ISO8601DateFormatter().string(from: retrievedAt), blocks: blocks)
+        let retrieved = ISO8601DateFormatter().string(from: retrievedAt)
+        guard passedBound else {
+            let blocks = emitted.enumerated().map { index, block in
+                FoodDocumentBlock(id: "b\(index + 1)", kind: block.kind, text: block.text, locator: block.path + ";projection:" + version)
+            }
+            return try CapturedFoodDocument(id: "doc_" + hash.prefix(16), url: url.absoluteString,
+                rawSha256: hash, captureOrigin: origin, retrievedAt: retrieved, blocks: blocks)
+        }
+        do {
+            selectionStarts()
+            guard let kept = try FoodDocumentBlockSelection.select(emitted.map { .init(kind: $0.kind, text: $0.text, unit: $0.unit) })
+            else { throw FoodSourceAcquisitionError.responseTooLarge }
+            let suffix = ";projection:" + FoodDocumentPartialRead.selectedProjectionVersion
+            let blocks = try kept.map { index in
+                let block = emitted[index]
+                let locator = block.path + suffix
+                // Nothing is shortened: a locator too long for the stored document refuses the page.
+                guard locator.count <= 500 else { throw FoodSourceAcquisitionError.responseTooLarge }
+                return FoodDocumentBlock(id: "b\(index + 1)", kind: block.kind, text: block.text, locator: locator)
+            }
+            let record = FoodDocumentPartialRead(fullBlocks: emitted.count, fullCharacters: total, keptBlocks: blocks.count,
+                                                 keptCharacters: blocks.reduce(0) { $0 + $1.text.count })
+            return try CapturedFoodDocument(id: "doc_" + hash.prefix(16), url: url.absoluteString, rawSha256: hash,
+                captureOrigin: origin, retrievedAt: retrieved, blocks: blocks, partialRead: record)
+        } catch is CancellationError { throw CancellationError() }
+        catch { throw FoodSourceAcquisitionError.responseTooLarge }
     }
 }

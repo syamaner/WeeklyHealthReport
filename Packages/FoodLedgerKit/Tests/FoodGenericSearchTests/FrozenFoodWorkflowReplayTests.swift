@@ -210,11 +210,18 @@ private actor FrozenCapture: FoodDocumentCapturing {
     init(document: CapturedFoodDocument, raw: Data, mediaType: String, expectedURL: URL) {
         self.document = document; self.raw = raw; self.mediaType = mediaType; self.expectedURL = expectedURL
     }
-    func capture(_ url: URL) async throws -> CapturedFoodDocument {
+    func capture(_ url: URL, partRead: FoodDocumentPartReadPermission) async throws -> CapturedFoodDocument {
         calls += 1; XCTAssertEqual(url, expectedURL)
         let value = try GenericFoodDocumentProjector.project(raw, url: XCTUnwrap(URL(string: document.url)), mediaType: mediaType,
-            retrievedAt: XCTUnwrap(ISO8601DateFormatter().date(from: document.retrievedAt)), origin: document.captureOrigin)
+            retrievedAt: XCTUnwrap(ISO8601DateFormatter().date(from: document.retrievedAt)), origin: document.captureOrigin,
+            partRead: partRead)
         XCTAssertEqual(value, document)
+        // #508 phase 3: every frozen fixture is a whole page and re-projects equal under both permissions.
+        let other = try GenericFoodDocumentProjector.project(raw, url: XCTUnwrap(URL(string: document.url)), mediaType: mediaType,
+            retrievedAt: XCTUnwrap(ISO8601DateFormatter().date(from: document.retrievedAt)), origin: document.captureOrigin,
+            partRead: partRead == .permitted ? .refused : .permitted)
+        XCTAssertEqual(other, document)
+        XCTAssertNil(value.partialRead)
         return value
     }
 }
@@ -256,7 +263,7 @@ private actor FrozenWorkflowTransport {
 
 private actor ForbiddenMarketCapture: FoodDocumentCapturing {
     private(set) var calls = 0
-    func capture(_ url: URL) async throws -> CapturedFoodDocument {
+    func capture(_ url: URL, partRead: FoodDocumentPartReadPermission) async throws -> CapturedFoodDocument {
         calls += 1
         XCTFail("A rejected market must not be captured")
         throw FoodSourceAcquisitionError.invalidURL

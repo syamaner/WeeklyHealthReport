@@ -1,6 +1,7 @@
 import Foundation
-import FoodLedgerApplication
+@testable import FoodLedgerApplication
 import FoodLedgerDomain
+import FoodLedgerTestSupport
 import XCTest
 
 @MainActor
@@ -90,6 +91,100 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
             XCTAssertEqual(result.offer.candidates.map(\.id), offered, choice)
             XCTAssertEqual(result.offer.preselectedID, preselected, choice)
         }
+    }
+
+    // MARK: #508 phase 3, contract tests 18 and 19
+
+    func testReviewPortsPassTheSharedCapturePortContract() async {
+        let violations = await FoodDocumentCapturePortContracts.violations { shape in
+            let address = URL(string: "https://publisher.example/tofu")!
+            return (ReviewPorts(pageShapes: [address: shape]), address)
+        }
+        XCTAssertEqual(violations, [])
+    }
+
+    func testSuppliedAddressAndRunWithoutSelectorMayReadInPart() async throws {
+        let supplied = ReviewPorts(pageShapes: [url: .overBoundsWithPanel])
+        let result = try await reviewer(supplied, ranking: false).review(foodTerms: "tofu", sourceURL: url, key: key)
+        XCTAssertNotNil(result.documents.first?.partialRead)
+        let permissions = await supplied.permissions
+        XCTAssertEqual(permissions, [.permitted])
+        let unselected = ReviewPorts(pageShapes: [url: .overBoundsWithPanel])
+        let run = try await GenericFoodProposalReviewer(discovery: unselected, capture: unselected, extraction: unselected)
+            .review(foodTerms: "tofu", key: key)
+        XCTAssertNotNil(run.documents.first?.partialRead)
+        let unselectedPermissions = await unselected.permissions, calls = await unselected.calls
+        XCTAssertEqual(unselectedPermissions, [.permitted])
+        XCTAssertEqual(calls.filter { $0 == "capture" }.count, 1)
+    }
+
+    func testAFirstLeadOverTheBoundsYieldsToAnotherLeadAndIsReadInPartOnlyWithoutOne() async throws {
+        let other = URL(string: "https://other.example/tofu")!
+        let ports = ReviewPorts(pageShapes: [url: .overBoundsWithPanel])
+        let result = try await GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports, sourceSelection: ports,
+            selection: ports).review(foodTerms: "tofu", key: key)
+        let permissions = await ports.permissions
+        XCTAssertEqual(permissions, [.refused, .permitted])
+        XCTAssertEqual(result.sourceAttempts, [url, other])
+        XCTAssertNil(result.documents.first?.partialRead)
+        // With no other admissible lead, the first capture may read in part: one capture.
+        let alone = ReviewPorts(leadURLs: [url], pageShapes: [url: .overBoundsWithPanel])
+        let single = try await GenericFoodProposalReviewer(discovery: alone, capture: alone, extraction: alone, sourceSelection: alone,
+            selection: alone).review(foodTerms: "tofu", key: key)
+        let alonePermissions = await alone.permissions
+        XCTAssertEqual(alonePermissions, [.permitted])
+        XCTAssertNotNil(single.documents.first?.partialRead)
+        XCTAssertEqual(single.sourceAttempts, [url])
+        // A lead the link policy refuses is not another admissible lead.
+        XCTAssertFalse(GenericFoodProposalReviewer.hasAnotherAdmissibleLead(.init(leads: [.init(title: "Tofu", url: url),
+            .init(title: "Tofu", url: URL(string: "http://other.example/tofu")!)], searchSuggestionsHTML: nil), besides: url))
+        XCTAssertTrue(GenericFoodProposalReviewer.hasAnotherAdmissibleLead(.init(leads: [.init(title: "Tofu", url: url),
+            .init(title: "Tofu", url: other)], searchSuggestionsHTML: nil), besides: url))
+    }
+
+    func testNoWayBackWhenTheSecondLeadIsNotCaptured() async throws {
+        // The selector abstains, the second lead has a provider error, or a market conflict: the run
+        // ends as today (the second attempt's reason), and the first page is never read in part.
+        let abstains = ReviewPorts(pageShapes: [url: .overBoundsWithPanel])
+        await abstains.secondChoice(.abstain(reason: "None suits"))
+        let provider = ReviewPorts(pageShapes: [url: .overBoundsWithPanel])
+        await provider.secondChoice(error: .quotaExceeded)
+        for (ports, expected) in [(abstains, "sourceNotSuggested"), (provider, "provider")] {
+            let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports, sourceSelection: ports)
+            do { _ = try await service.review(foodTerms: "tofu", key: key); XCTFail("Expected the run to end") }
+            catch let failure as GenericFoodProposalPartialFailure {
+                switch failure.reason {
+                case .sourceNotSuggested: XCTAssertEqual(expected, "sourceNotSuggested")
+                case .provider: XCTAssertEqual(expected, "provider")
+                default: XCTFail("Unexpected reason \(failure.reason)")
+                }
+                XCTAssertEqual(failure.sourceAttempts, [url])
+            }
+            let permissions = await ports.permissions
+            XCTAssertEqual(permissions, [.refused])
+        }
+        let first = URL(string: "https://publisher.co.uk/yoghurt")!
+        let market = ReviewPorts(leadURLs: [first, URL(string: "https://ie.fage/yoghurts/fage-total-0")!],
+                                 pageShapes: [first: .overBoundsWithPanel])
+        let service = GenericFoodProposalReviewer(discovery: market, capture: market, extraction: market, sourceSelection: market)
+        do { _ = try await service.review(foodTerms: "FAGE plain yoghurt UK", key: key); XCTFail("Expected market conflict") }
+        catch let failure as GenericFoodProposalPartialFailure {
+            guard case .sourceMarketConflict = failure.reason else { return XCTFail("Wrong failure reason") }
+            XCTAssertEqual(failure.sourceAttempts, [first])
+        }
+        let marketPermissions = await market.permissions
+        XCTAssertEqual(marketPermissions, [.refused])
+    }
+
+    func testAnEmptyFirstExtractionThenASecondPageOverTheBoundsReadsItInPart() async throws {
+        let other = URL(string: "https://other.example/tofu")!
+        let ports = ReviewPorts(emptyFirstOnly: true, pageShapes: [other: .overBoundsWithPanel])
+        let result = try await GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports, sourceSelection: ports,
+            selection: ports).review(foodTerms: "tofu", key: key)
+        let permissions = await ports.permissions, calls = await ports.calls
+        XCTAssertEqual(permissions, [.refused, .permitted])
+        XCTAssertNotNil(result.documents.first?.partialRead)
+        XCTAssertEqual(calls.filter { $0 == "capture" }.count, 2, "Never more than two captures")
     }
 
     func testEmptyFirstSourceUsesOneDistinctAlternativeWithoutRediscovery() async throws {
@@ -386,39 +481,60 @@ private actor ReviewPorts: FoodWebDiscovering, FoodDocumentCapturing, FoodPropos
     let capturedURL: URL?
     let extraBlocks: Int
     let competingPanels: Bool
+    /// Scripted page shapes by address (#508 phase 3); any other address is a whole page.
+    let pageShapes: [URL: FoodDocumentCapturePortContracts.PageShape]
+    /// The part-read permission of every capture, in order.
+    var permissions: [FoodDocumentPartReadPermission] = []
+    /// A different answer from the second source choice, when set (#508 phase 3 source order).
+    var secondSourceChoice: FoodSourceLeadDecision?
+    var secondSourceError: FoodWebDiscoveryError?
+    private var sourceChoices = 0
     init(empty: Bool = false, emptyFirstOnly: Bool = false, captureError: FoodSourceAcquisitionError? = nil,
          extractionError: FoodWebDiscoveryError? = nil, selectionError: FoodWebDiscoveryError? = nil, selectionChoice: String = "c1",
          suspendCapture: Bool = false, sourceChoice: FoodSourceLeadDecision = .selected(index: 0, purpose: .primaryProduct, reason: "Source"),
          sourceError: FoodWebDiscoveryError? = nil, suspendSourceChoice: Bool = false,
          leadURLs: [URL] = [URL(string: "https://publisher.example/tofu")!, URL(string: "https://other.example/tofu")!],
-         capturedURL: URL? = nil, extraBlocks: Int = 0, competingPanels: Bool = false) {
+         capturedURL: URL? = nil, extraBlocks: Int = 0, competingPanels: Bool = false,
+         pageShapes: [URL: FoodDocumentCapturePortContracts.PageShape] = [:]) {
         self.empty = empty; self.emptyFirstOnly = emptyFirstOnly; self.captureError = captureError; self.extractionError = extractionError
         self.selectionError = selectionError; self.selectionChoice = selectionChoice; self.suspendCapture = suspendCapture
         self.sourceChoice = sourceChoice; self.sourceError = sourceError; self.suspendSourceChoice = suspendSourceChoice
         self.leadURLs = leadURLs; self.capturedURL = capturedURL; self.extraBlocks = extraBlocks
-        self.competingPanels = competingPanels
+        self.competingPanels = competingPanels; self.pageShapes = pageShapes
     }
     func chooseSource(foodTerms: String, leads: [FoodWebLead], key: String) async throws -> FoodSourceLeadDecision {
-        calls.append("chooseSource")
+        calls.append("chooseSource"); sourceChoices += 1
         if suspendSourceChoice { try await Task.sleep(for: .seconds(30)) }
         if let sourceError { throw sourceError }
+        if sourceChoices == 2, let secondSourceError { throw secondSourceError }
+        if sourceChoices == 2, let secondSourceChoice { return secondSourceChoice }
         return sourceChoice
     }
     func resumeCapture() { suspendCapture = false }
+    func secondChoice(_ choice: FoodSourceLeadDecision? = nil, error: FoodWebDiscoveryError? = nil) {
+        secondSourceChoice = choice; secondSourceError = error
+    }
     func validate(key: String) async throws { XCTFail("Review must not add a validation request") }
     func discover(foodTerms: String, key: String) async throws -> FoodWebDiscoveryResult {
         calls.append("discover")
         return .init(leads: leadURLs.map { .init(title: "Tofu source", url: $0) }, searchSuggestionsHTML: nil)
     }
-    func capture(_ url: URL) async throws -> CapturedFoodDocument {
-        calls.append("capture")
+    func capture(_ url: URL, partRead: FoodDocumentPartReadPermission) async throws -> CapturedFoodDocument {
+        calls.append("capture"); permissions.append(partRead)
         if suspendCapture { try await Task.sleep(for: .seconds(30)) }
         if let captureError { throw captureError }
+        let blocks: [FoodDocumentBlock] = [.init(id: "b1", kind: "text", text: "Tofu Per 100 g Protein 6 g", locator: "line1")]
+            + (competingPanels ? [.init(id: "b2", kind: "text", text: "Tofu Per 100 g Protein 7 g", locator: "line2")] : [])
+            + (0..<extraBlocks).map { .init(id: "b\($0 + 2)", kind: "li", text: "Menu item \($0)", locator: "li\($0)") }
+        switch pageShapes[url] ?? .whole {
+        case .whole: break
+        case .overBoundsWithoutPanel: throw FoodSourceAcquisitionError.responseTooLarge
+        case .overBoundsWithPanel:
+            guard partRead == .permitted else { throw FoodSourceAcquisitionError.responseTooLarge }
+            return try FoodDocumentCapturePortContracts.partReadDocument(id: "d1", url: capturedURL ?? url, blocks: blocks)
+        }
         return try CapturedFoodDocument(id: "d1", url: (capturedURL ?? url).absoluteString, rawSha256: String(repeating: "a", count: 64),
-            captureOrigin: "synthetic_fixture", retrievedAt: "2026-10-04T00:00:00Z",
-            blocks: [.init(id: "b1", kind: "text", text: "Tofu Per 100 g Protein 6 g", locator: "line1")]
-                + (competingPanels ? [.init(id: "b2", kind: "text", text: "Tofu Per 100 g Protein 7 g", locator: "line2")] : [])
-                + (0..<extraBlocks).map { .init(id: "b\($0 + 2)", kind: "li", text: "Menu item \($0)", locator: "li\($0)") })
+            captureOrigin: "synthetic_fixture", retrievedAt: "2026-10-04T00:00:00Z", blocks: blocks)
     }
     func extract(foodTerms: String, documents: [CapturedFoodDocument], key: String) async throws -> FoodProposalExtraction {
         calls.append("extract")

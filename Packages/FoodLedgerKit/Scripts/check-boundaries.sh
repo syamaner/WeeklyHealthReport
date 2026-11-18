@@ -589,6 +589,40 @@ self_test_personal_database_search_edges() {
 }
 self_test_personal_database_search_edges
 check_personal_database_search_edges "$package_root"
+
+# Part-read selection (#508 phase 3, docs/web-lookup-part-read-phase3-gate.md section 2): the pure
+# selection file imports Foundation and the domain only, in any import form; a missing file fails.
+part_read_selection_violations() {
+  local file="$1"
+  if [[ ! -f "$file" ]]; then echo "$file: missing"; return 0; fi
+  sed -nE "s/${import_attributes}([A-Za-z0-9_]+).*$/\5/p" "$file" | sort -u | grep -Ev '^(Foundation|FoodLedgerDomain)$' || true
+}
+self_test_part_read_selection_imports() {
+  local scratch status=0 fixture
+  scratch="$(mktemp -d "${TMPDIR:-/tmp}/check-boundaries-part-read.XXXXXX")"
+  printf 'import Foundation\nimport FoodLedgerDomain\n' > "$scratch/base.swift"
+  if [[ -n "$(part_read_selection_violations "$scratch/base.swift")" ]]; then
+    echo "check-boundaries self-test: the part-read selection baseline must pass" >&2; status=1
+  fi
+  for fixture in 'import SwiftSoup' '@preconcurrency import Network' 'import FoodLedgerApplication' 'import CryptoKit'; do
+    { printf 'import Foundation\n'; printf '%s\n' "$fixture"; } > "$scratch/fixture.swift"
+    if [[ -z "$(part_read_selection_violations "$scratch/fixture.swift")" ]]; then
+      echo "check-boundaries self-test: the part-read selection fixture '$fixture' must fail" >&2; status=1
+    fi
+  done
+  if [[ -z "$(part_read_selection_violations "$scratch/missing.swift")" ]]; then
+    echo "check-boundaries self-test: a missing part-read selection file must fail" >&2; status=1
+  fi
+  rm -rf "$scratch"
+  return "$status"
+}
+self_test_part_read_selection_imports
+part_read_unexpected="$(part_read_selection_violations "$package_root/Sources/FoodGenericSearch/FoodDocumentBlockSelection.swift")"
+if [[ -n "$part_read_unexpected" ]]; then
+  echo "FoodDocumentBlockSelection.swift has forbidden imports:" >&2
+  echo "$part_read_unexpected" >&2
+  exit 1
+fi
 clipboard_unexpected="$(clipboard_violations "$package_root/Sources")"
 if [[ -n "$clipboard_unexpected" ]]; then
   echo "$clipboard_unexpected" >&2

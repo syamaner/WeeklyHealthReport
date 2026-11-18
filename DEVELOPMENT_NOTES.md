@@ -4916,6 +4916,20 @@ Excluded: this ledger edit and everything after the window (handover, and any co
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. It is an API-equivalent comparison under a Claude subscription, not a bill, and says nothing about quality or productivity.
 
+## WHR-508-PHASE3-2026-11-18: Claude Code Web lookup part-read selection, phase 3 (#508)
+
+The session (`claude-opus-5-5`, session `1bfef674-abf4-4d8f-843d-5ac7ea6da55a`, started from the session that coordinated phases 1 and 2) implemented phase 3 of [the part-read pages contract](docs/web-lookup-part-read-pages-v1-proposal.md): part-read selection and source order, under [its gate](docs/web-lookup-part-read-phase3-gate.md).
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Part-read selection phase 3, start to gates | 34,222,515 (33,379,682) | 842,485 | 168,420 | 34,390,935 | $16.02 |
+
+Method: `phase_usage.py --format claude --since 2026-11-18T12:53:08Z --include-subagents` on the session transcript, run at `2026-11-18T16:26:30Z`. Exact USD 16.0207764. The cache-write tokens are part of the input figure: 254,944 are 5-minute writes and 587,541 are 1-hour writes. The boundary was captured at the start of the phase; the window holds the worktree, the gate, one blind architecture-gate subagent, one owner question (the egress wording), a pause while the disk was full, the implementation and tests, one blind invariant-review subagent and the validation gates. The total is input plus output.
+
+Excluded: this ledger edit and everything after the window (the final suite re-run, the handover, and any commit, push or pull request). The validation gates and evaluation steps use no API tokens.
+
+Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. It is an API-equivalent comparison under a Claude subscription, not a bill, and says nothing about quality or productivity.
+
 ## WHR-511-2026-11-17: Claude Code Personal food database labelled estimates on catalogue v2, implementation (#511)
 
 The session (`claude-fable-5-2`, session `1af49c68-648f-479f-928a-ec44cfdcace9`) implemented the accepted contract [estimates on catalogue v2](docs/personal-food-catalogue-estimates-v2-proposal.md) in one phase under its [phase gate](docs/personal-food-catalogue-estimates-v2-phase.md): the catalogue skill's checker and writer, the app's codec, importer checks, provenance kind and food contract 10, Confirm with leave-out and withholding, re-resolution, daily export schema 3, and their tests and synthetic fixtures. Not merged; no private catalogue was read or written.

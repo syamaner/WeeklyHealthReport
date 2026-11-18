@@ -1,8 +1,15 @@
 import Foundation
 import FoodLedgerDomain
 
+/// Whether a capture may read a page beyond `FoodDocumentBounds.current` in part (#508 phase 3,
+/// `food-document-block-selection-v1`). The reviewer decides it for each capture (source order,
+/// docs/web-lookup-part-read-phase3-gate.md section 5); under `refused` such a page is refused.
+public enum FoodDocumentPartReadPermission: Sendable, Equatable {
+    case refused, permitted
+}
+
 public protocol FoodDocumentCapturing: Sendable {
-    func capture(_ url: URL) async throws -> CapturedFoodDocument
+    func capture(_ url: URL, partRead: FoodDocumentPartReadPermission) async throws -> CapturedFoodDocument
 }
 
 public protocol FoodProposalExtracting: Sendable {
@@ -103,6 +110,9 @@ public protocol GenericFoodProposalReviewing: Sendable {
 
 /// One discovery; at most two distinct selected source captures. A second source
 /// is considered only after empty extraction or recoverable acquisition failure.
+/// Source order for part-read pages (#508): a supplied address, a run with no source selector and
+/// the second capture may read a page in part; the first capture of a discovery run may only when
+/// no other admissible lead exists, so a larger page first yields to the next lead.
 /// No repeated discovery, cross-source merging or ledger writes. Transient model-call retries,
 /// where composed, live inside the provider adapter (#500); this orchestration never repeats a step.
 public actor GenericFoodProposalReviewer: GenericFoodProposalReviewing {
@@ -168,7 +178,7 @@ public actor GenericFoodProposalReviewer: GenericFoodProposalReviewing {
             original = found; attempts = [attempted]; excluded = [attempted]
         }
         try Task.checkCancellation()
-        let remaining = original.leads.filter { !excluded.contains($0.url) && FoodWebLinkPolicy.isAllowed($0.url) }
+        let remaining = Self.admissibleLeads(original, excluding: excluded)
         guard !remaining.isEmpty else {
             if let firstReview { return firstReview }
             if let firstFailure { throw firstFailure }
@@ -192,13 +202,25 @@ public actor GenericFoodProposalReviewer: GenericFoodProposalReviewing {
         }
     }
 
+    /// The second-lead pool: every lead of the discovery result that is not excluded and that the
+    /// link policy admits. The part-read predicate uses the same filter, so they cannot drift.
+    static func admissibleLeads(_ result: FoodWebDiscoveryResult, excluding excluded: Set<URL>) -> [FoodWebLead] {
+        result.leads.filter { !excluded.contains($0.url) && FoodWebLinkPolicy.isAllowed($0.url) }
+    }
+
+    /// Evaluated once before the first capture of a discovery run with a selector (#508, contract section 7).
+    static func hasAnotherAdmissibleLead(_ result: FoodWebDiscoveryResult, besides selected: URL) -> Bool {
+        !admissibleLeads(result, excluding: [selected]).isEmpty
+    }
+
     private func runSingle(terms: String, sourceURL: URL?, key: String,
                            existingDiscovery: FoodWebDiscoveryResult? = nil) async throws -> GenericFoodProposalReview {
         try Task.checkCancellation()
         let result: FoodWebDiscoveryResult?
         let url: URL
         var representativeSourceOnly = false
-        if let sourceURL { url = sourceURL; result = nil }
+        let partRead: FoodDocumentPartReadPermission
+        if let sourceURL { url = sourceURL; result = nil; partRead = .permitted }
         else {
             let found: FoodWebDiscoveryResult
             if let existingDiscovery { found = existingDiscovery }
@@ -228,13 +250,14 @@ public actor GenericFoodProposalReviewer: GenericFoodProposalReviewing {
                 case .abstain:
                     throw GenericFoodProposalPartialFailure(discovery: found, reason: .sourceNotSuggested)
                 }
-            } else { url = first.url }
+                partRead = existingDiscovery != nil || !Self.hasAnotherAdmissibleLead(found, besides: url) ? .permitted : .refused
+            } else { url = first.url; partRead = .permitted }
         }
         guard !FoodSourceMarketPolicy.hasExplicitConflict(foodTerms: terms, url: url) else {
             throw GenericFoodProposalPartialFailure(discovery: result, reason: .sourceMarketConflict)
         }
         let document: CapturedFoodDocument
-        do { document = try await capture.capture(url) }
+        do { document = try await capture.capture(url, partRead: partRead) }
         catch {
             try Task.checkCancellation()
             if error is CancellationError { throw error }

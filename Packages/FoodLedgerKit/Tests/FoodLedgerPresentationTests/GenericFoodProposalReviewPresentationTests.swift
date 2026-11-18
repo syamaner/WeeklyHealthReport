@@ -303,6 +303,35 @@ final class GenericFoodProposalReviewPresentationTests: XCTestCase {
                        "reviewed-web-proposal-v3:food-proposal-binding-v7:reviewed-web-admission-v7")
     }
 
+    /// #508 phase 3: a page projected in part reaches the screen with the part-read line and the
+    /// "Not in the part read" title, Developer tools shows the policy and the four counts, and the
+    /// saved v3 review is admitted and rebuilds the same content from the manifest alone.
+    func testAPartReadPageReachesTheScreenDeveloperToolsAndASavedReview() async throws {
+        let reviewer = ControlledProposalReview(); let model = make(reviewer, initialMarket: .unspecified)
+        model.foodTerms = "milk"
+        let task = Task { await model.search() }; await reviewer.waitForRequest()
+        let review = try ProposalPresentationFixture.partRead()
+        await reviewer.complete(review); await task.value
+        let document = try XCTUnwrap(review.documents.first)
+        let record = try XCTUnwrap(document.partialRead)
+        XCTAssertTrue(model.diagnosticLines.contains("Part read: food-document-block-selection-v1 · full \(record.fullBlocks) blocks, "
+            + "\(record.fullCharacters) characters · kept \(record.keptBlocks) blocks, \(record.keptCharacters) characters"))
+        let proposal = try XCTUnwrap(model.suggestedProposal)
+        let content = try XCTUnwrap(FoodWebLookupReviewContent(document: document, candidate: proposal.candidate,
+            scope: .representativeEstimate, presentation: FoodProposalReviewAction.webLookupReviewV2))
+        XCTAssertEqual(content.partRead, "Only part of this page was read.")
+        XCTAssertEqual(content.notStatedText, "Not in the part read")
+        XCTAssertTrue(content.notStated.contains(.fibre), "Unknown stays unknown, never zero")
+        let input = try model.prepare(proposal, querySnapshot: "milk", scope: .representativeEstimate)
+        guard case let .text(text) = input.evidence[0].originalPayload,
+              case let .v3(manifest) = FoodProposalReviewManifestRecord.decode(Data(text.value.utf8)) else {
+            return XCTFail("Expected a v3 manifest")
+        }
+        XCTAssertNil(manifest.admissionFailure)
+        XCTAssertEqual(manifest.document.partialRead, record)
+        XCTAssertEqual(FoodWebLookupReviewContent(manifest: manifest), content)
+    }
+
     /// #508 phase 2: the pick starts at the pre-selection (none under clarify), changes only through
     /// `pick`, ignores ids outside the offer, and resets with a new result.
     func testPickStartsAtThePreselectionAndChangesOnlyByThePersonsAction() async throws {
@@ -522,6 +551,32 @@ private actor ControlledProposalReview: GenericFoodProposalReviewing {
 }
 
 private enum ProposalPresentationFixture {
+    /// A synthetic HTML page beyond the bounds, projected in part, with one milk panel (#508 phase 3).
+    static func partRead() throws -> GenericFoodProposalReview {
+        let rows = ["Milk Per 100g Energy 100kcal", "Fat 3.6g", "Protein 3.4g"]
+        let page = "<h1>Milk</h1><ul>" + (1...2_100).map { "<li>Aisle \($0)</li>" }.joined() + "</ul><table>"
+            + rows.map { "<tr><td>\($0)</td></tr>" }.joined() + "</table>"
+        let document = try GenericFoodDocumentProjector.project(Data(page.utf8), url: URL(string: "https://example.com/food")!,
+            mediaType: "text/html", retrievedAt: Date(timeIntervalSince1970: 0), origin: "synthetic_fixture", partRead: .permitted)
+        let block = try XCTUnwrap(document.blocks.first { $0.text == rows[0] })
+        let ref: [[String: Any]] = [["block_id": block.id, "quote": rows[0]]]
+        let nutrients: [[String: Any]] = FoodProposalNutrientKey.allCases.map { key in
+            ["key": key.rawValue, "state": key == .energy ? "declared" : "unknown", "value": key == .energy ? "100" as Any : NSNull(),
+             "unit": key == .energy ? "kcal" as Any : NSNull(), "evidence": key == .energy ? ref : [],
+             "unknown_reason": key == .energy ? NSNull() : "not_observed" as Any]
+        }
+        let candidate: [String: Any] = ["id": "c1", "document_id": document.id, "name": "Milk", "brand": NSNull(), "preparation": NSNull(),
+            "identity_evidence": ref, "panel_evidence": ref,
+            "basis": ["amount": "100", "unit": "g", "label": "Per 100g", "evidence": ref], "nutrients": nutrients, "limitations": []]
+        let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let extraction = try decoder.decode(FoodProposalExtraction.self, from: JSONSerialization.data(withJSONObject:
+            ["version": FoodProposalExtraction.schemaVersion, "candidates": [candidate], "preferred_id": "c1"]))
+        let validation = try FoodProposalBinding.validate(extraction, documents: [document])
+        return GenericFoodProposalReview(foodTerms: "milk", discovery: nil, documents: [document], validation: validation,
+            selection: try FoodProposalSelection(choice: "c1", probabilities: ["c1": 1, "none": 0, "clarify": 0],
+                                                 rawConfidence: 1, validation: validation))
+    }
+
     /// One page printing two panels of the same milk with different energy values (#508 phase 2).
     static func competing(selection: String) throws -> GenericFoodProposalReview {
         let lines = ["Milk Per 100g Energy 100kcal", "Milk Per 100g Energy 120kcal"]
