@@ -489,7 +489,7 @@ final class LabelEstimateStorageContractTests: XCTestCase {
     // MARK: GRDB
 
     func testMigrationFromAPopulatedV7StoreChangesOnlyLedgerMetadata() throws {
-        XCTAssertEqual(FoodLedgerGRDBStore.schemaVersion, 10)
+        XCTAssertEqual(FoodLedgerGRDBStore.schemaVersion, 11)
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("estimate-v8-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -504,6 +504,7 @@ final class LabelEstimateStorageContractTests: XCTestCase {
             try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v8_label_estimate'")
             try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v9_off_label_estimate'")
             try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v10_approved_estimate'")
+            try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v11_label_photo_estimate'")
             try db.execute(sql: "UPDATE ledger_metadata SET value = 'food-ledger-v7' WHERE key = 'schema_identity'")
             try db.execute(sql: "PRAGMA user_version = 7")
         }
@@ -518,10 +519,10 @@ final class LabelEstimateStorageContractTests: XCTestCase {
         XCTAssertEqual(try check.read { try String.fetchAll($0, sql: "SELECT sql FROM sqlite_master WHERE sql IS NOT NULL ORDER BY name") },
                        schemaBefore, "No table, index or trigger definition changes")
         try check.read { db in
-            XCTAssertEqual(try Int.fetchOne(db, sql: "PRAGMA user_version"), 10)
-            XCTAssertEqual(try String.fetchOne(db, sql: "SELECT value FROM ledger_metadata WHERE key = 'schema_identity'"), "food-ledger-v10")
-            XCTAssertEqual(try String.fetchAll(db, sql: "SELECT identifier FROM grdb_migrations ORDER BY rowid").suffix(3),
-                           ["v8_label_estimate", "v9_off_label_estimate", "v10_approved_estimate"])
+            XCTAssertEqual(try Int.fetchOne(db, sql: "PRAGMA user_version"), 11)
+            XCTAssertEqual(try String.fetchOne(db, sql: "SELECT value FROM ledger_metadata WHERE key = 'schema_identity'"), "food-ledger-v11")
+            XCTAssertEqual(try String.fetchAll(db, sql: "SELECT identifier FROM grdb_migrations ORDER BY rowid").suffix(4),
+                           ["v8_label_estimate", "v9_off_label_estimate", "v10_approved_estimate", "v11_label_photo_estimate"])
         }
     }
 

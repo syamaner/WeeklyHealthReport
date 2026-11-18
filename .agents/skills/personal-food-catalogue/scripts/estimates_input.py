@@ -20,9 +20,14 @@ import json
 import re
 
 import estimates_v2 as E
+import estimates_v3 as V3
 import export_v1
 
 SCHEMA = "pfc-accepted-estimates-v1"
+# Input v2 (label photo phase gate section 1): v1 plus the `product_dataset_photo` token and, on a photo
+# row only, the owner-set `ready_to_eat` (section 2.5). v1 keeps refusing the token.
+SCHEMA_V2 = "pfc-accepted-estimates-v2"
+SCHEMAS = (SCHEMA, SCHEMA_V2)
 TOP_KEYS = {"schema", "catalogue_release_id", "rows"}
 ROW_BASE = {"entry_id", "scope", "evidence", "underlying_source", "relation", "accepted"}
 SCOPES = ("entry", "nutrient")
@@ -102,8 +107,9 @@ def _refuse(where, text):
 
 
 def _validate_fields(doc):
-    if not isinstance(doc, dict) or set(doc) != TOP_KEYS or doc["schema"] != SCHEMA:
-        raise EstimatesRefused(f"accepted estimates: not a {SCHEMA} document")
+    if not isinstance(doc, dict) or set(doc) != TOP_KEYS or doc["schema"] not in SCHEMAS:
+        raise EstimatesRefused(f"accepted estimates: not a {SCHEMA} or {SCHEMA_V2} document")
+    catalogue_schema = V3.SCHEMA if doc["schema"] == SCHEMA_V2 else E.SCHEMA
     if not isinstance(doc["catalogue_release_id"], str) or not RELEASE_ID.fullmatch(doc["catalogue_release_id"]):
         raise EstimatesRefused("accepted estimates: invalid catalogue_release_id")
     if not isinstance(doc["rows"], list):
@@ -119,12 +125,13 @@ def _validate_fields(doc):
         if not isinstance(ev, dict) or set(ev) != EVIDENCE_IN:
             _refuse(where, "evidence fields must be the contract record without id, entry_id and nutrient")
         national = ev["source_type"] == "national_composition"
+        photo = ev["source_type"] == V3.TOKEN
         if national and {"value", "unit"} & set(row):
             _refuse(where, "a national composition row never carries a typed value")
         if scope == "entry" and not national:
             _refuse(where, "whole-entry scope is national composition only")
         expected = ROW_BASE | ({"nutrient"} if scope == "nutrient" else set()) \
-            | (set() if national else {"value", "unit"})
+            | (set() if national else {"value", "unit"}) | ({"ready_to_eat"} if photo else set())
         if set(row) != expected:
             _refuse(where, f"fields must be exactly {sorted(expected)}")
         if not (isinstance(row["entry_id"], str) and ENTRY_ID.fullmatch(row["entry_id"])):
@@ -143,7 +150,8 @@ def _validate_fields(doc):
             _refuse(where, "accepted must be {sheet, row} naming one review sheet row")
         problems = []
         E.check_record({**ev, "id": "pfe:" + "0" * 16, "entry_id": row["entry_id"], "nutrient": key},
-                       set(export_v1.GENERIC_SOURCES), lambda code, _detail="": problems.append(code), where)
+                       set(export_v1.GENERIC_SOURCES), lambda code, _detail="": problems.append(code), where,
+                       catalogue_schema)
         # An Open Food Facts page is withheld by rule at admission, not refused, so its count stays visible.
         problems = sorted(set(problems) - {"open-food-facts-host"})
         if problems:
@@ -154,6 +162,14 @@ def _validate_fields(doc):
             _refuse(where, "underlying_source is not_applicable exactly when the source is not an aggregator")
         if (row["relation"] == "similar_food") != (ev["method"] == "carried_from_similar_food"):
             _refuse(where, "relation and method disagree")
+        if photo:
+            if not isinstance(row["ready_to_eat"], bool):
+                _refuse(where, "ready_to_eat must be true or false")
+            if ev["source_state"] not in V3.SOURCE_STATES:
+                _refuse(where, "a photo source_state outside the closed list (exact bytes)")
+            if ev["state_basis"] == "stated_assumption" and not (
+                    row["ready_to_eat"] is True and ev["source_state"] in ("as sold", "as sold, cooked")):
+                _refuse(where, "a stated assumption needs ready_to_eat and an as-sold panel")
         keys.append((row["entry_id"], key))
     if keys != sorted(set(keys)):
         raise EstimatesRefused("accepted estimates: rows must be in ascending (entry_id, nutrient) order, "
@@ -170,8 +186,11 @@ def parse(data) -> dict:
 
 
 def build(catalogue_release_id: str, rows: list) -> bytes:
-    """The canonical bytes of an input document, validated."""
-    return canonical(validate({"schema": SCHEMA, "catalogue_release_id": catalogue_release_id, "rows": rows}))
+    """The canonical bytes of an input document, validated: input v2 exactly when a row is a photo."""
+    photo = any(isinstance(r, dict) and isinstance(r.get("evidence"), dict)
+                and r["evidence"].get("source_type") == V3.TOKEN for r in rows) if isinstance(rows, list) else False
+    schema = SCHEMA_V2 if photo else SCHEMA
+    return canonical(validate({"schema": schema, "catalogue_release_id": catalogue_release_id, "rows": rows}))
 
 
 # ---- expansion, admission and assembly ---------------------------------------------------------
@@ -207,7 +226,8 @@ def expand(doc: dict, accepted: dict, read_record):
     for n, row in enumerate(accepted["rows"]):
         ev, eid = row["evidence"], row["entry_id"]
         carried = {"entry_id": eid, "evidence": ev, "underlying_source": row["underlying_source"],
-                   "relation": row["relation"], "accepted": row["accepted"], "scope": row["scope"], "row": n}
+                   "relation": row["relation"], "accepted": row["accepted"], "scope": row["scope"], "row": n,
+                   "ready_to_eat": row.get("ready_to_eat")}
         counts[f"rows_{row['scope']}_scope"] += 1
         if ev["source_type"] != "national_composition":
             out.append({**carried, "nutrient": row["nutrient"], "value": row["value"], "unit": row["unit"]})
@@ -239,7 +259,7 @@ def expand(doc: dict, accepted: dict, read_record):
 def open_food_facts(est) -> bool:
     ev = est["evidence"]
     return est["underlying_source"] == "open_food_facts" or (
-        ev["source_type"] != "national_composition" and E.off_host(E.page_host(ev["source_reference"])))
+        ev["source_type"] not in ("national_composition", V3.TOKEN) and E.off_host(E.page_host(ev["source_reference"])))
 
 
 def record_for(est) -> dict:
@@ -252,7 +272,8 @@ def codec_codes(est, item, corpora) -> list:
     """The codec codes the row would raise against its entry: the inherited record checks with the
     file's own corpora, then the table of contract section 3.1."""
     rec, problems = record_for(est), []
-    E.check_record(rec, set(corpora), lambda code, _detail="": problems.append(code), "")
+    schema = V3.SCHEMA if rec["source_type"] == V3.TOKEN else E.SCHEMA
+    E.check_record(rec, set(corpora), lambda code, _detail="": problems.append(code), "", schema)
     return sorted(set(problems)) if problems else E.table_codes(rec, item)
 
 
@@ -286,6 +307,8 @@ def reason(est, item, corpora, read_record, refusal_status):
         return "readmission_class", []
     if status not in (CLEAR, READMITTED):
         return "refused_source", []
+    if ev["source_type"] == V3.TOKEN and not V3.state_compatible(item["state"], ev["source_state"], ev["state_basis"]):
+        return "state_contradiction", []
     if national:
         facts = _facts(read_record, ev["composition_source"], ev["source_reference"])
         if est["value"] is None or _quantified(facts, key) is None:
@@ -348,7 +371,8 @@ def assemble(doc: dict, admitted: list) -> dict:
     if len({r["id"] for r in evidence}) != len(evidence):
         raise EstimatesRefused("two estimates share an evidence ID")
     out = {k: doc[k] for k in doc}
-    out["schema"] = export_v1.SCHEMA_ESTIMATES_V2
+    photo = any(est["evidence"]["source_type"] == V3.TOKEN for est in admitted)
+    out["schema"] = export_v1.SCHEMA_ESTIMATES_V3 if photo else export_v1.SCHEMA_ESTIMATES_V2
     out["items"] = [{**it, "estimated_nutrients": dict(sorted(added.get(it["id"], {}).items()))}
                     for it in doc["items"]]
     out["estimate_evidence"] = sorted(evidence, key=lambda r: r["id"])
@@ -377,7 +401,9 @@ def _check_additive(plain, out):
     for k in plain:
         if k not in ("schema", "items") and canonical(plain[k]) != canonical(out[k]):
             errs.append(f"top-changed: {k}")
-    if plain["schema"] != export_v1.SCHEMA_V2 or out["schema"] != export_v1.SCHEMA_ESTIMATES_V2:
+    photo = any(r.get("source_type") == V3.TOKEN for r in out["estimate_evidence"])
+    wanted = export_v1.SCHEMA_ESTIMATES_V3 if photo else export_v1.SCHEMA_ESTIMATES_V2
+    if plain["schema"] != export_v1.SCHEMA_V2 or out["schema"] != wanted:
         errs.append("schema")
     if [it["id"] for it in plain["items"]] != [it["id"] for it in out["items"]]:
         return errs + ["entries-changed"]
@@ -458,4 +484,14 @@ def change_report(doc: dict, admitted: list, read_record) -> dict:
         counts["cites_fortified_record"] += facts.get("fortification") == "fortified"
         counts["raw_record_on_non_raw_entry"] += preparation == "raw" and items[est["entry_id"]]["state"] != "raw"
     counts["entries_with_estimates"] = len({est["entry_id"] for est in admitted})
+    photos = [est for est in admitted if est["evidence"]["source_type"] == V3.TOKEN]
+    if photos:  # label photo phase gate section 2.5 and contract section 2.5; absent otherwise
+        macro = {"energy_consumed", "protein", "fat_total", "fat_saturated", "carbohydrates", "sugar", "fiber"}
+        counts["photo_admitted_macro"] = sum(est["nutrient"] in macro for est in photos)
+        counts["photo_admitted_micro"] = len(photos) - counts["photo_admitted_macro"]
+        counts["photo_admitted_same_food"] = sum(est["relation"] == "same_food" for est in photos)
+        counts["photo_admitted_similar_food"] = sum(est["relation"] == "similar_food" for est in photos)
+        counts["photo_stated_assumption_on_raw_frozen_dried"] = sum(
+            est["evidence"]["state_basis"] == "stated_assumption"
+            and items[est["entry_id"]]["state"] in ("raw", "frozen", "dried") for est in photos)
     return dict(sorted(counts.items()))

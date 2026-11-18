@@ -69,12 +69,13 @@ final class PersonalFoodDatabaseCodecEstimatesTests: XCTestCase {
 
     func testRuleCodeEnumEqualsTheManifestAndTheOlderListsAreSubsets() throws {
         let m = try Self.manifest()
-        XCTAssertEqual(Set(PersonalFoodDatabaseRuleCode.allCases.map(\.rawValue)), Set(m.rule_codes))
+        // The label photo codes belong to estimates v3 files alone (PersonalFoodDatabaseCodecV3Tests).
+        let upToV2 = Set(PersonalFoodDatabaseRuleCode.allCases).subtracting(PersonalFoodDatabaseRuleCode.estimatesV3Only)
+        XCTAssertEqual(Set(upToV2.map(\.rawValue)), Set(m.rule_codes))
         XCTAssertEqual(Set(PersonalFoodDatabaseRuleCode.estimatesOnly.map(\.rawValue)), Set(m.estimates_only_rule_codes))
         XCTAssertEqual(PersonalFoodDatabaseRuleCode.importerOnly.map(\.rawValue), m.importer_rule_codes)
         let v2 = try PersonalFoodDatabaseCodecV2Tests().manifest()
-        XCTAssertEqual(Set(PersonalFoodDatabaseRuleCode.allCases.map(\.rawValue)).subtracting(m.estimates_only_rule_codes),
-                       Set(v2.rule_codes))
+        XCTAssertEqual(Set(upToV2.map(\.rawValue)).subtracting(m.estimates_only_rule_codes), Set(v2.rule_codes))
     }
 
     func testAnEstimatesFileIsNeverReadUnderAnOlderSchemaAndTheReverse() throws {

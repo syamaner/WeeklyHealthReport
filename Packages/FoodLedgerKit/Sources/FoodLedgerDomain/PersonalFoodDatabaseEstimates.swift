@@ -6,6 +6,18 @@ import Foundation
 
 public enum PersonalFoodDatabaseEstimateSourceType: String, CaseIterable, Codable, Sendable {
     case nationalComposition = "national_composition", manufacturerPage = "manufacturer_page", aggregator
+    /// A value read from an Open Food Facts nutrition panel photo (label photo estimates v1).
+    case productDatasetPhoto = "product_dataset_photo"
+
+    /// The closed list before label photo estimates: every catalogue, export and stored version
+    /// that predates them keeps exactly this list.
+    public static let estimatesV2List: [Self] = [.nationalComposition, .manufacturerPage, .aggregator]
+
+    /// The closed list of one catalogue schema (phase gate section 1): never `allCases`, so a new
+    /// case cannot widen an older version.
+    public static func allowed(catalogue schema: PersonalFoodDatabaseSchema) -> [Self] {
+        schema == .estimatesV3 ? estimatesV2List + [.productDatasetPhoto] : estimatesV2List
+    }
 }
 
 public enum PersonalFoodDatabaseEstimatePageAccess: String, CaseIterable, Codable, Sendable {
@@ -118,7 +130,9 @@ struct PersonalFoodDatabaseEstimateChecker {
         "target_state", "state_basis", "method", "assumption", "derivation", "quality"])
     static let estimateKeys = R.set(["value", "unit", "evidence_id"])
     static let derivationKeys = R.set(["transform_id", "version", "source_value"])
-    static let sourceTypes = R.set(PersonalFoodDatabaseEstimateSourceType.allCases.map(\.rawValue))
+    static func sourceTypes(_ schema: PersonalFoodDatabaseSchema) -> Set<PFDText> {
+        R.set(PersonalFoodDatabaseEstimateSourceType.allowed(catalogue: schema).map(\.rawValue))
+    }
     static let pageAccess = R.set(PersonalFoodDatabaseEstimatePageAccess.allCases.map(\.rawValue))
     static let stateBases = R.set(PersonalFoodDatabaseEstimateStateBasis.allCases.map(\.rawValue))
     static let methods = R.set(PersonalFoodDatabaseEstimateMethod.allCases.map(\.rawValue))
@@ -198,15 +212,18 @@ struct PersonalFoodDatabaseEstimateChecker {
         return !R.transformArithmeticFails(expected: rule.apply(parts.value), value: value)
     }
 
-    /// `estimates_v2.check_record`.
-    private mutating func checkRecord(_ rec: PFDValue, corpora: Set<PFDText>) {
+    /// `estimates_v2.check_record`; in a v3 file a photo record takes the photo rules in place of
+    /// the page-type checks.
+    private mutating func checkRecord(_ rec: PFDValue, corpora: Set<PFDText>, schema: PersonalFoodDatabaseSchema) {
         guard rec.keys == Self.evidenceKeys else { return err(.evidenceKeys) }
         if case .bool(true)? = rec["approved_as_estimate"] {} else { err(.notApproved) }
-        guard let sourceType = rec["source_type"]?.text, Self.sourceTypes.contains(sourceType),
+        guard let sourceType = rec["source_type"]?.text, Self.sourceTypes(schema).contains(sourceType),
               let stateBasis = rec["state_basis"]?.text, Self.stateBases.contains(stateBasis),
               let method = rec["method"]?.text, Self.methods.contains(method),
               let quality = rec["quality"]?.text, Self.qualities.contains(quality) else { return err(.token) }
-        if sourceType == Self.nationalComposition {
+        if sourceType == PersonalFoodDatabasePhotoRules.token {
+            if PersonalFoodDatabasePhotoRules.recordFails(rec) { err(.photoFields) }
+        } else if sourceType == Self.nationalComposition {
             let source = rec["composition_source"]?.text
             if let source, R.genericSources.contains(source), rec["page_access"]?.isNull == true {
                 if !corpora.contains(source) { err(.corpusUndeclared) }
@@ -242,9 +259,10 @@ struct PersonalFoodDatabaseEstimateChecker {
     }
 
     /// The highest tier the codec accepts for a record (contract section 3.3).
-    static func ceiling(method: PFDText, stateBasis: PFDText, pageAccess: PFDText?, national: Bool, own: Bool)
-        -> PersonalFoodDatabaseEstimateQuality {
+    static func ceiling(method: PFDText, stateBasis: PFDText, pageAccess: PFDText?, national: Bool, own: Bool,
+                        photo: Bool = false) -> PersonalFoodDatabaseEstimateQuality {
         if stateBasis == PFDText("unknown") { return .low }
+        if photo { return .medium }
         if method == PFDText("carried_from_same_food") || method == PFDText("direct"),
            stateBasis == PFDText("source_states_it"), pageAccess != PFDText("indexed_copy"), !national || own {
             return .high
@@ -275,15 +293,18 @@ struct PersonalFoodDatabaseEstimateChecker {
         if candidate, sameFood, item["state"]?.text == PFDText("raw") || item["state"]?.text == PFDText("cooked") {
             codes.append(.estimateOwnHeld)
         }
+        let photo = sourceType == PersonalFoodDatabasePhotoRules.token
         if quality.rank > ceiling(method: method, stateBasis: stateBasis, pageAccess: rec["page_access"]?.text,
-                                  national: national, own: own).rank { codes.append(.estimateQuality) }
+                                  national: national, own: own, photo: photo).rank { codes.append(.estimateQuality) }
         if national, item["basis"]?.text != PFDText("per_100_g") { codes.append(.estimateBasis) }
+        if photo { codes += PersonalFoodDatabasePhotoRules.relationCodes(record: rec, item: item) }
         return codes
     }
 
     /// `estimates_v2.check`. `failedItems` are the indexes of entries that raised a code in the v2
     /// part and `duplicateIDs` the entry IDs that occur more than once: their records get no table row.
-    mutating func check(_ doc: PFDValue, failedItems: Set<Int>, duplicateIDs: Set<PFDText>) {
+    mutating func check(_ doc: PFDValue, failedItems: Set<Int>, duplicateIDs: Set<PFDText>,
+                        schema: PersonalFoodDatabaseSchema = .estimatesV2) {
         guard let evidence = doc["estimate_evidence"]?.items, let items = doc["items"]?.items else { return }
         let itemKeys = R.itemKeys.union([PFDText("estimated_nutrients")])
         var corpora = Set<PFDText>()
@@ -308,7 +329,7 @@ struct PersonalFoodDatabaseEstimateChecker {
             previous = max(previous, rid)
             if records[rid] == nil { order.append(rid) }
             records[rid] = rec
-            checkRecord(rec, corpora: corpora)
+            checkRecord(rec, corpora: corpora, schema: schema)
             if codes.count > before { faulty.insert(rid) }
         }
         var used: [PFDText: Int] = [:]
@@ -361,6 +382,7 @@ struct PersonalFoodDatabaseEstimateChecker {
             if let id = item["id"]?.text, duplicateIDs.contains(id) { continue }
             codes += Self.tableCodes(record: rec, item: item)
         }
+        if schema == .estimatesV3, !PersonalFoodDatabasePhotoRules.hasPhotoEstimate(doc) { err(.photoMissing) }
     }
 }
 

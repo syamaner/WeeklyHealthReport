@@ -78,7 +78,8 @@ final class DailyFoodDriveExportTests: XCTestCase {
         XCTAssertEqual(FoodDailyExportShape.acceptedSummaryVersions, [
             1: ["food-intake-summary-v4", "food-intake-summary-v5", "food-intake-summary-v6"],
             2: ["food-intake-summary-v6"],
-            3: ["food-intake-summary-v6"]  // estimates on catalogue v2: schema 2's shape plus the estimate fields
+            3: ["food-intake-summary-v6"],  // estimates on catalogue v2: schema 2's shape plus the estimate fields
+            5: ["food-intake-summary-v6"]   // label photo estimates (#518): schema 3's shape plus the photo token
         ])
         XCTAssertEqual(FoodDailyExportShape.acceptedSummaryVersions[FoodDailyExportDocument.schemaVersion]?
             .contains(DailyFoodExportIdentityPolicy.summaryVersion), true, "what this build writes is accepted")

@@ -39,6 +39,8 @@ public enum ApprovedEstimateText {
         case .nationalComposition: "Food composition table"
         case .manufacturerPage: "Maker's web page"
         case .aggregator: "Food database website"
+        // Owner decision F5 (docs/personal-food-catalogue-off-estimates-v1-proposal.md section 7).
+        case .productDatasetPhoto: "Product database label photo"
         }
     }
 

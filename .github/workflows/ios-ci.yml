@@ -104,6 +104,12 @@ jobs:
             .agents/skills/personal-food-catalogue/scripts
           python3 -I .agents/skills/personal-food-catalogue/scripts/test_estimate_counts.py \
             .agents/skills/personal-food-catalogue/scripts
+          # Label photo estimates (#518): the photo route's builder rules, and the shared v3 codec
+          # fixtures, which the Swift codec tests read too. Synthetic data only.
+          python3 -I .agents/skills/personal-food-catalogue/scripts/test_photo_estimates.py \
+            .agents/skills/personal-food-catalogue/scripts
+          python3 -I .agents/skills/personal-food-catalogue/scripts/test_photo_estimates.py \
+            .agents/skills/personal-food-catalogue/scripts --verify docs/fixtures/personal-food-database-estimates-v3
 
   food-healthkit-planning:
     name: HealthKit planning reference contracts

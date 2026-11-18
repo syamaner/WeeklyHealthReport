@@ -11,6 +11,7 @@ checks (corpus pin, record, value, contradiction) are the app importer's and are
 import re
 
 import export_v1
+import estimates_v3 as V3
 
 SCHEMA = "personal-food-catalogue-estimates-v2"
 EVIDENCE_ID = re.compile(r"pfe:[0-9a-f]{16}")
@@ -112,18 +113,26 @@ def transform_matches(derivation, nutrient, value) -> bool:
     return expect is not None and export_v1._num(value) and abs(expect - value) <= TOLERANCE * abs(expect) + 1e-9
 
 
-def check_record(rec, corpora, err, where):
-    """Estimates v1 section 2.2 for one evidence record, plus the required `quality` token."""
+def source_types(schema) -> set:
+    """The closed source-type list of one catalogue schema (label photo phase gate section 1)."""
+    return SOURCE_TYPES | {V3.TOKEN} if schema == V3.SCHEMA else SOURCE_TYPES
+
+
+def check_record(rec, corpora, err, where, schema=SCHEMA):
+    """Estimates v1 section 2.2 for one evidence record, plus the required `quality` token; in a v3
+    file, a photo record takes the photo rules in place of the page-type checks."""
     if not isinstance(rec, dict) or set(rec) != EVIDENCE_KEYS:
         return err("evidence-keys", where)
     if rec["approved_as_estimate"] is not True:
         err("not-approved", where)
     st = rec["source_type"]
     if not all(isinstance(rec[k], str) for k in ("source_type", "state_basis", "method", "quality")) \
-            or st not in SOURCE_TYPES or rec["state_basis"] not in STATE_BASES or rec["method"] not in METHODS \
+            or st not in source_types(schema) or rec["state_basis"] not in STATE_BASES or rec["method"] not in METHODS \
             or rec["quality"] not in QUALITY_RANK:
         return err("token", where)
-    if st == "national_composition":
+    if st == V3.TOKEN:
+        V3.check_record(rec, err, where, export_v1._date)
+    elif st == "national_composition":
         cs = rec["composition_source"]
         if not isinstance(cs, str) or cs not in export_v1.GENERIC_SOURCES or rec["page_access"] is not None:
             err("type-fields", where)
@@ -170,6 +179,8 @@ def ceiling(rec, own: bool) -> str:
     """The highest tier the codec accepts for this record (contract section 3.3)."""
     if rec["state_basis"] == "unknown":
         return "low"
+    if rec["source_type"] == V3.TOKEN:
+        return "medium"
     if rec["method"] in ("carried_from_same_food", "direct") and rec["state_basis"] == "source_states_it" \
             and rec["page_access"] != "indexed_copy" and (rec["source_type"] != "national_composition" or own):
         return "high"
@@ -194,6 +205,8 @@ def table_codes(rec, item) -> list:
         codes.append("estimate-quality")
     if rec["source_type"] == "national_composition" and item["basis"] != "per_100_g":
         codes.append("estimate-basis")
+    if rec["source_type"] == V3.TOKEN:
+        codes += V3.relation_codes(rec, item)
     return codes
 
 
@@ -206,6 +219,7 @@ def check(doc, report, failed_items, duplicate_ids):
         raised[0] += 1
         report(code, detail)
 
+    schema = doc.get("schema")
     item_keys = export_v1.ITEM_KEYS | {"estimated_nutrients"}
     corpora = {c["source"] for c in doc["generic_corpora"]
                if isinstance(c, dict) and isinstance(c.get("source"), str)} \
@@ -223,7 +237,7 @@ def check(doc, report, failed_items, duplicate_ids):
             err("evidence-order", f"record {n}")
         prev = max(prev, rid)
         records[rid] = rec
-        check_record(rec, corpora, err, f"record {n}")
+        check_record(rec, corpora, err, f"record {n}", schema)
         if raised[0] > before:
             faulty.add(rid)
     used, cited_by = {}, {}
@@ -280,3 +294,5 @@ def check(doc, report, failed_items, duplicate_ids):
             continue
         for code in table_codes(rec, item):
             report(code, rid)
+    if schema == V3.SCHEMA:
+        V3.check_missing(doc, err)

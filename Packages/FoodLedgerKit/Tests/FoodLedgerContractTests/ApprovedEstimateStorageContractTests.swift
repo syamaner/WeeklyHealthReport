@@ -14,8 +14,8 @@ final class ApprovedEstimateStorageContractTests: XCTestCase {
         .deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("docs/fixtures")
 
     func testFoodContractTenAndSchemaTen() {
-        XCTAssertEqual(CanonicalFoodProjection.foodContractVersion, 10)
-        XCTAssertEqual(FoodLedgerGRDBStore.schemaVersion, 10)
+        XCTAssertEqual(CanonicalFoodProjection.foodContractVersion, 11)
+        XCTAssertEqual(FoodLedgerGRDBStore.schemaVersion, 11)
         // An archive or store holding no estimate keeps the contract-6 floor and so its bytes.
         XCTAssertEqual(CanonicalFoodProjection.exportFloorContractVersion, 6)
         XCTAssertEqual(CanonicalFoodProjection.minimumContractVersion(for: LedgerMutation()), 1)
@@ -46,6 +46,7 @@ final class ApprovedEstimateStorageContractTests: XCTestCase {
         let queue = try DatabaseQueue(path: database.path)
         try queue.write { db in
             try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v10_approved_estimate'")
+            try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v11_label_photo_estimate'")
             try db.execute(sql: "UPDATE ledger_metadata SET value = 'food-ledger-v9' WHERE key = 'schema_identity'")
             try db.execute(sql: "PRAGMA user_version = 9")
         }
@@ -60,9 +61,9 @@ final class ApprovedEstimateStorageContractTests: XCTestCase {
         XCTAssertEqual(try check.read { try String.fetchAll($0, sql: "SELECT sql FROM sqlite_master WHERE sql IS NOT NULL ORDER BY name") },
                        schemaBefore, "No table, index or trigger definition changes")
         try check.read { db in
-            XCTAssertEqual(try Int.fetchOne(db, sql: "PRAGMA user_version"), 10)
-            XCTAssertEqual(try String.fetchOne(db, sql: "SELECT value FROM ledger_metadata WHERE key = 'schema_identity'"), "food-ledger-v10")
-            XCTAssertEqual(try String.fetchAll(db, sql: "SELECT identifier FROM grdb_migrations ORDER BY rowid").last, "v10_approved_estimate")
+            XCTAssertEqual(try Int.fetchOne(db, sql: "PRAGMA user_version"), 11)
+            XCTAssertEqual(try String.fetchOne(db, sql: "SELECT value FROM ledger_metadata WHERE key = 'schema_identity'"), "food-ledger-v11")
+            XCTAssertEqual(try String.fetchAll(db, sql: "SELECT identifier FROM grdb_migrations ORDER BY rowid").last, "v11_label_photo_estimate")
         }
         // A contract 9 binary applies the pre-migration rule (user_version above its schema 9) and
         // declines this store: `unknownSchema(10)` there, shown here with the next number.

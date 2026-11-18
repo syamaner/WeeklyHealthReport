@@ -14,8 +14,9 @@ final class ApprovedEstimateConfirmContractTests: XCTestCase {
         .deletingLastPathComponent().deletingLastPathComponent()
         .appendingPathComponent("docs/fixtures/personal-food-database-estimates-v2")
 
-    static func file() throws -> PersonalFoodDatabaseFile {
-        try PersonalFoodDatabaseCodec.decode(try Data(contentsOf: fixtures.appendingPathComponent("golden.json"))).get()
+    static func file(_ fixture: String = "personal-food-database-estimates-v2") throws -> PersonalFoodDatabaseFile {
+        let directory = fixtures.deletingLastPathComponent().appendingPathComponent(fixture)
+        return try PersonalFoodDatabaseCodec.decode(try Data(contentsOf: directory.appendingPathComponent("golden.json"))).get()
     }
 
     static func release(_ file: PersonalFoodDatabaseFile) throws -> SourceRelease {
@@ -57,8 +58,9 @@ final class ApprovedEstimateConfirmContractTests: XCTestCase {
 
     /// The route's own confirmation for some entries: one search evidence item and one capture
     /// manifest per candidate with estimates, exactly as the database route builds it.
-    static func input(_ titles: [String], ids: any LedgerIDGenerating = RandomLedgerIDGenerator()) throws -> PopulatedFoodConfirmation {
-        let file = try file(), release = try release(file)
+    static func input(_ titles: [String], ids: any LedgerIDGenerating = RandomLedgerIDGenerator(),
+                      fixture: String = "personal-food-database-estimates-v2") throws -> PopulatedFoodConfirmation {
+        let file = try file(fixture), release = try release(file)
         let search = try CaptureEvidence(evidenceID: ids.makeID(EvidenceTag.self), kind: .genericSearch,
             capturedAt: LedgerFixtures.clock.now(), locale: LedgerText("en_GB"), captureMethod: LedgerText("typed_generic_food_search"),
             captureMethodVersion: LedgerText(PersonalFoodDatabaseCandidateBuilder.methodVersion), originalPayload: .text(LedgerText("synthetic")))
@@ -95,8 +97,9 @@ final class ApprovedEstimateConfirmContractTests: XCTestCase {
 
     /// A bound, corrected, accepted state with an amount.
     static func state(_ service: FoodConfirmationService, _ titles: [String], _ kind: PreparationKind = .asSold,
-                      grams: Double = 150, ids: any LedgerIDGenerating = RandomLedgerIDGenerator()) throws -> FoodConfirmationState {
-        var state = FoodConfirmationState(input: try input(titles, ids: ids), prefillSourceQuantity: false)
+                      grams: Double = 150, ids: any LedgerIDGenerating = RandomLedgerIDGenerator(),
+                      fixture: String = "personal-food-database-estimates-v2") throws -> FoodConfirmationState {
+        var state = FoodConfirmationState(input: try input(titles, ids: ids, fixture: fixture), prefillSourceQuantity: false)
         service.bindEstimates(&state)
         try correct(&state, kind)
         FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(grams, .grams))

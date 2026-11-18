@@ -142,7 +142,8 @@ input  ──►  intake file  ──►  intake.py add  ──►  mapping (age
    with a counted reason, when the entry has a label value or a merged record's value on that key,
    when it is a composite, when the source is Open Food Facts, when the E3 disposition refused the
    source and the owner has not re-admitted that value, or when the app's codec would reject it. The
-   result is `out/personal-food-catalogue-estimates-v2.json` (import that file instead of the plain
+   result is `out/personal-food-catalogue-estimates-v2.json`, or `-v3.json` when a label photo estimate
+   (input v2, `product_dataset_photo`) is admitted (import that file instead of the plain
    one, on an app build that accepts estimates v2) and the private
    `out/estimates-change-report.json`. With no estimate admitted the plain v2 file stands. The run
    refuses to write when any of the evaluator's four must-be-zero counts is not zero. The owner
@@ -194,9 +195,11 @@ Facts, OpenRouter label reading) run is unchanged and decided by the existing es
 | `purchase_counts.py`, `test_purchase_counts.py` | The private `pfd-purchase-counts-v1` file for an import file (evaluation plan section 3.2), and its synthetic tests |
 | `test_http_client.py` | Local fake-server test of pacing, Retry-After, 403 and the circuit breaker |
 | `estimates_v2.py` | The estimate rules of `personal-food-catalogue-estimates-v2` for the checker in `export_v1.check_bytes` (pure) |
+| `estimates_v3.py` | The label photo rules of `personal-food-catalogue-estimates-v3`, called by `estimates_v2.check` for a v3 file (pure) |
 | `estimates_input.py` | The accepted-estimates input `pfc-accepted-estimates-v1`: validator, whole-entry expansion, admission with counted reasons, assembly, the additive proof and the counts-only change report (pure) |
 | `estimate_counts.py` | The three private refusal and re-admission lists and the evaluator's six counts (pure) |
 | `apply_estimates.py` | Run by `build.py` after the export: writes the estimates v2 file and the private change report, or leaves the plain v2 file standing |
+| `test_photo_estimates.py` | Synthetic tests for the label photo route, and the writer and checker of the shared v3 fixtures (`--write`, `--verify`) |
 | `test_estimates_input.py`, `test_estimate_counts.py` | Synthetic tests for the three scripts above, with an end-to-end run on a temporary workspace |
 
 ## After changing this skill

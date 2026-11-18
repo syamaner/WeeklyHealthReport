@@ -37,10 +37,11 @@ public struct CanonicalFoodNutritionSummary: Codable, Equatable, Sendable {
 }
 
 public struct CanonicalFoodProjection: Codable, Equatable, Sendable {
-    /// The highest contract this binary reads and writes (10: approved estimates from Your food
+    /// The highest contract this binary reads and writes (11: label photo estimates, a capture
+    /// manifest citing `product_dataset_photo`; 10: approved estimates from Your food
     /// database, estimates on catalogue v2; 9: estimate layers on Open Food Facts products,
     /// off-label-estimate-v1; 8: label estimate layers).
-    public static let foodContractVersion = 10
+    public static let foodContractVersion = 11
     /// The contract an export carries when its records need no more: unchanged from contract 6,
     /// so a store without pasted-label evidence exports exactly the bytes it did before contract 7.
     public static let exportFloorContractVersion = 6
@@ -94,6 +95,30 @@ public struct CanonicalFoodProjection: Codable, Equatable, Sendable {
             throw DecodingError.dataCorruptedError(forKey: .favourites, in: values, debugDescription: "Empty favourites member")
         }
         self.favourites = favourites ?? FavouriteMutation()
+        // The per-contract token list (label photo phase gate section 1): a record citing a label
+        // photo estimate exists only from contract 11, so an archive labelled lower that holds one is
+        // not a valid archive.
+        if foodContractVersion < 11, Self.holdsPhotoEstimate(records) {
+            throw DecodingError.dataCorruptedError(forKey: .foodContractVersion, in: values,
+                                                   debugDescription: "A label photo estimate below contract 11")
+        }
+    }
+
+    /// Whether any capture manifest cites a label photo estimate.
+    static func holdsPhotoEstimate(_ records: LedgerMutation) -> Bool {
+        records.evidence.contains { evidence in
+            guard ApprovedEstimateSource.isManifest(evidence), case let .text(payload) = evidence.originalPayload else {
+                return false
+            }
+            // Read the evidence source types structurally, so a payload that names the token but fails
+            // the strict manifest reading still needs contract 11, and free text never decides it.
+            guard let root = try? JSONSerialization.jsonObject(with: Data(payload.value.utf8)) as? [String: Any],
+                  let estimates = root["estimates"] as? [Any] else { return false }
+            return estimates.contains { estimate in
+                ((estimate as? [String: Any])?["evidence"] as? [String: Any])?["source_type"] as? String
+                    == PersonalFoodDatabaseEstimateSourceType.productDatasetPhoto.rawValue
+            }
+        }
     }
 
     public func encode(to encoder: any Encoder) throws {
@@ -110,6 +135,9 @@ public struct CanonicalFoodProjection: Codable, Equatable, Sendable {
     /// and a pasted label is never reported as contract 6. Then contract 6: any favourite
     /// record, app reference provenance or reference definition evidence.
     public static func minimumContractVersion(for records: LedgerMutation, favourites: FavouriteMutation = FavouriteMutation()) -> Int {
+        // Contract 11 (label photo estimates v1): a capture manifest citing `product_dataset_photo`.
+        // Checked before the contract 10 rule, which is left exactly as it is.
+        if holdsPhotoEstimate(records) { return 11 }
         // Contract 10 (estimates on catalogue v2, version allocation): `approved_estimate` provenance
         // anywhere a nutrient set is stored (resolution versions, candidate decisions, conflict
         // candidates included), or either kind of approved-estimate evidence. Checked before the
