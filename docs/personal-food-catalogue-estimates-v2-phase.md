@@ -182,9 +182,10 @@ The contract's list in section 7 is the list. Homes:
    stated preparation differs); `transform`; `codec`
    (the row would raise a section 3.1 code, for example `estimate-own-held`, named in the count).
    `merged_kept` narrows estimates v1 decision C6 on the builder side only (section 5): the app
-   rule stays label, then estimate, then merged record. Its stated limit: the app merges a record
-   only when the record-side conditions also hold, which Python does not evaluate, so an entry
-   whose `merge` record the app does not merge keeps such a key unknown.
+   rule stays label, then estimate, then merged record. It applies only where the app merges the
+   record, as `mergeEligible` decides (a raw or cooked entry per 100 g, a record of the same
+   preparation, per 100 g and not fortified; every adapter then states a 100 g edible quantity),
+   so a `merge` reference the app does not merge never blocks an accepted estimate.
 5. **Refusals and re-admission** come from three private files: `work/estimate-refusals.json`
    (entry ID, `source_type`, `source_reference`, optional nutrient, the E3 refusal class),
    `work/estimate-readmissions.json` (the contract's row: entry ID, nutrient, `source_type`,

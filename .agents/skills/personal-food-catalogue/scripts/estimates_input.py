@@ -256,6 +256,16 @@ def codec_codes(est, item, corpora) -> list:
     return sorted(set(problems)) if problems else E.table_codes(rec, item)
 
 
+def merges(item, facts) -> bool:
+    """Whether the app merges this entry's `merge` record, as `PersonalFoodDatabaseCandidateBuilder
+    .mergeEligible` decides it: a raw or cooked entry per 100 g, and a record whose preparation is
+    the entry's, per 100 g (every adapter then states a 100 g edible quantity) and not fortified.
+    When the app would not merge, the key stays unknown there, so an accepted estimate may fill it."""
+    return (facts is not None and item["state"] in ("raw", "cooked") and item["basis"] == "per_100_g"
+            and facts.get("preparation") == item["state"] and facts.get("per_100_g") is True
+            and facts.get("fortification") != "fortified")
+
+
 def reason(est, item, corpora, read_record, refusal_status):
     """(the withheld reason or None to admit, the codec codes when the reason is `codec`)."""
     ev, key = est["evidence"], est["nutrient"]
@@ -263,9 +273,10 @@ def reason(est, item, corpora, read_record, refusal_status):
     if key in item["label_nutrients"]:
         return "label_kept", []
     ref = item["generic_reference"]
-    if ref is not None and ref["role"] == "merge" \
-            and _quantified(_facts(read_record, ref["source"], ref["record_id"]), key) is not None:
-        return "merged_kept", []
+    if ref is not None and ref["role"] == "merge":
+        merged = _facts(read_record, ref["source"], ref["record_id"])
+        if merges(item, merged) and _quantified(merged, key) is not None:
+            return "merged_kept", []
     if national and item["product_type"] == "packaged_composite":
         return "composite", []
     if open_food_facts(est):

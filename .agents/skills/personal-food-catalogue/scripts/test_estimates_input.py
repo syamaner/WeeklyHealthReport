@@ -229,10 +229,30 @@ class Admission(unittest.TestCase):
         self.check(doc, [row(fish, national(), "sodium")], 1)
 
     def test_merged_kept(self):
-        fish = item("Synthetic Tinned Fish", state="raw", generic_reference=reference(role="merge"))
+        # A merge the app makes: raw entry, raw per 100 g record that is not fortified.
+        fish = item("Synthetic Tinned Fish", state="raw", generic_reference=reference(source="usda", record_id=USDA, role="merge"))
         doc = plain(fish)
-        self.check(doc, [row(fish, national(source="usda", ref=USDA), "protein")], 0, merged_kept=1)
-        self.check(doc, [row(fish, national(source="usda", ref=USDA), "iron")], 1)  # the merged record has no iron
+        self.check(doc, [row(fish, page(), "protein", 21.0)], 0, merged_kept=1)
+        self.check(doc, [row(fish, page(), "fiber", 2.0)], 1)  # the merged record has no fibre
+
+    def test_merged_kept_only_where_the_app_merges(self):
+        # Qodo on PR 514: a `merge` reference the app does not merge leaves the key unknown in the
+        # app, so the accepted estimate is not withheld. Mirrors `mergeEligible`.
+        raw_record = reference(source="usda", record_id=USDA, role="merge")  # raw, per 100 g, protein 9
+        def entry(state="raw", ref=raw_record, basis="per_100_g"):
+            return item("Synthetic Raw Fillet", state=state, basis=basis, generic_reference=ref)
+        def accepted(it):
+            return [row(it, page(), "protein", 21.0)]
+        merged = entry()
+        self.check(plain(merged), accepted(merged), 0, merged_kept=1)
+        for it in [entry(state="cooked"),                                                   # preparation differs
+                   entry(ref=reference(record_id=COFID_OTHER, role="merge")),              # not per 100 g, fortified
+                   entry(ref=reference(record_id=FORTIFIED, role="merge")),                # fortified
+                   entry(ref=reference(record_id=COFID, role="merge"))]:                   # preparation unknown
+            self.check(plain(it), accepted(it), 1)
+        self.assertTrue(I.merges(merged, RECORDS[("usda", USDA)]))
+        self.assertFalse(I.merges(entry(state="canned"), RECORDS[("usda", USDA)]), "only raw or cooked entries merge")
+        self.assertFalse(I.merges(merged, None))
 
     def test_composite(self):
         dish = item("Synthetic Ready Dish", product_type="packaged_composite")
