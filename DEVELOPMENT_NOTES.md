@@ -4972,4 +4972,18 @@ Excluded:
 - the turns after the window (this ledger edit, the pull request and the handover);
 - the builds, test runs and simulator, which use no API tokens.
 
+## WHR-BUILD38-RELEASE-2026-11-18: Claude Code TestFlight 0.3.0 (38) delivery
+
+The session (`da6b123c-cf92-4d58-9bb7-540385b44d83`, running `claude-opus-5-5` for this window) archived `main` at `74c1fa4` (PR514, labelled estimates) at the owner's request, exported it for internal testing only, uploaded build 38 on the owner's explicit yes, set What to Test, added the build to Internal Testing and wrote [the build 38 record](docs/releases/internal-testflight-0.3.0-build38.md).
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Build 38 delivery, request to release record | 11,968,446 (11,588,757) | 379,619 | 16,088 | 11,984,534 | $5.68 |
+
+Method: `phase_usage.py --format claude --since 2026-11-18T18:23:07Z --until 2026-11-18T18:39:42Z --include-subagents` on the session transcript. Exact USD 5.6767434. The cache-write tokens are part of the input figure, all 1-hour writes; no subagent ran in the window. The total is input plus output.
+
+Excluded:
+- the session's earlier work that day (the label photo contract, the PR514 merge and the private catalogue rebuild), and the turns after the window (this ledger edit, the pull request and the handover);
+- the archive, export, upload and App Store Connect calls, which use no API tokens.
+
 Pricing: `claude-opus-5-5` at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, so the figure is a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
