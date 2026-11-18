@@ -4901,3 +4901,24 @@ Excluded:
 - local test and gate runs, which use no API tokens.
 
 Pricing: as in WHR-312-PR3-2026-11-16, `claude-fable-5-2` is priced at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, so the figure is a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
+## WHR-424-OFF-ESTIMATES-PROPOSAL-2026-11-18: Claude Code estimates read from Open Food Facts label photos, proposal (#424)
+
+The session (`da6b123c-cf92-4d58-9bb7-540385b44d83`, the same session as WHR-508-PROPOSAL-2026-11-17, running `claude-opus-5-5` for this window) did the following after the owner asked for Open Food Facts to be used for estimates and for fibre always to be provided:
+- checked the estimates v2 implementation (PR 514) and the accepted contracts for the Open Food Facts rule;
+- wrote [the label photo estimates proposal](docs/personal-food-catalogue-off-estimates-v1-proposal.md) and folded in two blind review rounds (`architecture-gate` role);
+- recorded the owner's decisions F1 to F7 and the acceptance, and added dated amendment notes to estimates v1, estimates v2 and the E3 disposition.
+
+Documentation only; nothing is implemented. The window is `2026-11-18T00:53:41Z` to `2026-11-18T01:29:58Z`, from the owner's request to this ledger edit.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label photo estimates, request to acceptance | 11,979,112 (11,772,085) | 206,845 | 70,151 | 12,049,263 | $5.03 |
+
+Method: `phase_usage.py --format claude --since 2026-11-18T00:53:41Z --include-subagents` on the session transcript, run at `2026-11-18T01:29:58Z`. Exact USD 5.032933. The cache-write tokens are part of the input figure: 126,664 are 5-minute writes and 80,181 are 1-hour writes. The window includes the two blind review subagents. The total is input plus output.
+
+Excluded:
+- the session's turns before the window (the read-only review of the owner's 18 November approvals) and after it (the commit, the invariant review of the diff, the pull request and the handover);
+- any hosted review run.
+
+Pricing: `claude-opus-5-5` at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, so the figure is a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.

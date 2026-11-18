@@ -7,6 +7,12 @@ transform vocabulary, and archive and export versioning. Importer implementation
 until E3 is final ([E3 disposition](personal-food-database-e3-disposition.md)) and this contract is
 approved. Programme #424, base contract #419.
 
+**Amendment, 18 November 2026 ([label photo estimates](personal-food-catalogue-off-estimates-v1-proposal.md), accepted, not implemented).**
+Section 3.1's refusal of "an estimate whose underlying source is an Open Food Facts record" gains one
+exception: a `product_dataset_photo` value read from an Open Food Facts label photo, in the
+`personal-food-catalogue-estimates-v3` schema only, under that contract's sections 2.1 to 2.5. Sections
+2.2 and 2.3 are unchanged for v1 and v2 files, including the Open Food Facts host rejection.
+
 It extends [import v1](personal-food-catalogue-import-v1.md) and changes nothing in it except one
 dated amendment: import v1 section 7 allows "only existing `ProvenanceSourceKind` cases" on save,
 and that sentence gains the `approved_estimate` exception of section 5.1 for this schema alone. Ranking,
