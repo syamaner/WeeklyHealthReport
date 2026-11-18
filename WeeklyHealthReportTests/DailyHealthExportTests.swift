@@ -4199,6 +4199,18 @@ extension DailyHealthExportTests {
         return records
     }
 
+    /// The Q7 records with the conversion stored as a label servings conversion entered in grams:
+    /// an amount the closed table has no row for.
+    private static func unsupportedAmountFoodRecords() throws -> LedgerMutation {
+        var records = try missingConversionFoodRecords()
+        let date = Date(timeIntervalSince1970: 1_788_678_000)
+        records.quantityConversions.append(try QuantityConversionVersion(
+            quantityConversionVersionID: LedgerID("00000000-0000-0000-0000-000000000028"), ordinal: VersionOrdinal(1),
+            sourceQuantity: PositiveQuantity(value: 66, unit: .grams), convertedQuantity: PositiveQuantity(value: 132, unit: .grams),
+            methodVersion: LedgerText("label-photo-serving-v1"), sourceReleaseID: nil, createdAt: date))
+        return records
+    }
+
     /// #312 (Q7): one current entry on the export day whose head names a quantity conversion the
     /// snapshot does not hold. No store allows it (the reference is a foreign key); if it ever
     /// happens the day's food file is blocked rather than exported as a direct amount.
@@ -4473,6 +4485,14 @@ extension DailyHealthExportTests {
         let missingConversion = try await makeFoodSession(drive: drive, food: FixedFoodLedger(records: records)).session
         XCTAssertEqual(missingConversion.foodPreparation, .blocked(.missingReference))
         XCTAssertNotNil(missingConversion.preview, "the health file is unaffected")
+
+        // An amount the closed table has no row for blocks the day with its own line, not the general one.
+        let unsupportedAmount = try await makeFoodSession(
+            drive: drive, food: FixedFoodLedger(records: try Self.unsupportedAmountFoodRecords())).session
+        XCTAssertEqual(unsupportedAmount.foodPreparation, .blocked(.unsupportedAmount))
+        XCTAssertEqual(DailyFoodExportBlock.unsupportedAmount.line,
+                       "An entry on this day has an amount this file cannot describe yet, so no food file was prepared.")
+        XCTAssertNotNil(unsupportedAmount.preview, "the health file is unaffected")
 
         let unreadable = try await makeFoodSession(drive: drive, food: FixedFoodLedger(records: nil)).session
         XCTAssertEqual(unreadable.foodPreparation, .blocked(.unreadable))

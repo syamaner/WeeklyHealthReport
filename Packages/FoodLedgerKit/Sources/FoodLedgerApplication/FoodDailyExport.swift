@@ -474,7 +474,8 @@ public struct FoodDailyExportPlainWater: Codable, Equatable, Sendable {
 }
 
 /// A stored amount the closed `amount_method` table (contract v2 3.2) has no row for. None is
-/// reachable from a save route; each means no file, like a document the shape rule rejects.
+/// reachable from a save route; each means no file, like a document the shape rule rejects. The
+/// builder reports all of them as `FoodDailyExportError.unsupportedAmount`.
 enum FoodDailyExportAmountMethodError: Error, Equatable {
     /// A method that needs its conversion was read without one.
     case conversionNotStored
@@ -494,6 +495,9 @@ public enum FoodDailyExportError: Error, Equatable, Sendable {
     case unmappedSource(String)
     /// An entry has no known value and no provenance, so its unknowns have no source row origin.
     case unattributedEntry
+    /// An entry's stored amount has no row in the closed `amount_method` table (contract v2 3.2),
+    /// or the finished document fails the shape rule its readers apply. No file is produced.
+    case unsupportedAmount
 }
 
 /// The closed origin rule (contract, Entries). Keyed by the stored raw value so an unmapped kind
@@ -590,7 +594,15 @@ public enum FoodDailyExportBuilder {
             notes: .current, appContext: request.appContext)
         // Fail closed: the writer never emits a file its own readers would reject (for example a
         // stored combination where the method and the estimate rule disagree). No document then.
-        try FoodDailyExportShape.validate(document)
+        // The summary version and notes are constants here, and the schema number follows from the
+        // entries, so an entry's `amount_method` or (schema 3) an approved estimate's fields are the
+        // only things that can fail the rule. Only the first is an amount the file cannot describe.
+        do { try FoodDailyExportShape.validate(document) } catch let error as FoodDailyExportShapeError {
+            switch error {
+            case .unexpectedEstimate, .missingEstimate, .invalidEstimateFields: throw FoodDailyExportError.missingReference
+            default: throw FoodDailyExportError.unsupportedAmount
+            }
+        }
         return document
     }
 
@@ -619,7 +631,10 @@ public enum FoodDailyExportBuilder {
             }
             conversion = stored
         }
-        let amountMethod = try amountMethod(row, head: head, conversion: conversion)
+        let amountMethod: FoodDailyExportAmountMethod
+        do { amountMethod = try self.amountMethod(row, head: head, conversion: conversion) } catch is FoodDailyExportAmountMethodError {
+            throw FoodDailyExportError.unsupportedAmount
+        }
         let scale = FoodIntakeSummary.scale(quantity: head.edibleQuantity, basis: resolution.basis)
         let manifest = pastedLabelManifest(version, records: records)
         let rowOrigin = try sourceRowOrigin(version.nutrients, manifest: manifest)

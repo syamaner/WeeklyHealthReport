@@ -143,6 +143,8 @@ enum DailyFoodExportBlock: Equatable {
     case missingReference
     /// A value's source has no origin in the closed rule, or an entry has no attributable source.
     case unsupportedSource
+    /// An entry's stored amount has no row in the file's closed amount-method table.
+    case unsupportedAmount
     case unreadable
 
     var line: String {
@@ -155,6 +157,8 @@ enum DailyFoodExportBlock: Equatable {
             "An entry on this day refers to a food or nutrition record that is missing, so no food file was prepared."
         case .unsupportedSource:
             "An entry on this day has a nutrient source this file cannot describe yet, so no food file was prepared."
+        case .unsupportedAmount:
+            "An entry on this day has an amount this file cannot describe yet, so no food file was prepared."
         case .unreadable:
             "The food log could not be read, so no food file was prepared."
         }
@@ -217,6 +221,7 @@ struct DailyFoodExportService {
             switch error {
             case .missingReference: return .blocked(.missingReference)
             case .unmappedSource, .unattributedEntry: return .blocked(.unsupportedSource)
+            case .unsupportedAmount: return .blocked(.unsupportedAmount)
             case .exportedBeforeDataAsOf, .invalidTimeZone: return .blocked(.unreadable)
             }
         } catch {

@@ -472,6 +472,11 @@ final class FoodDailyExportV2WriterContractTests: XCTestCase {
                                                 conversion: Self.conversion(try Self.grams(30), method))])
             XCTAssertEqual(try FoodIntakeProjection(records: records, reportingDate: Self.day).rows.first?.quantityMethod, .direct, method)
             XCTAssertThrowsError(try FoodDailyExportBuilder.make(Self.request(records)), method) {
+                XCTAssertEqual($0 as? FoodDailyExportError, .unsupportedAmount, method)
+            }
+            let row = try XCTUnwrap(FoodIntakeProjection(records: records, reportingDate: Self.day).rows.first)
+            XCTAssertThrowsError(try FoodDailyExportBuilder.amountMethod(row, head: try XCTUnwrap(records.logItemVersions.first),
+                                                                        conversion: records.quantityConversions.first), method) {
                 XCTAssertEqual($0 as? FoodDailyExportAmountMethodError, .labelConversionNotInServings, method)
             }
         }

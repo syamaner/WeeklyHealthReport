@@ -4880,6 +4880,28 @@ Excluded: this ledger edit and everything after the window (the gate reruns, han
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. It is an API-equivalent comparison under a Claude subscription, not a bill, and says nothing about quality or productivity.
 
+## WHR-312-BLOCK-LINE-2026-11-17: Claude Code food daily export v2, a block line for an amount the file cannot describe (#312)
+
+One session (`claude-fable-5-2`, `32ff8170-52ac-43c9-801e-2e408752f002`, the same session as WHR-312-PR3-2026-11-16) with one review subagent (`invariant-reviewer`) did the following, as a follow-up to PR 506 after its merge:
+- gave the builder one public error, `unsupportedAmount`, for a stored amount the closed `amount_method` table has no row for, and for a document its own shape check rejects;
+- mapped it in the Drive export service to a new block case with its own line, in place of the general "could not be read" line;
+- added a package test and an app test, updated the v2 contract's section 7 bullet and layer table, folded in the blind review and ran the gates.
+
+The window is `2026-11-17T20:45:02Z` to `2026-11-17T21:17:50Z`, from the new worktree to the last gate.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| #312 block line, worktree to last gate | 3,356,666 (3,267,874) | 88,728 | 18,621 | 3,375,287 | $1.58 |
+
+Method: `phase_usage.py --format claude --since 2026-11-17T20:45:02Z --until 2026-11-17T21:17:50Z --include-subagents` on the session transcript. Exact USD 1.5812868. The cache-write tokens are part of the input figure, and 51,596 of them are 5-minute writes. The total is input plus output.
+
+Excluded:
+- the session's turns before the window (the PR 506 report and the owner's decision to add the line) and after it (this ledger edit, the pull request and the handover);
+- any hosted review run;
+- local test and gate runs, which use no API tokens.
+
+Pricing: as in WHR-312-PR3-2026-11-16, `claude-fable-5-2` is priced at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, so the figure is a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
 ## WHR-511-2026-11-17: Claude Code Personal food database labelled estimates on catalogue v2, implementation (#511)
 
 The session (`claude-fable-5-2`, session `1af49c68-648f-479f-928a-ec44cfdcace9`) implemented the accepted contract [estimates on catalogue v2](docs/personal-food-catalogue-estimates-v2-proposal.md) in one phase under its [phase gate](docs/personal-food-catalogue-estimates-v2-phase.md): the catalogue skill's checker and writer, the app's codec, importer checks, provenance kind and food contract 10, Confirm with leave-out and withholding, re-resolution, daily export schema 3, and their tests and synthetic fixtures. Not merged; no private catalogue was read or written.
