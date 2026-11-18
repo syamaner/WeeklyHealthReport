@@ -48,6 +48,13 @@ public enum FoodDocumentBlockSelection {
             if units[unit] == nil { unitOrder.append(unit) }
             units[unit, default: []].append(index)
         }
+        // The nearest heading before each position, found in one pass over the page.
+        var headingBefore = [Int?](repeating: nil, count: blocks.count)
+        var lastHeading: Int?
+        for (index, block) in blocks.enumerated() {
+            headingBefore[index] = lastHeading
+            if headingKinds.contains(block.kind) { lastHeading = index }
+        }
         var required = Set<Int>()
         var nutritionUnits = 0
         for unit in unitOrder {
@@ -78,7 +85,7 @@ public enum FoodDocumentBlockSelection {
                 }
                 position += 1
             }
-            if let heading = blocks[..<first].lastIndex(where: { headingKinds.contains($0.kind) }) { required.insert(heading) }
+            if let heading = headingBefore[first] { required.insert(heading) }
         }
         guard nutritionUnits > 0 else { return nil }
         if let identity = blocks.firstIndex(where: { $0.kind == "h1" }) { required.insert(identity) }

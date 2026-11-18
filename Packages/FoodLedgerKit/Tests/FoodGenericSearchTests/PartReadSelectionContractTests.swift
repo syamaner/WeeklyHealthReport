@@ -51,6 +51,14 @@ final class PartReadSelectionContractTests: XCTestCase {
         let partCharacters = try project(overCharacters)
         XCTAssertGreaterThan(try XCTUnwrap(partCharacters.partialRead).fullCharacters, 100_000)
         XCTAssertEqual(texts(partCharacters), ["Tofu", "Energy | 61kcal", "Fat | 3.1g", "Protein | 6.2g"])
+        // Exactly the 2,049th block and exactly the 100,001st character enter selection with permission.
+        let edgeBlocks = "<h1>Tofu</h1>" + String(repeating: "<p>x</p>", count: 2_045) + panel
+        XCTAssertEqual(try project(edgeBlocks).partialRead?.fullBlocks, 2_049)
+        assertTooLarge(edgeBlocks, .refused)
+        let rows = "Energy | 61kcal".count + "Fat | 3.1g".count + "Protein | 6.2g".count
+        let edgeCharacters = "<h1>Tofu</h1><p>" + String(repeating: "y", count: 100_001 - 4 - rows) + "</p>" + panel
+        XCTAssertEqual(try project(edgeCharacters).partialRead?.fullCharacters, 100_001)
+        assertTooLarge(edgeCharacters, .refused)
     }
 
     // MARK: Test 2, whole pages unchanged
@@ -195,11 +203,11 @@ final class PartReadSelectionContractTests: XCTestCase {
         XCTAssertEqual(FoodDocumentBlockSelection.longContextBlockCharacters, FoodProposalEvidenceCatalog.maximumExcerptCharacters)
         XCTAssertEqual(FoodDocumentBlockSelection.nutritionBlockThreshold, 3)
         for text in ["61kcal", "Per100g Energy 250", "Fat:3g", "fat-free 0g", "ENERGY 61", "熱量150大卡", "蛋白质6克",
-                     "Sugars 2g", "Fat\u{0301} 3g", "Énergie kj 250"] {
+                     "Sugars 2g", "Fat\u{0301} 3g", "Énergie kj 250", "ÉFAT 3g"] {
             XCTAssertTrue(FoodDocumentBlockSelection.matches(text), text)
         }
         for text in ["Per100g", "fatty 3", "kjeldahl 4", "saltire 2", "Energy", "熱量", "Protein ６g", "Price £1.20 per 100g",
-                     "ÉNERGIE 61", "\u{212A}cal 61", "\u{212A}J 250"] {
+                     "\u{212A}cal 61", "\u{212A}J 250"] {
             XCTAssertFalse(FoodDocumentBlockSelection.matches(text), text)
         }
     }
@@ -324,7 +332,36 @@ final class PartReadSelectionContractTests: XCTestCase {
         let extraction = String(decoding: try OpenRouterFoodProvider.extractionBody(foodTerms: "tofu", documents: [document]), as: UTF8.self)
         XCTAssertFalse(extraction.contains("partial_read") || extraction.contains("partialRead") || extraction.contains("full_blocks"))
         XCTAssertFalse(extraction.contains(FoodDocumentPartialRead.selectedProjectionVersion))
-        XCTAssertFalse(extraction.contains("b2103"), "Original block ids are not sent on the production route")
+        XCTAssertFalse(extraction.contains("b2103"), "The extraction request sends catalogue ids, not block ids")
+        // The applicability request carries the choosable candidates whole, so their evidence names
+        // original block ids (contract section 10, corrected 18 November 2026); no record, no locator.
+        let rows = ["Tofu Per 100g Energy 61kcal", "Fat 3.1g", "Protein 6.2g"]
+        let checked = try project("<h1>Synthetic tofu</h1>" + menu + "<h2>Nutrition</h2><table>"
+            + rows.map { "<tr><td>\($0)</td></tr>" }.joined() + "</table>")
+        XCTAssertNotNil(checked.partialRead)
+        let row = try XCTUnwrap(checked.blocks.first { $0.text == rows[0] })
+        XCTAssertEqual(row.id, "b2103")
+        let ref: [[String: Any]] = [["block_id": row.id, "quote": row.text]]
+        let nutrients: [[String: Any]] = FoodProposalNutrientKey.allCases.map { key in
+            ["key": key.rawValue, "state": key == .energy ? "declared" : "unknown", "value": key == .energy ? "61" as Any : NSNull(),
+             "unit": key == .energy ? "kcal" as Any : NSNull(), "evidence": key == .energy ? ref : [],
+             "unknown_reason": key == .energy ? NSNull() : "not_observed" as Any]
+        }
+        let candidate: [String: Any] = ["id": "c1", "document_id": checked.id, "name": "Tofu", "brand": NSNull(), "preparation": NSNull(),
+            "identity_evidence": ref, "panel_evidence": ref, "basis": ["amount": "100", "unit": "g", "label": "Per 100g", "evidence": ref],
+            "nutrients": nutrients, "limitations": []]
+        let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let extracted = try decoder.decode(FoodProposalExtraction.self, from: JSONSerialization.data(withJSONObject:
+            ["version": FoodProposalExtraction.schemaVersion, "candidates": [candidate], "preferred_id": "c1"]))
+        let validation = try FoodProposalBinding.validate(extracted, documents: [checked])
+        let applicability = String(decoding: try OpenRouterFoodProvider.applicabilityBody(foodTerms: "tofu", documents: [checked],
+            validation: validation), as: UTF8.self)
+        XCTAssertTrue(validation.candidates.contains(where: \.choosable), "\(validation.candidates.map(\.status)) \(validation.rejected)")
+        let sentIDs = Set(applicability.matches(of: /b[0-9]+/).map { String($0.output) }.filter { id in
+            checked.blocks.contains { $0.id == id } })
+        XCTAssertEqual(sentIDs, ["b2103"], "Exactly the candidate's evidence block ids")
+        XCTAssertFalse(applicability.contains("partial_read") || applicability.contains("partialRead") || applicability.contains("full_blocks"))
+        XCTAssertFalse(applicability.contains(FoodDocumentPartialRead.selectedProjectionVersion))
         let jev = try XCTUnwrap(OpenRouterFoodProvider.providerDocuments([document]) as? [[String: Any]])
         XCTAssertEqual(Set(jev[0].keys), ["id", "url", "raw_sha256", "capture_origin", "retrieved_at", "blocks"])
         let blocks = try XCTUnwrap(jev[0]["blocks"] as? [[String: Any]])

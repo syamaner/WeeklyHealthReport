@@ -241,7 +241,7 @@ Destinations and content class (captured public source text) do not change. Thre
 - **Timing.** A page over today's bounds has none of its page text sent today. Under this proposal it is sent, whole or in part. In a discovery run the discovery and lead-choice requests are already sent before any capture, today and under this proposal.
 - **Requests (answer O3).** A page whose candidates conflict with each other gets the applicability request, which today is skipped for it. It carries the conflicting candidates with their page quotes, and is subject to the existing limit of three attempts.
 
-The 100,000 characters are of distinct page text; the catalogue repeats up to 100 characters of overlap per excerpt of a long block. On the production route the part-read record, locators and original block ids are not sent. Picking a panel, preparing a confirmation and saving send nothing.
+The 100,000 characters are of distinct page text; the catalogue repeats up to 100 characters of overlap per excerpt of a long block. On the production route the part-read record and locators are not sent. (Correction, 18 November 2026, from the review of PR 519: this sentence also said that original block ids are not sent. The catalogue sends its own entry ids, but the applicability request carries the choosable candidates whole, and their evidence names original block ids, as it already did for whole pages before #508. For a part-read page those ids can show that it was read in part and roughly where. No privacy document claimed otherwise, and nothing about what is sent changes.) Picking a panel, preparing a confirmation and saving send nothing.
 
 Proposed wording, applied only by the implementing change:
 
