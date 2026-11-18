@@ -332,7 +332,9 @@ final class PartReadSelectionContractTests: XCTestCase {
         let extraction = String(decoding: try OpenRouterFoodProvider.extractionBody(foodTerms: "tofu", documents: [document]), as: UTF8.self)
         XCTAssertFalse(extraction.contains("partial_read") || extraction.contains("partialRead") || extraction.contains("full_blocks"))
         XCTAssertFalse(extraction.contains(FoodDocumentPartialRead.selectedProjectionVersion))
-        XCTAssertFalse(extraction.contains("b2103"), "The extraction request sends catalogue ids, not block ids")
+        for block in document.blocks {
+            XCTAssertFalse(extraction.contains("\"\(block.id)\""), "The extraction request sends catalogue ids, not block id \(block.id)")
+        }
         // The applicability request carries the choosable candidates whole, so their evidence names
         // original block ids (contract section 10, corrected 18 November 2026); no record, no locator.
         let rows = ["Tofu Per 100g Energy 61kcal", "Fat 3.1g", "Protein 6.2g"]
@@ -357,9 +359,20 @@ final class PartReadSelectionContractTests: XCTestCase {
         let applicability = String(decoding: try OpenRouterFoodProvider.applicabilityBody(foodTerms: "tofu", documents: [checked],
             validation: validation), as: UTF8.self)
         XCTAssertTrue(validation.candidates.contains(where: \.choosable), "\(validation.candidates.map(\.status)) \(validation.rejected)")
-        let sentIDs = Set(applicability.matches(of: /b[0-9]+/).map { String($0.output) }.filter { id in
-            checked.blocks.contains { $0.id == id } })
-        XCTAssertEqual(sentIDs, ["b2103"], "Exactly the candidate's evidence block ids")
+        // Parse the body: block ids appear only as `block_id` in candidate evidence, never as catalogue ids.
+        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(applicability.utf8)) as? [String: Any])
+        let messages = try XCTUnwrap(body["messages"] as? [[String: Any]])
+        let state = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(try XCTUnwrap(messages.last?["content"] as? String).utf8)) as? [String: Any])
+        func blockIDs(_ value: Any) -> [String] {
+            if let object = value as? [String: Any] {
+                return ((object["block_id"] as? String).map { [$0] } ?? []) + object.values.flatMap(blockIDs)
+            }
+            return (value as? [Any])?.flatMap(blockIDs) ?? []
+        }
+        XCTAssertEqual(Set(blockIDs(state["candidates"] as Any)), ["b2103"], "Exactly the candidate's evidence block ids")
+        let catalogueIDs = ((state["documents"] as? [[String: Any]])?.first?["blocks"] as? [[String: Any]])?.compactMap { $0["id"] as? String } ?? []
+        XCTAssertFalse(catalogueIDs.isEmpty)
+        XCTAssertTrue(Set(catalogueIDs).isDisjoint(with: checked.blocks.map(\.id)), "Catalogue entries use their own ids")
         XCTAssertFalse(applicability.contains("partial_read") || applicability.contains("partialRead") || applicability.contains("full_blocks"))
         XCTAssertFalse(applicability.contains(FoodDocumentPartialRead.selectedProjectionVersion))
         let jev = try XCTUnwrap(OpenRouterFoodProvider.providerDocuments([document]) as? [[String: Any]])
