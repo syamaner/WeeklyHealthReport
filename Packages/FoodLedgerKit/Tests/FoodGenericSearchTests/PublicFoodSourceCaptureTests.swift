@@ -16,7 +16,7 @@ final class PublicFoodSourceCaptureTests: XCTestCase {
             XCTAssertEqual(observation.url.absoluteString, "https://publisher.example/food")
             XCTAssertEqual(observation.body, Data("<script>unreadableSite()</script>".utf8))
         })
-        do { _ = try await capture.capture(URL(string: "https://publisher.example/food")!); XCTFail("No readable blocks") }
+        do { _ = try await capture.capture(URL(string: "https://publisher.example/food")!, partRead: .refused); XCTFail("No readable blocks") }
         catch { XCTAssertEqual(error as? FoodLedgerDomain.GenericFoodProposalError, .invalidDocument) }
         await fulfillment(of: [observed], timeout: 1)
     }
@@ -47,7 +47,7 @@ final class PublicFoodSourceCaptureTests: XCTestCase {
             await recorder.append("fetch:" + url.absoluteString + ":" + address)
             return Self.reply(body: "<h1>Food</h1><p>Per100g: 100kcal</p>")
         }, now: { Date(timeIntervalSince1970: 0) })
-        let document = try await capture.capture(URL(string: "https://publisher.example/food")!)
+        let document = try await capture.capture(URL(string: "https://publisher.example/food")!, partRead: .refused)
         XCTAssertEqual(document.captureOrigin, "publisher_http")
         XCTAssertEqual(document.blocks.count, 2)
         let calls = await recorder.values
@@ -58,7 +58,7 @@ final class PublicFoodSourceCaptureTests: XCTestCase {
         let capture = PublicFoodSourceCapture(resolve: { _ in ["8.8.8.8", "127.0.0.1"] }, fetch: { _, _ in
             XCTFail("Private DNS answer must prevent fetch"); return Data()
         }, now: Date.init)
-        do { _ = try await capture.capture(URL(string: "https://publisher.example/food")!); XCTFail("Expected rejection") }
+        do { _ = try await capture.capture(URL(string: "https://publisher.example/food")!, partRead: .refused); XCTFail("Expected rejection") }
         catch { XCTAssertEqual(error as? FoodSourceAcquisitionError, .hostNotAdmitted) }
     }
 
@@ -67,7 +67,7 @@ final class PublicFoodSourceCaptureTests: XCTestCase {
             XCTAssertEqual(url.host, "publisher.example")
             return Data("HTTP/1.1 302 Found\r\nLocation: https://private.example/food\r\nContent-Length: 0\r\n\r\n".utf8)
         }, now: Date.init)
-        do { _ = try await capture.capture(URL(string: "https://publisher.example/food")!); XCTFail("Expected rejection") }
+        do { _ = try await capture.capture(URL(string: "https://publisher.example/food")!, partRead: .refused); XCTFail("Expected rejection") }
         catch { XCTAssertEqual(error as? FoodSourceAcquisitionError, .hostNotAdmitted) }
     }
 
@@ -77,7 +77,7 @@ final class PublicFoodSourceCaptureTests: XCTestCase {
             await calls.append(url.absoluteString)
             return Data(("HTTP/1.1 302 Found\r\nLocation: " + url.path + "x\r\nContent-Length: 0\r\n\r\n").utf8)
         }, now: Date.init)
-        do { _ = try await capture.capture(URL(string: "https://publisher.example/food")!); XCTFail("Expected limit") }
+        do { _ = try await capture.capture(URL(string: "https://publisher.example/food")!, partRead: .refused); XCTFail("Expected limit") }
         catch { XCTAssertEqual(error as? FoodSourceAcquisitionError, .requestLimit) }
         let count = await calls.values.count; XCTAssertEqual(count, 3)
     }

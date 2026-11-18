@@ -27,6 +27,11 @@ final class GenericFoodPDFProjectorTests: XCTestCase {
             XCTAssertEqual($0 as? FoodSourceAcquisitionError, .responseTooLarge)
         }
         XCTAssertLessThan(630, FoodDocumentBounds.current.blocks)
+        // #508 phase 3 test 4: part-read selection is for HTML only; a PDF over its bound is refused with permission too.
+        XCTAssertThrowsError(try GenericFoodDocumentProjector.project(data, url: url, mediaType: "application/pdf",
+            retrievedAt: Date(timeIntervalSince1970: 0), partRead: .permitted)) {
+            XCTAssertEqual($0 as? FoodSourceAcquisitionError, .responseTooLarge)
+        }
     }
 
     private let url = URL(string: "https://unfamiliar.example/menu.pdf")!

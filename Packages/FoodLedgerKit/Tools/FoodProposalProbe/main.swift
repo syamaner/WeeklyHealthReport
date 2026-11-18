@@ -26,16 +26,19 @@ enum FoodProposalProbe {
             let destination = URL(fileURLWithPath: args[2], isDirectory: true)
             try createDestination(destination)
             let journal = CaptureProbeJournal(directory: destination)
-            let result = try await PublicFoodSourceCapture(observe: { try journal.record($0) }).capture(url)
+            let result = try await PublicFoodSourceCapture(observe: { try journal.record($0) }).capture(url, partRead: .permitted)
             try encode(result).write(to: destination.appendingPathComponent("document.json"), options: .withoutOverwriting)
             print("Captured source and unauthenticated response evidence without provider calls.")
         } else if args.count == 3, args[0] == "capture", let url = URL(string: args[1]) {
-            let result = try await PublicFoodSourceCapture().capture(url)
+            // A supplied address may be read in part (#508, contract section 7).
+            let result = try await PublicFoodSourceCapture().capture(url, partRead: .permitted)
             try encode(result).write(to: URL(fileURLWithPath: args[2]), options: .withoutOverwriting)
             print("Captured \(result.blocks.count) blocks; no provider call or credential access.")
-        } else if args.count == 5, args[0] == "project", let url = URL(string: args[2]) {
+        } else if args.count == 5 || args.count == 6 && args[5] == "--part-read", args[0] == "project", let url = URL(string: args[2]) {
+            // Part-reading is explicit for an offline fixture: `--part-read` as the sixth argument.
             let result = try GenericFoodDocumentProjector.project(Data(contentsOf: URL(fileURLWithPath: args[1])),
-                url: url, mediaType: args[3], retrievedAt: Date(timeIntervalSince1970: 1_791_072_000), origin: "authored_development_fixture")
+                url: url, mediaType: args[3], retrievedAt: Date(timeIntervalSince1970: 1_791_072_000), origin: "authored_development_fixture",
+                partRead: args.count == 6 ? .permitted : .refused)
             try encode(result).write(to: URL(fileURLWithPath: args[4]), options: .withoutOverwriting)
             print("Projected local fixture without network or credential access.")
         } else if args.count == 5, args[0] == "reproject" {
@@ -47,8 +50,9 @@ enum FoodProposalProbe {
                   let url = URL(string: original.url), let retrieved = ISO8601DateFormatter().date(from: original.retrievedAt) else {
                 throw GenericFoodProposalError.invalidDocument
             }
+            // Permitted, so a retained part-read document re-projects; whole pages are identical either way.
             let result = try GenericFoodDocumentProjector.project(raw, url: url, mediaType: args[3],
-                retrievedAt: retrieved, origin: "publisher_http_reprojected_offline")
+                retrievedAt: retrieved, origin: "publisher_http_reprojected_offline", partRead: .permitted)
             try encode(result).write(to: URL(fileURLWithPath: args[4]), options: .withoutOverwriting)
             print("Reprojected retained source bytes without network or credential access.")
         } else if args.count == 3, args[0] == "review-smoke" {
@@ -377,11 +381,12 @@ private struct SmokeProvider: FoodWebDiscovering, FoodSourceLeadSelecting, FoodP
 private struct SmokeCapture: FoodDocumentCapturing {
     let capture: PublicFoodSourceCapture
     let journal: ReviewSmokeJournal
-    func capture(_ url: URL) async throws -> CapturedFoodDocument {
+    func capture(_ url: URL, partRead: FoodDocumentPartReadPermission) async throws -> CapturedFoodDocument {
         try journal.begin("capture")
-        try journal.write(["url": url.absoluteString, "provider_credentials_supplied": false], name: "capture-attempt.json")
+        try journal.write(["url": url.absoluteString, "provider_credentials_supplied": false,
+                           "part_read_permitted": partRead == .permitted], name: "capture-attempt.json")
         do {
-            let value = try await capture.capture(url)
+            let value = try await capture.capture(url, partRead: partRead)
             try journal.encode(value, name: "document.json"); try journal.end("capture"); return value
         } catch { try journal.end("capture", error: error); throw error }
     }

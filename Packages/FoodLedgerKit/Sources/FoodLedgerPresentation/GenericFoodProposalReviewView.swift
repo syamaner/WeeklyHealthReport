@@ -134,6 +134,12 @@ public final class GenericFoodProposalReviewViewModel: ObservableObject {
         lines += result.validation.candidates.map { "Proposal \($0.id): \($0.candidate.name) · eligible \($0.selectionEligible) · choosable \($0.choosable)" }
         lines += result.validation.rejected.map { "Rejected \($0.id): \($0.reason)" }
         lines += result.sourceAttempts.map { "Source attempt: \($0.absoluteString)" }
+        // A document read in part (#508 phase 3): the policy and the four counts.
+        lines += result.documents.compactMap { document in
+            document.partialRead.map { record in
+                "Part read: \(record.policy) · full \(record.fullBlocks) blocks, \(record.fullCharacters) characters · kept \(record.keptBlocks) blocks, \(record.keptCharacters) characters"
+            }
+        }
         return lines
     }
     public func cancel(clearResult: Bool = true) {

@@ -201,6 +201,14 @@ and `text/plain` are replaced by 2,048 blocks and 100,000 characters. Projection
 keeps its name. PDF keeps its own limits. Stored v1 and v2 review manifests keep the
 old limits. The "no truncation" sentence stands until the part-read phase lands.
 
+Amended again by the same contract, sections 5 to 7 (#508, phase 3,
+[gate](web-lookup-part-read-phase3-gate.md)): an HTML page beyond the new limits is
+no longer simply refused. When the reviewer permits it, the page is read in part
+(`food-document-block-selection-v1`): every nutrition table and definition list with
+the lines and headings around it, the first main heading and whatever structured
+data fits, or it is refused whole. No block is truncated. Decompression and host
+exceptions stay excluded.
+
 ### Evidence request size gate (05:37 London)
 
 The FAGE paired input sent 7,338 source-text characters and 79,596 locator

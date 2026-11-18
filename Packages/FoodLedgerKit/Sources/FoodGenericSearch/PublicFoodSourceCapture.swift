@@ -36,7 +36,7 @@ public struct PublicFoodSourceCapture: FoodDocumentCapturing {
         self.observe = observe
     }
 
-    public func capture(_ url: URL) async throws -> CapturedFoodDocument {
+    public func capture(_ url: URL, partRead: FoodDocumentPartReadPermission) async throws -> CapturedFoodDocument {
         var current = try Self.canonicalURL(url)
         var seen = Set<URL>()
         for _ in 0..<3 {
@@ -67,7 +67,7 @@ public struct PublicFoodSourceCapture: FoodDocumentCapturing {
                 throw FoodSourceAcquisitionError.unsupportedContent
             }
             return try GenericFoodDocumentProjector.project(reply.body, url: current, mediaType: mediaType,
-                                                           retrievedAt: now())
+                                                           retrievedAt: now(), partRead: partRead)
         }
         throw FoodSourceAcquisitionError.requestLimit
     }
