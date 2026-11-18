@@ -81,7 +81,7 @@ public enum GenericFoodProposalReviewCopy {
         // `status`, which also marks a conflict with an unusable candidate (#508 phase 2).
         let peers = result?.validation.candidates ?? []
         if peers.contains(where: { $0.id != proposal.id && $0.choosable && FoodProposalBinding.conflicting(proposal.candidate, $0.candidate) }) {
-            return FoodWebLookupOfferContent.differentValuesWord
+            return FoodWebLookupOfferContent.differentValuesWord + (result?.rankingUnavailable == true ? " · Not checked for this food" : "")
         }
         if result?.rankingUnavailable == true { return "Not checked for this food" }
         return "Not suggested for this food"

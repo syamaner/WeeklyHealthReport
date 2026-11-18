@@ -77,9 +77,10 @@ final class PanelChoiceContractTests: XCTestCase {
         let sets: [[Panel]] = [[.c1], [.c1, .c2Different], [.c1, .c2Equal], [.c1, .c2Equal, .c3Different],
                                [.c1InternalConflict, .c2Different], [.c1, .c2Different, .otherPreparation]]
         var offeredCount = 0
-        for set in sets {
+        for (set, query) in sets.flatMap({ set in [ReviewedWebFixtures.query, "tofu pudding per 100 ml"].map { (set, $0) } }) {
             for choice in ["c1", "c2", "c3", "clarify", "none"] where choice == "clarify" || choice == "none" || set.contains(where: { $0.id == choice }) {
-                guard let review = try? review(set, choice: choice) else { continue }
+                guard let review = try? review(set, choice: choice, query: query) else { continue }
+                if query != ReviewedWebFixtures.query { XCTAssertTrue(review.offer.isEmpty, "a basis conflict offers nothing: \(set) \(choice)") }
                 for proposal in review.offer.candidates {
                     let input = try confirmation().prepare(review: review, proposal: proposal, scope: .representativeEstimate, locale: LedgerText("en_GB"))
                     XCTAssertEqual(FoodReviewedWebProposalPolicy.scope(input, candidate: input.candidates[0]), .representativeEstimate, "\(set) \(choice) \(proposal.id)")
@@ -184,6 +185,9 @@ final class PanelChoiceContractTests: XCTestCase {
         for review in [none, try review([.c1, .c2Different], choice: nil), try review([.c1, .c2Different], choice: "c1", rankingUnavailable: true)] {
             XCTAssertFalse(GenericFoodProposalReviewCopy.noSuggestion(review).text.contains("conflicting values"))
         }
+        let unchecked = try review([.c1, .c2Different], choice: "c1", rankingUnavailable: true)
+        XCTAssertEqual(unchecked.validation.candidates.map { GenericFoodProposalReviewCopy.status($0, in: unchecked) },
+                       ["Different values · Not checked for this food", "Different values · Not checked for this food"])
         let unusable = try review([.c1InternalConflict], choice: nil)
         XCTAssertEqual(GenericFoodProposalReviewCopy.status(unusable.validation.candidates[0], in: unusable), "Needs more information")
         // "Other sources" for a page with nothing offered: a conflict with an unusable candidate is not "Different values".
