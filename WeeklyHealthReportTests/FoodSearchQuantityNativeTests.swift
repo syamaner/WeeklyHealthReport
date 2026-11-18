@@ -415,6 +415,112 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
         XCTAssertEqual(calls, 1, "Only synthetic key validation; no live requests")
     }
 
+    /// #508 phase 2 (contract test 20): competing panels on a clarify answer render the warning and
+    /// both panels with nothing selected; the person's pick then goes through the view model's
+    /// prepare to Confirm, and the saved entry retains a v3 manifest recording that pick.
+    func testCompetingPanelsRenderThePanelListWithTheWarning() async throws {
+        let provider = NativeWebDiscoverySpy()
+        let credentials = FoodWebDiscoveryViewModel(provider: provider, keys: NativeSyntheticWebKeys(), providerName: "OpenRouter")
+        await credentials.revalidateSavedKey()
+        let lines = ["Synthetic tofu Per 100g Protein 6g", "Synthetic tofu Per 100g Protein 8g"]
+        let source = try GenericFoodDocumentProjector.project(Data(lines.joined(separator: "\n").utf8),
+            url: URL(string: "https://example.com/synthetic-tofu")!, mediaType: "text/plain",
+            retrievedAt: Date(timeIntervalSince1970: TimeInterval(Int(Date().timeIntervalSince1970) - 60)), origin: "synthetic_fixture")
+        let candidates: [[String: Any]] = [("c1", "b1", lines[0], "6"), ("c2", "b2", lines[1], "8")].map { id, block, text, protein in
+            let reference: [[String: Any]] = [["block_id": block, "quote": text]]
+            let nutrients: [[String: Any]] = FoodProposalNutrientKey.allCases.map { key in
+                ["key": key.rawValue, "state": key == .protein ? "declared" : "unknown",
+                 "value": key == .protein ? protein as Any : NSNull(), "unit": key == .protein ? "g" as Any : NSNull(),
+                 "evidence": key == .protein ? reference : [], "unknown_reason": key == .protein ? NSNull() : "not_observed" as Any]
+            }
+            return ["id": id, "document_id": source.id, "name": "Synthetic tofu", "brand": NSNull(), "preparation": NSNull(),
+                    "identity_evidence": reference, "panel_evidence": reference,
+                    "basis": ["amount": "100", "unit": "g", "label": "Per 100g", "evidence": reference],
+                    "nutrients": nutrients, "limitations": []]
+        }
+        let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let extraction = try decoder.decode(FoodProposalExtraction.self, from: JSONSerialization.data(withJSONObject:
+            ["version": FoodProposalExtraction.schemaVersion, "preferred_id": "c1", "candidates": candidates]))
+        let validation = try FoodProposalBinding.validate(extraction, documents: [source])
+        let review = GenericFoodProposalReview(foodTerms: "Synthetic tofu", discovery: nil, documents: [source],
+            validation: validation, selection: try FoodProposalSelection(unscoredChoice: "clarify", validation: validation),
+            attemptedSourceURL: URL(string: source.url))
+        let model = GenericFoodProposalReviewViewModel(reviewer: NativeCompletedProposalReview(result: review), credentials: credentials,
+            confirmation: ReviewedFoodProposalConfirmation(ids: NativeQuantityIDs(), clock: SystemLedgerClock(),
+                encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester()), locale: try LedgerText("en_GB"))
+        model.foodTerms = review.foodTerms
+        await model.search()
+        XCTAssertNil(model.pickedID)
+        let host = NativeHostingController(rootView: NavigationStack {
+            GenericFoodProposalReviewView(model: model, credentials: credentials) { _ in XCTFail("No confirmation without a pick") }
+        })
+        let scene = try testScene(); let previous = scene.windows.first(where: \.isKeyWindow)
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+        window.rootViewController = host; window.makeKeyAndVisible()
+        defer { window.isHidden = true; previous?.makeKey() }
+        try await waitForHostAppearance(host, window: window)
+        var seen = ""
+        for _ in 0..<8 {
+            try await Task.sleep(for: .milliseconds(150)); host.view.layoutIfNeeded()
+            let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
+                window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+            }
+            let request = VNRecognizeTextRequest(); request.recognitionLevel = .accurate
+            try VNImageRequestHandler(cgImage: XCTUnwrap(image.cgImage)).perform([request])
+            seen += " " + (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: " ")
+            let normalised = seen.lowercased()
+            if normalised.contains("choose a panel to use this source"), normalised.contains("could not confirm"),
+               normalised.contains("6 g"), normalised.contains("8 g") {
+                let attachment = XCTAttachment(image: image); attachment.name = "Competing panels: choose a panel"
+                attachment.lifetime = .keepAlways; add(attachment)
+                let path = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("whr-panel-choice.png")
+                try image.pngData()?.write(to: path)
+                print("PANEL_CHOICE_SCREENSHOT \(path.path)")
+                break
+            }
+            if let scroll = descendants(host.view).compactMap({ $0 as? UIScrollView }).first {
+                scroll.setContentOffset(CGPoint(x: 0, y: min(scroll.contentOffset.y + 180,
+                    max(0, scroll.contentSize.height - scroll.bounds.height))), animated: false)
+            }
+        }
+        let normalised = seen.lowercased()
+        XCTAssertTrue(normalised.contains("choose a panel to use this source"), seen)
+        XCTAssertTrue(normalised.contains("could not confirm"), seen)
+        XCTAssertTrue(normalised.contains("6 g") && normalised.contains("8 g"), "both panels' values are on screen: \(seen)")
+        XCTAssertFalse(normalised.contains("conflicting values"), seen)
+        XCTAssertNil(model.pickedID, "rendering selects nothing")
+
+        // The person picks the second panel; only then can the view model prepare it.
+        XCTAssertThrowsError(try model.prepare(try XCTUnwrap(review.offer.candidates.last), querySnapshot: review.foodTerms,
+                                               scope: .representativeEstimate))
+        model.pick("c2")
+        let input = try model.prepare(try XCTUnwrap(model.suggestedProposal), querySnapshot: review.foodTerms, scope: .representativeEstimate)
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
+        let suite = "panel-choice-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        addTeardownBlock { UserDefaults().removePersistentDomain(forName: suite) }
+        let root = try FoodLedgerCompositionRoot(fileManager: IntakeRenderFileManager(directory: directory), userDefaults: defaults)
+        let confirm = root.model(for: input, prefillSourceQuantity: false)
+        confirm.send(.setQuantity(50, .grams))
+        for facet in confirm.pendingDifferences {
+            if let choice = confirm.offeredChoices(facet).first(where: { $0 == .notSure }) ?? confirm.offeredChoices(facet).first {
+                confirm.send(.decideDifference(facet, choice))
+            }
+        }
+        confirm.log()
+        let saved = try XCTUnwrap(confirm.savedResult, "\(confirm.requirements) \(confirm.state.phase)")
+        guard case let .text(payload) = saved.evidence[0].originalPayload,
+              case let .v3(manifest)? = FoodProposalReviewManifestRecord.decode(Data(payload.value.utf8)) else {
+            return XCTFail("the saved entry retains a v3 manifest")
+        }
+        XCTAssertEqual(manifest.gate.personChoice, "c2")
+        XCTAssertEqual(manifest.gate.selectionChoice, "clarify")
+        let calls = await provider.calls
+        XCTAssertEqual(calls, 1, "picking, preparing and saving send nothing beyond the synthetic key validation")
+    }
+
     /// Opt-in native interaction harness. A human or UI automation operates the
     /// actual review/confirmation controls; only synthetic data enters a temporary ledger.
     func testInteractiveReviewedPartialProposalSavesOnlyAfterExplicitReview() async throws {

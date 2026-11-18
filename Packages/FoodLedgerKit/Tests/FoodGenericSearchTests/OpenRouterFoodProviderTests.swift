@@ -255,6 +255,47 @@ final class OpenRouterFoodProviderTests: XCTestCase {
         try JSONSerialization.data(withJSONObject: ["model": model, "provider": provider,
             "choices": [["finish_reason": finish, "message": ["content": content]]]])
     }
+    // Contract #508 phase 2: the applicability and .jev requests offer every choosable candidate,
+    // including two that conflict with each other, and exclude only unusable ones.
+    func testSelectionRequestsOfferChoosableConflictingCandidates() throws {
+        let page = try GenericFoodDocumentProjector.project(Data("<h1>Plain yoghurt</h1><p>Per 100g energy 61kcal</p><p>Per 100g energy 70kcal</p>".utf8),
+            url: URL(string: "https://example.com/yoghurt")!, mediaType: "text/html", retrievedAt: Date(timeIntervalSince1970: 0), origin: "synthetic_fixture")
+        func candidate(_ id: String, block: String, energy: String, internalConflict: Bool = false) throws -> FoodProposalCandidate {
+            let reference: [[String: Any]] = [["block_id": block, "quote": "Per 100g energy \(energy)kcal"]]
+            let identity: [[String: Any]] = [["block_id": "b1", "quote": "Plain yoghurt"]]
+            let nutrients: [[String: Any]] = FoodProposalNutrientKey.allCases.map { key in
+                let known = key == .energy
+                return ["key": key.rawValue, "state": known ? "declared" : "unknown", "value": known ? energy as Any : NSNull(),
+                        "unit": known ? "kcal" as Any : NSNull(), "evidence": known ? reference : [],
+                        "unknown_reason": known ? NSNull() : (internalConflict && key == .fat ? "conflict" : "not_observed") as Any]
+            }
+            let object: [String: Any] = ["id": id, "document_id": page.id, "name": "Plain yoghurt", "brand": NSNull(),
+                "preparation": NSNull(), "identity_evidence": identity, "panel_evidence": identity + reference,
+                "basis": ["amount": "100", "unit": "g", "label": "Per 100g", "evidence": reference],
+                "nutrients": nutrients, "limitations": []]
+            let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+            return try decoder.decode(FoodProposalCandidate.self, from: JSONSerialization.data(withJSONObject: object))
+        }
+        let validation = try FoodProposalBinding.validate(.init(candidates: [candidate("c1", block: "b2", energy: "61"),
+            candidate("c2", block: "b3", energy: "70"), candidate("c3", block: "b2", energy: "61", internalConflict: true)],
+            preferredId: "c1"), documents: [page])
+        XCTAssertEqual(validation.candidates.map(\.choosable), [true, true, false])
+        let body = try StrictFoodProposalJSON.object(OpenRouterFoodProvider.applicabilityBody(foodTerms: "plain yoghurt", documents: [page], validation: validation))
+        let messages = try XCTUnwrap(body["messages"] as? [[String: Any]])
+        let state = try StrictFoodProposalJSON.object(Data(try XCTUnwrap(messages.last?["content"] as? String).utf8))
+        XCTAssertEqual((state["candidates"] as? [[String: Any]])?.compactMap { $0["id"] as? String }, ["c1", "c2"])
+        let format = try XCTUnwrap(body["response_format"] as? [String: Any])
+        let schema = try XCTUnwrap((format["json_schema"] as? [String: Any])?["schema"] as? [String: Any])
+        let choice = try XCTUnwrap((schema["properties"] as? [String: Any])?["choice"] as? [String: Any])
+        XCTAssertEqual(choice["enum"] as? [String], ["c1", "c2", "none", "clarify"])
+        let jev = try StrictFoodProposalJSON.object(OpenRouterFoodProvider.selectionBody(foodTerms: "plain yoghurt", documents: [page], validation: validation))
+        let jevState = try XCTUnwrap(jev["state"] as? [String: Any])
+        XCTAssertEqual((jevState["candidates"] as? [[String: Any]])?.compactMap { $0["id"] as? String }, ["c1", "c2"])
+        XCTAssertEqual((jevState["excluded_candidates"] as? [[String: Any]])?.compactMap { $0["id"] as? String }, ["c3"])
+        let criteria = (((jev["questions"] as? [String: Any])?["best_candidate"] as? [String: Any])?["criteria"] as? [String: Any]) ?? [:]
+        XCTAssertEqual(Set(criteria.keys), ["c1", "c2", "none", "clarify"])
+    }
+
     // Contract #508 test 13 (phase 1): a whole page at the new bounds keeps the request shape,
     // and the part-read record is never sent, on the catalogue routes or the `.jev` route.
     func testLargerPageKeepsRequestShapeAndPartReadRecordIsNeverSent() throws {

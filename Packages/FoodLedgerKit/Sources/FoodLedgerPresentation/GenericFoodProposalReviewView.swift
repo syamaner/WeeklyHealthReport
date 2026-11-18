@@ -16,7 +16,12 @@ public final class GenericFoodProposalReviewViewModel: ObservableObject {
     } }
     @Published public var sourceAddress = "" { didSet { if sourceAddress != oldValue { cancel() } } }
     @Published public private(set) var isSearching = false
-    @Published public private(set) var result: GenericFoodProposalReview?
+    @Published public private(set) var result: GenericFoodProposalReview? {
+        // A new result starts at its pre-selection (none under a clarify answer), never a model pick.
+        didSet { if result != oldValue { pickedID = result?.offer.preselectedID } }
+    }
+    /// The panel the person has selected among the offered candidates (#508 phase 2).
+    @Published public private(set) var pickedID: String?
     @Published public private(set) var message: String?
     @Published public private(set) var alternativeSources: [FoodWebLead] = []
     private let saveMarket: (FoodReviewMarket) -> Void
@@ -97,16 +102,24 @@ public final class GenericFoodProposalReviewViewModel: ObservableObject {
             cancel()
             throw GenericFoodProposalError.invalidSelection
         }
+        // Only the panel the person has selected can be prepared; under a clarify answer nothing is
+        // selected until they pick one (#508 phase 2).
         guard let result, result.foodTerms == requestTerms, result.foodTerms == querySnapshot,
+              expected.id == pickedID,
               let proposal = result.validation.candidates.first(where: { $0 == expected }) else {
             throw GenericFoodProposalError.invalidSelection
         }
         return try confirmation.prepare(review: result, proposal: proposal, scope: scope, locale: locale)
     }
-    /// The one suggested source the screen offers, if the gate permits any.
+    /// Selects an offered panel. Only the person's action calls this; an id outside the offer is ignored.
+    public func pick(_ id: String) {
+        guard let result, result.offer.candidates.contains(where: { $0.id == id }) else { return }
+        pickedID = id
+    }
+    /// The offered panel currently selected, if any: what "Use this source" would prepare.
     public var suggestedProposal: BoundFoodProposal? {
-        guard let result else { return nil }
-        return result.validation.candidates.first { result.permitsConfirmation(of: $0) }
+        guard let result, let pickedID else { return nil }
+        return result.offer.candidates.first { $0.id == pickedID }
     }
     /// Developer tools lines for the last web lookup: no key, no credential, no payload.
     public var diagnosticLines: [String] {
@@ -116,7 +129,9 @@ public final class GenericFoodProposalReviewViewModel: ObservableObject {
                      "Suggested choice: \(result.suggestedChoice)", "Ranking available: \(!result.rankingUnavailable)"]
         if let failure = result.selectionFailure { lines.append("Ranking failure: \(failure.rawValue)") }
         if let confidence = result.selection?.rawConfidence { lines.append("Uncalibrated model confidence: \(confidence)") }
-        lines += result.validation.candidates.map { "Proposal \($0.id): \($0.candidate.name) · eligible \($0.selectionEligible)" }
+        let offer = result.offer
+        lines.append("Offered: \(offer.candidates.isEmpty ? "none" : offer.candidates.map(\.id).joined(separator: ", ")) · pre-selected \(offer.preselectedID ?? "none") · pick required \(offer.requiresPick)")
+        lines += result.validation.candidates.map { "Proposal \($0.id): \($0.candidate.name) · eligible \($0.selectionEligible) · choosable \($0.choosable)" }
         lines += result.validation.rejected.map { "Rejected \($0.id): \($0.reason)" }
         lines += result.sourceAttempts.map { "Source attempt: \($0.absoluteString)" }
         return lines
@@ -214,10 +229,21 @@ public struct GenericFoodProposalReviewView: View {
             if let message = model.message { Section { Text(message) } }
             if let result = model.result {
                 Section {
-                    Text(GenericFoodProposalReviewCopy.summary(result, suggested: model.suggestedProposal)).font(.subheadline)
+                    Text(GenericFoodProposalReviewCopy.summary(result)).font(.subheadline)
                 }
-                if let proposal = model.suggestedProposal {
-                    suggestedSection(proposal, result: result)
+                if !result.offer.isEmpty {
+                    let offerContent = FoodWebLookupOfferContent(review: result, selectedID: model.pickedID, scope: scope)
+                    if offerContent.rows.count > 1 { panelSection(offerContent) }
+                    if let proposal = model.suggestedProposal {
+                        suggestedSection(proposal, result: result, offer: offerContent)
+                    } else {
+                        Section {
+                            Button("Use this source") {}.frame(maxWidth: .infinity, minHeight: 44).disabled(true)
+                            if let reason = offerContent.disabledReason {
+                                Text(reason).font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
                 } else {
                     let noSuggestion = GenericFoodProposalReviewCopy.noSuggestion(result)
                     Section {
@@ -252,16 +278,49 @@ public struct GenericFoodProposalReviewView: View {
         .onDisappear { model.cancel(clearResult: false) }
     }
 
-    @ViewBuilder private func suggestedSection(_ proposal: BoundFoodProposal, result: GenericFoodProposalReview) -> some View {
+    /// The offered panels (#508 phase 2): one selected at a time, by trait and checkmark, never colour alone.
+    @ViewBuilder private func panelSection(_ content: FoodWebLookupOfferContent) -> some View {
+        Section(content.title) {
+            if let warning = content.warningLine { Text(warning).font(.subheadline) }
+            if let prompt = content.promptLine { Text(prompt).font(.subheadline) }
+            ForEach(content.rows) { row in
+                Button { model.pick(row.id) } label: {
+                    HStack(alignment: .top) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(row.name).foregroundStyle(.primary)
+                            if let brand = row.brand { Text(brand).font(.subheadline) }
+                            if let details = row.details { Text(details).font(.subheadline) }
+                            if let heading = row.heading { Text(verbatim: heading).font(.caption) }
+                            if let quote = row.firstQuote { Text(verbatim: "\u{201C}" + quote + "\u{201D}").font(.caption) }
+                            if let basis = row.basisLabel { Text("per " + basis).font(.caption).foregroundStyle(.secondary) }
+                            Text(row.declared.map { "\(FoodNutritionReviewPresentation.label($0.key.ledgerKey)) \($0.value) \($0.unit)" }
+                                .joined(separator: " · ")).font(.caption)
+                            let marks = [row.suggested ? FoodWebLookupOfferContent.suggestedWord : nil,
+                                         row.differentValues ? FoodWebLookupOfferContent.differentValuesWord : nil].compactMap { $0 }
+                            if !marks.isEmpty { Text(marks.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary) }
+                        }
+                        Spacer()
+                        if row.selected { Image(systemName: "checkmark").foregroundStyle(.tint).accessibilityHidden(true) }
+                    }.frame(minHeight: 44)
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(row.accessibilityLabel)
+                .accessibilityAddTraits(row.selected ? [.isButton, .isSelected] : .isButton)
+            }
+        }
+    }
+
+    @ViewBuilder private func suggestedSection(_ proposal: BoundFoodProposal, result: GenericFoodProposalReview,
+                                               offer: FoodWebLookupOfferContent) -> some View {
         // New reviews are saved as manifest v3, whose screen contract is web-lookup-review-v2 (#508).
         let content = FoodWebLookupReviewContent(document: proposal.document, candidate: proposal.candidate, scope: scope,
                                                  presentation: FoodProposalReviewAction.webLookupReviewV2)
             ?? FoodWebLookupReviewContent(document: proposal.document, candidate: proposal.candidate, scope: scope)
-        Section("Suggested source") {
+        Section(offer.rows.count > 1 ? "Selected panel" : FoodWebLookupOfferContent.suggestedTitle) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(content.name).font(.headline)
                 if let brand = content.brand { Text(brand).font(.subheadline) }
-                if let detail = GenericFoodProposalReviewCopy.distinguishingDetails(result.validation.candidates)[proposal.id] {
+                if let detail = offer.rows.first(where: { $0.id == proposal.id })?.details {
                     Text(detail).font(.subheadline)
                 }
                 Text([content.sourceHost, content.basisLabel.map { "per " + $0 }].compactMap { $0 }.joined(separator: " · "))
@@ -324,8 +383,9 @@ public struct GenericFoodProposalReviewView: View {
     }
 
     @ViewBuilder private func otherSourcesSection(_ result: GenericFoodProposalReview?) -> some View {
-        let suggestedID = model.suggestedProposal?.id
-        let others = result?.validation.candidates.filter { $0.id != suggestedID } ?? []
+        // Offered panels are listed above, never again here.
+        let offeredIDs = Set(result?.offer.candidates.map(\.id) ?? [])
+        let others = result?.validation.candidates.filter { !offeredIDs.contains($0.id) } ?? []
         // Over every candidate, so one sharing the suggested source's name is told apart too.
         let details = GenericFoodProposalReviewCopy.distinguishingDetails(result?.validation.candidates ?? [])
         if !others.isEmpty || !model.alternativeSources.isEmpty {
