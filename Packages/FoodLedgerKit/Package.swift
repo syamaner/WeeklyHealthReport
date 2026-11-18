@@ -180,6 +180,7 @@ let package = Package(
                 "FoodLedgerArchive",
                 "FoodLedgerGRDB",
                 "FoodInventoryImport",
+                "FoodLedgerPresentation",
                 "FoodLedgerTestSupport",
                 .product(name: "GRDB", package: "GRDB.swift")
             ],
