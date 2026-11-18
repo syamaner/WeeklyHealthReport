@@ -130,16 +130,15 @@ public enum ApprovedEstimateSource {
                                evidence: [CaptureEvidence], digester: any Digesting) -> LeftOutReading {
         var reading = LeftOutReading.none
         for item in evidence where isLeftOut(item) {
-            guard case let .text(payload) = item.originalPayload else { continue }
-            let data = Data(payload.value.utf8)
-            // Read loosely first to find the item of this version, then verify it strictly.
-            guard let decoded = ApprovedEstimateLeftOutEvidence.decode(data) else {
-                if payload.value.contains(resolutionVersionID.rawValue) { reading = .unavailable }
-                continue
-            }
+            // Nothing in a payload is trusted before its hash verifies, the version ID included: an
+            // altered ID must not make an item read as another version's and be skipped. A listed
+            // item that does not verify makes the evidence unavailable, which fails closed (every
+            // saved unknown estimate stays unknown and reads "Evidence not available").
+            guard case let .text(payload) = item.originalPayload, let hash = item.byteHash,
+                  (try? digester.sha256(Data(payload.value.utf8))) == hash,
+                  let decoded = ApprovedEstimateLeftOutEvidence.decode(Data(payload.value.utf8)) else { return .unavailable }
             guard decoded.resolutionVersionID == resolutionVersionID.rawValue else { continue }
-            guard let hash = item.byteHash, (try? digester.sha256(data)) == hash, let manifestHash,
-                  decoded.manifestSHA256 == manifestHash.value else { return .unavailable }
+            guard let manifestHash, decoded.manifestSHA256 == manifestHash.value else { return .unavailable }
             reading = .keys(decoded.keys)
         }
         return reading

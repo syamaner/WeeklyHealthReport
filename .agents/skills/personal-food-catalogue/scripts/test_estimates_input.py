@@ -17,6 +17,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, sys.argv[1])
+import estimate_counts as C  # noqa: E402
 import estimates_input as I  # noqa: E402
 import export_v1  # noqa: E402
 
@@ -31,7 +32,9 @@ RECORDS = {
     ("usda", USDA): {"nutrients": {"protein": 9.0, "iron": 1.5}, "preparation": "raw", "fortification": None,
                      "per_100_g": True},
 }
-FORTIFIED, COOKED = "cofid:synthetic:row:0003", "cofid:synthetic:row:0004"
+FORTIFIED, COOKED, AS_SOLD = "cofid:synthetic:row:0003", "cofid:synthetic:row:0004", "cofid:synthetic:row:0005"
+RECORDS[("cofid", AS_SOLD)] = {"nutrients": {"protein": 5.0}, "preparation": "as_sold", "fortification": "unfortified",
+                               "per_100_g": True}
 RECORDS[("cofid", FORTIFIED)] = {"nutrients": {"protein": 8.0}, "preparation": "unknown", "fortification": "fortified",
                                  "per_100_g": True}
 RECORDS[("cofid", COOKED)] = {"nutrients": {"protein": 4.0}, "preparation": "cooked", "fortification": "unfortified",
@@ -306,6 +309,9 @@ class Admission(unittest.TestCase):
         self.check(doc, [row(FISH, national(ref=FORTIFIED, **similar), "protein")], 0, fortified_record=1)
         self.check(doc, [row(raw, national(ref=COOKED, **similar), "protein")], 0, state_contradiction=1)
         self.check(doc, [row(cooked, national(source="usda", ref=USDA, **similar), "protein")], 0, state_contradiction=1)
+        # A raw entry and an as-sold record do not contradict, as in the app (Codex review of PR 514).
+        self.check(doc, [row(raw, national(ref=AS_SOLD, **similar), "protein")], 1)
+        self.check(doc, [row(cooked, national(ref=AS_SOLD, **similar), "protein")], 0, state_contradiction=1)
         # Unknown never contradicts, an equal preparation agrees, and an entry that is neither raw nor
         # cooked is not checked on preparation (the label and the owner's approval carry that).
         self.check(doc, [row(raw, national(ref=COFID, **similar), "protein")], 1)
@@ -505,6 +511,14 @@ class EndToEnd(unittest.TestCase):
         if usda_key == "fiber":
             good.pop(1)
         self.write_input(release, *good)
+        # Codex review of PR 514: without a refusal list nothing is written; a list with no rows
+        # records a completed check and lets the run go on.
+        code, text = self.main()
+        self.assertEqual(code, 2, text)
+        self.assertIn(self.AP.REFUSALS_NAME, text)
+        self.assertFalse(estimates_path.exists())
+        (self.ws / "work" / self.AP.REFUSALS_NAME).write_bytes(
+            I.canonical({"schema": C.SCHEMA_REFUSALS, "rows": []}))
         code, text = self.main()
         self.assertEqual(code, 0, text)
         written = estimates_path.read_bytes()
@@ -518,8 +532,8 @@ class EndToEnd(unittest.TestCase):
         self.assertIn(usda_key, by_id[pulse["id"]]["estimated_nutrients"])
         self.assertIn(I.release_id(written), text)
         report = json.loads((out / self.AP.REPORT_NAME).read_bytes())
-        # No refusals list was present: the report says so, so a zero count is not read as a check.
-        self.assertEqual(report["lists_read"], {self.AP.REFUSALS_NAME: False, self.AP.READMISSIONS_NAME: False,
+        # The report says which lists were present.
+        self.assertEqual(report["lists_read"], {self.AP.REFUSALS_NAME: True, self.AP.READMISSIONS_NAME: False,
                                                 self.AP.SHEET_NAME: False})
         self.assertTrue(report["written"])
         self.assertEqual(report["counts"]["checked_against_bundled_record"], len(result["estimate_evidence"]) - (len(good) - 2))

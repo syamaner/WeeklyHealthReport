@@ -84,15 +84,22 @@ final class ApprovedEstimateStorageContractTests: XCTestCase {
         return try FoodDailyExportSerializer.decode(try JSONSerialization.data(withJSONObject: tree))
     }
 
-    /// Changes the first provenance object of the first value that has one.
-    static func editFirstProvenance(_ tree: inout [String: Any], _ edit: (inout [String: Any]) -> Void) throws {
+    /// Changes the first provenance object of the first value that has one. `asEstimate` also
+    /// makes that value what the builder writes for an approved estimate (state and origin), so a
+    /// test changes only the field it means to.
+    static func editFirstProvenance(_ tree: inout [String: Any], asEstimate: Bool = false,
+                                    _ edit: (inout [String: Any]) -> Void) throws {
         var entries = try XCTUnwrap(tree["entries"] as? [[String: Any]])
         for e in entries.indices {
             var nutrients = try XCTUnwrap(entries[e]["nutrients"] as? [[String: Any]])
             for n in nutrients.indices {
                 guard var provenance = nutrients[n]["provenance"] as? [[String: Any]], !provenance.isEmpty else { continue }
                 edit(&provenance[0])
-                nutrients[n]["provenance"] = provenance
+                nutrients[n]["provenance"] = Array(provenance.prefix(asEstimate ? 1 : provenance.count))
+                if asEstimate {
+                    nutrients[n]["state"] = "estimated"
+                    nutrients[n]["origin"] = "approved_estimate"
+                }
                 entries[e]["nutrients"] = nutrients
                 tree["entries"] = entries
                 return
@@ -116,7 +123,7 @@ final class ApprovedEstimateStorageContractTests: XCTestCase {
     func testSchemaThreeNeedsAnApprovedEstimateWithItsFourTokens() throws {
         let accepted = try Self.document { tree in
             tree["food_daily_schema_version"] = 3
-            try Self.editFirstProvenance(&tree) { $0.merge(Self.tokens) { _, new in new } }
+            try Self.editFirstProvenance(&tree, asEstimate: true) { $0.merge(Self.tokens) { _, new in new } }
         }
         XCTAssertNoThrow(try FoodDailyExportShape.validate(accepted))
         XCTAssertEqual(FoodDailyExportDocument.estimatesSchemaVersion, 3)
@@ -127,11 +134,11 @@ final class ApprovedEstimateStorageContractTests: XCTestCase {
         for key in ["estimate_quality", "estimate_source_type", "estimate_method", "estimate_state_basis"] {
             try rejected(.invalidEstimateFields) { tree in
                 tree["food_daily_schema_version"] = 3
-                try Self.editFirstProvenance(&tree) { $0.merge(Self.tokens) { _, new in new }; $0[key] = nil }
+                try Self.editFirstProvenance(&tree, asEstimate: true) { $0.merge(Self.tokens) { _, new in new }; $0[key] = nil }
             }
             try rejected(.invalidEstimateFields) { tree in
                 tree["food_daily_schema_version"] = 3
-                try Self.editFirstProvenance(&tree) { $0.merge(Self.tokens) { _, new in new }; $0[key] = "excellent" }
+                try Self.editFirstProvenance(&tree, asEstimate: true) { $0.merge(Self.tokens) { _, new in new }; $0[key] = "excellent" }
             }
         }
     }
@@ -139,17 +146,55 @@ final class ApprovedEstimateStorageContractTests: XCTestCase {
     func testOlderSchemasNeverCarryAnEstimateField() throws {
         // A schema 2 file carrying an approved estimate or any estimate field is rejected.
         try rejected(.unexpectedEstimate) { tree in
-            try Self.editFirstProvenance(&tree) { $0.merge(Self.tokens) { _, new in new } }
+            try Self.editFirstProvenance(&tree, asEstimate: true) { $0.merge(Self.tokens) { _, new in new } }
         }
         try rejected(.unexpectedEstimate) { tree in
             try Self.editFirstProvenance(&tree) { $0["estimate_quality"] = "high" }
         }
-        // In a schema 3 file, a value of another kind carries no estimate field.
-        let stray = try Self.document { tree in
+        // A measured value relabelled with approved-estimate provenance alone is refused (Codex).
+        try rejected(.invalidEstimateFields) { tree in
             tree["food_daily_schema_version"] = 3
             try Self.editFirstProvenance(&tree) { $0.merge(Self.tokens) { _, new in new } }
         }
+        // A well-formed schema 3 estimate value is accepted.
+        let stray = try Self.document { tree in
+            tree["food_daily_schema_version"] = 3
+            try Self.editFirstProvenance(&tree, asEstimate: true) { $0.merge(Self.tokens) { _, new in new } }
+        }
         XCTAssertNoThrow(try FoodDailyExportShape.validate(stray))
+    }
+
+    /// Codex review of PR 514 at 8b0411a: the shape rule checks each value with its provenance.
+    func testSchemaThreeChecksEachEstimateValueWithItsProvenance() throws {
+        let golden = try Data(contentsOf: Self.fixtures.appendingPathComponent("food-daily-v3/food-daily-estimates-day.json"))
+        let text = String(decoding: golden, as: UTF8.self)
+        XCTAssertNoThrow(try FoodDailyExportShape.validate(try FoodDailyExportSerializer.decode(golden)))
+        func rejected(_ edited: String, _ expected: FoodDailyExportShapeError, _ message: String, line: UInt = #line) {
+            XCTAssertNotEqual(edited, text, message, line: line)
+            XCTAssertThrowsError(try FoodDailyExportShape.validate(try FoodDailyExportSerializer.decode(Data(edited.utf8))), message, line: line) {
+                XCTAssertEqual($0 as? FoodDailyExportShapeError, expected, message, line: line)
+            }
+        }
+        // The bar's page fibre estimate, as the golden writes it.
+        let page = "\"origin\":\"approved_estimate\""
+        XCTAssertTrue(text.contains(page))
+        rejected(text.replacingOccurrences(of: "\"state\":\"estimated\",\"unit\":\"g\"", with: "\"state\":\"measured\",\"unit\":\"g\""),
+                 .invalidEstimateFields, "an approved estimate shown as measured")
+        rejected(text.replacingOccurrences(of: "\"source_url\":\"https://www.example.com/products/synthetic\",", with: ""),
+                 .invalidEstimateFields, "a page estimate without its page address")
+        rejected(text.replacingOccurrences(of: "https://www.example.com/products/synthetic", with: "https://www.example.com/products/synthetic?x=1"),
+                 .invalidEstimateFields, "a page address with a query string")
+        rejected(text.replacingOccurrences(of: page, with: "\"origin\":\"product_database\""),
+                 .invalidEstimateFields, "an approved estimate under another origin")
+        // Schemas 1 and 2 never carry the origin, even without any estimate field.
+        let v2 = try Data(contentsOf: Self.fixtures.appendingPathComponent("food-daily-v2/food-daily-mixed-day.json"))
+        let v2Text = String(decoding: v2, as: UTF8.self)
+        let firstOrigin = try XCTUnwrap(v2Text.range(of: #""origin":"[a-z_]+""#, options: .regularExpression))
+        var relabelled = v2Text
+        relabelled.replaceSubrange(firstOrigin, with: "\"origin\":\"approved_estimate\"")
+        XCTAssertThrowsError(try FoodDailyExportShape.validate(try FoodDailyExportSerializer.decode(Data(relabelled.utf8)))) {
+            XCTAssertEqual($0 as? FoodDailyExportShapeError, .unexpectedEstimate)
+        }
     }
 
     func testTheOriginTableNamesTheNewKind() throws {

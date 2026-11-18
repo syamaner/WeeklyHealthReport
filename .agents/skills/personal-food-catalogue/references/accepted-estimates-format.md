@@ -103,6 +103,10 @@ that is not per 100 g, or from a record that is not; no density is ever inferred
 
 ## 2. `pfc-estimate-refusals-v1`
 
+Required whenever `accepted-estimates.json` exists: E3 refusals bind by default, so the writer
+stops when this file is missing. A file with no rows records a completed check that found nothing
+to refuse.
+
 What the E3 disposition refused, carried to v2 entry IDs. Top level: `schema` and `rows`, with two
 optional lists.
 

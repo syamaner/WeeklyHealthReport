@@ -299,7 +299,10 @@ def reason(est, item, corpora, read_record, refusal_status):
         # one such row never makes the phone refuse the whole file.
         if facts.get("fortification") == "fortified":
             return "fortified_record", []
-        if item["state"] in ("raw", "cooked") and facts.get("preparation") not in (None, "unknown", item["state"]):
+        # As the app compares them: `as_sold` and `raw` do not contradict each other (owner
+        # decision, 16 November 2026; contract section 3.2).
+        compatible = {None, "unknown", item["state"]} | ({"as_sold"} if item["state"] == "raw" else set())
+        if item["state"] in ("raw", "cooked") and facts.get("preparation") not in compatible:
             return "state_contradiction", []
     if ev["method"] == "derived" and not E.transform_matches(ev["derivation"], key, est["value"]):
         return "transform", []

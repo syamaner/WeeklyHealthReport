@@ -453,3 +453,10 @@ none changes a rule of the contract.
   item 7 corrects the names above. Left open: an archive round trip for a contract 10 log, and
   whether the Python record readers and the Swift adapters always agree on which keys a record
   quantifies.
+- 18 November 2026: an independent Codex review of 8b0411a (FAIL, three blocking and two
+  should-fix findings), all checked against the code and fixed: a leave-out item is trusted only
+  after its hash verifies, its version ID included; the writer stops when the refusal list is
+  missing (a list with no rows is a completed check); the schema 3 shape rule checks each value
+  with its provenance (state, origin, page address) and refuses the new origin in schemas 1 and 2;
+  the writer treats a raw entry and an as-sold record as compatible, as the app does; and a Drive
+  test replaces schema 2 with 3 and back under the same file ID, with recovery.

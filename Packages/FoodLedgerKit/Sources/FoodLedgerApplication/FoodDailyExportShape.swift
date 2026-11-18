@@ -55,7 +55,38 @@ public enum FoodDailyExportShape {
     }
 
     static func provenance(_ entry: FoodDailyExportEntry) -> [FoodDailyExportProvenance] {
-        entry.nutrients.flatMap { [$0] + ($0.candidates ?? []) }.flatMap { $0.provenance ?? [] }
+        values(entry).flatMap { $0.provenance ?? [] }
+    }
+
+    static func values(_ entry: FoodDailyExportEntry) -> [FoodDailyExportNutrientValue] {
+        entry.nutrients.flatMap { [$0] + ($0.candidates ?? []) }
+    }
+
+    static let approvedEstimateOrigin = "approved_estimate"
+
+    /// Schema 3: a value whose provenance is an approved estimate is exactly what the builder
+    /// writes for one: state `estimated`, origin `approved_estimate`, that one provenance, a page
+    /// address (https, no query or fragment) exactly for a page estimate, and a content hash only on
+    /// a page estimate. A value with that origin and no such provenance is an unknown value of an
+    /// entry led by an estimate, and nothing else.
+    static func validateEstimateValue(_ value: FoodDailyExportNutrientValue) throws {
+        let provenance = value.provenance ?? []
+        guard provenance.contains(where: \.isApprovedEstimate) else {
+            if value.origin == approvedEstimateOrigin, value.state != "unknown" { throw FoodDailyExportShapeError.invalidEstimateFields }
+            return
+        }
+        guard provenance.count == 1, let only = provenance.first, value.state == "estimated",
+              value.origin == approvedEstimateOrigin,
+              let type = only.estimateSourceType.flatMap(PersonalFoodDatabaseEstimateSourceType.init(rawValue:)) else {
+            throw FoodDailyExportShapeError.invalidEstimateFields
+        }
+        if type == .nationalComposition {
+            guard only.sourceURL == nil, only.contentHash == nil else { throw FoodDailyExportShapeError.invalidEstimateFields }
+        } else {
+            guard let url = only.sourceURL, url.hasPrefix("https://"), !url.contains("?"), !url.contains("#") else {
+                throw FoodDailyExportShapeError.invalidEstimateFields
+            }
+        }
     }
 
     /// Schema 3 (estimates on catalogue v2): every `approved_estimate` provenance carries its four
@@ -92,10 +123,14 @@ public enum FoodDailyExportShape {
             throw FoodDailyExportShapeError.summaryVersionNotAccepted(schema: schema, summaryVersion: document.summaryVersion)
         }
         let provenance = document.entries.flatMap(provenance)
+        let values = document.entries.flatMap(values)
         if schema == 3 {
             guard provenance.contains(where: \.isApprovedEstimate) else { throw FoodDailyExportShapeError.missingEstimate }
             try provenance.forEach(validateEstimateFields)
-        } else if provenance.contains(where: { $0.isApprovedEstimate || $0.hasEstimateField }) {
+            try values.forEach(validateEstimateValue)
+        } else if provenance.contains(where: { $0.isApprovedEstimate || $0.hasEstimateField })
+                    || values.contains(where: { $0.origin == Self.approvedEstimateOrigin }) {
+            // Schemas 1 and 2 never carry an estimate: no provenance kind, field or origin.
             throw FoodDailyExportShapeError.unexpectedEstimate
         }
         switch schema {

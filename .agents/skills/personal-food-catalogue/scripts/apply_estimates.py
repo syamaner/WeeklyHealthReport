@@ -139,6 +139,12 @@ def main(ws: Path, repo: Path):
         print(f"no {INPUT_NAME}: nothing to add, the plain v2 file stands (release {release})")
         return
     lists_read = {name: (work / name).exists() for name in (REFUSALS_NAME, READMISSIONS_NAME, SHEET_NAME)}
+    # Contract 3.1: E3 refusals bind by default, so they must have been checked. A missing refusal
+    # list is not an empty one: it stops the run. A list with no rows records a completed check
+    # that found nothing to refuse.
+    if not lists_read[REFUSALS_NAME]:
+        _refuse(out, f"no {REFUSALS_NAME}: the refused sources must be carried forward before any estimate is written; "
+                     "write one with no rows if there is nothing to refuse")
     try:
         accepted = I.parse((work / INPUT_NAME).read_bytes())
         lists = C.Lists(_optional(work / REFUSALS_NAME, C.parse_refusals),

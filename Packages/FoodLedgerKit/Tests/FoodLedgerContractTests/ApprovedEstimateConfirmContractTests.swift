@@ -620,6 +620,42 @@ final class ApprovedEstimateConfirmContractTests: XCTestCase {
         }
     }
 
+    /// Codex review of PR 514 at 8b0411a: a saved leave-out stays unknown until undone. With its
+    /// item's version ID altered, reopen reports the evidence unavailable, and a later correction of
+    /// details cannot bring the left-out value back.
+    func testAnAlteredLeaveOutVersionIDKeepsTheValueUnknownThroughACorrection() throws {
+        for harness in try LedgerFixtures.harnesses() {
+            defer { harness.cleanup() }
+            let service = try Self.service(harness)
+            var state = try Self.state(service, [Self.crisps])
+            FoodConfirmationReducer.reduce(state: &state, action: .leaveOutEstimate(.fiber))
+            let saved = try service.save(state, operationID: LedgerFixtures.operationID(11_110))
+            let input = try XCTUnwrap(try service.reopen(logItemID: saved.logItem.logItemID)).input
+            let tampered = try input.evidence.map { item -> CaptureEvidence in
+                guard ApprovedEstimateSource.isLeftOut(item), case let .text(payload) = item.originalPayload else { return item }
+                return try CaptureEvidence(evidenceID: item.evidenceID, kind: item.kind, capturedAt: item.capturedAt, locale: item.locale,
+                    captureMethod: item.captureMethod, captureMethodVersion: item.captureMethodVersion,
+                    originalPayload: .text(LedgerText(payload.value.replacingOccurrences(
+                        of: saved.resolutionVersion.resolutionVersionID.rawValue, with: "00000000-0000-0000-0000-00000000dead"))),
+                    byteHash: item.byteHash)
+            }
+            XCTAssertNotEqual(tampered, input.evidence)
+            XCTAssertEqual(ApprovedEstimateSource.leftOut(resolutionVersionID: saved.resolutionVersion.resolutionVersionID,
+                manifestHash: ApprovedEstimateSource.manifestEvidence(input.candidates[0].candidate, evidence: tampered)?.byteHash,
+                evidence: tampered, digester: LedgerFixtures.digester), .unavailable, harness.name)
+            // Reopened on that evidence: the seed says unavailable, the saved unknown reads so, and
+            // a correction of details keeps it unknown.
+            var reopened = FoodConfirmationState(input: try PopulatedFoodConfirmation(evidence: tampered,
+                sourceReleases: input.sourceReleases, candidates: input.candidates, expectedIdentity: input.expectedIdentity,
+                expectedEdibleQuantity: input.expectedEdibleQuantity), reopened: try XCTUnwrap(try service.reopen(logItemID: saved.logItem.logItemID)?.reopened))
+            reopened.estimateSeed = ApprovedEstimateSeed(evidenceAvailable: false)
+            XCTAssertEqual(reopened.savedEstimateStates, [.fiber: .evidenceNotAvailable], harness.name)
+            service.bindEstimates(&reopened)
+            try Self.correct(&reopened, .asSold)
+            XCTAssertEqual(Self.value(reopened.effectiveNutrients, .fiber), .unknown(.noCompatibleSource), harness.name)
+        }
+    }
+
     func testAlteredEvidenceIsNotAvailableAndNeverChangesAStoredValue() throws {
         let digester = LedgerFixtures.digester
         let input = try Self.input([Self.crisps])
@@ -653,6 +689,12 @@ final class ApprovedEstimateConfirmContractTests: XCTestCase {
         XCTAssertEqual(read([try item(other, [.sodium])]), .none, "an earlier version's item is ignored")
         XCTAssertEqual(read([try item(other, [.sodium]), try item(version, [.fiber])]), .keys([.fiber]))
         XCTAssertEqual(read([try altered(try item(version, [.fiber])) { $0.replacingOccurrences(of: "fiber", with: "sodium") }]), .unavailable)
+        // Codex review of PR 514: an item whose version ID is altered (hash unchanged) must not be
+        // skipped as another version's item; it does not verify, so the evidence is unavailable.
+        XCTAssertEqual(read([try altered(try item(version, [.fiber])) { $0.replacingOccurrences(of: version.rawValue, with: other.rawValue) }]),
+                       .unavailable)
+        XCTAssertEqual(read([try altered(try item(other, [.sodium])) { $0.replacingOccurrences(of: "sodium", with: "fiber") },
+                             try item(version, [.fiber])]), .unavailable, "any listed item that does not verify")
         XCTAssertEqual(read([try item(version, [.fiber], manifestHash: String(repeating: "0", count: 64))]), .unavailable,
                        "the manifest it names must be the one it is read with")
         // The pasted-label reader ignores both kinds, and this reader ignores other label text.
