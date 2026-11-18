@@ -1,0 +1,91 @@
+{
+ "contract": "docs/personal-food-catalogue-off-estimates-v1-proposal.md",
+ "phase_gate": "docs/personal-food-catalogue-off-estimates-v1-phase.md",
+ "schema": "personal-food-catalogue-estimates-v3",
+ "golden": "golden.json",
+ "photo_rule_codes": [
+  "photo-fields",
+  "photo-relation",
+  "photo-missing"
+ ],
+ "note": "each reject fixture gives exactly the listed codes, in order, from both checkers",
+ "reject": {
+  "reject-photo-in-v2-file.json": [
+   "token",
+   "token"
+  ],
+  "reject-photo-missing.json": [
+   "photo-missing"
+  ],
+  "reject-photo-other-host.json": [
+   "photo-fields"
+  ],
+  "reject-photo-world-host.json": [
+   "photo-fields"
+  ],
+  "reject-photo-maker-host.json": [
+   "photo-fields"
+  ],
+  "reject-photo-upper-case-host.json": [
+   "photo-fields"
+  ],
+  "reject-photo-port.json": [
+   "photo-fields"
+  ],
+  "reject-photo-query.json": [
+   "photo-fields"
+  ],
+  "reject-photo-fragment.json": [
+   "photo-fields"
+  ],
+  "reject-photo-no-digit-segment.json": [
+   "photo-fields"
+  ],
+  "reject-photo-letters-in-code.json": [
+   "photo-fields"
+  ],
+  "reject-photo-missing-digest.json": [
+   "photo-fields"
+  ],
+  "reject-photo-digest-not-hex.json": [
+   "photo-fields",
+   "digest"
+  ],
+  "reject-photo-missing-date.json": [
+   "photo-fields"
+  ],
+  "reject-photo-indexed-copy.json": [
+   "photo-fields"
+  ],
+  "reject-photo-composition-source.json": [
+   "photo-fields"
+  ],
+  "reject-photo-state-unknown.json": [
+   "photo-fields"
+  ],
+  "reject-photo-same-food-method.json": [
+   "photo-fields"
+  ],
+  "reject-photo-derived-without-derivation.json": [
+   "photo-fields",
+   "derivation-missing"
+  ],
+  "reject-photo-derivation-present.json": [
+   "photo-fields",
+   "derivation-unexpected"
+  ],
+  "reject-photo-high.json": [
+   "estimate-quality"
+  ],
+  "reject-photo-relation-other-barcode.json": [
+   "photo-relation"
+  ],
+  "reject-page-on-open-food-facts-host-in-v3.json": [
+   "open-food-facts-host"
+  ]
+ },
+ "accept": [
+  "accept-photo-short-code.json",
+  "accept-photo-low.json"
+ ]
+}

@@ -8,6 +8,8 @@ is edited only by the implementing change. Implementation is a later phase with 
 architecture gate, after daily export v2 and the estimates v2 phase. Section 14 says plainly what
 has and has not been reviewed. It has no issue of its own yet and closes nothing. Programme #424.
 
+**Amendment, 18 November 2026 ([label photo estimates v1](personal-food-catalogue-off-estimates-v1-phase.md) section 1, #518).** Under this contract's own clause in section 7 ("the phase takes the next free one"), food contract 11, migration `v11_…` and `food-ledger-v11` are taken by label photo estimates. This phase moves to **food contract 12**, migration `v12_assistant_estimate` and `food-ledger-v12`, with its floor rule checked before the contract 11 rule. Daily export version 4 is unchanged; whichever phase later needs version 4 and version 5 together takes a new number (6) for the union.
+
 It is a delta on [estimates on catalogue v2](personal-food-catalogue-estimates-v2-proposal.md)
 (accepted 16 November 2026, not implemented), called "estimates v2" below, and through it on
 [approved estimates v1](personal-food-catalogue-estimates-v1.md). It repeats neither. Everything in

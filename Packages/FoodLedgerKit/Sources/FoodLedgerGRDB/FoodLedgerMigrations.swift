@@ -73,6 +73,14 @@ extension FoodLedgerGRDBStore {
             try db.execute(sql: "UPDATE ledger_metadata SET value = 'food-ledger-v10' WHERE key = 'schema_identity'")
             try db.execute(sql: "PRAGMA user_version = 10")
         }
+        migrator.registerMigration("v11_label_photo_estimate") { db in
+            // Label photo estimates (docs/personal-food-catalogue-off-estimates-v1-proposal.md, food
+            // contract 11): a capture manifest may cite the `product_dataset_photo` source type. Metadata
+            // only: no table is created and no immutable row is rewritten. Older binaries decline schema
+            // 11 instead of reading a source type they do not know.
+            try db.execute(sql: "UPDATE ledger_metadata SET value = 'food-ledger-v11' WHERE key = 'schema_identity'")
+            try db.execute(sql: "PRAGMA user_version = 11")
+        }
         return migrator
     }
 

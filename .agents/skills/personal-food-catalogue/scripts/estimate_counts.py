@@ -25,6 +25,7 @@ import re
 
 import estimates_input as I
 import estimates_v2 as E
+import estimates_v3 as V3
 import export_v1
 
 SCHEMA_REFUSALS = "pfc-estimate-refusals-v1"
@@ -166,6 +167,24 @@ def reference_key(source_type, reference):
     return f"{host}:{port}/{rest}"
 
 
+# Label photo phase gate section 3: the classes a photo estimate is matched against whatever the
+# refusal row's source type, by entry and nutrient, or by barcode for every entry.
+PHOTO_CLASSES = ("open_food_facts", "per_entry_exclusion", "value_fault", "unresolved_a1")
+GTIN_PREFIX = "off:gtin:"
+PRODUCT_PATH = re.compile(r"/product/([0-9]+)(?:/|$)")
+
+
+def refusal_barcode(reference):
+    """The barcode a refusal row names (`off:gtin:<digits>` or an address with `/product/<digits>`),
+    leading zeros removed, or None."""
+    if not isinstance(reference, str):
+        return None
+    if reference.startswith(GTIN_PREFIX) and reference[len(GTIN_PREFIX):].isdigit():
+        return V3.strip_zeros(reference[len(GTIN_PREFIX):])
+    m = PRODUCT_PATH.search(reference)
+    return V3.strip_zeros(m.group(1)) if m else None
+
+
 class Lists:
     """The three private lists, any of them absent (None). An absent refusal list refuses nothing;
     an absent re-admission list or sheet re-admits nothing."""
@@ -189,6 +208,13 @@ class Lists:
         """`clear` (on no refusal list), `refused`, `class` (listed and accepted, but of a class
         that is never re-admissible) or `readmitted`. `corpus_sha256` is the catalogue's own hash
         for the evidence's corpus, None for a page."""
+        if evidence["source_type"] == V3.TOKEN:
+            code = V3.barcode(evidence["source_reference"])
+            code = V3.strip_zeros(code) if code else None
+            hit = any(r["refusal_class"] in PHOTO_CLASSES and (
+                (r["entry_id"] == entry_id and r.get("nutrient", nutrient) == nutrient)
+                or (code is not None and refusal_barcode(r["source_reference"]) == code)) for r in self.refusals)
+            return I.REFUSED if hit else I.CLEAR  # never re-admissible: no list or sheet row names the token
         wanted = reference_key(evidence["source_type"], evidence["source_reference"])
         hits = [r for r in self.refusals
                 if r["entry_id"] == entry_id and r["source_type"] == evidence["source_type"]
@@ -233,7 +259,7 @@ def six_counts(doc: dict, accepted_rows: list, lists: Lists) -> dict:
     records = {r["id"]: r for r in doc.get("estimate_evidence", [])}
     underlying = {(r["entry_id"], r["nutrient"]): r for r in accepted_rows if r["scope"] == "nutrient"}
     counts = {k: 0 for k in MUST_BE_ZERO + REPORTED}
-    readmitted_rows, without_sentence = [], 0
+    readmitted_rows, without_sentence, photo_state = [], 0, 0
     for it in doc["items"]:
         ref = it["generic_reference"]
         for key, value in it.get("estimated_nutrients", {}).items():
@@ -258,10 +284,14 @@ def six_counts(doc: dict, accepted_rows: list, lists: Lists) -> dict:
                     row is None or row["evidence"]["source_reference"] != rec["source_reference"]
                     or row["underlying_source"] == "not_stated")
             counts["no_e3_counterpart"] += it["id"] in lists.no_counterpart
+            if rec["source_type"] == V3.TOKEN:
+                photo_state += not V3.state_compatible(it["state"], rec["source_state"], rec["state_basis"])
     list_counts = lists.list_checks()
     checks = []
     if without_sentence:
         checks.append(f"readmission-sentence: {without_sentence}")
+    if photo_state:
+        checks.append(f"photo-state-mismatch: {photo_state}")
     if list_counts["former_close_listed_as_other_method"]:
         checks.append(f"readmission-former-close-method: {list_counts['former_close_listed_as_other_method']}")
     return {"counts": counts, "checks": checks, "lists": list_counts, "readmitted_rows": readmitted_rows}

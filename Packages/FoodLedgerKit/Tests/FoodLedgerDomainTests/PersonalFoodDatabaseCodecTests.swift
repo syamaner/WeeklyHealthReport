@@ -100,7 +100,8 @@ final class PersonalFoodDatabaseCodecTests: XCTestCase {
         // (import v2), which the v2 manifest adds (PersonalFoodDatabaseCodecV2Tests).
         // The estimates-only codes belong to estimates v2 files alone (PersonalFoodDatabaseCodecEstimatesTests).
         XCTAssertEqual(Set(PersonalFoodDatabaseRuleCode.allCases).subtracting(PersonalFoodDatabaseRuleCode.v2Only)
-            .subtracting(PersonalFoodDatabaseRuleCode.estimatesOnly).map(\.rawValue).sorted(), try manifest().rule_codes.sorted())
+            .subtracting(PersonalFoodDatabaseRuleCode.estimatesOnly).subtracting(PersonalFoodDatabaseRuleCode.estimatesV3Only)
+            .map(\.rawValue).sorted(), try manifest().rule_codes.sorted())
     }
 
     func testV1FilesKeepTheV1SchemaAndNeverGetV2OnlyCodes() throws {

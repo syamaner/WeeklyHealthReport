@@ -331,7 +331,7 @@ final class ReviewManifestV3ContractTests: XCTestCase {
         XCTAssertEqual(CanonicalFoodProjection.minimumContractVersion(for: LedgerMutation()), 1)
         // Manifest v3 itself raises nothing (#508, owner decision W7). The binary's contract is 10
         // since approved estimates from Your food database took that number (#511).
-        XCTAssertEqual(CanonicalFoodProjection.foodContractVersion, 10)
+        XCTAssertEqual(CanonicalFoodProjection.foodContractVersion, 11)
     }
 
     // MARK: Screen contract web-lookup-review-v2, one candidate
