@@ -179,7 +179,7 @@ def refusal_barcode(reference):
     leading zeros removed, or None."""
     if not isinstance(reference, str):
         return None
-    if reference.startswith(GTIN_PREFIX) and reference[len(GTIN_PREFIX):].isdigit():
+    if reference.startswith(GTIN_PREFIX) and V3.DIGITS.fullmatch(reference[len(GTIN_PREFIX):]):
         return V3.strip_zeros(reference[len(GTIN_PREFIX):])
     m = PRODUCT_PATH.search(reference)
     return V3.strip_zeros(m.group(1)) if m else None

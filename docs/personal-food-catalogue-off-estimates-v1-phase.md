@@ -95,7 +95,7 @@ or `as sold, cooked`; anything else refuses the input row. The evaluator also co
 
 | Layer | Site | Change |
 |---|---|---|
-| Domain | `PersonalFoodDatabaseEstimateSourceType` | Gains `productDatasetPhoto`; `allowed(catalogue:)`, `allowed(dailySchema:)`, `allowed(manifest:)` replace every `allCases` use (`PersonalFoodDatabaseEstimates.swift:121` today). |
+| Domain | `PersonalFoodDatabaseEstimateSourceType` | Gains `productDatasetPhoto`; `estimatesV2List` and `allowed(catalogue:)` replace the codec's `allCases` use; the export keeps its own list per schema (`FoodDailyExportShape.estimateSourceTypes(schema:)`); stored records are gated by contract 11 (section 9). |
 | Domain | `PersonalFoodDatabaseSchema`, `PersonalFoodDatabaseCodec.swift:291` | `estimatesV3`, treated as an estimates schema for top-level and item keys. |
 | Domain | `PersonalFoodDatabaseEstimateChecker.check`, `checkRecord`, `tableCodes`, `ceiling` | Take the schema; sections 2.1 to 2.3 and 4. |
 | Domain | `ApprovedEstimateEvidence` | `typed` enforces sections 2.1 and 2.2 on a photo record (`PersonalFoodDatabasePhotoAddress.recordIsValid`), so an altered stored record gives nil. |
@@ -111,14 +111,14 @@ or `as sold, cooked`; anything else refuses the input row. The evaluator also co
 | Skill | `apply_estimates.py` | Output name by schema, retiring the other. |
 | Docs | Daily export v2 contract | Dated note for version 5, including that a build with version 5 only rejects assistant fields (fails closed). |
 | Docs | `assistant-pasted-estimates-v1-proposal.md` | Dated note: food contract 12, migration `v12_assistant_estimate`, daily export version 4 unchanged, union at 6. |
-| Docs | `privacy-and-egress.md` | Contract section 5's three statements (the photo fetch, the agent's photo read, and the barcode in an exported photo address), **held for the owner's wording approval (F6) before first use**. |
+| Docs | `privacy-and-egress.md` | Contract section 5's statements: the barcode in an exported photo address (app, factual), and the photo fetch and the agent's photo read (developer tooling), the last two **held for the owner's wording approval (F6) before first use**. |
 
 Dependency direction is unchanged: domain and application stay free of frameworks; the skill is
 outside the app; no new network path in the app.
 
 ## 6. Contract tests (Python and Swift alike, synthetic fixtures)
 
-Fixtures: `docs/fixtures/personal-food-database-estimates-v3/` and `docs/fixtures/food-daily-v5/`.
+Fixtures: `docs/fixtures/personal-food-database-estimates-v3/`. The export cases of test 11 are built through the writer from that golden (`PhotoEstimateExportContractTests`) rather than from a separate `food-daily-v5` fixture.
 
 1. A valid v3 file with one photo estimate decodes; the bytes re-encode unchanged; an installed v3
    catalogue reopens.
@@ -174,6 +174,14 @@ private catalogue, and any change to the no-repeat rule (waits for the owner's c
   - an exact host and path shape that fails closed;
   - exact-byte state matching;
   - the added tests.
+- **18 November 2026, blind `invariant-reviewer` review of the implementation at 1f7d0ce4: pass with
+  notes, nothing blocking.** Applied:
+  - writer tests for daily export version 5 (kept photo, left-out photo, photo beside a composition
+    estimate, and the v2 catalogue staying at 3);
+  - a store test that an installed v3 catalogue reopens;
+  - two Python hardenings (a non-string evidence ID in a tampered file, and non-ASCII digits in a
+    refusal row);
+  - the site table and the F6 wording aligned with what was built.
 
 ## 9. Change made during implementation
 

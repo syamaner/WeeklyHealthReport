@@ -150,3 +150,48 @@ final class PhotoEstimateStorageContractTests: XCTestCase {
         XCTAssertEqual(PersonalFoodDatabaseEstimateSourceType.estimatesV2List, [.nationalComposition, .manufacturerPage, .aggregator])
     }
 }
+
+/// Gate test 11 through the writer: logs saved with label photo estimates, exported by
+/// `FoodDailyExportBuilder` from the shared v3 golden (label photo on the serving bar's sugar, same
+/// barcode; the bar also carries a page fibre estimate). Synthetic data only.
+final class PhotoEstimateExportContractTests: XCTestCase {
+    typealias Export = ApprovedEstimateExportContractTests
+    static let v3 = "personal-food-database-estimates-v3"
+
+    func testAKeptPhotoEstimateWritesSchemaFiveWithItsAddressAndDigest() throws {
+        let (document, _) = try Export.export([(ApprovedEstimateConfirmContractTests.bar, [])], fixture: Self.v3)
+        XCTAssertEqual(document.foodDailySchemaVersion, 5)
+        XCTAssertNoThrow(try FoodDailyExportShape.validate(document))
+        let sugar = try Export.value(document, entry: 0, .sugar)
+        XCTAssertEqual(sugar.state, "estimated")
+        let photo = try XCTUnwrap(sugar.provenance?.first)
+        XCTAssertEqual(photo.estimateSourceType, "product_dataset_photo")
+        XCTAssertEqual(photo.estimateMethod, "direct")
+        XCTAssertEqual(photo.estimateQuality, "medium")
+        XCTAssertEqual(photo.sourceURL, "https://images.openfoodfacts.org/images/products/000/000/000/0024/nutrition_en.1.400.jpg")
+        XCTAssertEqual(photo.contentHash, String(repeating: "e", count: 64), "the manifest's source_digest, never its own hash")
+        // The page estimate beside it keeps its own type in the same schema 5 document.
+        XCTAssertEqual(try Export.value(document, entry: 0, .fiber).provenance?.first?.estimateSourceType, "manufacturer_page")
+    }
+
+    func testALeftOutPhotoEstimateLeavesTheDayAtSchemaThree() throws {
+        let (document, _) = try Export.export([(ApprovedEstimateConfirmContractTests.bar, [.sugar])], fixture: Self.v3)
+        XCTAssertEqual(document.foodDailySchemaVersion, 3, "the page estimate remains, the photo was left out")
+        XCTAssertEqual(try Export.value(document, entry: 0, .sugar).state, "unknown")
+        XCTAssertNoThrow(try FoodDailyExportShape.validate(document))
+        let none = try Export.export([(ApprovedEstimateConfirmContractTests.bar, [.sugar, .fiber])], fixture: Self.v3)
+        XCTAssertEqual(none.document.foodDailySchemaVersion, 2, "no estimate kept: schema 2")
+    }
+
+    func testAPhotoBesideACompositionEstimateIsSchemaFive() throws {
+        let (document, _) = try Export.export([(ApprovedEstimateConfirmContractTests.bar, []),
+                                               (ApprovedEstimateConfirmContractTests.fish, [])], fixture: Self.v3)
+        XCTAssertEqual(document.foodDailySchemaVersion, 5)
+        XCTAssertNoThrow(try FoodDailyExportShape.validate(document))
+    }
+
+    func testTheSameDayFromTheV2CatalogueStaysAtSchemaThree() throws {
+        let (document, _) = try Export.export([(ApprovedEstimateConfirmContractTests.bar, [])])
+        XCTAssertEqual(document.foodDailySchemaVersion, 3)
+    }
+}

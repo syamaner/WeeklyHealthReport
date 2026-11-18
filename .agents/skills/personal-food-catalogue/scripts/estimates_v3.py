@@ -94,7 +94,8 @@ def check_missing(doc, err):
             if isinstance(v, dict) and isinstance(v.get("evidence_id"), str):
                 cited.add(v["evidence_id"])
     evidence = doc.get("estimate_evidence") if isinstance(doc.get("estimate_evidence"), list) else []
-    if not any(isinstance(r, dict) and r.get("source_type") == TOKEN and r.get("id") in cited for r in evidence):
+    if not any(isinstance(r, dict) and r.get("source_type") == TOKEN and isinstance(r.get("id"), str)
+               and r["id"] in cited for r in evidence):
         err("photo-missing", "a v3 file holds no photo estimate")
 
 
