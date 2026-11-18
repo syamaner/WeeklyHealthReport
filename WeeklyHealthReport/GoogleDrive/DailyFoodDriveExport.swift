@@ -23,7 +23,8 @@ struct DailyFoodExportIdentityPolicy: DrivePayloadIdentityPolicy {
     /// Files already on Drive must still pass reconcile and recovery, as the health policy
     /// accepts earlier schemas: `FoodDailyExportShape` admits schema 1 (summary v4, v5, v6) and
     /// schema 2 (summary v6, with `amount_method` on every entry; contract v2 section 5, #312),
-    /// and rejects any other schema number and any mixed file. The exact-byte re-encode below
+    /// schema 3 (schema 2's shape plus the estimate fields, only with an approved estimate;
+    /// estimates on catalogue v2), and rejects any other schema number and any mixed file. The exact-byte re-encode below
     /// completes that rule: it rejects a null where a key must be absent and any unknown key.
     func validate(payload: Data, reportDate: String) throws -> DrivePayloadIdentity {
         guard let document = try? FoodDailyExportSerializer.decode(payload),
@@ -206,7 +207,9 @@ struct DailyFoodExportService {
             let records = try reader.dailyFoodExportSnapshot()
             let document = try FoodDailyExportBuilder.make(FoodDailyExportRequest(
                 records: records, reportDate: health.reportDate, timeZone: zone, dataAsOf: dataAsOf,
-                exportedAt: exportedAt, appContext: appContext))
+                exportedAt: exportedAt, appContext: appContext,
+                // An approved estimate's capture manifest is rehashed before its tokens are exported.
+                digester: SHA256Digester()))
             return .prepared(DailyFoodExportPreview(document: document, bytes: try FoodDailyExportSerializer.encode(document)))
         } catch let error as FoodIntakeProjectionError {
             switch error {

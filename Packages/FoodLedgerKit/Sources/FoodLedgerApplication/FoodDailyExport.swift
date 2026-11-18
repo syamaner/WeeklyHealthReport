@@ -10,6 +10,10 @@ public struct FoodDailyExportDocument: Codable, Equatable, Sendable {
     /// The schema this build writes (contract v2, #312). Files already written as schema 1 stay
     /// valid and are still read; `FoodDailyExportShape` holds what each schema number admits.
     public static let schemaVersion = 2
+    /// The schema of a document holding at least one `approved_estimate` value (estimates on
+    /// catalogue v2, daily export version 3): schema 2's shape plus the estimate fields. Any other
+    /// document is written as schema 2, byte for byte as before.
+    public static let estimatesSchemaVersion = 3
 
     public let foodDailySchemaVersion: Int
     public let reportDate: String
@@ -331,9 +335,26 @@ public struct FoodDailyExportProvenance: Codable, Equatable, Sendable {
     public let sourceKind: String
     public let sourceReleaseID: String
     public let transforms: [FoodDailyExportTransform]
-    /// Reviewed web proposals only (D2): the public page address and its content hash.
+    /// Reviewed web proposals (D2): the public page address and its content hash. Approved
+    /// estimates from a page (schema 3): the page address and the retained artefact's digest,
+    /// absent when none was kept. Never the capture manifest's own hash.
     public let sourceURL: String?
     public let contentHash: String?
+    /// Schema 3, `approved_estimate` values only (estimates on catalogue v2 section 3.3; estimates
+    /// v1 section 7): the closed tokens of the evidence record. No free text is exported.
+    public let estimateSourceType: String?
+    public let estimateMethod: String?
+    public let estimateStateBasis: String?
+    public let estimateQuality: String?
+
+    init(sourceKind: String, sourceReleaseID: String, transforms: [FoodDailyExportTransform], sourceURL: String?,
+         contentHash: String?, estimateSourceType: String? = nil, estimateMethod: String? = nil,
+         estimateStateBasis: String? = nil, estimateQuality: String? = nil) {
+        self.sourceKind = sourceKind; self.sourceReleaseID = sourceReleaseID; self.transforms = transforms
+        self.sourceURL = sourceURL; self.contentHash = contentHash; self.estimateSourceType = estimateSourceType
+        self.estimateMethod = estimateMethod; self.estimateStateBasis = estimateStateBasis
+        self.estimateQuality = estimateQuality
+    }
 
     enum CodingKeys: String, CodingKey {
         case sourceKind = "source_kind"
@@ -341,6 +362,15 @@ public struct FoodDailyExportProvenance: Codable, Equatable, Sendable {
         case transforms
         case sourceURL = "source_url"
         case contentHash = "content_hash"
+        case estimateSourceType = "estimate_source_type"
+        case estimateMethod = "estimate_method"
+        case estimateStateBasis = "estimate_state_basis"
+        case estimateQuality = "estimate_quality"
+    }
+
+    public var isApprovedEstimate: Bool { sourceKind == ProvenanceSourceKind.approvedEstimate.rawValue }
+    var hasEstimateField: Bool {
+        estimateSourceType != nil || estimateMethod != nil || estimateStateBasis != nil || estimateQuality != nil
     }
 }
 
@@ -480,7 +510,8 @@ public enum FoodDailyExportOrigin {
         ProvenanceSourceKind.genericCompositionDataset.rawValue: "food_database",
         ProvenanceSourceKind.recipeReconstruction.rawValue: "recipe",
         ProvenanceSourceKind.reviewedWebProposal.rawValue: "web_review",
-        ProvenanceSourceKind.appReferenceDefinition.rawValue: "app_reference"
+        ProvenanceSourceKind.appReferenceDefinition.rawValue: "app_reference",
+        ProvenanceSourceKind.approvedEstimate.rawValue: "approved_estimate"
     ]
 
     public static func origin(sourceKind rawValue: String) throws -> String {
@@ -507,11 +538,16 @@ public struct FoodDailyExportRequest: Sendable {
     public let dataAsOf: Date
     public let exportedAt: Date
     public let appContext: FoodDailyExportAppContext
+    /// Recomputes a capture manifest's hash before an approved estimate's tokens or page address are
+    /// exported from it. Without it a snapshot holding an approved estimate produces no file
+    /// (closed by default); a snapshot without one needs no digester and exports as before.
+    public let digester: (any Digesting)?
 
     public init(records: LedgerMutation, reportDate: String, timeZone: TimeZone, dataAsOf: Date, exportedAt: Date,
-                appContext: FoodDailyExportAppContext) {
+                appContext: FoodDailyExportAppContext, digester: (any Digesting)? = nil) {
         self.records = records; self.reportDate = reportDate; self.timeZone = timeZone
         self.dataAsOf = dataAsOf; self.exportedAt = exportedAt; self.appContext = appContext
+        self.digester = digester
     }
 }
 
@@ -534,7 +570,7 @@ public enum FoodDailyExportBuilder {
             for total in row.totals where total.knownAmount != nil && (!row.isPlainWater || total.key == .water) {
                 contributors[total.key, default: []].append(row.logItemVersionID.rawValue)
             }
-            return try entry(row, records: records, timestamp: timestamp)
+            return try entry(row, records: records, timestamp: timestamp, digester: request.digester)
         }
         let summary = projection.summary.totals.map { total in
             FoodDailyExportTotal(
@@ -546,17 +582,27 @@ public enum FoodDailyExportBuilder {
         let plainWater = FoodDailyExportPlainWater(
             knownAmount: water?.knownAmount, unit: NutrientUnit.millilitres.rawValue,
             state: water.map(state) ?? "none_known", incompleteContributions: water?.incompleteContributions ?? 0)
+        // Schema 3 only for a document holding an approved estimate; a day whose only estimate was
+        // withheld or left out holds none and is written as schema 2.
+        let holdsEstimate = entries.contains { FoodDailyExportShape.holdsApprovedEstimate($0) }
         let document = FoodDailyExportDocument(
-            foodDailySchemaVersion: FoodDailyExportDocument.schemaVersion, reportDate: request.reportDate,
+            foodDailySchemaVersion: holdsEstimate ? FoodDailyExportDocument.estimatesSchemaVersion
+                : FoodDailyExportDocument.schemaVersion, reportDate: request.reportDate,
             timeZone: request.timeZone.identifier, dataAsOf: timestamp.string(request.dataAsOf),
             exportedAt: timestamp.string(request.exportedAt), nutrientCatalogueVersion: NutrientSet.catalogueVersion,
             summaryVersion: FoodIntakeSummary.version, entries: entries, summary: summary, plainWater: plainWater,
             notes: .current, appContext: request.appContext)
         // Fail closed: the writer never emits a file its own readers would reject (for example a
         // stored combination where the method and the estimate rule disagree). No document then.
-        // The schema number, summary version and notes are constants here, so only an entry's
-        // `amount_method` can fail the rule.
-        do { try FoodDailyExportShape.validate(document) } catch is FoodDailyExportShapeError { throw FoodDailyExportError.unsupportedAmount }
+        // The summary version and notes are constants here, and the schema number follows from the
+        // entries, so an entry's `amount_method` or (schema 3) an approved estimate's fields are the
+        // only things that can fail the rule. Only the first is an amount the file cannot describe.
+        do { try FoodDailyExportShape.validate(document) } catch let error as FoodDailyExportShapeError {
+            switch error {
+            case .unexpectedEstimate, .missingEstimate, .invalidEstimateFields: throw FoodDailyExportError.missingReference
+            default: throw FoodDailyExportError.unsupportedAmount
+            }
+        }
         return document
     }
 
@@ -567,7 +613,7 @@ public enum FoodDailyExportBuilder {
     }
 
     private static func entry(_ row: FoodIntakeLogRow, records: LedgerMutation,
-                              timestamp: FoodDailyExportTimestamp) throws -> FoodDailyExportEntry {
+                              timestamp: FoodDailyExportTimestamp, digester: (any Digesting)?) throws -> FoodDailyExportEntry {
         guard let head = records.logItemVersions.first(where: { $0.logItemVersionID == row.logItemVersionID }),
               case let .product(productID) = head.composition,
               let product = records.productVersions.first(where: { $0.productVersionID == productID }),
@@ -592,9 +638,11 @@ public enum FoodDailyExportBuilder {
         let scale = FoodIntakeSummary.scale(quantity: head.edibleQuantity, basis: resolution.basis)
         let manifest = pastedLabelManifest(version, records: records)
         let rowOrigin = try sourceRowOrigin(version.nutrients, manifest: manifest)
+        let estimates = EstimateManifests(records: records, digester: digester)
         let nutrients = try version.nutrients.entries.map { entry in
             try value(entry.value, key: entry.key, includeKey: true, scale: scale, manifest: manifest,
-                      rowOrigin: rowOrigin, conflict: entry.status == .conflict ? entry.conflictCandidates : nil)
+                      rowOrigin: rowOrigin, conflict: entry.status == .conflict ? entry.conflictCandidates : nil,
+                      estimates: estimates)
         }
         let versions = records.logItemVersions.filter { $0.logItemID == head.logItemID }
             .sorted { $0.ordinal.value < $1.ordinal.value }
@@ -696,9 +744,39 @@ public enum FoodDailyExportBuilder {
         return try provenance.map { try FoodDailyExportOrigin.origin(sourceKind: $0.sourceKind.rawValue) }
     }
 
+    /// The capture manifests of a snapshot, read by evidence ID: an `approved_estimate` value's
+    /// exported tokens and page address come from its manifest's evidence record, never from the
+    /// installed database (estimates v1 section 7).
+    struct EstimateManifests {
+        let records: LedgerMutation
+        let digester: (any Digesting)?
+
+        func evidence(_ provenance: NutrientProvenance, key: NutrientKey, amount: Double,
+                      unit: NutrientUnit) throws -> PersonalFoodDatabaseEstimateEvidence {
+            // The manifest must be the one the value names: its payload hashes, recomputed here, to
+            // the stored hash and to the provenance's. It must also hold this very value. So an
+            // altered or swapped manifest (a changed tier or page address included) never supplies
+            // the exported tokens or page address.
+            guard let digester, let id = provenance.evidenceID,
+                  let stored = records.evidence.first(where: { $0.evidenceID == id }),
+                  stored.captureMethodVersion.value == ApprovedEstimateProvenance.captureMethodVersion,
+                  let hash = stored.byteHash, hash == provenance.responseHash,
+                  case let .text(payload) = stored.originalPayload,
+                  (try? digester.sha256(Data(payload.value.utf8))) == hash,
+                  let manifest = ApprovedEstimateCaptureManifest.decode(Data(payload.value.utf8)),
+                  manifest.databaseReleaseID == provenance.sourceReleaseID.value,
+                  let captured = manifest.estimate(key), captured.value == amount, captured.unit == unit.rawValue,
+                  let typed = captured.evidence.typed, typed.id == provenance.recordID?.value else {
+                // Fail closed: an estimate whose manifest cannot be read produces no file.
+                throw FoodDailyExportError.missingReference
+            }
+            return typed
+        }
+    }
+
     private static func value(_ value: NutrientValue, key: NutrientKey, includeKey: Bool, scale: Double?,
                               manifest: PastedLabelEvidenceManifest?, rowOrigin: String?,
-                              conflict: [NutrientValue]?) throws -> FoodDailyExportNutrientValue {
+                              conflict: [NutrientValue]?, estimates: EstimateManifests) throws -> FoodDailyExportNutrientValue {
         let origin: String
         if let manifest {
             origin = FoodDailyExportOrigin.origin(NutrientValueOrigin.project(value, key: key, manifest: manifest))
@@ -711,9 +789,15 @@ public enum FoodDailyExportBuilder {
         }
         let candidates = try conflict.map { values in
             try values.map { try self.value($0, key: key, includeKey: false, scale: scale, manifest: manifest,
-                                             rowOrigin: rowOrigin, conflict: nil) }
+                                             rowOrigin: rowOrigin, conflict: nil, estimates: estimates) }
         }
-        let provenance = value.provenance.map(Self.provenance)
+        let provenance = try value.provenance.map { provenance -> FoodDailyExportProvenance in
+            guard provenance.sourceKind == .approvedEstimate else { return Self.provenance(provenance) }
+            // An approved estimate is always an exact augmented value (`NutrientEntry` validation).
+            guard case let .augmented(exact) = value else { throw FoodDailyExportError.missingReference }
+            return Self.estimateProvenance(provenance, evidence: try estimates.evidence(
+                provenance, key: key, amount: exact.amount, unit: exact.unit))
+        }
         let calculated = NutrientDerivation.isCalculated(value)
         let exportKey = includeKey ? key.rawValue : nil
         func unknown(_ reason: UnknownReason) -> FoodDailyExportNutrientValue {
@@ -743,6 +827,24 @@ public enum FoodDailyExportBuilder {
         case let .unknown(reason):
             return unknown(reason)
         }
+    }
+
+    /// An approved estimate's provenance (schema 3): the four closed tokens, and for a page type its
+    /// public address under the D4 URL rule and the retained artefact's digest when one was kept.
+    private static func estimateProvenance(_ provenance: NutrientProvenance,
+                                           evidence: PersonalFoodDatabaseEstimateEvidence) -> FoodDailyExportProvenance {
+        let page = evidence.sourceType != .nationalComposition
+        return FoodDailyExportProvenance(
+            sourceKind: provenance.sourceKind.rawValue, sourceReleaseID: provenance.sourceReleaseID.value,
+            transforms: provenance.transforms.map {
+                FoodDailyExportTransform(transformID: $0.transformID.value, transformVersion: $0.transformVersion.value)
+            },
+            // HTTPS only (the file rule), and the artefact digest only for a page, as
+            // `privacy-and-egress.md` records.
+            sourceURL: page && evidence.sourceReference.hasPrefix("https://") ? publicSourceURL(evidence.sourceReference) : nil,
+            contentHash: page ? evidence.sourceDigest : nil,
+            estimateSourceType: evidence.sourceType.rawValue, estimateMethod: evidence.method.rawValue,
+            estimateStateBasis: evidence.stateBasis.rawValue, estimateQuality: evidence.quality.rawValue)
     }
 
     private static func provenance(_ provenance: NutrientProvenance) -> FoodDailyExportProvenance {

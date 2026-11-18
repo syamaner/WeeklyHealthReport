@@ -186,6 +186,18 @@ public struct FoodConfirmationState: Codable, Equatable, Sendable {
     /// details carried from the last entry. Never stored with the entry; any other correction
     /// clears it.
     public var correctionOrigin: FoodCorrectionOrigin?
+    /// Approved estimates the owner left out of this log (estimates on catalogue v2 section 5): the
+    /// nutrient is unknown for this log. Confirm state of its own, outside `FoodCorrection`. Like the
+    /// three members below it is never encoded and decodes as empty, so a state saved before this
+    /// change decodes as it did and an unbound state withholds every composition estimate.
+    public var leftOutEstimates: Set<NutrientKey> = []
+    /// The decisive identity of each record an estimate cites, as `FoodConfirmationService.bindEstimates`
+    /// read it. A record that is absent reads as unreadable.
+    public var estimateRecords: [ApprovedEstimateRecordKey: ApprovedEstimateRecordState] = [:]
+    /// The verified capture manifests of the input's candidates, by evidence ID.
+    public var estimateManifests: [EvidenceID: ApprovedEstimateCaptureManifest] = [:]
+    /// Set by `reopen` only: the saved leave-out keys and whether the estimate evidence verifies.
+    public var estimateSeed = ApprovedEstimateSeed()
 
     private enum CodingKeys: String, CodingKey {
         case input, selectedCandidateIndex, decision, correction, quantity, phase, reopened, decisions, occurredAt
@@ -341,6 +353,10 @@ public enum FoodConfirmationAction: Sendable {
     /// Selects a count portion guide size by its code, or clears it (count-portion-estimate-v1).
     case setPortionGuide(LedgerText?)
     case setPlateChoice(PlateWeightChoice)
+    /// Leaves one approved estimate out of this log, or undoes that (contract section 5, decision
+    /// P6). There is no action that types a value for an estimated nutrient.
+    case leaveOutEstimate(NutrientKey)
+    case restoreEstimate(NutrientKey)
     case beginSaving
     case saveFailed(String)
     case saved(LogItemID)
@@ -371,7 +387,10 @@ public enum FoodConfirmationReducer {
             }
             state.decision = .undecided
             state.correction = nil
-            if changed { state.decisions = [:] }
+            if changed {
+                state.decisions = [:]
+                state.leftOutEstimates = []  // a leave-out belongs to its candidate
+            }
             state.phase = .editing
         case .accept:
             // Acceptance is the Log press. It never reconfirms a retained weight on its own.
@@ -462,6 +481,18 @@ public enum FoodConfirmationReducer {
         case let .setPlateChoice(choice):
             state.quantity.plateChoice = choice
             state.phase = .editing
+        case let .leaveOutEstimate(key):
+            // Only a value that is shown as an estimate can be left out: never a withheld key, so
+            // the saved leave-out evidence never lists one.
+            guard state.estimateKeys.contains(key),
+                  let entry = state.effectiveNutrients.entries.first(where: { $0.key == key }),
+                  ApprovedEstimateSource.isEstimate(entry.value) else { return }
+            state.leftOutEstimates.insert(key)
+            state.phase = .editing
+        case let .restoreEstimate(key):
+            guard state.leftOutEstimates.contains(key) else { return }
+            state.leftOutEstimates.remove(key)
+            state.phase = .editing
         case .beginSaving:
             state.phase = .saving
         case let .saveFailed(message):
@@ -484,6 +515,12 @@ public enum FoodConfirmationSaveError: Error, Equatable, Sendable {
     /// A chosen label estimate that rule 1, rule 3 or the merge does not admit
     /// (docs/label-estimate-merge-v1.md).
     case invalidLabelEstimate
+    /// An approved estimate whose capture manifest does not verify, or a state that would write an
+    /// estimated nutrient with any value but the manifest's own or unknown (estimates on catalogue v2).
+    case invalidApprovedEstimate
+    /// The one-step sheet tried to save an entry that holds an approved estimate or its manifest:
+    /// such an entry always goes through Confirm.
+    case approvedEstimateNeedsConfirm
 }
 
 public final class FoodConfirmationService: @unchecked Sendable {
@@ -496,7 +533,11 @@ public final class FoodConfirmationService: @unchecked Sendable {
     private let calendar: Calendar
     private let pastedLabelConversions: (any PastedLabelConversionChecking)?
     private let portionGuides: (any FoodEdibleWeightGuideProviding)?
+    private let estimateRecords: (any GenericRecordNutrientLookup)?
 
+    /// `estimateRecords` reads the bundled records that approved estimates cite (estimates on
+    /// catalogue v2 section 3.2). Without it every composition estimate is withheld as unreadable
+    /// (closed by default).
     /// `pastedLabelConversions` recomputes pasted-label conversions at save and reopen. Without
     /// it, a pasted-label entry with a calculated value fails verification (closed by default).
     /// `portionGuides` resolves a selected count portion guide size at save; without it a new
@@ -510,8 +551,10 @@ public final class FoodConfirmationService: @unchecked Sendable {
         calendar: Calendar = .autoupdatingCurrent,
         encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder(),
         pastedLabelConversions: (any PastedLabelConversionChecking)? = nil,
-        portionGuides: (any FoodEdibleWeightGuideProviding)? = nil
+        portionGuides: (any FoodEdibleWeightGuideProviding)? = nil,
+        estimateRecords: (any GenericRecordNutrientLookup)? = nil
     ) {
+        self.estimateRecords = estimateRecords
         self.pastedLabelConversions = pastedLabelConversions
         self.portionGuides = portionGuides
         self.ledger = ledger
@@ -533,6 +576,50 @@ public final class FoodConfirmationService: @unchecked Sendable {
         estimate: LabelEstimateChoice? = nil
     ) throws -> StoredFoodConfirmation {
         try save(state, operationID: operationID, idempotencyKey: idempotencyKey, persistedAttachments: [], estimate: estimate)
+    }
+
+    /// The one-step sheet's Log (food quick add). An entry that holds an approved estimate, or lists
+    /// its capture manifest, is refused here: it always goes through Confirm, where the labels and
+    /// tiers are shown and the estimates are re-checked (estimates on catalogue v2 section 5).
+    public func saveQuickAdd(_ state: FoodConfirmationState, operationID: OperationID,
+                             idempotencyKey: LedgerText? = nil) throws -> StoredFoodConfirmation {
+        guard !ApprovedEstimateSource.holdsManifest(state.selectedCandidate.candidate, evidence: state.input.evidence) else {
+            throw FoodConfirmationSaveError.approvedEstimateNeedsConfirm
+        }
+        return try save(state, operationID: operationID, idempotencyKey: idempotencyKey)
+    }
+
+    /// Verifies each candidate's capture manifest and reads the records its estimates cite, so the
+    /// pure policy can withhold what contradicts the confirmed details (estimates on catalogue v2
+    /// section 3.2). Call it when a state is made for a new log, a re-log or a favourite, after a
+    /// correction of details on a reopened log and on undo of a leave-out there. Reopening alone
+    /// never calls it. A manifest that does not verify is left out, which withholds its estimates.
+    public func bindEstimates(_ state: inout FoodConfirmationState) {
+        bindEstimates(&state, readingRecords: true)
+    }
+
+    private func bindEstimates(_ state: inout FoodConfirmationState, readingRecords: Bool) {
+        var manifests: [EvidenceID: ApprovedEstimateCaptureManifest] = [:]
+        var records: [ApprovedEstimateRecordKey: ApprovedEstimateRecordState] = [:]
+        for candidate in state.input.candidates {
+            guard let verified = ApprovedEstimateSource.verifiedManifest(candidate.candidate, evidence: state.input.evidence,
+                                                                         digester: digester) else { continue }
+            manifests[verified.evidence.evidenceID] = verified.manifest
+            guard readingRecords, let lookup = estimateRecords else { continue }
+            for estimate in verified.manifest.estimates {
+                guard let key = ApprovedEstimateRecordKey(estimate), records[key] == nil else { continue }
+                // The manifest's own source, hash and record ID: never the active release's.
+                guard let source = PersonalFoodDatabaseGenericSource(rawValue: key.source),
+                      case let .success(facts) = lookup.record(source: source, corpusSHA256: key.corpusSHA256,
+                                                               recordID: key.recordID) else {
+                    records[key] = .unreadable
+                    continue
+                }
+                records[key] = .identity(facts.identity)
+            }
+        }
+        state.estimateManifests = manifests
+        if readingRecords { state.estimateRecords = records }
     }
 
     /// Log for a label photo entry (docs/label-photo-ai-prefill-v1.md 17.3, test 15): the prepared
@@ -603,12 +690,21 @@ public final class FoodConfirmationService: @unchecked Sendable {
     }
 
     private func save(
-        _ state: FoodConfirmationState,
+        _ submitted: FoodConfirmationState,
         operationID: OperationID,
         idempotencyKey: LedgerText?,
         persistedAttachments: Set<AttachmentDescriptor>,
         estimate: LabelEstimateChoice? = nil
     ) throws -> StoredFoodConfirmation {
+        // Approved estimates: the service never trusts the state's copy of what was bound. For a new
+        // log, a corrected reopened log and an undo it verifies the manifest and reads the records
+        // itself; a reopened log that only gains a leave-out reads no record.
+        var state = submitted
+        let holdsEstimates = ApprovedEstimateSource.holdsManifest(state.selectedCandidate.candidate, evidence: state.input.evidence)
+        if holdsEstimates {
+            let undoes = !state.estimateSeed.leftOut.isSubset(of: state.leftOutEstimates)
+            bindEstimates(&state, readingRecords: state.reopened == nil || state.correction != nil || undoes)
+        }
         if let idempotencyKey,
            let logItemID = try ledger.confirmedLogItemID(operationID: operationID, idempotencyKey: idempotencyKey) {
             guard let stored = try reader.foodConfirmation(logItemID: logItemID) else {
@@ -621,6 +717,14 @@ public final class FoodConfirmationService: @unchecked Sendable {
         guard state.decision == .accepted else { throw FoodConfirmationSaveError.noAcceptedCandidate }
 
         let selected = state.selectedCandidate
+        if holdsEstimates {
+            // A new log needs its manifest to verify, and a correction never changes a nutrient of
+            // such a candidate: an estimate is kept, withheld or left out, nothing else.
+            guard state.reopened != nil || state.estimateManifest != nil || state.estimateKeys.isEmpty,
+                  state.correction.map({ $0.nutrients == selected.candidate.nutrients }) ?? true else {
+                throw FoodConfirmationSaveError.invalidApprovedEstimate
+            }
+        }
         // A reopened entry already has a user-confirmed product identity. The
         // retained source candidate may still contain explicitly asserted gaps.
         let identity = state.correction?.identity ?? state.reopened?.productVersion.identity ?? selected.candidate.identity
@@ -720,10 +824,48 @@ public final class FoodConfirmationService: @unchecked Sendable {
         let plate = try makePlate(quantity.plateChoice, previous: previous, at: now)
         let edibleQuantity = try state.calculatedEdibleQuantity()
 
-        let changesProduct = previous == nil || state.correction != nil
+        // The one predicate "the log's food facts changed" (estimates on catalogue v2 section 5): a
+        // correction, or a leave-out set that differs from its seed. Without an approved estimate it
+        // is the correction test, as before.
+        let changesProduct = previous == nil || state.foodFactsChanged
+        let savedLeftOut = state.savedLeaveOutSet
+        let leaveOutChanged = state.correction == nil && savedLeftOut != state.estimateSeed.leftOut
+        // A leave-out or undo alone on a reopened log: the saved identity, decision record and
+        // outcome are carried unchanged into the new assertion and decision.
+        let leaveOutOnly = previous != nil && leaveOutChanged
+        // One leave-out item per saved resolution version whose set is not empty. It names its
+        // version, so that ID is made first; saves without a leave-out make their IDs as before.
+        var leftOutEvidence: CaptureEvidence?
+        var leftOutVersionID: ResolutionVersionID?
+        if changesProduct, !savedLeftOut.isEmpty {
+            guard let manifest = ApprovedEstimateSource.manifestEvidence(selected.candidate, evidence: state.input.evidence),
+                  let manifestHash = manifest.byteHash else { throw FoodConfirmationSaveError.invalidApprovedEstimate }
+            let versionID = try ids.makeID(ResolutionVersionTag.self)
+            guard let item = ApprovedEstimateLeftOutEvidence(resolutionVersionID: versionID.rawValue,
+                                                             manifestSHA256: manifestHash.value, leftOut: savedLeftOut) else {
+                throw FoodConfirmationSaveError.invalidApprovedEstimate
+            }
+            let payload = try encoder.encode(item)
+            leftOutEvidence = try CaptureEvidence(
+                evidenceID: ids.makeID(EvidenceTag.self), kind: .labelText, capturedAt: now, locale: manifest.locale,
+                captureMethod: LedgerText("Estimated values left out by you"),
+                captureMethodVersion: LedgerText(ApprovedEstimateProvenance.leftOutMethodVersion),
+                originalPayload: .text(LedgerText(String(decoding: payload, as: UTF8.self))), byteHash: digester.sha256(payload))
+            leftOutVersionID = versionID
+        }
+        // Evidence is reached through the decision's embedded candidate, so the new decision's
+        // candidate lists the leave-out item after the bound candidate's own evidence IDs, and
+        // differs from the bound candidate in that list only.
+        let decisionCandidate = try leftOutEvidence.map { item in
+            try ProviderNeutralCandidate(
+                sourceReleaseID: selected.candidate.sourceReleaseID, recordID: selected.candidate.recordID,
+                identity: selected.candidate.identity, edibleQuantity: selected.candidate.edibleQuantity,
+                nutrients: selected.candidate.nutrients, evidenceIDs: selected.candidate.evidenceIDs + [item.evidenceID],
+                matchMetadata: selected.candidate.matchMetadata)
+        } ?? selected.candidate
         let assertion = changesProduct
             ? try makeAssertion(state: state, selected: selected, previous: previous, record: decisionRecord,
-                                labelEstimate: layer?.assertion, at: now)
+                                labelEstimate: layer?.assertion, leftOut: leaveOutChanged ? savedLeftOut : nil, at: now)
             : nil
         let product: Product
         if let existing = previous?.product {
@@ -755,16 +897,21 @@ public final class FoodConfirmationService: @unchecked Sendable {
             )
             decision = try CandidateDecision(
                 candidateDecisionID: ids.makeID(CandidateDecisionTag.self),
-                candidate: selected.candidate,
-                expectedIdentity: identity,
-                expectedEdibleQuantity: state.input.expectedEdibleQuantity,
+                candidate: decisionCandidate,
+                // A leave-out-only save keeps the saved decision's expectations and outcome: the
+                // reopened input's expected quantity is the logged amount, which no 100 g candidate
+                // equals, and a `selected` outcome admits no difference.
+                expectedIdentity: leaveOutOnly ? previous?.candidateDecision.expectedIdentity ?? identity : identity,
+                expectedEdibleQuantity: leaveOutOnly ? previous?.candidateDecision.expectedEdibleQuantity
+                    ?? state.input.expectedEdibleQuantity : state.input.expectedEdibleQuantity,
                 // An unknown-identity estimate (generic, or a pasted label's Not stated, #306) is
                 // recorded `rejected` with its contradiction reasons, as v2 records generic ones.
                 // An identity-only correction of an Open Food Facts product that keeps its estimate
                 // (off-label-estimate-v1 decision 6) is also recorded `rejected`, as every corrected
                 // save is: intended. The layer's own decision records the estimate use, and reopen,
                 // the commit rules and `isEstimate` never read this outcome.
-                requestedOutcome: state.correction == nil && ((!state.isGenericEstimate && !PastedLabelFortificationPolicy.applies(state))
+                requestedOutcome: leaveOutOnly ? previous?.candidateDecision.outcome ?? .rejected
+                    : state.correction == nil && ((!state.isGenericEstimate && !PastedLabelFortificationPolicy.applies(state))
                     || IdentityCompatibility.contradictions(
                     between: identity, and: selected.candidate.identity,
                     expectedEdibleQuantity: state.input.expectedEdibleQuantity,
@@ -785,9 +932,11 @@ public final class FoodConfirmationService: @unchecked Sendable {
                 basis: identity.servingBasis,
                 createdAt: now
             )
-            let nutrients = layer?.nutrients ?? state.correction?.nutrients ?? selected.candidate.nutrients
+            // The effective set: the candidate's or the correction's, with every withheld or left-out
+            // estimate unknown. Without an approved estimate it is what was written before.
+            let nutrients = layer?.nutrients ?? state.effectiveNutrients
             resolutionVersion = try NutritionResolutionVersion(
-                resolutionVersionID: ids.makeID(ResolutionVersionTag.self),
+                resolutionVersionID: leftOutVersionID ?? ids.makeID(ResolutionVersionTag.self),
                 resolutionID: resolution.resolutionID,
                 ordinal: VersionOrdinal(1),
                 methodVersion: LedgerText(FoodConfirmationPolicy.version),
@@ -827,7 +976,8 @@ public final class FoodConfirmationService: @unchecked Sendable {
             originalResolutionVersionID: previous?.logItemVersion.originalResolutionVersionID ?? resolutionVersion.resolutionVersionID,
             effectiveResolutionVersionID: resolutionVersion.resolutionVersionID,
             correctionReason: previous.map { previous in
-                try state.correction?.reason ?? Self.editReason(previous: previous.logItemVersion, occurredAt: occurredAt,
+                try state.correction?.reason ?? (leaveOutChanged ? LedgerText(ApprovedEstimateLeaveOutText.editReason) : nil)
+                    ?? Self.editReason(previous: previous.logItemVersion, occurredAt: occurredAt,
                     edibleQuantity: edibleQuantity, declaration: declaration,
                     conversionID: conversion.version?.quantityConversionVersionID, plateID: plate.version?.plateWeightVersionID)
             },
@@ -865,7 +1015,14 @@ public final class FoodConfirmationService: @unchecked Sendable {
         // existing ID with different bytes, or a racing insert, still fails as immutableRecord.
         let inputEvidenceIDs = Set(state.input.evidence.map(\.evidenceID))
         let layerEvidence = layer?.choice.evidence.filter { !inputEvidenceIDs.contains($0.evidenceID) } ?? []
-        let newEvidence = previous == nil ? try (state.input.evidence + layerEvidence).filter { try !isRetained($0) } : []
+        // One entry's log never stores another entry's capture manifest: a search confirmation holds
+        // a manifest for each candidate with estimates, and only the selected candidate's is saved.
+        let selectedEvidenceIDs = Set(selected.candidate.evidenceIDs)
+        let inputEvidence = state.input.evidence.filter {
+            !ApprovedEstimateSource.isManifest($0) || selectedEvidenceIDs.contains($0.evidenceID)
+        }
+        let newEvidence = (previous == nil ? try (inputEvidence + layerEvidence).filter { try !isRetained($0) } : [])
+            + (leftOutEvidence.map { [$0] } ?? [])
         let mutation = LedgerMutation(
             evidence: newEvidence,
             assertions: assertion.map { [$0] } ?? [],
@@ -898,7 +1055,8 @@ public final class FoodConfirmationService: @unchecked Sendable {
             !(previous?.sourceReleases.contains { $0.sourceReleaseID == source.sourceReleaseID } ?? false)
         }
         return StoredFoodConfirmation(
-            evidence: previous?.evidence ?? state.input.evidence,
+            // What the store reads back: without another candidate's manifest, with a new leave-out item.
+            evidence: (previous?.evidence ?? inputEvidence) + (leftOutEvidence.map { [$0] } ?? []),
             sourceReleases: returnedReleases,
             product: product,
             productVersion: productVersion,
@@ -937,7 +1095,28 @@ public final class FoodConfirmationService: @unchecked Sendable {
         }
         var state = FoodConfirmationState(input: input, reopened: saved)
         state.decision = .accepted
+        seedEstimates(&state, saved: saved)
         return state
+    }
+
+    /// A reopened log's estimate state (estimates on catalogue v2 section 5): its manifest when it
+    /// verifies, and the leave-out keys of the effective version's verified evidence. No record is
+    /// read: the saved values are shown as saved, also after the corpus pin has moved. Altered
+    /// evidence never changes a stored value and never fails the load.
+    private func seedEstimates(_ state: inout FoodConfirmationState, saved: StoredFoodConfirmation) {
+        let candidate = state.selectedCandidate.candidate
+        guard ApprovedEstimateSource.holdsManifest(candidate, evidence: state.input.evidence) else { return }
+        bindEstimates(&state, readingRecords: false)
+        let manifestHash = ApprovedEstimateSource.verifiedManifest(candidate, evidence: state.input.evidence, digester: digester)?
+            .evidence.byteHash
+        switch ApprovedEstimateSource.leftOut(resolutionVersionID: saved.resolutionVersion.resolutionVersionID,
+                                              manifestHash: manifestHash, evidence: state.input.evidence, digester: digester) {
+        case .none: state.estimateSeed = ApprovedEstimateSeed(evidenceAvailable: manifestHash != nil)
+        case let .keys(keys): state.estimateSeed = ApprovedEstimateSeed(leftOut: keys, evidenceAvailable: manifestHash != nil)
+        case .unavailable: state.estimateSeed = ApprovedEstimateSeed(evidenceAvailable: false)
+        }
+        if !state.estimateSeed.evidenceAvailable { state.estimateSeed.leftOut = [] }
+        state.leftOutEstimates = state.estimateSeed.leftOut
     }
 
     /// Input for logging a saved entry's food again as a new entry (recent foods). The source
@@ -947,8 +1126,22 @@ public final class FoodConfirmationService: @unchecked Sendable {
     /// search route (a reviewed web candidate's edible quantity is always unknown).
     public func relogInput(_ saved: StoredFoodConfirmation) throws -> PopulatedFoodConfirmation {
         let restored = try restoredConfirmationInput(saved)
-        let source = restored.candidates[0]
-        return try PopulatedFoodConfirmation(evidence: restored.evidence, sourceReleases: restored.sourceReleases,
+        var source = restored.candidates[0]
+        // A new log built from a saved decision drops that decision's leave-out evidence: earlier
+        // leave-outs are not carried, and the capture manifest stays (estimates on catalogue v2 section 5).
+        let leftOutIDs = Set(restored.evidence.filter(ApprovedEstimateSource.isLeftOut).map(\.evidenceID))
+        if !leftOutIDs.isEmpty {
+            let kept = try ProviderNeutralCandidate(
+                sourceReleaseID: source.candidate.sourceReleaseID, recordID: source.candidate.recordID,
+                identity: source.candidate.identity, edibleQuantity: source.candidate.edibleQuantity,
+                nutrients: source.candidate.nutrients,
+                evidenceIDs: source.candidate.evidenceIDs.filter { !leftOutIDs.contains($0) },
+                matchMetadata: source.candidate.matchMetadata)
+            source = try PopulatedFoodCandidate(candidate: kept, name: source.name, brand: source.brand, variant: source.variant,
+                barcode: source.barcode, itemClass: source.itemClass, packFacts: source.packFacts)
+        }
+        return try PopulatedFoodConfirmation(evidence: restored.evidence.filter { !leftOutIDs.contains($0.evidenceID) },
+            sourceReleases: restored.sourceReleases,
             candidates: [source], expectedIdentity: source.candidate.identity, expectedEdibleQuantity: source.candidate.edibleQuantity)
     }
 
@@ -1225,23 +1418,34 @@ public final class FoodConfirmationService: @unchecked Sendable {
         previous: StoredFoodConfirmation?,
         record: FoodLogDecisionRecord?,
         labelEstimate: LabelEstimateAssertion? = nil,
+        leftOut: Set<NutrientKey>? = nil,
         at date: Date
     ) throws -> UserAssertion? {
         let version = FoodConfirmationPolicy.version
         let reason: LedgerText
         let claim: LedgerText
+        // The decision record a leave-out-only save of a reopened log carries: the saved version's.
+        var carried: FoodLogDecisionRecord?
+        // A leave-out on a new log keeps the texts of its own case and names the keys after them.
+        let suffix = leftOut.map(ApprovedEstimateLeaveOutText.claimSuffix) ?? ""
         if let correction = state.correction {
             reason = correction.reason
             claim = try LedgerText("Corrected populated confirmation for \(selected.name.value)")
-        } else if previous != nil {
-            return nil
+        } else if let previous {
+            guard let leftOut else { return nil }
+            reason = try LedgerText(ApprovedEstimateLeaveOutText.reason)
+            claim = try LedgerText(ApprovedEstimateLeaveOutText.claim(leftOut))
+            carried = previous.assertions.last(where: { $0.confirmation != nil })?.confirmation
         } else if state.isGenericEstimate {
             reason = try LedgerText("Explicitly accepted generic composition estimate; unknown source details remain unknown")
             let base = "Accepted estimate under \(version); not verified product identity"
-            claim = try LedgerText(record.map { base + "; decisions: " + $0.claimList } ?? base)
+            claim = try LedgerText((record.map { base + "; decisions: " + $0.claimList } ?? base) + suffix)
         } else if let record {
             reason = try LedgerText("Logged with inline decisions under \(version)")
-            claim = try LedgerText("Logged under \(version); decisions: " + record.claimList)
+            claim = try LedgerText("Logged under \(version); decisions: " + record.claimList + suffix)
+        } else if let leftOut {
+            reason = try LedgerText(ApprovedEstimateLeaveOutText.reason)
+            claim = try LedgerText(ApprovedEstimateLeaveOutText.claim(leftOut))
         } else if let labelEstimate {
             // The save's single assertion carries the cocoa percentage (label-estimate-merge-v1).
             reason = try LedgerText("Chose an estimate for unprinted nutrients under \(labelEstimate.mergeVersion.value)")
@@ -1257,7 +1461,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
             createdAt: date,
             reason: reason,
             claim: claim,
-            confirmation: state.correction == nil ? record : nil,
+            confirmation: state.correction == nil ? record ?? carried : nil,
             // Only a layer the save admitted reaches here: none after a label correction, and an
             // identity-only correction of an Open Food Facts product keeps it (decision 6).
             labelEstimate: labelEstimate

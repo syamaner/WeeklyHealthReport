@@ -21,7 +21,8 @@ public enum FoodLogEditComparison {
     /// then explain what blocks it).
     public static func hasChanges(_ state: FoodConfirmationState) -> Bool {
         guard let stored = state.reopened else { return true }
-        if state.correction != nil { return true }
+        // The one predicate "the log's food facts changed": a correction, or a leave-out or undo.
+        if state.foodFactsChanged { return true }
         let log = stored.logItemVersion
         if let occurredAt = state.occurredAt, occurredAt != log.occurredAt { return true }
         switch state.quantity.plateChoice {

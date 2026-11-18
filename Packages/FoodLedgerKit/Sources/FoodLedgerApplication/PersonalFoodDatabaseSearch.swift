@@ -98,11 +98,17 @@ public struct PersonalFoodDatabaseFoodSearch: GenericFoodSearching {
     private let index: PersonalFoodDatabaseIndex
     private let resolver: any GenericRecordResolving
     private let ids: any LedgerIDGenerating
+    private let estimates: ApprovedEstimateManifestBuilder?
 
-    public init(index: PersonalFoodDatabaseIndex, resolver: any GenericRecordResolving, ids: any LedgerIDGenerating) {
+    /// `estimates` binds each entry's approved estimates to a capture manifest when the route builds
+    /// its confirmation (estimates on catalogue v2 section 5). Without it no estimate reaches a
+    /// candidate and an estimates v2 file behaves as its v2 part.
+    public init(index: PersonalFoodDatabaseIndex, resolver: any GenericRecordResolving, ids: any LedgerIDGenerating,
+                estimates: ApprovedEstimateManifestBuilder? = nil) {
         self.index = index
         self.resolver = resolver
         self.ids = ids
+        self.estimates = estimates
     }
 
     public func search(_ request: GenericFoodSearchRequest) throws -> GenericFoodSearchOutcome {
@@ -171,15 +177,22 @@ public struct PersonalFoodDatabaseFoodSearch: GenericFoodSearching {
             } else { releases.append(release) }
         }
         var used = 0
+        var manifests: [CaptureEvidence] = []  // one per offered candidate with estimates
         for hit in Self.hits(request, snapshot: snapshot) where used < Self.maximumEntries {
             let record = hit.entry.genericReference.flatMap {
                 resolver.resolve(GenericRecordReference($0), evidenceIDs: evidenceIDs, queryAlias: hit.alias)
             }
             // One entry that cannot be represented is left out on its own; the others still answer.
             let built: PersonalFoodDatabaseCandidateBuilder.Built?
+            let capture: (evidence: CaptureEvidence, binding: ApprovedEstimateBinding)?
             do {
+                // The capture manifest is built here, when the candidate is bound to Confirm: the
+                // estimate values name its evidence ID and hash. Its time is the request's own.
+                capture = try estimates?.capture(entry: hit.entry, file: snapshot.file, databaseRelease: snapshot.release,
+                                                 capturedAt: request.capturedAt, locale: request.locale)
                 built = try PersonalFoodDatabaseCandidateBuilder.build(entry: hit.entry, file: snapshot.file,
-                    databaseRelease: snapshot.release, record: record, evidenceIDs: evidenceIDs, score: Self.score(hit))
+                    databaseRelease: snapshot.release, record: record, evidenceIDs: evidenceIDs, score: Self.score(hit),
+                    estimates: capture?.binding)
             } catch { continue }
             // A referenced record that was not merged is offered as its own row, after the entry, once:
             // two entries naming the same record never give two rows for it.
@@ -207,10 +220,11 @@ public struct PersonalFoodDatabaseFoodSearch: GenericFoodSearching {
             do { for release in cited { try add(release) } } catch { releases = before; continue }
             used += 1
             matches += rows
+            if built != nil, let capture { manifests.append(capture.evidence) }
         }
         guard let first = matches.first else { return nil }
         return .confirmation(GenericFoodConfirmationRoute(confirmation: try PopulatedFoodConfirmation(
-            evidence: evidence, sourceReleases: releases, candidates: matches.map(\.candidate),
+            evidence: evidence + manifests, sourceReleases: releases, candidates: matches.map(\.candidate),
             expectedIdentity: first.candidate.candidate.identity,
             expectedEdibleQuantity: first.candidate.candidate.edibleQuantity), matches: matches))
     }
@@ -237,11 +251,16 @@ public struct PersonalFoodDatabaseReresolutionProvider: FoodReresolutionProvidin
     private let index: PersonalFoodDatabaseIndex
     private let resolver: any GenericRecordResolving
     private let ids: any LedgerIDGenerating
+    private let estimates: ApprovedEstimateManifestBuilder?
 
-    public init(index: PersonalFoodDatabaseIndex, resolver: any GenericRecordResolving, ids: any LedgerIDGenerating) {
+    /// `estimates` gives the fresh candidate a fresh capture manifest: the same bytes and hash when
+    /// the release and entry are unchanged, under a new evidence ID.
+    public init(index: PersonalFoodDatabaseIndex, resolver: any GenericRecordResolving, ids: any LedgerIDGenerating,
+                estimates: ApprovedEstimateManifestBuilder? = nil) {
         self.index = index
         self.resolver = resolver
         self.ids = ids
+        self.estimates = estimates
     }
 
     /// Off the main thread (Nutrition updates loads in the background) a cold index is loaded here,
@@ -268,17 +287,21 @@ public struct PersonalFoodDatabaseReresolutionProvider: FoodReresolutionProvidin
             captureMethodVersion: LedgerText(PersonalFoodDatabaseCandidateBuilder.methodVersion),
             originalPayload: .text(record.productVersion.name))
         let entryID = record.candidateDecision.candidate.recordID.value
-        guard let entry = snapshot.file.entries.first(where: { $0.id == entryID }),
-              let built = try PersonalFoodDatabaseCandidateBuilder.build(
+        guard let entry = snapshot.file.entries.first(where: { $0.id == entryID }) else {
+            return .noResult(GenericFoodNoResultRoute(evidence: evidence))
+        }
+        let capture = try estimates?.capture(entry: entry, file: snapshot.file, databaseRelease: snapshot.release,
+                                             capturedAt: date, locale: evidence.locale)
+        guard let built = try PersonalFoodDatabaseCandidateBuilder.build(
                   entry: entry, file: snapshot.file, databaseRelease: snapshot.release,
                   record: entry.genericReference.flatMap {
                       resolver.resolve(GenericRecordReference($0), evidenceIDs: [evidence.evidenceID], queryAlias: entry.title)
                   },
-                  evidenceIDs: [evidence.evidenceID], score: 1) else {
+                  evidenceIDs: [evidence.evidenceID], score: 1, estimates: capture?.binding) else {
             return .noResult(GenericFoodNoResultRoute(evidence: evidence))
         }
         return .confirmation(GenericFoodConfirmationRoute(confirmation: try PopulatedFoodConfirmation(
-            evidence: [evidence], sourceReleases: built.releases, candidates: [built.candidate],
+            evidence: [evidence] + (capture.map { [$0.evidence] } ?? []), sourceReleases: built.releases, candidates: [built.candidate],
             expectedIdentity: built.candidate.candidate.identity, expectedEdibleQuantity: built.candidate.candidate.edibleQuantity),
             matches: [GenericFoodMatch(candidate: built.candidate, isExactName: true,
                 personalDatabase: PersonalFoodDatabaseMatchContext(step: .titleOrAlias, isGenericReference: false))]))

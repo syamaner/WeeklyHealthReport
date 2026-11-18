@@ -146,4 +146,19 @@ final class PersonalFoodDatabaseSettingsViewModelTests: XCTestCase {
         XCTAssertNil(model.unresolvedReferenceCount)
         XCTAssertEqual(PersonalFoodDatabaseSettingsText.unresolved(1), "1 entry names a generic food this app does not have")
     }
+
+    func testEveryEstimatesOnlyRuleCodeHasItsOwnSettingsCopy() {
+        // Contract section 7: Settings copy exists for each new code, through the grouped reasons.
+        typealias T = PersonalFoodDatabaseSettingsText
+        let own = [T.estimateTablesReason, T.estimateContradictionReason, T.estimateReason]
+        for code in PersonalFoodDatabaseRuleCode.estimatesOnly {
+            XCTAssertTrue(own.contains(T.reason(for: [code])), code.rawValue)
+        }
+        XCTAssertEqual(T.reason(for: [.valueMismatch, .estimateContradiction]), T.estimateTablesReason)
+        XCTAssertEqual(T.reason(for: [.estimateContradiction]), T.estimateContradictionReason)
+        XCTAssertEqual(T.reason(for: [.estimateOwnHeld, .estimateQuality]), T.estimateReason)
+        // An older reason still wins when both are present, and no reason shows file content.
+        XCTAssertEqual(T.reason(for: [.schema, .token]), T.reason(for: [.schema]))
+        XCTAssertFalse(own.contains(T.reason(for: [.unit])))
+    }
 }

@@ -20,6 +20,10 @@ public enum QuickAddIneligibility: Equatable, Sendable {
     /// The pinned entry carries a label estimate layer that quick add does not save again
     /// (docs/label-estimate-merge-v1.md section 8): Confirm says so before Log.
     case labelEstimateNotCarried
+    /// The entry holds an approved estimate from Your food database, or lists its capture manifest
+    /// (estimates on catalogue v2 section 5): Confirm shows the labels and tiers and re-checks the
+    /// estimates against the carried details. Earlier leave-outs are not carried.
+    case approvedEstimate
 }
 
 public enum QuickAddEligibility: Equatable, Sendable {
@@ -41,7 +45,8 @@ public enum QuickAddPolicy {
             return .sheet
         case .decideDifference, .sourceIdentityMissing, .recipeServingsRequired, .sourceServingsRequired,
              .measuredWeightMissing, .weightBasisMissing, .retainedWeightNeedsConfirmation,
-             .countNeedsMeasuredAmount, .emptyPlateWeightMissing, .plateNeedsGramTotal, .plateNotLighterThanTotal:
+             .countNeedsMeasuredAmount, .emptyPlateWeightMissing, .plateNeedsGramTotal, .plateNotLighterThanTotal,
+             .nothingKnown:
             return .confirm
         }
     }
@@ -70,6 +75,11 @@ public enum QuickAddPolicy {
     /// state with the default amount and Now.
     public static func eligibility(pinned: StoredFoodConfirmation?, pinnedIsEstimate: Bool,
                                    rebuilt: FoodConfirmationState, now: Date, calendar: Calendar) -> QuickAddEligibility {
+        // Detected from the restored candidate, never from the pinned version's saved provenance, so
+        // a favourite whose estimates were all withheld or left out is caught too.
+        if ApprovedEstimateSource.holdsManifest(rebuilt.selectedCandidate.candidate, evidence: rebuilt.input.evidence) {
+            return .confirm(.approvedEstimate)
+        }
         if pinnedIsEstimate || FoodLogPolicy.savesEstimate(rebuilt) { return .confirm(.estimate) }
         if let pinned, FoodEntryEstimateStatus.isPartlyEstimated(pinned) { return .confirm(.labelEstimateNotCarried) }
         // Quick add v2 (#470 rule 3.5): a fill-only correction no longer makes a favourite ineligible.

@@ -4916,6 +4916,22 @@ Excluded: this ledger edit and everything after the window (handover, and any co
 
 Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. It is an API-equivalent comparison under a Claude subscription, not a bill, and says nothing about quality or productivity.
 
+## WHR-511-2026-11-17: Claude Code Personal food database labelled estimates on catalogue v2, implementation (#511)
+
+The session (`claude-fable-5-2`, session `1af49c68-648f-479f-928a-ec44cfdcace9`) implemented the accepted contract [estimates on catalogue v2](docs/personal-food-catalogue-estimates-v2-proposal.md) in one phase under its [phase gate](docs/personal-food-catalogue-estimates-v2-phase.md): the catalogue skill's checker and writer, the app's codec, importer checks, provenance kind and food contract 10, Confirm with leave-out and withholding, re-resolution, daily export schema 3, and their tests and synthetic fixtures. Not merged; no private catalogue was read or written.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Estimates v2, gate to reviewed implementation | 170,173,668 (167,997,900) | 2,174,716 | 613,252 | 170,786,920 | $59.15 |
+
+Method: `phase_usage.py --format claude --since 2026-11-17T19:54:09Z --until 2026-11-17T22:37:04Z --include-subagents` on the session transcript, where the start is the session's first message. Exact USD 59.149689. The cache-write tokens are part of the input figure: 1,372,289 are 5-minute writes and 802,427 are 1-hour writes. The total is input plus output. The window includes seven subagents: one read-only site map, two blind architecture-gate reviews, the skill writer, one simulator journey, one blind invariant review and their hand-backs.
+
+Excluded:
+- the turns after the window: the fixes from the simulator journey, the last re-run of the gates, this ledger edit and the handover;
+- the three local Qodo review runs, and the builds, test runs and simulator, which use no API tokens.
+
+Pricing: as in the rows above, `claude-fable-5-2` is priced at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today. It is an API-equivalent comparison under a Claude subscription, not a bill, and says nothing about quality or productivity.
+
 ## WHR-424-OFF-ESTIMATES-PROPOSAL-2026-11-18: Claude Code estimates read from Open Food Facts label photos, proposal (#424)
 
 The session (`da6b123c-cf92-4d58-9bb7-540385b44d83`, the same session as WHR-508-PROPOSAL-2026-11-17, running `claude-opus-5-5` for this window) did the following after the owner asked for Open Food Facts to be used for estimates and for fibre always to be provided:

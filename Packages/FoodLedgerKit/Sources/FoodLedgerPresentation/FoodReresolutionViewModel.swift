@@ -106,6 +106,9 @@ public final class FoodReresolutionViewModel: ObservableObject {
         catch { message = "Historical evidence could not be read. Nothing was changed." }
     }
 
+    /// Every estimate of the fresh source was left out by the check and nothing else is known.
+    public static let nothingKnownMessage = "Nothing to save: every estimate was left out because it does not match this entry's details or its source could not be read. Nothing was saved."
+
     public func save() {
         guard pending == nil, let selected else { return }
         do {
@@ -115,6 +118,9 @@ public final class FoodReresolutionViewModel: ObservableObject {
             message = "Review and explicitly confirm the source's missing identity fields first."
         } catch FoodReresolutionError.noChange {
             message = "No nutrient, provenance or candidate change; no new version was saved."
+        } catch FoodReresolutionError.nothingKnown {
+            // Estimates on catalogue v2 section 5: blocked with its reason, where the rule applies.
+            message = Self.nothingKnownMessage
         } catch {
             message = "Could not prepare the update. Check the reason and reload current source/log versions. Nothing was saved."
         }

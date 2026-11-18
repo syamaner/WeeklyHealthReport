@@ -101,9 +101,15 @@ public enum PersonalFoodDatabaseCandidateBuilder {
 
     /// Builds the entry's candidate, merging `record` only when `mergeEligible`. Returns nil when no
     /// nutrient would be known (section 5.1 item 3).
+    ///
+    /// `estimates` binds the entry's approved estimates to their capture manifest (estimates on
+    /// catalogue v2 section 4): per nutrient a label value, then an estimate, then the merged record.
+    /// Without it no estimate reaches the candidate. An estimate never promotes a `candidate`
+    /// reference to a merge and never changes the entry's identity.
     public static func build(
         entry: PersonalFoodDatabaseEntry, file: PersonalFoodDatabaseFile, databaseRelease: SourceRelease,
-        record: ResolvedGenericRecord?, evidenceIDs: [EvidenceID], score: Double
+        record: ResolvedGenericRecord?, evidenceIDs: [EvidenceID], score: Double,
+        estimates: ApprovedEstimateBinding? = nil
     ) throws -> Built? {
         let merge = record.flatMap { mergeEligible(entry, record: $0.candidate) ? $0 : nil }
         let basis: ResolutionBasis = entry.basis == .per100Grams ? .per100Grams : .per100Millilitres
@@ -123,9 +129,17 @@ public enum PersonalFoodDatabaseCandidateBuilder {
                     if case .augmented = $0.value { [$0.value] } else { nil }
                 }
             } ?? []
+            // An approved estimate is always augmented and never shares a key with a label value
+            // (rule `label-and-estimate`), so it sits between the label levels and the merged record.
+            let estimated: [NutrientValue] = try estimates.flatMap { binding in
+                try entry.estimatedNutrients.first { $0.key == key }.map {
+                    [try estimateValue($0, basis: basis, databaseRelease: databaseRelease, binding: binding)]
+                }
+            } ?? []
             // A1 item 2: owner values first; for loose fresh food the generic record precedes a
             // retailer product record.
-            let levels = entry.productType == .freshWhole ? [manual, generic, product] : [manual, product, generic]
+            let levels = !estimated.isEmpty ? [manual, product, estimated, generic]
+                : entry.productType == .freshWhole ? [manual, generic, product] : [manual, product, generic]
             guard let level = levels.first(where: { !$0.isEmpty }) else {
                 // A merged record that gives its own unknown reason keeps it; otherwise not declared.
                 let recordUnknown = merge.flatMap { resolved in
@@ -173,12 +187,34 @@ public enum PersonalFoodDatabaseCandidateBuilder {
             candidate: ProviderNeutralCandidate(
                 sourceReleaseID: databaseRelease.sourceReleaseID, recordID: ExternalIdentifier(entry.id, field: "record"),
                 identity: identity, edibleQuantity: .known(edible, conversionVersionID: nil),
-                nutrients: NutrientSet(entries: entries), evidenceIDs: evidenceIDs,
+                nutrients: NutrientSet(entries: entries),
+                // The manifest is this candidate's own evidence, listed after the request's.
+                evidenceIDs: evidenceIDs + (estimates != nil && !entry.estimatedNutrients.isEmpty ? [estimates!.evidenceID] : []),
                 matchMetadata: CandidateMatchMetadata(methodVersion: LedgerText(methodVersion), score: score,
                     materialDifferences: differences)),
             name: LedgerText(entry.title), brand: try entry.brand.map { try LedgerText($0) },
             itemClass: itemClass(entry.category), packFacts: PackFacts())
         return Built(candidate: candidate, releases: releases, merged: merge != nil)
+    }
+
+    /// One approved estimate as an augmented value with `approved_estimate` provenance (estimates v1
+    /// section 5.1): the `pfe:` evidence ID as its record, the capture manifest as its evidence.
+    static func estimateValue(_ estimate: PersonalFoodDatabaseEstimate, basis: ResolutionBasis, databaseRelease: SourceRelease,
+                              binding: ApprovedEstimateBinding) throws -> NutrientValue {
+        let derivation = estimate.evidence.derivation
+        let provenance = NutrientProvenance(
+            sourceKind: .approvedEstimate, sourceID: try ExternalIdentifier(ApprovedEstimateProvenance.sourceID, field: "source"),
+            sourceReleaseID: databaseRelease.sourceReleaseID,
+            recordID: try ExternalIdentifier(estimate.evidence.id, field: "record"), evidenceID: binding.evidenceID,
+            responseHash: binding.manifestHash,
+            manifestReference: try LedgerText(ApprovedEstimateProvenance.manifestReference(estimate.key)),
+            transforms: try derivation.map {
+                [NutrientTransform(transformID: try LedgerText($0.transformID), transformVersion: try LedgerText($0.version))]
+            } ?? [])
+        let source = try SourceExactNutrientValue(amount: derivation?.sourceValue ?? estimate.value,
+            unit: LedgerText(derivation?.sourceUnit ?? estimate.unit.rawValue), basis: basis)
+        return .augmented(try ExactNutrientValue(amount: estimate.value, unit: estimate.key.canonicalUnit,
+                                                 sourceValue: .exact(source), provenance: [provenance]))
     }
 
     /// One level of A1: values that agree give that value; a same-level disagreement is a conflict

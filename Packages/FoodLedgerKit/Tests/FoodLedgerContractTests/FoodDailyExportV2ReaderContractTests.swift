@@ -241,7 +241,8 @@ final class FoodDailyExportV2ReaderContractTests: XCTestCase {
     func testThePerSchemaSummaryMap() {
         XCTAssertEqual(FoodDailyExportShape.acceptedSummaryVersions, [
             1: ["food-intake-summary-v4", "food-intake-summary-v5", "food-intake-summary-v6"],
-            2: ["food-intake-summary-v6"]
+            2: ["food-intake-summary-v6"],
+            3: ["food-intake-summary-v6"]  // estimates on catalogue v2: schema 2's shape plus the estimate fields
         ])
     }
 
@@ -293,7 +294,9 @@ final class FoodDailyExportV2ReaderContractTests: XCTestCase {
     }
 
     func testAnUnknownSchemaNumberIsRejected() throws {
-        for schema in [0, 3, -1, 20] {
+        // Schema 3 is known but needs an approved estimate; neither fixture holds one.
+        assertRejected(try Self.edited(try Self.v2("empty-day")) { $0["food_daily_schema_version"] = 3 }, .missingEstimate)
+        for schema in [0, 4, -1, 20] {
             assertRejected(try Self.edited(try Self.v2("empty-day")) { $0["food_daily_schema_version"] = schema },
                            .unknownSchemaVersion(schema))
             assertRejected(try Self.edited(try Self.v1("food-daily-empty-day.json")) { $0["food_daily_schema_version"] = schema },

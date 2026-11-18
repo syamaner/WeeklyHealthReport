@@ -19,6 +19,9 @@ public enum FoodLogRequirement: Equatable, Hashable, Sendable {
     case plateNotLighterThanTotal
     case occurredAtInFuture
     case occurredAtTooEarly
+    /// Withholding and leaving out left no nutrient of the log known (estimates on catalogue v2
+    /// section 5). Never raised for a state without a withheld or left-out estimate.
+    case nothingKnown
 }
 
 /// Pure food_confirmation_v5 policy shared by the view model and the save service.
@@ -54,6 +57,7 @@ public enum FoodLogPolicy {
         }
         result += plateRequirements(quantity)
         if let time = timeRequirement(state, now: now, calendar: calendar) { result.append(time) }
+        if state.estimatesLeaveNothingKnown { result.append(.nothingKnown) }
         return result
     }
 

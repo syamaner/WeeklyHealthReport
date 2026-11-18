@@ -40,6 +40,10 @@ CODE_READ_DOCS = {
     "docs/food-daily-export-contract-v2.md",
     # Cited by contract tests and fixtures; edits run full CI.
     "docs/generic-food-review-manifest-v2.md",
+    # Cited by the estimates v2 codec, importer, Confirm and export code, their tests, the
+    # catalogue skill's checker and the shared fixtures (#511).
+    "docs/personal-food-catalogue-estimates-v2-proposal.md",
+    "docs/personal-food-catalogue-estimates-v2-phase.md",
     # Cited by the manifest v3 contract tests (#508).
     "docs/web-lookup-part-read-pages-v1-proposal.md",
     "docs/web-lookup-larger-pages-phase1-gate.md",

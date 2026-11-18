@@ -65,7 +65,10 @@ public enum FoodDetailsFillPolicy {
               source.identity.declaredFortificants.isEmpty,
               saved.productVersion.itemClass == .food || saved.productVersion.itemClass == .drink
                 || saved.productVersion.itemClass == .water,
+              // A saved version whose only difference is a withheld or left-out approved estimate
+              // still carries its details, so a re-log re-checks the estimates against them.
               saved.resolutionVersion.nutrients == source.nutrients || FoodEntryEstimateStatus.isPartlyEstimated(saved)
+                || ApprovedEstimateSource.matchesExceptHiddenEstimates(saved.resolutionVersion.nutrients, candidate: source)
         else { return false }
         return fillsOnly(product, source: source.identity, current: source.identity)
     }

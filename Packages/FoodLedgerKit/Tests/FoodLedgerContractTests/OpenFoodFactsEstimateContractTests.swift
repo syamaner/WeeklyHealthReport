@@ -702,7 +702,7 @@ final class OpenFoodFactsEstimateContractTests: XCTestCase {
     }
 
     func testMigrationFromAPopulatedV8StoreChangesOnlyLedgerMetadata() throws {
-        XCTAssertEqual(FoodLedgerGRDBStore.schemaVersion, 9)
+        XCTAssertEqual(FoodLedgerGRDBStore.schemaVersion, 10)
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("off-estimate-v9-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -715,6 +715,7 @@ final class OpenFoodFactsEstimateContractTests: XCTestCase {
         let queue = try DatabaseQueue(path: database.path)
         try queue.write { db in
             try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v9_off_label_estimate'")
+            try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v10_approved_estimate'")
             try db.execute(sql: "UPDATE ledger_metadata SET value = 'food-ledger-v8' WHERE key = 'schema_identity'")
             try db.execute(sql: "PRAGMA user_version = 8")
         }
@@ -729,14 +730,15 @@ final class OpenFoodFactsEstimateContractTests: XCTestCase {
         XCTAssertEqual(try check.read { try String.fetchAll($0, sql: "SELECT sql FROM sqlite_master WHERE sql IS NOT NULL ORDER BY name") },
                        schemaBefore, "No table, index or trigger definition changes")
         try check.read { db in
-            XCTAssertEqual(try Int.fetchOne(db, sql: "PRAGMA user_version"), 9)
-            XCTAssertEqual(try String.fetchOne(db, sql: "SELECT value FROM ledger_metadata WHERE key = 'schema_identity'"), "food-ledger-v9")
-            XCTAssertEqual(try String.fetchAll(db, sql: "SELECT identifier FROM grdb_migrations ORDER BY rowid").last, "v9_off_label_estimate")
+            XCTAssertEqual(try Int.fetchOne(db, sql: "PRAGMA user_version"), 10)
+            XCTAssertEqual(try String.fetchOne(db, sql: "SELECT value FROM ledger_metadata WHERE key = 'schema_identity'"), "food-ledger-v10")
+            XCTAssertEqual(try String.fetchAll(db, sql: "SELECT identifier FROM grdb_migrations ORDER BY rowid").suffix(2),
+                           ["v9_off_label_estimate", "v10_approved_estimate"])
         }
         // A schema-8 binary declines this store before migrating (user_version above its schema).
-        try check.write { db in try db.execute(sql: "PRAGMA user_version = 10") }
+        try check.write { db in try db.execute(sql: "PRAGMA user_version = 11") }
         XCTAssertThrowsError(try FoodLedgerGRDBStore.temporary(directory: directory)) {
-            XCTAssertEqual($0 as? FoodLedgerStoreError, .unknownSchema(10))
+            XCTAssertEqual($0 as? FoodLedgerStoreError, .unknownSchema(11))
         }
     }
 

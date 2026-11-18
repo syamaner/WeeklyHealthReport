@@ -62,6 +62,9 @@ TRANSFORMS = {  # (id, version): (nutrient, source unit, source_kind, function f
 TOLERANCE = 0.005  # relative, for transform arithmetic
 SCHEMA_V1, SCHEMA_V2 = "personal-food-catalogue-v1", "personal-food-catalogue-v2"
 SCHEMA = SCHEMA_V2  # what build() writes
+# Labelled estimates on catalogue v2 (docs/personal-food-catalogue-estimates-v2-proposal.md): v2 plus
+# `estimate_evidence` and each entry's `estimated_nutrients`. The estimate rules are in estimates_v2.py.
+SCHEMA_ESTIMATES_V2 = "personal-food-catalogue-estimates-v2"
 # Catalogue v2 (import v2 section 3): the app's per-serving scaling, off-product-projection-v6.
 MASS_G_TO_MG = ("mass-g-to-mg", "v1")
 SERVING_TO_100 = ("off-serving-to-100", "v1")  # not a calculation (calculated: false)
@@ -96,6 +99,7 @@ SWIFT_PINS = {
     "tfda": ("tfda-generic-v1.json", "TFDAGenericFoodSearch.swift", "corpusSHA256"),
 }
 TOP_KEYS = {"schema", "generated", "sources", "generic_corpora", "items"}
+TOP_KEYS_ESTIMATES = TOP_KEYS | {"estimate_evidence"}
 ITEM_KEYS = {"id", "brand", "title", "titles", "aliases", "concept", "variety", "fallback_chain", "category",
              "product_type", "state", "basis", "label_nutrients", "generic_reference"}
 VALUE_KEYS = {"value", "unit", "source_kind", "source_release", "record_id", "match"}
@@ -419,11 +423,32 @@ def _check_value_v2(where, k, v, kind, src, basis, err):
     return None
 
 
-def _check(doc, err):
-    if not isinstance(doc, dict) or set(doc) != TOP_KEYS:
-        return err("top-keys", f"top-level keys must be exactly {sorted(TOP_KEYS)}")
-    v2 = doc["schema"] == SCHEMA_V2  # an unknown schema keeps the v1 rules for the rest
-    if doc["schema"] != SCHEMA_V1 and not v2:
+def _check(doc, report):
+    raised = [0]
+
+    def err(code, detail=""):
+        raised[0] += 1
+        report(code, detail)
+
+    # Estimates contract section 2, in this order: (1) the key set is v2's or v2's plus
+    # estimate_evidence; (2) the schema is a known value; (3) the key set is the one that schema needs.
+    keys = set(doc) if isinstance(doc, dict) else None
+    if keys != TOP_KEYS and keys != TOP_KEYS_ESTIMATES:
+        return err("top-keys", f"top-level keys must be exactly {sorted(TOP_KEYS)}, or those plus estimate_evidence")
+    schema = doc["schema"]
+    estimates = schema == SCHEMA_ESTIMATES_V2
+    if keys == TOP_KEYS_ESTIMATES:
+        if not estimates and schema != SCHEMA_V1 and schema != SCHEMA_V2:
+            return err("schema", "unknown schema")
+        if not estimates:
+            return err("top-keys", "only an estimates v2 file carries estimate_evidence")
+        if not isinstance(doc["items"], list) or not isinstance(doc["estimate_evidence"], list):
+            return err("items", "items and estimate_evidence must be lists")
+    elif estimates:
+        return err("top-keys", "an estimates v2 file needs estimate_evidence")
+    item_keys = ITEM_KEYS | {"estimated_nutrients"} if estimates else ITEM_KEYS
+    v2 = schema == SCHEMA_V2 or estimates  # an unknown schema keeps the v1 rules for the rest
+    if schema != SCHEMA_V1 and not v2:
         err("schema", "unknown schema")
     patterns = RELEASE_PATTERNS_V2 if v2 else RELEASE_PATTERNS
     projections = OFF_PROJECTIONS_V2 if v2 else OFF_PROJECTIONS
@@ -469,9 +494,11 @@ def _check(doc, err):
     if len(doc["items"]) > LIMIT_ITEMS:
         err("count", "too many items")
     ids, prev = set(), ""
+    marks, duplicate_ids = [], set()  # codes raised before each entry; entry IDs that occur twice
     for n, it in enumerate(doc["items"]):
+        marks.append(raised[0])
         where = f"item {n}"
-        if not isinstance(it, dict) or set(it) != ITEM_KEYS:
+        if not isinstance(it, dict) or set(it) != item_keys:
             err("item-keys", where)
             continue
         if not isinstance(it["title"], str) or not it["title"].strip() or not _opt_str(it["brand"]):
@@ -483,6 +510,7 @@ def _check(doc, err):
         where = it["id"]
         if it["id"] in ids:
             err("id-duplicate", where)
+            duplicate_ids.add(it["id"])
         elif it["id"] <= prev:
             err("id-order", where)
         ids.add(it["id"])
@@ -519,6 +547,11 @@ def _check(doc, err):
                 servings.setdefault(got[0], set()).add(got[1])
         if any(len(s) > 1 for s in servings.values()):
             err("serving-mismatch", f"{where}: values from one release disagree on the serving size")
+    if estimates:
+        import estimates_v2  # lazy: estimates_v2 imports this module for its tables
+        marks.append(raised[0])
+        failed = {n for n in range(len(doc["items"])) if marks[n + 1] > marks[n]}
+        estimates_v2.check(doc, report, failed, duplicate_ids)
 
 
 def check_bytes(data: bytes):

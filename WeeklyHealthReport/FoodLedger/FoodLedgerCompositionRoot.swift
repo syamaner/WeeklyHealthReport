@@ -28,6 +28,8 @@ final class FoodLedgerCompositionRoot {
     private let foodSearchWithDatabase: any GenericFoodSearching
     private let personalFoodDatabaseIndex: PersonalFoodDatabaseIndex
     private let genericRecordResolvers: GenericRecordResolverSet
+    /// The bundled records approved estimates are checked against (estimates on catalogue v2).
+    private let genericRecordLookup: GenericRecordLookupSet
     /// Ciqual's French names and source literals, for search Developer tools lines only.
     private let referenceRecordDetails: any GenericSourceRecordDetailing
     private let milkVolumeConversion: CoFIDWholeMilkVolumeConversion
@@ -143,6 +145,13 @@ final class FoodLedgerCompositionRoot {
         pastedLabelReader = PastedLabelReader(reader: NutritionLabelTextReader(), digester: SHA256Digester())
         pastedLabelConfirmation = PastedLabelConfirmation(ids: ids, clock: confirmationClock,
             encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester(), conversions: pastedLabelConversions)
+        // One instance of each corpus serves both composites, the reference resolvers and the record
+        // lookup that approved estimates are checked against (estimates on catalogue v2).
+        let cofid = try CoFIDGenericFoodSearch(library: PersonalLibraryGenericFoodSearch(reader: store), ids: ids)
+        let usda = try USDAGenericFoodSearch(ids: ids)
+        let tfda = try TFDAGenericFoodSearch(ids: ids)
+        let recordLookup = GenericRecordLookupSet([.cofid: cofid, .usda: usda, .tfda: tfda])
+        genericRecordLookup = recordLookup
         confirmations = FoodConfirmationService(
             ledger: ledger,
             reader: store,
@@ -151,7 +160,8 @@ final class FoodLedgerCompositionRoot {
             digester: SHA256Digester(),
             calendar: confirmationCalendar,
             pastedLabelConversions: pastedLabelConversions,
-            portionGuides: guides
+            portionGuides: guides,
+            estimateRecords: recordLookup
         )
         favourites = try FavouritesService(ledger: ledger, reader: store, confirmations: confirmations,
             clock: confirmationClock, ids: ids, digester: SHA256Digester(), calendar: confirmationCalendar)
@@ -162,10 +172,6 @@ final class FoodLedgerCompositionRoot {
         let market = foodMarket
         let ciqual = try CiqualGenericFoodSearch(ids: ids)
         referenceRecordDetails = ciqual
-        // One instance of each corpus serves both composites and the reference resolvers.
-        let cofid = try CoFIDGenericFoodSearch(library: PersonalLibraryGenericFoodSearch(reader: store), ids: ids)
-        let usda = try USDAGenericFoodSearch(ids: ids)
-        let tfda = try TFDAGenericFoodSearch(ids: ids)
         let promotesTaiwan: (GenericFoodSearchRequest) -> Bool = { request in
             RegionalSourceOrderPolicy.promotesTaiwan(query: request.text.value, marketIsTaiwan: market.market == .taiwan)
         }
@@ -177,13 +183,16 @@ final class FoodLedgerCompositionRoot {
         personalFoodDatabaseIndex = index
         foodSearchWithDatabase = CompositeGenericFoodSearch(sources: [cofid, usda], regionalSources: [tfda],
             referenceSources: [ciqual],
-            databaseSource: PersonalFoodDatabaseFoodSearch(index: index, resolver: resolvers, ids: ids),
+            databaseSource: PersonalFoodDatabaseFoodSearch(index: index, resolver: resolvers, ids: ids,
+                estimates: ApprovedEstimateManifestBuilder(ids: ids, digester: SHA256Digester())),
             promotesRegional: promotesTaiwan, ids: ids)
         // The index loads off the main thread: at launch, after every import or removal, and when
         // protected data returns (phase 1 plan section 5.1 item 7). Search never waits for it.
         personalFoodDatabase = PersonalFoodDatabaseSettingsViewModel(
             importer: PersonalFoodDatabaseImporter(store: databaseStore, digester: SHA256Digester(),
-                clock: SystemLedgerClock(), releases: ledgerStore),
+                clock: SystemLedgerClock(), releases: ledgerStore,
+                // Estimates on catalogue v2: composition estimates are checked against the bundled records.
+                lookup: recordLookup),
             changed: {
                 index.invalidate()
                 await Task.detached(priority: .utility) { index.warm() }.value
@@ -225,7 +234,7 @@ final class FoodLedgerCompositionRoot {
                                          savesFavourite: savesFavourite, favouriteAction: favouriteAction,
                                          whenNotice: FoodLogText.whenNotice(when),
                                          labelEstimate: saveEstimate == nil ? nil : labelEstimateModel(),
-                                         estimateSaveAction: saveEstimate) { [confirmations, ids] state in
+                                         estimateSaveAction: saveEstimate, estimateBinder: estimateBinder) { [confirmations, ids] state in
             if let save { return try save(state) }
             return try confirmations.save(
                 state,
@@ -321,7 +330,8 @@ final class FoodLedgerCompositionRoot {
         return FoodConfirmationViewModel(state: state, volumeConversionOffering: offering, portionGuides: countPortionGuides,
                                          now: { clock.now() }, calendar: confirmationCalendar,
                                          favouriteAction: favouriteAction(unlessFavourite: state),
-                                         whenNotice: FoodLogText.whenNotice(when), labelEstimateNotCarried: layered) { [confirmations, ids] state in
+                                         whenNotice: FoodLogText.whenNotice(when), labelEstimateNotCarried: layered,
+                                         estimateBinder: estimateBinder) { [confirmations, ids] state in
             try confirmations.save(state, operationID: ids.makeID(OperationTag.self), idempotencyKey: nil)
         }
     }
@@ -399,8 +409,16 @@ final class FoodLedgerCompositionRoot {
         let prepared = preparation.replacingState(state)
         return QuickAddSheetModel(preparation: prepared, now: { clock.now() }, calendar: confirmationCalendar,
                                   whenNotice: FoodLogText.whenNotice(when)) { [confirmations, ids] state in
-            try confirmations.save(state, operationID: ids.makeID(OperationTag.self), idempotencyKey: nil)
+            // The one-step save: refused for an entry that holds an approved estimate or its manifest,
+            // which always goes through Confirm (estimates on catalogue v2 section 5).
+            try confirmations.saveQuickAdd(state, operationID: ids.makeID(OperationTag.self), idempotencyKey: nil)
         }
+    }
+
+    /// Checks a new log's approved estimates when it is bound to Confirm, and again after a
+    /// correction of details or an undo (estimates on catalogue v2 section 3.2).
+    private var estimateBinder: @MainActor @Sendable (inout FoodConfirmationState) -> Void {
+        { [confirmations] state in confirmations.bindEstimates(&state) }
     }
 
     /// Confirm for a quick-add state: an ineligible favourite, or the sheet's Edit. Fresh explicit
@@ -421,7 +439,8 @@ final class FoodLedgerCompositionRoot {
         return FoodConfirmationViewModel(state: prepared, volumeConversionOffering: offering, portionGuides: countPortionGuides, now: { clock.now() },
                                          calendar: confirmationCalendar,
                                          favouriteAction: favouriteAction(unlessFavourite: prepared), whenNotice: whenNotice,
-                                         labelEstimateNotCarried: labelEstimateNotCarried) { [confirmations, ids] state in
+                                         labelEstimateNotCarried: labelEstimateNotCarried,
+                                         estimateBinder: estimateBinder) { [confirmations, ids] state in
             try confirmations.save(state, operationID: ids.makeID(OperationTag.self), idempotencyKey: nil)
         }
     }
@@ -430,7 +449,7 @@ final class FoodLedgerCompositionRoot {
     private func withMilkVolumeSource(_ state: FoodConfirmationState) -> (state: FoodConfirmationState, offering: (any FoodVolumeConversionOffering)?) {
         let (input, offering) = withMilkVolumeSource(state.input)
         guard input != state.input else { return (state, offering) }
-        var enriched = FoodConfirmationState(input: input, prefillSourceQuantity: false)
+        var enriched = FoodConfirmationState(input: input, prefillSourceQuantity: false).carryingEstimateState(from: state)
         // Keep carried food details (#470 rule 3) across the volume-source rebuild, with their origin;
         // carrying is still not acceptance.
         if let correction = state.correction {
@@ -523,13 +542,14 @@ final class FoodLedgerCompositionRoot {
         guard var state = try confirmations.reopen(logItemID: logItemID) else { return nil }
         let (prepared, offering) = withMilkVolumeSource(state.input)
         if prepared != state.input {
-            state = FoodConfirmationState(input: prepared, reopened: state.reopened)
+            // The rebuilt state keeps its leave-out set, verified manifests and seed.
+            state = FoodConfirmationState(input: prepared, reopened: state.reopened).carryingEstimateState(from: state)
             state.decision = .accepted
         }
         let clock = confirmationClock
         return FoodConfirmationViewModel(state: state, volumeConversionOffering: offering, portionGuides: countPortionGuides,
                                          now: { clock.now() }, calendar: confirmationCalendar,
-                                         favouriteAction: favouriteAction) { [confirmations, ids] state in
+                                         favouriteAction: favouriteAction, estimateBinder: estimateBinder) { [confirmations, ids] state in
             try confirmations.save(
                 state,
                 operationID: ids.makeID(OperationTag.self),
@@ -598,8 +618,11 @@ final class FoodLedgerCompositionRoot {
         let service = FoodReresolutionService(
             ledger: ledger, reader: FoodReresolutionHistory(archive: store, confirmations: store),
             provider: FoodReresolutionProviderSet([try CoFIDReresolutionProvider(ids: ids),
-                PersonalFoodDatabaseReresolutionProvider(index: personalFoodDatabaseIndex, resolver: genericRecordResolvers, ids: ids)]),
-            clock: SystemLedgerClock(), ids: ids
+                PersonalFoodDatabaseReresolutionProvider(index: personalFoodDatabaseIndex, resolver: genericRecordResolvers, ids: ids,
+                    estimates: ApprovedEstimateManifestBuilder(ids: ids, digester: SHA256Digester()))]),
+            clock: SystemLedgerClock(), ids: ids,
+            // A fresh candidate's approved estimates are checked against the log's saved details.
+            estimateRecords: genericRecordLookup, digester: SHA256Digester()
         )
         let model = FoodReresolutionViewModel(service: service)
         activeReresolution = model
@@ -637,7 +660,13 @@ final class FoodLedgerCompositionRoot {
             confirmationCalendar: confirmationCalendar,
             amountLocale: locale,
             // The same whole-milk volume source and offering as the search route.
-            prepareConfirmation: { [weak self] state in self?.withMilkVolumeSource(state) ?? (state: state, offering: nil) },
+            prepareConfirmation: { [weak self] state in
+                guard let self else { return (state: state, offering: nil) }
+                // A list line's Confirm checks its approved estimates as every other Confirm does.
+                var prepared = self.withMilkVolumeSource(state)
+                self.confirmations.bindEstimates(&prepared.state)
+                return prepared
+            },
             portionGuides: countPortionGuides
         ) { [confirmations] state, operationID in
             try confirmations.save(
@@ -734,6 +763,14 @@ final class FoodLedgerCompositionRoot {
         SavedFoodEntryViewModel(logItemID: logItemID, store: foodLogStore) { [weak self] in
             try self?.model(reopening: logItemID)
         }
+    }
+
+    /// A saved entry's approved estimates as it was logged: labels and tiers from its capture
+    /// manifest, and how each saved unknown estimate reads. Reads no bundled record.
+    /// Nil when the entry could not be read, which the saved entry shows as a failed state.
+    func savedEstimateRows(_ logItemID: LogItemID) -> [ApprovedEstimateRow]? {
+        guard let state = try? confirmations.reopen(logItemID: logItemID) else { return nil }
+        return ApprovedEstimatePresentation.rows(state)
     }
 
     func recentIntakeDays(before date: Date, calendar: Calendar = .current) throws -> [FoodIntakeDayPreview] {

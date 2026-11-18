@@ -1012,6 +1012,75 @@ extension DailyDriveExportCoordinatorTests {
         let afterRecovery = await server.storedContent(id: fileID)
         XCTAssertEqual(afterRecovery, stored, "recovery does not rewrite the file")
     }
+
+    /// Estimates on catalogue v2 (Codex review of PR 514): a schema 3 food file and a schema 2 file
+    /// for the same date replace each other under the same Drive file ID, in both directions, by
+    /// the ordering token alone; a stale file of either schema is refused, and recovery on a fresh
+    /// registry reads the schema 3 file without rewriting it.
+    func testSchemaThreeAndTwoFoodFilesReplaceEachOtherUnderTheSameIDAndRecover() async throws {
+        let date = "2023-11-14"
+        let fixtures = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../docs/fixtures").standardizedFileURL
+        let v2Golden = try Data(contentsOf: fixtures.appendingPathComponent("food-daily-v2/food-daily-mixed-day.json"))
+        let v3Golden = try Data(contentsOf: fixtures.appendingPathComponent("food-daily-v3/food-daily-estimates-day.json"))
+        /// The same canonical bytes prepared at another time: only the two instants change.
+        func retimed(_ payload: Data, exportedAt: String) throws -> Data {
+            let document = try FoodDailyExportSerializer.decode(payload)
+            let text = String(decoding: payload, as: UTF8.self)
+                .replacingOccurrences(of: "\"data_as_of\":\"\(document.dataAsOf)\"", with: "\"data_as_of\":\"2023-11-15T00:00:00.000Z\"")
+                .replacingOccurrences(of: "\"exported_at\":\"\(document.exportedAt)\"", with: "\"exported_at\":\"\(exportedAt)\"")
+            let bytes = Data(text.utf8)
+            XCTAssertEqual(try FoodDailyExportSerializer.encode(FoodDailyExportSerializer.decode(bytes)), bytes, "still canonical")
+            return bytes
+        }
+        let firstV2 = try retimed(v2Golden, exportedAt: "2023-11-15T09:00:00.000Z")
+        let laterV3 = try retimed(v3Golden, exportedAt: "2023-11-15T09:05:00.000Z")
+        let latestV2 = try retimed(v2Golden, exportedAt: "2023-11-15T09:10:00.000Z")
+        XCTAssertEqual(try FoodDailyExportSerializer.decode(laterV3).foodDailySchemaVersion, 3)
+
+        let store = MemoryDailyIdentityStore()
+        let server = MockDailyDriveServer()
+        let policy = DailyFoodExportIdentityPolicy()
+        let coordinator = DailyDriveExportCoordinator(transport: server, store: store, policy: policy)
+        func export(_ payload: Data) async throws -> DailyDriveExportResult {
+            try await coordinator.export(payload: payload, reportDate: date, accountID: accountID, folderID: folderID,
+                                         tokenProvider: token)
+        }
+        guard case .verified(_, true) = try await export(firstV2) else { return XCTFail("the schema-2 file is created") }
+        let fileID = try XCTUnwrap(store.snapshot()?.identities.first?.fileID)
+
+        // 2 to 3: an estimate added to the day.
+        guard case .verified(_, false) = try await export(laterV3) else { return XCTFail("schema 3 replaces schema 2") }
+        let afterThree = await server.storedContent(id: fileID)
+        XCTAssertEqual(afterThree, laterV3, "exact final bytes")
+        // A stale schema-2 file cannot replace it.
+        do {
+            _ = try await export(firstV2)
+            XCTFail("an older schema-2 snapshot must not replace the verified schema-3 file")
+        } catch DailyDriveExportFailure.staleSnapshot {}
+
+        // Recovery on a fresh registry reads and verifies the schema-3 file without rewriting it.
+        let restoredStore = MemoryDailyIdentityStore()
+        let restored = DailyDriveExportCoordinator(transport: server, store: restoredStore, policy: policy)
+        _ = try await restored.recover(selectedFileID: fileID, reportDate: date, accountID: accountID, folderID: folderID,
+                                       tokenProvider: token)
+        XCTAssertEqual(restoredStore.snapshot()?.identities.map(\.fileID), [fileID])
+        let afterRecovery = await server.storedContent(id: fileID)
+        XCTAssertEqual(afterRecovery, laterV3, "recovery does not rewrite the file")
+
+        // 3 to 2: the estimate removed from the day.
+        guard case .verified(_, false) = try await export(latestV2) else { return XCTFail("schema 2 replaces schema 3") }
+        let afterTwo = await server.storedContent(id: fileID)
+        XCTAssertEqual(afterTwo, latestV2, "exact final bytes")
+        do {
+            _ = try await export(laterV3)
+            XCTFail("an older schema-3 snapshot must not replace the verified schema-2 file")
+        } catch DailyDriveExportFailure.staleSnapshot {}
+        let fileCount = await server.fileCount()
+        XCTAssertEqual(fileCount, 1)
+        XCTAssertEqual(store.snapshot()?.identities.map(\.fileID), [fileID], "the same persisted Drive file ID")
+        let creates = await server.createIDs
+        XCTAssertEqual(creates, [fileID])
+    }
 }
 
 private struct ThrowingPayloadIdentityPolicy: DrivePayloadIdentityPolicy {

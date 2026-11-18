@@ -37,9 +37,10 @@ public struct CanonicalFoodNutritionSummary: Codable, Equatable, Sendable {
 }
 
 public struct CanonicalFoodProjection: Codable, Equatable, Sendable {
-    /// The highest contract this binary reads and writes (9: estimate layers on Open Food Facts
-    /// products, off-label-estimate-v1; 8: label estimate layers).
-    public static let foodContractVersion = 9
+    /// The highest contract this binary reads and writes (10: approved estimates from Your food
+    /// database, estimates on catalogue v2; 9: estimate layers on Open Food Facts products,
+    /// off-label-estimate-v1; 8: label estimate layers).
+    public static let foodContractVersion = 10
     /// The contract an export carries when its records need no more: unchanged from contract 6,
     /// so a store without pasted-label evidence exports exactly the bytes it did before contract 7.
     public static let exportFloorContractVersion = 6
@@ -109,6 +110,19 @@ public struct CanonicalFoodProjection: Codable, Equatable, Sendable {
     /// and a pasted label is never reported as contract 6. Then contract 6: any favourite
     /// record, app reference provenance or reference definition evidence.
     public static func minimumContractVersion(for records: LedgerMutation, favourites: FavouriteMutation = FavouriteMutation()) -> Int {
+        // Contract 10 (estimates on catalogue v2, version allocation): `approved_estimate` provenance
+        // anywhere a nutrient set is stored (resolution versions, candidate decisions, conflict
+        // candidates included), or either kind of approved-estimate evidence. Checked before the
+        // contract 9 rule, which is left exactly as it is.
+        if records.evidence.contains(where: {
+            $0.captureMethodVersion.value == ApprovedEstimateProvenance.captureMethodVersion
+                || $0.captureMethodVersion.value == ApprovedEstimateProvenance.leftOutMethodVersion
+        }) { return 10 }
+        let stored = records.resolutionVersions.flatMap { $0.nutrients.entries }
+            + records.candidateDecisions.flatMap { $0.candidate.nutrients.entries }
+        if stored.contains(where: { entry in
+            ([entry.value] + entry.conflictCandidates).contains { $0.provenance.contains { $0.sourceKind == .approvedEstimate } }
+        }) { return 10 }
         // Contract 9 (off-label-estimate-v1, owner decision 5): a layered resolution version whose
         // first decision is an Open Food Facts product. Read from the candidate's own provenance,
         // so it holds when the product's release was stored by an earlier operation.

@@ -118,6 +118,11 @@ public struct FoodReresolutionView: View {
                 Text("Logged\n\(detail(proposal.before.productVersion.identity))").font(.caption.monospaced())
                 Text("Source\n\(detail(proposal.candidate.candidate.identity))").font(.caption.monospaced())
             }.textSelection(.enabled)
+            // Estimates on catalogue v2 section 5: each estimate's label and tier in words, the
+            // withheld notice, and that earlier leave-outs are not carried. No leave-out here.
+            ForEach(ApprovedEstimatePresentation.reresolutionNotes(proposal), id: \.self) { note in
+                Text(note).font(.caption).accessibilityLabel(note)
+            }
             if !proposal.identityGaps.isEmpty {
                 Text("Source identity gaps: \(proposal.identityGaps.map(\.rawValue).joined(separator: ", "))")
                 Toggle("I checked that this source applies to the unchanged logged identity despite those gaps", isOn: $model.confirmsIdentityGaps)

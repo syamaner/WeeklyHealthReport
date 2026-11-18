@@ -96,6 +96,14 @@ jobs:
             .agents/skills/personal-food-catalogue/scripts docs/fixtures/personal-food-database-v1
           python3 -I .agents/skills/personal-food-catalogue/scripts/test_export_check.py \
             .agents/skills/personal-food-catalogue/scripts docs/fixtures/personal-food-database-v2
+          python3 -I .agents/skills/personal-food-catalogue/scripts/test_export_check.py \
+            .agents/skills/personal-food-catalogue/scripts docs/fixtures/personal-food-database-estimates-v2
+          # The estimates writer's builder rules (label kept, merged kept, composite, reason order,
+          # byte-identical plain v2) and the six evaluator counts (#511). Synthetic data only.
+          python3 -I .agents/skills/personal-food-catalogue/scripts/test_estimates_input.py \
+            .agents/skills/personal-food-catalogue/scripts
+          python3 -I .agents/skills/personal-food-catalogue/scripts/test_estimate_counts.py \
+            .agents/skills/personal-food-catalogue/scripts
 
   food-healthkit-planning:
     name: HealthKit planning reference contracts

@@ -48,6 +48,9 @@ public enum PersonalFoodDatabaseSettingsText {
         }
     }
 
+    /// The Settings row's count of estimated values (estimates v1 section 7).
+    public static func estimatedValues(_ count: Int) -> String { count == 1 ? "1 estimated value" : "\(count) estimated values" }
+
     /// One short reason for the first rule group present, never file content.
     static func reason(for codes: [PersonalFoodDatabaseRuleCode]) -> String {
         let set = Set(codes)
@@ -58,8 +61,19 @@ public enum PersonalFoodDatabaseSettingsText {
                                   .sourceDuplicate, .corpus, .undeclaredRelease, .releaseKind]) {
             return "The file's source list could not be checked. Export it again from your Mac."
         }
+        // Estimates on catalogue v2: the bundled-record checks first (they name what to do), then the
+        // rest of the estimates-only codes. Every such code has copy here; none falls through.
+        if !set.isDisjoint(with: [.corpusMismatch, .recordMissing, .valueUnquantified, .valueMismatch]) {
+            return estimateTablesReason
+        }
+        if set.contains(.estimateContradiction) { return estimateContradictionReason }
+        if !set.isDisjoint(with: PersonalFoodDatabaseRuleCode.estimatesOnly) { return estimateReason }
         return "An entry in this file could not be read. Export it again from your Mac."
     }
+
+    static let estimateTablesReason = "An estimate in this file does not match this app's food tables. Build the file again on your Mac."
+    static let estimateContradictionReason = "An estimate in this file does not fit the food it was written for. Build the file again on your Mac."
+    static let estimateReason = "An estimate in this file could not be read. Build the file again on your Mac."
 }
 
 @MainActor

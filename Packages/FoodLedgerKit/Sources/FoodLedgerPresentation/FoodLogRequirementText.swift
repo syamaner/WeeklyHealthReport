@@ -36,6 +36,8 @@ public enum FoodLogRequirementText {
             "Choose a time that is not in the future."
         case .occurredAtTooEarly:
             "Choose a time within the last \(FoodLogPolicy.backdatingDays) days."
+        case .nothingKnown:
+            "Nothing to log: every value was left out"
         }
     }
 

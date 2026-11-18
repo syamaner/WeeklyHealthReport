@@ -162,6 +162,7 @@ public enum FoodSearchResultText {
             case .manualDeclaration?: "your label"
             case .exactProductDataset?: "Open Food Facts product, automatic match"
             case .genericCompositionDataset?: "generic food, automatic match"
+            case .approvedEstimate?: "estimate you approved"
             default: "other source"
             }
             return "\(FoodLogText.label(entry.key)): \(source)"

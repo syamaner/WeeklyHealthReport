@@ -350,6 +350,26 @@ final class FilePersonalFoodDatabaseStoreTests: XCTestCase {
         }
     }
 
+    /// Estimates on catalogue v2 (contract section 2): the manifest accepts the new schema as a third
+    /// known value, keeps `version` 1 and its byte form, and still refuses estimates v1.
+    func testEstimatesV2ManifestRoundTripsAndEstimatesV1StaysRefused() throws {
+        let a = try Self.release("first")
+        let estimates = PersonalFoodDatabaseManifest(schema: PersonalFoodDatabaseSchema.estimatesV2.rawValue,
+            releaseID: a.manifest.releaseID, fileSHA256: a.manifest.fileSHA256, generated: a.manifest.generated,
+            importedAt: a.manifest.importedAt, entryCount: a.manifest.entryCount)
+        let text = String(decoding: try PersonalFoodDatabaseStoredManifest(estimates).encoded(), as: UTF8.self)
+        XCTAssertTrue(text.contains(#""schema":"personal-food-catalogue-estimates-v2","version":1}"#))
+        let decoded = try JSONDecoder().decode(PersonalFoodDatabaseStoredManifest.self, from: Data(text.utf8))
+        XCTAssertEqual(decoded.manifest, estimates)
+        XCTAssertEqual(String(decoding: try decoded.encoded(), as: UTF8.self), text)
+        try makeStore().install(bytes: a.bytes, manifest: estimates)
+        XCTAssertEqual(contents(folder(a)), ["manifest.json", "personal-food-catalogue-v1.json"])
+        XCTAssertEqual(try makeStore().activeRelease()?.manifest, estimates)
+        let v1 = try JSONDecoder().decode(PersonalFoodDatabaseStoredManifest.self,
+            from: Data(text.replacingOccurrences(of: "estimates-v2", with: "estimates-v1").utf8))
+        XCTAssertNil(v1.manifest)
+    }
+
     /// Qodo (local review): reinstalling the same bytes with a manifest of another schema replaces the
     /// folder's manifest rather than reusing the old one, so a wrong schema can be repaired.
     func testReinstallWithAnotherSchemaRewritesTheManifest() throws {

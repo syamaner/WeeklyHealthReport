@@ -77,7 +77,8 @@ final class DailyFoodDriveExportTests: XCTestCase {
         // #312 (F8): the per-schema map in the shared shape rule replaces the policy's flat set.
         XCTAssertEqual(FoodDailyExportShape.acceptedSummaryVersions, [
             1: ["food-intake-summary-v4", "food-intake-summary-v5", "food-intake-summary-v6"],
-            2: ["food-intake-summary-v6"]
+            2: ["food-intake-summary-v6"],
+            3: ["food-intake-summary-v6"]  // estimates on catalogue v2: schema 2's shape plus the estimate fields
         ])
         XCTAssertEqual(FoodDailyExportShape.acceptedSummaryVersions[FoodDailyExportDocument.schemaVersion]?
             .contains(DailyFoodExportIdentityPolicy.summaryVersion), true, "what this build writes is accepted")
@@ -244,6 +245,37 @@ final class DailyFoodDriveExportTests: XCTestCase {
             }
         }
         XCTAssertEqual(counts, ["food-daily-v1": 8, "food-daily-v2": 6])
+    }
+
+    /// Daily export version 3 (estimates on catalogue v2): admitted through the same shape rule, under
+    /// the same ordering format, so schema 2 and 3 files replace each other for a date in both
+    /// directions. A schema 2 file carrying an estimate field, and a schema 3 file with no approved
+    /// estimate, are refused.
+    func testPolicyAcceptsSchemaThreeAndRefusesAMixedFile() throws {
+        let policy = DailyFoodExportIdentityPolicy()
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../docs/fixtures").standardizedFileURL
+        let v3 = try Data(contentsOf: root.appendingPathComponent("food-daily-v3/food-daily-estimates-day.json"))
+        XCTAssertEqual(try FoodDailyExportSerializer.decode(v3).foodDailySchemaVersion, 3)
+        let identity = try policy.validate(payload: v3, reportDate: "2023-11-14")
+        XCTAssertTrue(identity.orderingToken.hasPrefix("food-v1|"), "the token names the ordering format, not the schema")
+        let v2 = try Data(contentsOf: root.appendingPathComponent("food-daily-v2/food-daily-mixed-day.json"))
+        let other = try policy.validate(payload: v2, reportDate: "2023-11-14")
+        // Either may replace the other: the comparison reads only the two instants.
+        XCTAssertNotEqual(try policy.compare(identity.orderingToken, other.orderingToken), .orderedSame)
+        XCTAssertEqual(try policy.compare(identity.orderingToken, other.orderingToken) == .orderedAscending,
+                       try policy.compare(other.orderingToken, identity.orderingToken) == .orderedDescending)
+        func relabelled(_ payload: Data, from: Int, to: Int) -> Data {
+            Data(String(decoding: payload, as: UTF8.self)
+                .replacingOccurrences(of: "\"food_daily_schema_version\":\(from),", with: "\"food_daily_schema_version\":\(to),").utf8)
+        }
+        XCTAssertThrowsError(try policy.validate(payload: relabelled(v3, from: 3, to: 2), reportDate: "2023-11-14"),
+                             "a schema 2 file carrying estimate fields")
+        XCTAssertThrowsError(try policy.validate(payload: relabelled(v2, from: 2, to: 3), reportDate: "2023-11-14"),
+                             "a schema 3 file with no approved estimate")
+        // A value without its tier is refused.
+        let noTier = Data(String(decoding: v3, as: UTF8.self).replacingOccurrences(of: "\"estimate_quality\":\"high\",", with: "").utf8)
+        XCTAssertNotEqual(noTier, v3)
+        XCTAssertThrowsError(try policy.validate(payload: noTier, reportDate: "2023-11-14"))
     }
 
     func testEachPolicyRejectsTheOtherFilesPayload() throws {

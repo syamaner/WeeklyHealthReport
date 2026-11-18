@@ -1,0 +1,909 @@
+{
+ "contract": "docs/personal-food-catalogue-estimates-v2-proposal.md",
+ "schema": "personal-food-catalogue-estimates-v2",
+ "golden": "golden.json",
+ "note": "codec fixtures give exactly the listed codes from both checkers; importer fixtures pass the codec and give exactly the listed codes from the app importer with the stub lookup",
+ "reject": {
+  "reject-estimates-v1-schema.json": {
+   "stage": "codec",
+   "codes": [
+    "schema"
+   ]
+  },
+  "reject-unknown-schema-with-evidence.json": {
+   "stage": "codec",
+   "codes": [
+    "schema"
+   ]
+  },
+  "reject-v2-schema-with-evidence.json": {
+   "stage": "codec",
+   "codes": [
+    "top-keys"
+   ]
+  },
+  "reject-v1-schema-with-evidence.json": {
+   "stage": "codec",
+   "codes": [
+    "top-keys"
+   ]
+  },
+  "reject-missing-estimate-evidence.json": {
+   "stage": "codec",
+   "codes": [
+    "top-keys"
+   ]
+  },
+  "reject-missing-estimated-nutrients.json": {
+   "stage": "codec",
+   "codes": [
+    "item-keys",
+    "evidence-unused-or-shared"
+   ]
+  },
+  "reject-evidence-not-a-list.json": {
+   "stage": "codec",
+   "codes": [
+    "items"
+   ]
+  },
+  "reject-evidence-missing-quality.json": {
+   "stage": "codec",
+   "codes": [
+    "evidence-keys"
+   ]
+  },
+  "reject-quality-unknown-token.json": {
+   "stage": "codec",
+   "codes": [
+    "token"
+   ]
+  },
+  "reject-method-unknown-token.json": {
+   "stage": "codec",
+   "codes": [
+    "token"
+   ]
+  },
+  "reject-not-approved.json": {
+   "stage": "codec",
+   "codes": [
+    "not-approved"
+   ]
+  },
+  "reject-page-without-date.json": {
+   "stage": "codec",
+   "codes": [
+    "date"
+   ]
+  },
+  "reject-date-not-real.json": {
+   "stage": "codec",
+   "codes": [
+    "date"
+   ]
+  },
+  "reject-digest-not-hex.json": {
+   "stage": "codec",
+   "codes": [
+    "digest"
+   ]
+  },
+  "reject-page-with-composition-source.json": {
+   "stage": "codec",
+   "codes": [
+    "type-fields"
+   ]
+  },
+  "reject-national-with-page-access.json": {
+   "stage": "codec",
+   "codes": [
+    "type-fields"
+   ]
+  },
+  "reject-corpus-undeclared.json": {
+   "stage": "codec",
+   "codes": [
+    "corpus-undeclared"
+   ]
+  },
+  "reject-tfda-reference-without-prefix.json": {
+   "stage": "codec",
+   "codes": [
+    "source-reference"
+   ]
+  },
+  "reject-page-url-with-query.json": {
+   "stage": "codec",
+   "codes": [
+    "source-reference"
+   ]
+  },
+  "reject-page-url-not-https.json": {
+   "stage": "codec",
+   "codes": [
+    "source-reference"
+   ]
+  },
+  "reject-page-on-open-food-facts.json": {
+   "stage": "codec",
+   "codes": [
+    "open-food-facts-host"
+   ]
+  },
+  "reject-assumption-empty.json": {
+   "stage": "codec",
+   "codes": [
+    "free-text"
+   ]
+  },
+  "reject-source-state-too-long.json": {
+   "stage": "codec",
+   "codes": [
+    "free-text"
+   ]
+  },
+  "reject-target-state-control-character.json": {
+   "stage": "codec",
+   "codes": [
+    "free-text"
+   ]
+  },
+  "reject-derivation-arithmetic.json": {
+   "stage": "codec",
+   "codes": [
+    "derivation"
+   ]
+  },
+  "reject-derivation-missing.json": {
+   "stage": "codec",
+   "codes": [
+    "derivation-missing"
+   ]
+  },
+  "reject-derivation-shape.json": {
+   "stage": "codec",
+   "codes": [
+    "derivation-shape",
+    "derivation"
+   ]
+  },
+  "reject-derivation-unexpected.json": {
+   "stage": "codec",
+   "codes": [
+    "derivation-unexpected"
+   ]
+  },
+  "reject-evidence-id-form.json": {
+   "stage": "codec",
+   "codes": [
+    "evidence-id",
+    "evidence-dangling"
+   ]
+  },
+  "reject-evidence-duplicate.json": {
+   "stage": "codec",
+   "codes": [
+    "evidence-duplicate"
+   ]
+  },
+  "reject-evidence-out-of-order.json": {
+   "stage": "codec",
+   "codes": [
+    "evidence-order"
+   ]
+  },
+  "reject-estimated-nutrients-not-an-object.json": {
+   "stage": "codec",
+   "codes": [
+    "estimated-nutrients"
+   ]
+  },
+  "reject-estimate-extra-key.json": {
+   "stage": "codec",
+   "codes": [
+    "estimate-keys",
+    "evidence-unused-or-shared"
+   ]
+  },
+  "reject-label-and-estimate.json": {
+   "stage": "codec",
+   "codes": [
+    "label-and-estimate"
+   ]
+  },
+  "reject-evidence-dangling.json": {
+   "stage": "codec",
+   "codes": [
+    "evidence-dangling",
+    "evidence-unused-or-shared"
+   ]
+  },
+  "reject-evidence-names-another-nutrient.json": {
+   "stage": "codec",
+   "codes": [
+    "evidence-mismatch"
+   ]
+  },
+  "reject-evidence-unused.json": {
+   "stage": "codec",
+   "codes": [
+    "evidence-unused-or-shared"
+   ]
+  },
+  "reject-evidence-shared.json": {
+   "stage": "codec",
+   "codes": [
+    "evidence-mismatch",
+    "evidence-unused-or-shared",
+    "evidence-unused-or-shared"
+   ]
+  },
+  "reject-estimate-unknown-nutrient.json": {
+   "stage": "codec",
+   "codes": [
+    "unknown-nutrient",
+    "evidence-unused-or-shared"
+   ]
+  },
+  "reject-estimate-wrong-unit.json": {
+   "stage": "codec",
+   "codes": [
+    "unit"
+   ]
+  },
+  "reject-estimate-value-boolean.json": {
+   "stage": "codec",
+   "codes": [
+    "value"
+   ]
+  },
+  "reject-estimate-value-negative.json": {
+   "stage": "codec",
+   "codes": [
+    "value"
+   ]
+  },
+  "reject-own-merge.json": {
+   "stage": "codec",
+   "codes": [
+    "estimate-own-merge"
+   ]
+  },
+  "reject-own-same-food-cited-as-similar.json": {
+   "stage": "codec",
+   "codes": [
+    "estimate-own-method"
+   ]
+  },
+  "reject-own-close-cited-as-same-food.json": {
+   "stage": "codec",
+   "codes": [
+    "estimate-own-method"
+   ]
+  },
+  "reject-own-record-direct.json": {
+   "stage": "codec",
+   "codes": [
+    "estimate-own-method"
+   ]
+  },
+  "reject-own-record-derived.json": {
+   "stage": "codec",
+   "codes": [
+    "estimate-own-method"
+   ]
+  },
+  "reject-own-state-unknown.json": {
+   "stage": "codec",
+   "codes": [
+    "estimate-own-state"
+   ]
+  },
+  "reject-own-held-raw.json": {
+   "stage": "codec",
+   "codes": [
+    "estimate-own-held",
+    "estimate-own-held",
+    "estimate-own-held"
+   ]
+  },
+  "reject-own-held-cooked.json": {
+   "stage": "codec",
+   "codes": [
+    "estimate-own-held",
+    "estimate-own-held",
+    "estimate-own-held"
+   ]
+  },
+  "reject-quality-similar-food-high.json": {
+   "stage": "codec",
+   "codes": [
+    "estimate-quality"
+   ]
+  },
+  "reject-quality-stated-assumption-high.json": {
+   "stage": "codec",
+   "codes": [
+    "estimate-quality"
+   ]
+  },
+  "reject-quality-indexed-copy-high.json": {
+   "stage": "codec",
+   "codes": [
+    "estimate-quality"
+   ]
+  },
+  "reject-quality-non-own-record-high.json": {
+   "stage": "codec",
+   "codes": [
+    "estimate-quality"
+   ]
+  },
+  "reject-quality-state-unknown-medium.json": {
+   "stage": "codec",
+   "codes": [
+    "estimate-quality"
+   ]
+  },
+  "reject-basis-non-own-record.json": {
+   "stage": "codec",
+   "codes": [
+    "estimate-basis"
+   ]
+  },
+  "reject-basis-own-record.json": {
+   "stage": "codec",
+   "codes": [
+    "estimate-basis"
+   ]
+  },
+  "reject-table-rows-in-order.json": {
+   "stage": "codec",
+   "codes": [
+    "estimate-own-held",
+    "estimate-own-held",
+    "estimate-own-method",
+    "estimate-own-state",
+    "estimate-own-held",
+    "estimate-quality"
+   ]
+  },
+  "reject-no-table-code-entry-missing.json": {
+   "stage": "codec",
+   "codes": [
+    "evidence-mismatch"
+   ]
+  },
+  "reject-no-table-code-bad-method.json": {
+   "stage": "codec",
+   "codes": [
+    "token"
+   ]
+  },
+  "reject-no-table-code-entry-failed-v2.json": {
+   "stage": "codec",
+   "codes": [
+    "item-types"
+   ]
+  },
+  "reject-two-faulty-entries.json": {
+   "stage": "codec",
+   "codes": [
+    "date",
+    "date",
+    "unit",
+    "estimate-quality"
+   ]
+  },
+  "reject-importer-corpus-not-pinned.json": {
+   "stage": "importer",
+   "codes": [
+    "corpus-mismatch"
+   ]
+  },
+  "reject-importer-record-missing.json": {
+   "stage": "importer",
+   "codes": [
+    "record-missing"
+   ]
+  },
+  "reject-importer-value-unquantified.json": {
+   "stage": "importer",
+   "codes": [
+    "value-unquantified"
+   ]
+  },
+  "reject-importer-value-outside-tolerance.json": {
+   "stage": "importer",
+   "codes": [
+    "value-mismatch"
+   ]
+  },
+  "reject-importer-zero-not-exact.json": {
+   "stage": "importer",
+   "codes": [
+    "value-mismatch"
+   ]
+  },
+  "reject-importer-raw-entry-cooked-record.json": {
+   "stage": "importer",
+   "codes": [
+    "estimate-contradiction"
+   ]
+  },
+  "reject-importer-raw-entry-reheated-record.json": {
+   "stage": "importer",
+   "codes": [
+    "estimate-contradiction"
+   ]
+  },
+  "reject-importer-raw-entry-named-record.json": {
+   "stage": "importer",
+   "codes": [
+    "estimate-contradiction"
+   ]
+  },
+  "reject-importer-cooked-entry-raw-record.json": {
+   "stage": "importer",
+   "codes": [
+    "estimate-contradiction"
+   ]
+  },
+  "reject-importer-cooked-entry-as-sold-record.json": {
+   "stage": "importer",
+   "codes": [
+    "estimate-contradiction"
+   ]
+  },
+  "reject-importer-cooked-entry-reheated-record.json": {
+   "stage": "importer",
+   "codes": [
+    "estimate-contradiction"
+   ]
+  },
+  "reject-importer-cooked-entry-named-record.json": {
+   "stage": "importer",
+   "codes": [
+    "estimate-contradiction"
+   ]
+  },
+  "reject-importer-fortified-record.json": {
+   "stage": "importer",
+   "codes": [
+    "estimate-contradiction"
+   ]
+  },
+  "reject-importer-record-not-per-100-g.json": {
+   "stage": "importer",
+   "codes": [
+    "estimate-contradiction"
+   ]
+  },
+  "reject-importer-fortified-record-no-reference.json": {
+   "stage": "importer",
+   "codes": [
+    "estimate-contradiction"
+   ]
+  },
+  "reject-importer-own-record-fortified.json": {
+   "stage": "importer",
+   "codes": [
+    "estimate-contradiction"
+   ]
+  },
+  "reject-importer-own-record-not-per-100-g.json": {
+   "stage": "importer",
+   "codes": [
+    "estimate-contradiction"
+   ]
+  }
+ },
+ "accept": {
+  "accept-page-estimates-only.json": "importer",
+  "accept-v2-relabelled-with-empty-estimates.json": "importer",
+  "accept-state-unknown-page-at-low.json": "importer",
+  "accept-similar-food-own-close-at-low.json": "importer",
+  "accept-similar-food-non-own-at-medium.json": "importer",
+  "accept-value-at-tolerance.json": "importer",
+  "accept-estimate-beside-merged-record.json": "importer",
+  "accept-raw-entry-as-sold-record.json": "importer"
+ },
+ "rule_codes": [
+  "bom",
+  "corpus",
+  "corpus-mismatch",
+  "corpus-undeclared",
+  "count",
+  "date",
+  "derivation",
+  "derivation-missing",
+  "derivation-shape",
+  "derivation-unexpected",
+  "digest",
+  "duplicate-key",
+  "encoding",
+  "estimate-basis",
+  "estimate-contradiction",
+  "estimate-keys",
+  "estimate-own-held",
+  "estimate-own-merge",
+  "estimate-own-method",
+  "estimate-own-state",
+  "estimate-quality",
+  "estimated-nutrients",
+  "evidence-dangling",
+  "evidence-duplicate",
+  "evidence-id",
+  "evidence-keys",
+  "evidence-mismatch",
+  "evidence-order",
+  "evidence-unused-or-shared",
+  "free-text",
+  "generated",
+  "id-duplicate",
+  "id-form",
+  "id-order",
+  "item-keys",
+  "item-types",
+  "items",
+  "json",
+  "kind-match",
+  "label-and-estimate",
+  "label-nutrients",
+  "malformed",
+  "merge-condition",
+  "not-approved",
+  "open-food-facts-host",
+  "record-id",
+  "record-missing",
+  "reference",
+  "reference-corpus",
+  "release-kind",
+  "schema",
+  "serving-implausible",
+  "serving-mismatch",
+  "size",
+  "source-date",
+  "source-duplicate",
+  "source-fields",
+  "source-form",
+  "source-hash",
+  "source-pins",
+  "source-reference",
+  "source-value",
+  "sources",
+  "tfda-record-id",
+  "title",
+  "token",
+  "top-keys",
+  "transform-arithmetic",
+  "transform-scope",
+  "transform-shape",
+  "transform-unknown",
+  "type-fields",
+  "undeclared-release",
+  "unit",
+  "unknown-nutrient",
+  "value",
+  "value-keys",
+  "value-mismatch",
+  "value-shape",
+  "value-unquantified",
+  "vocabulary"
+ ],
+ "estimates_only_rule_codes": [
+  "evidence-keys",
+  "not-approved",
+  "token",
+  "date",
+  "digest",
+  "type-fields",
+  "corpus-undeclared",
+  "source-reference",
+  "open-food-facts-host",
+  "free-text",
+  "derivation",
+  "derivation-missing",
+  "derivation-shape",
+  "derivation-unexpected",
+  "evidence-id",
+  "evidence-duplicate",
+  "evidence-order",
+  "estimated-nutrients",
+  "estimate-keys",
+  "label-and-estimate",
+  "evidence-dangling",
+  "evidence-mismatch",
+  "evidence-unused-or-shared",
+  "estimate-own-merge",
+  "estimate-own-method",
+  "estimate-own-state",
+  "estimate-own-held",
+  "estimate-quality",
+  "estimate-basis",
+  "corpus-mismatch",
+  "record-missing",
+  "value-unquantified",
+  "value-mismatch",
+  "estimate-contradiction"
+ ],
+ "importer_rule_codes": [
+  "corpus-mismatch",
+  "record-missing",
+  "value-unquantified",
+  "value-mismatch",
+  "estimate-contradiction"
+ ],
+ "stub_lookup": {
+  "pins": {
+   "cofid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "records": [
+   {
+    "source": "cofid",
+    "record_id": "cofid:fish",
+    "nutrients": {
+     "protein": 20.0,
+     "fat_total": 10.0,
+     "sugar": 0
+    },
+    "preparation": "unknown",
+    "preparation_method": null,
+    "fortification": "unfortified",
+    "per_100_g_edible": true
+   },
+   {
+    "source": "cofid",
+    "record_id": "cofid:cheese",
+    "nutrients": {
+     "calcium": 400.0
+    },
+    "preparation": "unknown",
+    "preparation_method": null,
+    "fortification": "unfortified",
+    "per_100_g_edible": true
+   },
+   {
+    "source": "cofid",
+    "record_id": "cofid:other-cheese",
+    "nutrients": {
+     "protein": 18.0
+    },
+    "preparation": "unknown",
+    "preparation_method": null,
+    "fortification": "unfortified",
+    "per_100_g_edible": true
+   },
+   {
+    "source": "cofid",
+    "record_id": "cofid:greens",
+    "nutrients": {
+     "vitamin_c": 30.0
+    },
+    "preparation": "raw",
+    "preparation_method": null,
+    "fortification": "unfortified",
+    "per_100_g_edible": true
+   },
+   {
+    "source": "cofid",
+    "record_id": "cofid:cooked-rice",
+    "nutrients": {
+     "protein": 18.0
+    },
+    "preparation": "cooked",
+    "preparation_method": null,
+    "fortification": "unfortified",
+    "per_100_g_edible": true
+   },
+   {
+    "source": "cofid",
+    "record_id": "cofid:unquantified",
+    "nutrients": {
+     "protein": null
+    },
+    "preparation": "unknown",
+    "preparation_method": null,
+    "fortification": "unfortified",
+    "per_100_g_edible": true
+   },
+   {
+    "source": "cofid",
+    "record_id": "cofid:cooked",
+    "nutrients": {
+     "protein": 18.0
+    },
+    "preparation": "cooked",
+    "preparation_method": null,
+    "fortification": "unfortified",
+    "per_100_g_edible": true
+   },
+   {
+    "source": "cofid",
+    "record_id": "cofid:reheated",
+    "nutrients": {
+     "protein": 18.0
+    },
+    "preparation": "reheated",
+    "preparation_method": null,
+    "fortification": "unfortified",
+    "per_100_g_edible": true
+   },
+   {
+    "source": "cofid",
+    "record_id": "cofid:named",
+    "nutrients": {
+     "protein": 18.0
+    },
+    "preparation": "named",
+    "preparation_method": "grilled",
+    "fortification": "unfortified",
+    "per_100_g_edible": true
+   },
+   {
+    "source": "cofid",
+    "record_id": "cofid:raw",
+    "nutrients": {
+     "protein": 18.0
+    },
+    "preparation": "raw",
+    "preparation_method": null,
+    "fortification": "unfortified",
+    "per_100_g_edible": true
+   },
+   {
+    "source": "cofid",
+    "record_id": "cofid:as-sold",
+    "nutrients": {
+     "protein": 18.0
+    },
+    "preparation": "as_sold",
+    "preparation_method": null,
+    "fortification": "unfortified",
+    "per_100_g_edible": true
+   },
+   {
+    "source": "cofid",
+    "record_id": "cofid:fortified",
+    "nutrients": {
+     "protein": 18.0
+    },
+    "preparation": "unknown",
+    "preparation_method": null,
+    "fortification": "fortified",
+    "per_100_g_edible": true
+   },
+   {
+    "source": "cofid",
+    "record_id": "cofid:fortified-cooked",
+    "nutrients": {
+     "protein": 18.0
+    },
+    "preparation": "cooked",
+    "preparation_method": null,
+    "fortification": "fortified",
+    "per_100_g_edible": true
+   },
+   {
+    "source": "cofid",
+    "record_id": "cofid:not-100-g",
+    "nutrients": {
+     "protein": 18.0
+    },
+    "preparation": "unknown",
+    "preparation_method": null,
+    "fortification": "unfortified",
+    "per_100_g_edible": false
+   },
+   {
+    "source": "cofid",
+    "record_id": "cofid:fortified-cheese",
+    "nutrients": {
+     "calcium": 400.0
+    },
+    "preparation": "unknown",
+    "preparation_method": null,
+    "fortification": "fortified",
+    "per_100_g_edible": true
+   },
+   {
+    "source": "cofid",
+    "record_id": "cofid:not-100-g-cheese",
+    "nutrients": {
+     "calcium": 400.0
+    },
+    "preparation": "unknown",
+    "preparation_method": null,
+    "fortification": "unfortified",
+    "per_100_g_edible": false
+   }
+  ]
+ },
+ "urls": {
+  "accept": [
+   "https://www.example.com/products/synthetic",
+   "https://example.com",
+   "https://example.com/",
+   "https://example.com:8443/a/b.html",
+   "https://example.com./a",
+   "https://a-b.example.co.uk/x;y=1",
+   "https://EXAMPLE.com/Path",
+   "https://xn--caf-dma.example/menu"
+  ],
+  "reject": [
+   "http://www.example.com/a",
+   "HTTPS://www.example.com/a",
+   "https://www.example.com/a?b=1",
+   "https://www.example.com/a#b",
+   "https://user@www.example.com/a",
+   "https://user:pw@www.example.com/a",
+   "https://localhost/a",
+   "https://app.LOCALHOST/a",
+   "https://example/a",
+   "https://127.0.0.1/a",
+   "https://example.0x7f/a",
+   "https://example.123/a",
+   "https://[::1]/a",
+   "https://www.example.com:/a",
+   "https://www.example.com:0/a",
+   "https://www.example.com:65536/a",
+   "https://www.example.com:123456/a",
+   "https://www_x.example.com/a",
+   "https://www..example.com/a",
+   "https://.example.com/a",
+   "https://www.example.com/caf\u00e9",
+   "https://www.example.com/a b",
+   "https://www.example.com/a\u007f",
+   "https://",
+   "",
+   "https://www.example.com/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  ],
+  "open_food_facts": [
+   "https://world.openfoodfacts.org/product/1",
+   "https://openfoodfacts.org/",
+   "https://UK.OpenFoodFacts.org./x"
+  ]
+ },
+ "canonical_units": {
+  "energy_consumed": "kcal",
+  "protein": "g",
+  "fat_total": "g",
+  "fat_saturated": "g",
+  "fat_monounsaturated": "g",
+  "fat_polyunsaturated": "g",
+  "fiber": "g",
+  "sugar": "g",
+  "carbohydrates": "g",
+  "cholesterol": "mg",
+  "vitamin_a": "mcg",
+  "thiamin_b1": "mg",
+  "riboflavin_b2": "mg",
+  "niacin_b3": "mg",
+  "pantothenic_acid_b5": "mg",
+  "vitamin_b6": "mg",
+  "biotin_b7": "mcg",
+  "folate_b9": "mcg",
+  "vitamin_b12": "mcg",
+  "vitamin_c": "mg",
+  "vitamin_d": "mcg",
+  "vitamin_e": "mg",
+  "vitamin_k": "mcg",
+  "calcium": "mg",
+  "chloride": "mg",
+  "iron": "mg",
+  "magnesium": "mg",
+  "phosphorus": "mg",
+  "potassium": "mg",
+  "sodium": "mg",
+  "zinc": "mg",
+  "chromium": "mcg",
+  "copper": "mg",
+  "iodine": "mcg",
+  "manganese": "mg",
+  "molybdenum": "mcg",
+  "selenium": "mcg",
+  "water": "mL",
+  "caffeine": "mg"
+ }
+}
