@@ -64,13 +64,15 @@ public struct FoodProposalReviewAction: Codable, Equatable, Sendable {
 /// The applicability gate decision recorded when the user acted. The model's choice is
 /// recorded, never re-run, and never becomes save authority on its own.
 public struct FoodProposalReviewGateRecord: Codable, Equatable, Sendable {
-    public static let knownChoicePolicies: Set<String> = [GenericFoodProposalReview.choicePolicyVersion]
+    /// Frozen for manifest v2 (#508 phase 2): the reviewer's own identifier moved to v4.
+    public static let choicePolicyVersion = "food-proposal-review-choice-v3"
+    public static let knownChoicePolicies: Set<String> = [choicePolicyVersion]
     public let choicePolicy: String
     public let rankingAvailable: Bool
     public let selectionChoice: String
     public let representativeSourceOnly: Bool
 
-    init(choicePolicy: String = GenericFoodProposalReview.choicePolicyVersion, rankingAvailable: Bool,
+    init(choicePolicy: String = Self.choicePolicyVersion, rankingAvailable: Bool,
                 selectionChoice: String, representativeSourceOnly: Bool) {
         self.choicePolicy = choicePolicy; self.rankingAvailable = rankingAvailable
         self.selectionChoice = selectionChoice; self.representativeSourceOnly = representativeSourceOnly
@@ -383,23 +385,26 @@ public struct ReviewedFoodProposalConfirmation: Sendable {
         self.ids = ids; self.clock = clock; self.encoder = encoder; self.digester = digester
     }
 
-    /// The single review step. The applicability gate is enforced here, in the application:
-    /// only the current suggested eligible candidate of a successful check can prepare, and
-    /// a representative-only source cannot be used as an exact product. Writes manifest v3
-    /// (#508) with that one candidate offered and chosen; the gate decision is recorded in the
-    /// manifest and re-checked from that record at save and reopen.
+    /// The single review step. The applicability gate is enforced here, in the application: only
+    /// a candidate the review's offer contains can prepare (#508 phase 2: the suggestion or a
+    /// competing panel the person picked, or a pick between competing panels on a `clarify`
+    /// answer), and a representative-only source cannot be used as an exact product. Writes
+    /// manifest v3 with the whole offer, the model's answer and the person's choice; the record
+    /// is re-checked by v3 admission at save and reopen.
     public func prepare(review: GenericFoodProposalReview, proposal: BoundFoodProposal, scope: FoodProposalReviewScope,
                         locale: LedgerText) throws -> PopulatedFoodConfirmation {
         guard review.permitsConfirmation(of: proposal), let selection = review.selection,
               !(review.representativeSourceOnly && scope == .exactProduct) else {
             throw GenericFoodProposalError.invalidSelection
         }
-        let capturedAt = try Self.validated(proposal, query: review.foodTerms, bounds: .current)
+        let offer = review.offer
+        guard offer.candidates.contains(proposal) else { throw GenericFoodProposalError.invalidSelection }
+        let capturedAt = try Self.validated(proposal, query: review.foodTerms, bounds: .current, eligibility: \.choosable)
         let gate = FoodProposalReviewGateRecordV3(rankingAvailable: !review.rankingUnavailable,
             selectionChoice: selection.choice, personChoice: proposal.candidate.id,
             representativeSourceOnly: review.representativeSourceOnly)
         let manifest = FoodProposalReviewManifestV3(query: review.foodTerms, document: proposal.document,
-            candidate: proposal.candidate, offered: [proposal.candidate], scope: scope,
+            candidate: proposal.candidate, offered: offer.candidates.map(\.candidate), scope: scope,
             review: FoodProposalReviewActionV3(), gate: gate, reviewedAt: clock.now())
         guard manifest.isAdmissible else { throw GenericFoodProposalError.invalidSelection }
         return try build(manifestData: encoder.encode(manifest), version: Self.version3, proposal: proposal,
@@ -438,8 +443,9 @@ public struct ReviewedFoodProposalConfirmation: Sendable {
 
     /// v1 and v2 writers pass `.reviewManifestV1V2`, so they refuse a larger or part-read
     /// document before encoding instead of writing a manifest admission would reject.
-    private static func validated(_ proposal: BoundFoodProposal, query: String, bounds: FoodDocumentBounds) throws -> Date {
-        guard proposal.selectionEligible, !query.isEmpty, query.count <= 300,
+    private static func validated(_ proposal: BoundFoodProposal, query: String, bounds: FoodDocumentBounds,
+                                  eligibility: (BoundFoodProposal) -> Bool = \.selectionEligible) throws -> Date {
+        guard eligibility(proposal), !query.isEmpty, query.count <= 300,
               proposal.document.fits(bounds),
               bounds == .current || FoodProposalReviewManifestRecord.fitsVersion1Or2(proposal.document),
               !FoodProposalQueryPolicy.hasBasisConflict(query: query, basis: proposal.candidate.basis),

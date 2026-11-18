@@ -28,7 +28,8 @@ public protocol FoodSourceLeadSelecting: Sendable {
 }
 
 public struct GenericFoodProposalReview: Equatable, Sendable {
-    public static let choicePolicyVersion = "food-proposal-review-choice-v3"
+    /// The offer table of #508 (contract section 8.3), recorded by manifest v3 as its choice policy.
+    public static let choicePolicyVersion = FoodProposalReviewGateRecordV3.choicePolicyVersion
     public let foodTerms: String
     public let discovery: FoodWebDiscoveryResult?
     public let documents: [CapturedFoodDocument]
@@ -51,8 +52,12 @@ public struct GenericFoodProposalReview: Equatable, Sendable {
            FoodProposalQueryPolicy.hasBasisConflict(query: foodTerms, basis: proposal.candidate.basis) { return "clarify" }
         return selection.choice
     }
+    /// The candidates the person may confirm (#508 phase 2 gate, section 3). Always computed from
+    /// the recorded answer, the validation and the query; no caller can supply it.
+    public var offer: FoodProposalOffer { FoodProposalOffer(review: self) }
+    /// Only an offered candidate can be prepared; a pre-selection never authorises a save.
     public func permitsConfirmation(of proposal: BoundFoodProposal) -> Bool {
-        selection != nil && !rankingUnavailable && proposal.id == suggestedChoice && proposal.selectionEligible && validation.candidates.contains(proposal)
+        offer.candidates.contains(proposal)
     }
 
     public init(foodTerms: String, discovery: FoodWebDiscoveryResult?, documents: [CapturedFoodDocument],
@@ -254,7 +259,8 @@ public actor GenericFoodProposalReviewer: GenericFoodProposalReviewing {
         catch { throw GenericFoodProposalPartialFailure(discovery: result, reason: .invalidProposal, attemptedSourceURL: url) }
         var selected: FoodProposalSelection?
         var selectionFailure: FoodProposalSelectionFailure?
-        if let selection, validation.candidates.contains(where: \.selectionEligible) {
+        // The check runs whenever a candidate is choosable, including competing panels (#508).
+        if let selection, validation.candidates.contains(where: \.choosable) {
             do {
                 let suggested = try await selection.select(foodTerms: terms, documents: [document], validation: validation, key: key)
                 // Rebind even a substituted selector to this request's offered candidates.
@@ -271,5 +277,44 @@ public actor GenericFoodProposalReviewer: GenericFoodProposalReviewing {
         try Task.checkCancellation()
         return GenericFoodProposalReview(foodTerms: terms, discovery: result, documents: [document],
                                          validation: validation, selection: selected, selectionFailure: selectionFailure, attemptedSourceURL: url, representativeSourceOnly: representativeSourceOnly)
+    }
+}
+
+/// The offer table of contract #508 section 8.3, keyed on the answer the check recorded. Offerable
+/// means choosable (the domain rule) with no basis conflict with the query; identity and conflict
+/// are evaluated only between offerable candidates, never read from `BoundFoodProposal.status`.
+public struct FoodProposalOffer: Equatable, Sendable {
+    /// Offered candidates in extraction order.
+    public let candidates: [BoundFoodProposal]
+    /// The model's named candidate, shown as the pre-selection; `nil` when a pick is required.
+    public let preselectedID: String?
+    /// True for a `clarify` answer with competing panels: the warning line of answer O4 applies.
+    public let warns: Bool
+    public var isEmpty: Bool { candidates.isEmpty }
+    public var requiresPick: Bool { !candidates.isEmpty && preselectedID == nil }
+
+    static let none = FoodProposalOffer(candidates: [], preselectedID: nil, warns: false)
+    private init(candidates: [BoundFoodProposal], preselectedID: String?, warns: Bool) {
+        self.candidates = candidates; self.preselectedID = preselectedID; self.warns = warns
+    }
+
+    init(review: GenericFoodProposalReview) {
+        guard let selection = review.selection, !review.rankingUnavailable else { self = .none; return }
+        let offerable = review.validation.candidates.filter {
+            $0.choosable && !FoodProposalQueryPolicy.hasBasisConflict(query: review.foodTerms, basis: $0.candidate.basis)
+        }
+        if selection.choice == "clarify" {
+            for anchor in offerable {
+                let group = offerable.filter { FoodProposalBinding.sameIdentity($0.candidate, anchor.candidate) }
+                let conflicting = group.filter { member in
+                    group.contains { $0.id != member.id && FoodProposalBinding.conflicting(member.candidate, $0.candidate) }
+                }
+                if conflicting.count >= 2 { self.init(candidates: conflicting, preselectedID: nil, warns: true); return }
+            }
+            self = .none; return
+        }
+        guard let named = offerable.first(where: { $0.id == selection.choice }) else { self = .none; return }
+        self.init(candidates: offerable.filter { FoodProposalBinding.sameIdentity($0.candidate, named.candidate) },
+                  preselectedID: named.id, warns: false)
     }
 }

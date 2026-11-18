@@ -75,6 +75,23 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
         XCTAssertEqual(result.suggestedChoice, "c1")
     }
 
+    // #508 phase 2 (contract test 16): a page whose candidates conflict gets the applicability
+    // check, which was skipped before, and its answer is recorded and drives the offer.
+    func testCompetingPanelsGetTheCheckAndItsAnswerIsRecorded() async throws {
+        for (choice, offered, preselected) in [("c1", ["c1", "c2"], "c1" as String?), ("clarify", ["c1", "c2"], nil)] {
+            let ports = ReviewPorts(selectionChoice: choice, competingPanels: true)
+            let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports,
+                sourceSelection: ports, selection: ports)
+            let result = try await service.review(foodTerms: "tofu", sourceURL: url, key: key)
+            let calls = await ports.calls
+            XCTAssertEqual(calls, ["capture", "extract", "select"], choice)
+            XCTAssertTrue(result.validation.candidates.allSatisfy { $0.status == .conflictingCandidates && $0.choosable }, choice)
+            XCTAssertEqual(result.selection?.choice, choice)
+            XCTAssertEqual(result.offer.candidates.map(\.id), offered, choice)
+            XCTAssertEqual(result.offer.preselectedID, preselected, choice)
+        }
+    }
+
     func testEmptyFirstSourceUsesOneDistinctAlternativeWithoutRediscovery() async throws {
         let ports = ReviewPorts(emptyFirstOnly: true)
         let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports,
@@ -368,16 +385,18 @@ private actor ReviewPorts: FoodWebDiscovering, FoodDocumentCapturing, FoodPropos
     let leadURLs: [URL]
     let capturedURL: URL?
     let extraBlocks: Int
+    let competingPanels: Bool
     init(empty: Bool = false, emptyFirstOnly: Bool = false, captureError: FoodSourceAcquisitionError? = nil,
          extractionError: FoodWebDiscoveryError? = nil, selectionError: FoodWebDiscoveryError? = nil, selectionChoice: String = "c1",
          suspendCapture: Bool = false, sourceChoice: FoodSourceLeadDecision = .selected(index: 0, purpose: .primaryProduct, reason: "Source"),
          sourceError: FoodWebDiscoveryError? = nil, suspendSourceChoice: Bool = false,
          leadURLs: [URL] = [URL(string: "https://publisher.example/tofu")!, URL(string: "https://other.example/tofu")!],
-         capturedURL: URL? = nil, extraBlocks: Int = 0) {
+         capturedURL: URL? = nil, extraBlocks: Int = 0, competingPanels: Bool = false) {
         self.empty = empty; self.emptyFirstOnly = emptyFirstOnly; self.captureError = captureError; self.extractionError = extractionError
         self.selectionError = selectionError; self.selectionChoice = selectionChoice; self.suspendCapture = suspendCapture
         self.sourceChoice = sourceChoice; self.sourceError = sourceError; self.suspendSourceChoice = suspendSourceChoice
         self.leadURLs = leadURLs; self.capturedURL = capturedURL; self.extraBlocks = extraBlocks
+        self.competingPanels = competingPanels
     }
     func chooseSource(foodTerms: String, leads: [FoodWebLead], key: String) async throws -> FoodSourceLeadDecision {
         calls.append("chooseSource")
@@ -398,6 +417,7 @@ private actor ReviewPorts: FoodWebDiscovering, FoodDocumentCapturing, FoodPropos
         return try CapturedFoodDocument(id: "d1", url: (capturedURL ?? url).absoluteString, rawSha256: String(repeating: "a", count: 64),
             captureOrigin: "synthetic_fixture", retrievedAt: "2026-10-04T00:00:00Z",
             blocks: [.init(id: "b1", kind: "text", text: "Tofu Per 100 g Protein 6 g", locator: "line1")]
+                + (competingPanels ? [.init(id: "b2", kind: "text", text: "Tofu Per 100 g Protein 7 g", locator: "line2")] : [])
                 + (0..<extraBlocks).map { .init(id: "b\($0 + 2)", kind: "li", text: "Menu item \($0)", locator: "li\($0)") })
     }
     func extract(foodTerms: String, documents: [CapturedFoodDocument], key: String) async throws -> FoodProposalExtraction {
@@ -416,13 +436,28 @@ private actor ReviewPorts: FoodWebDiscovering, FoodDocumentCapturing, FoodPropos
             "identity_evidence": reference, "panel_evidence": reference,
             "basis": ["amount": "100", "unit": "g", "label": "Per 100 g", "evidence": reference],
             "nutrients": nutrients, "limitations": []]
+        var candidates = [candidate]
+        if competingPanels {
+            let second: [[String: Any]] = [["block_id": "b2", "quote": "Tofu Per 100 g Protein 7 g"]]
+            var other = candidate
+            other["id"] = "c2"; other["identity_evidence"] = second; other["panel_evidence"] = second
+            other["basis"] = ["amount": "100", "unit": "g", "label": "Per 100 g", "evidence": second]
+            other["nutrients"] = FoodProposalNutrientKey.allCases.map { nutrient -> [String: Any] in
+                let known = nutrient == .protein
+                return ["key": nutrient.rawValue, "state": known ? "declared" : "unknown", "value": known ? "7" as Any : NSNull(),
+                        "unit": known ? "g" as Any : NSNull(), "evidence": known ? second : [],
+                        "unknown_reason": known ? NSNull() : "not_observed" as Any]
+            }
+            candidates.append(other)
+        }
         let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(FoodProposalExtraction.self, from: JSONSerialization.data(withJSONObject:
-            ["version": FoodProposalExtraction.schemaVersion, "candidates": [candidate], "preferred_id": "c1"]))
+            ["version": FoodProposalExtraction.schemaVersion, "candidates": candidates, "preferred_id": "c1"]))
     }
     func select(foodTerms: String, documents: [CapturedFoodDocument], validation: FoodProposalValidation, key: String) async throws -> FoodProposalSelection {
         calls.append("select")
         if let selectionError { throw selectionError }
+        if competingPanels { return try .init(unscoredChoice: selectionChoice, validation: validation) }
         return try .init(choice: selectionChoice, probabilities: ["c1": 0.8, "none": 0.1, "clarify": 0.1], rawConfidence: 0.8, validation: validation)
     }
 }

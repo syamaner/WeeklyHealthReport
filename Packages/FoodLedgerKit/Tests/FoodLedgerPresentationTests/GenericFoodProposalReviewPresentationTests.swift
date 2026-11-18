@@ -303,6 +303,38 @@ final class GenericFoodProposalReviewPresentationTests: XCTestCase {
                        "reviewed-web-proposal-v3:food-proposal-binding-v7:reviewed-web-admission-v7")
     }
 
+    /// #508 phase 2: the pick starts at the pre-selection (none under clarify), changes only through
+    /// `pick`, ignores ids outside the offer, and resets with a new result.
+    func testPickStartsAtThePreselectionAndChangesOnlyByThePersonsAction() async throws {
+        for (choice, initial) in [("c1", "c1" as String?), ("clarify", nil)] {
+            let reviewer = ControlledProposalReview(); let model = make(reviewer, initialMarket: .unspecified)
+            model.foodTerms = "milk"
+            let task = Task { await model.search() }; await reviewer.waitForRequest()
+            await reviewer.complete(try ProposalPresentationFixture.competing(selection: choice)); await task.value
+            XCTAssertEqual(model.pickedID, initial, choice)
+            XCTAssertEqual(model.suggestedProposal?.id, initial, choice)
+            if initial == nil {
+                XCTAssertThrowsError(try model.prepare(try ProposalPresentationFixture.competing(selection: choice).validation.candidates[0],
+                                                       querySnapshot: "milk", scope: .representativeEstimate) as Any, "")
+            }
+            model.pick("c9")
+            XCTAssertEqual(model.pickedID, initial, "an id outside the offer is ignored")
+            model.pick("c2")
+            XCTAssertEqual(model.pickedID, "c2", choice)
+            let input = try model.prepare(try XCTUnwrap(model.suggestedProposal), querySnapshot: "milk", scope: .representativeEstimate)
+            XCTAssertEqual(input.evidence.first?.captureMethodVersion.value, "reviewed-web-proposal-v3")
+            XCTAssertTrue(model.diagnosticLines.contains("Offered: c1, c2 · pre-selected \(initial ?? "none") · pick required \(initial == nil)"))
+            let calls = await reviewer.callCount
+            XCTAssertEqual(calls, 1, "picking and preparing make no request")
+            // A new, different result starts again at its own pre-selection.
+            let next = Task { await model.search() }; await reviewer.waitForRequest()
+            await reviewer.complete(try ProposalPresentationFixture.result()); await next.value
+            XCTAssertEqual(model.pickedID, "c1")
+            model.cancel()
+            XCTAssertNil(model.pickedID)
+        }
+    }
+
     /// #196: a market change while a result is open makes it stale; Use this source cannot prepare it.
     func testMarketChangeWithOpenResultInvalidatesItAndBlocksPreparation() async throws {
         let reviewer = ControlledProposalReview(); let model = make(reviewer, initialMarket: .unspecified)
@@ -362,7 +394,7 @@ final class GenericFoodProposalReviewPresentationTests: XCTestCase {
             XCTAssertFalse(copy.text.contains(failure.rawValue), "No diagnostic labels on screen")
             XCTAssertEqual(copy.offersLookUpAgain, failure != .requestRejected, failure.rawValue)
             texts.insert(copy.text)
-            XCTAssertEqual(GenericFoodProposalReviewCopy.summary(review, suggested: nil), "Found 1 source · the check did not finish")
+            XCTAssertEqual(GenericFoodProposalReviewCopy.summary(review), "Found 1 source · the check did not finish")
             XCTAssertEqual(GenericFoodProposalReviewCopy.status(try XCTUnwrap(review.validation.candidates.first), in: review),
                            "Not checked for this food")
         }
@@ -377,7 +409,7 @@ final class GenericFoodProposalReviewPresentationTests: XCTestCase {
         let legacy = GenericFoodProposalReviewCopy.noSuggestion(unrecorded)
         XCTAssertTrue(legacy.text.hasPrefix("Checking whether a source suits this food was unavailable"))
         XCTAssertTrue(legacy.offersLookUpAgain)
-        XCTAssertEqual(GenericFoodProposalReviewCopy.summary(unrecorded, suggested: nil), "Found 1 source · none suits this food")
+        XCTAssertEqual(GenericFoodProposalReviewCopy.summary(unrecorded), "Found 1 source · none suits this food")
         let declined = try ProposalPresentationFixture.result(selection: "none")
         XCTAssertEqual(GenericFoodProposalReviewCopy.noSuggestion(declined),
                        .init(text: "No usable source was found for this food.", action: nil))
@@ -490,6 +522,30 @@ private actor ControlledProposalReview: GenericFoodProposalReviewing {
 }
 
 private enum ProposalPresentationFixture {
+    /// One page printing two panels of the same milk with different energy values (#508 phase 2).
+    static func competing(selection: String) throws -> GenericFoodProposalReview {
+        let lines = ["Milk Per 100g Energy 100kcal", "Milk Per 100g Energy 120kcal"]
+        let document = try GenericFoodDocumentProjector.project(Data(lines.joined(separator: "\n").utf8), url: URL(string: "https://example.com/food")!,
+            mediaType: "text/plain", retrievedAt: Date(timeIntervalSince1970: 0), origin: "synthetic_fixture")
+        let candidates: [[String: Any]] = [("c1", "b1", lines[0], "100"), ("c2", "b2", lines[1], "120")].map { id, block, text, energy in
+            let ref: [[String: Any]] = [["block_id": block, "quote": text]]
+            let nutrients: [[String: Any]] = FoodProposalNutrientKey.allCases.map { key in
+                ["key": key.rawValue, "state": key == .energy ? "declared" : "unknown", "value": key == .energy ? energy as Any : NSNull(),
+                 "unit": key == .energy ? "kcal" as Any : NSNull(), "evidence": key == .energy ? ref : [],
+                 "unknown_reason": key == .energy ? NSNull() : "not_observed" as Any]
+            }
+            return ["id": id, "document_id": document.id, "name": "Milk", "brand": NSNull(), "preparation": NSNull(),
+                    "identity_evidence": ref, "panel_evidence": ref,
+                    "basis": ["amount": "100", "unit": "g", "label": "Per 100g", "evidence": ref], "nutrients": nutrients, "limitations": []]
+        }
+        let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let extraction = try decoder.decode(FoodProposalExtraction.self, from: JSONSerialization.data(withJSONObject:
+            ["version": FoodProposalExtraction.schemaVersion, "candidates": candidates, "preferred_id": "c1"]))
+        let validation = try FoodProposalBinding.validate(extraction, documents: [document])
+        return GenericFoodProposalReview(foodTerms: "milk", discovery: nil, documents: [document], validation: validation,
+            selection: try FoodProposalSelection(unscoredChoice: selection, validation: validation))
+    }
+
     /// Several eligible candidates on one synthetic page, each with its own name, basis and preparation.
     static func candidates(_ specs: [(name: String, basis: String, preparation: String?)]) throws -> [BoundFoodProposal] {
         let text = "Whey Protein Per 100g Per 30g Energy 100kcal"

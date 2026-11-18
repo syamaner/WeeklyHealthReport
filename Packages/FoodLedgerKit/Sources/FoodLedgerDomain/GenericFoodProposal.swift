@@ -423,13 +423,13 @@ public struct FoodProposalSelection: Equatable, Sendable {
     public let calibration = "not_calibrated_for_nutrition"
     /// A categorical checker has no calibrated probabilities. Never invent them.
     public init(unscoredChoice choice: String, validation: FoodProposalValidation) throws {
-        guard Set(validation.candidates.filter(\.selectionEligible).map(\.id) + ["none", "clarify"]).contains(choice) else {
+        guard Set(validation.candidates.filter(\.choosable).map(\.id) + ["none", "clarify"]).contains(choice) else {
             throw GenericFoodProposalError.invalidSelection
         }
         self.choice = choice; self.probabilities = [:]; self.rawConfidence = nil
     }
     public init(choice: String, probabilities: [String: Double], rawConfidence: Double?, validation: FoodProposalValidation) throws {
-        let options = Set(validation.candidates.filter(\.selectionEligible).map(\.id) + ["none", "clarify"])
+        let options = Set(validation.candidates.filter(\.choosable).map(\.id) + ["none", "clarify"])
         guard options.contains(choice), Set(probabilities.keys) == options,
               probabilities.values.allSatisfy({ $0.isFinite && (0...1).contains($0) }),
               abs(probabilities.values.reduce(0, +) - 1) <= 0.02,

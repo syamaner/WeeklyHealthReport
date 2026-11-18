@@ -598,6 +598,66 @@ final class FoodLogAppTests: XCTestCase {
         }
     }
 
+    /// #508 phase 2, contract test 20 (app-hosted, see the phase 2 gate): a lookup result with two
+    /// competing panels and a clarify answer offers both with nothing selected; the person picks the
+    /// second, uses the source, logs on Confirm, and the saved entry reopens with the picked values.
+    func testCompetingPanelsPickUseAndConfirmSavesThePickedPanel() async throws {
+        let root = try makeIsolatedRoot()
+        let lines = ["Synthetic tofu Per 100g Protein 6g", "Synthetic tofu Per 100g Protein 8g"]
+        let source = try GenericFoodDocumentProjector.project(Data(lines.joined(separator: "\n").utf8),
+            url: URL(string: "https://example.com/synthetic-tofu")!, mediaType: "text/plain",
+            retrievedAt: Date(timeIntervalSince1970: TimeInterval(Int(Date().timeIntervalSince1970) - 60)), origin: "synthetic_fixture")
+        let candidates: [[String: Any]] = [("c1", "b1", lines[0], "6"), ("c2", "b2", lines[1], "8")].map { id, block, text, protein in
+            let reference: [[String: Any]] = [["block_id": block, "quote": text]]
+            let nutrients: [[String: Any]] = FoodProposalNutrientKey.allCases.map { key in
+                ["key": key.rawValue, "state": key == .protein ? "declared" : "unknown",
+                 "value": key == .protein ? protein as Any : NSNull(), "unit": key == .protein ? "g" as Any : NSNull(),
+                 "evidence": key == .protein ? reference : [], "unknown_reason": key == .protein ? NSNull() : "not_observed" as Any]
+            }
+            return ["id": id, "document_id": source.id, "name": "Synthetic tofu", "brand": NSNull(), "preparation": NSNull(),
+                    "identity_evidence": reference, "panel_evidence": reference,
+                    "basis": ["amount": "100", "unit": "g", "label": "Per 100g", "evidence": reference],
+                    "nutrients": nutrients, "limitations": []]
+        }
+        let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let extraction = try decoder.decode(FoodProposalExtraction.self, from: JSONSerialization.data(withJSONObject:
+            ["version": FoodProposalExtraction.schemaVersion, "preferred_id": "c1", "candidates": candidates]))
+        let validation = try FoodProposalBinding.validate(extraction, documents: [source])
+        let review = GenericFoodProposalReview(foodTerms: "Synthetic tofu", discovery: nil, documents: [source],
+            validation: validation, selection: try FoodProposalSelection(unscoredChoice: "clarify", validation: validation),
+            attemptedSourceURL: URL(string: source.url))
+        XCTAssertEqual(review.offer.candidates.map(\.id), ["c1", "c2"])
+        XCTAssertNil(review.offer.preselectedID)
+        let before = FoodWebLookupOfferContent(review: review, selectedID: nil, scope: nil)
+        XCTAssertEqual(before.disabledReason, "Choose a panel to use this source.")
+        XCTAssertNotNil(before.warningLine)
+        let picked = try XCTUnwrap(review.offer.candidates.first { $0.id == "c2" })
+        let input = try ReviewedFoodProposalConfirmation(ids: RandomLedgerIDGenerator(), clock: SystemLedgerClock(),
+            encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
+            .prepare(review: review, proposal: picked, scope: .representativeEstimate, locale: LedgerText("en_GB"))
+        let model = root.model(for: input, prefillSourceQuantity: false)
+        model.send(.setQuantity(50, .grams))
+        for facet in model.pendingDifferences {
+            if let choice = model.offeredChoices(facet).first(where: { $0 == .notSure }) ?? model.offeredChoices(facet).first {
+                model.send(.decideDifference(facet, choice))
+            }
+        }
+        model.log()
+        let saved = try XCTUnwrap(model.savedResult, "\(model.requirements) \(model.state.phase)")
+        XCTAssertEqual(saved.evidence, input.evidence)
+        guard case let .text(payload) = saved.evidence[0].originalPayload,
+              case let .v3(manifest)? = FoodProposalReviewManifestRecord.decode(Data(payload.value.utf8)) else {
+            return XCTFail("the saved entry retains a v3 manifest")
+        }
+        XCTAssertEqual(manifest.gate.selectionChoice, "clarify")
+        XCTAssertEqual(manifest.gate.personChoice, "c2")
+        XCTAssertEqual(manifest.offered.map(\.id), ["c1", "c2"])
+        XCTAssertEqual(manifest.candidate.nutrients.first { $0.key == .protein }?.value, "8")
+        XCTAssertEqual(FoodWebLookupOfferContent(manifest: manifest).warningLine, before.warningLine)
+        let reopened = try XCTUnwrap(try root.model(reopening: saved.logItem.logItemID))
+        XCTAssertEqual(reopened.logButtonTitle, "Save changes")
+    }
+
     private func saveReviewedWebEntry(_ root: FoodLedgerCompositionRoot) throws -> StoredFoodConfirmation {
         let source = try GenericFoodDocumentProjector.project(Data("Synthetic tofu Per 100g Protein 6g".utf8),
             url: URL(string: "https://example.com/synthetic-tofu")!, mediaType: "text/plain",
