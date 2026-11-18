@@ -111,7 +111,7 @@ or `as sold, cooked`; anything else refuses the input row. The evaluator also co
 | Skill | `apply_estimates.py` | Output name by schema, retiring the other. |
 | Docs | Daily export v2 contract | Dated note for version 5, including that a build with version 5 only rejects assistant fields (fails closed). |
 | Docs | `assistant-pasted-estimates-v1-proposal.md` | Dated note: food contract 12, migration `v12_assistant_estimate`, daily export version 4 unchanged, union at 6. |
-| Docs | `privacy-and-egress.md` | Contract section 5's statements: the barcode in an exported photo address (app, factual), and the photo fetch and the agent's photo read (developer tooling), the last two **held for the owner's wording approval (F6) before first use**. |
+| Docs | `privacy-and-egress.md` | Contract section 5's statements: the barcode in an exported photo address (app, factual), and the photo fetch and the agent's photo read (developer tooling), the last two approved by the owner on 18 November 2026 (F6). |
 
 Dependency direction is unchanged: domain and application stay free of frameworks; the skill is
 outside the app; no new network path in the app.
