@@ -60,7 +60,7 @@ final class PersonalFoodDatabaseCodecV2Tests: XCTestCase {
         let m = try manifest()
         // The estimates-only codes (estimates v2) are no v2 file's; the estimates manifest lists them.
         XCTAssertEqual(Set(PersonalFoodDatabaseRuleCode.allCases).subtracting(PersonalFoodDatabaseRuleCode.estimatesOnly)
-            .map(\.rawValue).sorted(), m.rule_codes.sorted())
+            .subtracting(PersonalFoodDatabaseRuleCode.estimatesV3Only).map(\.rawValue).sorted(), m.rule_codes.sorted())
         XCTAssertEqual(Set(PersonalFoodDatabaseRuleCode.v2Only.map(\.rawValue)), Set(m.v2_only_rule_codes))
         XCTAssertEqual(Dictionary(uniqueKeysWithValues: NutrientKey.allCases.map { ($0.rawValue, $0.canonicalUnit.rawValue) }),
                        m.canonical_units)

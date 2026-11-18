@@ -101,6 +101,32 @@ record of the same preparation, per 100 g and not fortified; with the codec's ow
 example `estimate-own-held`, in the counts). `basis` is a national composition estimate on an entry
 that is not per 100 g, or from a record that is not; no density is ever inferred.
 
+## 1a. `pfc-accepted-estimates-v2` (label photo estimates)
+
+[Label photo estimates v1](../../../docs/personal-food-catalogue-off-estimates-v1-proposal.md) and its
+[phase gate](../../../docs/personal-food-catalogue-off-estimates-v1-phase.md). Input v2 is v1 plus the
+source type `product_dataset_photo`; input v1 keeps refusing that token. `estimates_input.build`
+writes v2 exactly when a row is a photo row.
+
+A photo row is a `nutrient` row with `value` and `unit`, `underlying_source` `not_applicable`, and one
+more field, `ready_to_eat` (`true` or `false`), set by the owner on the review sheet. Its evidence:
+
+- `source_reference`: the photo address, exactly `https://images.openfoodfacts.org/images/products/`,
+  all-digit segments, then one file name; `page_access` `direct_read`; `source_digest` the SHA-256
+  of the photo kept privately (required); `retrieved_on` required; `derivation` null.
+- `method` `direct` only for a photo of the barcode the entry's own label record cites, otherwise
+  `carried_from_similar_food`; `quality` at most `medium`, set by the owner.
+- `source_state` one of the exact strings `as sold`, `as sold, cooked`, `as prepared`, `raw`,
+  `cooked`, `dried`, `frozen`, `canned`, `drained`, `smoked`, compatible with the entry's state (gate
+  section 2.4); `stated_assumption` only with `ready_to_eat: true` and `as sold` or `as sold, cooked`.
+- Only printed per 100 g (or per 100 ml) values; a bound such as "<0.5 g" is not a row.
+
+A photo row is withheld (counted) when a refusal row of class `open_food_facts`, `per_entry_exclusion`,
+`value_fault` or `unresolved_a1` names the same entry and nutrient (or the whole entry), whatever its
+source type, or names the same barcode. The writer then produces
+`out/personal-food-catalogue-estimates-v3.json` in place of the v2 name, and only when at least one
+photo estimate is admitted.
+
 ## 2. `pfc-estimate-refusals-v1`
 
 Required whenever `accepted-estimates.json` exists: E3 refusals bind by default, so the writer

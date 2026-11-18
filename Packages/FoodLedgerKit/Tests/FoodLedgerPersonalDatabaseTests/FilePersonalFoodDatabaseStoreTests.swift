@@ -370,6 +370,25 @@ final class FilePersonalFoodDatabaseStoreTests: XCTestCase {
         XCTAssertNil(v1.manifest)
     }
 
+    /// Label photo estimates (#518, gate test 1): an installed estimates v3 catalogue's manifest keeps
+    /// its byte form and reopens; an unknown schema still fails closed.
+    func testEstimatesV3ManifestRoundTripsAndReopens() throws {
+        let a = try Self.release("first")
+        let v3 = PersonalFoodDatabaseManifest(schema: PersonalFoodDatabaseSchema.estimatesV3.rawValue,
+            releaseID: a.manifest.releaseID, fileSHA256: a.manifest.fileSHA256, generated: a.manifest.generated,
+            importedAt: a.manifest.importedAt, entryCount: a.manifest.entryCount)
+        let text = String(decoding: try PersonalFoodDatabaseStoredManifest(v3).encoded(), as: UTF8.self)
+        XCTAssertTrue(text.contains(#""schema":"personal-food-catalogue-estimates-v3","version":1}"#))
+        let decoded = try JSONDecoder().decode(PersonalFoodDatabaseStoredManifest.self, from: Data(text.utf8))
+        XCTAssertEqual(decoded.manifest, v3)
+        XCTAssertEqual(String(decoding: try decoded.encoded(), as: UTF8.self), text)
+        try makeStore().install(bytes: a.bytes, manifest: v3)
+        XCTAssertEqual(try makeStore().activeRelease()?.manifest, v3)
+        let unknown = try JSONDecoder().decode(PersonalFoodDatabaseStoredManifest.self,
+            from: Data(text.replacingOccurrences(of: "estimates-v3", with: "estimates-v4").utf8))
+        XCTAssertNil(unknown.manifest)
+    }
+
     /// Qodo (local review): reinstalling the same bytes with a manifest of another schema replaces the
     /// folder's manifest rather than reusing the old one, so a wrong schema can be repaired.
     func testReinstallWithAnotherSchemaRewritesTheManifest() throws {

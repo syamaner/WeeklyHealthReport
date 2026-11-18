@@ -214,7 +214,7 @@ public struct ApprovedEstimateCaptureManifest: Codable, Equatable, Sendable {
             guard (compositionSource == nil) == (composition == nil), (pageAccess == nil) == (access == nil),
                   (retrievedOn == nil) == (date == nil), national == (composition != nil), national == (access == nil),
                   (method == .derived) == (derivation != nil) else { return nil }
-            return PersonalFoodDatabaseEstimateEvidence(
+            let typed = PersonalFoodDatabaseEstimateEvidence(
                 id: id, entryID: entryID, nutrient: key, sourceType: sourceType, compositionSource: composition,
                 sourceReference: sourceReference, pageAccess: access, sourceDigest: sourceDigest, retrievedOn: date,
                 sourceState: sourceState, targetState: targetState, stateBasis: stateBasis, method: method,
@@ -224,6 +224,8 @@ public struct ApprovedEstimateCaptureManifest: Codable, Equatable, Sendable {
                                                            sourceValue: $0.sourceValue.value, sourceUnit: $0.sourceValue.unit)
                 },
                 quality: quality)
+            // A label photo record keeps its photo rules when stored (label photo estimates v1 2.1).
+            return PersonalFoodDatabasePhotoAddress.recordIsValid(typed) ? typed : nil
         }
     }
 
@@ -287,6 +289,11 @@ public struct ApprovedEstimateCaptureManifest: Codable, Equatable, Sendable {
     }
 
     public func estimate(_ key: NutrientKey) -> Estimate? { estimates.first { $0.nutrient == key.rawValue } }
+
+    /// Whether any estimate is a label photo estimate: such a manifest needs food contract 11.
+    public var holdsPhotoEstimate: Bool {
+        estimates.contains { $0.evidence.sourceType == PersonalFoodDatabaseEstimateSourceType.productDatasetPhoto.rawValue }
+    }
 }
 
 /// `pfd-estimate-left-out-v1`: the estimated nutrients the owner left out of one saved resolution

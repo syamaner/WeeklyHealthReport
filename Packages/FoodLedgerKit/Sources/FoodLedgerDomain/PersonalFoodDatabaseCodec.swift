@@ -288,7 +288,9 @@ struct PersonalFoodDatabaseChecker {
             return err(.topKeys)
         }
         func names(_ s: PersonalFoodDatabaseSchema) -> Bool { schema.isString(PFDText(bytes: Array(s.rawValue.utf8))) }
-        let estimates = names(.estimatesV2)
+        let estimatesSchema: PersonalFoodDatabaseSchema? = names(.estimatesV3) ? .estimatesV3
+            : names(.estimatesV2) ? .estimatesV2 : nil
+        let estimates = estimatesSchema != nil
         if keys == R.topKeysEstimates {
             if !estimates, !names(.v1), !names(.v2) { return err(.schema) }
             if !estimates { return err(.topKeys) }
@@ -359,7 +361,8 @@ struct PersonalFoodDatabaseChecker {
                 marks.append(codes.count)
                 let failed = Set((0..<items.count).filter { marks[$0 + 1] > marks[$0] })
                 var estimateChecker = PersonalFoodDatabaseEstimateChecker()
-                estimateChecker.check(doc, failedItems: failed, duplicateIDs: duplicateIDs)
+                estimateChecker.check(doc, failedItems: failed, duplicateIDs: duplicateIDs,
+                                      schema: estimatesSchema ?? .estimatesV2)
                 codes += estimateChecker.codes
             }
         }

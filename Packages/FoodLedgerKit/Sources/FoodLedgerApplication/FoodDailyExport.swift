@@ -14,6 +14,10 @@ public struct FoodDailyExportDocument: Codable, Equatable, Sendable {
     /// catalogue v2, daily export version 3): schema 2's shape plus the estimate fields. Any other
     /// document is written as schema 2, byte for byte as before.
     public static let estimatesSchemaVersion = 3
+    /// The schema of a document holding at least one label photo estimate (label photo estimates
+    /// v1, daily export version 5): schema 3's shape plus the `product_dataset_photo` token. Version 4
+    /// is claimed by assistant-pasted estimates and not built; a later union takes a new number.
+    public static let photoEstimatesSchemaVersion = 5
 
     public let foodDailySchemaVersion: Int
     public let reportDate: String
@@ -585,8 +589,11 @@ public enum FoodDailyExportBuilder {
         // Schema 3 only for a document holding an approved estimate; a day whose only estimate was
         // withheld or left out holds none and is written as schema 2.
         let holdsEstimate = entries.contains { FoodDailyExportShape.holdsApprovedEstimate($0) }
+        // Schema 5 only for a document holding a label photo estimate; otherwise as before, byte for byte.
+        let holdsPhoto = entries.contains { FoodDailyExportShape.holdsPhotoEstimate($0) }
         let document = FoodDailyExportDocument(
-            foodDailySchemaVersion: holdsEstimate ? FoodDailyExportDocument.estimatesSchemaVersion
+            foodDailySchemaVersion: holdsPhoto ? FoodDailyExportDocument.photoEstimatesSchemaVersion
+                : holdsEstimate ? FoodDailyExportDocument.estimatesSchemaVersion
                 : FoodDailyExportDocument.schemaVersion, reportDate: request.reportDate,
             timeZone: request.timeZone.identifier, dataAsOf: timestamp.string(request.dataAsOf),
             exportedAt: timestamp.string(request.exportedAt), nutrientCatalogueVersion: NutrientSet.catalogueVersion,

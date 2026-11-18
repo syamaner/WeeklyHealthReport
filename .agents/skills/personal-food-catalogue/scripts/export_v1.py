@@ -65,6 +65,9 @@ SCHEMA = SCHEMA_V2  # what build() writes
 # Labelled estimates on catalogue v2 (docs/personal-food-catalogue-estimates-v2-proposal.md): v2 plus
 # `estimate_evidence` and each entry's `estimated_nutrients`. The estimate rules are in estimates_v2.py.
 SCHEMA_ESTIMATES_V2 = "personal-food-catalogue-estimates-v2"
+# Label photo estimates (docs/personal-food-catalogue-off-estimates-v1-proposal.md): v2 estimates plus the
+# `product_dataset_photo` source type, written only when such an estimate exists. Rules in estimates_v3.py.
+SCHEMA_ESTIMATES_V3 = "personal-food-catalogue-estimates-v3"
 # Catalogue v2 (import v2 section 3): the app's per-serving scaling, off-product-projection-v6.
 MASS_G_TO_MG = ("mass-g-to-mg", "v1")
 SERVING_TO_100 = ("off-serving-to-100", "v1")  # not a calculation (calculated: false)
@@ -436,7 +439,7 @@ def _check(doc, report):
     if keys != TOP_KEYS and keys != TOP_KEYS_ESTIMATES:
         return err("top-keys", f"top-level keys must be exactly {sorted(TOP_KEYS)}, or those plus estimate_evidence")
     schema = doc["schema"]
-    estimates = schema == SCHEMA_ESTIMATES_V2
+    estimates = schema in (SCHEMA_ESTIMATES_V2, SCHEMA_ESTIMATES_V3)
     if keys == TOP_KEYS_ESTIMATES:
         if not estimates and schema != SCHEMA_V1 and schema != SCHEMA_V2:
             return err("schema", "unknown schema")
