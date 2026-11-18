@@ -5001,3 +5001,9 @@ Excluded:
 - the archive, export, upload and App Store Connect calls, which use no API tokens.
 
 Pricing: `claude-opus-5-5` at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, so the figure is a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
+## WHR-COFID-UNIT-2026-11-18: Claude Code estimates writer reads CoFID units as the app does
+
+The session (`da6b123c-cf92-4d58-9bb7-540385b44d83`, `claude-opus-5-5`) found, while validating the owner's private catalogue with the app's own importer, that the estimates writer wrote CoFID water (held in g, canonical mL) as an estimate the app refuses (`value-unquantified`), failing the whole file. The fix makes the writer read a CoFID value in another unit as unknown, as the app's adapter does, with two tests. Reviewed by a blind `invariant-reviewer` (pass with notes, applied); the configured local Codex model was not available for a ChatGPT login.
+
+Unmeasured: no boundary was captured for this fix separately from the private catalogue work it was found in, so no token figure is recorded rather than an estimate.

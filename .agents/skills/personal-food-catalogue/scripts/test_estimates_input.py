@@ -453,6 +453,9 @@ class CoFIDUnits(unittest.TestCase):
             for key, value in rec["nutrients"].items():
                 if value.get("source_unit") != value.get("canonical_unit"):
                     self.assertNotIn(key, facts, rec["record_id"])
+                elif value.get("state") == "numeric" and export_v1.CANON_UNITS.get(key) == value.get("canonical_unit"):
+                    # and nothing in the same unit is dropped
+                    self.assertEqual(facts.get(key), float(value["value"]), rec["record_id"])
 
 
 class EndToEnd(unittest.TestCase):
