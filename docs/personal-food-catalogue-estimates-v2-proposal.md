@@ -11,6 +11,13 @@ It is a delta on two accepted contracts and repeats neither:
 implemented) and [import v2](personal-food-catalogue-import-v2.md) (approved 13 November 2026,
 implemented). Everything in those documents that this one does not name stays as written.
 
+**Amendment, 18 November 2026 ([label photo estimates](personal-food-catalogue-off-estimates-v1-proposal.md), accepted, not implemented).**
+This schema is not widened. A new schema, `personal-food-catalogue-estimates-v3`, adds the source type
+`product_dataset_photo` for Open Food Facts label photos. Section 3.1's "never re-admissible" list is
+unchanged: nothing is re-admitted, and a photo estimate is refused for any entry and nutrient E3
+withheld. The v3 schema caps that source type at `medium`; section 3.3's tiers and labels are
+unchanged.
+
 **Amendment, 16 November 2026 ([assistant-pasted estimates v1](assistant-pasted-estimates-v1-proposal.md), accepted, not implemented).**
 That contract is a delta on this one and changes two points; everything else here stands.
 - Sections 3.3 and 5, which tier is shown: the tier shown and exported for a log is the capture
