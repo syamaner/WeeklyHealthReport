@@ -50,8 +50,14 @@ def _canonical_unit(values: dict) -> dict:
 
 
 def cofid_facts(rec: dict) -> dict:
+    """As the app's CoFID adapter reads a record (`CoFIDGenericFoodSearch`): a value whose source unit is
+    not the key's canonical unit is unknown, never converted. Today that is water, held in g against a
+    canonical mL, so a water estimate is never written that the app's importer would refuse."""
     identity = rec["identity"]
-    return {"nutrients": _canonical_unit(A.cofid_nutrients(rec)), "preparation": identity["preparation"],
+    same_unit = {k: v for k, v in rec["nutrients"].items()
+                 if isinstance(v, dict) and v.get("source_unit") == v.get("canonical_unit")}
+    return {"nutrients": _canonical_unit(A.cofid_nutrients({**rec, "nutrients": same_unit})),
+            "preparation": identity["preparation"],
             "fortification": identity["fortification"], "per_100_g": identity["serving_basis"] == "per_100_g"}
 
 
