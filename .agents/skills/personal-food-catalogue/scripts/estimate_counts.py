@@ -42,7 +42,8 @@ CLASSES = RE_ADMISSIBLE + NEVER
 ACCEPT = ("accepted", "not_accepted", "withdrawn")
 SENTENCE = "The evaluation withheld this source and the owner re-admitted it."
 MUST_BE_ZERO = ("close_reference_as_same_food", "refused_not_readmitted", "readmitted_above_medium",
-                "aggregator_not_stated_above_medium", "composite_above_low", "composite_without_sentence")
+                "aggregator_not_stated_above_medium", "composite_above_low", "composite_without_sentence",
+                "composite_other_product_page")
 # `photo_over_open_food_facts`: photo estimates admitted where a refusal row of class `open_food_facts`
 # matches (gap estimates amendment G3); reported, never fatal.
 REPORTED = ("readmitted", "no_e3_counterpart", "photo_over_open_food_facts")
@@ -298,9 +299,11 @@ def six_counts(doc: dict, accepted_rows: list, lists: Lists) -> dict:
                 photo_state += not V3.state_compatible(it["state"], rec["source_state"], rec["state_basis"])
                 counts["photo_over_open_food_facts"] += (
                     status == I.CLEAR and "open_food_facts" in lists.photo_classes(it["id"], key, rec))
-            if national and it["product_type"] == "packaged_composite":
+            if it["product_type"] == "packaged_composite" and (national or E.web_similar(rec)):
                 counts["composite_above_low"] += rec["quality"] != "low"
                 counts["composite_without_sentence"] += I.COMPOSITE_SENTENCE not in rec["assumption"]
+                # Amendment G5: a manufacturer page about another product is another brand's label.
+                counts["composite_other_product_page"] += rec["source_type"] == "manufacturer_page"
     list_counts = lists.list_checks()
     checks = []
     if without_sentence:

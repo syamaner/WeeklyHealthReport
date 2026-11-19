@@ -763,6 +763,11 @@ ESTIMATE_CASES = {
     # gap estimates amendment G1: a national estimate on a composite dish is at most `low`
     "quality-composite-national-medium": ("codec", ["estimate-quality"], lambda d: put(
         d, DRINK, "sugar", 2.0, national("cofid:wine", "carried_from_similar_food", "stated_assumption", "medium"))),
+    # amendment G5: a web page value carried from a similar food onto a composite dish is at most `low`
+    "quality-composite-aggregator-similar-medium": ("codec", ["estimate-quality"], lambda d: put(
+        d, CRISPS, "protein", 6.0, page("carried_from_similar_food", "stated_assumption", "medium", "aggregator"))),
+    "quality-composite-manufacturer-similar-medium": ("codec", ["estimate-quality"], lambda d: put(
+        d, CRISPS, "protein", 6.0, page("carried_from_similar_food", "stated_assumption", "medium"))),
     # amendment G2: `estimate-basis` is an importer code, checked against the record
     "basis-non-own-record": ("importer", ["estimate-basis"], lambda d: put(
         d, DRINK, "sugar", 4.5, national("cofid:juice", "carried_from_similar_food", "stated_assumption", "low"))),
@@ -857,6 +862,10 @@ ESTIMATE_ACCEPT = {  # name -> (stage that accepts it, document)
     # an estimate beside a merged record: the estimate precedes the record on its own key only
     "estimate-beside-merged-record": ("importer", lambda: _est(lambda d: (
         put(d, OATS, "protein", 12.5, page()), put(d, OATS, "fiber", 9.0, page())))),
+    # amendment G5: a generic web page value on a composite dish at `low`
+    "composite-aggregator-similar-at-low": ("importer", lambda: _est(lambda d: put(
+        d, CRISPS, "protein", 6.0, page("carried_from_similar_food", "stated_assumption", "low", "aggregator",
+                                        assumption="A generic recipe, not this product's. Synthetic.")))),
     # amendment G2: a per 100 ml record, and a quantified zero from a per 100 g record, on a per 100 ml entry
     "per-100-ml-record-on-per-100-ml-entry": ("importer", lambda: _est(lambda d: put(
         d, DRINK, "sugar", 2.0, national("cofid:wine", "carried_from_similar_food", "stated_assumption", "low")))),

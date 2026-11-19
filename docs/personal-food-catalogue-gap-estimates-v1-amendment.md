@@ -11,6 +11,8 @@ v2"), [label photo estimates](personal-food-catalogue-off-estimates-v1-proposal.
 and the [E3 disposition](personal-food-database-e3-disposition.md). Everything they say that this
 document does not name stays as written. Each amended document gains a dated note pointing here.
 
+**Amendment, 19 November 2026 ([composite web amendment G5](personal-food-catalogue-composite-web-amendment-v1.md), proposed in #528).** G1's composite rule extends to a generic web page for the same kind of dish (an `aggregator` page carried from a similar food), on the same terms.
+
 ## 1. Why
 
 Counts only, from the owner's private catalogue on 19 November 2026 (836 entries). Applying the

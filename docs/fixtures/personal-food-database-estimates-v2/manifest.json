@@ -408,6 +408,18 @@
     "estimate-quality"
    ]
   },
+  "reject-quality-composite-aggregator-similar-medium.json": {
+   "stage": "codec",
+   "codes": [
+    "estimate-quality"
+   ]
+  },
+  "reject-quality-composite-manufacturer-similar-medium.json": {
+   "stage": "codec",
+   "codes": [
+    "estimate-quality"
+   ]
+  },
   "reject-basis-non-own-record.json": {
    "stage": "importer",
    "codes": [
@@ -614,6 +626,7 @@
   "accept-similar-food-non-own-at-medium.json": "importer",
   "accept-value-at-tolerance.json": "importer",
   "accept-estimate-beside-merged-record.json": "importer",
+  "accept-composite-aggregator-similar-at-low.json": "importer",
   "accept-per-100-ml-record-on-per-100-ml-entry.json": "importer",
   "accept-zero-from-per-100-g-record-on-per-100-ml-entry.json": "importer",
   "accept-single-ingredient-per-100-ml-record-at-medium.json": "importer",

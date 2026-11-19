@@ -162,6 +162,23 @@ final class PersonalFoodDatabaseCodecEstimatesTests: XCTestCase {
         XCTAssertEqual(ownMerge("source_states_it"), .medium)
         XCTAssertEqual(ownMerge("stated_assumption"), .medium)
         XCTAssertEqual(ownMerge("unknown"), .low)
+        // Composite web amendment G5: a national record (any method, G1) or a web page carried from a
+        // similar food is at most `low` on a composite dish; a page about this product and a label photo
+        // keep their ceilings.
+        func composite(_ method: String, national: Bool = false, photo: Bool = false, webSimilar: Bool = false)
+            -> PersonalFoodDatabaseEstimateQuality {
+            C.ceiling(method: PFDText(bytes: Array(method.utf8)), stateBasis: PFDText(bytes: Array("source_states_it".utf8)),
+                      pageAccess: national ? nil : PFDText(bytes: Array("direct_read".utf8)), national: national,
+                      own: national, photo: photo, composite: true, webSimilar: webSimilar)
+        }
+        for method in PersonalFoodDatabaseEstimateMethod.allCases {
+            XCTAssertEqual(composite(method.rawValue, national: true), .low)
+        }
+        XCTAssertEqual(composite("carried_from_similar_food", webSimilar: true), .low)
+        XCTAssertEqual(composite("direct"), .high)
+        XCTAssertEqual(composite("carried_from_same_food"), .high)
+        XCTAssertEqual(composite("derived"), .medium)
+        XCTAssertEqual(composite("carried_from_similar_food", photo: true), .medium)
     }
 
     func testBothIdentityComparisonsCoverTheSameFacets() throws {

@@ -306,6 +306,13 @@ def reason(est, item, corpora, read_record, refusal_status):
             ev["quality"] == "low" and ev["method"] == "carried_from_similar_food"
             and COMPOSITE_SENTENCE in ev["assumption"]):
         return "composite", []
+    # Amendment G5 (docs/personal-food-catalogue-composite-web-amendment-v1.md): a web page about a generic
+    # dish of the same kind may fill a composite dish on the same terms; a manufacturer page about
+    # another product is another brand's label and never does. A page about this product is unchanged.
+    if item["product_type"] == "packaged_composite" and E.web_similar(ev) and not (
+            ev["source_type"] == "aggregator" and ev["quality"] == "low"
+            and COMPOSITE_SENTENCE in ev["assumption"]):
+        return "composite", []
     if open_food_facts(est):
         return "open_food_facts_source", []
     status = refusal_status(est["entry_id"], key, ev, corpora.get(ev["composition_source"]) if national else None)

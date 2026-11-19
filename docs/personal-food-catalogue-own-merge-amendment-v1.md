@@ -1,8 +1,7 @@
 # Personal food database: estimates from a merge record the app does not merge (G4)
 
-Status: **proposed for the owner's approval in #526.** The owner decided the question of section 5
-on 19 November 2026; this text becomes binding when the owner approves the PR, and no value it
-admits is written before then. It follows the [gap estimates amendments G1 to G3](personal-food-catalogue-gap-estimates-v1-amendment.md)
+Status: **accepted.** The owner decided the question of section 5 on 19 November 2026 and approved
+#527, which merged on 19 November 2026. It follows the [gap estimates amendments G1 to G3](personal-food-catalogue-gap-estimates-v1-amendment.md)
 and keeps their numbering.
 
 It is a delta on [labelled estimates on catalogue v2](personal-food-catalogue-estimates-v2-proposal.md)

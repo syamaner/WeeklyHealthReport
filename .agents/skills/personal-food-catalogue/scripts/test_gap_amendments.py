@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Synthetic tests for the gap estimates amendments G1 and G2
-(docs/personal-food-catalogue-gap-estimates-v1-amendment.md) and the own merge amendment G4
-(docs/personal-food-catalogue-own-merge-amendment-v1.md); G3 is tested in test_photo_estimates.py.
+(docs/personal-food-catalogue-gap-estimates-v1-amendment.md), the own merge amendment G4
+(docs/personal-food-catalogue-own-merge-amendment-v1.md) and the composite web amendment G5
+(docs/personal-food-catalogue-composite-web-amendment-v1.md); G3 is tested in test_photo_estimates.py.
 
 Usage: python3 -I test_gap_amendments.py <scripts_dir>
 Every title, brand and value here is synthetic.
@@ -17,7 +18,7 @@ import estimate_counts as C  # noqa: E402
 import estimates_v2 as EV  # noqa: E402
 import estimates_input as I  # noqa: E402
 import export_v1  # noqa: E402
-from test_estimates_input import CORPORA, RECORDS, item, national, plain, read, reference, row  # noqa: E402
+from test_estimates_input import CORPORA, RECORDS, item, national, page, plain, read, reference, row  # noqa: E402
 
 ML_RECORD, ZERO_RECORD = "cofid:synthetic:row:0101", "cofid:synthetic:row:0102"
 RECORDS[("cofid", ML_RECORD)] = {"nutrients": {"sugar": 2.0, "fiber": 0}, "preparation": "unknown",
@@ -203,6 +204,73 @@ class OwnMergeRecord(unittest.TestCase):
         self.assertEqual(EV.ceiling(ev, own=True, own_merge=True), "medium")
         self.assertEqual(EV.ceiling({**ev, "state_basis": "unknown"}, own=True, own_merge=True), "low")
         self.assertNotIn("estimate-own-merge", EV.RULE_CODES)
+
+
+def web(source_type="aggregator", method="carried_from_similar_food", quality="low",
+        assumption=I.COMPOSITE_SENTENCE + " Synthetic.", **changes):
+    return page(source_type=source_type, method=method, quality=quality, assumption=assumption,
+                state_basis="stated_assumption", **changes)
+
+
+class CompositeWebPages(unittest.TestCase):
+    """G5: a web page about a generic dish fills a composite dish on G1's terms; a page about this
+    product is unchanged; a manufacturer page about another product never fills it."""
+
+    def run_rows(self, *evs):
+        return admit(*[row(DISH, ev, n, value=v) for ev, n, v in evs])
+
+    def test_a_low_generic_aggregator_value_with_the_sentence_is_admitted_and_exports(self):
+        doc, (admitted, counts) = self.run_rows((web(), "protein", 6.0))
+        self.assertEqual((len(admitted), counts["withheld_composite"]), (1, 0))
+        out = I.assemble(doc, admitted)
+        self.assertEqual(export_v1.check_bytes(I.dumps(out)), [])
+        result = C.six_counts(out, [], NO_REFUSALS)
+        self.assertEqual([result["counts"][k] for k in ("composite_above_low", "composite_without_sentence",
+                                                        "composite_other_product_page")], [0, 0, 0])
+
+    def test_medium_or_no_sentence_is_withheld(self):
+        for ev in (web(quality="medium"), web(assumption="Synthetic assumption.")):
+            _, (admitted, counts) = self.run_rows((ev, "protein", 6.0))
+            self.assertEqual((admitted, counts["withheld_composite"]), ([], 1))
+
+    def test_a_manufacturer_page_about_another_product_is_withheld(self):
+        _, (admitted, counts) = self.run_rows((web(source_type="manufacturer_page"), "protein", 6.0))
+        self.assertEqual((admitted, counts["withheld_composite"]), ([], 1))
+
+    def test_a_page_about_this_product_keeps_its_ceiling(self):
+        for source_type in ("aggregator", "manufacturer_page"):
+            for method in ("direct", "carried_from_same_food"):
+                doc, (admitted, counts) = self.run_rows((page(source_type=source_type, method=method), "protein", 6.0))
+                self.assertEqual((len(admitted), counts["withheld_composite"]), (1, 0), (source_type, method))
+                out = I.assemble(doc, admitted)
+                self.assertEqual(export_v1.check_bytes(I.dumps(out)), [])
+                result = C.six_counts(out, [], NO_REFUSALS)
+                self.assertEqual(result["counts"]["composite_above_low"], 0)
+
+    def test_the_codec_refuses_a_generic_web_value_above_low(self):
+        doc, (admitted, _) = self.run_rows((web(), "protein", 6.0))
+        out = I.assemble(doc, admitted)
+        out["estimate_evidence"][0]["quality"] = "medium"
+        self.assertIn("estimate-quality", [e.split(":", 1)[0] for e in export_v1.check_bytes(I.dumps(out))])
+        self.assertIn("composite_above_low: 1", C.failures(C.six_counts(out, [], NO_REFUSALS)))
+
+    def test_a_label_value_still_wins(self):
+        labelled = {**DISH, "label_nutrients": {"protein": {"value": 7.0, "unit": "g", "source_kind": "manual_declaration",
+                                                            "source_release": "owner:sha256:" + "d" * 64,
+                                                            "record_id": None, "match": "owner"}}}
+        _, (admitted, counts) = admit(row(labelled, web(), "protein", value=6.0), doc=plain(labelled, DRINK))
+        self.assertEqual((admitted, counts["withheld_label_kept"]), ([], 1))
+
+    def test_the_ceiling(self):
+        similar = web()
+        self.assertEqual(EV.ceiling(similar, own=False, composite=True), "low")
+        self.assertEqual(EV.ceiling(similar, own=False, composite=False), "medium")
+        self.assertEqual(EV.ceiling(web(source_type="manufacturer_page"), own=False, composite=True), "low")
+        self.assertEqual(EV.ceiling(page(method="direct"), own=False, composite=True), "high")
+        photo = {**similar, "source_type": "product_dataset_photo"}
+        self.assertEqual(EV.ceiling(photo, own=False, composite=True), "medium")
+        self.assertEqual(I.REASONS.count("composite"), 1)
+        self.assertIn("composite_other_product_page", C.MUST_BE_ZERO)
 
 
 if __name__ == "__main__":
