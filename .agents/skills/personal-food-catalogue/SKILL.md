@@ -41,6 +41,16 @@ below serves that, and enrichment work is judged by it:
   state the page describes and the value, written into the estimates v2 file as a labelled estimate
   with its tier (workflow step 7), never as a label value. Prefer national composition databases and
   manufacturer pages over aggregator sites.
+- **MyFoodData is a named aggregator source** (owner, 19 November 2026, #530). `tools.myfooddata.com`
+  shows USDA FoodData Central records. Use it only under the web search rules (rule 4), reading pages
+  in the built-in browser because the site refuses WebFetch. Take values from the record's
+  "100 grams" view at its own address (`/nutrition-facts/<record>/wt<n>`, no query string) exactly as
+  printed, never scaled from a cup or portion by hand; the evidence is `aggregator` with underlying
+  source `stated_independent` when the page names USDA data. A USDA Branded Food record is the same
+  product only when its UPC equals the entry's barcode or the record otherwise matches the entry's own
+  label values (method `direct`, `same_food`); anything else is a similar food. Its generic records
+  may fill a composite dish only on amendment G5's terms (`low`, the fixed sentence). Branded records
+  are mostly US-market products, and the site rounds printed values, which the assumption says.
 - **Identity and state first.** The right food in the right state (as sold, raw, cooked, drained,
   dry, prepared) and the right cut or variety matter more than any single value; a raw record for a
   cooked food is the worst error.
@@ -78,7 +88,8 @@ below serves that, and enrichment work is judged by it:
    search query passes `http_client.safe_query` (deny patterns plus a known food word, or Chinese
    text containing a known Chinese food fragment) **and needs the owner's approval of that exact query**
    (step 5). Barcode lookups send only digits from Open Food Facts' own results and need no separate
-   approval. A product page the owner names is read once with the WebFetch tool. Web search runs
+   approval. A product page the owner names is read once with the WebFetch tool (MyFoodData pages,
+   which refuse WebFetch, with the built-in browser, as `docs/privacy-and-egress.md` records). Web search runs
   only when the owner has asked for it in the current session, as recorded in
   `docs/privacy-and-egress.md`, and because a word list cannot recognise every personal name, each
   query is either a generic food name with no brand or a query the owner has approved exactly, for
