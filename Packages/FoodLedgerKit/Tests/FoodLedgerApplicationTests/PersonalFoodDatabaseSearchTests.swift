@@ -426,6 +426,9 @@ final class PersonalFoodDatabaseSearchTests: XCTestCase {
         XCTAssertTrue(Set(entry.candidate.candidate.evidenceIDs).isSubset(of: held))
         XCTAssertEqual(held.count, route.confirmation.evidence.count, "each evidence ID once")
         XCTAssertEqual(route.confirmation.evidence.filter { $0.kind != .genericSearch }.count, manifests.count)
+        // The manifest still verifies against the combined evidence, as Confirm binds it.
+        XCTAssertNotNil(ApprovedEstimateSource.verifiedManifest(entry.candidate.candidate, evidence: route.confirmation.evidence,
+                                                                digester: SHA256Digester()))
     }
 
     func testCompositeNeverDedupesRowsFromOtherSources() throws {

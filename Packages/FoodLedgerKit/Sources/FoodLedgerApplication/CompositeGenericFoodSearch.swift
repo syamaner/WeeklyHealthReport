@@ -123,9 +123,11 @@ public final class CompositeGenericFoodSearch: GenericFoodSearching, @unchecked 
         // beyond the shared search evidence (Your food database binds each candidate with estimates to
         // its capture manifest), and a row without its evidence would make the whole confirmation invalid.
         var routeEvidence: [CaptureEvidence] = []
-        for item in routes.flatMap({ $0.confirmation.evidence })
-        where !routeEvidence.contains(where: { $0.evidenceID == item.evidenceID }) {
-            routeEvidence.append(item)
+        for item in routes.flatMap({ $0.confirmation.evidence }) {
+            if let existing = routeEvidence.first(where: { $0.evidenceID == item.evidenceID }) {
+                // The same ID must carry the same evidence, as for source releases above.
+                guard existing == item else { throw FoodLedgerValidationError.duplicateValue("conflicting search provenance") }
+            } else { routeEvidence.append(item) }
         }
         return .confirmation(GenericFoodConfirmationRoute(
             confirmation: try PopulatedFoodConfirmation(
