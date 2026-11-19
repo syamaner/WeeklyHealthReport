@@ -169,13 +169,15 @@ public enum FoodSearchResultText {
         }
     }
 
-    /// Import v2 (owner decision 3, 13 November 2026): the Confirm line for a Your food database
-    /// entry whose resolved values were scaled from an Open Food Facts per-serving panel, one per
-    /// serving size; empty for any other candidate. `nutrients` are the values Confirm shows (a
-    /// correction or a reopened entry's, when present), so a value the user replaced no longer counts.
-    public static func databaseScaledServingNotes(_ candidate: PopulatedFoodCandidate, nutrients: NutrientSet? = nil,
-                                                  releases: [SourceRelease]) -> [String] {
-        guard FoodSearchResultSummary.family(candidate: candidate.candidate, releases: releases) == .yourFoodDatabase else { return [] }
+    /// Import v2 (owner decision 3, 13 November 2026) and #490: the Confirm line for a Your food
+    /// database entry or a barcode (Open Food Facts) product whose resolved values were scaled from a
+    /// per-serving panel, one per serving size; empty for any other candidate. `nutrients` are the
+    /// values Confirm shows (a correction or a reopened entry's, when present), so a value the user
+    /// replaced no longer counts.
+    public static func scaledServingNotes(_ candidate: PopulatedFoodCandidate, nutrients: NutrientSet? = nil,
+                                          releases: [SourceRelease]) -> [String] {
+        let family = FoodSearchResultSummary.family(candidate: candidate.candidate, releases: releases)
+        guard family == .yourFoodDatabase || family == .packagedProduct else { return [] }
         return PersonalFoodDatabaseCandidateBuilder.scaledServings((nutrients ?? candidate.candidate.nutrients).entries)
             .map(OpenFoodFactsServingText.databaseEntryNote)
     }
