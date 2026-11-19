@@ -263,10 +263,15 @@ struct PersonalFoodDatabaseEstimateChecker {
     /// amendment G1, docs/personal-food-catalogue-gap-estimates-v1-amendment.md). An estimate from the
     /// entry's own `merge` record (which the app did not merge) is at most `medium`: the record does not
     /// say it describes the entry's state (amendment G4, docs/personal-food-catalogue-own-merge-amendment-v1.md).
+    /// A web page value (`aggregator` or `manufacturer_page`) carried from a similar food onto a packaged
+    /// composite dish is a generic recipe too: at most `low` (amendment G5,
+    /// docs/personal-food-catalogue-composite-web-amendment-v1.md). A page about this product, and a label
+    /// photo, keep their ceilings.
     static func ceiling(method: PFDText, stateBasis: PFDText, pageAccess: PFDText?, national: Bool, own: Bool,
-                        photo: Bool = false, composite: Bool = false, ownMerge: Bool = false) -> PersonalFoodDatabaseEstimateQuality {
+                        photo: Bool = false, composite: Bool = false, ownMerge: Bool = false,
+                        webSimilar: Bool = false) -> PersonalFoodDatabaseEstimateQuality {
         if stateBasis == PFDText("unknown") { return .low }
-        if national, composite { return .low }
+        if composite, national || webSimilar { return .low }
         if photo || ownMerge { return .medium }
         if method == PFDText("carried_from_same_food") || method == PFDText("direct"),
            stateBasis == PFDText("source_states_it"), pageAccess != PFDText("indexed_copy"), !national || own {
@@ -302,10 +307,13 @@ struct PersonalFoodDatabaseEstimateChecker {
             codes.append(.estimateOwnHeld)
         }
         let photo = sourceType == PersonalFoodDatabasePhotoRules.token
+        // Amendment G5: a web page carried from a similar food (never a photo, never a page about this product).
+        let webSimilar = (sourceType == PFDText("aggregator") || sourceType == PFDText("manufacturer_page"))
+            && method == PFDText("carried_from_similar_food")
         if quality.rank > ceiling(method: method, stateBasis: stateBasis, pageAccess: rec["page_access"]?.text,
                                   national: national, own: own, photo: photo,
                                   composite: item["product_type"]?.text == PFDText("packaged_composite"),
-                                  ownMerge: ownMerge).rank {
+                                  ownMerge: ownMerge, webSimilar: webSimilar).rank {
             codes.append(.estimateQuality)
         }
         // `estimate-basis` is an importer rule since amendment G2: only the record shows whether a per

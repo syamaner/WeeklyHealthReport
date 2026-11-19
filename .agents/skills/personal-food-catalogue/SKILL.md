@@ -95,7 +95,10 @@ below serves that, and enrichment work is judged by it:
    never exported. Since the gap estimates amendments (owner, 19 November 2026,
    `docs/personal-food-catalogue-gap-estimates-v1-amendment.md`), a national table's generic dish
    record may fill a composite dish as an accepted `low` similar-food estimate whose assumption
-   contains "A generic recipe, not this product's."; another brand's label still never does.
+   contains "A generic recipe, not this product's."; another brand's label still never does. Since
+   amendment G5 (owner, 19 November 2026, `docs/personal-food-catalogue-composite-web-amendment-v1.md`),
+   a web page for a generic dish of the same kind (an `aggregator` page) may do the same on the same
+   terms; a manufacturer page about another product is another brand's label and never does.
 7. **Assistive, not automatic.** Values the owner typed or confirmed are exported as measured
    (decision 11). Values read by the agent from a photo or page are
    `photo_unconfirmed` / `page_unconfirmed` until the owner confirms them. Matches are proposals.

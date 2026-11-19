@@ -10,6 +10,8 @@ identity contract section 8 are added in the phase that changes search. Issue: [
 
 **Amendment, 19 November 2026 ([gap estimates amendments](personal-food-catalogue-gap-estimates-v1-amendment.md), proposed in #524).** The `basis` row gains one exception (G2c): an entry with no label values is filed `per_100_ml_as_labelled` when the owner has recorded that basis for it, unless its reference would merge. Decision 4 now forbids another brand's label for a composite dish and no longer forbids a national table's generic dish record admitted as a rough estimate (G1).
 
+**Amendment, 19 November 2026 ([composite web amendment G5](personal-food-catalogue-composite-web-amendment-v1.md), proposed in #528).** Decision 4 also no longer forbids a generic web page for the same kind of dish, admitted on G1's terms (`low`, similar food, the fixed sentence); a page about another product is another brand's label and never fills a composite dish.
+
 ## 1. Purpose and scope
 
 The owner keeps a private nutrition database built from their own receipts, notes and food logs.

@@ -5039,3 +5039,9 @@ Unmeasured: no boundary was captured at the start of this phase, separately from
 The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) wrote the own merge amendment (#526) after the owner's decision of 19 November 2026: `estimate-own-merge` moves from the codec to the importer and is raised only when the app would merge the record; otherwise an estimate from the entry's own merge record is judged as an own same-food record at most `medium`, and the candidate builder never lets an estimate from a merged record fill a key. A blind `architecture-gate` review returned concerns, which the document and code address; a blind `invariant-reviewer` pass runs at the PR head.
 
 Unmeasured: no boundary was captured at the start of this phase, separately from the private catalogue rebuild done in the same session, so no token figure is recorded rather than an estimate.
+
+## WHR-528-2026-11-19: Claude Code composite web amendment G5
+
+The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) wrote the composite web amendment (#528) after the owner's decision of 19 November 2026: a generic web page for the same kind of dish may fill a packaged composite entry on G1's terms (`low`, similar food, the fixed sentence), a manufacturer page about another product never does, and the codec caps a similar-food web page value on a composite entry at `low`. A blind `architecture-gate` review blocked the first plan (a cap on every aggregator method would have changed the golden file and 15 accept fixtures); the cap was scoped to `carried_from_similar_food` and the other findings addressed. A blind `invariant-reviewer` pass runs at the PR head.
+
+Unmeasured: no boundary was captured at the start of this phase, separately from the private catalogue work done in the same session, so no token figure is recorded rather than an estimate.

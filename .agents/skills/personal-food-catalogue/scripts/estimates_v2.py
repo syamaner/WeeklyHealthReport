@@ -178,13 +178,22 @@ def is_own(rec, ref) -> bool:
             and ref.get("source") == rec["composition_source"] and ref.get("record_id") == rec["source_reference"])
 
 
+WEB_SOURCES = ("aggregator", "manufacturer_page")
+
+
+def web_similar(rec) -> bool:
+    """A web page value carried from a similar food (amendment G5); never a photo or a page about this product."""
+    return rec["source_type"] in WEB_SOURCES and rec["method"] == "carried_from_similar_food"
+
+
 def ceiling(rec, own: bool, composite: bool = False, own_merge: bool = False) -> str:
     """The highest tier the codec accepts for this record (contract section 3.3). A national estimate on
-    a packaged composite dish is a generic recipe: at most `low` (amendment G1). An estimate from the
-    entry's own `merge` record, which the app did not merge, is at most `medium` (amendment G4)."""
+    a packaged composite dish is a generic recipe: at most `low` (amendment G1), and so is a web page
+    value carried from a similar food (amendment G5). An estimate from the entry's own `merge` record,
+    which the app did not merge, is at most `medium` (amendment G4)."""
     if rec["state_basis"] == "unknown":
         return "low"
-    if composite and rec["source_type"] == "national_composition":
+    if composite and (rec["source_type"] == "national_composition" or web_similar(rec)):
         return "low"
     if rec["source_type"] == V3.TOKEN or own_merge:
         return "medium"
