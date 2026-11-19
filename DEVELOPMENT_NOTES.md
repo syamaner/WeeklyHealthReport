@@ -5067,3 +5067,9 @@ Unmeasured: no boundary was captured at the start of this phase, separately from
 The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) checked that `main` at `f4a6db95` holds PR525, PR527, PR529, PR531 and PR533, archived it from a clean worktree (one re-run after a disk I/O error in the shared Xcode build database), exported it for internal testing only, uploaded build 40 on the owner's yes, set What to Test and added the build to Internal Testing on the owner's yes, and wrote [the build 40 record](docs/releases/internal-testflight-0.3.0-build40.md).
 
 Unmeasured: no boundary was captured at the start of this delivery, separately from the private catalogue work done in the same session, so no token figure is recorded rather than an estimate.
+
+## WHR-536-2026-11-19: Claude Code composite search keeps database estimate evidence
+
+The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) diagnosed the owner's report from build 40 that food search showed no offline rows after importing a catalogue with estimates: the composite search built its confirmation from the first route's evidence only, dropping Your food database's estimate capture manifests and throwing `missingProvenance`. It reproduced the failure with the app's own wiring on the private file (counts only), fixed the composite to keep every route's evidence once, and added a test that fails without the fix. A blind `invariant-reviewer` pass runs at the PR head.
+
+Unmeasured: no boundary was captured at the start of this phase, separately from the private catalogue and build work done in the same session, so no token figure is recorded rather than an estimate.

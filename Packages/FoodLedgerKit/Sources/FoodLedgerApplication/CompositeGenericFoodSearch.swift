@@ -119,9 +119,17 @@ public final class CompositeGenericFoodSearch: GenericFoodSearching, @unchecked 
                 guard existing == release else { throw FoodLedgerValidationError.duplicateValue("source release identity") }
             } else { releases.append(release) }
         }
+        // Every route's evidence, first route first, each ID once: a route may cite evidence of its own
+        // beyond the shared search evidence (Your food database binds each candidate with estimates to
+        // its capture manifest), and a row without its evidence would make the whole confirmation invalid.
+        var routeEvidence: [CaptureEvidence] = []
+        for item in routes.flatMap({ $0.confirmation.evidence })
+        where !routeEvidence.contains(where: { $0.evidenceID == item.evidenceID }) {
+            routeEvidence.append(item)
+        }
         return .confirmation(GenericFoodConfirmationRoute(
             confirmation: try PopulatedFoodConfirmation(
-                evidence: first.confirmation.evidence, sourceReleases: releases, candidates: matches.map(\.candidate),
+                evidence: routeEvidence, sourceReleases: releases, candidates: matches.map(\.candidate),
                 expectedIdentity: matches[0].candidate.candidate.identity, expectedEdibleQuantity: matches[0].candidate.candidate.edibleQuantity
             ), matches: matches
         ))

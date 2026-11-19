@@ -400,6 +400,34 @@ final class PersonalFoodDatabaseSearchTests: XCTestCase {
                                                             ids: IDs()).search(request("tofu")))
     }
 
+    /// #536: a database route with an estimate manifest behind another source's route keeps the
+    /// manifest in the combined confirmation; before the fix the composite threw `missingProvenance`.
+    func testCompositeKeepsTheDatabaseEstimateManifestBehindAnotherSource() throws {
+        var resolver = FakeResolver()
+        resolver.records = ["cofid:example", "cofid:fish"]
+        let (database, _) = try makeEstimateSearch(try Self.estimatesFixture(), resolver: resolver)
+        let other = Fixed { request in
+            let evidence = try XCTUnwrap(request.captureEvidence)
+            let candidate = try FakeResolver.candidate("generic:1", preparation: .raw, basis: .per100Grams, energy: 1,
+                                                      evidenceIDs: [evidence.evidenceID])
+            return .confirmation(GenericFoodConfirmationRoute(confirmation: try PopulatedFoodConfirmation(
+                evidence: [evidence], sourceReleases: [FakeResolver.release], candidates: [candidate],
+                expectedIdentity: candidate.candidate.identity, expectedEdibleQuantity: candidate.candidate.edibleQuantity),
+                matches: [GenericFoodMatch(candidate: candidate, isExactName: false)]))
+        }
+        guard case let .confirmation(alone) = try database.search(request("synthetic tinned fish")) else { return XCTFail("database alone") }
+        let manifests = alone.confirmation.evidence.filter { $0.kind != .genericSearch }
+        XCTAssertFalse(manifests.isEmpty, "the database route binds its estimates to a capture manifest")
+        guard case let .confirmation(route) = try CompositeGenericFoodSearch(sources: [other], databaseSource: database, ids: IDs())
+            .search(request("synthetic tinned fish")) else { return XCTFail("combined") }
+        XCTAssertTrue(route.matches.contains { $0.candidate.candidate.recordID.value == "generic:1" }, "the other source's row stays")
+        let entry = try XCTUnwrap(route.matches.first { $0.personalDatabase?.isGenericReference == false })
+        let held = Set(route.confirmation.evidence.map(\.evidenceID))
+        XCTAssertTrue(Set(entry.candidate.candidate.evidenceIDs).isSubset(of: held))
+        XCTAssertEqual(held.count, route.confirmation.evidence.count, "each evidence ID once")
+        XCTAssertEqual(route.confirmation.evidence.filter { $0.kind != .genericSearch }.count, manifests.count)
+    }
+
     func testCompositeNeverDedupesRowsFromOtherSources() throws {
         let rows = try CompositeGenericFoodSearch(sources: [recordSource(), recordSource()], ids: IDs()).search(request("tofu"))
         XCTAssertEqual(matches(rows).count, 2, "existing behaviour: duplicates from two other sources are untouched")
