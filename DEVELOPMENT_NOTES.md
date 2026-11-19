@@ -5049,3 +5049,9 @@ The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) wrote th
 The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) added MyFoodData (`tools.myfooddata.com`, a viewer of USDA FoodData Central records) as a named aggregator source in the personal food catalogue skill, at the owner's request of 19 November 2026, and recorded in the privacy and egress policy that its pages are read in the agent's built-in browser because the site refuses the web-fetch tool. Documentation only; a blind `invariant-reviewer` pass runs at the PR head.
 
 Unmeasured: no boundary was captured at the start of this phase, separately from the private catalogue work done in the same session, so no token figure is recorded rather than an estimate.
+
+## WHR-merge-rule-2026-11-19: Claude Code merge rule after the Qodo trial
+
+The session (`d0fc3a48-a687-41a1-8f22-15d1b5ec0935`, `claude-fable-5-2`) amended the Delivery merge rule in `AGENTS.md` at the owner's request of 19 November 2026, after the Qodo trial ended on 18 November 2026: the wait for a Qodo review at the new head is replaced by a blind `invariant-reviewer` pass over the PR's own changes, and the authorised merge now enables auto-merge at the reviewed head instead of waiting on CI by hand. Documentation only.
+
+Unmeasured: no boundary was captured at the start of this change, separately from the usage-report follow-ups done in the same session, so no token figure is recorded rather than an estimate.
