@@ -233,9 +233,16 @@ class CompositeWebPages(unittest.TestCase):
             _, (admitted, counts) = self.run_rows((ev, "protein", 6.0))
             self.assertEqual((admitted, counts["withheld_composite"]), ([], 1))
 
-    def test_a_manufacturer_page_about_another_product_is_withheld(self):
-        _, (admitted, counts) = self.run_rows((web(source_type="manufacturer_page"), "protein", 6.0))
-        self.assertEqual((admitted, counts["withheld_composite"]), ([], 1))
+    def test_a_manufacturer_page_about_another_product_fills_at_low_since_g7(self):
+        doc, (admitted, counts) = self.run_rows((web(source_type="manufacturer_page"), "protein", 6.0))
+        self.assertEqual((len(admitted), counts["withheld_composite"]), (1, 0))
+        result = C.six_counts(I.assemble(doc, admitted), [], NO_REFUSALS)
+        self.assertEqual(result["counts"]["composite_other_product_page"], 1)
+        self.assertEqual(C.failures(result), [])
+        for ev in (web(source_type="manufacturer_page", quality="medium"),
+                   web(source_type="manufacturer_page", assumption="Synthetic assumption.")):
+            _, (admitted, counts) = self.run_rows((ev, "protein", 6.0))
+            self.assertEqual((admitted, counts["withheld_composite"]), ([], 1))
 
     def test_a_page_about_this_product_keeps_its_ceiling(self):
         for source_type in ("aggregator", "manufacturer_page"):
@@ -270,7 +277,38 @@ class CompositeWebPages(unittest.TestCase):
         photo = {**similar, "source_type": "product_dataset_photo"}
         self.assertEqual(EV.ceiling(photo, own=False, composite=True), "medium")
         self.assertEqual(I.REASONS.count("composite"), 1)
-        self.assertIn("composite_other_product_page", C.MUST_BE_ZERO)
+        self.assertIn("composite_other_product_page", C.REPORTED)
+
+
+class TableAddresses(unittest.TestCase):
+    """G8: a query string only on the closed composition-table record addresses."""
+
+    def test_the_closed_grammar(self):
+        ok = ["https://fooddb.mext.go.jp/details/details.pl?ITEM_NO=16_16043_7",
+              "https://www.nutritionvalue.org/Beet_juice_73105000_nutritional_value.html?size=100+g"]
+        for url in ok:
+            self.assertIsNotNone(EV.page_host(url), url)
+        bad = ["https://fooddb.mext.go.jp/details/details.pl?ITEM_NO=16_16043_7&MODE=4",
+               "https://fooddb.mext.go.jp/details/details.pl?ITEM_NO=16_1604_7",
+               "https://fooddb.mext.go.jp/other.pl?ITEM_NO=16_16043_7",
+               "https://www.nutritionvalue.org/Beet_juice_73105000_nutritional_value.html?size=1+cup",
+               "https://www.nutritionvalue.org/a/b_nutritional_value.html?size=100+g",
+               "https://www.nutritionvalue.org/_nutritional_value.html?size=100+g",
+               "https://example.invalid/food?id=1",
+               "https://fooddb.mext.go.jp/details/details.pl?ITEM_NO=16_16043_7#top"]
+        for url in bad:
+            self.assertIsNone(EV.page_host(url), url)
+        self.assertEqual(EV.page_host(ok[0]), "fooddb.mext.go.jp")
+
+
+class CompositePhotos(unittest.TestCase):
+    """G7: a label photo of another product on a composite dish carries the sentence and is `low`."""
+
+    def test_the_builder_withholds_a_sentence_photo_above_low(self):
+        ev = {"source_type": "product_dataset_photo", "quality": "medium", "method": "carried_from_similar_food",
+              "assumption": I.COMPOSITE_SENTENCE + " Synthetic."}
+        est = {"entry_id": DISH["id"], "nutrient": "protein", "evidence": ev, "value": 6.0}
+        self.assertEqual(I.reason(est, DISH, CORPORA, read, lambda *a: I.CLEAR)[0], "composite")
 
 
 if __name__ == "__main__":

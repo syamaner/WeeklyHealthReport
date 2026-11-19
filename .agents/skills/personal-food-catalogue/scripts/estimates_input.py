@@ -306,12 +306,18 @@ def reason(est, item, corpora, read_record, refusal_status):
             ev["quality"] == "low" and ev["method"] == "carried_from_similar_food"
             and COMPOSITE_SENTENCE in ev["assumption"]):
         return "composite", []
-    # Amendment G5 (docs/personal-food-catalogue-composite-web-amendment-v1.md): a web page about a generic
-    # dish of the same kind may fill a composite dish on the same terms; a manufacturer page about
-    # another product is another brand's label and never does. A page about this product is unchanged.
+    # Amendments G5 and G7 (docs/personal-food-catalogue-composite-web-amendment-v1.md,
+    # docs/personal-food-catalogue-tables-composites-amendment-v1.md): a web page carried from a similar
+    # food, another brand's product page included, may fill a composite dish on G1's terms. A page about
+    # this product is unchanged.
     if item["product_type"] == "packaged_composite" and E.web_similar(ev) and not (
-            ev["source_type"] == "aggregator" and ev["quality"] == "low"
-            and COMPOSITE_SENTENCE in ev["assumption"]):
+            ev["quality"] == "low" and COMPOSITE_SENTENCE in ev["assumption"]):
+        return "composite", []
+    # Amendment G7: a label photo of another product on a composite dish says so with the fixed
+    # sentence and is then at most `low`; a photo of the same named product keeps the photo rules.
+    if item["product_type"] == "packaged_composite" and ev["source_type"] == V3.TOKEN \
+            and COMPOSITE_SENTENCE in ev["assumption"] and (ev["quality"] != "low"
+                                                           or ev["method"] != "carried_from_similar_food"):
         return "composite", []
     if open_food_facts(est):
         return "open_food_facts_source", []

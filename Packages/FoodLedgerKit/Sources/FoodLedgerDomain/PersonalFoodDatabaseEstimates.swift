@@ -149,11 +149,49 @@ struct PersonalFoodDatabaseEstimateChecker {
         return b.count == 20 && b.starts(with: Array("pfe:".utf8)) && b.dropFirst(4).allSatisfy(R.isLowerHex)
     }
 
+    /// Amendment G8 (docs/personal-food-catalogue-tables-composites-amendment-v1.md): the closed list of
+    /// composition-table record addresses that need a query string, each with its one exact parameter.
+    /// Returns the address without that query when it matches, the address unchanged when it has no
+    /// query, and nil for any other query. Hand-written over bytes, as `estimates_v2.table_query_base`.
+    static func tableQueryBase(_ b: [UInt8]) -> [UInt8]? {
+        guard let q = b.firstIndex(of: UInt8(ascii: "?")) else { return b }
+        let base = Array(b[..<q]), query = Array(b[(q + 1)...])
+        func digits(_ s: ArraySlice<UInt8>, _ range: ClosedRange<Int>) -> Bool {
+            range.contains(s.count) && s.allSatisfy(R.isDigit)
+        }
+        if base == Array("https://fooddb.mext.go.jp/details/details.pl".utf8) {
+            let key = Array("ITEM_NO=".utf8)
+            guard query.starts(with: key) else { return nil }
+            let parts = query.dropFirst(key.count).split(separator: UInt8(ascii: "_"), omittingEmptySubsequences: false)
+            guard parts.count == 3, digits(parts[0], 1...2), digits(parts[1], 5...5), digits(parts[2], 1...2) else { return nil }
+            return base
+        }
+        let site = Array("https://www.nutritionvalue.org/".utf8), page = Array("_nutritional_value.html".utf8)
+        if base.starts(with: site), base.count > site.count + page.count, Array(base.suffix(page.count)) == page,
+           query == Array("size=100+g".utf8) {
+            // The record name: letters, digits, `_` and `-`, and the encoded comma `%2C` only.
+            let name = Array(base.dropFirst(site.count).dropLast(page.count))
+            var i = 0, ok = true
+            while i < name.count, ok {
+                let c = name[i]
+                if R.isDigit(c) || (0x41...0x5a).contains(c) || (0x61...0x7a).contains(c) || c == UInt8(ascii: "_") || c == UInt8(ascii: "-") {
+                    i += 1
+                } else if c == UInt8(ascii: "%"), i + 2 < name.count, name[i + 1] == UInt8(ascii: "2"), name[i + 2] == UInt8(ascii: "C") {
+                    i += 3
+                } else { ok = false }
+            }
+            return ok ? base : nil
+        }
+        return nil
+    }
+
     /// The host of a page URL under the phase gate's grammar (section 3.1 item 7), lower-cased and
-    /// without a trailing dot, or nil. Hand-written over bytes, as `estimates_v2.page_host`.
+    /// without a trailing dot, or nil. Hand-written over bytes, as `estimates_v2.page_host`. A query
+    /// string is refused except the closed table addresses of amendment G8 (`tableQueryBase`).
     static func pageHost(_ t: PFDText) -> [UInt8]? {
-        let b = t.bytes, prefix = Array("https://".utf8)
-        guard b.starts(with: prefix), b.count <= urlLimit, b.allSatisfy({ (0x21...0x7e).contains($0) }),
+        let prefix = Array("https://".utf8)
+        guard t.bytes.count <= urlLimit, let b = tableQueryBase(t.bytes) else { return nil }
+        guard b.starts(with: prefix), b.allSatisfy({ (0x21...0x7e).contains($0) }),
               !b.contains(UInt8(ascii: "?")), !b.contains(UInt8(ascii: "#")) else { return nil }
         let authority = Array(b.dropFirst(prefix.count).prefix { $0 != UInt8(ascii: "/") })
         guard !authority.contains(UInt8(ascii: "@")) else { return nil }

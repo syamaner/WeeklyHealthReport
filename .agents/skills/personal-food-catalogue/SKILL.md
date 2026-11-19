@@ -63,9 +63,8 @@ below serves that, and enrichment work is judged by it:
     (`carried_from_similar_food`), and its assumption says how it differs. No barcode is typed into the
     site or a search engine, and the site's own search box is not used; records are found by web search
     description queries or through the site's own links.
-  - **Composite dishes.** A similar-food record fills a composite dish only on amendment G5's terms
-    (`low`, the fixed sentence) once G5 (#529) is accepted, which also brings the code that enforces
-    it; until then it never does.
+  - **Composite dishes.** A similar-food record, another brand's Branded record included, fills a
+    composite dish only on amendment G5's and G7's terms (`low`, the fixed sentence).
 - **Identity and state first.** The right food in the right state (as sold, raw, cooked, drained,
   dry, prepared) and the right cut or variety matter more than any single value; a raw record for a
   cooked food is the worst error.
@@ -125,7 +124,10 @@ below serves that, and enrichment work is judged by it:
    contains "A generic recipe, not this product's."; another brand's label still never does. Since
    amendment G5 (owner, 19 November 2026, `docs/personal-food-catalogue-composite-web-amendment-v1.md`),
    a web page for a generic dish of the same kind (an `aggregator` page) may do the same on the same
-   terms; a manufacturer page about another product is another brand's label and never does.
+   terms. Since amendment G7 (owner, 19 November 2026,
+   `docs/personal-food-catalogue-tables-composites-amendment-v1.md`), another brand's label (a product
+   page or a label photo of another product) may also fill a composite dish as a `low` similar-food
+   estimate with the fixed sentence.
 7. **Assistive, not automatic.** Values the owner typed or confirmed are exported as measured
    (decision 11). Values read by the agent from a photo or page are
    `photo_unconfirmed` / `page_unconfirmed` until the owner confirms them. Matches are proposals.

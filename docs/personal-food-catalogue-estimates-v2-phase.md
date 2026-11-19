@@ -17,6 +17,8 @@ approved estimates take **contract 10**; the daily export writes version 2, so e
 Contract 9 added no provenance kind (it is detected from layered decisions), so the model for the
 new kind is contract 6 (`app_reference_definition`).
 
+**Amendment, 19 November 2026 ([amendments G7 and G8](personal-food-catalogue-tables-composites-amendment-v1.md), proposed in #532).** Section 3.1 item 7's page address grammar (no `?` anywhere) admits a query string only for the closed list of composition-table record addresses of G8.
+
 ## 1. Order of work inside the phase
 
 One PR, as P5 decides. The tree builds and its tests pass after each step. **No step binds an

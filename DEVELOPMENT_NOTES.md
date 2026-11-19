@@ -5055,3 +5055,9 @@ Unmeasured: no boundary was captured at the start of this phase, separately from
 The session (`d0fc3a48-a687-41a1-8f22-15d1b5ec0935`, `claude-fable-5-2`) amended the Delivery merge rule in `AGENTS.md` at the owner's request of 19 November 2026, after the Qodo trial ended on 18 November 2026: the wait for a Qodo review at the new head is replaced by a blind `invariant-reviewer` pass over the PR's own changes, and the authorised merge now enables auto-merge instead of waiting on CI by hand, turning it off before any later push because the head is checked only when it is enabled. A blind `invariant-reviewer` pass at the first PR head (`88e55bc`) returned two wording findings, both folded in. Documentation only; there is no issue for this change, so the heading carries no issue number.
 
 Unmeasured: no boundary was captured at the start of this change, separately from the usage-report follow-ups done in the same session, so no token figure is recorded rather than an estimate.
+
+## WHR-532-2026-11-19: Claude Code amendments G7 and G8
+
+The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) wrote amendments G7 (another brand's label may fill a composite dish at `low` with the fixed sentence) and G8 (a closed list of composition-table record addresses may carry their query string) after the owner's decisions of 19 November 2026, with G6 (density) deferred by the owner after a blind `architecture-gate` review returned concerns about its stored-record and provenance changes. A blind `invariant-reviewer` pass runs at the PR head.
+
+Unmeasured: no boundary was captured at the start of this phase, separately from the private catalogue work done in the same session, so no token figure is recorded rather than an estimate.

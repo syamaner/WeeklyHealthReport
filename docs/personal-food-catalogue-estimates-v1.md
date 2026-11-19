@@ -35,6 +35,8 @@ these points, each in its own section there; everything else here stands.
 - Section 5.2's capture manifest gains `corpus_sha256` beside each composition estimate.
 - Section 7's bare "Estimated" label becomes a closed list of labels that carry the tier.
 
+**Amendment, 19 November 2026 ([amendments G7 and G8](personal-food-catalogue-tables-composites-amendment-v1.md), proposed in #532).** Section 2.2's `source_reference` rule (no query string) admits a query string only for the closed list of composition-table record addresses of G8; exports keep dropping it.
+
 ## 1. Required behaviour
 
 - **An estimate stays an estimate** through import, Confirm, Log, reopen, archive restore and the

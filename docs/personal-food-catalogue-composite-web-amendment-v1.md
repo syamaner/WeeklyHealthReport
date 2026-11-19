@@ -1,8 +1,7 @@
 # Personal food database: generic web page estimates for composite dishes (G5)
 
-Status: **proposed for the owner's approval in #528.** The owner decided the question of section 5
-on 19 November 2026; this text becomes binding when the owner approves the PR, and no value it
-admits is written before then. It follows the [gap estimates amendments G1 to G3](personal-food-catalogue-gap-estimates-v1-amendment.md)
+Status: **accepted.** The owner decided the question of section 5 on 19 November 2026 and approved
+#529, which merged on 19 November 2026. It follows the [gap estimates amendments G1 to G3](personal-food-catalogue-gap-estimates-v1-amendment.md)
 and the [own merge amendment G4](personal-food-catalogue-own-merge-amendment-v1.md), and keeps their
 numbering.
 
@@ -10,6 +9,8 @@ It is a delta on [labelled estimates on catalogue v2](personal-food-catalogue-es
 ("estimates v2") and on G1, and repeats neither. Everything estimates v2, import v1 and G1 to G4 say
 that this document does not name stays as written. Estimates v2, import v1 and the G1 to G3 document
 gain dated notes pointing here.
+
+**Amendment, 19 November 2026 ([amendments G7 and G8](personal-food-catalogue-tables-composites-amendment-v1.md), proposed in #532).** G5b and section 3's third bullet are amended: another brand's product page may fill a composite dish at `low` with the fixed sentence (G7).
 
 ## 1. Why
 
