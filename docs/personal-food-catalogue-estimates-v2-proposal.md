@@ -6,6 +6,8 @@ file keeps its original name so that existing links hold. Implementation is one 
 daily export v2 has landed, with its own issue and architecture gate (decision P5). No app
 code, skill code or fixture changes with this document. Programme #424, base contracts #419.
 
+**Amendment, 19 November 2026 ([gap estimates amendments](personal-food-catalogue-gap-estimates-v1-amendment.md), proposed in #524).** Section 4's composite rule admits a generic dish record at `low` with a fixed sentence, and section 3.3 gains the codec ceiling `low` for a national estimate on a packaged composite entry (G1). Section 3.1's `estimate-basis` moves from the codec to the importer, after `estimate-contradiction`: a per 100 ml entry takes a per 100 ml record, or a quantified zero from a per 100 g record, and nothing else (G2).
+
 **Implementation, 17 November 2026 (#511).** Built in one phase under the
 [phase gate](personal-food-catalogue-estimates-v2-phase.md), which records what the phase pinned
 and where it narrowed an inherited rule (its sections 3 and 5). No rule of this contract changed.

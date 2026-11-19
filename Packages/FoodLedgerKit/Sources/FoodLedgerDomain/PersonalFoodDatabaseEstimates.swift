@@ -258,10 +258,13 @@ struct PersonalFoodDatabaseEstimateChecker {
         }
     }
 
-    /// The highest tier the codec accepts for a record (contract section 3.3).
+    /// The highest tier the codec accepts for a record (contract section 3.3). A national estimate on a
+    /// packaged composite dish is a generic recipe, never this product's: at most `low` (gap estimates
+    /// amendment G1, docs/personal-food-catalogue-gap-estimates-v1-amendment.md).
     static func ceiling(method: PFDText, stateBasis: PFDText, pageAccess: PFDText?, national: Bool, own: Bool,
-                        photo: Bool = false) -> PersonalFoodDatabaseEstimateQuality {
+                        photo: Bool = false, composite: Bool = false) -> PersonalFoodDatabaseEstimateQuality {
         if stateBasis == PFDText("unknown") { return .low }
+        if national, composite { return .low }
         if photo { return .medium }
         if method == PFDText("carried_from_same_food") || method == PFDText("direct"),
            stateBasis == PFDText("source_states_it"), pageAccess != PFDText("indexed_copy"), !national || own {
@@ -295,8 +298,12 @@ struct PersonalFoodDatabaseEstimateChecker {
         }
         let photo = sourceType == PersonalFoodDatabasePhotoRules.token
         if quality.rank > ceiling(method: method, stateBasis: stateBasis, pageAccess: rec["page_access"]?.text,
-                                  national: national, own: own, photo: photo).rank { codes.append(.estimateQuality) }
-        if national, item["basis"]?.text != PFDText("per_100_g") { codes.append(.estimateBasis) }
+                                  national: national, own: own, photo: photo,
+                                  composite: item["product_type"]?.text == PFDText("packaged_composite")).rank {
+            codes.append(.estimateQuality)
+        }
+        // `estimate-basis` is an importer rule since amendment G2: only the record shows whether a per
+        // 100 ml entry's value is from a per 100 ml record or a quantified zero.
         if photo { codes += PersonalFoodDatabasePhotoRules.relationCodes(record: rec, item: item) }
         return codes
     }
@@ -448,6 +455,13 @@ public struct GenericRecordFacts: Equatable, Sendable {
         case let .measured(value), let .augmented(value): return value.unit == key.canonicalUnit ? value.amount : nil
         case .bounded, .unknown: return nil
         }
+    }
+
+    /// Per 100 ml with a known 100 ml quantity (gap estimates amendment G2b).
+    public var isPer100Millilitres: Bool {
+        guard identity.servingBasis == .per100Millilitres, case let .known(quantity, conversion) = edibleQuantity,
+              conversion == nil else { return false }
+        return quantity.unit == .millilitres && quantity.value == 100
     }
 
     /// Per 100 g with a known 100 g edible quantity, as a merge needs.

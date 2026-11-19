@@ -188,8 +188,50 @@ def value_out(v, kind, release, record_id, match):
     return out
 
 
-def build(cat, pins, generated):
-    sources, items, withheld = {}, [], 0
+BASIS_DECISIONS_NAME = "basis-decisions.json"
+BASIS_DECISIONS_SCHEMA = "pfc-basis-decisions-v1"
+BASIS_DECISION_KEYS = {"entry_id", "basis", "date"}
+BASIS_DECISIONS = Counter()
+
+
+def load_basis_decisions(path: Path) -> dict:
+    """The owner's basis decisions (gap estimates amendment G2c), `{entry_id: row}`; an absent file is
+    none. Any other shape stops the build: a decision is evidence and is never half-read."""
+    if not path.exists():
+        return {}
+    doc = json.loads(path.read_text())
+    if not isinstance(doc, dict) or set(doc) != {"schema", "rows"} or doc["schema"] != BASIS_DECISIONS_SCHEMA \
+            or not isinstance(doc["rows"], list):
+        raise ValueError("basis decisions: not a pfc-basis-decisions-v1 document")
+    rows = {}
+    for n, r in enumerate(doc["rows"]):
+        if not isinstance(r, dict) or set(r) != BASIS_DECISION_KEYS or r["basis"] != "per_100_ml" \
+                or not isinstance(r["entry_id"], str) or not isinstance(r["date"], str) or not _date(r["date"]):
+            raise ValueError(f"basis decisions: row {n} is not entry_id, basis per_100_ml and a date")
+        if r["entry_id"] in rows:
+            raise ValueError(f"basis decisions: row {n} repeats an entry")
+        rows[r["entry_id"]] = r
+    return rows
+
+
+def decided_basis(eid, values, reference, decisions):
+    """`per_100_ml_as_labelled` when the owner decided it for an entry with no label value whose
+    reference would not merge; otherwise None. Every decision not applied is counted."""
+    if eid not in decisions:
+        return None
+    if values:
+        BASIS_DECISIONS["ignored: the entry has label values"] += 1
+        return None
+    if reference is not None and reference["role"] == "merge":
+        BASIS_DECISIONS["refused: the entry merges its record"] += 1
+        return None
+    BASIS_DECISIONS["applied"] += 1
+    return "per_100_ml_as_labelled"
+
+
+def build(cat, pins, generated, decisions=None):
+    decisions = decisions or {}
+    sources, items, withheld, seen = {}, [], 0, set()
     for i in cat["items"]:
         if i["kind"] != "food":
             continue
@@ -227,14 +269,22 @@ def build(cat, pins, generated):
         if not norm(i["title"]):
             REPLACED["empty_title"] += 1
             continue
+        eid = entry_id(i.get("brand"), i["title"])
+        seen.add(eid)
+        reference = choose_reference({**i, "state": fixed["state"]}, pins, basis)
+        decided = decided_basis(eid, values, reference, decisions)  # a labelled entry is counted as ignored
+        if decided:
+            basis = decided
+            reference = choose_reference({**i, "state": fixed["state"]}, pins, basis)
         items.append({
-            "id": entry_id(i.get("brand"), i["title"]), "brand": i.get("brand"), "title": i["title"],
+            "id": eid, "brand": i.get("brand"), "title": i["title"],
             "titles": i.get("titles") or [i["title"]], "aliases": i.get("aliases") or [],
             "concept": i.get("concept"), "variety": i.get("variety"), "fallback_chain": i.get("fallback_chain") or [],
             "category": fixed["category"], "product_type": fixed["product_type"], "state": fixed["state"],
             "basis": basis, "label_nutrients": values,
-            "generic_reference": choose_reference({**i, "state": fixed["state"]}, pins, basis),
+            "generic_reference": reference,
         })
+    BASIS_DECISIONS["ignored: no such entry"] += len(set(decisions) - seen)
     items.sort(key=lambda x: x["id"])
     doc = {"schema": SCHEMA, "generated": generated,
            "sources": sorted(sources.values(), key=lambda s: s["source_release_id"]),
@@ -667,7 +717,12 @@ def main(ws: Path, repo: Path):
         print("EXPORT REFUSED: " + "; ".join(pin_errs))
         sys.exit(2)
     generated = time.strftime("%Y-%m-%d")
-    doc, withheld = build(cat, pins, generated)
+    try:
+        decisions = load_basis_decisions(ws / "work" / BASIS_DECISIONS_NAME)
+    except (ValueError, OSError) as e:
+        print(f"EXPORT REFUSED: {e}")
+        sys.exit(2)
+    doc, withheld = build(cat, pins, generated, decisions)
     data = json.dumps(doc, indent=1, ensure_ascii=False).encode()
     errs = check_export_conventions(doc) + check_bytes(data)
     if errs:
@@ -688,6 +743,8 @@ def main(ws: Path, repo: Path):
           f"{len(doc['sources'])} source releases)")
     print(f"release pfc:sha256:{hashlib.sha256(data).hexdigest()}")
     print(f"changes against {previous or 'no previous file'}: {report}")
+    if decisions:
+        print(f"owner basis decisions: {dict(sorted((k, v) for k, v in BASIS_DECISIONS.items() if v))}")
     if retired:
         print(f"renamed the old v1 export to {retired.name}, so only the v2 file can be imported")
     if REPLACED:

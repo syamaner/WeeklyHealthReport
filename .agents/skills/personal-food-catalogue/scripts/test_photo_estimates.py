@@ -264,23 +264,47 @@ class Admission(unittest.TestCase):
                            "source_reference": "cofid:synthetic:row:0009", "refusal_class": "per_entry_exclusion"})
         other_class = self.lists({"entry_id": FROZEN["id"], "source_type": "national_composition",
                                   "source_reference": "cofid:synthetic:row:0009", "refusal_class": "stratum_consequence"})
-        self.assertEqual(whole.status(FROZEN["id"], "fiber", ev, None), I.REFUSED)
-        self.assertEqual(whole.status(FROZEN["id"], "protein", ev, None), I.REFUSED)
+        # gap estimates amendment G3: a row of class `open_food_facts` no longer refuses a photo
+        self.assertEqual(whole.status(FROZEN["id"], "fiber", ev, None), I.CLEAR)
+        self.assertEqual(whole.status(FROZEN["id"], "protein", ev, None), I.CLEAR)
+        self.assertEqual(whole.photo_classes(FROZEN["id"], "protein", ev), {"open_food_facts"})
+        whole_fault = self.lists({"entry_id": FROZEN["id"], "source_type": "aggregator",
+                                  "source_reference": "https://world.openfoodfacts.org/product/1", "refusal_class": "value_fault"})
+        self.assertEqual(whole_fault.status(FROZEN["id"], "protein", ev, None), I.REFUSED)
         self.assertEqual(other.status(FROZEN["id"], "fiber", ev, None), I.CLEAR)
         self.assertEqual(same.status(FROZEN["id"], "fiber", ev, None), I.REFUSED)
         self.assertEqual(other_class.status(FROZEN["id"], "fiber", ev, None), I.CLEAR)
 
     def test_the_barcode_rule_refuses_the_photo_for_every_entry(self):
-        lists = self.lists({"entry_id": COOKED["id"], "source_type": "aggregator",
-                            "source_reference": "https://world.openfoodfacts.org/product/5000000000017",
-                            "refusal_class": "open_food_facts", "nutrient": "sugar"})
+        off_row = {"entry_id": COOKED["id"], "source_type": "aggregator",
+                   "source_reference": "https://world.openfoodfacts.org/product/5000000000017",
+                   "refusal_class": "open_food_facts", "nutrient": "sugar"}
+        a1_row = {"entry_id": COOKED["id"], "source_type": "aggregator",
+                  "source_reference": "off:gtin:00005000000000017", "refusal_class": "unresolved_a1"}
         ev = photo("carried_from_similar_food", PHOTO_OTHER, state="frozen")
-        self.assertEqual(lists.status(FROZEN["id"], "fiber", ev, None), I.REFUSED)
-        gtin = self.lists({"entry_id": COOKED["id"], "source_type": "aggregator",
-                           "source_reference": "off:gtin:00005000000000017", "refusal_class": "unresolved_a1"})
-        self.assertEqual(gtin.status(UNKNOWN["id"], "fiber", ev, None), I.REFUSED)
-        admitted, counts = admit(prow(FROZEN, ev), status=lists.status)
-        self.assertEqual((admitted, counts["withheld_refused_source"]), ([], 1))
+        # amendment G3: a barcode with only `open_food_facts` rows no longer refuses; any other class does,
+        # alone or mixed with `open_food_facts`, by barcode for every entry
+        only_off = self.lists(off_row)
+        self.assertEqual(only_off.status(FROZEN["id"], "fiber", ev, None), I.CLEAR)
+        admitted, counts = admit(prow(FROZEN, ev), status=only_off.status)
+        self.assertEqual((len(admitted), counts["withheld_refused_source"]), (1, 0))
+        self.assertEqual(self.lists(a1_row).status(UNKNOWN["id"], "fiber", ev, None), I.REFUSED)
+        for cls in ("per_entry_exclusion", "value_fault", "unresolved_a1"):
+            mixed = self.lists(off_row, {**a1_row, "refusal_class": cls})
+            self.assertEqual(mixed.status(FROZEN["id"], "fiber", ev, None), I.REFUSED, cls)
+            admitted, counts = admit(prow(FROZEN, ev), status=mixed.status)
+            self.assertEqual((admitted, counts["withheld_refused_source"]), ([], 1), cls)
+
+    def test_a_photo_over_an_open_food_facts_row_is_counted_and_not_refused(self):
+        doc = plain(FROZEN, COOKED, UNKNOWN, CANNED)
+        lists = self.lists({"entry_id": FROZEN["id"], "source_type": "aggregator", "nutrient": "fiber",
+                            "source_reference": "https://world.openfoodfacts.org/product/1", "refusal_class": "open_food_facts"})
+        admitted, _ = admit(prow(FROZEN, photo("carried_from_similar_food", PHOTO_OTHER, state="frozen")),
+                            status=lists.status, doc=doc)
+        result = C.six_counts(I.assemble(doc, admitted), [], lists)
+        self.assertEqual((result["counts"]["photo_over_open_food_facts"], result["counts"]["refused_not_readmitted"]),
+                         (1, 0))
+        self.assertEqual(C.failures(result), [])
 
     def test_barcodes_from_addresses(self):
         self.assertEqual(V3.barcode(PHOTO_OWN), BARCODE_OWN)

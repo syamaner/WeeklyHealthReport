@@ -8,6 +8,8 @@ protected store, the importer and the Settings row, and P1c (search and Confirm)
 (estimates) are still to come. The amendment rows for A1 in `unified-food-search-contract-v1.md` and
 identity contract section 8 are added in the phase that changes search. Issue: [#419](https://github.com/syamaner/WeeklyHealthReport/issues/419).
 
+**Amendment, 19 November 2026 ([gap estimates amendments](personal-food-catalogue-gap-estimates-v1-amendment.md), proposed in #524).** The `basis` row gains one exception (G2c): an entry with no label values is filed `per_100_ml_as_labelled` when the owner has recorded that basis for it, unless its reference would merge. Decision 4 now forbids another brand's label for a composite dish and no longer forbids a national table's generic dish record admitted as a rough estimate (G1).
+
 ## 1. Purpose and scope
 
 The owner keeps a private nutrition database built from their own receipts, notes and food logs.

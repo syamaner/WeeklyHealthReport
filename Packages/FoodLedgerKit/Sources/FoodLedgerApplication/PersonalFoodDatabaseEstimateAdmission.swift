@@ -32,7 +32,8 @@ public struct GenericRecordLookupSet: GenericRecordNutrientLookup {
 /// The importer's rules for a file the codec accepted (contract section 3.1). For each
 /// `national_composition` estimate, in `estimate_evidence` order: `corpus-mismatch`,
 /// `record-missing`, `value-unquantified`, `value-mismatch` (the first that fails; the last two need
-/// the record), then `estimate-contradiction` whenever the record was read.
+/// the record), then `estimate-contradiction` and `estimate-basis`, each whenever the record was read
+/// (gap estimates amendment G2, docs/personal-food-catalogue-gap-estimates-v1-amendment.md).
 public enum PersonalFoodDatabaseEstimateAdmission {
     public static let tolerance = 0.005
 
@@ -43,13 +44,24 @@ public enum PersonalFoodDatabaseEstimateAdmission {
         return abs(file - record) <= tolerance * abs(record)
     }
 
-    /// The closed, mechanical contradiction list of contract section 3.1.
+    /// The closed, mechanical contradiction list of contract section 3.1. The basis bullet applies to a
+    /// per 100 g entry only; a per 100 ml entry's basis is `basisMismatch` (amendment G2).
     public static func contradicts(entry: PersonalFoodDatabaseEntry, record: GenericRecordFacts) -> Bool {
         if entry.state == .raw || entry.state == .cooked,
            let preparation = try? PersonalFoodDatabaseCandidateBuilder.preparation(entry.state),
            EstimateIdentityComparison.preparationContradicts(record.identity.preparation, preparation) { return true }
         if record.identity.fortification == .fortified { return true }
-        return !record.isPer100GramsEdible
+        return entry.basis == .per100Grams && !record.isPer100GramsEdible
+    }
+
+    /// Amendment G2, for a per 100 ml entry: a per 100 ml record (G2b) or, from a per 100 g record, a
+    /// value that is exactly zero in the record and in the file (G2a: zero needs no density). Anything
+    /// else is `estimate-basis`. A per 100 g entry never gets this code.
+    public static func basisMismatch(entry: PersonalFoodDatabaseEntry, estimate: PersonalFoodDatabaseEstimate,
+                                     record: GenericRecordFacts) -> Bool {
+        guard entry.basis == .per100MillilitresAsLabelled else { return false }
+        if record.isPer100Millilitres { return false }
+        return !(record.isPer100GramsEdible && estimate.value == 0 && record.quantified(estimate.key) == 0)
     }
 
     public static func codes(file: PersonalFoodDatabaseFile, lookup: any GenericRecordNutrientLookup) -> [PersonalFoodDatabaseRuleCode] {
@@ -77,6 +89,7 @@ public enum PersonalFoodDatabaseEstimateAdmission {
                     codes.append(.valueUnquantified)
                 }
                 if contradicts(entry: entry, record: record) { codes.append(.estimateContradiction) }
+                if basisMismatch(entry: entry, estimate: estimate, record: record) { codes.append(.estimateBasis) }
             }
         }
         return codes

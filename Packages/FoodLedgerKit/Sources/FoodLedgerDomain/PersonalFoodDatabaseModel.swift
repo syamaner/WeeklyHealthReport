@@ -55,7 +55,7 @@ public enum PersonalFoodDatabaseRuleCode: String, CaseIterable, Error, Sendable 
 
     /// The codes only the importer raises (contract section 3.1), in its order per estimate.
     public static let importerOnly: [Self] = [.corpusMismatch, .recordMissing, .valueUnquantified, .valueMismatch,
-                                              .estimateContradiction]
+                                              .estimateContradiction, .estimateBasis]
 
     /// The codes only a `personal-food-catalogue-estimates-v2` file can get.
     public static let estimatesOnly: Set<Self> = Set(importerOnly).union([

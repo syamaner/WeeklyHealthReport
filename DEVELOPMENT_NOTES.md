@@ -5027,3 +5027,9 @@ Unmeasured: no boundary was captured for this fix separately from the private ca
 The session (`da6b123c-cf92-4d58-9bb7-540385b44d83`, `claude-opus-5-5`) waited for PR521 and PR522 to merge, checked that `main` at `7175693` holds every #508 merge, PR520 and PR522, archived it, exported it for internal testing only, uploaded build 39 under the owner's yes to all TestFlight preparation for this build, set What to Test, added the build to Internal Testing and wrote [the build 39 record](docs/releases/internal-testflight-0.3.0-build39.md).
 
 Unmeasured: no boundary was captured at the start of this delivery, separately from the private catalogue rebuild done in the same window, so no token figure is recorded rather than an estimate.
+
+## WHR-524-2026-11-19: Claude Code gap estimates amendments G1 to G3
+
+The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) wrote the gap estimates amendments (#524) after the owner's decisions of 18 and 19 November 2026: generic dish records for composite dishes at `low` with a codec ceiling, per 100 ml estimates from per 100 ml records or a quantified zero with `estimate-basis` moved from the codec to the importer, owner basis decisions in the skill's export, and label photo re-admission over an `open_food_facts` refusal row. A blind `architecture-gate` review returned concerns, which the document and code address; a blind `invariant-reviewer` pass runs at the PR head.
+
+Unmeasured: no boundary was captured at the start of this phase, separately from the private catalogue gap work done in the same session, so no token figure is recorded rather than an estimate.

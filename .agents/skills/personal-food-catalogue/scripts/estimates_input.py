@@ -9,7 +9,7 @@ cannot be read, or its facts:
     {"nutrients": {key: value in the key's canonical unit},   # quantified values only
      "preparation": "raw" | "cooked" | "unknown" | ...,
      "fortification": "fortified" | "unfortified" | "unknown" | None,   # None: the source never states it
-     "per_100_g": True | False}
+     "per_100_g": True | False, "per_100_ml": True | False}
 
 A national composition value always comes from that reader, never from the input (phase gate
 invariant 2.3.4). Refusal messages carry no title, brand or value. `apply_estimates.py` is the only
@@ -38,6 +38,8 @@ ACCEPTED_KEYS = {"sheet", "row"}
 ENTRY_ID = re.compile(r"pfc:[0-9a-f]{12}")
 RELEASE_ID = re.compile(r"pfc:sha256:[0-9a-f]{64}")
 # Admission, first reason wins (phase gate section 3.2 item 4), in exactly this order.
+# Gap estimates amendment G1 (docs/personal-food-catalogue-gap-estimates-v1-amendment.md).
+COMPOSITE_SENTENCE = "A generic recipe, not this product's."
 REASONS = ("label_kept", "merged_kept", "composite", "open_food_facts_source", "refused_source",
            "readmission_class", "unquantified", "basis", "fortified_record", "state_contradiction", "transform",
            "codec")
@@ -298,7 +300,11 @@ def reason(est, item, corpora, read_record, refusal_status):
         merged = _facts(read_record, ref["source"], ref["record_id"])
         if merges(item, merged) and _quantified(merged, key) is not None:
             return "merged_kept", []
-    if national and item["product_type"] == "packaged_composite":
+    # Gap estimates amendment G1: a generic dish record may fill a composite dish, only as a rough
+    # similar-food estimate that says it is a generic recipe.
+    if national and item["product_type"] == "packaged_composite" and not (
+            ev["quality"] == "low" and ev["method"] == "carried_from_similar_food"
+            and COMPOSITE_SENTENCE in ev["assumption"]):
         return "composite", []
     if open_food_facts(est):
         return "open_food_facts_source", []
@@ -313,8 +319,14 @@ def reason(est, item, corpora, read_record, refusal_status):
         facts = _facts(read_record, ev["composition_source"], ev["source_reference"])
         if est["value"] is None or _quantified(facts, key) is None:
             return "unquantified", []
-        # No density is ever inferred: a record is per 100 g, so only a per 100 g entry takes it.
-        if item["basis"] != "per_100_g" or facts.get("per_100_g") is False:
+        # No density is ever inferred. A per 100 g entry takes a per 100 g record only; a per 100 ml entry
+        # takes a per 100 ml record, or from a per 100 g record a value that is exactly zero in the
+        # record and in the row (gap estimates amendment G2: zero needs no density).
+        if item["basis"] == "per_100_g":
+            if facts.get("per_100_g") is False:
+                return "basis", []
+        elif not (facts.get("per_100_ml") is True or (
+                facts.get("per_100_g") is True and est["value"] == 0 and _quantified(facts, key) == 0)):
             return "basis", []
         # What the app's importer rejects with `estimate-contradiction` where the bundled data shows
         # it (contract section 3.1): a fortified record, and a raw or cooked entry against a record

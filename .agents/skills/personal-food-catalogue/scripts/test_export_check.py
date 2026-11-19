@@ -733,9 +733,13 @@ ESTIMATE_CASES = {
     "quality-non-own-record-high": ("codec", ["estimate-quality"], lambda d: rec(d, CHEESE, "protein").update(
         method="carried_from_same_food", state_basis="source_states_it", quality="high")),
     "quality-state-unknown-medium": ("codec", ["estimate-quality"], lambda d: rec(d, CRISPS, "fiber").update(quality="medium")),
-    "basis-non-own-record": ("codec", ["estimate-basis"], lambda d: put(
+    # gap estimates amendment G1: a national estimate on a composite dish is at most `low`
+    "quality-composite-national-medium": ("codec", ["estimate-quality"], lambda d: put(
+        d, DRINK, "sugar", 2.0, national("cofid:wine", "carried_from_similar_food", "stated_assumption", "medium"))),
+    # amendment G2: `estimate-basis` is an importer code, checked against the record
+    "basis-non-own-record": ("importer", ["estimate-basis"], lambda d: put(
         d, DRINK, "sugar", 4.5, national("cofid:juice", "carried_from_similar_food", "stated_assumption", "low"))),
-    "basis-own-record": ("codec", ["estimate-basis"], lambda d: (
+    "basis-own-record": ("importer", ["estimate-basis"], lambda d: (
         find(d, DRINK).update(generic_reference=COFID("cofid:juice", "close")),
         put(d, DRINK, "sugar", 4.5, national("cofid:juice", "carried_from_similar_food", "stated_assumption", "low")))),
     "table-rows-in-order": ("codec", ["estimate-own-held", "estimate-own-held", "estimate-own-method", "estimate-own-state",
@@ -777,6 +781,22 @@ ESTIMATE_CASES = {
     "importer-own-record-not-per-100-g": ("importer", ["estimate-contradiction"], lambda d: (
         find(d, CHEESE)["generic_reference"].update(record_id="cofid:not-100-g-cheese"),
         rec(d, CHEESE, "calcium").update(source_reference="cofid:not-100-g-cheese"))),
+    # amendment G2, in the importer's order: value checks, then `estimate-contradiction`, then `estimate-basis`
+    "importer-basis-zero-file-non-zero-record": ("importer", ["value-mismatch", "estimate-basis"], lambda d: put(
+        d, DRINK, "sugar", 0, national("cofid:juice", "carried_from_similar_food", "stated_assumption", "low"))),
+    "importer-basis-unquantified-record": ("importer", ["value-unquantified", "estimate-basis"], lambda d: put(
+        d, DRINK, "protein", 1.0, national("cofid:unquantified", "carried_from_similar_food", "stated_assumption", "low"))),
+    "importer-basis-fortified-per-100-g-record": ("importer", ["estimate-contradiction", "estimate-basis"], lambda d: put(
+        d, DRINK, "sugar", 4.5, national("cofid:fortified-juice", "carried_from_similar_food", "stated_assumption", "low"))),
+    "importer-basis-fortified-per-100-ml-record": ("importer", ["estimate-contradiction"], lambda d: put(
+        d, DRINK, "sugar", 2.0, national("cofid:fortified-wine", "carried_from_similar_food", "stated_assumption", "low"))),
+    "importer-basis-per-100-ml-record-not-100-ml": ("importer", ["estimate-basis"], lambda d: put(
+        d, DRINK, "sugar", 2.0, national("cofid:wine-not-100-ml", "carried_from_similar_food", "stated_assumption", "low"))),
+    "importer-cooked-per-100-ml-entry-raw-per-100-ml-record": ("importer", ["estimate-contradiction"], lambda d: (
+        find(d, DRINK).update(state="cooked", product_type="packaged_single_ingredient"),
+        put(d, DRINK, "sugar", 2.0, national("cofid:raw-wine", "carried_from_similar_food", "stated_assumption", "medium")))),
+    "importer-per-100-ml-record-on-per-100-g-entry": ("importer", ["estimate-contradiction"], lambda d: put(
+        d, CHEESE, "sugar", 2.0, national("cofid:wine", "carried_from_similar_food", "stated_assumption", "low"))),
 }
 
 
@@ -810,6 +830,20 @@ ESTIMATE_ACCEPT = {  # name -> (stage that accepts it, document)
     # an estimate beside a merged record: the estimate precedes the record on its own key only
     "estimate-beside-merged-record": ("importer", lambda: _est(lambda d: (
         put(d, OATS, "protein", 12.5, page()), put(d, OATS, "fiber", 9.0, page())))),
+    # amendment G2: a per 100 ml record, and a quantified zero from a per 100 g record, on a per 100 ml entry
+    "per-100-ml-record-on-per-100-ml-entry": ("importer", lambda: _est(lambda d: put(
+        d, DRINK, "sugar", 2.0, national("cofid:wine", "carried_from_similar_food", "stated_assumption", "low")))),
+    "zero-from-per-100-g-record-on-per-100-ml-entry": ("importer", lambda: _est(lambda d: put(
+        d, DRINK, "fiber", 0, national("cofid:zero-fibre", "carried_from_similar_food", "stated_assumption", "low")))),
+    "single-ingredient-per-100-ml-record-at-medium": ("importer", lambda: _est(lambda d: (
+        find(d, DRINK).update(product_type="packaged_single_ingredient"),
+        put(d, DRINK, "sugar", 2.0, national("cofid:wine", "carried_from_similar_food", "stated_assumption", "medium"))))),
+    "own-candidate-per-100-ml-record": ("importer", lambda: _est(lambda d: (
+        find(d, DRINK).update(generic_reference=COFID("cofid:wine", "close")),
+        put(d, DRINK, "sugar", 2.0, national("cofid:wine", "carried_from_similar_food", "stated_assumption", "low"))))),
+    "own-candidate-zero-from-per-100-g-record": ("importer", lambda: _est(lambda d: (
+        find(d, DRINK).update(generic_reference=COFID("cofid:zero-fibre", "close")),
+        put(d, DRINK, "fiber", 0, national("cofid:zero-fibre", "carried_from_similar_food", "stated_assumption", "low"))))),
     "raw-entry-as-sold-record": ("importer", lambda: _est(lambda d: put(
         d, GREENS, "protein", 18.0, national("cofid:as-sold", "carried_from_similar_food", "stated_assumption", "low")))),
 }
@@ -833,6 +867,14 @@ STUB_RECORDS = [
     ("cofid:not-100-g", {"protein": 18.0}, "unknown", None, "unfortified", False),
     ("cofid:fortified-cheese", {"calcium": 400.0}, "unknown", None, "fortified", True),
     ("cofid:not-100-g-cheese", {"calcium": 400.0}, "unknown", None, "unfortified", False),
+    # amendment G2 (an optional seventh field is the record's basis; per 100 g when absent)
+    ("cofid:juice", {"sugar": 4.5}, "unknown", None, "unfortified", True),
+    ("cofid:fortified-juice", {"sugar": 4.5}, "unknown", None, "fortified", True),
+    ("cofid:zero-fibre", {"fiber": 0}, "unknown", None, "unfortified", True),
+    ("cofid:wine", {"sugar": 2.0, "fiber": 0}, "unknown", None, "unfortified", True, "per_100_ml"),
+    ("cofid:fortified-wine", {"sugar": 2.0}, "unknown", None, "fortified", True, "per_100_ml"),
+    ("cofid:wine-not-100-ml", {"sugar": 2.0}, "unknown", None, "unfortified", False, "per_100_ml"),
+    ("cofid:raw-wine", {"sugar": 2.0}, "raw", None, "unfortified", True, "per_100_ml"),
 ]
 
 URLS = {  # phase gate section 3.1 item 7; both checkers read this list
@@ -854,7 +896,7 @@ URLS = {  # phase gate section 3.1 item 7; both checkers read this list
 # Raised only by the app's importer, against the bundled record (contract section 3.1); in the enum's
 # estimates-only set, never emitted by either codec.
 IMPORTER_RULE_CODES = ["corpus-mismatch", "record-missing", "value-unquantified", "value-mismatch",
-                       "estimate-contradiction"]
+                       "estimate-contradiction", "estimate-basis"]
 
 
 def estimate_rule_codes():
@@ -894,8 +936,8 @@ def write_estimates_v2(fixtures: Path):
     manifest["importer_rule_codes"] = IMPORTER_RULE_CODES
     manifest["stub_lookup"] = {"pins": {"cofid": PIN}, "records": [
         {"source": "cofid", "record_id": rid, "nutrients": nutrients, "preparation": kind, "preparation_method": method,
-         "fortification": fortification, "per_100_g_edible": edible}
-        for rid, nutrients, kind, method, fortification, edible in STUB_RECORDS]}
+         "fortification": fortification, "per_100_g_edible": edible, "basis": basis[0] if basis else "per_100_g"}
+        for rid, nutrients, kind, method, fortification, edible, *basis in STUB_RECORDS]}
     manifest["urls"] = URLS
     manifest["canonical_units"] = E.CANON_UNITS
     (fixtures / "manifest.json").write_text(json.dumps(manifest, indent=1) + "\n")

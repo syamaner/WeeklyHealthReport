@@ -7,6 +7,8 @@ transform vocabulary, and archive and export versioning. Importer implementation
 until E3 is final ([E3 disposition](personal-food-database-e3-disposition.md)) and this contract is
 approved. Programme #424, base contract #419.
 
+**Amendment, 19 November 2026 ([gap estimates amendments](personal-food-catalogue-gap-estimates-v1-amendment.md), proposed in #524).** Section 3.2's reading of import v1 decision 4 changes (G1): a national table's generic dish record may fill a composite dish, as a `low` similar-food estimate stating that it is a generic recipe. `recipe_estimate` stays out of the source-type list.
+
 **Amendment, 18 November 2026 ([label photo estimates](personal-food-catalogue-off-estimates-v1-proposal.md), accepted, not implemented).**
 Section 3.1's refusal of "an estimate whose underlying source is an Open Food Facts record" gains one
 exception: a `product_dataset_photo` value read from an Open Food Facts label photo, in the

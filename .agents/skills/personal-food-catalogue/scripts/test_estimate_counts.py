@@ -187,8 +187,9 @@ class SixCounts(unittest.TestCase):
         self.assertEqual(C.failures(result) == [], not (set(nonzero) & set(C.MUST_BE_ZERO)) and not result["checks"])
 
     def test_six_names_and_a_clean_catalogue(self):
-        self.assertEqual(len(C.MUST_BE_ZERO), 4)
-        self.assertEqual(len(C.REPORTED), 2)
+        # six from estimates v2, plus two must-be-zero and one reported from gap estimates amendments G1 and G3
+        self.assertEqual(len(C.MUST_BE_ZERO), 6)
+        self.assertEqual(len(C.REPORTED), 3)
         doc = T.plain(FISH, PULSE)
         self.zero(C.six_counts(doc, [], C.Lists()))  # a plain v2 document has no estimate
         result = self.counts(doc, [T.row(FISH, T.national(quality="high")), T.row(PULSE, T.page(), "fiber", 7.5)])
