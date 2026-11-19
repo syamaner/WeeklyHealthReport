@@ -39,7 +39,9 @@ RULE_CODES = (
     "derivation-shape", "derivation-unexpected", "evidence-id", "evidence-duplicate", "evidence-order",
     "estimated-nutrients", "estimate-keys", "label-and-estimate", "evidence-dangling", "evidence-mismatch",
     "evidence-unused-or-shared",
-    "estimate-own-merge", "estimate-own-method", "estimate-own-state", "estimate-own-held", "estimate-quality")
+    "estimate-own-method", "estimate-own-state", "estimate-own-held", "estimate-quality")
+# `estimate-own-merge` is an importer code since own merge amendment G4
+# (docs/personal-food-catalogue-own-merge-amendment-v1.md): only the record shows whether the app merges it.
 # `estimate-basis` is an importer code since gap estimates amendment G2
 # (docs/personal-food-catalogue-gap-estimates-v1-amendment.md): only the record shows the basis.
 # Contract section 6 of estimates v1: the app's own pairs, each limited to its nutrient and source unit.
@@ -176,14 +178,15 @@ def is_own(rec, ref) -> bool:
             and ref.get("source") == rec["composition_source"] and ref.get("record_id") == rec["source_reference"])
 
 
-def ceiling(rec, own: bool, composite: bool = False) -> str:
+def ceiling(rec, own: bool, composite: bool = False, own_merge: bool = False) -> str:
     """The highest tier the codec accepts for this record (contract section 3.3). A national estimate on
-    a packaged composite dish is a generic recipe: at most `low` (amendment G1)."""
+    a packaged composite dish is a generic recipe: at most `low` (amendment G1). An estimate from the
+    entry's own `merge` record, which the app did not merge, is at most `medium` (amendment G4)."""
     if rec["state_basis"] == "unknown":
         return "low"
     if composite and rec["source_type"] == "national_composition":
         return "low"
-    if rec["source_type"] == V3.TOKEN:
+    if rec["source_type"] == V3.TOKEN or own_merge:
         return "medium"
     if rec["method"] in ("carried_from_same_food", "direct") and rec["state_basis"] == "source_states_it" \
             and rec["page_access"] != "indexed_copy" and (rec["source_type"] != "national_composition" or own):
@@ -196,16 +199,18 @@ def table_codes(rec, item) -> list:
     ref = item["generic_reference"]
     own = is_own(rec, ref)
     candidate = own and ref["role"] == "candidate"
+    # Amendment G4: an own `merge` record is judged as an own same-food record, never held; whether
+    # the app merges it is the importer's `estimate-own-merge`.
+    own_merge = own and ref["role"] == "merge"
     codes = []
-    if own and ref["role"] == "merge":
-        codes.append("estimate-own-merge")
-    if candidate and rec["method"] != OWN_METHOD[ref["match"]]:
+    if (candidate or own_merge) and rec["method"] != OWN_METHOD[ref["match"]]:
         codes.append("estimate-own-method")
-    if candidate and rec["state_basis"] == "unknown":
+    if (candidate or own_merge) and rec["state_basis"] == "unknown":
         codes.append("estimate-own-state")
     if candidate and ref["match"] == "same_food_same_state" and item["state"] in ("raw", "cooked"):
         codes.append("estimate-own-held")
-    if QUALITY_RANK[rec["quality"]] > QUALITY_RANK[ceiling(rec, own, item["product_type"] == "packaged_composite")]:
+    if QUALITY_RANK[rec["quality"]] > QUALITY_RANK[ceiling(rec, own, item["product_type"] == "packaged_composite",
+                                                            own_merge)]:
         codes.append("estimate-quality")
     if rec["source_type"] == V3.TOKEN:
         codes += V3.relation_codes(rec, item)

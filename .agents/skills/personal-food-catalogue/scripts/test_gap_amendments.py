@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Synthetic tests for the gap estimates amendments G1 and G2
-(docs/personal-food-catalogue-gap-estimates-v1-amendment.md); G3 is tested in test_photo_estimates.py.
+(docs/personal-food-catalogue-gap-estimates-v1-amendment.md) and the own merge amendment G4
+(docs/personal-food-catalogue-own-merge-amendment-v1.md); G3 is tested in test_photo_estimates.py.
 
 Usage: python3 -I test_gap_amendments.py <scripts_dir>
 Every title, brand and value here is synthetic.
@@ -13,15 +14,21 @@ from pathlib import Path
 
 sys.path.insert(0, sys.argv[1])
 import estimate_counts as C  # noqa: E402
+import estimates_v2 as EV  # noqa: E402
 import estimates_input as I  # noqa: E402
 import export_v1  # noqa: E402
-from test_estimates_input import CORPORA, RECORDS, item, national, plain, read, row  # noqa: E402
+from test_estimates_input import CORPORA, RECORDS, item, national, plain, read, reference, row  # noqa: E402
 
 ML_RECORD, ZERO_RECORD = "cofid:synthetic:row:0101", "cofid:synthetic:row:0102"
 RECORDS[("cofid", ML_RECORD)] = {"nutrients": {"sugar": 2.0, "fiber": 0}, "preparation": "unknown",
                                  "fortification": "unfortified", "per_100_g": False, "per_100_ml": True}
 RECORDS[("cofid", ZERO_RECORD)] = {"nutrients": {"fiber": 0, "sugar": 4.5}, "preparation": "unknown",
                                    "fortification": "unfortified", "per_100_g": True, "per_100_ml": False}
+RAW_RECORD, UNSTATED_RECORD = "cofid:synthetic:row:0103", "cofid:synthetic:row:0104"
+RECORDS[("cofid", RAW_RECORD)] = {"nutrients": {"protein": 11.0}, "preparation": "raw",
+                                  "fortification": "unfortified", "per_100_g": True, "per_100_ml": False}
+RECORDS[("cofid", UNSTATED_RECORD)] = {"nutrients": {"protein": 3.0, "fiber": 2.5}, "preparation": "unknown",
+                                       "fortification": "unfortified", "per_100_g": True, "per_100_ml": False}
 DISH = item("Synthetic Ready Meal", product_type="packaged_composite", state="unknown")
 DRINK = item("Synthetic Still Drink", state="unknown", basis="per_100_ml_as_labelled")
 NO_REFUSALS = C.Lists({"schema": C.SCHEMA_REFUSALS, "rows": []})
@@ -149,6 +156,53 @@ class BasisDecisions(unittest.TestCase):
     def test_a_decision_on_a_labelled_entry_is_counted_as_ignored(self):
         self.assertIsNone(export_v1.decided_basis("x", {"sugar": {}}, None, {"x": {}}))
         self.assertEqual(export_v1.BASIS_DECISIONS["ignored: the entry has label values"], 1)
+
+
+class OwnMergeRecord(unittest.TestCase):
+    """G4: an estimate from the entry's own merge record is admitted only where the app does not merge it,
+    as an own same-food record at most `medium`."""
+
+    @staticmethod
+    def entry(record, state="raw"):
+        return item("Synthetic Loose Greens", state=state, product_type="fresh_whole",
+                    generic_reference=reference(record_id=record, role="merge"))
+
+    def run_one(self, entry, evidence, nutrient):
+        doc = plain(entry, DISH, DRINK)
+        return admit(row(entry, evidence, nutrient), doc=doc)[1]
+
+    def test_a_record_the_app_does_not_merge_fills_a_raw_and_a_cooked_entry_at_medium(self):
+        for state in ("raw", "cooked"):
+            entry = self.entry(UNSTATED_RECORD, state)
+            ev = national(ref=UNSTATED_RECORD, state_basis="stated_assumption")
+            admitted, counts = self.run_one(entry, ev, "fiber")
+            self.assertEqual((len(admitted), counts["withheld_codec"]), (1, 0), state)
+
+    def test_a_record_the_app_merges_is_never_estimated_from(self):
+        entry = self.entry(RAW_RECORD)
+        admitted, counts = self.run_one(entry, national(ref=RAW_RECORD), "protein")
+        self.assertEqual((admitted, counts["withheld_merged_kept"]), ([], 1))
+
+    def test_the_codec_caps_an_own_merge_estimate_at_medium_and_keeps_the_method_and_state_rows(self):
+        entry = self.entry(UNSTATED_RECORD)
+        cases = [(national(ref=UNSTATED_RECORD, quality="high"), ["estimate-quality"]),
+                 (national("carried_from_similar_food", ref=UNSTATED_RECORD, state_basis="stated_assumption"),
+                  ["estimate-own-method"]),
+                 (national(ref=UNSTATED_RECORD, state_basis="unknown", quality="low"), ["estimate-own-state"])]
+        for ev, codes in cases:
+            admitted, counts = self.run_one(entry, ev, "fiber")
+            self.assertEqual((admitted, counts["withheld_codec"]), ([], 1), codes)
+            for code in codes:
+                self.assertEqual(counts["codec_" + code], 1, code)
+            self.assertNotIn("codec_estimate-own-merge", {k for k, v in counts.items() if v})
+            self.assertNotIn("codec_estimate-own-held", {k for k, v in counts.items() if v})
+
+    def test_the_ceiling(self):
+        ev = national(ref=UNSTATED_RECORD)
+        self.assertEqual(EV.ceiling(ev, own=True), "high")
+        self.assertEqual(EV.ceiling(ev, own=True, own_merge=True), "medium")
+        self.assertEqual(EV.ceiling({**ev, "state_basis": "unknown"}, own=True, own_merge=True), "low")
+        self.assertNotIn("estimate-own-merge", EV.RULE_CODES)
 
 
 if __name__ == "__main__":

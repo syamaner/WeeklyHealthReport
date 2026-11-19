@@ -39,9 +39,12 @@ public enum PersonalFoodDatabaseRuleCode: String, CaseIterable, Error, Sendable 
     case labelAndEstimate = "label-and-estimate", evidenceDangling = "evidence-dangling"
     case evidenceMismatch = "evidence-mismatch", evidenceUnusedOrShared = "evidence-unused-or-shared"
     /// The codec table of contract section 3.1, in table order.
-    case estimateOwnMerge = "estimate-own-merge", estimateOwnMethod = "estimate-own-method"
+    case estimateOwnMethod = "estimate-own-method"
     case estimateOwnState = "estimate-own-state", estimateOwnHeld = "estimate-own-held"
-    case estimateQuality = "estimate-quality", estimateBasis = "estimate-basis"
+    case estimateQuality = "estimate-quality"
+    /// Importer rules since gap estimates amendment G2 (`estimate-basis`) and own merge amendment G4
+    /// (`estimate-own-merge`, docs/personal-food-catalogue-own-merge-amendment-v1.md).
+    case estimateBasis = "estimate-basis", estimateOwnMerge = "estimate-own-merge"
     /// Raised only by the importer, against the bundled record, on a file the codec accepted.
     case corpusMismatch = "corpus-mismatch", recordMissing = "record-missing"
     case valueUnquantified = "value-unquantified", valueMismatch = "value-mismatch"
@@ -55,7 +58,7 @@ public enum PersonalFoodDatabaseRuleCode: String, CaseIterable, Error, Sendable 
 
     /// The codes only the importer raises (contract section 3.1), in its order per estimate.
     public static let importerOnly: [Self] = [.corpusMismatch, .recordMissing, .valueUnquantified, .valueMismatch,
-                                              .estimateContradiction, .estimateBasis]
+                                              .estimateContradiction, .estimateBasis, .estimateOwnMerge]
 
     /// The codes only a `personal-food-catalogue-estimates-v2` file can get.
     public static let estimatesOnly: Set<Self> = Set(importerOnly).union([

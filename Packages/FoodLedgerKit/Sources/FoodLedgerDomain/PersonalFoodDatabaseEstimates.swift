@@ -260,12 +260,14 @@ struct PersonalFoodDatabaseEstimateChecker {
 
     /// The highest tier the codec accepts for a record (contract section 3.3). A national estimate on a
     /// packaged composite dish is a generic recipe, never this product's: at most `low` (gap estimates
-    /// amendment G1, docs/personal-food-catalogue-gap-estimates-v1-amendment.md).
+    /// amendment G1, docs/personal-food-catalogue-gap-estimates-v1-amendment.md). An estimate from the
+    /// entry's own `merge` record (which the app did not merge) is at most `medium`: the record does not
+    /// say it describes the entry's state (amendment G4, docs/personal-food-catalogue-own-merge-amendment-v1.md).
     static func ceiling(method: PFDText, stateBasis: PFDText, pageAccess: PFDText?, national: Bool, own: Bool,
-                        photo: Bool = false, composite: Bool = false) -> PersonalFoodDatabaseEstimateQuality {
+                        photo: Bool = false, composite: Bool = false, ownMerge: Bool = false) -> PersonalFoodDatabaseEstimateQuality {
         if stateBasis == PFDText("unknown") { return .low }
         if national, composite { return .low }
-        if photo { return .medium }
+        if photo || ownMerge { return .medium }
         if method == PFDText("carried_from_same_food") || method == PFDText("direct"),
            stateBasis == PFDText("source_states_it"), pageAccess != PFDText("indexed_copy"), !national || own {
             return .high
@@ -286,20 +288,24 @@ struct PersonalFoodDatabaseEstimateChecker {
             && ref?["source"]?.text != nil && ref?["record_id"]?.text == rec["source_reference"]?.text
         let role = ref?["role"]?.text, match = ref?["match"]?.text
         let candidate = own && role == PFDText("candidate")
+        // Amendment G4: `estimate-own-merge` is an importer rule (only the record shows whether the app
+        // merges it); an own `merge` record is otherwise judged as an own same-food record, never held.
+        let ownMerge = own && role == R.merge
         let sameFood = match == PFDText("same_food_same_state")
         var codes: [PersonalFoodDatabaseRuleCode] = []
-        if own, role == R.merge { codes.append(.estimateOwnMerge) }
-        if candidate, method != (sameFood ? PFDText("carried_from_same_food") : PFDText("carried_from_similar_food")) {
+        if candidate || ownMerge,
+           method != (sameFood ? PFDText("carried_from_same_food") : PFDText("carried_from_similar_food")) {
             codes.append(.estimateOwnMethod)
         }
-        if candidate, stateBasis == PFDText("unknown") { codes.append(.estimateOwnState) }
+        if candidate || ownMerge, stateBasis == PFDText("unknown") { codes.append(.estimateOwnState) }
         if candidate, sameFood, item["state"]?.text == PFDText("raw") || item["state"]?.text == PFDText("cooked") {
             codes.append(.estimateOwnHeld)
         }
         let photo = sourceType == PersonalFoodDatabasePhotoRules.token
         if quality.rank > ceiling(method: method, stateBasis: stateBasis, pageAccess: rec["page_access"]?.text,
                                   national: national, own: own, photo: photo,
-                                  composite: item["product_type"]?.text == PFDText("packaged_composite")).rank {
+                                  composite: item["product_type"]?.text == PFDText("packaged_composite"),
+                                  ownMerge: ownMerge).rank {
             codes.append(.estimateQuality)
         }
         // `estimate-basis` is an importer rule since amendment G2: only the record shows whether a per

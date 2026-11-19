@@ -643,6 +643,13 @@ def _fish_on_raw_entry(d, **over):
     rec(d, FISH, "protein").update(over)
 
 
+def _own_merge(d, title, record, nutrient, value, **over):
+    """Amendment G4: the entry's reference becomes a `merge` on `record`, and one estimate cites it."""
+    if title != OATS:
+        find(d, title).update(generic_reference=COFID(record, "same_food_same_state", "merge"))
+    put(d, title, nutrient, value, national(record, over.pop("method", "carried_from_same_food"), **over))
+
+
 def _two_faulty(d):
     rec(d, FISH, "protein").update(retrieved_on="2026-02-30")          # date
     rec(d, CHEESE, "calcium").update(quality="high")                    # estimate-quality (table, last)
@@ -711,8 +718,28 @@ ESTIMATE_CASES = {
     "estimate-value-boolean": ("codec", ["value"], lambda d: val(d, BAR, "fiber").update(value=True)),
     "estimate-value-negative": ("codec", ["value"], lambda d: val(d, BAR, "fiber").update(value=-1)),
     # the codec table (contract section 3.1)
-    "own-merge": ("codec", ["estimate-own-merge"],
-                  lambda d: put(d, OATS, "protein", 11.0, national("cofid:example", "carried_from_same_food", quality="high"))),
+    # own merge amendment G4: `estimate-own-merge` is an importer code, raised only when the record merges;
+    # otherwise an own merge record is judged as an own same-food record, at most `medium`, never held
+    "own-merge": ("importer", ["estimate-own-merge"], lambda d: _own_merge(d, OATS, "cofid:example", "protein", 11.0)),
+    "own-merge-value-mismatch": ("importer", ["value-mismatch", "estimate-own-merge"],
+                                 lambda d: _own_merge(d, OATS, "cofid:example", "protein", 12.0)),
+    "own-merge-value-unquantified": ("importer", ["value-unquantified", "estimate-own-merge"],
+                                     lambda d: _own_merge(d, OATS, "cofid:example", "fiber", 5.0)),
+    "own-merge-fortified-record": ("importer", ["estimate-contradiction"],
+                                   lambda d: _own_merge(d, GREENS, "cofid:fortified", "protein", 18.0)),
+    "own-merge-record-not-per-100-g": ("importer", ["estimate-contradiction"],
+                                       lambda d: _own_merge(d, GREENS, "cofid:not-100-g", "protein", 18.0)),
+    "own-merge-cooked-record-on-raw-entry": ("importer", ["estimate-contradiction"],
+                                             lambda d: _own_merge(d, GREENS, "cofid:cooked", "protein", 18.0)),
+    "own-merge-above-medium": ("codec", ["estimate-quality"],
+                               lambda d: _own_merge(d, OATS, "cofid:example", "protein", 11.0, quality="high")),
+    "own-merge-cited-as-similar": ("codec", ["estimate-own-method"], lambda d: _own_merge(
+        d, OATS, "cofid:example", "protein", 11.0, method="carried_from_similar_food", state_basis="stated_assumption")),
+    "own-merge-direct": ("codec", ["estimate-own-method"],
+                         lambda d: _own_merge(d, OATS, "cofid:example", "protein", 11.0, method="direct")),
+    "own-merge-state-unknown": ("codec", ["estimate-own-state"],
+                                lambda d: _own_merge(d, OATS, "cofid:example", "protein", 11.0, state_basis="unknown",
+                                                     quality="low")),
     "own-same-food-cited-as-similar": ("codec", ["estimate-own-method"],
                                        lambda d: rec(d, FISH, "fat_total").update(method="carried_from_similar_food")),
     "own-close-cited-as-same-food": ("codec", ["estimate-own-method"],
@@ -846,6 +873,13 @@ ESTIMATE_ACCEPT = {  # name -> (stage that accepts it, document)
         put(d, DRINK, "fiber", 0, national("cofid:zero-fibre", "carried_from_similar_food", "stated_assumption", "low"))))),
     "raw-entry-as-sold-record": ("importer", lambda: _est(lambda d: put(
         d, GREENS, "protein", 18.0, national("cofid:as-sold", "carried_from_similar_food", "stated_assumption", "low")))),
+    # amendment G4: an own merge record the app does not merge, at `medium`, raw and cooked; and `as_sold` on raw
+    "own-merge-unstated-preparation-raw": ("importer", lambda: _est(lambda d: _own_merge(
+        d, GREENS, "cofid:unstated-greens", "protein", 3.0, state_basis="stated_assumption"))),
+    "own-merge-unstated-preparation-cooked": ("importer", lambda: _est(lambda d: _own_merge(
+        d, RICE, "cofid:unstated-rice", "fat_total", 0.5, target_state="cooked"))),
+    "own-merge-as-sold-record-on-raw-entry": ("importer", lambda: _est(lambda d: _own_merge(
+        d, GREENS, "cofid:as-sold-greens", "fiber", 2.0))),
 }
 
 # The stub lookup for importer-stage fixtures: what the Swift tests answer for each record.
@@ -875,7 +909,20 @@ STUB_RECORDS = [
     ("cofid:fortified-wine", {"sugar": 2.0}, "unknown", None, "fortified", True, "per_100_ml"),
     ("cofid:wine-not-100-ml", {"sugar": 2.0}, "unknown", None, "unfortified", False, "per_100_ml"),
     ("cofid:raw-wine", {"sugar": 2.0}, "raw", None, "unfortified", True, "per_100_ml"),
+    # amendment G4: the golden's oats record (merges into a raw entry) and records that never merge
+    ("cofid:example", {"protein": 11.0}, "raw", None, "unfortified", True),
+    ("cofid:unstated-greens", {"protein": 3.0}, "unknown", None, "unfortified", True),
+    ("cofid:unstated-rice", {"fat_total": 0.5}, "unknown", None, "unfortified", True),
+    ("cofid:as-sold-greens", {"fiber": 2.0}, "as_sold", None, "unfortified", True),
 ]
+
+
+def merges_into(kind, fortification, edible, basis="per_100_g"):
+    """The entry states a stub record merges into, by the skill's `merges` (the Swift tests check
+    `mergeEligible` against the same list, so the two languages agree on every stub record)."""
+    import estimates_input as EI
+    facts = {"preparation": kind, "fortification": fortification, "per_100_g": edible and basis == "per_100_g"}
+    return [s for s in ("raw", "cooked") if EI.merges({"state": s, "basis": "per_100_g"}, facts)]
 
 URLS = {  # phase gate section 3.1 item 7; both checkers read this list
     "accept": ["https://www.example.com/products/synthetic", "https://example.com", "https://example.com/",
@@ -896,7 +943,7 @@ URLS = {  # phase gate section 3.1 item 7; both checkers read this list
 # Raised only by the app's importer, against the bundled record (contract section 3.1); in the enum's
 # estimates-only set, never emitted by either codec.
 IMPORTER_RULE_CODES = ["corpus-mismatch", "record-missing", "value-unquantified", "value-mismatch",
-                       "estimate-contradiction", "estimate-basis"]
+                       "estimate-contradiction", "estimate-basis", "estimate-own-merge"]
 
 
 def estimate_rule_codes():
@@ -910,6 +957,14 @@ def estimate_rule_codes():
 
 def code_list(data):
     return [e.split(":", 1)[0] for e in E.check_bytes(data)]
+
+
+def stub_lookup():
+    return {"pins": {"cofid": PIN}, "records": [
+        {"source": "cofid", "record_id": rid, "nutrients": nutrients, "preparation": kind, "preparation_method": method,
+         "fortification": fortification, "per_100_g_edible": edible, "basis": basis[0] if basis else "per_100_g",
+         "merges_into": merges_into(kind, fortification, edible, *basis)}
+        for rid, nutrients, kind, method, fortification, edible, *basis in STUB_RECORDS]}
 
 
 def write_estimates_v2(fixtures: Path):
@@ -934,10 +989,7 @@ def write_estimates_v2(fixtures: Path):
     manifest["rule_codes"] = estimate_rule_codes()
     manifest["estimates_only_rule_codes"] = list(EV.RULE_CODES) + IMPORTER_RULE_CODES
     manifest["importer_rule_codes"] = IMPORTER_RULE_CODES
-    manifest["stub_lookup"] = {"pins": {"cofid": PIN}, "records": [
-        {"source": "cofid", "record_id": rid, "nutrients": nutrients, "preparation": kind, "preparation_method": method,
-         "fortification": fortification, "per_100_g_edible": edible, "basis": basis[0] if basis else "per_100_g"}
-        for rid, nutrients, kind, method, fortification, edible, *basis in STUB_RECORDS]}
+    manifest["stub_lookup"] = stub_lookup()
     manifest["urls"] = URLS
     manifest["canonical_units"] = E.CANON_UNITS
     (fixtures / "manifest.json").write_text(json.dumps(manifest, indent=1) + "\n")
@@ -953,6 +1005,7 @@ def verify_estimates_v2(fixtures: Path, manifest):
     assert manifest["estimates_only_rule_codes"] == list(EV.RULE_CODES) + IMPORTER_RULE_CODES
     assert set(rule_codes()) < set(manifest["rule_codes"]), "v2 codes must be a strict subset"
     assert manifest["urls"] == URLS and manifest["canonical_units"] == E.CANON_UNITS
+    assert manifest["stub_lookup"] == stub_lookup(), "the stub lookup differs from the generator; regenerate it"
     for url in URLS["accept"]:
         host = EV.page_host(url)
         assert host is not None and not EV.off_host(host), url

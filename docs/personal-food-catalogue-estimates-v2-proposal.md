@@ -6,6 +6,8 @@ file keeps its original name so that existing links hold. Implementation is one 
 daily export v2 has landed, with its own issue and architecture gate (decision P5). No app
 code, skill code or fixture changes with this document. Programme #424, base contracts #419.
 
+**Amendment, 19 November 2026 ([own merge amendment G4](personal-food-catalogue-own-merge-amendment-v1.md), proposed in #526).** Section 3.1's `estimate-own-merge` moves from the codec to the importer, after `estimate-basis`: it is raised only when the app would merge the record. Otherwise an estimate from the entry's own merge record is judged as an own same-food record (method and state rows, no `estimate-own-held`), and section 3.3 caps it at `medium`.
+
 **Amendment, 19 November 2026 ([gap estimates amendments](personal-food-catalogue-gap-estimates-v1-amendment.md), proposed in #524).** Section 4's composite rule admits a generic dish record at `low` with a fixed sentence, and section 3.3 gains the codec ceiling `low` for a national estimate on a packaged composite entry (G1). Section 3.1's `estimate-basis` moves from the codec to the importer, after `estimate-contradiction`: a per 100 ml entry takes a per 100 ml record, or a quantified zero from a per 100 g record, and nothing else (G2).
 
 **Implementation, 17 November 2026 (#511).** Built in one phase under the

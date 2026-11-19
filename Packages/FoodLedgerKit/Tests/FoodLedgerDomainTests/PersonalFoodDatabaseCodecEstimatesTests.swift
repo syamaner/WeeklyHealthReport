@@ -153,6 +153,15 @@ final class PersonalFoodDatabaseCodecEstimatesTests: XCTestCase {
         for method in PersonalFoodDatabaseEstimateMethod.allCases {
             XCTAssertEqual(ceiling(method.rawValue, "unknown"), .low)
         }
+        // Own merge amendment G4: an own merge record the app does not merge is at most `medium`, and
+        // `unknown` still gives `low`.
+        func ownMerge(_ basis: String) -> PersonalFoodDatabaseEstimateQuality {
+            C.ceiling(method: PFDText(bytes: Array("carried_from_same_food".utf8)), stateBasis: PFDText(bytes: Array(basis.utf8)),
+                      pageAccess: nil, national: true, own: true, ownMerge: true)
+        }
+        XCTAssertEqual(ownMerge("source_states_it"), .medium)
+        XCTAssertEqual(ownMerge("stated_assumption"), .medium)
+        XCTAssertEqual(ownMerge("unknown"), .low)
     }
 
     func testBothIdentityComparisonsCoverTheSameFacets() throws {
