@@ -5044,4 +5044,8 @@ Unmeasured: no boundary was captured at the start of this phase, separately from
 
 The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) wrote the composite web amendment (#528) after the owner's decision of 19 November 2026: a generic web page for the same kind of dish may fill a packaged composite entry on G1's terms (`low`, similar food, the fixed sentence), a manufacturer page about another product never does, and the codec caps a similar-food web page value on a composite entry at `low`. A blind `architecture-gate` review blocked the first plan (a cap on every aggregator method would have changed the golden file and 15 accept fixtures); the cap was scoped to `carried_from_similar_food` and the other findings addressed. A blind `invariant-reviewer` pass runs at the PR head.
 
+## WHR-530-2026-11-19: Claude Code MyFoodData as a named catalogue source
+
+The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) added MyFoodData (`tools.myfooddata.com`, a viewer of USDA FoodData Central records) as a named aggregator source in the personal food catalogue skill, at the owner's request of 19 November 2026, and recorded in the privacy and egress policy that its pages are read in the agent's built-in browser because the site refuses the web-fetch tool. Documentation only; a blind `invariant-reviewer` pass runs at the PR head.
+
 Unmeasured: no boundary was captured at the start of this phase, separately from the private catalogue work done in the same session, so no token figure is recorded rather than an estimate.
