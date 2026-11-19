@@ -194,7 +194,7 @@ public enum LabelPhotoText {
         switch basis {
         case "per_serving": "per serving"
         case "per_100g": "per 100 g"
-        case "per_100ml": "per 100 ml"
+        case "per_100ml": "per 100 mL"
         default: "reference intake"
         }
     }

@@ -223,12 +223,12 @@ public struct OpenFoodFactsLookup: PackagedFoodCandidateLookingUp {
         let servingNote = (sourceSet.serving.map {
             ", scaled from a \(Self.servingText($0)) \(OpenFoodFactsServingText.unit(millilitres: volume)) serving"
         } ?? "") + (sourceSet.panelOverridesPack || (sourceSet.serving != nil && packBasis.map { $0 != volume } == true)
-            ? ", as the nutrition panel states (the pack is in \(volume ? "g" : "ml"))" : "")
+            ? ", as the nutrition panel states (the pack is in \(volume ? "g" : "mL"))" : "")
         let candidate = try PopulatedFoodCandidate(candidate: ProviderNeutralCandidate(sourceReleaseID: releaseID,
             recordID: ExternalIdentifier("off:gtin:\(gtin.value)"), identity: identity, edibleQuantity: quantity,
             nutrients: NutrientSet(entries: entries), evidenceIDs: [evidence.evidenceID], matchMetadata: metadata),
             name: LedgerText(name), brand: (product["brands"] as? String).flatMap { try? LedgerText($0) },
-            variant: LedgerText("Open Food Facts · source estimate · \(pack.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "" : "\(pack) · ")per 100 \(volume ? "ml" : "g")" + servingNote + (searchCategory.map { "; source category: \($0). Review this type against your request." } ?? "")), barcode: gtin, itemClass: .food, packFacts: PackFacts())
+            variant: LedgerText("Open Food Facts · source estimate · \(pack.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "" : "\(pack) · ")per 100 \(volume ? "mL" : "g")" + servingNote + (searchCategory.map { "; source category: \($0). Review this type against your request." } ?? "")), barcode: gtin, itemClass: .food, packFacts: PackFacts())
         return .candidate(try PopulatedFoodConfirmation(evidence: [evidence], sourceReleases: [release], candidates: [candidate],
             expectedIdentity: identity, expectedEdibleQuantity: quantity))
     }

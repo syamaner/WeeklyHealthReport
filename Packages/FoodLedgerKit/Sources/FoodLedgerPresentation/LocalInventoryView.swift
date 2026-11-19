@@ -153,7 +153,7 @@ public struct LocalInventoryView: View {
                 if !model.draft(for: line).remaining.isEmpty {
                     Picker("Remaining unit", selection: binding(line, \.remainingUnit)) {
                         Text("g").tag(QuantityUnit.grams)
-                        Text("ml").tag(QuantityUnit.millilitres)
+                        Text("mL").tag(QuantityUnit.millilitres)
                         Text(FoodAmountNoun.countUnitLabel).tag(QuantityUnit.count)
                     }
                     DatePicker("Amount-left assertion date", selection: binding(line, \.assertionDate), displayedComponents: .date)
@@ -165,7 +165,7 @@ public struct LocalInventoryView: View {
             TextField("Amount in each unit/pack (blank = unknown)", text: binding(line, \.packAmount))
             Picker("Pack amount unit", selection: binding(line, \.packUnit)) {
                 Text("g").tag(QuantityUnit.grams)
-                Text("ml").tag(QuantityUnit.millilitres)
+                Text("mL").tag(QuantityUnit.millilitres)
                 Text(FoodAmountNoun.countUnitLabel).tag(QuantityUnit.count)
             }
             if source.kind == .receipt {

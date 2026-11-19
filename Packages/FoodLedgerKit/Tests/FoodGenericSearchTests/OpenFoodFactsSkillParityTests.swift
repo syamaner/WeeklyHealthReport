@@ -315,7 +315,7 @@ final class OpenFoodFactsSkillParityTests: XCTestCase {
         XCTAssertEqual(basis(input), .per100Millilitres)
         XCTAssertEqual(exact(value(input, .energyConsumed))?.sourceValue,
                        .exact(try SourceExactNutrientValue(amount: 100, unit: LedgerText("kcal"), basis: perServing(250, .millilitres))))
-        XCTAssertTrue(input.candidates.first?.variant?.value.contains("scaled from a 250 ml serving") == true)
+        XCTAssertTrue(input.candidates.first?.variant?.value.contains("scaled from a 250 mL serving") == true)
     }
 
     func testSodiumInGramsGivesTheTwoTransformChainInOrder() throws {
