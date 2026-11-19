@@ -942,10 +942,27 @@ def merges_into(kind, fortification, edible, basis="per_100_g"):
     return [s for s in ("raw", "cooked") if EI.merges({"state": s, "basis": "per_100_g"}, facts)]
 
 URLS = {  # phase gate section 3.1 item 7; both checkers read this list
-    "accept": ["https://www.example.com/products/synthetic", "https://example.com", "https://example.com/",
+    "accept": [
+               # amendment G8: the closed composition-table record addresses
+               "https://fooddb.mext.go.jp/details/details.pl?ITEM_NO=16_16043_7",
+               "https://www.nutritionvalue.org/Egg_salad%2C_made_with_mayonnaise_32103000_nutritional_value.html?size=100+g",
+               "https://www.example.com/products/synthetic", "https://example.com", "https://example.com/",
                "https://example.com:8443/a/b.html", "https://example.com./a", "https://a-b.example.co.uk/x;y=1",
                "https://EXAMPLE.com/Path", "https://xn--caf-dma.example/menu"],
-    "reject": ["http://www.example.com/a", "HTTPS://www.example.com/a", "https://www.example.com/a?b=1",
+    "reject": [
+               # amendment G8: any other query on these hosts, or a query anywhere else
+               "https://fooddb.mext.go.jp/details/details.pl?ITEM_NO=16_16043_7&MODE=4",
+               "https://fooddb.mext.go.jp/details/details.pl?ITEM_NO=16_1604_7",
+               "https://fooddb.mext.go.jp/details/details.pl?item_no=16_16043_7",
+               "https://fooddb.mext.go.jp/other.pl?ITEM_NO=16_16043_7",
+               "https://FOODDB.mext.go.jp/details/details.pl?ITEM_NO=16_16043_7",
+               "https://fooddb.mext.go.jp/details/details.pl?ITEM_NO=16_16043_7#top",
+               "https://www.nutritionvalue.org/Beet_juice_73105000_nutritional_value.html?size=1+cup",
+               "https://www.nutritionvalue.org/a/b_nutritional_value.html?size=100+g",
+               "https://www.nutritionvalue.org/_nutritional_value.html?size=100+g",
+               "https://www.nutritionvalue.org/..%2F_nutritional_value.html?size=100+g",
+               "https://www.nutritionvalue.org/a@b_nutritional_value.html?size=100+g",
+               "http://www.example.com/a", "HTTPS://www.example.com/a", "https://www.example.com/a?b=1",
                "https://www.example.com/a#b", "https://user@www.example.com/a", "https://user:pw@www.example.com/a",
                "https://localhost/a", "https://app.LOCALHOST/a", "https://example/a", "https://127.0.0.1/a",
                "https://example.0x7f/a", "https://example.123/a", "https://[::1]/a", "https://www.example.com:/a",

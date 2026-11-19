@@ -316,7 +316,8 @@ def reason(est, item, corpora, read_record, refusal_status):
     # Amendment G7: a label photo of another product on a composite dish says so with the fixed
     # sentence and is then at most `low`; a photo of the same named product keeps the photo rules.
     if item["product_type"] == "packaged_composite" and ev["source_type"] == V3.TOKEN \
-            and COMPOSITE_SENTENCE in ev["assumption"] and ev["quality"] != "low":
+            and COMPOSITE_SENTENCE in ev["assumption"] and (ev["quality"] != "low"
+                                                           or ev["method"] != "carried_from_similar_food"):
         return "composite", []
     if open_food_facts(est):
         return "open_food_facts_source", []

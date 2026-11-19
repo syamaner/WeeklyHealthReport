@@ -34,7 +34,8 @@ ruling 6.
   another brand's label. The codec ceiling of G5d (a similar-food web page on a composite entry is at
   most `low`) already bounds both; it is unchanged.
 - **Label photos.** A `product_dataset_photo` estimate of another product on a composite entry carries
-  the fixed sentence and is at most `low`; the builder withholds such a photo above `low`. A photo of
+  the fixed sentence, is carried from a similar food and is at most `low`; the builder withholds such a
+  photo above `low` or with another method. A photo of
   the same named product (another pack, market or revision) keeps the label photo rules and its
   `medium` cap, without the sentence. Which product a photo shows is the owner's declaration on the
   review sheet, as G5c says for pages; the codec does not cap photos by method, because the owner's
@@ -47,13 +48,13 @@ ruling 6.
 
 ## 3. Amendment G8: composition-table record addresses with a query (owner, 19 November 2026)
 
-Amends estimates v2's page address rule (`source-reference`: no query string, no fragment). A page
+Amends the page address rule (`source-reference`: no query string, no fragment) of estimates v1 section 2.2 and the v2 phase gate section 3.1 item 7, each with a dated note. A page
 address may carry a query string only when it is one of these record addresses, exactly:
 
 | Host | Address | Query |
 |---|---|---|
 | `fooddb.mext.go.jp` (Japanese Standard Tables of Food Composition) | `https://fooddb.mext.go.jp/details/details.pl` | `ITEM_NO=` then 1 or 2 digits, `_`, 5 digits, `_`, 1 or 2 digits, and nothing else |
-| `www.nutritionvalue.org` (USDA FoodData Central values) | `https://www.nutritionvalue.org/<name>_nutritional_value.html` (one path segment) | exactly `size=100+g` |
+| `www.nutritionvalue.org` (USDA FoodData Central values) | `https://www.nutritionvalue.org/<name>_nutritional_value.html`, the name of letters, digits, `_`, `-` and the encoded comma `%2C` only | exactly `size=100+g` |
 
 Any other query, a second parameter, a fragment or any other host with a query stays
 `source-reference`. Both checkers implement the grammar by hand, byte for byte
@@ -90,8 +91,8 @@ query. All are taken here.
 - **Contract tests.** Shared fixtures in `docs/fixtures/personal-food-database-estimates-v2/`:
   `accept-page-url-mext-item`, `accept-page-url-nutritionvalue-100-g`,
   `reject-page-url-mext-extra-parameter`, `reject-page-url-nutritionvalue-other-size`
-  (`source-reference`); `reject-page-url-with-query` and every other fixture keep their bytes and
-  codes. Skill tests: the address grammar, a manufacturer page about another product admitted at `low`
+  (`source-reference`), and the G8 accept and reject addresses in the manifest's shared `urls` list read
+  by both checkers; `reject-page-url-with-query` and every other fixture keep their bytes and codes. Skill tests: the address grammar, a manufacturer page about another product admitted at `low`
   with the sentence and withheld otherwise, the reported count, and a composite photo with the sentence
   withheld above `low`.
 

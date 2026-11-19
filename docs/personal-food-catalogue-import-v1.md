@@ -10,7 +10,7 @@ identity contract section 8 are added in the phase that changes search. Issue: [
 
 **Amendment, 19 November 2026 ([gap estimates amendments](personal-food-catalogue-gap-estimates-v1-amendment.md), proposed in #524).** The `basis` row gains one exception (G2c): an entry with no label values is filed `per_100_ml_as_labelled` when the owner has recorded that basis for it, unless its reference would merge. Decision 4 now forbids another brand's label for a composite dish and no longer forbids a national table's generic dish record admitted as a rough estimate (G1).
 
-**Amendment, 19 November 2026 ([composite web amendment G5](personal-food-catalogue-composite-web-amendment-v1.md), proposed in #528).** Decision 4 also no longer forbids a generic web page for the same kind of dish, admitted on G1's terms (`low`, similar food, the fixed sentence); a page about another product is another brand's label and never fills a composite dish.
+**Amendment, 19 November 2026 ([composite web amendment G5](personal-food-catalogue-composite-web-amendment-v1.md), accepted in #529).** Decision 4 also no longer forbids a generic web page for the same kind of dish, admitted on G1's terms (`low`, similar food, the fixed sentence); a page about another product is another brand's label and never fills a composite dish.
 
 **Amendment, 19 November 2026 ([amendments G7 and G8](personal-food-catalogue-tables-composites-amendment-v1.md), proposed in #532).** Decision 4 also admits another brand's label for a composite dish as a `low` similar-food estimate with the fixed sentence (G7).
 

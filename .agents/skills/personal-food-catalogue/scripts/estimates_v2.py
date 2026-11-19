@@ -52,7 +52,7 @@ TOLERANCE = 0.005
 
 MEXT_RECORD = "https://fooddb.mext.go.jp/details/details.pl"
 MEXT_ITEM = re.compile(r"ITEM_NO=[0-9]{1,2}_[0-9]{5}_[0-9]{1,2}")
-NUTRITIONVALUE = re.compile(r"https://www\.nutritionvalue\.org/[^/]+_nutritional_value\.html")
+NUTRITIONVALUE = re.compile(r"https://www\.nutritionvalue\.org/(?:[A-Za-z0-9_-]|%2C)+_nutritional_value\.html")
 
 
 def table_query_base(ref: str):
@@ -72,7 +72,7 @@ def table_query_base(ref: str):
 
 
 def page_host(ref):
-    """The host of a page URL under the phase gate's grammar (section 3.1 item 7), lower-cased and
+    """The host of a page URL under the phase gate's grammar (section 3.1 item 7, amended by G8), lower-cased and
     without a trailing dot, or None when the text is not such a URL. Hand-written, not `urlsplit`, so
     the Swift codec gives the same verdict for every string."""
     if not isinstance(ref, str) or len(ref.encode("utf-8", "replace")) > URL_LIMIT:

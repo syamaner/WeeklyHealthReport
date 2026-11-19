@@ -168,8 +168,19 @@ struct PersonalFoodDatabaseEstimateChecker {
         }
         let site = Array("https://www.nutritionvalue.org/".utf8), page = Array("_nutritional_value.html".utf8)
         if base.starts(with: site), base.count > site.count + page.count, Array(base.suffix(page.count)) == page,
-           !base.dropFirst(site.count).contains(UInt8(ascii: "/")), query == Array("size=100+g".utf8) {
-            return base
+           query == Array("size=100+g".utf8) {
+            // The record name: letters, digits, `_` and `-`, and the encoded comma `%2C` only.
+            let name = Array(base.dropFirst(site.count).dropLast(page.count))
+            var i = 0, ok = true
+            while i < name.count, ok {
+                let c = name[i]
+                if R.isDigit(c) || (0x41...0x5a).contains(c) || (0x61...0x7a).contains(c) || c == UInt8(ascii: "_") || c == UInt8(ascii: "-") {
+                    i += 1
+                } else if c == UInt8(ascii: "%"), i + 2 < name.count, name[i + 1] == UInt8(ascii: "2"), name[i + 2] == UInt8(ascii: "C") {
+                    i += 3
+                } else { ok = false }
+            }
+            return ok ? base : nil
         }
         return nil
     }
