@@ -904,6 +904,7 @@ final class DailyNoteSpeechCaptureTests: XCTestCase {
 
         XCTAssertEqual(speech.reviewTranscript, "ab")
         XCTAssertFalse(speech.acceptReviewTranscript())
+        XCTAssertNil(notes.errorMessage, "#47: one error, on the review card only")
         XCTAssertEqual(notes.currentDraft?.text, "")
         XCTAssertEqual(speech.reviewTranscript, "ab")
         XCTAssertEqual(

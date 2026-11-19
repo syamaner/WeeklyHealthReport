@@ -167,15 +167,16 @@ final class DailyNotesController: ObservableObject {
         }
     }
 
-    /// Appends a recognised transcript to the draft (#47). A refusal, such as an over-limit note, is
-    /// returned for the speech review card to show and is not also set as `errorMessage`, so one
-    /// event shows one error; the draft and the saved notes stay unchanged.
+    /// Appends a recognised transcript to the draft (#47). A refused draft update, such as an
+    /// over-limit note, is returned for the speech review card to show and is not also set as
+    /// `errorMessage`, so one event shows one error; the draft and the saved notes stay unchanged.
+    /// Unavailable storage is still reported as before (it sets `errorMessage` and the storage status).
     func speechTranscriptRejection(_ transcript: String) -> String? {
-        guard requireStorageAccess() else { return errorMessage ?? "The transcript could not be added. Your draft was preserved." }
         guard let draft = currentDraft else { return Self.message(for: DailyNotesError.noDraft) }
         let finalTranscript = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !finalTranscript.isEmpty else { return nil }
         let separator = draft.text.isEmpty || draft.text.last?.isWhitespace == true ? "" : " "
+        guard requireStorageAccess() else { return errorMessage ?? "The transcript could not be added. Your draft was preserved." }
         return applyDraftText(draft.text + separator + finalTranscript)
     }
 
