@@ -72,7 +72,9 @@ changes.
   with method `carried_from_similar_food` above `low` on a composite entry is now rejected whole with
   `estimate-quality`. The owner's file holds none (section 1), and no shared fixture does: the golden
   file's aggregator estimate on its composite entry is `derived`, about the product itself, and keeps
-  `medium`. The remedy for any such file is to rebuild it.
+  `medium`. If such a file were already installed, the app re-reads it with the codec on every load,
+  so Your food database would show no rows after the upgrade until a rebuilt file is imported; it
+  fails closed and never reads a value differently. The remedy for any such file is to rebuild it.
 - *Rollback:* rebuild the file without the G5 rows.
 
 ## 3. What does not change
