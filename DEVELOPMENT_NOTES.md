@@ -5082,6 +5082,6 @@ Unmeasured: no boundary was captured at the start of this delivery, separately f
 
 ## WHR-491-2026-11-19: Claude Code one spelling for millilitres
 
-The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) found that contracts pinned both "mL" and "ml", recorded the findings on #491, and on the owner's choice ("mL") changed the remaining "ml" copy (barcode source line and serving note, pasted-label G5 message, label photo basis label, re-resolution basis label, inventory unit picker) with dated notes on the three contracts that showed "ml". Stored and exported unit codes are unchanged.
+The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) found that contracts pinned both "mL" and "ml", recorded the findings on #491, and on the owner's choice ("mL") changed the remaining "ml" copy (barcode source line and serving note, pasted-label G5 message, label photo basis label, re-resolution basis label, inventory unit picker) with dated notes on the four contracts that showed "ml" (pasted label, catalogue import v2, label photo, barcode candidate plan); the manufacturer source route, not yet wired into the app, also writes "mL". Stored and exported unit codes are unchanged.
 
 Unmeasured: no boundary was captured at the start of this phase, separately from the other work done in the same session, so no token figure is recorded rather than an estimate.
