@@ -171,7 +171,7 @@ public struct FoodReresolutionView: View {
     private func basis(_ basis: ResolutionBasis) -> String {
         switch basis {
         case .per100Grams: "per 100 g"
-        case .per100Millilitres: "per 100 ml"
+        case .per100Millilitres: "per 100 mL"
         case let .perServing(quantity): "per serving (\(quantity.value.formatted()) \(FoodAmountNoun.unit(quantity.unit, value: quantity.value)))"
         case let .perUnit(quantity): "per unit (\(quantity.value.formatted()) \(FoodAmountNoun.unit(quantity.unit, value: quantity.value)))"
         case let .named(name, quantity): "\(name.value) (\(quantity.value.formatted()) \(FoodAmountNoun.unit(quantity.unit, value: quantity.value)))"

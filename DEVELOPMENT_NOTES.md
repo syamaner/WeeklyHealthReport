@@ -5079,3 +5079,9 @@ Unmeasured: no boundary was captured at the start of this phase, separately from
 The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) archived the PR537 head `8efa6835` before merging, at the owner's request, exported it for internal testing only, uploaded build 41, set What to Test and added it to Internal Testing on the owner's yes, then merged PR537 on the owner's yes and wrote [the build 41 record](docs/releases/internal-testflight-0.3.0-build41.md). The owner confirmed on the device that food search works.
 
 Unmeasured: no boundary was captured at the start of this delivery, separately from the fix and catalogue work done in the same session, so no token figure is recorded rather than an estimate.
+
+## WHR-491-2026-11-19: Claude Code one spelling for millilitres
+
+The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) found that contracts pinned both "mL" and "ml", recorded the findings on #491, and on the owner's choice ("mL") changed the remaining "ml" copy (barcode source line and serving note, pasted-label G5 message, label photo basis label, re-resolution basis label, inventory unit picker) with dated notes on the four contracts that showed "ml" (pasted label, catalogue import v2, label photo, barcode candidate plan); the manufacturer source route, not yet wired into the app, also writes "mL". Stored and exported unit codes are unchanged.
+
+Unmeasured: no boundary was captured at the start of this phase, separately from the other work done in the same session, so no token figure is recorded rather than an estimate.

@@ -302,7 +302,7 @@ final class OpenFoodFactsLookupTests: XCTestCase {
             let c = input.candidates[0].candidate
             XCTAssertEqual(c.identity.servingBasis, .per100Millilitres)
             XCTAssertEqual(c.edibleQuantity, try .known(PositiveQuantity(value: 100, unit: .millilitres), conversionVersionID: nil))
-            XCTAssertTrue(input.candidates[0].variant?.value.contains("per 100 ml") == true)
+            XCTAssertTrue(input.candidates[0].variant?.value.contains("per 100 mL") == true)
             XCTAssertEqual(c.nutrients.entries.first(where: { $0.key == .fiber })?.value, .unknown(.notDeclared))
             guard case let .augmented(sodium) = c.nutrients.entries.first(where: { $0.key == .sodium })?.value,
                   case let .exact(original) = sodium.sourceValue else { return XCTFail() }
@@ -328,7 +328,7 @@ final class OpenFoodFactsLookupTests: XCTestCase {
             guard case let .candidate(input) = try await source.lookup(request()) else { XCTFail("panel wins"); continue }
             XCTAssertEqual(input.candidates[0].candidate.identity.servingBasis, .per100Grams)
             XCTAssertEqual(input.sourceReleases[0].pipelineVersion.value, "off-product-projection-v6")
-            XCTAssertTrue(try XCTUnwrap(input.candidates[0].variant?.value).contains("as the nutrition panel states (the pack is in ml)"))
+            XCTAssertTrue(try XCTUnwrap(input.candidates[0].variant?.value).contains("as the nutrition panel states (the pack is in mL)"))
         }
         let changes: [(inout [String: Any]) -> Void] = [
             { $0["per"] = "100g" },
@@ -374,7 +374,7 @@ final class OpenFoodFactsLookupTests: XCTestCase {
                 let unit: QuantityUnit = basis == .per100Grams ? .grams : .millilitres
                 XCTAssertEqual(candidate.candidate.edibleQuantity, try .known(PositiveQuantity(value: 100, unit: unit), conversionVersionID: nil))
                 let variant = try XCTUnwrap(candidate.variant?.value)
-                XCTAssertTrue(variant.hasSuffix(basis == .per100Grams ? "per 100 g" : "per 100 ml"), variant)
+                XCTAssertTrue(variant.hasSuffix(basis == .per100Grams ? "per 100 g" : "per 100 mL"), variant)
                 XCTAssertFalse(variant.contains("·  ·"), variant)
                 if let pack, !pack.isEmpty { XCTAssertTrue(variant.contains("· \(pack) · per 100"), variant) }
                 XCTAssertEqual(input.sourceReleases[0].pipelineVersion.value, "off-product-projection-v5")
@@ -462,7 +462,7 @@ final class OpenFoodFactsLookupTests: XCTestCase {
             XCTAssertEqual(entries[.fiber], .unknown(.notDeclared), "the estimate panel never backfills")
             XCTAssertFalse(NutrientDerivation.isCalculated(.augmented(energy)), "scaling is not a calculated label value")
             let variant = try XCTUnwrap(candidate.variant?.value)
-            XCTAssertTrue(variant.contains("scaled from a \(quantity == quantity.rounded() ? String(Int(quantity)) : String(quantity)) \(unit) serving"), variant)
+            XCTAssertTrue(variant.contains("scaled from a \(quantity == quantity.rounded() ? String(Int(quantity)) : String(quantity)) \(volume ? "mL" : unit) serving"), variant)
         }
     }
 

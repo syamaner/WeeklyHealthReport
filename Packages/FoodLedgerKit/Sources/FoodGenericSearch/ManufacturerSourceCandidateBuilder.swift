@@ -52,7 +52,7 @@ enum ManufacturerSourceCandidateBuilder {
         let candidate = try PopulatedFoodCandidate(candidate: ProviderNeutralCandidate(sourceReleaseID: releaseID,
             recordID: recordID, identity: identity, edibleQuantity: quantity, nutrients: NutrientSet(entries: nutrients),
             evidenceIDs: [evidence.evidenceID], matchMetadata: metadata), name: LedgerText(name),
-            variant: LedgerText("\(label) · source declaration · per 100 \(volume ? "ml" : "g")"), itemClass: .food, packFacts: PackFacts())
+            variant: LedgerText("\(label) · source declaration · per 100 \(volume ? "mL" : "g")"), itemClass: .food, packFacts: PackFacts())
         let input = try PopulatedFoodConfirmation(evidence: [evidence], sourceReleases: [release], candidates: [candidate],
             expectedIdentity: identity, expectedEdibleQuantity: quantity)
         return GenericFoodConfirmationRoute(confirmation: input, matches: [GenericFoodMatch(candidate: candidate, isExactName: false)])

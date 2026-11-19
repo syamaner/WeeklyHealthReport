@@ -313,7 +313,7 @@ public enum PastedLabelText {
                 let per100 = ["ml", "mL"].contains(servingUnit ?? "") ? "per 100 mL" : "per 100 g"
                 return "Only \(basisLabel(chosen.basis)) values; the label does not print \(per100)."
             }
-            return "No per 100 g or per 100 ml values were read."
+            return "No per 100 g or per 100 mL values were read."
         case .servingLineNotRead:
             return "Not read: \(nutrientName(flag.concerns)). Add it, or leave it unknown."
         default:
