@@ -2,6 +2,8 @@
 
 Issue #144. This proposal follows approved usage registration, successful staging transport, and a separately approved production probe. The production probe stopped on its first HTTP 503, with no retries and no product records. It provides no UK coverage or nutrition-accuracy evidence. Do not promote it as a successful barcode source.
 
+**Amendment, 19 November 2026 (#491, owner: one spelling, "mL").** The source line spells millilitres "mL": "per 100 mL", "scaled from a 250 mL serving" and "as the nutrition panel states (the pack is in mL)". Stored codes and the Open Food Facts fields read are unchanged; logs saved earlier keep their text.
+
 **Amendment, 19 November 2026 (#490).** An Open Food Facts product (from a barcode or from text search; both share the `open-food-facts` source) whose values were scaled from a per-serving panel also shows "Some values scaled from a 28 g serving" on Confirm, the same line a Your food database entry shows (catalogue import v2 decision 3); the source line keeps its own wording.
 
 ## Proposed user flow

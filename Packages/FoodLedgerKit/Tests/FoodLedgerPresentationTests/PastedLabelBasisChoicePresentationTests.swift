@@ -406,7 +406,7 @@ final class PastedLabelBasisChoicePresentationTests: XCTestCase {
         XCTAssertEqual(PastedLabelText.flagMessage(.init(code: "required_basis_missing", concerns: "per_100"), headers: headers),
                        "Only per serving values; the label does not print per 100 g.")
         XCTAssertEqual(PastedLabelText.flagMessage(.init(code: "required_basis_missing", concerns: "per_100"), headers: []),
-                       "No per 100 g or per 100 ml values were read.")
+                       "No per 100 g or per 100 mL values were read.")
         XCTAssertEqual(PastedLabelText.flagMessage(.init(code: "column_count_mismatch", concerns: "sodium@header_1"), headers: headers),
                        "Not read: sodium, per serving. Add it, or leave it unknown.")
         XCTAssertEqual(PastedLabelText.basisOptionTitle(.init([.perServing, .per100ml]), servingSize: Self.serving), "Per serving (30 g), then per 100 mL")

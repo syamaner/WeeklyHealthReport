@@ -5,6 +5,8 @@ everything in [import v1](personal-food-catalogue-import-v1.md) that this docume
 stays in force for both schemas, and a `personal-food-catalogue-v1` file stays valid forever under
 exactly the v1 rules, rule codes and fixtures.
 
+**Amendment, 19 November 2026 (#491, owner: one spelling, "mL").** The app's copy spells millilitres "mL" everywhere: decision 3's line reads "Some values scaled from a 250 mL serving" for a volume serving, as the barcode route's source line now does ("scaled from a 250 mL serving", "per 100 mL"). Stored and exported unit codes are unchanged; logs saved earlier keep their text.
+
 ## 1. Purpose
 
 The app's barcode lookup and text search project Open Food Facts records under

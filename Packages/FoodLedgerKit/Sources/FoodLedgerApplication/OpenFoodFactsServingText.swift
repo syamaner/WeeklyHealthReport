@@ -11,10 +11,10 @@ public enum OpenFoodFactsServingText {
         value == value.rounded() && abs(value) < 1e15 ? String(Int64(value)) : String(value)
     }
 
-    /// "g" or "ml", as the barcode route's source line writes them.
-    public static func unit(millilitres: Bool) -> String { millilitres ? "ml" : "g" }
+    /// "g" or "mL", as the barcode route's source line writes them.
+    public static func unit(millilitres: Bool) -> String { millilitres ? "mL" : "g" }
 
-    /// "28 g" or "250 ml".
+    /// "28 g" or "250 mL".
     public static func serving(_ quantity: PositiveQuantity) -> String {
         "\(number(quantity.value)) \(unit(millilitres: quantity.unit == .millilitres))"
     }

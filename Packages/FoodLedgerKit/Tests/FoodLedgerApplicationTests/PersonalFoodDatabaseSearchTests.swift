@@ -586,7 +586,7 @@ final class PersonalFoodDatabaseSearchTests: XCTestCase {
                        ["Your food database entry · per 100 mL as labelled"])
         let (_, scaled) = try builtV2("accept-serving-ml-on-per-100-ml.json", title: "Synthetic Panel Drink")
         XCTAssertEqual(scaled.candidate.candidate.matchMetadata?.materialDifferences.map(\.value).last,
-                       "Some values scaled from a 250 ml serving")
+                       "Some values scaled from a 250 mL serving")
     }
 
     func testServingTextIsSharedWithTheBarcodeRoute() throws {
