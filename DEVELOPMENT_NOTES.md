@@ -5079,3 +5079,9 @@ Unmeasured: no boundary was captured at the start of this phase, separately from
 The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) archived the PR537 head `8efa6835` before merging, at the owner's request, exported it for internal testing only, uploaded build 41, set What to Test and added it to Internal Testing on the owner's yes, then merged PR537 on the owner's yes and wrote [the build 41 record](docs/releases/internal-testflight-0.3.0-build41.md). The owner confirmed on the device that food search works.
 
 Unmeasured: no boundary was captured at the start of this delivery, separately from the fix and catalogue work done in the same session, so no token figure is recorded rather than an estimate.
+
+## WHR-490-2026-11-19: Claude Code scaled-serving line on barcode Confirm
+
+The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) let Confirm's scaled-serving line ("Some values scaled from a 28 g serving") apply to barcode (Open Food Facts) products as well as Your food database entries, with a presentation test for a barcode release and a dated note on the barcode candidate plan.
+
+Unmeasured: no boundary was captured at the start of this phase, separately from the other work done in the same session, so no token figure is recorded rather than an estimate.

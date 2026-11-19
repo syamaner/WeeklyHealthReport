@@ -2,6 +2,8 @@
 
 Issue #144. This proposal follows approved usage registration, successful staging transport, and a separately approved production probe. The production probe stopped on its first HTTP 503, with no retries and no product records. It provides no UK coverage or nutrition-accuracy evidence. Do not promote it as a successful barcode source.
 
+**Amendment, 19 November 2026 (#490).** A product whose values were scaled from a per-serving panel also shows "Some values scaled from a 28 g serving" on Confirm, the same line a Your food database entry shows (catalogue import v2 decision 3); the source line keeps its own wording.
+
 ## Proposed user flow
 
 1. Check the exact saved library offline first. Preserve scan evidence and existing reuse behaviour.
