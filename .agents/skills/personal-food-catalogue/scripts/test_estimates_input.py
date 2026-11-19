@@ -432,6 +432,32 @@ class Assembly(unittest.TestCase):
         self.assertNotIn("Synthetic", json.dumps(report))
 
 
+class CoFIDUnits(unittest.TestCase):
+    """The writer reads a CoFID record as the app's adapter does: water held in g is unknown, never mL."""
+
+    def test_a_value_in_another_unit_is_unknown(self):
+        import apply_estimates
+        rec = {"record_id": "cofid:synthetic:row:0001", "identity": {"preparation": "raw", "fortification": "unfortified",
+                                                                      "serving_basis": "per_100_g"},
+               "nutrients": {"water": {"state": "numeric", "value": "61.6", "source_unit": "g", "canonical_unit": "mL"},
+                             "protein": {"state": "numeric", "value": "3.4", "source_unit": "g", "canonical_unit": "g"}}}
+        self.assertEqual(apply_estimates.cofid_facts(rec)["nutrients"], {"protein": 3.4})
+
+    def test_every_bundled_record_agrees_with_the_app_rule(self):
+        import apply_estimates
+        repo = Path(sys.argv[1]).resolve().parents[3]
+        res = repo / "Packages/FoodLedgerKit/Sources/FoodGenericSearch/Resources"
+        records = json.loads((res / export_v1.SWIFT_PINS["cofid"][0]).read_bytes())["records"]
+        for rec in records:
+            facts = apply_estimates.cofid_facts(rec)["nutrients"]
+            for key, value in rec["nutrients"].items():
+                if value.get("source_unit") != value.get("canonical_unit"):
+                    self.assertNotIn(key, facts, rec["record_id"])
+                elif value.get("state") == "numeric" and export_v1.CANON_UNITS.get(key) == value.get("canonical_unit"):
+                    # and nothing in the same unit is dropped
+                    self.assertEqual(facts.get(key), float(value["value"]), rec["record_id"])
+
+
 class EndToEnd(unittest.TestCase):
     """apply_estimates.main on a temporary workspace, with real record IDs from the public corpus."""
 
