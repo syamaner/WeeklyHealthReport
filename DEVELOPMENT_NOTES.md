@@ -5033,3 +5033,9 @@ Unmeasured: no boundary was captured at the start of this delivery, separately f
 The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) wrote the gap estimates amendments (#524) after the owner's decisions of 18 and 19 November 2026: generic dish records for composite dishes at `low` with a codec ceiling, per 100 ml estimates from per 100 ml records or a quantified zero with `estimate-basis` moved from the codec to the importer, owner basis decisions in the skill's export, and label photo re-admission over an `open_food_facts` refusal row. A blind `architecture-gate` review returned concerns, which the document and code address; a blind `invariant-reviewer` pass runs at the PR head.
 
 Unmeasured: no boundary was captured at the start of this phase, separately from the private catalogue gap work done in the same session, so no token figure is recorded rather than an estimate.
+
+## WHR-526-2026-11-19: Claude Code own merge amendment G4
+
+The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) wrote the own merge amendment (#526) after the owner's decision of 19 November 2026: `estimate-own-merge` moves from the codec to the importer and is raised only when the app would merge the record; otherwise an estimate from the entry's own merge record is judged as an own same-food record at most `medium`, and the candidate builder never lets an estimate from a merged record fill a key. A blind `architecture-gate` review returned concerns, which the document and code address; a blind `invariant-reviewer` pass runs at the PR head.
+
+Unmeasured: no boundary was captured at the start of this phase, separately from the private catalogue rebuild done in the same session, so no token figure is recorded rather than an estimate.

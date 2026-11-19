@@ -32,8 +32,9 @@ public struct GenericRecordLookupSet: GenericRecordNutrientLookup {
 /// The importer's rules for a file the codec accepted (contract section 3.1). For each
 /// `national_composition` estimate, in `estimate_evidence` order: `corpus-mismatch`,
 /// `record-missing`, `value-unquantified`, `value-mismatch` (the first that fails; the last two need
-/// the record), then `estimate-contradiction` and `estimate-basis`, each whenever the record was read
-/// (gap estimates amendment G2, docs/personal-food-catalogue-gap-estimates-v1-amendment.md).
+/// the record), then `estimate-contradiction`, `estimate-basis` and `estimate-own-merge`, each whenever
+/// the record was read (gap estimates amendment G2, docs/personal-food-catalogue-gap-estimates-v1-amendment.md;
+/// own merge amendment G4, docs/personal-food-catalogue-own-merge-amendment-v1.md).
 public enum PersonalFoodDatabaseEstimateAdmission {
     public static let tolerance = 0.005
 
@@ -90,6 +91,11 @@ public enum PersonalFoodDatabaseEstimateAdmission {
                 }
                 if contradicts(entry: entry, record: record) { codes.append(.estimateContradiction) }
                 if basisMismatch(entry: entry, estimate: estimate, record: record) { codes.append(.estimateBasis) }
+                // G4: an estimate from the entry's own merge record only where the app does not merge it.
+                if entry.isOwnRecord(estimate.evidence),
+                   PersonalFoodDatabaseCandidateBuilder.mergeEligible(entry, facts: record) {
+                    codes.append(.estimateOwnMerge)
+                }
             }
         }
         return codes

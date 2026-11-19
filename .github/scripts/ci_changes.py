@@ -49,6 +49,8 @@ CODE_READ_DOCS = {
     "docs/personal-food-catalogue-off-estimates-v1-phase.md",
     # Cited by the gap estimates amendment code, tests and the catalogue skill (#524).
     "docs/personal-food-catalogue-gap-estimates-v1-amendment.md",
+    # Cited by the own merge amendment code and tests (#526).
+    "docs/personal-food-catalogue-own-merge-amendment-v1.md",
     # Cited by the manifest v3 contract tests (#508).
     "docs/web-lookup-part-read-pages-v1-proposal.md",
     "docs/web-lookup-larger-pages-phase1-gate.md",

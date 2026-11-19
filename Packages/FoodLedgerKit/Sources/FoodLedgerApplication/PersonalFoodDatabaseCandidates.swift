@@ -84,15 +84,20 @@ public enum PersonalFoodDatabaseCandidateBuilder {
     /// preparation kind is known and equal, per 100 g with a known 100 g edible quantity, and not
     /// fortified (an entry is never a fortified food).
     public static func mergeEligible(_ entry: PersonalFoodDatabaseEntry, record: PopulatedFoodCandidate) -> Bool {
+        mergeEligible(entry, facts: GenericRecordFacts(nutrients: record.candidate.nutrients,
+                                                       identity: record.candidate.identity,
+                                                       edibleQuantity: record.candidate.edibleQuantity))
+    }
+
+    /// The same rule on a record's facts, so the importer (own merge amendment G4) and the builder
+    /// can never disagree about what merges.
+    public static func mergeEligible(_ entry: PersonalFoodDatabaseEntry, facts: GenericRecordFacts) -> Bool {
         guard let reference = entry.genericReference, reference.role == .merge,
               entry.state == .raw || entry.state == .cooked, entry.basis == .per100Grams,
               let entryPreparation = try? preparation(entry.state) else { return false }
-        let identity = record.candidate.identity
-        guard identity.preparation.kind == entryPreparation.kind, identity.servingBasis == .per100Grams,
-              identity.fortification != .fortified else { return false }
-        guard case let .known(quantity, conversion) = record.candidate.edibleQuantity, conversion == nil,
-              quantity.unit == .grams, quantity.value == 100 else { return false }
-        return true
+        let identity = facts.identity
+        return identity.preparation.kind == entryPreparation.kind && identity.fortification != .fortified
+            && facts.isPer100GramsEdible
     }
 
     static func itemClass(_ category: PersonalFoodDatabaseCategory) -> ItemClass {
@@ -131,8 +136,13 @@ public enum PersonalFoodDatabaseCandidateBuilder {
             } ?? []
             // An approved estimate is always augmented and never shares a key with a label value
             // (rule `label-and-estimate`), so it sits between the label levels and the merged record.
+            // Own merge amendment G4, defence in depth: when the record merges, an estimate from that
+            // same record never fills a key, whatever the stored file holds (the codec runs on load,
+            // the importer only on import).
             let estimated: [NutrientValue] = try estimates.flatMap { binding in
-                try entry.estimatedNutrients.first { $0.key == key }.map {
+                try entry.estimatedNutrients.first {
+                    $0.key == key && !(merge != nil && entry.isOwnRecord($0.evidence))
+                }.map {
                     [try estimateValue($0, basis: basis, databaseRelease: databaseRelease, binding: binding)]
                 }
             } ?? []

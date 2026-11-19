@@ -30,6 +30,9 @@ final class PersonalFoodDatabaseEstimateAdmissionTests: XCTestCase {
             let per_100_g_edible: Bool
             /// `per_100_g` or `per_100_ml` (gap estimates amendment G2).
             let basis: String
+            /// The entry states (`raw`, `cooked`) the skill's `merges` says this record merges into
+            /// (own merge amendment G4).
+            let merges_into: [String]
         }
         struct Stub: Decodable {
             let pins: [String: String]
@@ -110,6 +113,29 @@ final class PersonalFoodDatabaseEstimateAdmissionTests: XCTestCase {
                        "every importer code has a fixture")
     }
 
+    /// Own merge amendment G4: the importer's merge predicate (shared with the candidate builder) and the
+    /// skill's `merges` agree on every stub record, for a raw and a cooked entry.
+    func testTheMergePredicateAgreesWithTheSkillOnEveryStubRecord() throws {
+        let m = try Self.manifest()
+        let lookup = try StubLookup(m.stub_lookup)
+        var entries: [String: PersonalFoodDatabaseEntry] = [:]
+        for (state, name, title) in [("raw", "accept-own-merge-unstated-preparation-raw.json", "Synthetic Raw Greens"),
+                                     ("cooked", "accept-own-merge-unstated-preparation-cooked.json", "Synthetic Cooked Rice")] {
+            let file = try PersonalFoodDatabaseCodec.decode(try Self.fixture(name)).get()
+            let entry = try XCTUnwrap(file.entries.first { $0.title == title })
+            XCTAssertEqual(entry.genericReference?.role, .merge)
+            entries[state] = entry
+        }
+        for record in m.stub_lookup.records {
+            let facts = try XCTUnwrap(lookup.records["\(record.source)|\(record.record_id)"])
+            for (state, entry) in entries {
+                XCTAssertEqual(PersonalFoodDatabaseCandidateBuilder.mergeEligible(entry, facts: facts),
+                               record.merges_into.contains(state), "\(record.record_id) into \(state)")
+            }
+        }
+        XCTAssertTrue(m.stub_lookup.records.contains { !$0.merges_into.isEmpty })
+    }
+
     func testGoldenAndAcceptFixturesPassTheImporterRules() throws {
         let m = try Self.manifest()
         let lookup = try StubLookup(m.stub_lookup)
@@ -155,8 +181,10 @@ final class PersonalFoodDatabaseEstimateAdmissionTests: XCTestCase {
         XCTAssertEqual(summary.estimatedValueCount, 11)
         let outcome = await importer.importFile(try Self.fixture("reject-importer-value-outside-tolerance.json"))
         XCTAssertEqual(outcome, .rejected([.valueMismatch]))
-        let codec = await importer.importFile(try Self.fixture("reject-own-merge.json"))
-        XCTAssertEqual(codec, .rejected([.estimateOwnMerge]))
+        let codec = await importer.importFile(try Self.fixture("reject-own-held-raw.json"))
+        XCTAssertEqual(codec, .rejected([.estimateOwnHeld, .estimateOwnHeld, .estimateOwnHeld]))
+        let ownMerge = await importer.importFile(try Self.fixture("reject-own-merge.json"))
+        XCTAssertEqual(ownMerge, .rejected([.estimateOwnMerge]))
         XCTAssertEqual(try store.activeRelease()?.manifest.releaseID, first.releaseID)
         guard case .installed = await importer.status() else { return XCTFail("still installed") }
 

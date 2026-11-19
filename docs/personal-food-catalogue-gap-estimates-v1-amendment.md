@@ -1,8 +1,7 @@
 # Personal food database: gap estimates amendments (G1 to G3)
 
-Status: **proposed for the owner's approval in #524.** The owner decided the three questions of
-section 5 on 19 November 2026; this text becomes binding when the owner approves the PR, and no
-value it admits is written before then. Written at the owner's request: "the best available
+Status: **accepted.** The owner decided the three questions of section 5 on 19 November 2026 and
+approved #524, which merged on 19 November 2026. Written at the owner's request: "the best available
 labelled estimate for every food. Nothing is deleted."
 
 It is a delta on four accepted documents and repeats none of them:
