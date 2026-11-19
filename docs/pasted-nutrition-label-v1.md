@@ -12,6 +12,8 @@ Status: **owner-approved, gate passed with changes, assisted-UX principle applie
 
 This contract composes with, and does not amend, [food confirmation v5](food-confirmation-contract-v5.md) (`food_confirmation_v5`), the [food identity and nutrition contract](food-identity-nutrition-contract.md), the [review manifest v2](generic-food-review-manifest-v2.md) and [UX revamp v1](ux-revamp-v1.md). The evaluation it relies on is [`nutrition-label-capture-evaluation-v1.md`](nutrition-label-capture-evaluation-v1.md); its phase 5 results are on PR #260's branch `feat/255-label-eval-phase-5`, cited by path below.
 
+**Amendment, 19 November 2026 (#491, owner: one spelling, "mL").** The app's copy spells millilitres "mL" everywhere; the G5 message of section 3.1 reads "No per 100 g or per 100 mL values were read." Stored codes (`ml`, `per_100ml`) and parser input are unchanged.
+
 ## 1. Evidence this contract rests on, and its limits
 
 | Evidence | What it shows | Where |

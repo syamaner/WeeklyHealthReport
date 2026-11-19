@@ -4,6 +4,8 @@ Status: **design spec, egress amendment and architecture gate, 25 October 2026. 
 
 It adds a new entry route. It does **not** amend [reader v3](pasted-nutrition-label-reader-v3.md) or any file pinned by `ReaderV3FreezeTests` (section 12.6). It reuses the pasted route's Confirm rules from [pasted label Confirm v1](pasted-label-confirm-v1.md) and [food confirmation v5](food-confirmation-contract-v5.md), and extends them only where a photo differs (section 4).
 
+**Amendment, 19 November 2026 (#491, owner: one spelling, "mL").** The app's copy spells millilitres "mL" everywhere: the source line reads "per 100 mL" for a volume basis. Stored codes and the wire schema are unchanged.
+
 ## 1. Problem
 
 Typing or pasting a Taiwan 營養標示 table is slow, and most labels the user meets are on a pack, not in copyable text. The on-device route B of the [capture evaluation](nutrition-label-capture-evaluation-v1.md) read only 4 of 40 untouched Taiwan photos. The multimodal route C did much better but did not pass the automatic bars (evaluation section 9.8), so it can only be offered as an assisted pre-fill that the user checks, which is exactly the owner's principle: the machine pre-fills, the user confirms or overrides, and exceptions are visible.

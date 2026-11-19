@@ -2,6 +2,8 @@
 
 Issue #144. This proposal follows approved usage registration, successful staging transport, and a separately approved production probe. The production probe stopped on its first HTTP 503, with no retries and no product records. It provides no UK coverage or nutrition-accuracy evidence. Do not promote it as a successful barcode source.
 
+**Amendment, 19 November 2026 (#491, owner: one spelling, "mL").** The source line spells millilitres "mL": "per 100 mL", "scaled from a 250 mL serving" and "as the nutrition panel states (the pack is in mL)". Stored codes and the Open Food Facts fields read are unchanged; logs saved earlier keep their text.
+
 ## Proposed user flow
 
 1. Check the exact saved library offline first. Preserve scan evidence and existing reuse behaviour.

@@ -5080,6 +5080,10 @@ The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) archived
 
 Unmeasured: no boundary was captured at the start of this delivery, separately from the fix and catalogue work done in the same session, so no token figure is recorded rather than an estimate.
 
+## WHR-491-2026-11-19: Claude Code one spelling for millilitres
+
+The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) found that contracts pinned both "mL" and "ml", recorded the findings on #491, and on the owner's choice ("mL") changed the remaining "ml" copy (barcode source line and serving note, pasted-label G5 message, label photo basis label, re-resolution basis label, inventory unit picker) with dated notes on the four contracts that showed "ml" (pasted label, catalogue import v2, label photo, barcode candidate plan); the manufacturer source route, not yet wired into the app, also writes "mL". Stored and exported unit codes are unchanged.
+
 ## WHR-47-2026-11-19: Claude Code one error for an over-limit dictation result
 
 The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) made the daily notes speech path report a refused transcript (over the per-note or daily limit) once, on the speech review card, instead of also setting the notes controller's error: a new `speechTranscriptRejection` returns the refusal without publishing it, and the unused `appendSpeechTranscript` is removed. The speech tests now assert one error channel and an editable candidate for final and reviewed over-limit transcripts.
