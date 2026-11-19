@@ -537,6 +537,12 @@
     "estimate-basis"
    ]
   },
+  "reject-importer-cooked-per-100-ml-entry-raw-per-100-ml-record.json": {
+   "stage": "importer",
+   "codes": [
+    "estimate-contradiction"
+   ]
+  },
   "reject-importer-per-100-ml-record-on-per-100-g-entry.json": {
    "stage": "importer",
    "codes": [
@@ -554,6 +560,7 @@
   "accept-estimate-beside-merged-record.json": "importer",
   "accept-per-100-ml-record-on-per-100-ml-entry.json": "importer",
   "accept-zero-from-per-100-g-record-on-per-100-ml-entry.json": "importer",
+  "accept-single-ingredient-per-100-ml-record-at-medium.json": "importer",
   "accept-own-candidate-per-100-ml-record.json": "importer",
   "accept-own-candidate-zero-from-per-100-g-record.json": "importer",
   "accept-raw-entry-as-sold-record.json": "importer"
@@ -955,6 +962,18 @@
     "preparation_method": null,
     "fortification": "unfortified",
     "per_100_g_edible": false,
+    "basis": "per_100_ml"
+   },
+   {
+    "source": "cofid",
+    "record_id": "cofid:raw-wine",
+    "nutrients": {
+     "sugar": 2.0
+    },
+    "preparation": "raw",
+    "preparation_method": null,
+    "fortification": "unfortified",
+    "per_100_g_edible": true,
     "basis": "per_100_ml"
    }
   ]

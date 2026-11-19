@@ -272,7 +272,7 @@ def build(cat, pins, generated, decisions=None):
         eid = entry_id(i.get("brand"), i["title"])
         seen.add(eid)
         reference = choose_reference({**i, "state": fixed["state"]}, pins, basis)
-        decided = decided_basis(eid, values, reference, decisions) if basis == "per_100_g" else None
+        decided = decided_basis(eid, values, reference, decisions)  # a labelled entry is counted as ignored
         if decided:
             basis = decided
             reference = choose_reference({**i, "state": fixed["state"]}, pins, basis)

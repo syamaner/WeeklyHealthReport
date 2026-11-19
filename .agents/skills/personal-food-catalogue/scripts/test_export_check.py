@@ -792,6 +792,9 @@ ESTIMATE_CASES = {
         d, DRINK, "sugar", 2.0, national("cofid:fortified-wine", "carried_from_similar_food", "stated_assumption", "low"))),
     "importer-basis-per-100-ml-record-not-100-ml": ("importer", ["estimate-basis"], lambda d: put(
         d, DRINK, "sugar", 2.0, national("cofid:wine-not-100-ml", "carried_from_similar_food", "stated_assumption", "low"))),
+    "importer-cooked-per-100-ml-entry-raw-per-100-ml-record": ("importer", ["estimate-contradiction"], lambda d: (
+        find(d, DRINK).update(state="cooked", product_type="packaged_single_ingredient"),
+        put(d, DRINK, "sugar", 2.0, national("cofid:raw-wine", "carried_from_similar_food", "stated_assumption", "medium")))),
     "importer-per-100-ml-record-on-per-100-g-entry": ("importer", ["estimate-contradiction"], lambda d: put(
         d, CHEESE, "sugar", 2.0, national("cofid:wine", "carried_from_similar_food", "stated_assumption", "low"))),
 }
@@ -832,6 +835,9 @@ ESTIMATE_ACCEPT = {  # name -> (stage that accepts it, document)
         d, DRINK, "sugar", 2.0, national("cofid:wine", "carried_from_similar_food", "stated_assumption", "low")))),
     "zero-from-per-100-g-record-on-per-100-ml-entry": ("importer", lambda: _est(lambda d: put(
         d, DRINK, "fiber", 0, national("cofid:zero-fibre", "carried_from_similar_food", "stated_assumption", "low")))),
+    "single-ingredient-per-100-ml-record-at-medium": ("importer", lambda: _est(lambda d: (
+        find(d, DRINK).update(product_type="packaged_single_ingredient"),
+        put(d, DRINK, "sugar", 2.0, national("cofid:wine", "carried_from_similar_food", "stated_assumption", "medium"))))),
     "own-candidate-per-100-ml-record": ("importer", lambda: _est(lambda d: (
         find(d, DRINK).update(generic_reference=COFID("cofid:wine", "close")),
         put(d, DRINK, "sugar", 2.0, national("cofid:wine", "carried_from_similar_food", "stated_assumption", "low"))))),
@@ -868,6 +874,7 @@ STUB_RECORDS = [
     ("cofid:wine", {"sugar": 2.0, "fiber": 0}, "unknown", None, "unfortified", True, "per_100_ml"),
     ("cofid:fortified-wine", {"sugar": 2.0}, "unknown", None, "fortified", True, "per_100_ml"),
     ("cofid:wine-not-100-ml", {"sugar": 2.0}, "unknown", None, "unfortified", False, "per_100_ml"),
+    ("cofid:raw-wine", {"sugar": 2.0}, "raw", None, "unfortified", True, "per_100_ml"),
 ]
 
 URLS = {  # phase gate section 3.1 item 7; both checkers read this list

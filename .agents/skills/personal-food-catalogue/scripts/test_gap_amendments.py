@@ -146,6 +146,10 @@ class BasisDecisions(unittest.TestCase):
         plain_doc, _ = export_v1.build(cat, CORPORA, "2026-11-19")
         self.assertEqual(plain_doc["items"][0]["basis"], "per_100_g")
 
+    def test_a_decision_on_a_labelled_entry_is_counted_as_ignored(self):
+        self.assertIsNone(export_v1.decided_basis("x", {"sugar": {}}, None, {"x": {}}))
+        self.assertEqual(export_v1.BASIS_DECISIONS["ignored: the entry has label values"], 1)
+
 
 if __name__ == "__main__":
     unittest.main(argv=sys.argv[:1])
