@@ -5039,3 +5039,9 @@ Unmeasured: no boundary was captured at the start of this phase, separately from
 The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) wrote the own merge amendment (#526) after the owner's decision of 19 November 2026: `estimate-own-merge` moves from the codec to the importer and is raised only when the app would merge the record; otherwise an estimate from the entry's own merge record is judged as an own same-food record at most `medium`, and the candidate builder never lets an estimate from a merged record fill a key. A blind `architecture-gate` review returned concerns, which the document and code address; a blind `invariant-reviewer` pass runs at the PR head.
 
 Unmeasured: no boundary was captured at the start of this phase, separately from the private catalogue rebuild done in the same session, so no token figure is recorded rather than an estimate.
+
+## WHR-530-2026-11-19: Claude Code MyFoodData as a named catalogue source
+
+The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) added MyFoodData (`tools.myfooddata.com`, a viewer of USDA FoodData Central records) as a named aggregator source in the personal food catalogue skill, at the owner's request of 19 November 2026, and recorded in the privacy and egress policy that its pages are read in the agent's built-in browser because the site refuses the web-fetch tool. Documentation only; a blind `invariant-reviewer` pass runs at the PR head.
+
+Unmeasured: no boundary was captured at the start of this phase, separately from the private catalogue work done in the same session, so no token figure is recorded rather than an estimate.
