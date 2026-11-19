@@ -144,6 +144,16 @@ final class DailyNotesController: ObservableObject {
     @discardableResult
     func updateDraftText(_ text: String) -> Bool {
         guard requireStorageAccess() else { return false }
+        if let rejection = applyDraftText(text) {
+            errorMessage = rejection
+            return false
+        }
+        return true
+    }
+
+    /// Applies the draft text, or returns why it was refused without changing the draft. It never
+    /// publishes the refusal: the caller decides which surface shows it.
+    private func applyDraftText(_ text: String) -> String? {
         var candidate = document
         do {
             try candidate.updateDraft(text: text, now: now())
@@ -151,24 +161,22 @@ final class DailyNotesController: ObservableObject {
             pendingDraftSave = true
             errorMessage = nil
             scheduleDraftSave()
-            return true
+            return nil
         } catch {
-            errorMessage = Self.message(for: error)
-            return false
+            return Self.message(for: error)
         }
     }
 
-    @discardableResult
-    func appendSpeechTranscript(_ transcript: String) -> Bool {
-        guard let draft = currentDraft else {
-            errorMessage = Self.message(for: DailyNotesError.noDraft)
-            return false
-        }
+    /// Appends a recognised transcript to the draft (#47). A refusal, such as an over-limit note, is
+    /// returned for the speech review card to show and is not also set as `errorMessage`, so one
+    /// event shows one error; the draft and the saved notes stay unchanged.
+    func speechTranscriptRejection(_ transcript: String) -> String? {
+        guard requireStorageAccess() else { return errorMessage ?? "The transcript could not be added. Your draft was preserved." }
+        guard let draft = currentDraft else { return Self.message(for: DailyNotesError.noDraft) }
         let finalTranscript = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !finalTranscript.isEmpty else { return true }
-
+        guard !finalTranscript.isEmpty else { return nil }
         let separator = draft.text.isEmpty || draft.text.last?.isWhitespace == true ? "" : " "
-        return updateDraftText(draft.text + separator + finalTranscript)
+        return applyDraftText(draft.text + separator + finalTranscript)
     }
 
     @discardableResult

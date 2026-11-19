@@ -5079,3 +5079,9 @@ Unmeasured: no boundary was captured at the start of this phase, separately from
 The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) archived the PR537 head `8efa6835` before merging, at the owner's request, exported it for internal testing only, uploaded build 41, set What to Test and added it to Internal Testing on the owner's yes, then merged PR537 on the owner's yes and wrote [the build 41 record](docs/releases/internal-testflight-0.3.0-build41.md). The owner confirmed on the device that food search works.
 
 Unmeasured: no boundary was captured at the start of this delivery, separately from the fix and catalogue work done in the same session, so no token figure is recorded rather than an estimate.
+
+## WHR-47-2026-11-19: Claude Code one error for an over-limit dictation result
+
+The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) made the daily notes speech path report a refused transcript (over the per-note or daily limit) once, on the speech review card, instead of also setting the notes controller's error: a new `speechTranscriptRejection` returns the refusal without publishing it, and the unused `appendSpeechTranscript` is removed. The speech tests now assert one error channel and an editable candidate for final and reviewed over-limit transcripts.
+
+Unmeasured: no boundary was captured at the start of this phase, separately from the other work done in the same session, so no token figure is recorded rather than an estimate.

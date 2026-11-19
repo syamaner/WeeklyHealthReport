@@ -192,9 +192,7 @@ struct DailyNoteEditorView: View {
         _speechController = StateObject(wrappedValue: DailyNoteSpeechController(
             capture: SystemOnDeviceSpeechCapture(),
             appendFinalTranscript: { transcript in
-                controller.appendSpeechTranscript(transcript)
-                    ? nil
-                    : (controller.errorMessage ?? "The transcript could not be added. Your draft was preserved.")
+                controller.speechTranscriptRejection(transcript)
             }
         ))
     }
