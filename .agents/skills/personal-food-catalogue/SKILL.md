@@ -41,16 +41,26 @@ below serves that, and enrichment work is judged by it:
   state the page describes and the value, written into the estimates v2 file as a labelled estimate
   with its tier (workflow step 7), never as a label value. Prefer national composition databases and
   manufacturer pages over aggregator sites.
-- **MyFoodData is a named aggregator source** (owner, 19 November 2026, #530). `tools.myfooddata.com`
-  shows USDA FoodData Central records. Use it only under the web search rules (rule 4), reading pages
-  in the built-in browser because the site refuses WebFetch. Take values from the record's
-  "100 grams" view at its own address (`/nutrition-facts/<record>/wt<n>`, no query string) exactly as
-  printed, never scaled from a cup or portion by hand; the evidence is `aggregator` with underlying
-  source `stated_independent` when the page names USDA data. A USDA Branded Food record is the same
-  product only when its UPC equals the entry's barcode or the record otherwise matches the entry's own
-  label values (method `direct`, `same_food`); anything else is a similar food. Its generic records
-  may fill a composite dish only on amendment G5's terms (`low`, the fixed sentence). Branded records
-  are mostly US-market products, and the site rounds printed values, which the assumption says.
+- **MyFoodData is a named aggregator source** (owner request 19 November 2026, in force once the owner
+  approves #530). `tools.myfooddata.com` shows USDA FoodData Central records. Use it only under the web
+  search rules (rule 4), reading pages in the built-in browser because the site refuses WebFetch:
+  - **Which records.** Only records absent from the bundled corpora (USDA Branded Food and survey
+    records). A Foundation or SR Legacy record that the app bundles goes through the
+    `national_composition` route instead, never as a page, and a record E3 refused for an entry stays
+    refused by this route too.
+  - **Values.** Take values from the record's "100 grams" view at its own address
+    (`/nutrition-facts/<record>/wt<n>`, no query string), never scaled from a cup or portion by hand.
+    A printed 0 is taken only when the record states a quantified zero for that nutrient; a dash, a
+    blank or a value rounded to 0 stays absent. The assumption says the site rounds printed values.
+  - **Evidence.** `aggregator`, underlying source `stated_independent` when the page names USDA data,
+    else `not_stated`.
+  - **Same product only on barcode equality.** A Branded record is the same product (`same_food`,
+    method `direct`) only when its UPC, read on the record page, equals the entry's barcode after
+    GTIN normalisation. Anything else, a matching brand, title or label values included, is a similar
+    food (`carried_from_similar_food`, at most `medium`), and its assumption says how it differs. No
+    barcode is typed into the site or a search engine; records are found by description queries.
+  - **Composite dishes.** A similar-food record fills a composite dish only on amendment G5's terms
+    (`low`, the fixed sentence) once G5 (#529) is accepted; until then it never does.
 - **Identity and state first.** The right food in the right state (as sold, raw, cooked, drained,
   dry, prepared) and the right cut or variety matter more than any single value; a raw record for a
   cooked food is the worst error.
