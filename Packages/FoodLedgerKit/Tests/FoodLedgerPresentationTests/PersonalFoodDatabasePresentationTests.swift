@@ -75,7 +75,7 @@ final class PersonalFoodDatabasePresentationTests: XCTestCase {
     func testConfirmShowsTheScaledServingLineForADatabaseEntry() throws {
         let route = try route("synthetic serving bar", file: Self.goldenV2)
         let candidate = try XCTUnwrap(route.matches.first { $0.candidate.name.value == "Synthetic Serving Bar" }?.candidate)
-        XCTAssertEqual(FoodSearchResultText.databaseScaledServingNotes(candidate, releases: route.confirmation.sourceReleases),
+        XCTAssertEqual(FoodSearchResultText.scaledServingNotes(candidate, releases: route.confirmation.sourceReleases),
                        ["Some values scaled from a 28 g serving"])
         let input = try PopulatedFoodConfirmation(evidence: route.confirmation.evidence,
             sourceReleases: route.confirmation.sourceReleases, candidates: [candidate],
@@ -100,10 +100,42 @@ final class PersonalFoodDatabasePresentationTests: XCTestCase {
         let identityOnly = FoodConfirmationViewModel(state: corrected) { _ in throw FoodConfirmationSaveError.noAcceptedCandidate }
         XCTAssertEqual(identityOnly.scaledServingNotes, ["Some values scaled from a 28 g serving"])
         let drink = try self.route("synthetic panel drink", file: Self.goldenV2)
-        XCTAssertEqual(FoodSearchResultText.databaseScaledServingNotes(drink.matches[0].candidate,
+        XCTAssertEqual(FoodSearchResultText.scaledServingNotes(drink.matches[0].candidate,
                                                                        releases: drink.confirmation.sourceReleases), [])
         let oats = try self.route("synthetic example oats")
-        XCTAssertEqual(FoodSearchResultText.databaseScaledServingNotes(oats.matches[0].candidate,
+        XCTAssertEqual(FoodSearchResultText.scaledServingNotes(oats.matches[0].candidate,
                                                                        releases: oats.confirmation.sourceReleases), [])
+    }
+
+    /// #490: a barcode (Open Food Facts) product with values scaled from a per-serving panel shows the
+    /// same line on Confirm; another source family with the same values does not.
+    @MainActor
+    func testConfirmShowsTheScaledServingLineForABarcodeProduct() throws {
+        let route = try route("synthetic serving bar", file: Self.goldenV2)
+        let candidate = try XCTUnwrap(route.matches.first { $0.candidate.name.value == "Synthetic Serving Bar" }?.candidate)
+        func releases(sourceID: String, of route: GenericFoodConfirmationRoute, for candidate: PopulatedFoodCandidate) throws -> [SourceRelease] {
+            try route.confirmation.sourceReleases.map { release in
+                guard release.sourceReleaseID == candidate.candidate.sourceReleaseID else { return release }
+                return SourceRelease(sourceReleaseID: release.sourceReleaseID, sourceID: try ExternalIdentifier(sourceID),
+                    releasedAt: release.releasedAt, artifactHash: release.artifactHash, schemaVersion: release.schemaVersion,
+                    pipelineVersion: release.pipelineVersion, licence: release.licence, attribution: release.attribution,
+                    manifestHash: release.manifestHash)
+            }
+        }
+        // The barcode route's real source ID (OpenFoodFactsLookup).
+        let barcode = try releases(sourceID: "open-food-facts", of: route, for: candidate)
+        XCTAssertEqual(FoodSearchResultText.scaledServingNotes(candidate, releases: barcode), ["Some values scaled from a 28 g serving"])
+        let input = try PopulatedFoodConfirmation(evidence: route.confirmation.evidence, sourceReleases: barcode,
+            candidates: [candidate], expectedIdentity: candidate.candidate.identity, expectedEdibleQuantity: candidate.candidate.edibleQuantity)
+        let model = FoodConfirmationViewModel(state: FoodConfirmationState(input: input, prefillSourceQuantity: false)) { _ in
+            throw FoodConfirmationSaveError.noAcceptedCandidate
+        }
+        XCTAssertEqual(model.scaledServingNotes, ["Some values scaled from a 28 g serving"])
+        XCTAssertEqual(FoodSearchResultText.scaledServingNotes(candidate, releases: try releases(sourceID: "cofid", of: route, for: candidate)), [])
+        // An unscaled barcode product (values per 100 g as printed) shows no line.
+        let oats = try self.route("synthetic example oats")
+        let plain = oats.matches[0].candidate
+        XCTAssertEqual(FoodSearchResultText.scaledServingNotes(plain,
+            releases: try releases(sourceID: "open-food-facts", of: oats, for: plain)), [])
     }
 }

@@ -281,7 +281,7 @@ Sites, each marked:
 | `FoodDetailsSheet.swift` `correction(for:)`, `FoodConfirmationView.swift` and `FoodDetailsFillPolicy.swift` corrections built from the candidate | stay on the candidate (the manifest is the record of what was offered; withholding is applied on top) |
 | `FoodDetailsFillPolicy.isStoredFill` equality (`isFill` needs no change) | equal except estimate keys saved as unknown, so details are still carried to a re-log |
 | `FoodReresolutionService.prepareAcceptance`, `FoodReresolution` diff | the fresh candidate's nutrients with withheld keys unknown (S7) |
-| `FoodSearchStatusPresentation.databaseScaledServingNotes` | effective |
+| `FoodSearchStatusPresentation.scaledServingNotes` | effective |
 
 **Save.** The service never trusts the state's copy of `estimateRecords`: for a new log, a
 corrected reopened log and an undo it rebinds a local copy of the state through its own lookup

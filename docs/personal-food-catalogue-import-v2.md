@@ -107,7 +107,7 @@ Example of a scaled sodium value (synthetic):
   entry's basis, as in v1.
 - **Confirm.** When a value the candidate uses carries `off-serving-to-100`, Confirm's Food section
   shows "Some values scaled from a 28 g serving" (decision 3), from the values Confirm shows
-  (`FoodSearchResultText.databaseScaledServingNotes`), so a correction that replaces the scaled values
+  (`FoodSearchResultText.scaledServingNotes`), so a correction that replaces the scaled values
   removes the line. The candidate's material differences carry the
   same line after "Your food database entry · per 100 g", which search rows list. The serving is written as the barcode route writes it ("28", "12.5", no
   trailing ".0"), through one shared helper, `OpenFoodFactsServingText`. A panel-wins entry needs no

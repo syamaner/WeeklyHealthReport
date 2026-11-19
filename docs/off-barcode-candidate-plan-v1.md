@@ -4,6 +4,8 @@ Issue #144. This proposal follows approved usage registration, successful stagin
 
 **Amendment, 19 November 2026 (#491, owner: one spelling, "mL").** The source line spells millilitres "mL": "per 100 mL", "scaled from a 250 mL serving" and "as the nutrition panel states (the pack is in mL)". Stored codes and the Open Food Facts fields read are unchanged; logs saved earlier keep their text.
 
+**Amendment, 19 November 2026 (#490).** An Open Food Facts product (from a barcode or from text search; both share the `open-food-facts` source) whose values were scaled from a per-serving panel also shows "Some values scaled from a 28 g serving" on Confirm, the same line a Your food database entry shows (catalogue import v2 decision 3); the source line keeps its own wording.
+
 ## Proposed user flow
 
 1. Check the exact saved library offline first. Preserve scan evidence and existing reuse behaviour.

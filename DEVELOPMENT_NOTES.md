@@ -5086,6 +5086,12 @@ The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) found th
 
 Unmeasured: no boundary was captured at the start of this phase, separately from the other work done in the same session, so no token figure is recorded rather than an estimate.
 
+## WHR-490-2026-11-19: Claude Code scaled-serving line on barcode Confirm
+
+The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) let Confirm's scaled-serving line ("Some values scaled from a 28 g serving") apply to barcode (Open Food Facts) products as well as Your food database entries, with a presentation test for a barcode release and a dated note on the barcode candidate plan.
+
+Unmeasured: no boundary was captured at the start of this phase, separately from the other work done in the same session, so no token figure is recorded rather than an estimate.
+
 ## WHR-47-2026-11-19: Claude Code one error for an over-limit dictation result
 
 The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) made the daily notes speech path report a refused transcript (over the per-note or daily limit) once, on the speech review card, instead of also setting the notes controller's error: a new `speechTranscriptRejection` returns the refusal without publishing it, and the unused `appendSpeechTranscript` is removed. The speech tests now assert one error channel and an editable candidate for final and reviewed over-limit transcripts.

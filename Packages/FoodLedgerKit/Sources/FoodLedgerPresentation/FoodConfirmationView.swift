@@ -62,11 +62,11 @@ public final class FoodConfirmationViewModel: ObservableObject {
     }
     public var displayedName: LedgerText { state.correction?.name ?? state.reopened?.productVersion.name ?? state.selectedCandidate.name }
     public var displayedBrand: LedgerText? { state.correction?.brand ?? state.reopened?.productVersion.brand ?? state.selectedCandidate.brand }
-    /// Import v2: "Some values scaled from a 28 g serving" lines for a Your food database entry, shown
-    /// in Confirm's Food section (the generic material differences list is not shown for this route).
+    /// Import v2 and #490: "Some values scaled from a 28 g serving" lines for a Your food database entry
+    /// or a barcode product, shown in Confirm's Food section.
     public var scaledServingNotes: [String] {
         // Only values still coming from the scaled source count (PR #487 review).
-        FoodSearchResultText.databaseScaledServingNotes(state.selectedCandidate,
+        FoodSearchResultText.scaledServingNotes(state.selectedCandidate,
             nutrients: state.correction?.nutrients ?? state.reopened?.resolutionVersion.nutrients,
             releases: state.input.sourceReleases)
     }
