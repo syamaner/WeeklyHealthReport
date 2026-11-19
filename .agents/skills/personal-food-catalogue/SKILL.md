@@ -43,24 +43,29 @@ below serves that, and enrichment work is judged by it:
   manufacturer pages over aggregator sites.
 - **MyFoodData is a named aggregator source** (owner request 19 November 2026, in force once the owner
   approves #530). `tools.myfooddata.com` shows USDA FoodData Central records. Use it only under the web
-  search rules (rule 4), reading pages in the built-in browser because the site refuses WebFetch:
-  - **Which records.** Only records absent from the bundled corpora (USDA Branded Food and survey
-    records). A Foundation or SR Legacy record that the app bundles goes through the
-    `national_composition` route instead, never as a page, and a record E3 refused for an entry stays
-    refused by this route too.
+  search rules (rule 4), reading record pages in the built-in browser because the site refuses WebFetch:
+  - **Which records.** Only records absent from the bundled corpora: USDA Branded Food and survey
+    records. A page whose data source names SR Legacy or Foundation, or whose FDC ID is in the bundled
+    USDA projection, goes through the `national_composition` route instead, never as a page, and a
+    record E3 refused for an entry stays refused by this route too.
   - **Values.** Take values from the record's "100 grams" view at its own address
     (`/nutrition-facts/<record>/wt<n>`, no query string), never scaled from a cup or portion by hand.
-    A printed 0 is taken only when the record states a quantified zero for that nutrient; a dash, a
-    blank or a value rounded to 0 stays absent. The assumption says the site rounds printed values.
-  - **Evidence.** `aggregator`, underlying source `stated_independent` when the page names USDA data,
-    else `not_stated`.
-  - **Same product only on barcode equality.** A Branded record is the same product (`same_food`,
-    method `direct`) only when its UPC, read on the record page, equals the entry's barcode after
-    GTIN normalisation. Anything else, a matching brand, title or label values included, is a similar
-    food (`carried_from_similar_food`, at most `medium`), and its assumption says how it differs. No
-    barcode is typed into the site or a search engine; records are found by description queries.
+    The site prints rounded values, so a printed 0 is never taken (it stays absent), except a declared
+    zero on a same-product Branded record, which is the product's own label declaration. A dash or a
+    blank stays absent. The assumption says the site rounds printed values.
+  - **Evidence and tier.** Always an `aggregator` estimate, never a label value; underlying source
+    `stated_independent` when the page names USDA data, else `not_stated`; at most `medium`, because
+    the printed values are rounded.
+  - **Same product only on barcode equality.** A Branded record is a page about this product (method
+    `direct`) only when its UPC, read on the record page, equals the entry's barcode after GTIN
+    normalisation (digits only, left-padded with zeros to 14, as `scripts/off_rules.py` does). Anything
+    else, a matching brand, title or label values included, is a similar food
+    (`carried_from_similar_food`), and its assumption says how it differs. No barcode is typed into the
+    site or a search engine, and the site's own search box is not used; records are found by web search
+    description queries or through the site's own links.
   - **Composite dishes.** A similar-food record fills a composite dish only on amendment G5's terms
-    (`low`, the fixed sentence) once G5 (#529) is accepted; until then it never does.
+    (`low`, the fixed sentence) once G5 (#529) is accepted, which also brings the code that enforces
+    it; until then it never does.
 - **Identity and state first.** The right food in the right state (as sold, raw, cooked, drained,
   dry, prepared) and the right cut or variety matter more than any single value; a raw record for a
   cooked food is the worst error.
@@ -99,7 +104,8 @@ below serves that, and enrichment work is judged by it:
    text containing a known Chinese food fragment) **and needs the owner's approval of that exact query**
    (step 5). Barcode lookups send only digits from Open Food Facts' own results and need no separate
    approval. A product page the owner names is read once with the WebFetch tool (MyFoodData pages,
-   which refuse WebFetch, with the built-in browser, as `docs/privacy-and-egress.md` records). Web search runs
+   which refuse WebFetch, with the built-in browser once the owner approves #530, as
+   `docs/privacy-and-egress.md` records). Web search runs
   only when the owner has asked for it in the current session, as recorded in
   `docs/privacy-and-egress.md`, and because a word list cannot recognise every personal name, each
   query is either a generic food name with no brand or a query the owner has approved exactly, for
