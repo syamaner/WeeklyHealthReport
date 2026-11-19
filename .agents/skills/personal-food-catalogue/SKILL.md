@@ -41,8 +41,8 @@ below serves that, and enrichment work is judged by it:
   state the page describes and the value, written into the estimates v2 file as a labelled estimate
   with its tier (workflow step 7), never as a label value. Prefer national composition databases and
   manufacturer pages over aggregator sites.
-- **MyFoodData is a named aggregator source** (owner request 19 November 2026, in force once the owner
-  approves #530). `tools.myfooddata.com` shows USDA FoodData Central records. Use it only under the web
+- **MyFoodData is a named aggregator source** (owner, 19 November 2026; wording
+  approved in #531). `tools.myfooddata.com` shows USDA FoodData Central records. Use it only under the web
   search rules (rule 4), reading record pages in the built-in browser because the site refuses WebFetch:
   - **Which records.** Only records absent from the bundled corpora: USDA Branded Food and survey
     records. A page whose data source names SR Legacy or Foundation, or whose FDC ID is in the bundled
@@ -104,7 +104,7 @@ below serves that, and enrichment work is judged by it:
    text containing a known Chinese food fragment) **and needs the owner's approval of that exact query**
    (step 5). Barcode lookups send only digits from Open Food Facts' own results and need no separate
    approval. A product page the owner names is read once with the WebFetch tool (MyFoodData pages,
-   which refuse WebFetch, with the built-in browser once the owner approves #530, as
+   which refuse WebFetch, with the built-in browser, as
    `docs/privacy-and-egress.md` records). Web search runs
   only when the owner has asked for it in the current session, as recorded in
   `docs/privacy-and-egress.md`, and because a word list cannot recognise every personal name, each
