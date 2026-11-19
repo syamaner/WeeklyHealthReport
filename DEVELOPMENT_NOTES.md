@@ -5073,3 +5073,9 @@ Unmeasured: no boundary was captured at the start of this delivery, separately f
 The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) diagnosed the owner's report from build 40 that food search showed no offline rows after importing a catalogue with estimates: the composite search built its confirmation from the first route's evidence only, dropping Your food database's estimate capture manifests and throwing `missingProvenance`. It reproduced the failure with the app's own wiring on the private file (counts only), fixed the composite to keep every route's evidence once, and added a test that fails without the fix. A blind `invariant-reviewer` pass runs at the PR head.
 
 Unmeasured: no boundary was captured at the start of this phase, separately from the private catalogue and build work done in the same session, so no token figure is recorded rather than an estimate.
+
+## WHR-BUILD41-RELEASE-2026-11-19: Claude Code TestFlight 0.3.0 (41) delivery
+
+The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) archived the PR537 head `8efa6835` before merging, at the owner's request, exported it for internal testing only, uploaded build 41, set What to Test and added it to Internal Testing on the owner's yes, then merged PR537 on the owner's yes and wrote [the build 41 record](docs/releases/internal-testflight-0.3.0-build41.md). The owner confirmed on the device that food search works.
+
+Unmeasured: no boundary was captured at the start of this delivery, separately from the fix and catalogue work done in the same session, so no token figure is recorded rather than an estimate.
