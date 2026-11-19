@@ -5021,3 +5021,9 @@ Pricing: `claude-opus-5-5` at the Claude Opus 5.5 rates recorded in WHR-296-2026
 The session (`da6b123c-cf92-4d58-9bb7-540385b44d83`, `claude-opus-5-5`) found, while validating the owner's private catalogue with the app's own importer, that the estimates writer wrote CoFID water (held in g, canonical mL) as an estimate the app refuses (`value-unquantified`), failing the whole file. The fix makes the writer read a CoFID value in another unit as unknown, as the app's adapter does, with two tests. Reviewed by a blind `invariant-reviewer` (pass with notes, applied); the configured local Codex model was not available for a ChatGPT login.
 
 Unmeasured: no boundary was captured for this fix separately from the private catalogue work it was found in, so no token figure is recorded rather than an estimate.
+
+## WHR-BUILD39-RELEASE-2026-11-19: Claude Code TestFlight 0.3.0 (39) delivery
+
+The session (`da6b123c-cf92-4d58-9bb7-540385b44d83`, `claude-opus-5-5`) waited for PR521 and PR522 to merge, checked that `main` at `7175693` holds every #508 merge, PR520 and PR522, archived it, exported it for internal testing only, uploaded build 39 under the owner's yes to all TestFlight preparation for this build, set What to Test, added the build to Internal Testing and wrote [the build 39 record](docs/releases/internal-testflight-0.3.0-build39.md).
+
+Unmeasured: no boundary was captured at the start of this delivery, separately from the private catalogue rebuild done in the same window, so no token figure is recorded rather than an estimate.
