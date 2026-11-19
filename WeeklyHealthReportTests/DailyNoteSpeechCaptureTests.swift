@@ -815,10 +815,19 @@ final class DailyNoteSpeechCaptureTests: XCTestCase {
         capture.send(.init(transcript: "bc", isFinal: true))
 
         XCTAssertEqual(notes.currentDraft?.text, base)
-        XCTAssertEqual(notes.errorMessage, "A note can contain at most 2,000 characters.")
+        XCTAssertNil(notes.errorMessage, "#47: one error, on the review card only")
         XCTAssertEqual(speech.state, .reviewRequired)
         XCTAssertEqual(speech.reviewTranscript, "bc")
         XCTAssertEqual(speech.reviewErrorMessage, "A note can contain at most 2,000 characters.")
+        // The candidate stays editable; accepting an edit that still does not fit is refused again,
+        // still with one error only, and the draft is unchanged.
+        speech.updateReviewTranscript("b")
+        XCTAssertEqual(speech.reviewTranscript, "b")
+        XCTAssertNil(speech.reviewErrorMessage)
+        XCTAssertFalse(speech.acceptReviewTranscript())
+        XCTAssertEqual(speech.reviewErrorMessage, "A note can contain at most 2,000 characters.")
+        XCTAssertNil(notes.errorMessage)
+        XCTAssertEqual(notes.currentDraft?.text, base)
     }
 
     func testDailyLimitRejectsFinalTranscriptWithoutTruncatingDraft() async throws {
@@ -840,7 +849,8 @@ final class DailyNoteSpeechCaptureTests: XCTestCase {
         capture.send(.init(transcript: "ab", isFinal: true))
 
         XCTAssertEqual(notes.currentDraft?.text, "")
-        XCTAssertEqual(notes.errorMessage, "Today’s saved notes can contain at most 20,000 characters in total.")
+        XCTAssertNil(notes.errorMessage, "#47: one error, on the review card only")
+        XCTAssertEqual(speech.reviewErrorMessage, "Today’s saved notes can contain at most 20,000 characters in total.")
         XCTAssertEqual(speech.state, .reviewRequired)
         XCTAssertEqual(speech.reviewTranscript, "ab")
     }
@@ -866,6 +876,7 @@ final class DailyNoteSpeechCaptureTests: XCTestCase {
 
         XCTAssertEqual(speech.reviewTranscript, "bc de")
         XCTAssertFalse(speech.acceptReviewTranscript())
+        XCTAssertNil(notes.errorMessage, "#47: one error, on the review card only")
         XCTAssertEqual(notes.currentDraft?.text, base)
         XCTAssertEqual(speech.reviewTranscript, "bc de")
         XCTAssertEqual(speech.reviewErrorMessage, "A note can contain at most 2,000 characters.")
@@ -893,6 +904,7 @@ final class DailyNoteSpeechCaptureTests: XCTestCase {
 
         XCTAssertEqual(speech.reviewTranscript, "ab")
         XCTAssertFalse(speech.acceptReviewTranscript())
+        XCTAssertNil(notes.errorMessage, "#47: one error, on the review card only")
         XCTAssertEqual(notes.currentDraft?.text, "")
         XCTAssertEqual(speech.reviewTranscript, "ab")
         XCTAssertEqual(
@@ -929,7 +941,7 @@ final class DailyNoteSpeechCaptureTests: XCTestCase {
         notes: DailyNotesController
     ) -> DailyNoteSpeechController {
         DailyNoteSpeechController(capture: capture) { transcript in
-            notes.appendSpeechTranscript(transcript) ? nil : notes.errorMessage
+            notes.speechTranscriptRejection(transcript)
         }
     }
 
