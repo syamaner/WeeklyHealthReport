@@ -58,13 +58,14 @@ def cofid_facts(rec: dict) -> dict:
                  if isinstance(v, dict) and v.get("source_unit") == v.get("canonical_unit")}
     return {"nutrients": _canonical_unit(A.cofid_nutrients({**rec, "nutrients": same_unit})),
             "preparation": identity["preparation"],
-            "fortification": identity["fortification"], "per_100_g": identity["serving_basis"] == "per_100_g"}
+            "fortification": identity["fortification"], "per_100_g": identity["serving_basis"] == "per_100_g",
+            "per_100_ml": identity["serving_basis"] == "per_100_ml"}
 
 
 def usda_facts(rec: dict, prefix="usda") -> dict:
     """USDA and TFDA records never state fortification (contract section 3.1), so it is None here."""
     return {"nutrients": _canonical_unit(A.usda_nutrients(rec, prefix=prefix)), "preparation": rec["preparation"],
-            "fortification": None, "per_100_g": True}
+            "fortification": None, "per_100_g": True, "per_100_ml": False}
 
 
 def record_reader(repo: Path):

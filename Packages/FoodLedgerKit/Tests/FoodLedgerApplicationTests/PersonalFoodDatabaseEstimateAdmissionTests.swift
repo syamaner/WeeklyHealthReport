@@ -25,7 +25,11 @@ final class PersonalFoodDatabaseEstimateAdmissionTests: XCTestCase {
             let preparation: String
             let preparation_method: String?
             let fortification: String
+            /// A known 100-unit edible quantity on the record's basis (100 g, or 100 mL when `basis` is
+            /// `per_100_ml`); false gives 30 units.
             let per_100_g_edible: Bool
+            /// `per_100_g` or `per_100_ml` (gap estimates amendment G2).
+            let basis: String
         }
         struct Stub: Decodable {
             let pins: [String: String]
@@ -53,6 +57,7 @@ final class PersonalFoodDatabaseEstimateAdmissionTests: XCTestCase {
             var built: [String: GenericRecordFacts] = [:]
             for record in stub.records {
                 let release = try ExternalIdentifier("stub-release"), source = try ExternalIdentifier(record.source)
+                let perMillilitre = record.basis == "per_100_ml"
                 let entries = try NutrientKey.allCases.map { key -> NutrientEntry in
                     guard case let .some(.some(amount)) = record.nutrients[key.rawValue] else {
                         return try NutrientEntry(key: key, value: .unknown(.notDeclared))
@@ -62,15 +67,17 @@ final class PersonalFoodDatabaseEstimateAdmissionTests: XCTestCase {
                     return try NutrientEntry(key: key, value: .augmented(ExactNutrientValue(
                         amount: amount, unit: key.canonicalUnit,
                         sourceValue: .exact(SourceExactNutrientValue(amount: amount, unit: LedgerText(key.canonicalUnit.rawValue),
-                                                                     basis: .per100Grams)),
+                                                                     basis: perMillilitre ? .per100Millilitres : .per100Grams)),
                         provenance: [provenance])))
                 }
                 let kind = try XCTUnwrap(PreparationKind(rawValue: record.preparation))
                 let identity = try DecisiveIdentity(
                     preparation: PreparationState(kind: kind, method: record.preparation_method.map { try LedgerText($0) }),
                     bone: .unknown, skin: .unknown, drained: .unknown, packingMedium: .unknown,
-                    fortification: try XCTUnwrap(FortificationState(rawValue: record.fortification)), servingBasis: .per100Grams)
-                let quantity = try PositiveQuantity(value: record.per_100_g_edible ? 100 : 30, unit: .grams)
+                    fortification: try XCTUnwrap(FortificationState(rawValue: record.fortification)),
+                    servingBasis: perMillilitre ? .per100Millilitres : .per100Grams)
+                let quantity = try PositiveQuantity(value: record.per_100_g_edible ? 100 : 30,
+                                                    unit: perMillilitre ? .millilitres : .grams)
                 built["\(record.source)|\(record.record_id)"] = GenericRecordFacts(
                     nutrients: try NutrientSet(entries: entries), identity: identity,
                     edibleQuantity: .known(quantity, conversionVersionID: nil))

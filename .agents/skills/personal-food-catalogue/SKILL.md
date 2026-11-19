@@ -92,7 +92,10 @@ below serves that, and enrichment work is judged by it:
 6. **Owner rulings (7 November 2026).** Enrich as fully as possible with a source on every
    nutrient. Composite dishes stay empty rather than borrow another brand's recipe; another
    brand's label may fill single-ingredient and fresh foods in the working catalogue only, and is
-   never exported.
+   never exported. Since the gap estimates amendments (owner, 19 November 2026,
+   `docs/personal-food-catalogue-gap-estimates-v1-amendment.md`), a national table's generic dish
+   record may fill a composite dish as an accepted `low` similar-food estimate whose assumption
+   contains "A generic recipe, not this product's."; another brand's label still never does.
 7. **Assistive, not automatic.** Values the owner typed or confirmed are exported as measured
    (decision 11). Values read by the agent from a photo or page are
    `photo_unconfirmed` / `page_unconfirmed` until the owner confirms them. Matches are proposals.
@@ -201,6 +204,7 @@ Facts, OpenRouter label reading) run is unchanged and decided by the existing es
 | `apply_estimates.py` | Run by `build.py` after the export: writes the estimates v2 file and the private change report, or leaves the plain v2 file standing |
 | `test_photo_estimates.py` | Synthetic tests for the label photo route, and the writer and checker of the shared v3 fixtures (`--write`, `--verify`) |
 | `test_estimates_input.py`, `test_estimate_counts.py` | Synthetic tests for the three scripts above, with an end-to-end run on a temporary workspace |
+| `test_gap_amendments.py` | Synthetic tests for gap estimates amendments G1 and G2: generic dish records, per 100 ml estimates and the owner's basis decisions (`work/basis-decisions.json`, `pfc-basis-decisions-v1`) |
 
 ## After changing this skill
 
@@ -209,7 +213,8 @@ Keep it compatible with Codex and Claude Code: canonical files here, relative sy
 After touching scripts, run `python3 -I scripts/test_http_client.py scripts`,
 `python3 -I scripts/test_off_rules.py scripts`, `python3 -I scripts/test_outbound_gate.py scripts`,
 `python3 -I scripts/test_owner_approval.py scripts`, `python3 -I scripts/test_private_config.py scripts`, `python3 -I scripts/test_compile_all.py scripts`, `python3 -I scripts/test_guards_and_edges.py scripts`, `python3 -I scripts/test_purchase_counts.py scripts`, `python3 -I scripts/test_attach_label.py scripts`,
-`python3 -I scripts/test_estimates_input.py scripts`, `python3 -I scripts/test_estimate_counts.py scripts` and
+`python3 -I scripts/test_estimates_input.py scripts`, `python3 -I scripts/test_estimate_counts.py scripts`,
+`python3 -I scripts/test_photo_estimates.py scripts`, `python3 -I scripts/test_gap_amendments.py scripts` and
 `python3 -I scripts/test_export_check.py scripts docs/fixtures/personal-food-database-v1` and the same
 with `docs/fixtures/personal-food-database-v2` and `docs/fixtures/personal-food-database-estimates-v2`
 (from the repository root; CI runs the three fixture checks). When a rejection rule changes,

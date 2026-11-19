@@ -8,6 +8,8 @@ should be definitely provided", 18 November 2026). No app code, skill code, fixt
 changes with this document. Implementation is one phase after the estimates v2 phase (#511, PR 514)
 has merged, with its own issue and architecture gate.
 
+**Amendment, 19 November 2026 ([gap estimates amendments](personal-food-catalogue-gap-estimates-v1-amendment.md), proposed in #524).** Section 2.5 is relaxed as its owner direction foresaw (G3): a refusal row of class `open_food_facts` no longer refuses a photo estimate, by entry and nutrient or by barcode; the other three classes still do. Every rule of sections 2.1 to 2.4 still applies, the tier stays capped at `medium`, and the evaluator's count 3 now covers the other three classes only. D1, D3 and the A1 consequence are unchanged.
+
 It is a delta on three accepted documents and repeats none of them:
 [approved estimates v1](personal-food-catalogue-estimates-v1.md),
 [labelled estimates on catalogue v2](personal-food-catalogue-estimates-v2-proposal.md) and the

@@ -177,8 +177,10 @@ public enum PersonalFoodDatabaseCandidateBuilder {
                 drained: .unknown, packingMedium: .unknown, fortification: .unknown, servingBasis: basis)
         }
         let edible = try PositiveQuantity(value: 100, unit: entry.basis == .per100Grams ? .grams : .millilitres)
+        // An entry filed per 100 ml by the owner's basis decision has no label (gap estimates amendment G2c).
         var differences = [try LedgerText(entry.basis == .per100Grams
             ? "Your food database entry · per 100 g"
+            : entry.labelNutrients.isEmpty ? "Your food database entry · per 100 mL"
             : "Your food database entry · per 100 mL as labelled")]
         // Import v2 (owner decision 3, 13 November 2026): values scaled from a per-serving panel say so,
         // as the barcode route's source line does. Only values the candidate uses count.

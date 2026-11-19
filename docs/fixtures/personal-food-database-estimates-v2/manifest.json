@@ -346,14 +346,20 @@
     "estimate-quality"
    ]
   },
-  "reject-basis-non-own-record.json": {
+  "reject-quality-composite-national-medium.json": {
    "stage": "codec",
+   "codes": [
+    "estimate-quality"
+   ]
+  },
+  "reject-basis-non-own-record.json": {
+   "stage": "importer",
    "codes": [
     "estimate-basis"
    ]
   },
   "reject-basis-own-record.json": {
-   "stage": "codec",
+   "stage": "importer",
    "codes": [
     "estimate-basis"
    ]
@@ -497,6 +503,45 @@
    "codes": [
     "estimate-contradiction"
    ]
+  },
+  "reject-importer-basis-zero-file-non-zero-record.json": {
+   "stage": "importer",
+   "codes": [
+    "value-mismatch",
+    "estimate-basis"
+   ]
+  },
+  "reject-importer-basis-unquantified-record.json": {
+   "stage": "importer",
+   "codes": [
+    "value-unquantified",
+    "estimate-basis"
+   ]
+  },
+  "reject-importer-basis-fortified-per-100-g-record.json": {
+   "stage": "importer",
+   "codes": [
+    "estimate-contradiction",
+    "estimate-basis"
+   ]
+  },
+  "reject-importer-basis-fortified-per-100-ml-record.json": {
+   "stage": "importer",
+   "codes": [
+    "estimate-contradiction"
+   ]
+  },
+  "reject-importer-basis-per-100-ml-record-not-100-ml.json": {
+   "stage": "importer",
+   "codes": [
+    "estimate-basis"
+   ]
+  },
+  "reject-importer-per-100-ml-record-on-per-100-g-entry.json": {
+   "stage": "importer",
+   "codes": [
+    "estimate-contradiction"
+   ]
   }
  },
  "accept": {
@@ -507,6 +552,10 @@
   "accept-similar-food-non-own-at-medium.json": "importer",
   "accept-value-at-tolerance.json": "importer",
   "accept-estimate-beside-merged-record.json": "importer",
+  "accept-per-100-ml-record-on-per-100-ml-entry.json": "importer",
+  "accept-zero-from-per-100-g-record-on-per-100-ml-entry.json": "importer",
+  "accept-own-candidate-per-100-ml-record.json": "importer",
+  "accept-own-candidate-zero-from-per-100-g-record.json": "importer",
   "accept-raw-entry-as-sold-record.json": "importer"
  },
  "rule_codes": [
@@ -621,19 +670,20 @@
   "estimate-own-state",
   "estimate-own-held",
   "estimate-quality",
-  "estimate-basis",
   "corpus-mismatch",
   "record-missing",
   "value-unquantified",
   "value-mismatch",
-  "estimate-contradiction"
+  "estimate-contradiction",
+  "estimate-basis"
  ],
  "importer_rule_codes": [
   "corpus-mismatch",
   "record-missing",
   "value-unquantified",
   "value-mismatch",
-  "estimate-contradiction"
+  "estimate-contradiction",
+  "estimate-basis"
  ],
  "stub_lookup": {
   "pins": {
@@ -651,7 +701,8 @@
     "preparation": "unknown",
     "preparation_method": null,
     "fortification": "unfortified",
-    "per_100_g_edible": true
+    "per_100_g_edible": true,
+    "basis": "per_100_g"
    },
    {
     "source": "cofid",
@@ -662,7 +713,8 @@
     "preparation": "unknown",
     "preparation_method": null,
     "fortification": "unfortified",
-    "per_100_g_edible": true
+    "per_100_g_edible": true,
+    "basis": "per_100_g"
    },
    {
     "source": "cofid",
@@ -673,7 +725,8 @@
     "preparation": "unknown",
     "preparation_method": null,
     "fortification": "unfortified",
-    "per_100_g_edible": true
+    "per_100_g_edible": true,
+    "basis": "per_100_g"
    },
    {
     "source": "cofid",
@@ -684,7 +737,8 @@
     "preparation": "raw",
     "preparation_method": null,
     "fortification": "unfortified",
-    "per_100_g_edible": true
+    "per_100_g_edible": true,
+    "basis": "per_100_g"
    },
    {
     "source": "cofid",
@@ -695,7 +749,8 @@
     "preparation": "cooked",
     "preparation_method": null,
     "fortification": "unfortified",
-    "per_100_g_edible": true
+    "per_100_g_edible": true,
+    "basis": "per_100_g"
    },
    {
     "source": "cofid",
@@ -706,7 +761,8 @@
     "preparation": "unknown",
     "preparation_method": null,
     "fortification": "unfortified",
-    "per_100_g_edible": true
+    "per_100_g_edible": true,
+    "basis": "per_100_g"
    },
    {
     "source": "cofid",
@@ -717,7 +773,8 @@
     "preparation": "cooked",
     "preparation_method": null,
     "fortification": "unfortified",
-    "per_100_g_edible": true
+    "per_100_g_edible": true,
+    "basis": "per_100_g"
    },
    {
     "source": "cofid",
@@ -728,7 +785,8 @@
     "preparation": "reheated",
     "preparation_method": null,
     "fortification": "unfortified",
-    "per_100_g_edible": true
+    "per_100_g_edible": true,
+    "basis": "per_100_g"
    },
    {
     "source": "cofid",
@@ -739,7 +797,8 @@
     "preparation": "named",
     "preparation_method": "grilled",
     "fortification": "unfortified",
-    "per_100_g_edible": true
+    "per_100_g_edible": true,
+    "basis": "per_100_g"
    },
    {
     "source": "cofid",
@@ -750,7 +809,8 @@
     "preparation": "raw",
     "preparation_method": null,
     "fortification": "unfortified",
-    "per_100_g_edible": true
+    "per_100_g_edible": true,
+    "basis": "per_100_g"
    },
    {
     "source": "cofid",
@@ -761,7 +821,8 @@
     "preparation": "as_sold",
     "preparation_method": null,
     "fortification": "unfortified",
-    "per_100_g_edible": true
+    "per_100_g_edible": true,
+    "basis": "per_100_g"
    },
    {
     "source": "cofid",
@@ -772,7 +833,8 @@
     "preparation": "unknown",
     "preparation_method": null,
     "fortification": "fortified",
-    "per_100_g_edible": true
+    "per_100_g_edible": true,
+    "basis": "per_100_g"
    },
    {
     "source": "cofid",
@@ -783,7 +845,8 @@
     "preparation": "cooked",
     "preparation_method": null,
     "fortification": "fortified",
-    "per_100_g_edible": true
+    "per_100_g_edible": true,
+    "basis": "per_100_g"
    },
    {
     "source": "cofid",
@@ -794,7 +857,8 @@
     "preparation": "unknown",
     "preparation_method": null,
     "fortification": "unfortified",
-    "per_100_g_edible": false
+    "per_100_g_edible": false,
+    "basis": "per_100_g"
    },
    {
     "source": "cofid",
@@ -805,7 +869,8 @@
     "preparation": "unknown",
     "preparation_method": null,
     "fortification": "fortified",
-    "per_100_g_edible": true
+    "per_100_g_edible": true,
+    "basis": "per_100_g"
    },
    {
     "source": "cofid",
@@ -816,7 +881,81 @@
     "preparation": "unknown",
     "preparation_method": null,
     "fortification": "unfortified",
-    "per_100_g_edible": false
+    "per_100_g_edible": false,
+    "basis": "per_100_g"
+   },
+   {
+    "source": "cofid",
+    "record_id": "cofid:juice",
+    "nutrients": {
+     "sugar": 4.5
+    },
+    "preparation": "unknown",
+    "preparation_method": null,
+    "fortification": "unfortified",
+    "per_100_g_edible": true,
+    "basis": "per_100_g"
+   },
+   {
+    "source": "cofid",
+    "record_id": "cofid:fortified-juice",
+    "nutrients": {
+     "sugar": 4.5
+    },
+    "preparation": "unknown",
+    "preparation_method": null,
+    "fortification": "fortified",
+    "per_100_g_edible": true,
+    "basis": "per_100_g"
+   },
+   {
+    "source": "cofid",
+    "record_id": "cofid:zero-fibre",
+    "nutrients": {
+     "fiber": 0
+    },
+    "preparation": "unknown",
+    "preparation_method": null,
+    "fortification": "unfortified",
+    "per_100_g_edible": true,
+    "basis": "per_100_g"
+   },
+   {
+    "source": "cofid",
+    "record_id": "cofid:wine",
+    "nutrients": {
+     "sugar": 2.0,
+     "fiber": 0
+    },
+    "preparation": "unknown",
+    "preparation_method": null,
+    "fortification": "unfortified",
+    "per_100_g_edible": true,
+    "basis": "per_100_ml"
+   },
+   {
+    "source": "cofid",
+    "record_id": "cofid:fortified-wine",
+    "nutrients": {
+     "sugar": 2.0
+    },
+    "preparation": "unknown",
+    "preparation_method": null,
+    "fortification": "fortified",
+    "per_100_g_edible": true,
+    "basis": "per_100_ml"
+   },
+   {
+    "source": "cofid",
+    "record_id": "cofid:wine-not-100-ml",
+    "nutrients": {
+     "sugar": 2.0
+    },
+    "preparation": "unknown",
+    "preparation_method": null,
+    "fortification": "unfortified",
+    "per_100_g_edible": false,
+    "basis": "per_100_ml"
    }
   ]
  },

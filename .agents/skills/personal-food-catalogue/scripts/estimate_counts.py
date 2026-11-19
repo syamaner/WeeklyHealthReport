@@ -42,8 +42,10 @@ CLASSES = RE_ADMISSIBLE + NEVER
 ACCEPT = ("accepted", "not_accepted", "withdrawn")
 SENTENCE = "The evaluation withheld this source and the owner re-admitted it."
 MUST_BE_ZERO = ("close_reference_as_same_food", "refused_not_readmitted", "readmitted_above_medium",
-                "aggregator_not_stated_above_medium")
-REPORTED = ("readmitted", "no_e3_counterpart")
+                "aggregator_not_stated_above_medium", "composite_above_low", "composite_without_sentence")
+# `photo_over_open_food_facts`: photo estimates admitted where a refusal row of class `open_food_facts`
+# matches (gap estimates amendment G3); reported, never fatal.
+REPORTED = ("readmitted", "no_e3_counterpart", "photo_over_open_food_facts")
 REFUSAL_KEYS = {"entry_id", "source_type", "source_reference", "refusal_class"}
 FORMER_KEYS = {"entry_id", "composition_source", "record_id"}
 LIST_KEYS = {"entry_id", "nutrient", "source_type", "source_reference", "method", "corpus_sha256", "date"}
@@ -168,8 +170,11 @@ def reference_key(source_type, reference):
 
 
 # Label photo phase gate section 3: the classes a photo estimate is matched against whatever the
-# refusal row's source type, by entry and nutrient, or by barcode for every entry.
+# refusal row's source type, by entry and nutrient, or by barcode for every entry. Since gap estimates
+# amendment G3 (docs/personal-food-catalogue-gap-estimates-v1-amendment.md) a row of class
+# `open_food_facts` is still matched and counted but no longer refuses a photo; the others do.
 PHOTO_CLASSES = ("open_food_facts", "per_entry_exclusion", "value_fault", "unresolved_a1")
+PHOTO_REFUSING = ("per_entry_exclusion", "value_fault", "unresolved_a1")
 GTIN_PREFIX = "off:gtin:"
 PRODUCT_PATH = re.compile(r"/product/([0-9]+)(?:/|$)")
 
@@ -209,11 +214,7 @@ class Lists:
         that is never re-admissible) or `readmitted`. `corpus_sha256` is the catalogue's own hash
         for the evidence's corpus, None for a page."""
         if evidence["source_type"] == V3.TOKEN:
-            code = V3.barcode(evidence["source_reference"])
-            code = V3.strip_zeros(code) if code else None
-            hit = any(r["refusal_class"] in PHOTO_CLASSES and (
-                (r["entry_id"] == entry_id and r.get("nutrient", nutrient) == nutrient)
-                or (code is not None and refusal_barcode(r["source_reference"]) == code)) for r in self.refusals)
+            hit = bool(self.photo_classes(entry_id, nutrient, evidence) & set(PHOTO_REFUSING))
             return I.REFUSED if hit else I.CLEAR  # never re-admissible: no list or sheet row names the token
         wanted = reference_key(evidence["source_type"], evidence["source_reference"])
         hits = [r for r in self.refusals
@@ -232,6 +233,15 @@ class Lists:
                 or self.sheet[_value_key(row)]["refusal_class"] not in classes:
             return I.CLASS
         return I.READMITTED
+
+    def photo_classes(self, entry_id, nutrient, evidence) -> set:
+        """The classes of the refusal rows a photo estimate matches, by entry and nutrient (a row with no
+        `nutrient` covers every nutrient of its entry) or by barcode for every entry."""
+        code = V3.barcode(evidence["source_reference"])
+        code = V3.strip_zeros(code) if code else None
+        return {r["refusal_class"] for r in self.refusals if r["refusal_class"] in PHOTO_CLASSES and (
+            (r["entry_id"] == entry_id and r.get("nutrient", nutrient) == nutrient)
+            or (code is not None and refusal_barcode(r["source_reference"]) == code))}
 
     def list_checks(self) -> dict:
         """Counts about the lists themselves, whatever the catalogue holds."""
@@ -286,6 +296,11 @@ def six_counts(doc: dict, accepted_rows: list, lists: Lists) -> dict:
             counts["no_e3_counterpart"] += it["id"] in lists.no_counterpart
             if rec["source_type"] == V3.TOKEN:
                 photo_state += not V3.state_compatible(it["state"], rec["source_state"], rec["state_basis"])
+                counts["photo_over_open_food_facts"] += (
+                    status == I.CLEAR and "open_food_facts" in lists.photo_classes(it["id"], key, rec))
+            if national and it["product_type"] == "packaged_composite":
+                counts["composite_above_low"] += rec["quality"] != "low"
+                counts["composite_without_sentence"] += I.COMPOSITE_SENTENCE not in rec["assumption"]
     list_counts = lists.list_checks()
     checks = []
     if without_sentence:

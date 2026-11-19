@@ -39,8 +39,9 @@ RULE_CODES = (
     "derivation-shape", "derivation-unexpected", "evidence-id", "evidence-duplicate", "evidence-order",
     "estimated-nutrients", "estimate-keys", "label-and-estimate", "evidence-dangling", "evidence-mismatch",
     "evidence-unused-or-shared",
-    "estimate-own-merge", "estimate-own-method", "estimate-own-state", "estimate-own-held", "estimate-quality",
-    "estimate-basis")
+    "estimate-own-merge", "estimate-own-method", "estimate-own-state", "estimate-own-held", "estimate-quality")
+# `estimate-basis` is an importer code since gap estimates amendment G2
+# (docs/personal-food-catalogue-gap-estimates-v1-amendment.md): only the record shows the basis.
 # Contract section 6 of estimates v1: the app's own pairs, each limited to its nutrient and source unit.
 # Built from the v1 checker's table so the two cannot drift; its source-kind column does not apply.
 TRANSFORMS = {key: (nutrient, unit, fn) for key, (nutrient, unit, _kind, fn) in export_v1.TRANSFORMS.items()}
@@ -175,9 +176,12 @@ def is_own(rec, ref) -> bool:
             and ref.get("source") == rec["composition_source"] and ref.get("record_id") == rec["source_reference"])
 
 
-def ceiling(rec, own: bool) -> str:
-    """The highest tier the codec accepts for this record (contract section 3.3)."""
+def ceiling(rec, own: bool, composite: bool = False) -> str:
+    """The highest tier the codec accepts for this record (contract section 3.3). A national estimate on
+    a packaged composite dish is a generic recipe: at most `low` (amendment G1)."""
     if rec["state_basis"] == "unknown":
+        return "low"
+    if composite and rec["source_type"] == "national_composition":
         return "low"
     if rec["source_type"] == V3.TOKEN:
         return "medium"
@@ -201,10 +205,8 @@ def table_codes(rec, item) -> list:
         codes.append("estimate-own-state")
     if candidate and ref["match"] == "same_food_same_state" and item["state"] in ("raw", "cooked"):
         codes.append("estimate-own-held")
-    if QUALITY_RANK[rec["quality"]] > QUALITY_RANK[ceiling(rec, own)]:
+    if QUALITY_RANK[rec["quality"]] > QUALITY_RANK[ceiling(rec, own, item["product_type"] == "packaged_composite")]:
         codes.append("estimate-quality")
-    if rec["source_type"] == "national_composition" and item["basis"] != "per_100_g":
-        codes.append("estimate-basis")
     if rec["source_type"] == V3.TOKEN:
         codes += V3.relation_codes(rec, item)
     return codes
