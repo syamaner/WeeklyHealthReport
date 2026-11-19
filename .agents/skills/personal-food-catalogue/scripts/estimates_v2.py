@@ -50,11 +50,35 @@ TRANSFORMS = {key: (nutrient, unit, fn) for key, (nutrient, unit, _kind, fn) in 
 TOLERANCE = 0.005
 
 
+MEXT_RECORD = "https://fooddb.mext.go.jp/details/details.pl"
+MEXT_ITEM = re.compile(r"ITEM_NO=[0-9]{1,2}_[0-9]{5}_[0-9]{1,2}")
+NUTRITIONVALUE = re.compile(r"https://www\.nutritionvalue\.org/[^/]+_nutritional_value\.html")
+
+
+def table_query_base(ref: str):
+    """Amendment G8 (docs/personal-food-catalogue-tables-composites-amendment-v1.md): the closed list of
+    composition-table record addresses that need a query string. Returns the address without that
+    query when it matches, the address unchanged when it has no query, and None for any other query.
+    Mirrors `PersonalFoodDatabaseEstimateChecker.tableQueryBase`."""
+    base, mark, query = ref.partition("?")
+    if not mark:
+        return ref
+    if base == MEXT_RECORD and MEXT_ITEM.fullmatch(query):
+        return base
+    if NUTRITIONVALUE.fullmatch(base) and len(base) > len("https://www.nutritionvalue.org/_nutritional_value.html") \
+            and query == "size=100+g":
+        return base
+    return None
+
+
 def page_host(ref):
     """The host of a page URL under the phase gate's grammar (section 3.1 item 7), lower-cased and
     without a trailing dot, or None when the text is not such a URL. Hand-written, not `urlsplit`, so
     the Swift codec gives the same verdict for every string."""
-    if not isinstance(ref, str) or not ref.startswith(URL_PREFIX):
+    if not isinstance(ref, str) or len(ref.encode("utf-8", "replace")) > URL_LIMIT:
+        return None
+    ref = table_query_base(ref)
+    if ref is None or not ref.startswith(URL_PREFIX):
         return None
     try:
         raw = ref.encode("ascii")

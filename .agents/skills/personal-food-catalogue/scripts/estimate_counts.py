@@ -42,11 +42,12 @@ CLASSES = RE_ADMISSIBLE + NEVER
 ACCEPT = ("accepted", "not_accepted", "withdrawn")
 SENTENCE = "The evaluation withheld this source and the owner re-admitted it."
 MUST_BE_ZERO = ("close_reference_as_same_food", "refused_not_readmitted", "readmitted_above_medium",
-                "aggregator_not_stated_above_medium", "composite_above_low", "composite_without_sentence",
-                "composite_other_product_page")
+                "aggregator_not_stated_above_medium", "composite_above_low", "composite_without_sentence")
 # `photo_over_open_food_facts`: photo estimates admitted where a refusal row of class `open_food_facts`
 # matches (gap estimates amendment G3); reported, never fatal.
-REPORTED = ("readmitted", "no_e3_counterpart", "photo_over_open_food_facts")
+# `composite_other_product_page`: manufacturer pages about another product on a composite dish
+# (amendment G7 admits them at `low` with the fixed sentence; reported, never fatal).
+REPORTED = ("readmitted", "no_e3_counterpart", "photo_over_open_food_facts", "composite_other_product_page")
 REFUSAL_KEYS = {"entry_id", "source_type", "source_reference", "refusal_class"}
 FORMER_KEYS = {"entry_id", "composition_source", "record_id"}
 LIST_KEYS = {"entry_id", "nutrient", "source_type", "source_reference", "method", "corpus_sha256", "date"}
@@ -302,8 +303,11 @@ def six_counts(doc: dict, accepted_rows: list, lists: Lists) -> dict:
             if it["product_type"] == "packaged_composite" and (national or E.web_similar(rec)):
                 counts["composite_above_low"] += rec["quality"] != "low"
                 counts["composite_without_sentence"] += I.COMPOSITE_SENTENCE not in rec["assumption"]
-                # Amendment G5: a manufacturer page about another product is another brand's label.
+                # Amendments G5 and G7: another product's manufacturer page, admitted at `low` (reported).
                 counts["composite_other_product_page"] += rec["source_type"] == "manufacturer_page"
+            elif it["product_type"] == "packaged_composite" and rec["source_type"] == V3.TOKEN \
+                    and I.COMPOSITE_SENTENCE in rec["assumption"]:
+                counts["composite_above_low"] += rec["quality"] != "low"  # amendment G7: another product's photo
     list_counts = lists.list_checks()
     checks = []
     if without_sentence:

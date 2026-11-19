@@ -5049,3 +5049,9 @@ The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) wrote th
 The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) added MyFoodData (`tools.myfooddata.com`, a viewer of USDA FoodData Central records) as a named aggregator source in the personal food catalogue skill, at the owner's request of 19 November 2026, and recorded in the privacy and egress policy that its pages are read in the agent's built-in browser because the site refuses the web-fetch tool. Documentation only; a blind `invariant-reviewer` pass runs at the PR head.
 
 Unmeasured: no boundary was captured at the start of this phase, separately from the private catalogue work done in the same session, so no token figure is recorded rather than an estimate.
+
+## WHR-532-2026-11-19: Claude Code amendments G7 and G8
+
+The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) wrote amendments G7 (another brand's label may fill a composite dish at `low` with the fixed sentence) and G8 (a closed list of composition-table record addresses may carry their query string) after the owner's decisions of 19 November 2026, with G6 (density) deferred by the owner after a blind `architecture-gate` review returned concerns about its stored-record and provenance changes. A blind `invariant-reviewer` pass runs at the PR head.
+
+Unmeasured: no boundary was captured at the start of this phase, separately from the private catalogue work done in the same session, so no token figure is recorded rather than an estimate.

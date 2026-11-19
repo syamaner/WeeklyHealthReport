@@ -683,6 +683,11 @@ ESTIMATE_CASES = {
     "tfda-reference-without-prefix": ("codec", ["source-reference"],
                                       lambda d: rec(d, CHEESE, "protein").update(composition_source="tfda")),
     "page-url-with-query": ("codec", ["source-reference"], lambda d: rec(d, BAR, "fiber").update(source_reference=PAGE + "?id=1")),
+    # amendment G8: only the closed composition-table addresses may carry a query, each with one exact parameter
+    "page-url-mext-extra-parameter": ("codec", ["source-reference"], lambda d: rec(d, BAR, "fiber").update(
+        source_reference="https://fooddb.mext.go.jp/details/details.pl?ITEM_NO=16_16043_7&MODE=4")),
+    "page-url-nutritionvalue-other-size": ("codec", ["source-reference"], lambda d: rec(d, BAR, "fiber").update(
+        source_reference="https://www.nutritionvalue.org/Beet_juice_73105000_nutritional_value.html?size=1+cup")),
     "page-url-not-https": ("codec", ["source-reference"], lambda d: rec(d, BAR, "fiber").update(source_reference="http://www.example.com/a")),
     "page-on-open-food-facts": ("codec", ["open-food-facts-host"],
                                 lambda d: rec(d, BAR, "fiber").update(source_reference="https://world.openfoodfacts.org/product/1")),
@@ -862,6 +867,9 @@ ESTIMATE_ACCEPT = {  # name -> (stage that accepts it, document)
     # an estimate beside a merged record: the estimate precedes the record on its own key only
     "estimate-beside-merged-record": ("importer", lambda: _est(lambda d: (
         put(d, OATS, "protein", 12.5, page()), put(d, OATS, "fiber", 9.0, page())))),
+    # amendment G8: a page value read from a composition-table record address that carries its query
+    "page-url-mext-item": ("importer", lambda: _est(lambda d: rec(d, BAR, "fiber").update(source_reference="https://fooddb.mext.go.jp/details/details.pl?ITEM_NO=16_16043_7"))),
+    "page-url-nutritionvalue-100-g": ("importer", lambda: _est(lambda d: rec(d, BAR, "fiber").update(source_reference="https://www.nutritionvalue.org/Beet_juice_73105000_nutritional_value.html?size=100+g"))),
     # amendment G5: a generic web page value on a composite dish at `low`
     "composite-aggregator-similar-at-low": ("importer", lambda: _est(lambda d: put(
         d, CRISPS, "protein", 6.0, page("carried_from_similar_food", "stated_assumption", "low", "aggregator",

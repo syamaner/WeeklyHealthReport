@@ -119,6 +119,18 @@
     "source-reference"
    ]
   },
+  "reject-page-url-mext-extra-parameter.json": {
+   "stage": "codec",
+   "codes": [
+    "source-reference"
+   ]
+  },
+  "reject-page-url-nutritionvalue-other-size.json": {
+   "stage": "codec",
+   "codes": [
+    "source-reference"
+   ]
+  },
   "reject-page-url-not-https.json": {
    "stage": "codec",
    "codes": [
@@ -626,6 +638,8 @@
   "accept-similar-food-non-own-at-medium.json": "importer",
   "accept-value-at-tolerance.json": "importer",
   "accept-estimate-beside-merged-record.json": "importer",
+  "accept-page-url-mext-item.json": "importer",
+  "accept-page-url-nutritionvalue-100-g.json": "importer",
   "accept-composite-aggregator-similar-at-low.json": "importer",
   "accept-per-100-ml-record-on-per-100-ml-entry.json": "importer",
   "accept-zero-from-per-100-g-record-on-per-100-ml-entry.json": "importer",

@@ -10,6 +10,8 @@ code, skill code or fixture changes with this document. Programme #424, base con
 
 **Amendment, 19 November 2026 ([composite web amendment G5](personal-food-catalogue-composite-web-amendment-v1.md), proposed in #528).** Section 3.3 gains one ceiling: an `aggregator` or `manufacturer_page` estimate carried from a similar food on a packaged composite entry is at most `low`. Section 4's composite rule admits such an aggregator page on G1's terms and never another product's manufacturer page; label photos are unchanged.
 
+**Amendment, 19 November 2026 ([amendments G7 and G8](personal-food-catalogue-tables-composites-amendment-v1.md), proposed in #532).** Section 4 admits another brand's page or label photo on a composite entry at `low` with the fixed sentence (G7); the page address rule admits a query string only for a closed list of composition-table record addresses (G8).
+
 **Amendment, 19 November 2026 ([gap estimates amendments](personal-food-catalogue-gap-estimates-v1-amendment.md), proposed in #524).** Section 4's composite rule admits a generic dish record at `low` with a fixed sentence, and section 3.3 gains the codec ceiling `low` for a national estimate on a packaged composite entry (G1). Section 3.1's `estimate-basis` moves from the codec to the importer, after `estimate-contradiction`: a per 100 ml entry takes a per 100 ml record, or a quantified zero from a per 100 g record, and nothing else (G2).
 
 **Implementation, 17 November 2026 (#511).** Built in one phase under the

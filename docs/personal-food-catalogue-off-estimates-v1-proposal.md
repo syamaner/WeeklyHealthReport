@@ -17,6 +17,8 @@ It is a delta on three accepted documents and repeats none of them:
 does not name stays as written. Section 2.0 names each rule it amends; on acceptance each of those
 documents gains a dated amendment note pointing here.
 
+
+**Amendment, 19 November 2026 ([amendments G7 and G8](personal-food-catalogue-tables-composites-amendment-v1.md), proposed in #532).** The composite foods rule is amended: a label photo of another product may fill a composite entry at `low` with the fixed sentence "A generic recipe, not this product's." (G7); a photo of the same named product is unchanged.
 ## 1. Why a delta is needed
 
 Today an estimate can never come from Open Food Facts. Estimates v1 section 3.1 forbids "an

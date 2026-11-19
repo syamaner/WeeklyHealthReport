@@ -12,6 +12,8 @@ identity contract section 8 are added in the phase that changes search. Issue: [
 
 **Amendment, 19 November 2026 ([composite web amendment G5](personal-food-catalogue-composite-web-amendment-v1.md), proposed in #528).** Decision 4 also no longer forbids a generic web page for the same kind of dish, admitted on G1's terms (`low`, similar food, the fixed sentence); a page about another product is another brand's label and never fills a composite dish.
 
+**Amendment, 19 November 2026 ([amendments G7 and G8](personal-food-catalogue-tables-composites-amendment-v1.md), proposed in #532).** Decision 4 also admits another brand's label for a composite dish as a `low` similar-food estimate with the fixed sentence (G7).
+
 ## 1. Purpose and scope
 
 The owner keeps a private nutrition database built from their own receipts, notes and food logs.
