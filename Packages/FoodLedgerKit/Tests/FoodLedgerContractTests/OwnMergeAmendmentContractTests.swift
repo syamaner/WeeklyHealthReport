@@ -20,10 +20,10 @@ final class OwnMergeAmendmentContractTests: XCTestCase {
         manifestHash: try! SHA256Digest(String(repeating: "d", count: 64)))
 
     /// The entry's own record as the app resolves it: per 100 g edible, unfortified, `protein` only.
-    static func record(_ recordID: String, preparation: PreparationKind, protein: Double) throws -> ResolvedGenericRecord {
+    static func record(_ recordID: String, preparation: PreparationKind, protein: Double?) throws -> ResolvedGenericRecord {
         let id = try ExternalIdentifier(recordID)
         let nutrients = try NutrientSet(entries: NutrientKey.allCases.map { key in
-            guard key == .protein else { return try NutrientEntry(key: key, value: .unknown(.notDeclared)) }
+            guard key == .protein, let protein else { return try NutrientEntry(key: key, value: .unknown(.notDeclared)) }
             return try NutrientEntry(key: key, value: .augmented(ExactNutrientValue(amount: protein, unit: key.canonicalUnit,
                 sourceValue: .exact(SourceExactNutrientValue(amount: protein, unit: LedgerText(key.canonicalUnit.rawValue),
                                                              basis: .per100Grams)),
@@ -55,6 +55,10 @@ final class OwnMergeAmendmentContractTests: XCTestCase {
             record: record, evidenceIDs: [ids.makeID(EvidenceTag.self)], score: 1, estimates: capture?.binding))
     }
 
+    static func proteinEntry(_ built: PersonalFoodDatabaseCandidateBuilder.Built) -> NutrientEntry? {
+        built.candidate.candidate.nutrients.entries.first { $0.key == .protein }
+    }
+
     static func protein(_ built: PersonalFoodDatabaseCandidateBuilder.Built) -> Double? {
         guard case let .augmented(value)? = built.candidate.candidate.nutrients.entries.first(where: { $0.key == .protein })?.value
         else { return nil }
@@ -72,5 +76,12 @@ final class OwnMergeAmendmentContractTests: XCTestCase {
         let built = try Self.built(record: try Self.record("cofid:unstated-greens", preparation: .raw, protein: 7.0))
         XCTAssertTrue(built.merged)
         XCTAssertEqual(Self.protein(built), 7.0)
+    }
+
+    func testAnEstimateFromAMergedRecordThatLacksTheKeyLeavesItUnknownNotZero() throws {
+        let built = try Self.built(record: try Self.record("cofid:unstated-greens", preparation: .raw, protein: nil))
+        XCTAssertTrue(built.merged)
+        XCTAssertNil(Self.protein(built))
+        guard case .unknown? = Self.proteinEntry(built)?.value else { return XCTFail("protein stays unknown") }
     }
 }
