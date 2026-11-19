@@ -5052,6 +5052,6 @@ Unmeasured: no boundary was captured at the start of this phase, separately from
 
 ## WHR-merge-rule-2026-11-19: Claude Code merge rule after the Qodo trial
 
-The session (`d0fc3a48-a687-41a1-8f22-15d1b5ec0935`, `claude-fable-5-2`) amended the Delivery merge rule in `AGENTS.md` at the owner's request of 19 November 2026, after the Qodo trial ended on 18 November 2026: the wait for a Qodo review at the new head is replaced by a blind `invariant-reviewer` pass over the PR's own changes, and the authorised merge now enables auto-merge at the reviewed head instead of waiting on CI by hand. Documentation only.
+The session (`d0fc3a48-a687-41a1-8f22-15d1b5ec0935`, `claude-fable-5-2`) amended the Delivery merge rule in `AGENTS.md` at the owner's request of 19 November 2026, after the Qodo trial ended on 18 November 2026: the wait for a Qodo review at the new head is replaced by a blind `invariant-reviewer` pass over the PR's own changes, and the authorised merge now enables auto-merge instead of waiting on CI by hand, turning it off before any later push because the head is checked only when it is enabled. A blind `invariant-reviewer` pass at the first PR head (`88e55bc`) returned two wording findings, both folded in. Documentation only; there is no issue for this change, so the heading carries no issue number.
 
 Unmeasured: no boundary was captured at the start of this change, separately from the usage-report follow-ups done in the same session, so no token figure is recorded rather than an estimate.
