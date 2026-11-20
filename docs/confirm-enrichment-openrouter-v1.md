@@ -200,8 +200,11 @@ sends nothing:
   side is unknown, and today `pendingDifferences` hides missing facts only because `unresolvedIdentity`
   lists them. So, while the layer holds an A fill, `pendingDifferences` leaves out the facts the fill
   sets (they are fills of unknown source facts, not differences to decide), and `savesEstimate` and
-  `decisionRecord` apply the same rule; any other difference (basis, a stated fact) is still asked. At
-  save the fill is written as a correction, exactly as a sheet fill is.
+  `decisionRecord` apply the same rule. A starts only with no difference pending or decided
+  (CE1.1 rule 1), and a fill raises none, so a layered state never carries a decided difference; if
+  one ever becomes pending while the layer holds a fill, the fill is cleared from the layer first, so
+  no saved record holds both a fill correction and a decision record. At save the fill is written as a
+  correction, exactly as a sheet fill is.
   While a Jev fill is shown, the one-tap "Packaged product, eaten as sold" row is not offered:
   `PackagedAsSoldPolicy.offers` gains an explicit guard (no A fill in the layer), because after a
   partial fill `unresolvedIdentity` is still not empty; `Not these` brings the row back. A new builder in `FoodDetailsFillPolicy` (beside `PackagedAsSoldPolicy.correction(for:fortified:)`)
@@ -447,16 +450,18 @@ about a failure is stored with a record.
 **A (Jev) sends** one food description and the questions of CE1.4. The description is built by one pure
 function from the bound candidate and, for a Your food database candidate, from the entry itself,
 read locally from the active release by the candidate's `recordID` through a new read port
-(`PersonalFoodDatabaseEntryReading`, no egress), because the candidate carries no category, pack or
-state fields and its `PackFacts` are empty. Open Food Facts candidates carry no pack facts either, so
-for them only the name, brand, source token and known details are sent:
+(`PersonalFoodDatabaseEntryReading`, no egress), because the candidate carries no category, product
+type or state fields. Neither the entry nor the candidate has a pack size or pack type field
+(`PersonalFoodDatabaseEntry`, empty `PackFacts`), so none is sent as its own field; a pack size or pack
+type written in the entry's title travels inside the title, as stored. Open Food Facts candidates
+carry no pack facts either, so for them only the name, brand, source token and known details are
+sent:
 
 | Field | Source |
 |---|---|
 | `name` | the source candidate's name, never text the owner typed in a correction |
 | `brand` | the source candidate's brand, when there is one |
 | `variant` | CoFID rows only, whose variant is the source's own text; never for USDA, TFDA, Ciqual or Open Food Facts, whose variant holds the app's own copy (`USDAGenericFoodSearch`, `TFDAGenericFoodSearch`, `CiqualGenericFoodSearch`, `OpenFoodFactsLookup`) |
-| `pack_size`, `pack_type` | Your food database entries, from the entry, when it states them |
 | `category` | Your food database entries, the entry's category |
 | `product_type`, `state` | Your food database entries, from the entry |
 | `source` | one closed token: `open_food_facts`, `your_food_database` or `composition_table` |
@@ -576,7 +581,7 @@ for that food is skipped, with no note), and the gate is a backstop, not a guara
 ### 11.1 `docs/privacy-and-egress.md`, Allowed egress, two rows
 
 ```diff
-+| OpenRouter System One and its one allow-listed Jev endpoint (ZDR where listed, data collection denied, no fallbacks) | One food description for the food on Confirm (the source's name and brand, CoFID's variant text, and for Your food database entries the pack size and pack type, category, product type and state where present, a closed source token and the food details already known) and fixed choice questions for each unknown food detail; never text typed in a correction, the amount eaten, time or date, notes, other entries, Health data, barcode, identifiers, addresses, photos, prices or the key outside the Authorization header | With OpenRouter turned on in Settings (O1) and Suggest missing food details and values on, with the user's own validated key: <CE-D1 wording>, when the selected food has unknown food details; two keyless catalogue requests confirm the endpoint on the first request of a session and of each local day, and again after a check that could not connect; at most 3 attempts in 60 s per request; at most <CE-D4 cap> per day across both Confirm suggestion rows; a cached answer is reused without sending | [confirm-enrichment-openrouter-v1.md](confirm-enrichment-openrouter-v1.md) |
++| OpenRouter System One and its one allow-listed Jev endpoint (ZDR where listed, data collection denied, no fallbacks) | One food description for the food on Confirm (the source's name and brand, CoFID's variant text, and for Your food database entries the category, product type and state where present (pack details only as written in the title), a closed source token and the food details already known) and fixed choice questions for each unknown food detail; never text typed in a correction, the amount eaten, time or date, notes, other entries, Health data, barcode, identifiers, addresses, photos, prices or the key outside the Authorization header | With OpenRouter turned on in Settings (O1) and Suggest missing food details and values on, with the user's own validated key: <CE-D1 wording>, when the selected food has unknown food details; two keyless catalogue requests confirm the endpoint on the first request of a session and of each local day, and again after a check that could not connect; at most 3 attempts in 60 s per request; at most <CE-D4 cap> per day across both Confirm suggestion rows; a cached answer is reused without sending | [confirm-enrichment-openrouter-v1.md](confirm-enrichment-openrouter-v1.md) |
 +| OpenRouter and its one allow-listed model endpoint for nutrient estimates (ZDR, data collection denied, no fallbacks) | The same food description, the food details after any suggestion, the nutrition basis, each known nutrient value with its unit and source phrase, the unknown nutrients asked, a fixed instruction and output schema; never the items listed in the row above | With OpenRouter turned on in Settings (O1) and Suggest missing food details and values on, with the user's own validated key: <CE-D1 wording>, when at least one nutrient is unknown and eligible; two keyless catalogue requests confirm the endpoint as in the row above; at most $0.02 per request and the shared daily cap | [confirm-enrichment-openrouter-v1.md](confirm-enrichment-openrouter-v1.md) |
 ```
 
@@ -588,7 +593,7 @@ for an OpenRouter estimate only, the model, the contract version and the respons
 ### 11.2 Privacy policy, OpenRouter section (an entry in O1's list)
 
 ```text
-Confirm suggestions. Only if you also turn on Suggest missing food details and values on Confirm in Settings › OpenRouter. <CE-D1 wording: When the food you are confirming has unknown food details or unknown nutrient values, the app asks automatically, a moment after the food is chosen / When you tap Suggest missing details and values>. Sends a description of that food as its source gives it (never words you typed in a correction): the name and brand, a composition table's variant text, and for your own food database its pack size and pack type, category, product type and state where the app has them, the food details already known and, for nutrient estimates, the nutrition basis and the known values. A name from your own food database can come from a receipt product title, so check names you would not want sent. Food details go to the Jev model through OpenRouter's System One service; nutrient estimates go to one named model endpoint (currently <CE-D2 model> on <provider>) with no fallback to other providers. Never sent: the amount you ate, the time or date, notes, other entries, Apple Health data, barcodes, identifiers, photos or prices. Suggested food details are filled in for you to check and change; estimated values are marked est. and you can leave out each one before you tap Log. Nothing is saved until you tap Log, and an estimate never replaces a value from a label or a database. A failed request is retried at most twice; suggestions are limited to <CE-D4 cap> a day, and answers are kept on your device so the same food is not sent again. If you log a food with an estimated value, the Drive food file names the model that estimated it.
+Confirm suggestions. Only if you also turn on Suggest missing food details and values on Confirm in Settings › OpenRouter. <CE-D1 wording: When the food you are confirming has unknown food details or unknown nutrient values, the app asks automatically, a moment after the food is chosen / When you tap Suggest missing details and values>. Sends a description of that food as its source gives it (never words you typed in a correction): the name and brand, a composition table's variant text, and for your own food database its category, product type and state where the app has them (a pack size written in a name is sent with the name), the food details already known and, for nutrient estimates, the nutrition basis and the known values. A name from your own food database can come from a receipt product title, so check names you would not want sent. Food details go to the Jev model through OpenRouter's System One service; nutrient estimates go to one named model endpoint (currently <CE-D2 model> on <provider>) with no fallback to other providers. Never sent: the amount you ate, the time or date, notes, other entries, Apple Health data, barcodes, identifiers, photos or prices. Suggested food details are filled in for you to check and change; estimated values are marked est. and you can leave out each one before you tap Log. Nothing is saved until you tap Log, and an estimate never replaces a value from a label or a database. A failed request is retried at most twice; suggestions are limited to <CE-D4 cap> a day, and answers are kept on your device so the same food is not sent again. If you log a food with an estimated value, the Drive food file names the model that estimated it.
 ```
 
 ## 12. Evaluation bar before release
@@ -732,6 +737,9 @@ manifests and the scorer are committed before the sealed run, and the sealed set
       new version that passes verification; a details correction that changes B's subject removes the
       values with the note, and one that does not keeps them. Each of the four uses maps to exactly one
       egress row whose "When" names both switches.
+      A decided difference and an A fill never coexist on save (a difference arising clears the fill);
+      the Your food database description golden for a title holding a pack size sends it only inside the
+      title; the parity test's target is allowed by `check-boundaries.sh`.
       Two identities: the layer alone enables Log; the one-tap row is hidden while a Jev fill shows and
       returns after `Not these`. B and the off-label layer never fill one key, in either order. The
       `responseHash`, `byteHash` and export hash bind as specified and tampering with any shows
@@ -814,4 +822,10 @@ compatibility choice of section 14 with the approval.
   write new versions, and a details correction that changes B's subject removes B values with a visible
   note; the second egress row's "When" names both switches; the Your food database read port is placed
   with its adapter and shared contract suite.
-- **Architecture gate, sixth round:** pending.
+- **Architecture gate, sixth round (20 November 2026, at `af805a40`): PASS WITH CHANGES.** Both findings
+  taken: pack size and pack type are dropped as separate fields, since neither the entry nor the
+  candidate has them (they travel only inside a title, as stored), in section 7, the egress row and the
+  policy text; and a layered state never carries a decided difference (a difference arising clears the
+  fill), so no record holds both a fill correction and a decision record and `staleDecisions` cannot
+  arise.
+- **Architecture gate, seventh round:** pending.
