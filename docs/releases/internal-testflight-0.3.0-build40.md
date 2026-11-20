@@ -1,6 +1,6 @@
 # TestFlight 0.3.0 (40)
 
-Status: **0.3.0 (40) is the build testers should install.** It was uploaded on 19 November 2026 on the owner's yes ("Yes, upload build 40"), processed as VALID, given the What to Test text below (en-GB) and added to the Internal Testing group the same day, each external step on the owner's yes ("Yes, set and add"). It was exported with `testFlightInternalTestingOnly`, so App Store Connect never offers it to an external group or the App Store.
+Status: **0.3.0 (40) is the build testers should install.** It was uploaded on 19 November 2026 on the owner's yes, processed as VALID, given the What to Test text below (en-GB) and added to the Internal Testing group the same day, each external step on the owner's yes to setting that text and adding the build to the group. It was exported with `testFlightInternalTestingOnly`, so App Store Connect never offers it to an external group or the App Store.
 
 **This build reads the catalogue files written under amendments G1 to G8** (G6 deferred). Build 39 rejects such a file whole with `estimate-own-merge` or `estimate-basis`, so the rebuilt catalogue needs this build. **No store, food contract or export schema changes since build 39**: the food log is not migrated. HealthKit stays read-only, and the app adds no destination.
 

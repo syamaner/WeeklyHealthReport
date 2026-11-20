@@ -1,6 +1,6 @@
 # Internal TestFlight build 21 delivered
 
-4 October 2026. The user explicitly authorised “Upload build 21 to the existing internal TestFlight group.” The earlier automatic approval rejection was resolved before execution. One upload succeeded; Apple processed **0.1.1 (21)** and Safari now shows **Testing**, **Internal Testing**, and **1 invite**. No testers were added.
+4 October 2026. The user explicitly authorised uploading build 21 to the existing internal TestFlight group. The earlier automatic approval rejection was resolved before execution. One upload succeeded; Apple processed **0.1.1 (21)** and Safari now shows **Testing**, **Internal Testing**, and **1 invite**. No testers were added.
 
 Build ID: `84cc5a8a-483d-4e48-a6c0-d2f0e3eb8838`. App: `6812893951`. Group: `a626bae5-2ff3-4221-917d-435a826662b8`.
 

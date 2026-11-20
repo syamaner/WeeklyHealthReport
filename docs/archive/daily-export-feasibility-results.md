@@ -8,7 +8,7 @@ secure consent/Drive API approach; implementation is planned separately.
 Copy-export testing stopped at the uniqueness failure. No personal HealthKit data was used.
 The existing daily-export contract remains unchanged.
 
-Authority: the user's subsequent **“proceed”** authorises the explicitly proposed
+Authority: the user's subsequent **go-ahead** authorises the explicitly proposed
 local signing and installation of Synthetic Files Test on SiPhone, and creation
 and replacement of the invented JSON only in `WHR-Synthetic-2026-09-06` on Drive.
 The user operates Files and the separate Drive client. No personal-data export

@@ -1,6 +1,6 @@
 # TestFlight 0.3.0 (37)
 
-Status: **0.3.0 (37) is the build testers should install.** It was uploaded on 17 November 2026, processed as VALID, given the What to Test text below (en-GB) and added to the Internal Testing group the same day, under the owner's overnight authorisation of 16 November 2026 ("get it ready in test flight including the safe PR merge"). It was exported with `testFlightInternalTestingOnly`, so App Store Connect cannot offer it to an external group or the App Store. No external group, Beta App Review submission or questionnaire change.
+Status: **0.3.0 (37) is the build testers should install.** It was uploaded on 17 November 2026, processed as VALID, given the What to Test text below (en-GB) and added to the Internal Testing group the same day, under the owner's overnight authorisation of 16 November 2026 to prepare it in TestFlight, including the safe merge of the pull request it needed. It was exported with `testFlightInternalTestingOnly`, so App Store Connect cannot offer it to an external group or the App Store. No external group, Beta App Review submission or questionnaire change.
 
 **This is the first build that writes version 2 of the food daily export** ([food-daily-export-contract-v2.md](../food-daily-export-contract-v2.md), #312). The reader change (PR505) and the writer (PR506) ship together here, as the contract requires; no build was released from the reader-only state between them. HealthKit stays read-only and no destination is added.
 

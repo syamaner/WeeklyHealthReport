@@ -3,8 +3,8 @@
 Status: **accepted by the owner on 18 November 2026, after two blind review rounds (section 8).
 Implemented in #518** (phase gate:
 [label photo estimates v1, phase gate](personal-food-catalogue-off-estimates-v1-phase.md)). The owner decided F1 to F7 the same day (section 7). Written at the
-owner's request ("when enriching, we should also rely on open food facts for estimate"; "fiber
-should be definitely provided", 18 November 2026). No app code, skill code, fixture or private file
+owner's request of 18 November 2026 to use Open Food Facts as an estimate source when enriching,
+with fibre always provided. No app code, skill code, fixture or private file
 changes with this document. Implementation is one phase after the estimates v2 phase (#511, PR 514)
 has merged, with its own issue and architecture gate.
 

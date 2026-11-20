@@ -6,7 +6,7 @@ The paired iPhone 17 Pro Max was available, booted, on iOS 27.0.1 with Developer
 
 ## Installation status
 
-**Not installed.** Automatic approval review rejected the install command before execution. Its reason: an in-place installation can replace the existing app and affect nontrivial local state; the user's “do it” was interpreted as approving build preparation, not this specific installation. Explicit approval for the in-place install is required. No attempt was made to bypass the rejection, uninstall the existing app, read its data container or launch it.
+**Not installed.** Automatic approval review rejected the install command before execution. Its reason: an in-place installation can replace the existing app and affect nontrivial local state; the user's go-ahead was interpreted as approving build preparation, not this specific installation. Explicit approval for the in-place install is required. No attempt was made to bypass the rejection, uninstall the existing app, read its data container or launch it.
 
 The retained app is at `/Users/sertanyamaner/Documents/ChatGPT/New project/nutrition-structured-proposals-v1/generic-source-v1/repair-20261004-v2/device-acceptance-v1/WeeklyHealthReport.app`. The adjacent source manifest, signed-app manifest (30 files), receipt, build log and signing records identify this exact artifact. The private provisioning record remains outside the repository.
 

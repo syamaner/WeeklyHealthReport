@@ -1,6 +1,6 @@
 # Pasted nutrition label reader v3 (#93)
 
-Status: **owner-approved, 20 October 2026.** The owner answered decisions 1 to 17 "yes to all", in session, on 20 October 2026, after the architecture gate, and approved decisions 18 to 22, which the gate revision added, in session the same day. It is a versioned amendment to the reader behind the pasted nutrition label route of [pasted nutrition label v1](pasted-nutrition-label-v1.md) so that it reads the common real Taiwan paste layouts that parser v2 declines today. It follows the owner's decision of 20 October 2026, in session: improve the reader against a real-text development set, then run the release check once on a **fresh** set of at least 20 real labels the reader has never seen.
+Status: **owner-approved, 20 October 2026.** The owner approved all of decisions 1 to 17, in session, on 20 October 2026, after the architecture gate, and approved decisions 18 to 22, which the gate revision added, in session the same day. It is a versioned amendment to the reader behind the pasted nutrition label route of [pasted nutrition label v1](pasted-nutrition-label-v1.md) so that it reads the common real Taiwan paste layouts that parser v2 declines today. It follows the owner's decision of 20 October 2026, in session: improve the reader against a real-text development set, then run the release check once on a **fresh** set of at least 20 real labels the reader has never seen.
 
 **Frozen, 21 October 2026 (section 12):** parser v3, `taiwan-row-aliases-v1`, checks v2, serving v3 and manifest v2 are frozen as of the commit that adds section 12, which also commits the fresh-set protocol (12.2). Any later change to them is a new version and needs a new fresh set.
 
@@ -846,7 +846,7 @@ Recorded the same way as 8.1 to 8.3. Each point follows from 8.4.1 to 8.4.15 or 
 
 ## 9. Owner decisions
 
-The owner answered decisions 1 to 17 "yes to all", in session, on 20 October 2026, after the architecture gate. Where the gate tightened a decision's wording without changing its direction, the decision is recorded below in the revised wording and marked **(tightened)**. Parts of the revision that are genuinely new are split out as decisions 18 to 22; the owner approved them, in session, on 20 October 2026.
+The owner approved all of decisions 1 to 17, in session, on 20 October 2026, after the architecture gate. Where the gate tightened a decision's wording without changing its direction, the decision is recorded below in the revised wording and marked **(tightened)**. Parts of the revision that are genuinely new are split out as decisions 18 to 22; the owner approved them, in session, on 20 October 2026.
 
 ### 9.1 Decided (owner, in session, 20 October 2026)
 

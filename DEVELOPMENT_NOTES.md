@@ -97,7 +97,7 @@ Includes this top-level session's inspection, preparation, validation and device
 
 ## Authorised synthetic harness installation attempt, 6 September 2026
 
-The user authorised the proposed installation and dedicated-folder synthetic writes with “proceed”. The separate app was signed successfully after Xcode obtained its development profile. iOS rejected installation because the free-profile app limit was reached. No existing app was removed, no harness launch occurred and no Drive write ran. The feasibility results record now captures that blocker.
+The user approved the proposed installation and dedicated-folder synthetic writes. The separate app was signed successfully after Xcode obtained its development profile. iOS rejected installation because the free-profile app limit was reached. No existing app was removed, no harness launch occurred and no Drive write ran. The feasibility results record now captures that blocker.
 
 | Date | Feature or change | Commit(s) | Input tokens (cached) | Output tokens | Total tokens | API-equivalent |
 | --- | --- | --- | ---: | ---: | ---: | ---: |
@@ -1397,7 +1397,7 @@ The four rows sum exactly to a single whole-window measurement over `2026-10-11T
 
 ## WHR-194-2026-10-11: Claude Code CI gate and phase 1 navigation shell
 
-Same `claude-opus-5-5` session as the previous section, continuing from its final boundary. Two contiguous phases bounded by user messages: accounting plus the documentation-only CI gate (#203, #204) up to the user's "I am out" message, then phase 1 (#194) through to this ledger edit. Phase 1 includes four subagents launched from this session (`phase1-implementer`, `architecture-gate`, `invariant-reviewer`, `journey-qa`), all on `claude-opus-5-5`; their transcripts are under the session's `subagents/` folder and are included. Codex's independent review of #203 ran in Codex and is excluded. This ledger edit, PR delivery and merge are outside the rows.
+Same `claude-opus-5-5` session as the previous section, continuing from its final boundary. Two contiguous phases bounded by user messages: accounting plus the documentation-only CI gate (#203, #204) up to the user's message saying they were stepping away, then phase 1 (#194) through to this ledger edit. Phase 1 includes four subagents launched from this session (`phase1-implementer`, `architecture-gate`, `invariant-reviewer`, `journey-qa`), all on `claude-opus-5-5`; their transcripts are under the session's `subagents/` folder and are included. Codex's independent review of #203 ran in Codex and is excluded. This ledger edit, PR delivery and merge are outside the rows.
 
 Pricing checked 11 October 2026: [official model rates](https://platform.claude.com/docs/en/about-claude/pricing), `claude-opus-5-5` USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output; full 1M context at standard rates. Every request ran at standard speed with global inference and no paid server tools. API-equivalent comparisons under a Claude subscription, not charges.
 
@@ -3495,7 +3495,7 @@ The coordinator session (`claude-opus-5-5`, session `8abede54-9564-4edc-9de1-c09
 
 ## WHR-383-2026-11-03b: Claude Code label estimate policies, slice B1 (#383, phase B of #381)
 
-The coordinator session (`claude-opus-5-5`, session `8abede54-9564-4edc-9de1-c099dbc90ead`) implemented `label-estimate-compatibility-v1` and `label-estimate-merge-v1` as pure application policies with contract tests, amended spec rule 2 for the label "cocoa solids N% minimum" form, and registered the spec as code-read for CI. One `validator` subagent ran inside the window (PASS). The window runs from the owner's "Yes, merge and start" at `2026-11-03T20:33:10Z` (the logged message time) to `2026-11-03T20:55:16Z`. Cache writes: coordinator 48,212 1-hour, subagent 46,563 5-minute.
+The coordinator session (`claude-opus-5-5`, session `8abede54-9564-4edc-9de1-c099dbc90ead`) implemented `label-estimate-compatibility-v1` and `label-estimate-merge-v1` as pure application policies with contract tests, amended spec rule 2 for the label "cocoa solids N% minimum" form, and registered the spec as code-read for CI. One `validator` subagent ran inside the window (PASS). The window runs from the owner's yes to merge and start at `2026-11-03T20:33:10Z` (the logged message time) to `2026-11-03T20:55:16Z`. Cache writes: coordinator 48,212 1-hour, subagent 46,563 5-minute.
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -3507,7 +3507,7 @@ The coordinator session (`claude-opus-5-5`, session `8abede54-9564-4edc-9de1-c09
 
 ## WHR-391-2026-11-03: Claude Code cocoa rows in Best matches (#391, follow-up to #382)
 
-The coordinator session (`claude-opus-5-5`, session `8abede54-9564-4edc-9de1-c099dbc90ead`) walked the merged phase A Search screen in the iPhone 17 Pro simulator, found that the #308 Best matches split moved the approved 100% estimate to Other matches, opened #391, and fixed the grouping with a presentation test, a spec amendment and a second simulator walk. One `validator` subagent ran inside the window (PASS). The window runs from the owner's "Proceed" at `2026-11-03T19:05:44Z` (the logged message time) to `2026-11-03T19:27:43Z`. Cache writes: coordinator 167,323 1-hour, subagent 63,045 5-minute.
+The coordinator session (`claude-opus-5-5`, session `8abede54-9564-4edc-9de1-c099dbc90ead`) walked the merged phase A Search screen in the iPhone 17 Pro simulator, found that the #308 Best matches split moved the approved 100% estimate to Other matches, opened #391, and fixed the grouping with a presentation test, a spec amendment and a second simulator walk. One `validator` subagent ran inside the window (PASS). The window runs from the owner's go-ahead at `2026-11-03T19:05:44Z` (the logged message time) to `2026-11-03T19:27:43Z`. Cache writes: coordinator 167,323 1-hour, subagent 63,045 5-minute.
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -3519,7 +3519,7 @@ The coordinator session (`claude-opus-5-5`, session `8abede54-9564-4edc-9de1-c09
 
 ## WHR-383-2026-11-03c: Claude Code label estimate storage, slice B2 (#383, phase B of #381)
 
-The coordinator session (`claude-opus-5-5`, session `8abede54-9564-4edc-9de1-c099dbc90ead`) briefed and reviewed B2, amended the spec to store the generic row's name and description so reopen can rerun rule 3, fixed the Daily export contract pin, and resolved the #392 ledger conflict in a temporary worktree. Four subagents ran inside the window: one general-purpose implementer (three turns: the storage layer, the reopen gap and test flake, then the four invariant findings), one `invariant-reviewer` (PASS WITH CHANGES, 4 low findings, all applied), one `validator` stopped early when the review fixes began, and one complete `validator` run (one stale app pin, fixed; the coordinator reran the full app tests to pass). The window runs from the owner's "Yes, merge and go on" at `2026-11-03T21:01:57Z` (the logged message time) to `2026-11-03T22:43:10Z`. Cache writes: coordinator 44,455 1-hour, subagents 536,290 5-minute.
+The coordinator session (`claude-opus-5-5`, session `8abede54-9564-4edc-9de1-c099dbc90ead`) briefed and reviewed B2, amended the spec to store the generic row's name and description so reopen can rerun rule 3, fixed the Daily export contract pin, and resolved the #392 ledger conflict in a temporary worktree. Four subagents ran inside the window: one general-purpose implementer (three turns: the storage layer, the reopen gap and test flake, then the four invariant findings), one `invariant-reviewer` (PASS WITH CHANGES, 4 low findings, all applied), one `validator` stopped early when the review fixes began, and one complete `validator` run (one stale app pin, fixed; the coordinator reran the full app tests to pass). The window runs from the owner's yes to merge and carry on at `2026-11-03T21:01:57Z` (the logged message time) to `2026-11-03T22:43:10Z`. Cache writes: coordinator 44,455 1-hour, subagents 536,290 5-minute.
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -3531,7 +3531,7 @@ The coordinator session (`claude-opus-5-5`, session `8abede54-9564-4edc-9de1-c09
 
 ## WHR-383-2026-11-04: Claude Code label estimate Confirm section and status, slice B3 (#383, phase B of #381)
 
-The coordinator session (`claude-opus-5-5`, session `8abede54-9564-4edc-9de1-c099dbc90ead`) merged #396, briefed B3, triaged the review and journey findings into one fix batch, spot-checked the quick-add and status rules, and decided to leave the food daily export and Copy all unchanged (recorded in spec section 8). Three subagents ran inside the window: one general-purpose implementer (two turns: the Confirm section, wiring and status, then ten review and journey fixes), one `invariant-reviewer` (PASS WITH CHANGES, 2 medium and 8 low findings, all applied or recorded), and one `journey-qa` simulator walk of the pasted label route (label photo route not covered: it needs a provider key). The window runs from the owner's "Makes sure all your PRs merged and then proceed" at `2026-11-04T04:17:37Z` (the logged message time) to `2026-11-04T05:44:53Z`. Cache writes: coordinator 120,326 1-hour, subagents 1,914,793 5-minute.
+The coordinator session (`claude-opus-5-5`, session `8abede54-9564-4edc-9de1-c099dbc90ead`) merged #396, briefed B3, triaged the review and journey findings into one fix batch, spot-checked the quick-add and status rules, and decided to leave the food daily export and Copy all unchanged (recorded in spec section 8). Three subagents ran inside the window: one general-purpose implementer (two turns: the Confirm section, wiring and status, then ten review and journey fixes), one `invariant-reviewer` (PASS WITH CHANGES, 2 medium and 8 low findings, all applied or recorded), and one `journey-qa` simulator walk of the pasted label route (label photo route not covered: it needs a provider key). The window runs from the owner's instruction to make sure every open PR was merged and then proceed at `2026-11-04T04:17:37Z` (the logged message time) to `2026-11-04T05:44:53Z`. Cache writes: coordinator 120,326 1-hour, subagents 1,914,793 5-minute.
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -3552,7 +3552,7 @@ The coordinator session (`claude-opus-5-5`, session `8abede54-9564-4edc-9de1-c09
 - merged main and pushed;
 - confirmed Qodo was clean at the new head and enabled auto-merge.
 
-No subagents ran in this window. It runs from `2026-11-04T05:44:53Z`, the end of the B3 window, to the owner's "Go with your recommendation" at `2026-11-04T06:28:53Z`.
+No subagents ran in this window. It runs from `2026-11-04T05:44:53Z`, the end of the B3 window, to the owner's acceptance of the recommendation at `2026-11-04T06:28:53Z`.
 
 **Second window, the phase C specification.** The coordinator recorded owner decisions 4 and 5 on #384, added the owner-approved egress sentence to `docs/privacy-and-egress.md`, and made decisions D2 to D10 under the owner's delegation. Two subagents ran in it:
 - one general-purpose spec writer, in two turns: the draft, including downloading the five Ciqual 2025 XML files from Recherche Data Gouv and checking their MD5s, then applying the gate's findings;
@@ -3924,7 +3924,7 @@ Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base 
 
 ## WHR-416-2026-11-08: Claude Code fixes for the four #426 Qodo findings (#416)
 
-The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) made the four fixes and their tests, wrote spec revision 8 (D26), ran one local Qodo review and briefed one validator subagent (`claude-opus-5-5`). The window runs from the owner's "Let's fix" at `2026-11-08T08:43:29Z` to `2026-11-08T09:12:05Z`. Of the cache writes, 75,464 tokens were 5-minute writes (the subagent) and the rest 1-hour.
+The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) made the four fixes and their tests, wrote spec revision 8 (D26), ran one local Qodo review and briefed one validator subagent (`claude-opus-5-5`). The window runs from the owner's go-ahead to fix at `2026-11-08T08:43:29Z` to `2026-11-08T09:12:05Z`. Of the cache writes, 75,464 tokens were 5-minute writes (the subagent) and the rest 1-hour.
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -4060,7 +4060,7 @@ Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base 
 
 ## WHR-416-2026-11-08-A3: Claude Code A3 tuning and freeze (#416)
 
-The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) prepared and ran A3: the live evaluation transport, case building, the adversarial gate, the tuning matrix, the reader and scorer revisions (spec revisions 9 to 19, D27 to D36), prompt v2, the blind second transcription and the freeze. It delegated to subagents on `claude-opus-5-5` (implementation, triage, the validator) and `claude-fable-5-1` (the scorer v3 plan and the blind transcription), all inside the window. The window runs from the owner's "yes. Approved. Proceed" at `2026-11-08T10:19:47Z` to `2026-11-08T20:18:40Z` and includes one context compaction. Of the cache writes, 3,881,601 tokens were 5-minute writes (mostly subagents) and the rest 1-hour.
+The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) prepared and ran A3: the live evaluation transport, case building, the adversarial gate, the tuning matrix, the reader and scorer revisions (spec revisions 9 to 19, D27 to D36), prompt v2, the blind second transcription and the freeze. It delegated to subagents on `claude-opus-5-5` (implementation, triage, the validator) and `claude-fable-5-1` (the scorer v3 plan and the blind transcription), all inside the window. The window runs from the owner's approval to proceed at `2026-11-08T10:19:47Z` to `2026-11-08T20:18:40Z` and includes one context compaction. Of the cache writes, 3,881,601 tokens were 5-minute writes (mostly subagents) and the rest 1-hour.
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -4120,7 +4120,7 @@ The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13
 - merged `main` into the A3 PR, #444, and merged it after green CI and a clean Qodo review at the head;
 - built the A4 held-out runner (spec 5.5).
 
-The runner work had three subagents (an `architecture-gate`, a general-purpose implementer and a `validator`), followed by the coordinator's review and fixes and three local Qodo passes. The window runs from the owner's "Proceed" (`2026-11-09T06:46:51Z`) to `2026-11-09T10:30:04Z`. The held-out run itself is not in it: no held-out text was read and nothing was sent to OpenRouter.
+The runner work had three subagents (an `architecture-gate`, a general-purpose implementer and a `validator`), followed by the coordinator's review and fixes and three local Qodo passes. The window runs from the owner's go-ahead (`2026-11-09T06:46:51Z`) to `2026-11-09T10:30:04Z`. The held-out run itself is not in it: no held-out text was read and nothing was sent to OpenRouter.
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -4163,7 +4163,7 @@ Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base 
 
 ## WHR-424-E1d-2026-11-09: Claude Code held-out hash in the Freeze list (#424)
 
-The coordinator session (`claude-opus-5-5`, session `93e9e82e-ef3d-4d2f-9186-58c67056c1ca`) recorded the `seal-heldout` bundle hash in `freeze-v1.json` and added the plan's E1d record, after checking the hash against the private seal log. The window runs from the owner's "Yes, open it" at `2026-11-09T10:29:18Z` (approval to open this docs PR; the query approval and the seals came earlier, in the drafting session) to `2026-11-09T10:30:31Z`.
+The coordinator session (`claude-opus-5-5`, session `93e9e82e-ef3d-4d2f-9186-58c67056c1ca`) recorded the `seal-heldout` bundle hash in `freeze-v1.json` and added the plan's E1d record, after checking the hash against the private seal log. The window runs from the owner's yes at `2026-11-09T10:29:18Z` (approval to open this docs PR; the query approval and the seals came earlier, in the drafting session) to `2026-11-09T10:30:31Z`.
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -4315,7 +4315,7 @@ The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13
 - ran the invariant review, fixed its one Medium finding (a photo kept in memory after Back) with a test, and ran the validator and journey QA;
 - wrote this PR.
 
-The subagents are included: the architecture gate, the implementer, the invariant reviewer, the validator and journey QA. The window runs from `2026-11-10T07:40:40Z`, the owner's "proceed as suggested", to `2026-11-10T10:22:07Z`. It also covers some unrelated work interleaved with this phase:
+The subagents are included: the architecture gate, the implementer, the invariant reviewer, the validator and journey QA. The window runs from `2026-11-10T07:40:40Z`, the owner's go-ahead to proceed as suggested, to `2026-11-10T10:22:07Z`. It also covers some unrelated work interleaved with this phase:
 - two prompts for collecting UK label photos (Codex did the collection, outside this session);
 - a check of the collected set;
 - relaying the separate dark chocolate session's notes.
@@ -4383,7 +4383,7 @@ The implementation session (`claude-opus-5-5`, session `9a30287d-2461-44e3-836e-
 - ran an architecture gate (PASS WITH CHANGES) and an invariant review (NEEDS WORK) blind to each other, and folded their findings;
 - ran local Qodo reviews.
 
-The subagents are included: the architecture gate and the invariant reviewer. The window runs from `2026-11-10T22:10:09Z`, the owner's "Yes, start R2a", to `2026-11-10T22:21:46Z`.
+The subagents are included: the architecture gate and the invariant reviewer. The window runs from `2026-11-10T22:10:09Z`, the owner's yes to start R2a, to `2026-11-10T22:21:46Z`.
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -4407,7 +4407,7 @@ The implementation session (`claude-opus-5-5`, session `9a30287d-2461-44e3-836e-
 - tightened the skill's `export_v1.check_bytes` (explicit depth limit, unpaired surrogates, two `malformed` paths now given their rule codes), extended the fixture generator and regenerated the shared fixtures, with a CI step that verifies them;
 - ran the validator on the full gates and a local Qodo review.
 
-The subagents are included: the architecture gate and the validator. The window runs from `2026-11-11T13:04:36Z`, the owner's "Yes, start importer", to `2026-11-11T13:39:16Z`.
+The subagents are included: the architecture gate and the validator. The window runs from `2026-11-11T13:04:36Z`, the owner's yes to start the importer, to `2026-11-11T13:39:16Z`.
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -4424,7 +4424,7 @@ Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base 
 
 ## WHR-462-2026-11-11: Claude Code cocoa exact match (#462)
 
-The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) took the owner's device check of 0.3.0 (30), drafted `cocoa-exact-match-v1.md` with three owner decisions, ran the architecture gate and applied its five findings, built the `displayBand` reading and the exact online section with their tests, and ran the validation gates. Subagents are included: two architecture gates, one read-only Open Food Facts investigation and one validator. The window runs from the owner's "Draft it" (`2026-11-11T07:23:25Z`) to `2026-11-11T13:02:45Z`, and also covers drafting the separate Open Food Facts estimate contract (`off-label-estimate-v1.md`, its gate and five owner decisions), which ran alongside and is not split out.
+The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) took the owner's device check of 0.3.0 (30), drafted `cocoa-exact-match-v1.md` with three owner decisions, ran the architecture gate and applied its five findings, built the `displayBand` reading and the exact online section with their tests, and ran the validation gates. Subagents are included: two architecture gates, one read-only Open Food Facts investigation and one validator. The window runs from the owner's go-ahead to draft it (`2026-11-11T07:23:25Z`) to `2026-11-11T13:02:45Z`, and also covers drafting the separate Open Food Facts estimate contract (`off-label-estimate-v1.md`, its gate and five owner decisions), which ran alongside and is not split out.
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -4441,7 +4441,7 @@ Pricing: the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base 
 
 ## WHR-464-2026-11-11: Claude Code Open Food Facts estimate (#464)
 
-The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) took the owner's go-ahead to build `off-label-estimate-v1.md` on top of #462: the issue, the stacked branch, owner decision 6 (identity-only corrections keep the estimate) found during implementation, and delivery. Subagents are included: one implementer (three rounds), one invariant reviewer, one validator and one journey QA run in the simulator. The window runs from the owner's "Start now" (`2026-11-11T13:43:15Z`) to `2026-11-11T16:05:14Z`. The contract drafting, its gate and decisions 1 to 5 are in WHR-462-2026-11-11.
+The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13124c352b8`) took the owner's go-ahead to build `off-label-estimate-v1.md` on top of #462: the issue, the stacked branch, owner decision 6 (identity-only corrections keep the estimate) found during implementation, and delivery. Subagents are included: one implementer (three rounds), one invariant reviewer, one validator and one journey QA run in the simulator. The window runs from the owner's go-ahead to start (`2026-11-11T13:43:15Z`) to `2026-11-11T16:05:14Z`. The contract drafting, its gate and decisions 1 to 5 are in WHR-462-2026-11-11.
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -4488,7 +4488,7 @@ The implementation session (`claude-opus-5-5`, session `9a30287d-2461-44e3-836e-
 - wrote `PersonalFoodDatabaseImporting` and the `PersonalFoodDatabaseImporter` actor in `FoodLedgerApplication`, the new `FoodLedgerPersonalDatabase` target (`FilePersonalFoodDatabaseStore`), the in-memory test store, the Settings view model and copy, the "Your food database" Settings row and screen, and the boundary rules with eight failing self-test fixtures;
 - ran an invariant review (PASS, six Low items fixed) and a local Qodo review (six findings fixed), and the full gates.
 
-The subagents are included: the architecture gate and the invariant reviewer. The window runs from `2026-11-11T18:25:37Z`, the owner's "Yes, start P1b", to `2026-11-11T19:36:46Z`.
+The subagents are included: the architecture gate and the invariant reviewer. The window runs from `2026-11-11T18:25:37Z`, the owner's yes to start P1b, to `2026-11-11T19:36:46Z`.
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -4528,7 +4528,7 @@ The coordinator session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e13
 - `docs/off-values-label-v1.md`, the `OpenFoodFactsValues` predicate, the Food Log row, Recent foods and saved-entry labels, and their tests;
 - an invariant review (PASS, two low findings and the wording question applied), a local Qodo review (no findings) and the full gates.
 
-Subagents are included: the invariant reviewer. The window runs from the owner's "Yes, Estimate label" to the end of the gates.
+Subagents are included: the invariant reviewer. The window runs from the owner's choice of the Estimate label to the end of the gates.
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -4569,7 +4569,7 @@ The implementation session (`claude-opus-5-5`, session `9a30287d-2461-44e3-836e-
 - wrote the resolver port and the CoFID, USDA and TFDA resolvers, the candidate builder with the A1 merge, the background-loaded index, the search route, the composite's database route and dedupe, the re-resolution provider, the linked-release save fix (section 5.2), the source family, Generic row titles, Confirm's mixed-source details, the Settings count and wording, the composition-root wiring, two boundary rules with failing fixtures and the A1 amendment rows;
 - ran an invariant review (PASS WITH CHANGES, four items fixed), a local Qodo review (two findings fixed), the full gates through the validator (one stale app test fixed) and a simulator journey (seven of seven items passed; two defects fixed).
 
-The subagents are included: a code-map explorer, the architecture gate, an Open Food Facts parity test writer, the invariant reviewer, the validator and the journey QA agent. The window runs from `2026-11-12T19:32:13Z`, just after the owner's "yes all good so far proceed", to `2026-11-12T21:29:30Z`.
+The subagents are included: a code-map explorer, the architecture gate, an Open Food Facts parity test writer, the invariant reviewer, the validator and the journey QA agent. The window runs from `2026-11-12T19:32:13Z`, just after the owner's go-ahead to proceed, to `2026-11-12T21:29:30Z`.
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -4613,7 +4613,7 @@ The coordinating session (`claude-opus-5-5`, session `af79238e-bf1c-4e94-955a-e1
 - ran an architecture gate (seven changes made), an invariant review (three low findings: two fixed, one accepted), a keyless route check and the full gates;
 - recorded the owner's waiver of the iPhone run for internal builds.
 
-The window also holds interleaved backlog work from the same session: issue triage updates, the #467 and #422 decisions and the #487 review checks. They could not be separated by time, so the figure overstates this phase. Subagents are included. The window runs from `2026-11-14T11:27:08Z`, the owner's "Yes, prepare #316", to the measurement run.
+The window also holds interleaved backlog work from the same session: issue triage updates, the #467 and #422 decisions and the #487 review checks. They could not be separated by time, so the figure overstates this phase. Subagents are included. The window runs from `2026-11-14T11:27:08Z`, the owner's yes to prepare #316, to the measurement run.
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -4910,7 +4910,7 @@ The session (`claude-opus-5-5`, session `53477cde-964b-4887-b49c-4409aa61450e`, 
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Panel choice phase 2, start to gates | 41,126,867 (40,753,512) | 373,113 | 124,045 | 41,250,912 | $12.88 |
 
-Method: `phase_usage.py --format claude --since 2026-11-17T23:08:46Z --until 2026-11-18T00:45:52Z --include-subagents` on the session transcript. Exact USD 12.8778664. The cache-write tokens are part of the input figure: 246,536 are 5-minute writes and 126,577 are 1-hour writes. The boundary is the owner's "Start phase 2"; the window holds the worktree, the gate, one blind architecture-gate subagent, three owner questions, the implementation and tests, one blind invariant-review subagent and the validation gates. The cached input is high because the session already carried the whole phase 1 conversation; a fresh session would have read less context per turn. The total is input plus output.
+Method: `phase_usage.py --format claude --since 2026-11-17T23:08:46Z --until 2026-11-18T00:45:52Z --include-subagents` on the session transcript. Exact USD 12.8778664. The cache-write tokens are part of the input figure: 246,536 are 5-minute writes and 126,577 are 1-hour writes. The boundary is the owner's go-ahead for phase 2; the window holds the worktree, the gate, one blind architecture-gate subagent, three owner questions, the implementation and tests, one blind invariant-review subagent and the validation gates. The cached input is high because the session already carried the whole phase 1 conversation; a fresh session would have read less context per turn. The total is input plus output.
 
 Excluded: this ledger edit and everything after the window (handover, and any commit, push or pull request). The validation gates and evaluation steps use no API tokens.
 
@@ -5082,7 +5082,7 @@ Unmeasured: no boundary was captured at the start of this delivery, separately f
 
 ## WHR-491-2026-11-19: Claude Code one spelling for millilitres
 
-The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) found that contracts pinned both "mL" and "ml", recorded the findings on #491, and on the owner's choice ("mL") changed the remaining "ml" copy (barcode source line and serving note, pasted-label G5 message, label photo basis label, re-resolution basis label, inventory unit picker) with dated notes on the four contracts that showed "ml" (pasted label, catalogue import v2, label photo, barcode candidate plan); the manufacturer source route, not yet wired into the app, also writes "mL". Stored and exported unit codes are unchanged.
+The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) found that contracts pinned both "mL" and "ml", recorded the findings on #491, and on the owner's choice of "mL" changed the remaining "ml" copy (barcode source line and serving note, pasted-label G5 message, label photo basis label, re-resolution basis label, inventory unit picker) with dated notes on the four contracts that showed "ml" (pasted label, catalogue import v2, label photo, barcode candidate plan); the manufacturer source route, not yet wired into the app, also writes "mL". Stored and exported unit codes are unchanged.
 
 Unmeasured: no boundary was captured at the start of this phase, separately from the other work done in the same session, so no token figure is recorded rather than an estimate.
 

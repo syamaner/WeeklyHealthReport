@@ -119,4 +119,4 @@ scoping the cap to `carried_from_similar_food`; the other eight findings are add
 
 | # | Question | Decision |
 |---|---|---|
-| G5 | May a web page value fill a composite dish? | Yes, a generic dish page, on G1's terms (`low`, similar food, the fixed sentence); never another product's page. **Owner, 19 November 2026** ("relax the web rule", the ready-meal rule). |
+| G5 | May a web page value fill a composite dish? | Yes, a generic dish page, on G1's terms (`low`, similar food, the fixed sentence); never another product's page. **Owner, 19 November 2026**: the web rule is relaxed for this case (the ready-meal rule). |

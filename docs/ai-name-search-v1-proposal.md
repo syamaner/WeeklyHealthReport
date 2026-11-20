@@ -47,7 +47,7 @@ The user validates: that the source is the food eaten (identity and preparation)
 
 ## 4. Egress terms: APPROVED 15 November 2026
 
-The owner approved A1 to A15 as written ("Yes, approve all", 15 November 2026). A7's token ceiling and A9's per-lookup cap are confirmed from the P3 measurements before P4; a change to either is recorded here before P4 lands. They mirror the approved label photo terms E1 to E16 ([`label-photo-ai-prefill-v1.md`](label-photo-ai-prefill-v1.md) section 10) where the shape is the same.
+The owner approved A1 to A15 as written on 15 November 2026. A7's token ceiling and A9's per-lookup cap are confirmed from the P3 measurements before P4; a change to either is recorded here before P4 lands. They mirror the approved label photo terms E1 to E16 ([`label-photo-ai-prefill-v1.md`](label-photo-ai-prefill-v1.md) section 10) where the shape is the same.
 
 - [x] **A1 Destinations.** (a) `https://openrouter.ai/api/v1/chat/completions` for discovery, lead selection, extraction and the applicability check, as today; (b) the HTTPS site of a typed address or chosen lead, fetched by the device, as today. No new destination. *Recommend: approve.*
 - [x] **A2 What is sent.** Typed name: the displayed name and market only. Address or lead: the projected page text. Pasted text or file: the projected text exactly as shown on the confirm-before-send view, plus the fixed instruction and strict JSON schema. *Recommend: approve.*
@@ -120,16 +120,16 @@ Quality is measured before the route is reachable outside Debug, reusing existin
 
 ## 8. Owner decisions (15 November 2026)
 
-1. **Q1 Failing cases.** "Start without them": no collection of the owner's failing searches first; the evaluation uses public pages and synthetic text (section 6).
-2. **Q2 Scope of v1.** "Yes, paste and files": v1 adds pasted page text and a picked HTML or PDF file; typed-name discovery stays as it is.
-3. **Q3 Unsourced estimates.** "Yes, keep unknown": in v1 a value the source does not quote stays unknown. A later phase may propose estimates for unknowns (section 9).
-4. **Q4 Share extension.** "Yes, leave it out": no Safari share extension in v1.
-5. **Q5 Bars.** "Yes, accept the pass marks": the section 6 starting bars, adjustable after the practice runs and frozen before the sealed run.
-6. **Q6 Egress terms.** "Yes, approve all": A1 to A15, with A7 and A9 confirmed from P3 measurements before P4.
+1. **Q1 Failing cases.** Approved to start without them: no collection of the owner's failing searches first; the evaluation uses public pages and synthetic text (section 6).
+2. **Q2 Scope of v1.** Approved: v1 adds pasted page text and a picked HTML or PDF file; typed-name discovery stays as it is.
+3. **Q3 Unsourced estimates.** Approved: in v1 a value the source does not quote stays unknown. A later phase may propose estimates for unknowns (section 9).
+4. **Q4 Share extension.** Approved: no Safari share extension in v1.
+5. **Q5 Bars.** Approved: the section 6 starting bars, adjustable after the practice runs and frozen before the sealed run.
+6. **Q6 Egress terms.** Approved: A1 to A15, with A7 and A9 confirmed from P3 measurements before P4.
 
 ## 9. Later phase: estimate unknowns (not part of v1)
 
-The owner asked on 15 November 2026 for a second phase that improves unknowns with AI, and said "Yes, add the phase". It starts only after v1 has shipped and needs its own proposal, egress terms and pass marks. The outline it starts from:
+The owner asked on 15 November 2026 for a second phase that improves unknowns with AI, and approved adding it here. It starts only after v1 has shipped and needs its own proposal, egress terms and pass marks. The outline it starts from:
 
 - The model proposes a **generic reference record** (for example a named reference food from an official composition table) for nutrients the source left unknown; it never invents a number.
 - On Confirm each estimated value is labelled as an estimate, with its source, the reference record, its state and the method, per nutrient, and kept apart from values quoted by the source.

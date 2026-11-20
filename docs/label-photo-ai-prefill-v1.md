@@ -1,6 +1,6 @@
 # Label photo AI pre-fill v1 (#316)
 
-Status: **design spec, egress amendment and architecture gate, 25 October 2026. Documents only; no production code.** The owner approved the route and the egress in principle on 25 October 2026, then **approved every egress term E1 to E16 as written ("Approve all", 25 October 2026; section 10)**. Q1 to Q3 were decided as recommended under the owner's delegated autonomy the same day (section 3.1). The architecture gate returned **PASS WITH CHANGES**; every required change is applied here (section 17) and must hold before any L1 code. The approved changes to [privacy and egress](privacy-and-egress.md) and the [privacy policy](privacy-policy.txt) are in section 11; they take effect in the PR that wires the live transport (E16), so the bundled policy is unchanged until then and the current app sends no label photo.
+Status: **design spec, egress amendment and architecture gate, 25 October 2026. Documents only; no production code.** The owner approved the route and the egress in principle on 25 October 2026, then **approved every egress term E1 to E16 as written (25 October 2026; section 10)**. Q1 to Q3 were decided as recommended under the owner's delegated autonomy the same day (section 3.1). The architecture gate returned **PASS WITH CHANGES**; every required change is applied here (section 17) and must hold before any L1 code. The approved changes to [privacy and egress](privacy-and-egress.md) and the [privacy policy](privacy-policy.txt) are in section 11; they take effect in the PR that wires the live transport (E16), so the bundled policy is unchanged until then and the current app sends no label photo.
 
 It adds a new entry route. It does **not** amend [reader v3](pasted-nutrition-label-reader-v3.md) or any file pinned by `ReaderV3FreezeTests` (section 12.6). It reuses the pasted route's Confirm rules from [pasted label Confirm v1](pasted-label-confirm-v1.md) and [food confirmation v5](food-confirmation-contract-v5.md), and extends them only where a photo differs (section 4).
 
@@ -20,11 +20,11 @@ Evidence this design rests on, and its limits:
 
 So: roughly 1 table in 20 would carry a wrong value that nothing flags. The design's job is to make checking against the photo quick, to flag what can be flagged mechanically, and to say plainly that the values were read by AI.
 
-## 2. Owner decisions (25 October 2026, verbatim)
+## 2. Owner decisions (25 October 2026)
 
-> We were going to use open router. So what if not100%? We will what we can user overrides or confirms. Ui should make it easy to zoom and pan and focus on the labels
+The owner confirmed the plan to use OpenRouter and accepted accuracy below 100%, because the user overrides or confirms what is read; the interface should make it easy to zoom, pan and focus on the label.
 
-> Ok let's go with Taiwan now. And passing these kinds of photos ok. We strip metadata for sure.
+The owner then chose to start with Taiwan, approved sending this kind of photo, and required that metadata is stripped.
 
 Read as:
 
@@ -36,7 +36,7 @@ Read as:
 
 Later the same day (25 October 2026):
 
-6. **Egress terms:** "Approve all": E1 to E16 approved as written (section 10).
+6. **Egress terms:** E1 to E16 approved as written (section 10).
 7. **Q1, Q2 and Q3** decided as recommended, under the owner's delegated autonomy: attention items block Log; unchanged photo values reuse `user_verified_panel` with source `label-photo-ai`; admission goes through the composite `LabelSourceAdmission`, with no freeze re-pin.
 
 ## 3. Decisions with recommendations
@@ -297,7 +297,7 @@ Try again after a failure is a new user tap, never automatic, and it counts agai
 
 ## 10. Egress terms (approved by the owner, 25 October 2026)
 
-**Approved in full: "Approve all" (owner, 25 October 2026).** The lines below are the approved text, unchanged. The architecture gate narrowed three of them without widening any (E7's timing and headers, E9 as a per-tap total, E11's overloaded answer defined); the narrowed rules are in 17.5 and bind the implementation. No live transport is wired before L5 (section 13), and the policy changes take effect with it (E16).
+**Approved in full by the owner, 25 October 2026.** The lines below are the approved text, unchanged. The architecture gate narrowed three of them without widening any (E7's timing and headers, E9 as a per-tap total, E11's overloaded answer defined); the narrowed rules are in 17.5 and bind the implementation. No live transport is wired before L5 (section 13), and the policy changes take effect with it (E16).
 
 - [x] **E1 Destination.** `https://openrouter.ai/api/v1/chat/completions` only, which forwards to the one pinned model endpoint (E6). *Recommend: approve.*
 - [x] **E2 Payload.** One prepared JPEG as a data URI, the fixed instruction and the fixed strict JSON schema; nothing else: no name, brand, notes, food log, health data, location, device or account identifiers. The key travels only in the Authorization header and a request containing it in the body is refused. *Recommend: approve.*
@@ -437,7 +437,7 @@ Section 17.8 adds eleven contract tests from the architecture gate (tests 15 to 
 |---|---|---|
 | L0 | Offline locate-rate measurement (6.1, with the inputs and method of 17.6); report found rate and how many silent errors would be not found. **Done 25 October 2026 (17.9)** | None |
 | L1a | Matcher ambiguity reduced (order within the column, headers on one line), L0 re-run at 240 px, matcher moved unchanged into `FoodLabelPhotoReading` with a hash pin, boundary script for the new target (17.10) | None |
-| L1c | Locator v2 (17.11), before L1b at the owner's request ("Let's try to resolve"): row labels recovered between located neighbours, columns inferred from value tokens, a table-wide offset; measured by L0 against v1 with the adversarial suite and an extended sweep; and the alternative attention policy measured, not adopted. **Done 25 October 2026** | None |
+| L1c | Locator v2 (17.11), before L1b at the owner's request: row labels recovered between located neighbours, columns inferred from value tokens, a table-wide offset; measured by L0 against v1 with the adversarial suite and an extended sweep; and the alternative attention policy measured, not adopted. **Done 25 October 2026** | None |
 | L1d | Locator v3 (17.15): each header's basis passed to the matcher; only the amount headers must be located, the reference-intake column confirmed by its % unit and position, never as an amount column; a per-serving header with its bracketed serving quantity (D4); attack scenarios first, measured by L0 against v2 as pinned | None |
 | L1b | Pure core: wire mapping port, `LabelPhotoReading`, attention v1, serving v1 with its parity test, manifest codec, verifier, composite admission, preparer types, retry and spend policies, tests 1 to 12 | None |
 | L2 | Image preparation and Vision locator, tests 13 and 14 (17.17) | None |
@@ -1251,7 +1251,7 @@ The highlight position was fixed after the walk (decision 6) and is covered by a
 
 ### 17.21 L5: the live transport, the live route identity and the records (26 October 2026)
 
-The owner approved L5 on 26 October 2026 ("Yes, start L5"). This PR wires the live transport and puts the section 11 records in force (E16). **The route is not enabled for users.** E13 has not run yet.
+The owner approved L5 on 26 October 2026. This PR wires the live transport and puts the section 11 records in force (E16). **The route is not enabled for users.** E13 has not run yet.
 
 **Change of order against section 13.** Section 13 put E13 before the transport wiring. L5 wires the transport first, behind a launch argument that is compiled out of Release builds, so that E13 and the owner's device check exercise the code that would ship. The gate that matters is unchanged: no user can reach the live route until E13 passes, the iPhone run of `FoodLabelPhotoCaptureTests` is recorded (17.17 (c)) and the owner has done the device check.
 
@@ -1316,7 +1316,7 @@ The owner approved L5 on 26 October 2026 ("Yes, start L5"). This PR wires the li
 
 The `live` value is compiled out of Release, so an archive or TestFlight build cannot reach it. A user-visible switch, or making the route the default, is a separate decision for the owner after E13 and the device check.
 
-**E13 approval and runner.** On 26 October 2026 the owner approved running E13 on `google-vertex/us` directly, answering the coordinator's question "Yes, run on /us". The approved terms are:
+**E13 approval and runner.** On 26 October 2026 the owner approved running E13 on `google-vertex/us` directly, in answer to the coordinator's question. The approved terms are:
 - about 70 public Taiwan label photos, prepared exactly as the app prepares them;
 - the OpenRouter key from the October evaluation, loaded into the process only and never printed, logged or committed;
 - a hard stop of $10.
@@ -1450,13 +1450,13 @@ xcodebuild test -scheme FoodLedgerKit-Package -destination 'platform=iOS,id=0000
 
 ### 17.22 A Settings switch for internal TestFlight testing (14 November 2026)
 
-**Owner decision, 14 November 2026 (verbatim):** "Yes, prepare #316" and "I am happy to add to release so I can test". The owner's requirement for the route: "just need to be able to paste an image or use camera". Camera, photo library and paste-image already exist in `FoodLabelPhotoUI` and the Nutrition label entry (#454), so this change adds only a way to reach the live route in a Release build. **It is off by default, and nothing turns it on except the user.**
+**Owner decision, 14 November 2026:** prepare #316, and add the route to a release build so the owner can test it. The owner's requirement for the route: being able to paste an image or use the camera. Camera, photo library and paste-image already exist in `FoodLabelPhotoUI` and the Nutrition label entry (#454), so this change adds only a way to reach the live route in a Release build. **It is off by default, and nothing turns it on except the user.**
 
-**This amends the 17.21 gate.** 17.21 kept the live route out of every Release build until E13, the iPhone run and the owner's device check had all passed. The owner's "I am happy to add to release so I can test" approves reordering that for internal testing: a Release build may now contain the route, reachable only through the switch below, off by default, before the owner's device check is recorded. The device check moves to the internal TestFlight build itself, which is the point of the change. Everything else in 17.21 stands.
+**This amends the 17.21 gate.** 17.21 kept the live route out of every Release build until E13, the iPhone run and the owner's device check had all passed. The owner's decision to add the route to a release build for testing approves reordering that for internal testing: a Release build may now contain the route, reachable only through the switch below, off by default, before the owner's device check is recorded. The device check moves to the internal TestFlight build itself, which is the point of the change. Everything else in 17.21 stands.
 
 **What this enables, and what it does not.**
 - **Internal TestFlight only.** A build that contains the switch goes only to the internal testing group (the owner) until the owner has reviewed the App Store privacy answers (17.21, "What remains"). It is not added to an external group or submitted for App Store review before then. The app binary does not enforce this; the upload does. Such a build is exported only with `Config/ExportOptions-internal-testflight.plist`, which sets `testFlightInternalTestingOnly`, so App Store Connect cannot offer it to an external group or the App Store; its release record names that file. The rule is also in `privacy-and-egress.md`.
-- **The iPhone run comes first.** The recorded iPhone run of `FoodLabelPhotoCaptureTests` (17.17 (c), command in 17.21) is a precondition for uploading any build that contains the switch, because that run is what checks E3's metadata removal on iOS's own ImageIO before real camera and library photos can be sent. Waiving it would be a change to E3 and 17.17 (c) and needs the owner's explicit decision. **Attempted 14 November 2026:** SiPhone (`00008150-000261502282401C`) was connected, but `xcodebuild` refused the 17.21 command before building: "Tool-hosted testing is unavailable on device destinations. Select a host application for the test target" (exit 70). A Swift package test target has no host app, so this command cannot run on a device as written. **Owner decision, 14 November 2026:** after being told the run could not happen as written, the owner said "Get it out I will test". That waives the recorded iPhone run as a precondition for internal TestFlight builds only; the owner's own device check on the internal build stands in its place. Every build that contains the switch is exported with `Config/ExportOptions-internal-testflight.plist` (see Internal TestFlight only above); an external build needs a separate archive without that option, after this run and the App Store privacy answers. The run stays a precondition for any external TestFlight or App Store build, and needs the same tests run inside a host application (for example a small test host, or the app's own test target), which is a separate, small change.
+- **The iPhone run comes first.** The recorded iPhone run of `FoodLabelPhotoCaptureTests` (17.17 (c), command in 17.21) is a precondition for uploading any build that contains the switch, because that run is what checks E3's metadata removal on iOS's own ImageIO before real camera and library photos can be sent. Waiving it would be a change to E3 and 17.17 (c) and needs the owner's explicit decision. **Attempted 14 November 2026:** SiPhone (`00008150-000261502282401C`) was connected, but `xcodebuild` refused the 17.21 command before building: "Tool-hosted testing is unavailable on device destinations. Select a host application for the test target" (exit 70). A Swift package test target has no host app, so this command cannot run on a device as written. **Owner decision, 14 November 2026:** after being told the run could not happen as written, the owner asked for the build to go out for their own testing. That waives the recorded iPhone run as a precondition for internal TestFlight builds only; the owner's own device check on the internal build stands in its place. Every build that contains the switch is exported with `Config/ExportOptions-internal-testflight.plist` (see Internal TestFlight only above); an external build needs a separate archive without that option, after this run and the App Store privacy answers. The run stays a precondition for any external TestFlight or App Store build, and needs the same tests run inside a host application (for example a small test host, or the app's own test target), which is a separate, small change.
 - **Not a default.** The route stays off for anyone who does not turn the switch on.
 
 **Route identity re-checked (14 November 2026, keyless).** Keyless GETs of `/api/v1/models/google/gemini-4-argon/endpoints` and `/api/v1/endpoints/zdr` at 2026-11-14T11:29Z, with no key and no user data, found:

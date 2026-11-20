@@ -1,6 +1,6 @@
 # Open Food Facts values label v1
 
-Status: owner decision taken, 12 November 2026 ("keep them as estimates and say why"). Presentation only: no stored record, total, export or contract value changes.
+Status: owner decision taken, 12 November 2026: these values stay labelled as estimates, with the reason shown. Presentation only: no stored record, total, export or contract value changes.
 
 ## Problem
 
