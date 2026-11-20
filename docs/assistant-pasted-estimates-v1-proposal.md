@@ -21,8 +21,9 @@ says so. Acceptance added dated amendment notes to two accepted contracts: estim
 ## 1. What this adds, and what it does not
 
 The owner's aim is to fill as much as possible with reasonable, labelled estimates, and the
-fallback they described is "screenshot it and ask my agent". This route makes that fallback a
-journey on Confirm, in the "values too" shape the owner chose on 16 November 2026:
+fallback they described is to take a screenshot and ask their own assistant. This route makes that
+fallback a journey on Confirm, in the shape the owner chose on 16 November 2026, where the reply
+may supply values as well:
 
 1. Confirm offers **Copy prompt**. The prompt describes the food, lists what is known, estimated
    and unknown, and fixes the reply format.

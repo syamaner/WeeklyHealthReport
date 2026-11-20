@@ -144,4 +144,4 @@ version, store, food contract or egress changes.
 ## 5. Decisions
 | # | Question | Decision |
 |---|---|---|
-| G4 | What tier may an estimate from an own merge record the app does not merge take? | `carried_from_same_food`, at most `medium`, with the state basis stated. **Owner, 19 November 2026** ("Medium, same food"). |
+| G4 | What tier may an estimate from an own merge record the app does not merge take? | `carried_from_same_food`, at most `medium`, with the state basis stated. **Owner, 19 November 2026**: at most `medium`, as the same food. |

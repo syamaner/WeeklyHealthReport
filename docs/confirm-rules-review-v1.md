@@ -6,7 +6,7 @@ Amends, once decided: [`food-confirmation-contract-v5.md`](food-confirmation-con
 
 ## Problem
 
-The owner: logging an Open Food Facts product is "annoying really", and saving it as a favourite does not help, because every later log asks for the same food details again. Direction: "We should review and relax the rules as we were over eager earlier."
+The owner finds logging an Open Food Facts product tedious, and saving it as a favourite does not help, because every later log asks for the same food details again. Direction: review the rules and relax them, because they were stricter than needed.
 
 What happens today for a packaged product found through Open Food Facts (search or barcode):
 

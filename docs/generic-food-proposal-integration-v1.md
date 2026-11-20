@@ -138,7 +138,7 @@ matched tests; the app composition root makes its extraction choice explicit.
 
 ### Model call retry amendment (#500)
 
-Status: approved by the owner on 16 November 2026 ("Yes, approve", #500); in force from the
+Status: approved by the owner on 16 November 2026 (#500); in force from the
 merge of the PR that carries it.
 
 On device, a web lookup extracted two eligible candidates and then lost the
@@ -166,7 +166,7 @@ reconcile the two before that route ships.
   attempt is started with less than 15 seconds left before the whole-call
   deadline, so a billed request that could not finish is never sent (a
   narrowing added in review of PR #503 and accepted by the owner on 16 November
-  2026, "Yes, accept 15 s"; 15 seconds is a conservative judgement, not a
+  2026; 15 seconds is a conservative judgement, not a
   measured reply time).
 * Waiting is cancellable: stopping the lookup, or changing the query, market or
   key, cancels the wait and sends nothing further.

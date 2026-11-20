@@ -288,7 +288,7 @@ That will be its own issue.
 
 ## 9. Owner questions
 
-- **Q1. Clipboard as an image source.** Allow a pasted image into the label photo route under the approved terms E1 to E16 unchanged, with the contract and policy wording of section 4? *Recommend: approve.* **Approved by the owner, 10 November 2026 ("Yes, approve Q1").**
+- **Q1. Clipboard as an image source.** Allow a pasted image into the label photo route under the approved terms E1 to E16 unchanged, with the contract and policy wording of section 4? *Recommend: approve.* **Approved by the owner, 10 November 2026.**
 - **Q2. Both image and text on the clipboard.** Ask the user, or always prefer the image? *Recommend: ask.* Copying from a web page can carry both, and only the user knows which one they meant. **Decided by the owner, 10 November 2026: ask.**
 - **Q3. Release builds while the photo route is off.** Rename the row to "Nutrition label" now, or keep "Paste nutrition label" until the photo route is turned on? *Recommend: rename now.* It is the same journey, and the change ships once instead of twice. **Decided by the owner, 10 November 2026: rename now.** Revision 2 keeps the old row's empty text entry as Type or paste text, so a Release build loses no capability.
 

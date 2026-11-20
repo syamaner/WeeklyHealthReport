@@ -8,15 +8,11 @@ The deterministic pasted-label reader declines most real UK text. The UK reader 
 
 The [label photo route](label-photo-ai-prefill-v1.md) already reads Taiwan label photos with a model through OpenRouter, ending on the shared Confirm with attention items. Pasted text is an easier input than a photo: every value the model returns can be checked character by character against the text the user pasted.
 
-## 2. Owner decisions (7 November 2026, verbatim)
+## 2. Owner decisions (7 November 2026)
 
-> why don't we fall back to open router?
+The owner proposed falling back to OpenRouter: prepare an evaluation set, tune prompt versions and compare models on it, with text first and images once text works. Parsing is parked completely in favour of OpenRouter.
 
-> So we prepare eval data set and tweak the prompt versions and various models. Once txt works, we do images.
-
-> We park parsing completely and go with open router
-
-Then, asked what happens to the shipped Taiwan reader: **"Freeze it, AI for the rest"**.
+Then, asked what happens to the shipped Taiwan reader: **freeze it, and use AI for the rest**.
 
 Read as:
 
@@ -442,7 +438,7 @@ That is a separate spec.
 
 Two separate approvals: the evaluation runs (T1 to T7), then the product route (T8 to T12), each line by line.
 
-**Evaluation runs (approved by the owner, "Approve all", 7 November 2026, D6):**
+**Evaluation runs (all approved by the owner, 7 November 2026, D6):**
 - [x] **T1 Destination.** `https://openrouter.ai/api/v1/chat/completions` and the keyless catalogue listings only.
 - [x] **T2 Payload.** One label's pasted text exactly as saved, the fixed instruction and the fixed schema. No name, owner data, health data or identifiers. The texts are public pages' nutrition sections.
 - [x] **T3 Routing.** ZDR endpoints only, `data_collection: "deny"`, `allow_fallbacks: false`, one endpoint pinned per cell. The response's model and provider must match the request.
@@ -475,7 +471,7 @@ Two separate approvals: the evaluation runs (T1 to T7), then the product route (
 
 | ID | Question | Recommendation |
 |---|---|---|
-| D1 | Should Read with AI appear only after the frozen reader declines, never in place of a successful read? | Yes, as decided ("AI for the rest") |
+| D1 | Should Read with AI appear only after the frozen reader declines, never in place of a successful read? | Yes, as decided (section 2: AI for the rest) |
 | D2 | Which panels does the text route admit? | **Decided (owner, 7 November 2026), amended by D13:** UK declarations plus Taiwan pastes the reader declines; everything else declines |
 | D3 | Is the text locator allowed, given parsing is parked? | **Decided (owner, 7 November 2026): allowed.** It checks the model's answer and never produces a value |
 | D4 | Held-out data: the UK v2 fresh set only, or also a new Taiwan fresh set? | **Decided (owner, 7 November 2026): the UK v2 fresh set only.** A Taiwan fresh set only if Taiwan declines turn out to matter |

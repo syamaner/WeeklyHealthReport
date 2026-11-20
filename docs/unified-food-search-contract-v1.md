@@ -488,7 +488,7 @@ The versioned discovery-v3 and lexical/ranking changes, preserved invariants, sy
 
 ## Named-dish exact amount pre-fill — v73 (3 November 2026)
 
-Owner decision (Sertan, 3 November 2026, #370): "Yes prefill". On the bounded named-dish discovery path, one explicit, unambiguous leading or trailing exact mass or volume now pre-fills the shared Confirm screen, as a plain search such as "200 g porridge" already does. This supersedes the v71 sentence that named-dish discovery does not fill an amount; nothing else in v71, v72 or the street-food extension changes.
+Owner decision (3 November 2026, #370): pre-fill approved. On the bounded named-dish discovery path, one explicit, unambiguous leading or trailing exact mass or volume now pre-fills the shared Confirm screen, as a plain search such as "200 g porridge" already does. This supersedes the v71 sentence that named-dish discovery does not fill an amount; nothing else in v71, v72 or the street-food extension changes.
 
 ### Architecture gate
 
