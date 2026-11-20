@@ -339,7 +339,7 @@ sends nothing:
   the new kind. Following the allocation rule of estimates v2 and assistant estimates, B takes the
   **next free food contract** when its phase starts (13 at the time of writing: 11 is in use and 12 is
   reserved for assistant estimates), with the floor rule (a record holding `openrouter_estimate`
-  provenance, `confirm-nutrient-capture-v1` evidence or `confirm-details-capture-v1` evidence) checked before the earlier ones and a
+  provenance, `confirm-nutrient-capture-v1`, `confirm-nutrient-choices-v1` or `confirm-details-capture-v1` evidence) checked before the earlier ones and a
   metadata-only migration. An archive or store holding none keeps its contract and its bytes.
 - **Daily export.** B takes the **next free daily export version** (7 at the time of writing: 4 and 6
   are reserved by assistant estimates and the union rule, and 5 is in use), written only for a day
