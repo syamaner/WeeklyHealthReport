@@ -30,10 +30,12 @@ enum AppRoute: String, Codable, Hashable, CaseIterable {
     case todayNoteEditor
     /// Settings, Data: Your food database (#424 P1b).
     case personalFoodDatabase
+    /// Settings › OpenRouter: the Privacy policy screen at its OpenRouter section (O1.1).
+    case openRouterPrivacy
 
     /// Settings children that exist only when their feature is composed.
     static let composedSettingsRoutes: Set<AppRoute> = [
-        .webLookupKey, .foodMarket, .dataBackup, .medicationAccess, .developerTools, .personalFoodDatabase
+        .webLookupKey, .foodMarket, .dataBackup, .medicationAccess, .developerTools, .personalFoodDatabase, .openRouterPrivacy
     ]
 
     /// Google Drive export screens. They always have a destination, but a build
@@ -89,7 +91,7 @@ enum AppRoute: String, Codable, Hashable, CaseIterable {
         case .exportDestination:
             return availableRoutes.contains(.exportDestination) ? [.settings, .exportDestination] : [.settings]
         case .privacy, .inventoryReview, .foodReresolution, .webLookupKey,
-             .foodMarket, .dataBackup, .medicationAccess, .developerTools, .personalFoodDatabase:
+             .foodMarket, .dataBackup, .medicationAccess, .developerTools, .personalFoodDatabase, .openRouterPrivacy:
             return availableRoutes.contains(destination) ? [.settings, destination] : [.settings]
         }
     }

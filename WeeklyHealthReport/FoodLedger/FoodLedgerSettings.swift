@@ -39,22 +39,14 @@ enum FoodSearchSettingsContribution {
             .dropFirst().map { _ in () }.eraseToAnyPublisher()
     }
 
-    /// The live label photo route's switch (docs/label-photo-ai-prefill-v1.md 17.22), off by default.
-    static let labelPhotoReadingTitle = "Read label photos with AI"
-    static let labelPhotoReadingCaption = "Adds photos and pasted images to Nutrition label. Read label with AI sends only the cropped photo to OpenRouter, using your OpenRouter key and credit, and you check every value on Confirm before logging. Needs an OpenRouter key under Web lookup."
-    static let footer = "Online sources receive only the food terms you search for, and any label photo you choose to send. Your Health data and food log stay on this device unless you export them to Google Drive."
-
-    static func labelPhotoReadingToggle(_ preference: LabelPhotoReadingPreference) -> SettingsToggle {
-        SettingsToggle(title: labelPhotoReadingTitle, caption: labelPhotoReadingCaption,
-                       read: { preference.isOn }, write: { preference.isOn = $0 })
-    }
+    /// Open Food Facts only: everything about OpenRouter is in Settings › OpenRouter
+    /// (docs/openrouter-single-consent-v1-amendment.md O1.1).
+    static let footer = "Open Food Facts receives only the food terms you search for or a barcode you look up. Your Health data and food log stay on this device unless you export them to Google Drive."
 
     static func section(
         preferences: any FoodSearchPreferences,
         onlineDatabaseAvailable: Bool,
-        webLookup: FoodWebDiscoveryViewModel,
-        market: FoodMarketPreference,
-        labelPhotoReading: LabelPhotoReadingPreference
+        market: FoodMarketPreference
     ) -> SettingsSection {
         let onlineDatabase = SettingsToggle(
             title: "Online food database",
@@ -73,12 +65,6 @@ enum FoodSearchSettingsContribution {
             ),
             rows: [
                 .toggle("onlineFoodDatabase", onlineDatabase),
-                .link("Web lookup", route: .webLookupKey, detail: { [weak webLookup] in
-                    guard let webLookup else { return nil }
-                    return webLookupDetail(hasSavedKey: webLookup.hasSavedKey, keyIsUsable: webLookup.keyIsUsable,
-                                           keyLoadFailed: webLookup.keyLoadFailed)
-                }, changes: webLookupChanges(webLookup)),
-                .toggle("labelPhotoReading", labelPhotoReadingToggle(labelPhotoReading)),
                 .link("Food market", route: .foodMarket) { market.market.rawValue }
             ]
         )
@@ -114,10 +100,9 @@ extension FoodLedgerCompositionRoot {
             FoodSearchSettingsContribution.section(
                 preferences: searchPreferencesForSettings,
                 onlineDatabaseAvailable: true,
-                webLookup: webDiscovery,
-                market: foodMarket,
-                labelPhotoReading: labelPhotoReading
+                market: foodMarket
             ),
+            openRouterSettingsSection(),
             DataSettingsContribution.section(personalFoodDatabase: personalFoodDatabase)
         ]
     }

@@ -43,6 +43,9 @@ final class FoodLedgerCompositionRoot {
     /// The last search and web lookup diagnostics for Settings › Developer tools. In memory only.
     let searchDiagnostics = FoodSearchDiagnosticsLog()
     let webDiscovery: FoodWebDiscoveryViewModel
+    /// Settings › OpenRouter, the one gate every OpenRouter adapter, journey and the label photo
+    /// session ask (docs/openrouter-single-consent-v1-amendment.md section 6).
+    let openRouterConsent: OpenRouterConsentPreference
     /// The one OpenRouter key store, shared by web lookup and the live label photo route (17.22).
     /// Injectable so tests decide whether a key is saved without the device Keychain.
     let openRouterKeys: any FoodWebKeyStoring
@@ -86,9 +89,15 @@ final class FoodLedgerCompositionRoot {
         userDefaults: UserDefaults = .standard,
         confirmationClock: any LedgerClock = SystemLedgerClock(),
         confirmationCalendar: Calendar = .autoupdatingCurrent,
-        openRouterKeys: any FoodWebKeyStoring = OpenRouterKeychainStore()
+        openRouterKeys: any FoodWebKeyStoring = OpenRouterKeychainStore(),
+        openRouterConsentDomain: String? = nil
     ) throws {
         self.openRouterKeys = openRouterKeys
+        // One consent for every OpenRouter route (docs/openrouter-single-consent-v1-amendment.md O1.1):
+        // the Debug-only seeding argument is applied before anything reads it.
+        let consent = OpenRouterConsentPreference(defaults: userDefaults, domainName: openRouterConsentDomain)
+        OpenRouterConsentSeed.apply(userDefaults, preference: consent)
+        openRouterConsent = consent
         self.confirmationClock = confirmationClock
         self.confirmationCalendar = confirmationCalendar
         let applicationSupport = try fileManager.url(
@@ -124,10 +133,10 @@ final class FoodLedgerCompositionRoot {
         foodMarket = FoodMarketPreference(defaults: userDefaults)
         let clock = SystemLedgerClock()
         // Transient model-call failures are resent unchanged under the #500 retry amendment.
-        let openRouter = OpenRouterFoodProvider(extractionRoute: .grok, selectionRoute: .applicability, retry: .live)
-        webDiscovery = FoodWebDiscoveryViewModel(provider: openRouter, keys: openRouterKeys,
+        let openRouter = OpenRouterFoodProvider(egress: consent, extractionRoute: .grok, selectionRoute: .applicability, retry: .live)
+        webDiscovery = FoodWebDiscoveryViewModel(egress: consent, provider: openRouter, keys: openRouterKeys,
             providerName: "OpenRouter", operatorName: "OpenRouter", keyManagementName: "OpenRouter settings")
-        proposalReviewer = GenericFoodProposalReviewer(discovery: openRouter, capture: PublicFoodSourceCapture(),
+        proposalReviewer = GenericFoodProposalReviewer(egress: consent, discovery: openRouter, capture: PublicFoodSourceCapture(),
             extraction: openRouter, sourceSelection: openRouter, selection: openRouter)
         proposalConfirmation = ReviewedFoodProposalConfirmation(ids: ids, clock: clock,
             encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
@@ -599,7 +608,9 @@ final class FoodLedgerCompositionRoot {
     }
 
     func proposalReviewModel(initialQuery: String) throws -> GenericFoodProposalReviewViewModel {
-        let model = try GenericFoodProposalReviewViewModel(reviewer: proposalReviewer, credentials: webDiscovery,
+        let credentials = webDiscovery
+        let model = try GenericFoodProposalReviewViewModel(egress: openRouterConsent, reviewer: proposalReviewer, credentials: webDiscovery,
+            keyState: { MainActor.assumeIsolated { credentials.keyState } },
             confirmation: proposalConfirmation, locale: LedgerText(Locale.current.identifier),
             initialMarket: foodMarket.market,
             saveMarket: { [foodMarket] market in foodMarket.market = market })
@@ -1020,7 +1031,9 @@ final class AddFoodLabelPhotoAvailability: ObservableObject {
         let defaults = root.userDefaults
         // `$hasSavedKey` emits before the property changes, so resolve from the emitted value.
         root.webDiscovery.$hasSavedKey.removeDuplicates()
-            .sink { [weak self] saved in self?.update(LabelPhotoRouteMode.from(defaults, keySaved: saved) != .off) }
+            .sink { [weak self, consent = root.openRouterConsent] saved in
+                self?.update(LabelPhotoRouteMode.from(defaults, consentOn: consent.isOn, keySaved: saved) != .off)
+            }
             .store(in: &observers)
         NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification).receive(on: RunLoop.main)
             .sink { [weak self, weak root] _ in
@@ -1241,7 +1254,8 @@ struct OpenRouterFoodReviewFlowView: View {
     }
     var body: some View {
         GenericFoodProposalReviewView(model: reviewModel, credentials: credentials,
-                                      recordDiagnostics: { [diagnostics = root.searchDiagnostics] in diagnostics.recordWebLookup($0) }) { input in
+                                      recordDiagnostics: { [diagnostics = root.searchDiagnostics] in diagnostics.recordWebLookup($0) },
+                                      openRouterSettings: { [root] in AnyView(root.openRouterSettingsScreen()) }) { input in
             confirmationModel = root.model(for: input, prefillSourceQuantity: false, savesFavourite: savesFavourite, entryDay: finish?.entryDay)
             showsConfirmation = true
         }
@@ -1719,10 +1733,11 @@ extension View {
 
 // MARK: Label photo (#316, docs/label-photo-ai-prefill-v1.md L4)
 
-/// The label photo route's mode (17.22). Off by default. In a Release build only the Settings switch
-/// (`LabelPhotoReadingPreference`) and a saved OpenRouter key turn on the live route. In a Debug
-/// build the launch argument `-LabelPhotoRoute <scenario>` selects the scripted fake transport (no
-/// network) and `-LabelPhotoRoute live` the live transport (17.21), and either wins over the switch.
+/// The label photo route's mode (17.22, as amended by docs/openrouter-single-consent-v1-amendment.md
+/// O1-D3). Off by default. In a Release build only Settings › OpenRouter and a saved OpenRouter key
+/// turn on the live route. In a Debug build the launch argument `-LabelPhotoRoute <scenario>` selects
+/// the scripted fake transport (no network) and `-LabelPhotoRoute live` the live transport (17.21),
+/// whatever the switch; with the switch off either shows the blocked row and the gate refuses.
 enum LabelPhotoRouteMode: Equatable {
     case off
     case fake(ScriptedLabelPhotoTransport.Scenario)
@@ -1733,37 +1748,23 @@ enum LabelPhotoRouteMode: Equatable {
 
     /// The whole decision, pure (17.22 matrix). A Release build ignores every launch argument, so it
     /// is either off or live and never reaches a scripted scenario.
-    static func resolve(launchArgument: String?, switchOn: Bool, keySaved: Bool, debugBuild: Bool) -> LabelPhotoRouteMode {
+    static func resolve(launchArgument: String?, consentOn: Bool, keySaved: Bool, debugBuild: Bool) -> LabelPhotoRouteMode {
         if debugBuild, let raw = launchArgument {
             if raw == liveArgument { return .live }
             guard let scenario = ScriptedLabelPhotoTransport.Scenario(rawValue: raw) else { return .off }
             return .fake(scenario)
         }
-        return switchOn && keySaved ? .live : .off
+        return consentOn && keySaved ? .live : .off
     }
 
-    static func from(_ defaults: UserDefaults, keySaved: Bool) -> LabelPhotoRouteMode {
+    static func from(_ defaults: UserDefaults, consentOn: Bool, keySaved: Bool) -> LabelPhotoRouteMode {
         #if DEBUG
         let debugBuild = true
         #else
         let debugBuild = false
         #endif
-        return resolve(launchArgument: defaults.string(forKey: launchArgumentKey),
-                       switchOn: LabelPhotoReadingPreference(defaults: defaults).isOn,
+        return resolve(launchArgument: defaults.string(forKey: launchArgumentKey), consentOn: consentOn,
                        keySaved: keySaved, debugBuild: debugBuild)
-    }
-}
-
-/// The Settings switch for the live label photo route (17.22): off when absent, removed when off.
-struct LabelPhotoReadingPreference {
-    static let key = "labelPhoto.liveRoute.enabled.v1"
-    let defaults: UserDefaults
-
-    var isOn: Bool {
-        get { defaults.object(forKey: Self.key) as? Bool ?? false }
-        nonmutating set {
-            if newValue { defaults.set(true, forKey: Self.key) } else { defaults.removeObject(forKey: Self.key) }
-        }
     }
 }
 
@@ -1794,10 +1795,10 @@ enum LabelPhotoSessions {
 }
 
 extension FoodLedgerCompositionRoot {
-    /// Resolved from the switch, the saved key (the shared web lookup model, never a fresh Keychain
-    /// read) and the build. Callers that build a flow resolve it once and pass it on (17.22).
+    /// Resolved from Settings › OpenRouter, the saved key (the shared web lookup model, never a fresh
+    /// Keychain read) and the build. Callers that build a flow resolve it once and pass it on (O1-D3).
     @MainActor var labelPhotoMode: LabelPhotoRouteMode {
-        LabelPhotoRouteMode.from(userDefaults, keySaved: webDiscovery.hasSavedKey)
+        LabelPhotoRouteMode.from(userDefaults, consentOn: openRouterConsent.isOn, keySaved: webDiscovery.hasSavedKey)
     }
     @MainActor var labelPhotoEnabled: Bool { labelPhotoMode != .off }
 
@@ -1806,19 +1807,6 @@ extension FoodLedgerCompositionRoot {
     /// is read again, so Web lookup and the label photo route follow it (#493). Reads only; it
     /// never validates or sends the key.
     @MainActor func recheckSavedKeys() { webDiscovery.recheckSavedKey() }
-    var labelPhotoReading: LabelPhotoReadingPreference { LabelPhotoReadingPreference(defaults: userDefaults) }
-
-    /// The fake route's first-use consent (17.19).
-    static let labelPhotoConsentKey = "labelPhoto.egressConsent.scripted.v1"
-    /// The live route's own, fresh consent key (L5): a consent given to the scripted transport
-    /// never stands for real egress.
-    static let labelPhotoLiveConsentKey = "labelPhoto.egressConsent.live.v1"
-
-    @MainActor var labelPhotoActiveConsentKey: String { labelPhotoConsentKey(for: labelPhotoMode) }
-
-    func labelPhotoConsentKey(for mode: LabelPhotoRouteMode) -> String {
-        mode == .live ? Self.labelPhotoLiveConsentKey : Self.labelPhotoConsentKey
-    }
 
     /// The spend ledger for the enabled route: the live route keeps its own, so scripted reads
     /// never count against, or reset, the real allowance.
@@ -1852,9 +1840,12 @@ extension FoodLedgerCompositionRoot {
         // 2026), so W includes the reasoning limit (17.21).
         let reasoningBilledSeparately = mode == .live
         let clock = confirmationClock, calendar = confirmationCalendar, ledgerURL = labelPhotoSpendLedgerURL(for: mode)
+        let consent = openRouterConsent
         return try? LabelPhotoSessions.flow(ledgerURL: ledgerURL) {
-            let attempt = OpenRouterLabelPhotoAttempt(transport: transport, keys: keys, request: try OpenRouterLabelPhotoRequest())
-            let session = LabelPhotoReadSession(checker: OpenRouterLabelRouteChecker(transport: transport, clock: clock, reasoningBilledSeparately: reasoningBilledSeparately),
+            // The scripted flow's gate is the same preference: with the switch off it reads nothing (O1.2).
+            let attempt = OpenRouterLabelPhotoAttempt(egress: consent, transport: transport, keys: keys, request: try OpenRouterLabelPhotoRequest())
+            let session = LabelPhotoReadSession(egress: consent,
+                checker: OpenRouterLabelRouteChecker(egress: consent, transport: transport, clock: clock, reasoningBilledSeparately: reasoningBilledSeparately),
                 attempter: attempt,
                 ledger: FileLabelPhotoSpendLedger(url: ledgerURL), keys: keys, clock: clock, calendar: calendar,
                 sleeper: TaskLabelPhotoSleeper(), jitter: { Double.random(in: 0...1) }, tapIDs: { UUID().uuidString },
@@ -1877,33 +1868,72 @@ extension FoodLedgerCompositionRoot {
         let defaults = userDefaults, builder = labelPhotoBuilder, ids = ids
         let identifier = locale.identifier.isEmpty ? "und" : locale.identifier
         let keyArgument = defaults.string(forKey: "LabelPhotoKey")
-        let live = mode == .live, credentials = webDiscovery, consentKey = labelPhotoConsentKey(for: mode)
+        let live = mode == .live, credentials = webDiscovery, consent = openRouterConsent
         let connectivity = Self.labelPhotoConnectivity
-        // The switch may be turned off while this screen is open (17.22). Before every tap the screen
-        // asks only about the switch and build, so a removed key still reads as no key; just before a
-        // read starts the closure also checks the key, and refuses without sending.
-        let switchInForce = { LabelPhotoRouteMode.from(defaults, keySaved: true) == mode }
-        let stillInForce = { LabelPhotoRouteMode.from(defaults, keySaved: credentials.hasSavedKey) == mode }
+        // The key state comes from the mode's own source: the `-LabelPhotoKey` argument in a scripted
+        // mode, the shared key model live; never a fresh Keychain read (O1.2).
+        let keyState: () -> LabelPhotoScreenModel.KeyState = {
+            if live { return credentials.keyIsUsable ? .valid : credentials.hasSavedKey ? .notValidated : .missing }
+            return keyArgument == "missing" ? .missing : keyArgument == "unvalidated" ? .notValidated : .valid
+        }
         return LabelPhotoScreenModel(environment: .init(
             prepare: { flow.prepare($0, crop: $1) },
             read: { image, progress in
-                guard stillInForce() else { return .failed(.routeUnavailable) }
+                // Switch off gives the switch-off row; a removed key with the switch on the no-key row.
+                // A not-validated key passes: the screen's row already stops the tap before this runs.
+                if let refusal = Self.labelPhotoReadRefusal(consentOn: consent.permits(.labelPhotoRead), keyState: keyState().openRouter) {
+                    return .failed(refusal)
+                }
                 return await flow.read(image, progress: progress)
             },
             status: { await flow.status() },
-            keyState: {
-                if live { return credentials.keyIsUsable ? .valid : credentials.hasSavedKey ? .notValidated : .missing }
-                return keyArgument == "missing" ? .missing : keyArgument == "unvalidated" ? .notValidated : .valid
-            },
+            keyState: keyState,
             isOnline: { live ? connectivity.isOnline : !defaults.bool(forKey: "LabelPhotoOffline") },
-            hasConsented: { defaults.bool(forKey: consentKey) },
-            recordConsent: { defaults.set(true, forKey: consentKey) },
+            consentOn: { consent.permits(.labelPhotoRead) },
             makeConfirm: { review, image, details in
                 try LabelPhotoSourceModel(review: review, imageBytes: image.bytes, details: details, builder: builder,
                     imageEvidenceID: ids.makeID(EvidenceTag.self), manifestEvidenceID: ids.makeID(EvidenceTag.self),
                     locale: LedgerText(identifier))
-            },
-            isEnabled: switchInForce))
+            }))
+    }
+
+    /// The read closure's decision (O1.2), pure: switch off refuses as `.notPermitted`, a missing key
+    /// as `.keyMissing`; a not-validated key passes.
+    nonisolated static func labelPhotoReadRefusal(consentOn: Bool, keyState: OpenRouterKeyState) -> LabelImageReadingFailure? {
+        switch OpenRouterAccess.blockedReason(consentOn: consentOn, keyState: keyState) {
+        case .switchOff: .notPermitted
+        case .noKey: .keyMissing
+        case .keyNotValidated, nil: nil
+        }
+    }
+
+    /// Settings › OpenRouter (O1.1). The label reads row shows only while the switch is on and a key
+    /// is saved, and reads the live spend ledger directly: no session, no flow, nothing sent (O1-D1).
+    @MainActor
+    func openRouterSettingsSection() -> SettingsSection {
+        let consent = openRouterConsent, credentials = webDiscovery, ledgerURL = labelPhotoLiveSpendLedgerURL
+        let clock = confirmationClock, calendar = confirmationCalendar
+        return OpenRouterSettingsContribution.section(consent: consent, webLookup: webDiscovery,
+            readsVisible: { consent.isOn && credentials.hasSavedKey },
+            labelReads: {
+                OpenRouterSettingsContribution.readsDetail(FileLabelPhotoSpendLedger(url: ledgerURL).load(),
+                                                           today: LabelPhotoSpendPolicy.dayKey(clock.now(), calendar: calendar))
+            })
+    }
+
+    /// Settings › OpenRouter as its own screen, opened by a journey's blocked row (O1.4).
+    @MainActor
+    func openRouterSettingsScreen() -> some View {
+        let credentials = webDiscovery
+        return OpenRouterSettingsScreen(section: openRouterSettingsSection()) { route in
+            switch route {
+            case .webLookupKey:
+                AnyView(OpenRouterFoodKeyView(model: credentials, showsDone: false,
+                    openRouterPolicy: { AnyView(PrivacyPolicyView(anchor: PrivacyPolicySections.openRouterHeading)) }))
+            default:
+                AnyView(PrivacyPolicyView(anchor: PrivacyPolicySections.openRouterHeading))
+            }
+        }
     }
 
     /// Confirm for a label photo: the same Confirm and Log as every route. Log goes through the
@@ -2008,8 +2038,7 @@ struct LabelPhotoFlowView: View {
         LabelPhotoScreenView(model: model, views: views,
                              openSettings: { if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) } },
                              openRouterSettings: { showsKeySettings = true },
-                             pasteLabel: { showsPaste = true }, searchFoods: { showsSearch = true },
-                             privacyPolicy: { openURL(PrivacyPolicy.publicURL) }, leave: close)
+                             pasteLabel: { showsPaste = true }, searchFoods: { showsSearch = true }, leave: close)
             // The pending photo is consumed once, after the screen has appeared, so the crop cover
             // is presented once, from the screen it is attached to (3.5). A return from Confirm
             // finds nothing pending.
@@ -2034,7 +2063,7 @@ struct LabelPhotoFlowView: View {
                 }
             }
             .navigationDestination(isPresented: $showsPaste) { PastedLabelFlowView(root: root, finish: finish) { showsPaste = false } }
-            .navigationDestination(isPresented: $showsKeySettings) { OpenRouterFoodKeyView(model: root.webDiscovery) }
+            .navigationDestination(isPresented: $showsKeySettings) { root.openRouterSettingsScreen() }
             .navigationDestination(isPresented: $showsSearch) {
                 if let flow = GenericFoodSearchFlowView(root: root, finish: finish) { flow }
                 else { ContentUnavailableView("Food search unavailable", systemImage: "exclamationmark.triangle") }

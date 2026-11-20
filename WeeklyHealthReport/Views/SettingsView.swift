@@ -5,6 +5,8 @@ import SwiftUI
 /// presentation order, not a plug-in.
 enum SettingsSectionID: Int, Comparable, CaseIterable {
     case foodSearch
+    /// Settings › OpenRouter (docs/openrouter-single-consent-v1-amendment.md O1.1), directly after Food search.
+    case openRouter
     case export
     case data
     case appleHealth
@@ -57,6 +59,8 @@ struct SettingsRow: Identifiable {
         case toggle(SettingsToggle)
         /// Plain, non-tappable text, for a feature this build does not offer.
         case text(detail: String?)
+        /// A value read on demand; the row is hidden while `detail` is nil.
+        case value(detail: @MainActor () -> String?)
     }
 
     let id: String
@@ -76,6 +80,11 @@ struct SettingsRow: Identifiable {
 
     static func text(_ id: String, _ title: String, detail: String?) -> SettingsRow {
         SettingsRow(id: "text." + id, title: title, kind: .text(detail: detail))
+    }
+
+    static func value(_ id: String, _ title: String, detail: @escaping @MainActor () -> String?,
+                      changes: AnyPublisher<Void, Never>? = nil) -> SettingsRow {
+        SettingsRow(id: "value." + id, title: title, kind: .value(detail: detail), changes: changes)
     }
 
     static func toggle(_ id: String, _ toggle: SettingsToggle) -> SettingsRow {
@@ -192,6 +201,10 @@ struct SettingsView: View {
                 if let detail { Text(detail) }
             }
             .accessibilityIdentifier("settings." + row.id)
+        case let .value(detail):
+            if let value = detail() {
+                LabeledContent(row.title, value: value).accessibilityIdentifier("settings." + row.id)
+            }
         }
     }
 }

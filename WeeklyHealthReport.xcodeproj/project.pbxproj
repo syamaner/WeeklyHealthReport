@@ -17,6 +17,8 @@
 		F31600000000000000000002 /* LabelPhotoCompositionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F31600000000000000000001 /* LabelPhotoCompositionTests.swift */; };
 		F09300000000000000000402 /* PastedLabelRouteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F09300000000000000000401 /* PastedLabelRouteTests.swift */; };
 		F19400000000000000000016 /* FoodLedgerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000015 /* FoodLedgerSettings.swift */; };
+		F55100000000000000000002 /* OpenRouterConsent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F55100000000000000000001 /* OpenRouterConsent.swift */; };
+		F55100000000000000000004 /* OpenRouterConsentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F55100000000000000000003 /* OpenRouterConsentTests.swift */; };
 		F19400000000000000000014 /* DeveloperToolsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000013 /* DeveloperToolsSettingsView.swift */; };
 		F19400000000000000000012 /* SettingsContributions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000011 /* SettingsContributions.swift */; };
 		F19400000000000000000010 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1940000000000000000000F /* SettingsView.swift */; };
@@ -178,6 +180,8 @@
 		F31600000000000000000001 /* LabelPhotoCompositionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabelPhotoCompositionTests.swift; sourceTree = "<group>"; };
 		F09300000000000000000401 /* PastedLabelRouteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PastedLabelRouteTests.swift; sourceTree = "<group>"; };
 		F19400000000000000000015 /* FoodLedgerSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodLedgerSettings.swift; sourceTree = "<group>"; };
+		F55100000000000000000001 /* OpenRouterConsent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterConsent.swift; sourceTree = "<group>"; };
+		F55100000000000000000003 /* OpenRouterConsentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterConsentTests.swift; sourceTree = "<group>"; };
 		F19400000000000000000013 /* DeveloperToolsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperToolsSettingsView.swift; sourceTree = "<group>"; };
 		F19400000000000000000011 /* SettingsContributions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsContributions.swift; sourceTree = "<group>"; };
 		F1940000000000000000000F /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -485,6 +489,7 @@
 				B0000000000000000000003E /* DailyNotesTests.swift */,
 				B0000000000000000000003F /* DailyNotesStoreTests.swift */,
 				F19400000000000000000019 /* SettingsContributionTests.swift */,
+				F55100000000000000000003 /* OpenRouterConsentTests.swift */,
 				F19400000000000000000017 /* AppNavigationTests.swift */,
 				F19700000000000000000006 /* FoodLogAppTests.swift */,
 				F31600000000000000000001 /* LabelPhotoCompositionTests.swift */,
@@ -587,6 +592,7 @@
 				B00000000000000000000054 /* FoodLedgerCompositionRoot.swift */,
 				F6000000000000000000000F /* FoodHomeCards.swift */,
 				F19400000000000000000015 /* FoodLedgerSettings.swift */,
+				F55100000000000000000001 /* OpenRouterConsent.swift */,
 				B96000000000000000000001 /* FoodVoiceCapture.swift */,
 				B96000000000000000000002 /* FoodVoiceInputView.swift */,
 			);
@@ -802,6 +808,7 @@
 				P00000000000000000000008 /* FoodLedgerCompositionRoot.swift in Sources */,
 				F60000000000000000000010 /* FoodHomeCards.swift in Sources */,
 				F19400000000000000000016 /* FoodLedgerSettings.swift in Sources */,
+				F55100000000000000000002 /* OpenRouterConsent.swift in Sources */,
 				A96000000000000000000001 /* FoodVoiceCapture.swift in Sources */,
 				A96000000000000000000002 /* FoodVoiceInputView.swift in Sources */,
 			);
@@ -838,6 +845,7 @@
 				A00000000000000000000039 /* DailyNotesStoreTests.swift in Sources */,
 				F1940000000000000000001C /* IsolatedApplicationSupportFileManager.swift in Sources */,
 				F1940000000000000000001A /* SettingsContributionTests.swift in Sources */,
+				F55100000000000000000004 /* OpenRouterConsentTests.swift in Sources */,
 				F19400000000000000000018 /* AppNavigationTests.swift in Sources */,
 				F19700000000000000000007 /* FoodLogAppTests.swift in Sources */,
 				F31600000000000000000002 /* LabelPhotoCompositionTests.swift in Sources */,

@@ -273,7 +273,7 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
 
     func testGeminiSetupRendersSecureEntryAndDoesNotCallProvider() async throws {
         let provider = NativeWebDiscoverySpy()
-        let model = FoodWebDiscoveryViewModel(provider: provider, keys: NativeEmptyWebKeys())
+        let model = FoodWebDiscoveryViewModel(egress: TestOpenRouterEgress(), provider: provider, keys: NativeEmptyWebKeys())
         let host = NativeHostingController(rootView: NavigationStack { FoodWebDiscoveryView(model: model) })
         let scene = try testScene()
         let previous = scene.windows.first(where: \.isKeyWindow)
@@ -302,10 +302,10 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
     func testOpenRouterReviewRendersWithoutImplicitProviderCalls() async throws {
         for (name, size) in [("standard", DynamicTypeSize.large), ("large-text", .accessibility3)] {
             let provider = NativeWebDiscoverySpy()
-            let credentials = FoodWebDiscoveryViewModel(provider: provider, keys: NativeEmptyWebKeys(),
+            let credentials = FoodWebDiscoveryViewModel(egress: TestOpenRouterEgress(), provider: provider, keys: NativeEmptyWebKeys(),
                 providerName: "OpenRouter", operatorName: "OpenRouter", keyManagementName: "OpenRouter")
             let reviewer = NativeProposalReviewSpy()
-            let model = GenericFoodProposalReviewViewModel(reviewer: reviewer, credentials: credentials,
+            let model = GenericFoodProposalReviewViewModel(egress: TestOpenRouterEgress(), reviewer: reviewer, credentials: credentials, keyState: { .valid },
                 confirmation: ReviewedFoodProposalConfirmation(ids: NativeQuantityIDs(), clock: SystemLedgerClock(),
                     encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester()), locale: try LedgerText("en_GB"))
             let host = NativeHostingController(rootView: NavigationStack {
@@ -348,7 +348,7 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
 
     func testReviewedProposalShowsModelAbstentionAndBlocksConfirmation() async throws {
         let provider = NativeWebDiscoverySpy()
-        let credentials = FoodWebDiscoveryViewModel(provider: provider, keys: NativeSyntheticWebKeys(), providerName: "OpenRouter")
+        let credentials = FoodWebDiscoveryViewModel(egress: TestOpenRouterEgress(), provider: provider, keys: NativeSyntheticWebKeys(), providerName: "OpenRouter")
         await credentials.revalidateSavedKey()
         XCTAssertTrue(credentials.keyIsUsable)
         let source = try GenericFoodDocumentProjector.project(Data("Synthetic tofu Per 100g Protein 6g".utf8),
@@ -370,7 +370,7 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
         let validation = try FoodProposalBinding.validate(extraction, documents: [source])
         let review = GenericFoodProposalReview(foodTerms: "Synthetic tofu", discovery: nil, documents: [source],
             validation: validation, selection: nil, attemptedSourceURL: URL(string: source.url))
-        let model = GenericFoodProposalReviewViewModel(reviewer: NativeCompletedProposalReview(result: review), credentials: credentials,
+        let model = GenericFoodProposalReviewViewModel(egress: TestOpenRouterEgress(), reviewer: NativeCompletedProposalReview(result: review), credentials: credentials, keyState: { .valid },
             confirmation: ReviewedFoodProposalConfirmation(ids: NativeQuantityIDs(), clock: SystemLedgerClock(),
                 encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester()), locale: try LedgerText("en_GB"))
         model.foodTerms = review.foodTerms
@@ -420,7 +420,7 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
     /// prepare to Confirm, and the saved entry retains a v3 manifest recording that pick.
     func testCompetingPanelsRenderThePanelListWithTheWarning() async throws {
         let provider = NativeWebDiscoverySpy()
-        let credentials = FoodWebDiscoveryViewModel(provider: provider, keys: NativeSyntheticWebKeys(), providerName: "OpenRouter")
+        let credentials = FoodWebDiscoveryViewModel(egress: TestOpenRouterEgress(), provider: provider, keys: NativeSyntheticWebKeys(), providerName: "OpenRouter")
         await credentials.revalidateSavedKey()
         let lines = ["Synthetic tofu Per 100g Protein 6g", "Synthetic tofu Per 100g Protein 8g"]
         let source = try GenericFoodDocumentProjector.project(Data(lines.joined(separator: "\n").utf8),
@@ -445,7 +445,7 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
         let review = GenericFoodProposalReview(foodTerms: "Synthetic tofu", discovery: nil, documents: [source],
             validation: validation, selection: try FoodProposalSelection(unscoredChoice: "clarify", validation: validation),
             attemptedSourceURL: URL(string: source.url))
-        let model = GenericFoodProposalReviewViewModel(reviewer: NativeCompletedProposalReview(result: review), credentials: credentials,
+        let model = GenericFoodProposalReviewViewModel(egress: TestOpenRouterEgress(), reviewer: NativeCompletedProposalReview(result: review), credentials: credentials, keyState: { .valid },
             confirmation: ReviewedFoodProposalConfirmation(ids: NativeQuantityIDs(), clock: SystemLedgerClock(),
                 encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester()), locale: try LedgerText("en_GB"))
         model.foodTerms = review.foodTerms
@@ -537,7 +537,7 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
             encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
         let service = FoodConfirmationService(ledger: ledger, reader: store, clock: clock, ids: ids, digester: SHA256Digester())
         let provider = NativeWebDiscoverySpy()
-        let credentials = FoodWebDiscoveryViewModel(provider: provider, keys: NativeSyntheticWebKeys(), providerName: "OpenRouter")
+        let credentials = FoodWebDiscoveryViewModel(egress: TestOpenRouterEgress(), provider: provider, keys: NativeSyntheticWebKeys(), providerName: "OpenRouter")
         await credentials.revalidateSavedKey()
         let source = try GenericFoodDocumentProjector.project(Data("Synthetic tofu Per 100g Protein 6g".utf8),
             url: URL(string: "https://example.com/synthetic-tofu")!, mediaType: "text/plain",
@@ -559,7 +559,7 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
             validation: try FoodProposalBinding.validate(extraction, documents: [source]),
             selection: try FoodProposalSelection(unscoredChoice: "c1", validation: FoodProposalBinding.validate(extraction, documents: [source])),
             attemptedSourceURL: URL(string: source.url))
-        let model = GenericFoodProposalReviewViewModel(reviewer: NativeCompletedProposalReview(result: review), credentials: credentials,
+        let model = GenericFoodProposalReviewViewModel(egress: TestOpenRouterEgress(), reviewer: NativeCompletedProposalReview(result: review), credentials: credentials, keyState: { .valid },
             confirmation: ReviewedFoodProposalConfirmation(ids: ids, clock: clock,
                 encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester()), locale: try LedgerText("en_GB"))
         model.foodTerms = review.foodTerms; await model.search()
@@ -1098,7 +1098,7 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
                 reviewWebNutrition: {}, scanBarcode: {}) { _ in XCTFail("Rendering cannot confirm") }
         }
 
-        let credentials = FoodWebDiscoveryViewModel(provider: NativeWebDiscoverySpy(), keys: NativeSyntheticWebKeys(), providerName: "OpenRouter")
+        let credentials = FoodWebDiscoveryViewModel(egress: TestOpenRouterEgress(), provider: NativeWebDiscoverySpy(), keys: NativeSyntheticWebKeys(), providerName: "OpenRouter")
         await credentials.revalidateSavedKey()
         XCTAssertTrue(credentials.keyIsUsable)
         let source = try GenericFoodDocumentProjector.project(Data("Chicken caesar wrap Per wrap (215g): Energy 489kcal, Fat 22g, Carbohydrate 41g, Protein 31g".utf8),
@@ -1123,7 +1123,7 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
         let suggested = GenericFoodProposalReview(foodTerms: "Chicken caesar wrap", discovery: nil, documents: [source],
             validation: validation, selection: try FoodProposalSelection(unscoredChoice: "c1", validation: validation))
         func lookupModel() async throws -> GenericFoodProposalReviewViewModel {
-            let model = GenericFoodProposalReviewViewModel(reviewer: NativeCompletedProposalReview(result: suggested), credentials: credentials,
+            let model = GenericFoodProposalReviewViewModel(egress: TestOpenRouterEgress(), reviewer: NativeCompletedProposalReview(result: suggested), credentials: credentials, keyState: { .valid },
                 confirmation: ReviewedFoodProposalConfirmation(ids: NativeQuantityIDs(), clock: SystemLedgerClock(),
                     encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester()), locale: try LedgerText("en_GB"))
             model.foodTerms = suggested.foodTerms
