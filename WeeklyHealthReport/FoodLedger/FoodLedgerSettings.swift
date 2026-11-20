@@ -213,21 +213,55 @@ struct InventoryBackupView: View {
     }
 }
 
+/// The protected-data rules behind `ProtectedDataAvailability`, kept free of UIKit so they can be
+/// tested. "Will become unavailable" arrives while `isProtectedDataAvailable` still says true, so it
+/// marks a lock as pending until "did become available" (#478 review). While a lock is pending every
+/// read says unavailable, so a read that fails during the lock is reported as locked and retried on
+/// unlock instead of being cached as damaged.
+///
+/// A suspended app does not receive "did become available": if the phone locks while the app runs
+/// in the background and is unlocked after iOS suspends it, the pending lock would never clear and
+/// Your food database would stay "Locked" until the next lock and unlock. The same happens when the
+/// phone is unlocked within the grace period after "will become unavailable": the data never goes
+/// away, so "did become available" is never posted. Becoming active with protected data readable
+/// therefore also clears it. This assumes an app only becomes active on an unlocked phone.
+struct ProtectedDataLockState: Equatable {
+    private(set) var available = false
+    private(set) var lockPending = false
+
+    var isReadable: Bool { available && !lockPending }
+
+    /// A live read of `isProtectedDataAvailable`; it never clears a pending lock.
+    mutating func observe(_ live: Bool) { available = live }
+
+    mutating func willBecomeUnavailable(live: Bool) {
+        available = live
+        lockPending = true
+    }
+
+    mutating func didBecomeAvailable(live: Bool) {
+        available = live
+        lockPending = false
+    }
+
+    /// The app became active. An active app runs on an unlocked phone, so a readable live value
+    /// means any pending lock has passed even if its "did become available" was never delivered.
+    mutating func becameActive(live: Bool) {
+        available = live
+        if live { lockPending = false }
+    }
+}
+
 /// Whether protected data is readable, for the file stores that run off the main actor. On the main
 /// thread it reads `UIApplication` live. Off it, it returns the value the main thread last saw,
-/// kept current by the protected-data notifications, and never waits for the main thread: a
-/// background `DispatchQueue.main.sync` here starved the concurrency pool and hung the app tests
-/// once the Your food database index began loading off the main thread (#478). Before `start()`
-/// has run an off-main read says unavailable, which callers treat as locked and retry on unlock.
-///
-/// "Will become unavailable" arrives while `isProtectedDataAvailable` still says true, so it marks
-/// a lock as pending until "did become available" (#478 review). While a lock is pending every read
-/// says unavailable, on or off the main thread, so a read that fails during the lock is reported as
-/// locked and retried on unlock instead of being cached as damaged.
+/// kept current by the protected-data and became-active notifications, and never waits for the main
+/// thread: a background `DispatchQueue.main.sync` here starved the concurrency pool and hung the app
+/// tests once the Your food database index began loading off the main thread (#478). Before
+/// `start()` has run an off-main read says unavailable, which callers treat as locked and retry on
+/// unlock. The rules are in `ProtectedDataLockState`.
 enum ProtectedDataAvailability {
     private static let lock = NSLock()
-    nonisolated(unsafe) private static var cached = false
-    nonisolated(unsafe) private static var lockPending = false
+    nonisolated(unsafe) private static var state = ProtectedDataLockState()
     nonisolated(unsafe) private static var observers: [NSObjectProtocol] = []
 
     /// Seeds the cached value and keeps it current. Idempotent; call it before any store reads.
@@ -237,30 +271,39 @@ enum ProtectedDataAvailability {
         lock.unlock()
         if !started {
             let center = NotificationCenter.default
-            let tokens = [(UIApplication.protectedDataDidBecomeAvailableNotification, false),
-                          (UIApplication.protectedDataWillBecomeUnavailableNotification, true)].map { name, pending in
+            let events: [(Notification.Name, @Sendable (inout ProtectedDataLockState, Bool) -> Void)] = [
+                (UIApplication.protectedDataDidBecomeAvailableNotification, { $0.didBecomeAvailable(live: $1) }),
+                (UIApplication.protectedDataWillBecomeUnavailableNotification, { $0.willBecomeUnavailable(live: $1) }),
+                (UIApplication.didBecomeActiveNotification, { $0.becameActive(live: $1) }),
+            ]
+            let tokens = events.map { name, apply in
                 center.addObserver(forName: name, object: nil, queue: .main) { _ in
-                    MainActor.assumeIsolated { store(UIApplication.shared.isProtectedDataAvailable, lockPending: pending) }
+                    MainActor.assumeIsolated { update { apply(&$0, UIApplication.shared.isProtectedDataAvailable) } }
                 }
             }
             lock.lock(); observers = tokens; lock.unlock()
         }
-        store(UIApplication.shared.isProtectedDataAvailable)
+        update { $0.observe(UIApplication.shared.isProtectedDataAvailable) }
+    }
+
+    /// Applies the became-active rule now, for an observer that must not depend on the order in
+    /// which notification observers run. Idempotent.
+    @MainActor static func becameActive() {
+        update { $0.becameActive(live: UIApplication.shared.isProtectedDataAvailable) }
     }
 
     @Sendable static func isAvailable() -> Bool {
         if Thread.isMainThread {
             let live = MainActor.assumeIsolated { UIApplication.shared.isProtectedDataAvailable }
-            store(live)
+            update { $0.observe(live) }
         }
         lock.lock(); defer { lock.unlock() }
-        return cached && !lockPending
+        return state.isReadable
     }
 
-    private static func store(_ value: Bool, lockPending pending: Bool? = nil) {
+    private static func update(_ change: (inout ProtectedDataLockState) -> Void) {
         lock.lock()
-        cached = value
-        if let pending { lockPending = pending }
+        change(&state)
         lock.unlock()
     }
 }

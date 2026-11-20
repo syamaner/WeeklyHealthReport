@@ -49,7 +49,7 @@ final class FoodLedgerCompositionRoot {
     /// Your food database in Settings (#424 P1b). The store touches no file until it is used.
     let personalFoodDatabase: PersonalFoodDatabaseSettingsViewModel
     /// Removed in `deinit`, so a discarded root keeps no model alive and handles no notification.
-    nonisolated(unsafe) private var personalFoodDatabaseObserver: NSObjectProtocol?
+    nonisolated(unsafe) private var personalFoodDatabaseObservers: [NSObjectProtocol] = []
     private let proposalReviewer: GenericFoodProposalReviewer
     private let proposalConfirmation: ReviewedFoodProposalConfirmation
     private let offLookup: OpenFoodFactsLookup
@@ -76,7 +76,7 @@ final class FoodLedgerCompositionRoot {
     let pastedLabelConfirmation: PastedLabelConfirmation
 
     deinit {
-        if let personalFoodDatabaseObserver { NotificationCenter.default.removeObserver(personalFoodDatabaseObserver) }
+        personalFoodDatabaseObservers.forEach(NotificationCenter.default.removeObserver)
     }
 
     /// `confirmationClock` and `confirmationCalendar` are injectable so tests can fix the day
@@ -208,12 +208,29 @@ final class FoodLedgerCompositionRoot {
         Task { await databaseModel.load() }
         // A launch before first unlock loads `locked`; reload when protected data returns so the
         // Settings row does not stay "Locked", and warm the search index that could not load.
-        personalFoodDatabaseObserver = NotificationCenter.default.addObserver(
-            forName: UIApplication.protectedDataDidBecomeAvailableNotification, object: nil, queue: .main
-        ) { [weak databaseModel] _ in
-            Task.detached(priority: .utility) { index.warm() }
-            Task { @MainActor in await databaseModel?.load() }
-        }
+        let center = NotificationCenter.default
+        personalFoodDatabaseObservers = [
+            center.addObserver(
+                forName: UIApplication.protectedDataDidBecomeAvailableNotification, object: nil, queue: .main
+            ) { [weak databaseModel] _ in
+                Task.detached(priority: .utility) { index.warm() }
+                Task { @MainActor in await databaseModel?.load() }
+            },
+            // A suspended app misses "did become available", so becoming active rechecks too: a
+            // locked row reloads, and so does one still loading (that load may have read the
+            // pending lock and would finish as locked; a later load always wins). The index warms,
+            // a no-op once it holds a release.
+            center.addObserver(
+                forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main
+            ) { [weak databaseModel] _ in
+                MainActor.assumeIsolated {
+                    ProtectedDataAvailability.becameActive()
+                    Task.detached(priority: .utility) { index.warm() }
+                    guard let state = databaseModel?.state, state == .locked || state == .loading else { return }
+                    Task { @MainActor in await databaseModel?.load() }
+                }
+            },
+        ]
         milkVolumeConversion = try CoFIDWholeMilkVolumeConversion()
     }
 
