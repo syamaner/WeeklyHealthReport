@@ -1,7 +1,7 @@
 # One OpenRouter consent in Settings, explained in Privacy (O1)
 
 Status: **approved by the owner on 20 November 2026, with decisions O1-D1 to O1-D3 as recommended;
-implementation in the same PR (#554).** Architecture gate PASS at round eight (section 8). Written for #551 against `main` at
+implemented in #554 (section 8 records the implementation).** Architecture gate PASS at round eight (section 8). Written for #551 against `main` at
 `91fa7479`. Nothing in this document changes app behaviour, [privacy and egress](privacy-and-egress.md)
 or the bundled [privacy policy](privacy-policy.txt) until the owner approves the exact terms of
 section 2 and the decisions of section 7. On approval, the amended documents of section 3 change in
@@ -702,3 +702,29 @@ Asked one at a time on #551, each with a recommendation. Approval of the amendme
   stored formats.
 - **Owner decisions (20 November 2026).** O1-D1, O1-D2 and O1-D3 decided as recommended, asked one at a
   time; the amendment as a whole (sections 2 to 6, at `2dbc39a8`) then approved for implementation.
+- **Implementation (20 November 2026, #554).** Sections 2, 3 and 6 are implemented with O1-D1 to O1-D3 as
+  decided. The web lookup request goldens (bodies and headers, key removed) were captured from the code
+  before the gate was added and committed first; with the switch on every request equals them, and the
+  label photo request golden is unchanged. No destination, payload, cap, retry rule or stored format
+  changed. Deviations, each kept inside the invariants of sections 4 and 6:
+  - `GenericFoodProposalReviewViewModel` takes the gate and a `keyState` closure, because its
+    credentials port has no saved or usable key; the composition root passes the shared key model's
+    `keyState`, which is derived from `hasSavedKey` and `keyIsUsable` as section 6 says.
+  - `LabelPhotoSpendPolicy.current(today:stored:)` is now public, so the Settings label reads row can
+    read the live ledger without a session. `SettingsRow` gains a `value` kind (hidden while it has no
+    value), and `AppRoute` gains `openRouterPrivacy` (additive; it restores to Settings).
+  - A journey's `OpenRouter settings` link opens Settings › OpenRouter as its own screen, built from the
+    same section the Settings list shows, rather than switching to the Settings tab.
+  - The preference reads the persistent domain of the app's bundle identifier for `.standard`, or a
+    named suite in tests; any other store with no name reads off, so a test never reads the host app.
+  - `LabelPhotoReadSession` also treats a `notPermitted` thrown by the checker (the switch turned off
+    between the ask and the fetch) as a refusal: nothing is reserved and `routeUnavailableOn` stays unset.
+  - The `refusing` contract added to `PastedLabelAITextPortContracts` runs over the real adapter only; the
+    application fakes take no gate.
+  - In `privacy-and-egress.md` the sentence "With the switch off, a build sends no label photo." now
+    names Settings › OpenRouter, since the switch it named is retired, and the file ends with a dated note.
+  - The policy's Effective date is set to 20 November 2026; it moves to the release date of the build that
+    carries O1 when that build is cut.
+  Not done here: the release notes line of O1.5 (no build is cut in this PR), the sentence by sentence
+  policy comparison as a PR note (the old and new texts are in this PR's diff of `privacy-policy.txt`),
+  and the `journey-qa` simulator checks of test 11.
