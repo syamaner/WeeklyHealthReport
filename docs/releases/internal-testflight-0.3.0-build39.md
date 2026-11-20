@@ -1,6 +1,6 @@
 # TestFlight 0.3.0 (39)
 
-Status: **0.3.0 (39) is the build testers should install.** It was uploaded on 19 November 2026 under the owner's yes to all TestFlight preparation for this build ("So for now accept my yes to all test flight prep"), processed as VALID, given the What to Test text below (en-GB) and added to the Internal Testing group the same day. It was exported with `testFlightInternalTestingOnly`, so App Store Connect never offers it to an external group or the App Store.
+Status: **0.3.0 (39) is the build testers should install.** It was uploaded on 19 November 2026 under the owner's yes to all TestFlight preparation for this build, processed as VALID, given the What to Test text below (en-GB) and added to the Internal Testing group the same day. It was exported with `testFlightInternalTestingOnly`, so App Store Connect never offers it to an external group or the App Store.
 
 **This build imports catalogue estimates v3, with label photo estimates** ([label photo estimates v1](../personal-food-catalogue-off-estimates-v1-proposal.md), #518, PR520). **It moves the food log to store version 11** the first time it opens it; build 38 cannot open the log afterwards. **It carries all of issue #508** (web lookup part-read pages). HealthKit stays read-only. Photo fetches are developer tooling only, as [privacy and egress](../privacy-and-egress.md) records; the app adds no destination.
 

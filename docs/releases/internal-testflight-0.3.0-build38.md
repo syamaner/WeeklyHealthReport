@@ -1,6 +1,6 @@
 # TestFlight 0.3.0 (38)
 
-Status: **0.3.0 (38) is the build testers should install.** It was uploaded on 18 November 2026 at the owner's request ("Yes, upload build 38"), processed as VALID, given the What to Test text below (en-GB) and added to the Internal Testing group the same day. It was exported with `testFlightInternalTestingOnly`, so App Store Connect never offers it to an external group or the App Store.
+Status: **0.3.0 (38) is the build testers should install.** It was uploaded on 18 November 2026 at the owner's request, processed as VALID, given the What to Test text below (en-GB) and added to the Internal Testing group the same day. It was exported with `testFlightInternalTestingOnly`, so App Store Connect never offers it to an external group or the App Store.
 
 **This is the first build that imports labelled estimates from Your food database** ([estimates on catalogue v2](../personal-food-catalogue-estimates-v2-proposal.md), #511, PR514). **It moves the food log to store version 10** the first time it opens it; build 37 cannot open the log afterwards. HealthKit stays read-only and no destination is added.
 
