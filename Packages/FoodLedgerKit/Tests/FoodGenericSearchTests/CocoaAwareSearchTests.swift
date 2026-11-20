@@ -23,7 +23,7 @@ final class CocoaAwareSearchTests: XCTestCase {
     }
 
     func testVersionsAdvance() {
-        XCTAssertEqual(CompositeGenericFoodSearch.version, "composite-generic-ranking-v11")
+        XCTAssertEqual(CompositeGenericFoodSearch.version, "composite-generic-ranking-v12")
         XCTAssertEqual(GenericFoodRankingPolicy.version, "generic-representation-ranking-v9")
         XCTAssertEqual(CoFIDGenericFoodSearch.matcherVersion, "cofid-generic-ranking-v15")
         XCTAssertEqual(USDAGenericFoodSearch.matcherVersion, "usda-generic-ranking-v16")

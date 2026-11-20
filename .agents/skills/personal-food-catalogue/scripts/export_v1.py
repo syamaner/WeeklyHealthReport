@@ -68,6 +68,9 @@ SCHEMA_ESTIMATES_V2 = "personal-food-catalogue-estimates-v2"
 # Label photo estimates (docs/personal-food-catalogue-off-estimates-v1-proposal.md): v2 estimates plus the
 # `product_dataset_photo` source type, written only when such an estimate exists. Rules in estimates_v3.py.
 SCHEMA_ESTIMATES_V3 = "personal-food-catalogue-estimates-v3"
+# Food details from the catalogue (docs/personal-food-catalogue-identity-facts-v1-amendment.md): v3 plus
+# every entry's `identity_facts`, photo admitted but not required. Rules in identity_facts.py.
+SCHEMA_ESTIMATES_V4 = "personal-food-catalogue-estimates-v4"
 # Catalogue v2 (import v2 section 3): the app's per-serving scaling, off-product-projection-v6.
 MASS_G_TO_MG = ("mass-g-to-mg", "v1")
 SERVING_TO_100 = ("off-serving-to-100", "v1")  # not a calculation (calculated: false)
@@ -489,7 +492,8 @@ def _check(doc, report):
     if keys != TOP_KEYS and keys != TOP_KEYS_ESTIMATES:
         return err("top-keys", f"top-level keys must be exactly {sorted(TOP_KEYS)}, or those plus estimate_evidence")
     schema = doc["schema"]
-    estimates = schema in (SCHEMA_ESTIMATES_V2, SCHEMA_ESTIMATES_V3)
+    estimates = schema in (SCHEMA_ESTIMATES_V2, SCHEMA_ESTIMATES_V3, SCHEMA_ESTIMATES_V4)
+    facts = schema == SCHEMA_ESTIMATES_V4  # an identity_facts key in v1 to v3 stays item-keys
     if keys == TOP_KEYS_ESTIMATES:
         if not estimates and schema != SCHEMA_V1 and schema != SCHEMA_V2:
             return err("schema", "unknown schema")
@@ -499,7 +503,7 @@ def _check(doc, report):
             return err("items", "items and estimate_evidence must be lists")
     elif estimates:
         return err("top-keys", "an estimates v2 file needs estimate_evidence")
-    item_keys = ITEM_KEYS | {"estimated_nutrients"} if estimates else ITEM_KEYS
+    item_keys = ITEM_KEYS | {"estimated_nutrients"} | ({"identity_facts"} if facts else set()) if estimates else ITEM_KEYS
     v2 = schema == SCHEMA_V2 or estimates  # an unknown schema keeps the v1 rules for the rest
     if schema != SCHEMA_V1 and not v2:
         err("schema", "unknown schema")
@@ -576,6 +580,9 @@ def _check(doc, report):
                 or it["state"] not in STATES or it["basis"] not in BASES:
             err("vocabulary", where)
             continue
+        if facts and it["identity_facts"] is not None:
+            import identity_facts  # lazy, as estimates_v2 below
+            identity_facts.check(it["identity_facts"], it["state"], err, where)
         ref = it["generic_reference"]
         if ref is not None:
             if not isinstance(ref, dict) or set(ref) != REF_KEYS or not all(isinstance(ref[x], str) for x in REF_KEYS) \

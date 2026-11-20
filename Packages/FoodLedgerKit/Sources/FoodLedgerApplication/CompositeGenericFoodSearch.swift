@@ -9,8 +9,11 @@ import FoodLedgerDomain
 /// Your food database (import v1, phase 1 plan section 5.1): an optional route searched after the
 /// default sources and before the regional ones, always group 0, whose no-result route never
 /// supplies guidance or suggestions. With no database rows the output is v11 exactly.
+/// v12 (docs/personal-food-catalogue-identity-facts-v1-amendment.md section I1.4): the database route
+/// leaves out every row that hard-contradicts the request, so its rows never fail the progressive
+/// local stage; with no contradicting rows the output equals v11 apart from this version string.
 public final class CompositeGenericFoodSearch: GenericFoodSearching, @unchecked Sendable {
-    public static let version = "composite-generic-ranking-v11"
+    public static let version = "composite-generic-ranking-v12"
     private let sources: [any GenericFoodSearching]
     private let regionalSources: [any GenericFoodSearching]
     private let referenceSources: [any GenericFoodSearching]
@@ -139,7 +142,7 @@ public final class CompositeGenericFoodSearch: GenericFoodSearching, @unchecked 
 
     /// Import v1 section 5 under v11 (phase 1 plan section 5.1 item 4): only a pair where exactly one
     /// row came from the database route is deduped. The database copy, with its context and
-    /// `pfc-resolution-v1` metadata, takes the position of whichever copy sorted first; the other
+    /// `pfc-resolution-v1` or `pfc-resolution-v2` (amendment I1.3) metadata, takes the position of whichever copy sorted first; the other
     /// is dropped when the record facts agree, and differing facts throw. Other rows are untouched.
     static func dedupeDatabaseRows(_ rows: [GenericFoodMatch]) throws -> [GenericFoodMatch] {
         var result: [GenericFoodMatch] = []

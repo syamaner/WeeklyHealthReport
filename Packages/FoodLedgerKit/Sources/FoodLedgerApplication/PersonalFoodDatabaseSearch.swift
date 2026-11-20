@@ -112,14 +112,17 @@ public struct PersonalFoodDatabaseFoodSearch: GenericFoodSearching {
     }
 
     public func search(_ request: GenericFoodSearchRequest) throws -> GenericFoodSearchOutcome {
+        // Amendment I1.3: the capture's method version follows the snapshot's schema.
+        let snapshot = index.snapshot()
         let evidence = try request.captureEvidence ?? CaptureEvidence(
             evidenceID: ids.makeID(EvidenceTag.self), kind: .genericSearch, capturedAt: request.capturedAt,
             locale: request.locale, captureMethod: LedgerText("typed_generic_food_search"),
-            captureMethodVersion: LedgerText(PersonalFoodDatabaseCandidateBuilder.methodVersion),
+            captureMethodVersion: LedgerText(snapshot.map { PersonalFoodDatabaseCandidateBuilder.methodVersion(for: $0.file.schema) }
+                ?? PersonalFoodDatabaseCandidateBuilder.methodVersion),
             originalPayload: .text(request.text))
         let miss = GenericFoodSearchOutcome.noResult(
             GenericFoodNoResultRoute(evidence: evidence, additionalEvidence: request.additionalEvidence))
-        guard let snapshot = index.snapshot() else { return miss }
+        guard let snapshot else { return miss }
         do {
             return try route(request, snapshot: snapshot, evidence: [evidence] + request.additionalEvidence) ?? miss
         } catch {
@@ -196,14 +199,22 @@ public struct PersonalFoodDatabaseFoodSearch: GenericFoodSearching {
             } catch { continue }
             // A referenced record that was not merged is offered as its own row, after the entry, once:
             // two entries naming the same record never give two rows for it.
-            let generic = built?.merged == true ? nil : record.flatMap { resolved in
+            let genericRow = built?.merged == true ? nil : record.flatMap { resolved in
                 matches.contains { $0.searchID.recordID == resolved.candidate.candidate.recordID
                     && $0.searchID.sourceReleaseID == resolved.candidate.candidate.sourceReleaseID } ? nil : resolved
             }
-            guard built != nil || generic != nil else { continue }
+            // composite-generic-ranking-v12 (amendment I1.4): a row that hard-contradicts the request is
+            // left out, as the bundled adapters leave out contradicting records, before it counts towards
+            // the cap or adds a release or manifest. An entry with no row left counts nothing.
+            func contradicts(_ candidate: PopulatedFoodCandidate) -> Bool {
+                ConservativeFoodSearchCoverageAssessment.hasHardContradiction(candidate.candidate, request: request)
+            }
+            let entryRow = built.flatMap { contradicts($0.candidate) ? nil : $0 }
+            let generic = genericRow.flatMap { contradicts($0.candidate) ? nil : $0 }
+            guard entryRow != nil || generic != nil else { continue }
             var rows: [GenericFoodMatch] = []
             var cited: [SourceRelease] = []
-            if let built {
+            if let built = entryRow {
                 cited += built.releases
                 rows.append(GenericFoodMatch(candidate: built.candidate, isExactName: hit.exact,
                     personalDatabase: PersonalFoodDatabaseMatchContext(step: hit.step, isGenericReference: false)))
@@ -220,7 +231,7 @@ public struct PersonalFoodDatabaseFoodSearch: GenericFoodSearching {
             do { for release in cited { try add(release) } } catch { releases = before; continue }
             used += 1
             matches += rows
-            if built != nil, let capture { manifests.append(capture.evidence) }
+            if entryRow != nil, let capture { manifests.append(capture.evidence) }
         }
         guard let first = matches.first else { return nil }
         return .confirmation(GenericFoodConfirmationRoute(confirmation: try PopulatedFoodConfirmation(
@@ -245,7 +256,9 @@ public struct PersonalFoodDatabaseFoodSearch: GenericFoodSearching {
 }
 
 /// Re-resolution against the active Your food database (phase 1 plan section 5.1 item 1). The only
-/// target is the active release under `pfc-resolution-v1`; a saved log is matched by its entry ID.
+/// target is the active release under the method version of its schema (`pfc-resolution-v1`, or
+/// `pfc-resolution-v2` for a v4 file, amendment I1.3); a saved log is matched by its entry ID. It never
+/// applies the search route's v12 contradiction filter.
 /// With no database installed there is no target, so the service reports `unavailableTarget`.
 public struct PersonalFoodDatabaseReresolutionProvider: FoodReresolutionProviding {
     private let index: PersonalFoodDatabaseIndex
@@ -274,7 +287,7 @@ public struct PersonalFoodDatabaseReresolutionProvider: FoodReresolutionProvidin
 
     static func target(_ snapshot: PersonalFoodDatabaseIndex.Snapshot) throws -> FoodReresolutionTarget {
         FoodReresolutionTarget(sourceRelease: snapshot.release,
-                               methodVersion: try LedgerText(PersonalFoodDatabaseCandidateBuilder.methodVersion))
+                               methodVersion: try LedgerText(PersonalFoodDatabaseCandidateBuilder.methodVersion(for: snapshot.file.schema)))
     }
 
     public func candidates(for record: StoredFoodConfirmation, target: FoodReresolutionTarget, at date: Date) throws -> GenericFoodSearchOutcome {
@@ -284,7 +297,7 @@ public struct PersonalFoodDatabaseReresolutionProvider: FoodReresolutionProvidin
         guard let snapshot = index.snapshot(), try Self.target(snapshot) == target else { throw FoodReresolutionError.unavailableTarget }
         let evidence = try CaptureEvidence(evidenceID: ids.makeID(EvidenceTag.self), kind: .genericSearch, capturedAt: date,
             locale: LedgerText("en_GB"), captureMethod: LedgerText("personal_food_database_reresolution"),
-            captureMethodVersion: LedgerText(PersonalFoodDatabaseCandidateBuilder.methodVersion),
+            captureMethodVersion: LedgerText(PersonalFoodDatabaseCandidateBuilder.methodVersion(for: snapshot.file.schema)),
             originalPayload: .text(record.productVersion.name))
         let entryID = record.candidateDecision.candidate.recordID.value
         guard let entry = snapshot.file.entries.first(where: { $0.id == entryID }) else {

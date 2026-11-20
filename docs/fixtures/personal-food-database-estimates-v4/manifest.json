@@ -1,0 +1,165 @@
+{
+ "contract": "docs/personal-food-catalogue-identity-facts-v1-amendment.md",
+ "schema": "personal-food-catalogue-estimates-v4",
+ "golden": "golden.json",
+ "facts_rule_codes": [
+  "facts-keys",
+  "facts-value",
+  "facts-state"
+ ],
+ "note": "each reject fixture gives exactly the listed codes, in order, from both checkers; merge_cases give the same verdict from the skill's checker and the Swift mergeEligible",
+ "reject": {
+  "reject-facts-missing-key.json": [
+   "facts-keys"
+  ],
+  "reject-facts-unknown-key.json": [
+   "facts-keys"
+  ],
+  "reject-facts-not-an-object.json": [
+   "facts-keys"
+  ],
+  "reject-facts-fortified.json": [
+   "facts-value"
+  ],
+  "reject-facts-value-outside-list.json": [
+   "facts-value"
+  ],
+  "reject-facts-value-not-text.json": [
+   "facts-value"
+  ],
+  "reject-facts-packing-case.json": [
+   "facts-value"
+  ],
+  "reject-facts-raw-on-cooked.json": [
+   "facts-state"
+  ],
+  "reject-facts-raw-on-unknown-state.json": [
+   "facts-state"
+  ],
+  "reject-facts-as-sold-on-raw.json": [
+   "facts-state"
+  ],
+  "reject-facts-key-missing-in-v4.json": [
+   "item-keys"
+  ],
+  "reject-facts-in-v2-estimates-file.json": [
+   "item-keys"
+  ],
+  "reject-facts-in-v3-file.json": [
+   "item-keys"
+  ],
+  "reject-facts-duplicate-key.json": [
+   "duplicate-key"
+  ]
+ },
+ "accept": [
+  "accept-null-facts-merge-other-record-estimate.json",
+  "accept-all-null.json",
+  "accept-with-photo.json",
+  "accept-all-null-with-photo.json",
+  "accept-unknown-preparation-on-canned.json"
+ ],
+ "merge_cases": [
+  {
+   "name": "eligible-without-facts",
+   "facts": null,
+   "record": {
+    "preparation": "raw",
+    "bone": "unknown",
+    "skin": "unknown",
+    "drained": "unknown",
+    "packing_medium": "unknown",
+    "fortification": "unfortified"
+   },
+   "eligible": true,
+   "filled": []
+  },
+  {
+   "name": "eligible-with-a-fill",
+   "facts": {
+    "preparation": "raw",
+    "bone": "not_applicable",
+    "skin": "not_applicable",
+    "drained": "unknown",
+    "packing_medium": "unknown",
+    "fortification": "unfortified"
+   },
+   "record": {
+    "preparation": "raw",
+    "bone": "unknown",
+    "skin": "unknown",
+    "drained": "unknown",
+    "packing_medium": "unknown",
+    "fortification": "unfortified"
+   },
+   "eligible": true,
+   "filled": [
+    "bone",
+    "skin"
+   ]
+  },
+  {
+   "name": "eligible-agreeing",
+   "facts": {
+    "preparation": "unknown",
+    "bone": "unknown",
+    "skin": "unknown",
+    "drained": "unknown",
+    "packing_medium": "not applicable",
+    "fortification": "unknown"
+   },
+   "record": {
+    "preparation": "raw",
+    "bone": "unknown",
+    "skin": "unknown",
+    "drained": "unknown",
+    "packing_medium": "not applicable",
+    "fortification": "unfortified"
+   },
+   "eligible": true,
+   "filled": []
+  },
+  {
+   "name": "ineligible-by-a-fact",
+   "facts": {
+    "preparation": "unknown",
+    "bone": "boneless",
+    "skin": "unknown",
+    "drained": "unknown",
+    "packing_medium": "unknown",
+    "fortification": "unknown"
+   },
+   "record": {
+    "preparation": "raw",
+    "bone": "with_bone",
+    "skin": "unknown",
+    "drained": "unknown",
+    "packing_medium": "unknown",
+    "fortification": "unfortified"
+   },
+   "eligible": false,
+   "filled": []
+  },
+  {
+   "name": "ineligible-by-packing",
+   "facts": {
+    "preparation": "unknown",
+    "bone": "unknown",
+    "skin": "unknown",
+    "drained": "unknown",
+    "packing_medium": "water",
+    "fortification": "unknown"
+   },
+   "record": {
+    "preparation": "raw",
+    "bone": "unknown",
+    "skin": "unknown",
+    "drained": "unknown",
+    "packing_medium": "brine",
+    "fortification": "unfortified"
+   },
+   "eligible": false,
+   "filled": []
+  }
+ ]
+}

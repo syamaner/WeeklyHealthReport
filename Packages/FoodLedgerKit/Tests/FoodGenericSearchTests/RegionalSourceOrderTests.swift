@@ -17,7 +17,7 @@ final class RegionalSourceOrderTests: XCTestCase {
     }
 
     func testPolicyPromotesTaiwanOnlyForMarketNamedTaiwanOrChineseCharacters() {
-        XCTAssertEqual(CompositeGenericFoodSearch.version, "composite-generic-ranking-v11")
+        XCTAssertEqual(CompositeGenericFoodSearch.version, "composite-generic-ranking-v12")
         XCTAssertTrue(RegionalSourceOrderPolicy.promotesTaiwan(query: "120 g banana", marketIsTaiwan: true))
         for query in ["Taiwan banana", "taiwanese beef noodles", "香蕉", "120g 芭樂", "banana 台灣"] {
             XCTAssertTrue(RegionalSourceOrderPolicy.promotesTaiwan(query: query, marketIsTaiwan: false), query)

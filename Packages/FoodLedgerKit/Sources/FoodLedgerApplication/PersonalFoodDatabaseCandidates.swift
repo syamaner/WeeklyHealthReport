@@ -61,7 +61,17 @@ public struct GenericRecordResolverSet: GenericRecordResolving {
 /// plan section 5.1 items 2, 3, 9 and 10). Nothing is inferred from a title; a value that cannot be
 /// represented stays unknown.
 public enum PersonalFoodDatabaseCandidateBuilder {
-    public static let methodVersion = "pfc-resolution-v1"
+    /// The v1 to v3 method version, which resolver-built "Generic" rows keep for every schema.
+    public static let methodVersion = PersonalFoodDatabaseRelease.pipelineVersion
+    /// Amendment I1.3: the method version of a candidate, re-resolution target or capture built from a
+    /// file of this schema (`pfc-resolution-v2` for v4, `pfc-resolution-v1` otherwise).
+    public static func methodVersion(for schema: PersonalFoodDatabaseSchema) -> String {
+        PersonalFoodDatabaseRelease.pipelineVersion(for: schema)
+    }
+
+    /// The frozen prefix of the Confirm note naming the facts taken from `identity_facts` (amendment I1.4).
+    /// The note is saved with the candidate, so its text is data, not copy.
+    public static let factsNotePrefix = "Food details from your food database:"
 
     public struct Built: Equatable, Sendable {
         public let candidate: PopulatedFoodCandidate
@@ -91,13 +101,143 @@ public enum PersonalFoodDatabaseCandidateBuilder {
 
     /// The same rule on a record's facts, so the importer (own merge amendment G4) and the builder
     /// can never disagree about what merges.
+    ///
+    /// Amendment I1.3 (v4 files only, so only when the entry has `identity_facts`): no fact the file
+    /// states is known on both sides and different from the record's, under `EstimateIdentityComparison`.
     public static func mergeEligible(_ entry: PersonalFoodDatabaseEntry, facts: GenericRecordFacts) -> Bool {
         guard let reference = entry.genericReference, reference.role == .merge,
               entry.state == .raw || entry.state == .cooked, entry.basis == .per100Grams,
               let entryPreparation = try? preparation(entry.state) else { return false }
         let identity = facts.identity
-        return identity.preparation.kind == entryPreparation.kind && identity.fortification != .fortified
-            && facts.isPer100GramsEdible
+        guard identity.preparation.kind == entryPreparation.kind && identity.fortification != .fortified
+            && facts.isPer100GramsEdible else { return false }
+        guard entry.identityFacts != nil else { return true }
+        guard let stated = try? ownIdentity(entry) else { return false }
+        return EstimateIdentityComparison.contradictions(record: identity, confirmed: stated).isEmpty
+    }
+
+    /// Amendment I1.3, no merge: each fact from `identity_facts` where it is not `unknown`, otherwise
+    /// today's mapping (preparation from `state`, every other fact unknown).
+    public static func ownIdentity(_ entry: PersonalFoodDatabaseEntry) throws -> DecisiveIdentity {
+        let basis: ResolutionBasis = entry.basis == .per100Grams ? .per100Grams : .per100Millilitres
+        let facts = entry.identityFacts ?? PersonalFoodDatabaseIdentityFacts()
+        return try DecisiveIdentity(
+            preparation: facts.preparation == .unknown ? preparation(entry.state) : PreparationState(kind: facts.preparation.kind),
+            bone: facts.bone, skin: facts.skin, drained: facts.drained, packingMedium: facts.packingMediumState,
+            fortification: facts.fortification.state, servingBasis: basis)
+    }
+
+    /// The candidate's identity (amendment I1.3) and the facts it took from `identity_facts`: with a
+    /// merge, the record's identity with each fact the record leaves unknown taken from the file (for
+    /// a v1 to v3 file, the record's identity exactly, as Amendment A1 says); without one, `ownIdentity`.
+    public static func identity(_ entry: PersonalFoodDatabaseEntry, merged record: DecisiveIdentity?) throws
+        -> (identity: DecisiveIdentity, fromFile: [IdentityContradiction]) {
+        let own = try ownIdentity(entry)
+        let facts = entry.identityFacts ?? PersonalFoodDatabaseIdentityFacts()
+        guard let record else {
+            var stated: [IdentityContradiction] = []
+            if facts.preparation != .unknown { stated.append(.preparation) }
+            if facts.bone != .unknown { stated.append(.bone) }
+            if facts.skin != .unknown { stated.append(.skin) }
+            if facts.drained != .unknown { stated.append(.drained) }
+            if facts.packingMedium != .unknown { stated.append(.packingMedium) }
+            if facts.fortification != .unknown { stated.append(.fortification) }
+            return (own, stated)
+        }
+        guard entry.identityFacts != nil else { return (record, []) }
+        var taken: [IdentityContradiction] = []
+        func fill<T: Equatable>(_ recordValue: T, _ fileValue: T, unknown: T, _ facet: IdentityContradiction) -> T {
+            guard recordValue == unknown, fileValue != unknown else { return recordValue }
+            taken.append(facet)
+            return fileValue
+        }
+        // A merge needs a known, equal preparation, so the record's preparation always stands.
+        let bone = fill(record.bone, own.bone, unknown: .unknown, .bone)
+        let skin = fill(record.skin, own.skin, unknown: .unknown, .skin)
+        let drained = fill(record.drained, own.drained, unknown: .unknown, .drained)
+        let packing = fill(record.packingMedium, own.packingMedium, unknown: .unknown, .packingMedium)
+        let fortification = fill(record.fortification, own.fortification, unknown: .unknown, .fortification)
+        return (try DecisiveIdentity(preparation: record.preparation, bone: bone, skin: skin, drained: drained,
+                                     packingMedium: packing, fortification: fortification,
+                                     declaredFortificants: record.declaredFortificants, servingBasis: record.servingBasis), taken)
+    }
+
+    /// The Confirm note (amendment I1.4): the frozen prefix and the facts taken from the file, in plain
+    /// words, in facet order; nil when none was taken.
+    public static func factsNote(_ identity: DecisiveIdentity, facets: [IdentityContradiction]) -> String? {
+        let words: [String] = facets.compactMap { facet in
+            switch facet {
+            case .preparation:
+                switch identity.preparation.kind {
+                case .asSold: "as sold"
+                case .raw: "raw"
+                case .cooked: "cooked"
+                default: nil
+                }
+            case .bone:
+                switch identity.bone {
+                case .withBone: "with bone"
+                case .boneless: "boneless"
+                case .notApplicable: "no bone"
+                case .unknown: nil
+                }
+            case .skin:
+                switch identity.skin {
+                case .skinOn: "skin on"
+                case .skinless: "skinless"
+                case .notApplicable: "no skin"
+                case .unknown: nil
+                }
+            case .drained:
+                switch identity.drained {
+                case .drained: "drained"
+                case .undrained: "not drained"
+                case .notApplicable: "nothing to drain"
+                case .unknown: nil
+                }
+            case .packingMedium:
+                switch identity.packingMedium {
+                case let .named(text):
+                    switch text.value {
+                    case "as sold": "packing as sold"
+                    case "not applicable": "no packing liquid"
+                    case "olive_oil": "in olive oil"
+                    default: "in \(text.value)"
+                    }
+                case .unknown: nil
+                }
+            case .fortification:
+                identity.fortification == .unfortified ? "not fortified" : nil
+            case .servingBasis, .edibleQuantity: nil
+            }
+        }
+        return words.isEmpty ? nil : "\(factsNotePrefix) \(words.joined(separator: ", "))"
+    }
+
+    /// The facets a frozen-prefix note lists, read back from its words (the note is the only record of
+    /// which facts came from the file, so no new field is persisted). Nil when the text is not such a
+    /// note or holds a word `factsNote` never writes.
+    public static func factsNoteFacets(_ note: String) -> Set<IdentityContradiction>? {
+        let prefix = factsNotePrefix + " "
+        guard note.hasPrefix(prefix) else { return nil }
+        let words: [String: IdentityContradiction] = [
+            "as sold": .preparation, "raw": .preparation, "cooked": .preparation,
+            "with bone": .bone, "boneless": .bone, "no bone": .bone,
+            "skin on": .skin, "skinless": .skin, "no skin": .skin,
+            "drained": .drained, "not drained": .drained, "nothing to drain": .drained,
+            "packing as sold": .packingMedium, "no packing liquid": .packingMedium,
+            "not fortified": .fortification]
+        var facets = Set<IdentityContradiction>()
+        for word in note.dropFirst(prefix.count).components(separatedBy: ", ") {
+            if let facet = words[word] {
+                facets.insert(facet)
+            } else if word.hasPrefix("in "), word.count > 3 {
+                facets.insert(.packingMedium)
+            } else {
+                return nil
+            }
+        }
+        return facets.isEmpty ? nil : facets
     }
 
     static func itemClass(_ category: PersonalFoodDatabaseCategory) -> ItemClass {
@@ -179,13 +319,8 @@ public enum PersonalFoodDatabaseCandidateBuilder {
                 throw FoodLedgerValidationError.missingProvenance
             }
         }
-        let identity: DecisiveIdentity
-        if let merge {
-            identity = merge.candidate.candidate.identity
-        } else {
-            identity = try DecisiveIdentity(preparation: preparation(entry.state), bone: .unknown, skin: .unknown,
-                drained: .unknown, packingMedium: .unknown, fortification: .unknown, servingBasis: basis)
-        }
+        // Amendment I1.3: the file's facts where it states them; with a merge, only the record's blanks.
+        let (identity, fromFile) = try Self.identity(entry, merged: merge?.candidate.candidate.identity)
         let edible = try PositiveQuantity(value: 100, unit: entry.basis == .per100Grams ? .grams : .millilitres)
         // An entry filed per 100 ml by the owner's basis decision has no label (gap estimates amendment G2c).
         var differences = [try LedgerText(entry.basis == .per100Grams
@@ -195,6 +330,7 @@ public enum PersonalFoodDatabaseCandidateBuilder {
         // Import v2 (owner decision 3, 13 November 2026): values scaled from a per-serving panel say so,
         // as the barcode route's source line does. Only values the candidate uses count.
         differences += try scaledServings(entries).map { try LedgerText(OpenFoodFactsServingText.databaseEntryNote($0)) }
+        if let note = factsNote(identity, facets: fromFile) { differences.append(try LedgerText(note)) }
         let candidate = try PopulatedFoodCandidate(
             candidate: ProviderNeutralCandidate(
                 sourceReleaseID: databaseRelease.sourceReleaseID, recordID: ExternalIdentifier(entry.id, field: "record"),
@@ -202,7 +338,7 @@ public enum PersonalFoodDatabaseCandidateBuilder {
                 nutrients: NutrientSet(entries: entries),
                 // The manifest is this candidate's own evidence, listed after the request's.
                 evidenceIDs: evidenceIDs + (estimates != nil && !entry.estimatedNutrients.isEmpty ? [estimates!.evidenceID] : []),
-                matchMetadata: CandidateMatchMetadata(methodVersion: LedgerText(methodVersion), score: score,
+                matchMetadata: CandidateMatchMetadata(methodVersion: LedgerText(methodVersion(for: file.schema)), score: score,
                     materialDifferences: differences)),
             name: LedgerText(entry.title), brand: try entry.brand.map { try LedgerText($0) },
             itemClass: itemClass(entry.category), packFacts: PackFacts())

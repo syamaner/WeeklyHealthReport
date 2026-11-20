@@ -15,6 +15,9 @@ public enum FoodDetailsFillPolicy {
     public static let packagedAsSoldReason = "Packaged product, eaten as sold"
     public static let filledReason = "Food details added"
     public static let carriedReason = "Food details from your last entry"
+    /// Decision I1-D1 (docs/personal-food-catalogue-identity-facts-v1-amendment.md section 6): the stored
+    /// reason when a fact a Your food database candidate states is changed with no typed reason.
+    public static let databaseFactChangedReason = "Food details changed from your food database"
 
     /// Frozen packing medium names (rule 2.3), stored as `.named` values.
     public static let packingAsSold = "as sold"
@@ -46,6 +49,49 @@ public enum FoodDetailsFillPolicy {
     /// The live form against the state's current identity.
     public static func isFill(_ correction: FoodCorrection, in state: FoodConfirmationState) -> Bool {
         isFill(correction, of: state.selectedCandidate, current: currentIdentity(state))
+    }
+
+    /// Decision I1-D1: a correction that changes a food detail stated by a Your food database candidate
+    /// (one whose note carries the frozen "Food details from your food database:" prefix) needs no typed
+    /// reason. Only the food details may change: name, brand, variant, values, basis, item class and
+    /// fortificants stay the candidate's, and fortified still needs a reason. Every food detail that
+    /// differs from the candidate is one the note lists (taken from `identity_facts`) or one the
+    /// candidate left unknown, and at least one listed detail changes: a detail a merged record or the
+    /// entry's `state` supplied still needs a typed reason. It is never a fill, so weight and
+    /// conversion are cleared and it is not carried on re-log.
+    public static func changesDatabaseFactsOnly(_ correction: FoodCorrection, in state: FoodConfirmationState) -> Bool {
+        let candidate = state.selectedCandidate
+        guard state.reopened == nil, let stated = databaseFactsNote(candidate).flatMap(PersonalFoodDatabaseCandidateBuilder.factsNoteFacets),
+              isValuePreserving(correction, of: candidate), correction.variant == candidate.variant,
+              (correction.itemClass ?? candidate.itemClass) == candidate.itemClass,
+              correction.identity.fortification != .fortified, correction.identity.declaredFortificants.isEmpty,
+              correction.identity != currentIdentity(state), !isFill(correction, in: state) else { return false }
+        let source = candidate.candidate.identity, value = correction.identity
+        var changed = Set<IdentityContradiction>(), blank = Set<IdentityContradiction>()
+        func compare<T: Equatable>(_ facet: IdentityContradiction, _ new: T, _ old: T, unknown: Bool) {
+            guard new != old else { return }
+            changed.insert(facet)
+            if unknown { blank.insert(facet) }
+        }
+        compare(.preparation, value.preparation, source.preparation, unknown: source.preparation.kind == .unknown)
+        compare(.bone, value.bone, source.bone, unknown: source.bone == .unknown)
+        compare(.skin, value.skin, source.skin, unknown: source.skin == .unknown)
+        compare(.drained, value.drained, source.drained, unknown: source.drained == .unknown)
+        compare(.packingMedium, value.packingMedium, source.packingMedium, unknown: source.packingMedium == .unknown)
+        compare(.fortification, value.fortification, source.fortification, unknown: source.fortification == .unknown)
+        let restated = changed.subtracting(blank)
+        return !restated.isEmpty && restated.isSubset(of: stated)
+    }
+
+    /// True when the candidate's match metadata holds the catalogue's facts note (amendment I1.4).
+    public static func statesDatabaseFacts(_ candidate: PopulatedFoodCandidate) -> Bool {
+        databaseFactsNote(candidate) != nil
+    }
+
+    /// The candidate's "Food details from your food database: ..." note, or nil.
+    public static func databaseFactsNote(_ candidate: PopulatedFoodCandidate) -> String? {
+        candidate.candidate.matchMetadata?.materialDifferences.map(\.value)
+            .first { $0.hasPrefix(PersonalFoodDatabaseCandidateBuilder.factsNotePrefix) }
     }
 
     public static func currentIdentity(_ state: FoodConfirmationState) -> DecisiveIdentity {

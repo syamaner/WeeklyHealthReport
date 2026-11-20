@@ -4,6 +4,8 @@ Status: **accepted.** The owner decided the question of section 5 on 19 November
 #527, which merged on 19 November 2026. It follows the [gap estimates amendments G1 to G3](personal-food-catalogue-gap-estimates-v1-amendment.md)
 and keeps their numbering.
 
+**Amendment, 20 November 2026 ([food details from the catalogue, I1](personal-food-catalogue-identity-facts-v1-amendment.md) section I1.3, implemented in #547).** `estimate-own-merge` uses the facts-aware merge rule: for a v4 entry with stated facts, a fact that contradicts the record makes the merge ineligible. Such a fact also contradicts any estimate from that same record, so the importer then raises `estimate-contradiction` rather than admitting it.
+
 It is a delta on [labelled estimates on catalogue v2](personal-food-catalogue-estimates-v2-proposal.md)
 ("estimates v2") and repeats none of it. Everything estimates v2, import v1 and G1 to G3 say that this
 document does not name stays as written. Estimates v2 gains a dated note pointing here.

@@ -184,6 +184,21 @@ input  ──►  intake file  ──►  intake.py add  ──►  mapping (age
    refuses to write when any of the evaluator's four must-be-zero counts is not zero. The owner
    accepts each value and its tier on the sheet; never accept, re-admit or raise a tier on the
    owner's behalf. The script prints counts, rule codes and entry IDs only.
+7a. **Food details** ([I1](../../../docs/personal-food-catalogue-identity-facts-v1-amendment.md) section
+   I1.5; part of the build). The agent proposes each entry's bone, skin, drained state, packing medium,
+   preparation and fortification from the closed values of section I1.1, records a short private reason
+   and basis for each, and proposes `unknown` whenever the title does not settle a fact (never from
+   the category alone where it has both kinds). Fortified is never proposed. Classification through
+   Jev under section I1.6 was approved on 20 November 2026, but no Jev caller is built yet; until one
+   is, the agent's own rules only. Proposals go to the owner as review sheets, one per category group, recommended rows first;
+   only approved facts are written, to `work/approved-identity-facts.json`
+   (`pfc-approved-identity-facts-v1`: `{"schema", "rows": [{"entry_id", "facts", "accept_disappear"?}]}`).
+   `build.py` then runs `apply_identity_facts.py $W <repo>`, which writes
+   `out/personal-food-catalogue-estimates-v4.json` when at least one fact is written (import that file
+   instead, on an app build that accepts v4) and the private `out/identity-facts-report.json`. The
+   report lists by entry ID "merge ineligible", "entry would disappear" (written only with
+   `accept_disappear: true`), estimate contradictions (never written) and `as_sold` entries usually
+   searched with "raw"; take each to the owner. Without the input the v2 or v3 file stands.
 8. **Review before reporting.** Read every new label match and every new generic match for the
    added items (title against matched name). Fix rules, not individual results, when a pattern is
    wrong, and re-run. Known traps: brand words inside other words, flavour or packing-medium
@@ -234,6 +249,9 @@ Facts, OpenRouter label reading) run is unchanged and decided by the existing es
 | `estimates_input.py` | The accepted-estimates input `pfc-accepted-estimates-v1`: validator, whole-entry expansion, admission with counted reasons, assembly, the additive proof and the counts-only change report (pure) |
 | `estimate_counts.py` | The three private refusal and re-admission lists and the evaluator's six counts (pure) |
 | `apply_estimates.py` | Run by `build.py` after the export: writes the estimates v2 file and the private change report, or leaves the plain v2 file standing |
+| `identity_facts.py` | The `identity_facts` rules of `personal-food-catalogue-estimates-v4`, the facts-aware merge and identity, the approved facts input and the checker reports (pure) |
+| `apply_identity_facts.py` | Run by `build.py` after the estimates: writes the v4 file and the private facts report, or leaves the v2 or v3 file standing |
+| `test_identity_facts.py` | Synthetic tests for food details, and the writer and checker of the shared v4 fixtures (`--write`, `--verify`) |
 | `test_photo_estimates.py` | Synthetic tests for the label photo route, and the writer and checker of the shared v3 fixtures (`--write`, `--verify`) |
 | `test_estimates_input.py`, `test_estimate_counts.py` | Synthetic tests for the three scripts above, with an end-to-end run on a temporary workspace |
 | `test_gap_amendments.py` | Synthetic tests for gap estimates amendments G1 and G2: generic dish records, per 100 ml estimates and the owner's basis decisions (`work/basis-decisions.json`, `pfc-basis-decisions-v1`) |
@@ -246,12 +264,14 @@ After touching scripts, run `python3 -I scripts/test_http_client.py scripts`,
 `python3 -I scripts/test_off_rules.py scripts`, `python3 -I scripts/test_outbound_gate.py scripts`,
 `python3 -I scripts/test_owner_approval.py scripts`, `python3 -I scripts/test_private_config.py scripts`, `python3 -I scripts/test_compile_all.py scripts`, `python3 -I scripts/test_guards_and_edges.py scripts`, `python3 -I scripts/test_purchase_counts.py scripts`, `python3 -I scripts/test_attach_label.py scripts`,
 `python3 -I scripts/test_estimates_input.py scripts`, `python3 -I scripts/test_estimate_counts.py scripts`,
-`python3 -I scripts/test_photo_estimates.py scripts`, `python3 -I scripts/test_gap_amendments.py scripts` and
+`python3 -I scripts/test_photo_estimates.py scripts`, `python3 -I scripts/test_gap_amendments.py scripts`,
+`python3 -I scripts/test_identity_facts.py scripts` and
 `python3 -I scripts/test_export_check.py scripts docs/fixtures/personal-food-database-v1` and the same
 with `docs/fixtures/personal-food-database-v2` and `docs/fixtures/personal-food-database-estimates-v2`
 (from the repository root; CI runs the three fixture checks). When a rejection rule changes,
 regenerate the shared fixtures with `--write docs/fixtures/personal-food-database-v1`, `--write-v2
 docs/fixtures/personal-food-database-v2` or `--write-estimates-v2
-docs/fixtures/personal-food-database-estimates-v2` and review the diff: the Swift importer tests read
+docs/fixtures/personal-food-database-estimates-v2` (the v3 and v4 folders with `test_photo_estimates.py` and
+`test_identity_facts.py --write`, checked with `--verify`) and review the diff: the Swift importer tests read
 them too, and the v1 folder must not change.
 When `OpenFoodFactsLookup.swift` changes, update `off_rules.py` and its tests in the same change.

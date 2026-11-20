@@ -71,6 +71,7 @@ final class PersonalFoodDatabaseCodecEstimatesTests: XCTestCase {
         let m = try Self.manifest()
         // The label photo codes belong to estimates v3 files alone (PersonalFoodDatabaseCodecV3Tests).
         let upToV2 = Set(PersonalFoodDatabaseRuleCode.allCases).subtracting(PersonalFoodDatabaseRuleCode.estimatesV3Only)
+            .subtracting(PersonalFoodDatabaseRuleCode.estimatesV4Only)
         XCTAssertEqual(Set(upToV2.map(\.rawValue)), Set(m.rule_codes))
         XCTAssertEqual(Set(PersonalFoodDatabaseRuleCode.estimatesOnly.map(\.rawValue)), Set(m.estimates_only_rule_codes))
         XCTAssertEqual(PersonalFoodDatabaseRuleCode.importerOnly.map(\.rawValue), m.importer_rule_codes)

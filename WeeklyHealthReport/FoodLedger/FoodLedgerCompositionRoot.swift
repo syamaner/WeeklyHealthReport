@@ -168,7 +168,8 @@ final class FoodLedgerCompositionRoot {
         // Taiwan rows follow UK and US rows unless the Settings market is Taiwan or the
         // query names Taiwan or contains Chinese characters (composite-generic-ranking-v9).
         // Ciqual (French reference) rows follow every other row and are never promoted
-        // (composite-generic-ranking-v11); the label estimate pool searches this composite too.
+        // (composite-generic-ranking-v11); Your food database rows that contradict the request are
+        // left out (v12); the label estimate pool searches this composite too.
         let market = foodMarket
         let ciqual = try CiqualGenericFoodSearch(ids: ids)
         referenceRecordDetails = ciqual
