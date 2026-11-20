@@ -1,6 +1,7 @@
 # Confirm enrichment through OpenRouter v1 (CE1)
 
-Status: **proposed, 20 November 2026; not approved, documentation only.** Written for #549 (which
+Status: **proposed, 20 November 2026; not approved, documentation only.** Architecture gate PASS at round
+nine (section 17). Written for #549 (which
 folds in #553) against `main` at `91fa7479`, after the owner approved
 [one OpenRouter consent O1](openrouter-single-consent-v1-amendment.md) (#551, PR #554) the same day.
 No app egress, code, fixture or policy text changes before the owner approves the exact terms of
@@ -865,4 +866,5 @@ compatibility choice of section 14 with the approval.
   taken: the new requirement is raised only when a B row is kept and nothing else is known, and with
   every B row left out the requirements equal those without B (the round-seven text would have blocked
   a state that logs today and contradicted its own test).
-- **Architecture gate, ninth round:** pending.
+- **Architecture gate, ninth round (20 November 2026, at `cc7491ac`): PASS.** No finding; every cited
+  claim checked against the code at that head.
