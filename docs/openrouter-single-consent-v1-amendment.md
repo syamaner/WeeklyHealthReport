@@ -93,9 +93,10 @@ reason.** That covers:
    takes the same gate before it may send, and its own contract cannot replace the gate with a
    per-feature approval.
 
-Page fetches from public publishers (web lookup's chosen source, `HTTPSFoodSourcePageAcquirer`) are not
+Page fetches from public publishers (web lookup's chosen source, fetched through the reviewer's
+`FoodDocumentCapturing`, which the app builds as `PublicFoodSourceCapture`) are not
 OpenRouter requests, but they happen only inside a web lookup. The web lookup orchestration
-(`GenericFoodProposalReviewer`) asks the gate, as `webLookup`, before it acquires any page as well as
+(`GenericFoodProposalReviewer`) asks the gate, as `webLookup`, immediately before each `capture.capture` call as well as
 before each model call, so with a supplied address, or after the switch goes off mid-lookup, no page is
 fetched.
 
@@ -106,7 +107,7 @@ fetched.
   immediately before every send, including each retry attempt (after any backoff wait, so a switch
   turned off during the wait stops the next send), at these sites:
   `OpenRouterFoodProvider.request` (as `keyValidation` for `v1/key`, as `webLookup` for every other
-  path), the web lookup orchestration before page acquisition (`webLookup`),
+  path), the web lookup orchestration before each `capture.capture` (`webLookup`),
   `OpenRouterLabelPhotoAttempt.attempt` before `transport.send` (`labelPhotoRead`),
   `OpenRouterLabelRouteChecker`'s two catalogue fetches, and the two pasted label text adapters
   (`pastedLabelTextRead`). The catalogue fetch takes its use from the caller
@@ -124,7 +125,7 @@ fetched.
     usable review with ranking unavailable) or an `.acquisition(.invalidResponse)`. Both web lookup view
     models (`FoodWebDiscoveryViewModel` and `GenericFoodProposalReviewViewModel`) receive the gate and
     map `.notPermitted` to the blocked row, never to "The source review did not complete its checks". The orchestration's
-    check before page acquisition runs outside the capture `do`/`catch`, so a refusal never reaches the
+    check before `capture.capture` runs outside the capture `do`/`catch`, so a refusal never reaches the
     second-lead retry;
   - key validation: `FoodWebDiscoveryViewModel.validate(key:saveNewKey:)` asks the gate first, before
     `invalidateUsability()`, so Revalidate with the switch off keeps the session's validation;
@@ -141,7 +142,22 @@ fetched.
     off gives `.failed(.notPermitted)` (the switch-off row), and a removed key with the switch on gives
     `.failed(.keyMissing)` (an existing case), which `LabelPhotoText` maps to the O1.4 no-key row; neither
     shows route-unavailable copy or "Turn on OpenRouter" for the wrong reason.
-  These enums are not `Codable` and are never stored, so no format changes.
+  - pasted label text (not wired): the attempt returns `.notSent(.notPermitted)`, a new case
+    `notPermitted = "not_permitted"` of `PastedLabelAITextNotSent`, rather than `requestRefused`, which
+    would mislabel it; the route checker throws a new `CheckError.notPermitted`. The shared contract
+    suite `PastedLabelAITextPortContracts` (contract test 28) gains the case, so the fakes and the real
+    adapters agree.
+  - **The label photo read closure's key state** comes from the same source as the screen environment
+    for that mode: in a scripted mode the `-LabelPhotoKey` argument (today's `keyState` closure), in
+    live mode the shared `FoodWebDiscoveryViewModel`; never a fresh Keychain read. A not-validated key
+    passes the closure as today (the screen's `keyNotValidated` blocker, now the O1.4 row, already
+    stops the tap before the closure runs), so the closure
+    refuses only for switch off and a missing key.
+  `LabelImageReadingFailure`, `LabelPhotoRouteCheckFailure` and `FoodWebDiscoveryError` are not
+  `Codable`. `PastedLabelAITextNotSent` is `Codable` with raw values, but it is in no app record,
+  archive or export (the route is not wired); the new raw value is additive, and the pasted label
+  evaluation tool passes a gate that permits its uses, so its private records never contain the case. So no format
+  changes.
 - **The daily count.** `LabelPhotoReadSession` asks the gate before the catalogue check (as
   `labelPhotoCatalogueCheck`) and before it reserves the tap (as `labelPhotoRead`); a refusal there reserves nothing and is not counted towards the 30 reads. A
   refusal at the attempt, after the reservation (the switch turned off in the narrow window between
@@ -285,7 +301,8 @@ checked in this order:
    the switch on. With the
    gate refusing: web lookup by search and by supplied address (page fetch included), key validation,
    the label photo attempt (every retry) and both catalogue fetches, and the two pasted label text
-   adapters each reach the recording transport or page acquirer zero times, and each returns the
+   adapters each reach the recording transport or the recording `FoodDocumentCapturing` zero times
+   (search, supplied address and the second-lead path, with no `GenericFoodProposalPartialFailure`), and each returns the
    outcome of O1.2. The presentation shows the blocked row.
 2. **A refusal is not a rejected key or a broken route.** After a refusal the session's validation is
    kept, `reject` is never called and no rejected-key text appears, including Revalidate with the
@@ -304,14 +321,18 @@ checked in this order:
    `keyIsUsable` and bumps the credential generation, so after the switch is turned on no request
    carries the old key; the pasted text route checker with
    a refusing gate makes zero transport calls on both internal fetches and records
-   `pastedLabelTextCatalogueCheck`; the web lookup review view
+   `pastedLabelTextCatalogueCheck`; both pasted label text adapters return the new named cases and
+   `not_permitted` round-trips; with `-LabelPhotoRoute <scenario>`, the switch on and no real Keychain
+   key, a scripted read succeeds, and with the switch off it gives `.failed(.notPermitted)`; a live
+   not-validated key at the read closure passes through and the screen's row blocks the tap; the web
+   lookup review view
    model shows the blocked row for `.notPermitted`, with no partial or "did not complete" copy.
 3. **Switch on changes nothing else.** With the switch on, each route's request bytes equal committed
    golden fixtures captured from `main` before the change (`OpenRouterLabelPhotoRequest`'s existing
    golden, and new goldens of web lookup's request bodies and headers, key removed).
 4. **Turning off mid-journey.** Off while a label photo screen or web lookup is open: the next tap
    shows the blocked row; a retry attempt after the switch goes off is refused at the request site; a
-   web lookup whose switch flips before page acquisition fetches no page and sends no model request.
+   web lookup whose switch flips before `capture.capture` fetches no page and sends no model request.
 5. **Migration and seeding.** Each retired key, alone and in every combination, with and without a
    key: the switch reads off; turning the switch on and off never writes or removes a retired key; a
    `-openRouter.consent.v1 YES` argument-domain value reads as off; `OpenRouterConsentSeed.resolve`
@@ -534,7 +555,8 @@ notes", "Remove your OpenRouter key and disconnect Drive before deleting the app
       pinned by a test;
     - `LabelPhotoReadSession`: asks the gate before the catalogue check and before reserving the tap,
       and does not record a `notPermitted` check as a day failure (O1.2);
-    - `GenericFoodProposalReviewer`: asks the gate before page acquisition and before each model call.
+    - `GenericFoodProposalReviewer`: asks the gate before each `capture.capture` and before each model
+      call.
   - **Infrastructure**: `OpenRouterFoodProvider` (`FoodGenericSearch`), and `OpenRouterLabelPhotoAttempt`,
     `OpenRouterLabelRouteChecker`, `OpenRouterPastedLabelAITextAttempt` and
     `OpenRouterPastedLabelAITextRouteChecker` (`FoodLabelPhotoCapture`) take an
@@ -543,7 +565,8 @@ notes", "Remove your OpenRouter key and disconnect Drive before deleting the app
     site of O1.2.
     `OpenRouterPastedLabelAITextRouteChecker` builds its own photo checker inside its init, so its init
     takes the gate and passes it on. `OpenRouterTransport`, `ScriptedLabelPhotoTransport` and
-    `HTTPSFoodSourcePageAcquirer` do not change.
+    `PublicFoodSourceCapture` do not change (`HTTPSFoodSourcePageAcquirer` serves only the Gemini
+    review, which the app does not construct).
   - **Developer tools** (`Tools/LabelPhotoE13`, `Tools/PastedLabelAITextEval`,
     `Packages/FoodLedgerKit/Tools/FoodProposalProbe`):
     they construct the same adapters (and `Tools/LabelPhotoE13` also `LabelPhotoReadSession`), so each
@@ -664,4 +687,11 @@ Asked one at a time on #551, each with a recommendation. Approval of the amendme
   file and 17.22, with every O1 Release build internal-only; the key screen wording follows O1-D2, and
   saving a key with the switch off clears the session's validated key; the egress row gains the
   catalogue recheck clause the policy states.
-- **Architecture gate, seventh round:** pending.
+- **Architecture gate, seventh round (20 November 2026, at `d43684c0`): PASS WITH CHANGES.** No blocking
+  finding; all three taken: the app fetches publisher pages through the reviewer's
+  `FoodDocumentCapturing` (`PublicFoodSourceCapture`), not `HTTPSFoodSourcePageAcquirer`, so the gate
+  sits immediately before `capture.capture` and the tests count that double; the read closure takes its
+  key state from the mode's own source, so scripted runs need no real key, and a not-validated key
+  passes through as today; the pasted label text adapters get named refusal cases, with the `Codable`
+  not-sent enum's new raw value stated as additive and outside every record.
+- **Architecture gate, eighth round:** pending.
