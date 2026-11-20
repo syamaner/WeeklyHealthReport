@@ -4,7 +4,7 @@ The user resumed implementation after the four-area research and Swift design re
 
 ## Behaviour
 
-A meaningful description such as “Scallion pancake with eggs and american chese” can reach search before an intake amount is known. The screen, request, coordinator and OFF/Gemini adapters use the same closed interpretation policy. Requests carry an immutable interpretation of their exact original text; reconstructed requests retain it. Remote ports still store displayed food terms only and validate those terms locally. Original wording, including uncertain dictation, is retained as evidence. Discovery does not verify a dish or its nutrients.
+A meaningful description such as “Scallion pancake with eggs and American cheese” can reach search before an intake amount is known. The screen, request, coordinator and OFF/Gemini adapters use the same closed interpretation policy. Requests carry an immutable interpretation of their exact original text; reconstructed requests retain it. Remote ports still store displayed food terms only and validate those terms locally. Original wording, including uncertain dictation, is retained as evidence. Discovery does not verify a dish or its nutrients.
 
 Existing local-first orchestration, enabled-service settings, valid-key authority, source acquisition budgets and nutrition admission remain unchanged. Disabled services and a Gemini key needing validation are explained in source status. An unreported ready stage says Not searched; readiness alone is not evidence that enrichment was unnecessary. No live provider evaluation is included.
 
