@@ -101,6 +101,17 @@ enum PersonalFoodDatabaseRules {
     static let sourceValueKeysWithServing = set(["value", "unit", "serving"])
     static let servingKeys = set(["quantity", "unit"])
 
+    /// Amendment I1.1: the `identity_facts` keys and their closed values, as exact bytes.
+    static let factsKeys = set(PersonalFoodDatabaseIdentityFacts.keys)
+    static let factsValues: [PFDText: Set<PFDText>] = [
+        PFDText("preparation"): set(PersonalFoodDatabaseIdentityFacts.Preparation.allCases.map(\.rawValue)),
+        PFDText("bone"): set(["with_bone", "boneless", "not_applicable", "unknown"]),
+        PFDText("skin"): set(["skin_on", "skinless", "not_applicable", "unknown"]),
+        PFDText("drained"): set(["drained", "undrained", "not_applicable", "unknown"]),
+        PFDText("packing_medium"): set(PersonalFoodDatabaseIdentityFacts.PackingMedium.allCases.map(\.rawValue)),
+        PFDText("fortification"): set(PersonalFoodDatabaseIdentityFacts.Fortification.allCases.map(\.rawValue)),
+    ]
+
     static let categories = set(PersonalFoodDatabaseCategory.allCases.map(\.rawValue))
     static let productTypes = set(PersonalFoodDatabaseProductType.allCases.map(\.rawValue))
     static let states = set(PersonalFoodDatabaseState.allCases.map(\.rawValue))
@@ -288,8 +299,8 @@ struct PersonalFoodDatabaseChecker {
             return err(.topKeys)
         }
         func names(_ s: PersonalFoodDatabaseSchema) -> Bool { schema.isString(PFDText(bytes: Array(s.rawValue.utf8))) }
-        let estimatesSchema: PersonalFoodDatabaseSchema? = names(.estimatesV3) ? .estimatesV3
-            : names(.estimatesV2) ? .estimatesV2 : nil
+        let estimatesSchema: PersonalFoodDatabaseSchema? = names(.estimatesV4) ? .estimatesV4
+            : names(.estimatesV3) ? .estimatesV3 : names(.estimatesV2) ? .estimatesV2 : nil
         let estimates = estimatesSchema != nil
         if keys == R.topKeysEstimates {
             if !estimates, !names(.v1), !names(.v2) { return err(.schema) }
@@ -298,7 +309,10 @@ struct PersonalFoodDatabaseChecker {
         } else if estimates {
             return err(.topKeys)
         }
-        let itemKeys = estimates ? R.itemKeys.union([PFDText("estimated_nutrients")]) : R.itemKeys
+        // Amendment I1.2: only a v4 entry has `identity_facts`; in v1 to v3 it stays an unknown key.
+        let facts = estimatesSchema == .estimatesV4
+        let itemKeys = estimates ? R.itemKeys.union([PFDText("estimated_nutrients")])
+            .union(facts ? [PFDText("identity_facts")] : []) : R.itemKeys
         // An unknown schema keeps the v1 rules for the rest of the file, as `export_v1` does.
         let v2 = names(.v2) || estimates
         if !names(.v1) && !v2 { err(.schema) }
@@ -399,6 +413,7 @@ struct PersonalFoodDatabaseChecker {
                 err(.vocabulary)
                 continue
             }
+            if facts, let value = item["identity_facts"], !value.isNull { checkFacts(value, state: state) }
             if let ref = item["generic_reference"], !ref.isNull {
                 if ref.keys == R.referenceKeys, let source = ref["source"]?.text, let corpus = ref["corpus_sha256"]?.text,
                    let record = ref["record_id"]?.text, let match = ref["match"]?.text, let role = ref["role"]?.text,
@@ -426,6 +441,23 @@ struct PersonalFoodDatabaseChecker {
                 }
             }
             if servings.values.contains(where: { $0.count > 1 }) { err(.servingMismatch) }
+        }
+    }
+
+    /// Amendment I1.2 (`identity_facts.check`): `facts-keys` for anything but an object with exactly the
+    /// six keys, then one `facts-value` for any value outside its closed list, else `facts-state` when the
+    /// preparation disagrees with `state`.
+    private mutating func checkFacts(_ value: PFDValue, state: PFDText) {
+        guard let members = value.members, members.count == R.factsKeys.count, value.keys == R.factsKeys else {
+            return err(.factsKeys)
+        }
+        guard members.allSatisfy({ member in member.value.text.map { R.factsValues[member.key]?.contains($0) ?? false } ?? false }) else {
+            return err(.factsValue)
+        }
+        guard let preparation = value["preparation"]?.text.flatMap({ PersonalFoodDatabaseIdentityFacts.Preparation(rawValue: $0.string) }),
+              let entryState = PersonalFoodDatabaseState(rawValue: state.string),
+              PersonalFoodDatabaseIdentityFacts.preparationAgrees(preparation, state: entryState) else {
+            return err(.factsState)
         }
     }
 
@@ -593,15 +625,32 @@ enum PersonalFoodDatabaseBuilder {
         var entries: [PersonalFoodDatabaseEntry] = []
         entries.reserveCapacity(itemValues.count)
         for item in itemValues {
-            guard let base = entry(item), let estimates = estimates(item, records: records) else { return nil }
+            guard let base = entry(item), let estimates = estimates(item, records: records),
+                  let identityFacts = identityFacts(item["identity_facts"]) else { return nil }
             entries.append(PersonalFoodDatabaseEntry(
                 id: base.id, brand: base.brand, title: base.title, titles: base.titles, aliases: base.aliases,
                 concept: base.concept, variety: base.variety, fallbackChain: base.fallbackChain, category: base.category,
                 productType: base.productType, state: base.state, basis: base.basis, labelNutrients: base.labelNutrients,
-                genericReference: base.genericReference, estimatedNutrients: estimates))
+                genericReference: base.genericReference, estimatedNutrients: estimates,
+                identityFacts: identityFacts))
         }
         return PersonalFoodDatabaseFile(schema: schema, generated: generated, sources: sources, genericCorpora: corpora,
                                         entries: entries)
+    }
+
+    /// `.some(nil)` for an absent or null `identity_facts`, nil for an object the checks should have refused.
+    static func identityFacts(_ v: PFDValue?) -> PersonalFoodDatabaseIdentityFacts?? {
+        guard let v, !v.isNull else { return .some(nil) }
+        func text(_ key: StaticString) -> String? { v[key]?.text?.string }
+        guard let preparation = text("preparation").flatMap(PersonalFoodDatabaseIdentityFacts.Preparation.init(rawValue:)),
+              let bone = text("bone").flatMap(BoneState.init(rawValue:)),
+              let skin = text("skin").flatMap(SkinState.init(rawValue:)),
+              let drained = text("drained").flatMap(DrainedState.init(rawValue:)),
+              let packing = text("packing_medium").flatMap(PersonalFoodDatabaseIdentityFacts.PackingMedium.init(rawValue:)),
+              let fortification = text("fortification").flatMap(PersonalFoodDatabaseIdentityFacts.Fortification.init(rawValue:))
+        else { return nil }
+        return .some(PersonalFoodDatabaseIdentityFacts(preparation: preparation, bone: bone, skin: skin, drained: drained,
+                                                       packingMedium: packing, fortification: fortification))
     }
 
     static func declaredSource(_ s: PFDValue) -> PersonalFoodDatabaseDeclaredSource? {

@@ -385,7 +385,7 @@ final class FilePersonalFoodDatabaseStoreTests: XCTestCase {
         try makeStore().install(bytes: a.bytes, manifest: v3)
         XCTAssertEqual(try makeStore().activeRelease()?.manifest, v3)
         let unknown = try JSONDecoder().decode(PersonalFoodDatabaseStoredManifest.self,
-            from: Data(text.replacingOccurrences(of: "estimates-v3", with: "estimates-v4").utf8))
+            from: Data(text.replacingOccurrences(of: "estimates-v3", with: "estimates-v9").utf8))
         XCTAssertNil(unknown.manifest)
     }
 

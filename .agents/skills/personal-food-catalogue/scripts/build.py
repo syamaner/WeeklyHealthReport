@@ -2,7 +2,7 @@
 """Rebuild the catalogue from what is already in work/, then export and report.
 
 Offline: runs no fetch. Order: validate_mappings -> assemble -> assemble_extras ->
-export_v1 -> apply_estimates -> coverage report.
+export_v1 -> apply_estimates -> apply_identity_facts -> coverage report.
 
 Usage: python3 -I build.py <workspace> <repo_root>
 """
@@ -36,6 +36,9 @@ def main(ws: Path, repo: Path):
     run(HERE / "export_v1.py", ws, repo)
     # Adds the owner's accepted estimates; without work/accepted-estimates.json the plain v2 file stands.
     run(HERE / "apply_estimates.py", ws, repo)
+    # Adds the owner's approved food details (identity facts amendment I1); without
+    # work/approved-identity-facts.json the v2 or v3 file stands.
+    run(HERE / "apply_identity_facts.py", ws, repo)
     items = [i for i in json.load(open(out / "personal-food-catalogue.json"))["items"] if i["kind"] == "food"]
     has = lambda i, k: (i["nutrients"].get(k) or {}).get("value") is not None
     n = len(items)

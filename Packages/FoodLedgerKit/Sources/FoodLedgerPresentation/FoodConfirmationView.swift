@@ -70,6 +70,13 @@ public final class FoodConfirmationViewModel: ObservableObject {
             nutrients: state.correction?.nutrients ?? state.reopened?.resolutionVersion.nutrients,
             releases: state.input.sourceReleases)
     }
+    /// Amendment I1.4: "Food details from your food database: ..." for a candidate whose note carries the
+    /// frozen prefix, hidden when a correction (including a carried fill) or a reopened entry applies.
+    /// Never behind details: it is what lets Log through.
+    public var databaseFactsLine: String? {
+        guard state.correction == nil, state.reopened == nil else { return nil }
+        return FoodDetailsFillPolicy.databaseFactsNote(state.selectedCandidate)
+    }
     public var displayedVariant: LedgerText? { state.correction?.variant ?? state.reopened?.productVersion.variant ?? state.selectedCandidate.variant }
     public var displayedIdentity: DecisiveIdentity { state.correction?.identity ?? state.reopened?.productVersion.identity ?? state.selectedCandidate.candidate.identity }
     public var selectionCaution: String? {
@@ -968,6 +975,8 @@ public final class FoodConfirmationViewModel: ObservableObject {
         }
         if !missingSourceDetails.isEmpty { return Self.addFoodDetailsTitle }
         if state.reopened != nil || state.correction != nil { return Self.correctFoodDetailsTitle }
+        // Amendment I1.4: a fact the catalogue states can still be changed, even when every one is.
+        if FoodDetailsFillPolicy.statesDatabaseFacts(state.selectedCandidate) { return Self.correctFoodDetailsTitle }
         return nil
     }
 
@@ -1338,6 +1347,9 @@ public struct FoodConfirmationView: View {
             }
             ForEach(model.scaledServingNotes, id: \.self) { note in
                 Label(note, systemImage: "info.circle").font(.subheadline).accessibilityLabel(note)
+            }
+            if let line = model.databaseFactsLine {
+                Label(line, systemImage: "checkmark.circle").font(.subheadline).accessibilityLabel(line)
             }
             if model.displayedName != model.state.selectedCandidate.name {
                 LabeledContent("Source food", value: model.state.selectedCandidate.name.value).font(.caption)

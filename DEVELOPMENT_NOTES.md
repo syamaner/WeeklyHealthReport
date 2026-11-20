@@ -5109,3 +5109,11 @@ Unmeasured: no boundary was captured at the start of this phase, separately from
 The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) archived `main` at `25b855e3` on the owner's request, exported it for internal testing only, uploaded build 42, set What to Test and added it to Internal Testing on the owner's yes, and wrote [the build 42 record](docs/releases/internal-testflight-0.3.0-build42.md).
 
 Unmeasured: no boundary was captured at the start of this delivery, separately from the fix work done in the same session, so no token figure is recorded rather than an estimate.
+
+## WHR-546-2026-11-20: Claude Code food details from the catalogue, amendment I1 (#546)
+
+The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) traced why every Your food database entry blocks Log on Confirm (import v1 leaves bone, skin, drained state, packing medium and fortification unknown), and wrote amendment I1: a `personal-food-catalogue-estimates-v4` schema whose entries carry owner-reviewed food details, a facts-aware merge and estimate check, and a `composite-generic-ranking-v12` database route filter. Three blind architecture-gate rounds (FAIL, FAIL, PASS WITH CHANGES) are recorded in the document's section 7.
+
+After the owner approved I1 with the recommendations for I1-D1 to I1-D3, an implementation subagent in the same session implemented sections I1.1 to I1.5, 4 and 5 on the same branch: the v4 schema, `identity_facts` and the three `facts-*` codes in the Swift codec and the skill's checker, the facts-aware candidate identity and merge, the v4 `estimate-contradiction` addition, `pfc-resolution-v2` as a function of schema, the v12 database route filter, the Confirm line, decision I1-D1 in `FoodDetailsFillPolicy`, the skill's `apply_identity_facts.py` writer and checker reports, the shared v4 fixtures and the contract tests. Section I1.6 (Jev) was not implemented.
+
+Unmeasured: no boundary was captured at the start of this phase, separately from the other work done in the same session, so no token figure is recorded rather than an estimate.

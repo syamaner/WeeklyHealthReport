@@ -16,7 +16,7 @@ public enum PersonalFoodDatabaseEstimateSourceType: String, CaseIterable, Codabl
     /// The closed list of one catalogue schema (phase gate section 1): never `allCases`, so a new
     /// case cannot widen an older version.
     public static func allowed(catalogue schema: PersonalFoodDatabaseSchema) -> [Self] {
-        schema == .estimatesV3 ? estimatesV2List + [.productDatasetPhoto] : estimatesV2List
+        schema == .estimatesV3 || schema == .estimatesV4 ? estimatesV2List + [.productDatasetPhoto] : estimatesV2List
     }
 }
 
@@ -366,6 +366,7 @@ struct PersonalFoodDatabaseEstimateChecker {
                         schema: PersonalFoodDatabaseSchema = .estimatesV2) {
         guard let evidence = doc["estimate_evidence"]?.items, let items = doc["items"]?.items else { return }
         let itemKeys = R.itemKeys.union([PFDText("estimated_nutrients")])
+            .union(schema == .estimatesV4 ? [PFDText("identity_facts")] : [])
         var corpora = Set<PFDText>()
         for c in doc["generic_corpora"]?.items ?? [] {
             if let source = c["source"]?.text { corpora.insert(source) }

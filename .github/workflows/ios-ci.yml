@@ -98,6 +98,11 @@ jobs:
             .agents/skills/personal-food-catalogue/scripts docs/fixtures/personal-food-database-v2
           python3 -I .agents/skills/personal-food-catalogue/scripts/test_export_check.py \
             .agents/skills/personal-food-catalogue/scripts docs/fixtures/personal-food-database-estimates-v2
+          # Food details from the catalogue (I1, #546): the v4 fixtures, the shared merge cases and the writer.
+          python3 -I .agents/skills/personal-food-catalogue/scripts/test_identity_facts.py \
+            .agents/skills/personal-food-catalogue/scripts --verify docs/fixtures/personal-food-database-estimates-v4
+          python3 -I .agents/skills/personal-food-catalogue/scripts/test_identity_facts.py \
+            .agents/skills/personal-food-catalogue/scripts
           # The estimates writer's builder rules (label kept, merged kept, composite, reason order,
           # byte-identical plain v2) and the six evaluator counts (#511). Synthetic data only.
           python3 -I .agents/skills/personal-food-catalogue/scripts/test_estimates_input.py \

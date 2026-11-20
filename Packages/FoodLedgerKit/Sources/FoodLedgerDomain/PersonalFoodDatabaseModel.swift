@@ -52,6 +52,9 @@ public enum PersonalFoodDatabaseRuleCode: String, CaseIterable, Error, Sendable 
     // Label photo estimates (docs/personal-food-catalogue-off-estimates-v1-phase.md section 4): a
     // `personal-food-catalogue-estimates-v3` file only.
     case photoFields = "photo-fields", photoRelation = "photo-relation", photoMissing = "photo-missing"
+    // Food details from the catalogue (docs/personal-food-catalogue-identity-facts-v1-amendment.md section
+    // I1.2): a `personal-food-catalogue-estimates-v4` file only.
+    case factsKeys = "facts-keys", factsValue = "facts-value", factsState = "facts-state"
 
     /// The codes a `personal-food-catalogue-v1` file can never get.
     public static let v2Only: Set<Self> = [.servingImplausible, .servingMismatch]
@@ -70,6 +73,9 @@ public enum PersonalFoodDatabaseRuleCode: String, CaseIterable, Error, Sendable 
 
     /// The codes only a `personal-food-catalogue-estimates-v3` file can get, beyond `estimatesOnly`.
     public static let estimatesV3Only: Set<Self> = [.photoFields, .photoRelation, .photoMissing]
+
+    /// The codes only a `personal-food-catalogue-estimates-v4` file can get (amendment I1.2).
+    public static let estimatesV4Only: Set<Self> = [.factsKeys, .factsValue, .factsState]
 }
 
 /// The file schemas the importer accepts. v1 files keep the v1 rules exactly; v2 adds Open Food
@@ -82,9 +88,15 @@ public enum PersonalFoodDatabaseSchema: String, CaseIterable, Sendable {
     /// Estimates v2 plus the `product_dataset_photo` source type, written only when such an
     /// estimate exists (docs/personal-food-catalogue-off-estimates-v1-proposal.md section 2.1).
     case estimatesV3 = "personal-food-catalogue-estimates-v3"
+    /// Estimates v3 plus every entry's `identity_facts`, with the photo source type admitted but not
+    /// required (docs/personal-food-catalogue-identity-facts-v1-amendment.md section I1.1).
+    case estimatesV4 = "personal-food-catalogue-estimates-v4"
 
     /// True for the schemas that carry `estimate_evidence`.
-    public var carriesEstimates: Bool { self == .estimatesV2 || self == .estimatesV3 }
+    public var carriesEstimates: Bool { self == .estimatesV2 || self == .estimatesV3 || self == .estimatesV4 }
+
+    /// True for the schema whose entries carry `identity_facts` (amendment I1.1).
+    public var carriesIdentityFacts: Bool { self == .estimatesV4 }
 
     /// True for the schemas that take the import v2 rules on their v2 part.
     var usesV2Rules: Bool { self != .v1 }
@@ -233,6 +245,69 @@ public struct PersonalFoodDatabaseLabelValue: Equatable, Sendable {
     public let transform: PersonalFoodDatabaseTransform?
 }
 
+/// An entry's `identity_facts` object (amendment I1.1): owner-approved food details with closed values.
+/// Fortified is never admitted (decision I1-D2), and the preparation agrees with the entry's `state`.
+public struct PersonalFoodDatabaseIdentityFacts: Equatable, Sendable {
+    public enum Preparation: String, CaseIterable, Sendable {
+        case asSold = "as_sold", raw, cooked, unknown
+
+        /// The `PreparationState` kind; `cooked` has no method.
+        public var kind: PreparationKind {
+            switch self {
+            case .asSold: .asSold
+            case .raw: .raw
+            case .cooked: .cooked
+            case .unknown: .unknown
+            }
+        }
+    }
+
+    /// The packing medium names: the two frozen names of Confirm rules review rule 2.3 and the identity
+    /// contract's examples. Each maps to `PackingMediumState.named` with exactly this text.
+    public enum PackingMedium: String, CaseIterable, Sendable {
+        case asSold = "as sold", notApplicable = "not applicable", water, brine, oil
+        case oliveOil = "olive_oil", sauce, unknown
+    }
+
+    public enum Fortification: String, CaseIterable, Sendable {
+        case unfortified, unknown
+
+        public var state: FortificationState { self == .unfortified ? .unfortified : .unknown }
+    }
+
+    /// The object's keys, in the order the skill writes them.
+    public static let keys = ["preparation", "bone", "skin", "drained", "packing_medium", "fortification"]
+
+    public let preparation: Preparation
+    public let bone: BoneState
+    public let skin: SkinState
+    public let drained: DrainedState
+    public let packingMedium: PackingMedium
+    public let fortification: Fortification
+
+    public init(preparation: Preparation = .unknown, bone: BoneState = .unknown, skin: SkinState = .unknown,
+                drained: DrainedState = .unknown, packingMedium: PackingMedium = .unknown,
+                fortification: Fortification = .unknown) {
+        self.preparation = preparation; self.bone = bone; self.skin = skin; self.drained = drained
+        self.packingMedium = packingMedium; self.fortification = fortification
+    }
+
+    /// The packing medium as the identity stores it.
+    public var packingMediumState: PackingMediumState {
+        packingMedium == .unknown ? .unknown : (try? LedgerText(packingMedium.rawValue)).map(PackingMediumState.named) ?? .unknown
+    }
+
+    /// Amendment I1.1: `raw` admits `raw` or `unknown`, `cooked` admits `cooked` or `unknown`, and every
+    /// other state admits `as_sold` or `unknown`; never `raw` or `cooked`, as the merge relies on `state`.
+    public static func preparationAgrees(_ preparation: Preparation, state: PersonalFoodDatabaseState) -> Bool {
+        switch state {
+        case .raw: preparation == .raw || preparation == .unknown
+        case .cooked: preparation == .cooked || preparation == .unknown
+        case .canned, .frozen, .dried, .smoked, .unknown: preparation == .asSold || preparation == .unknown
+        }
+    }
+}
+
 public struct PersonalFoodDatabaseEntry: Equatable, Sendable {
     /// Opaque `pfc:` and 12 hex digits; never recomputed.
     public let id: String
@@ -253,17 +328,21 @@ public struct PersonalFoodDatabaseEntry: Equatable, Sendable {
     /// Owner-approved estimates, in file order; empty for a v1 or v2 file. Never on a key that
     /// `labelNutrients` holds (rule `label-and-estimate`).
     public let estimatedNutrients: [PersonalFoodDatabaseEstimate]
+    /// Amendment I1.1: nil for a v1 to v3 file and for a v4 entry whose `identity_facts` is null.
+    public let identityFacts: PersonalFoodDatabaseIdentityFacts?
 
     public init(id: String, brand: String?, title: String, titles: [String], aliases: [String], concept: String?,
                 variety: String?, fallbackChain: [String], category: PersonalFoodDatabaseCategory,
                 productType: PersonalFoodDatabaseProductType, state: PersonalFoodDatabaseState,
                 basis: PersonalFoodDatabaseBasis, labelNutrients: [PersonalFoodDatabaseLabelNutrient],
                 genericReference: PersonalFoodDatabaseGenericReference?,
-                estimatedNutrients: [PersonalFoodDatabaseEstimate] = []) {
+                estimatedNutrients: [PersonalFoodDatabaseEstimate] = [],
+                identityFacts: PersonalFoodDatabaseIdentityFacts? = nil) {
         self.id = id; self.brand = brand; self.title = title; self.titles = titles; self.aliases = aliases
         self.concept = concept; self.variety = variety; self.fallbackChain = fallbackChain; self.category = category
         self.productType = productType; self.state = state; self.basis = basis; self.labelNutrients = labelNutrients
         self.genericReference = genericReference; self.estimatedNutrients = estimatedNutrients
+        self.identityFacts = identityFacts
     }
 }
 
@@ -324,6 +403,13 @@ public struct PersonalFoodDatabaseFile: Equatable, Sendable {
 public enum PersonalFoodDatabaseRelease {
     public static let sourceID = "personal-food-database"
     public static let pipelineVersion = "pfc-resolution-v1"
+    /// Amendment I1.3: a release (and its candidates) built from a v4 file.
+    public static let pipelineVersionV2 = "pfc-resolution-v2"
+
+    /// The pipeline version as a function of the file's schema (amendment I1.3 "Method version").
+    public static func pipelineVersion(for schema: PersonalFoodDatabaseSchema) -> String {
+        schema == .estimatesV4 ? pipelineVersionV2 : pipelineVersion
+    }
     public static let licence = "private"
     public static let attribution = "Your food database, built by the owner"
 
@@ -337,7 +423,7 @@ public enum PersonalFoodDatabaseRelease {
             releasedAt: generated.utcMidnight,
             artifactHash: fileSHA256,
             schemaVersion: try LedgerText(schema.rawValue),
-            pipelineVersion: try LedgerText(pipelineVersion),
+            pipelineVersion: try LedgerText(pipelineVersion(for: schema)),
             licence: try LedgerText(licence),
             attribution: try LedgerText(attribution),
             manifestHash: fileSHA256

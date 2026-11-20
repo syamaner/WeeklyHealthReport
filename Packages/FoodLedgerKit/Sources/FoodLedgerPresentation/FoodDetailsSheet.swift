@@ -57,7 +57,21 @@ public struct FoodDetailsDraft: Equatable, Sendable {
     /// optional and an empty one is stored as "Food details added". Changing anything the source
     /// states still needs a typed reason.
     public func canApply(in state: FoodConfirmationState) -> Bool {
-        canApply || (!name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && fillsOnly(in: state))
+        canApply || (!name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                     && (fillsOnly(in: state) || changesDatabaseFactsOnly(in: state)))
+    }
+
+    /// Decision I1-D1: these answers change a fact a Your food database candidate states, and nothing
+    /// else, so no typed reason is needed; an empty one is stored as "Food details changed from your
+    /// food database". It is not a fill.
+    public func changesDatabaseFactsOnly(in state: FoodConfirmationState) -> Bool {
+        guard state.decisions.isEmpty, FoodLogPolicy.pendingDifferences(state).isEmpty else { return false }
+        var probe = self
+        if probe.reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            probe.reason = FoodDetailsFillPolicy.databaseFactChangedReason
+        }
+        guard let correction = probe.correction(for: state.selectedCandidate) else { return false }
+        return FoodDetailsFillPolicy.changesDatabaseFactsOnly(correction, in: state)
     }
 
     /// Whether these answers only fill in blanks on this Confirm.
@@ -77,7 +91,9 @@ public struct FoodDetailsDraft: Equatable, Sendable {
     public func correction(in state: FoodConfirmationState) -> FoodCorrection? {
         guard canApply(in: state) else { return nil }
         var draft = self
-        if draft.reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { draft.reason = FoodDetailsFillPolicy.filledReason }
+        if draft.reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            draft.reason = fillsOnly(in: state) ? FoodDetailsFillPolicy.filledReason : FoodDetailsFillPolicy.databaseFactChangedReason
+        }
         return draft.correction(for: state.selectedCandidate)
     }
 
@@ -323,7 +339,9 @@ public struct FoodDetailsForm: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(Self.reasonTitle).accessibilityHidden(true)
             TextField(Self.reasonTitle, text: $reasonText,
-                      prompt: Text(draft.fillsOnly(in: model.state) ? "Optional when only filling in blanks" : "Required"),
+                      prompt: Text(draft.fillsOnly(in: model.state) ? "Optional when only filling in blanks"
+                                   : draft.changesDatabaseFactsOnly(in: model.state) ? "Optional for food details from your food database"
+                                   : "Required"),
                       axis: .vertical)
                 .focused($reasonFocused)
                 .submitLabel(.done)

@@ -55,6 +55,32 @@ public enum PersonalFoodDatabaseEstimateAdmission {
         return entry.basis == .per100Grams && !record.isPer100GramsEdible
     }
 
+    /// Amendment I1.3, a v4 file only: today's conditions, plus any facet the estimate's record and the
+    /// entry's identity (built as Confirm builds it, `entryIdentity`) both know and state differently.
+    public static func contradicts(entry: PersonalFoodDatabaseEntry, record: GenericRecordFacts,
+                                   entryIdentity: DecisiveIdentity?) -> Bool {
+        if contradicts(entry: entry, record: record) { return true }
+        guard let entryIdentity else { return false }
+        return !EstimateIdentityComparison.contradictions(record: record.identity, confirmed: entryIdentity).isEmpty
+    }
+
+    /// The entry's candidate identity under amendment I1.3, for a v4 entry with stated facts; nil for v1
+    /// to v3 files, which keep today's check exactly, and for a v4 entry whose `identity_facts` is null,
+    /// so an all-null v4 file imports exactly as its v3 twin. The merge record is read through the same lookup; a record that
+    /// cannot be read does not merge, as the resolver would not resolve it.
+    public static func entryIdentity(_ entry: PersonalFoodDatabaseEntry, file: PersonalFoodDatabaseFile,
+                                     lookup: any GenericRecordNutrientLookup) -> DecisiveIdentity? {
+        guard file.schema == .estimatesV4, entry.identityFacts != nil else { return nil }
+        var merged: DecisiveIdentity?
+        if let reference = entry.genericReference, reference.role == .merge,
+           case let .success(record) = lookup.record(source: reference.source, corpusSHA256: reference.corpusSHA256,
+                                                     recordID: reference.recordID),
+           PersonalFoodDatabaseCandidateBuilder.mergeEligible(entry, facts: record) {
+            merged = record.identity
+        }
+        return try? PersonalFoodDatabaseCandidateBuilder.identity(entry, merged: merged).identity
+    }
+
     /// Amendment G2, for a per 100 ml entry: a per 100 ml record (G2b) or, from a per 100 g record, a
     /// value that is exactly zero in the record and in the file (G2a: zero needs no density). Anything
     /// else is `estimate-basis`. A per 100 g entry never gets this code.
@@ -89,7 +115,9 @@ public enum PersonalFoodDatabaseEstimateAdmission {
                 } else {
                     codes.append(.valueUnquantified)
                 }
-                if contradicts(entry: entry, record: record) { codes.append(.estimateContradiction) }
+                if contradicts(entry: entry, record: record, entryIdentity: entryIdentity(entry, file: file, lookup: lookup)) {
+                    codes.append(.estimateContradiction)
+                }
                 if basisMismatch(entry: entry, estimate: estimate, record: record) { codes.append(.estimateBasis) }
                 // G4: an estimate from the entry's own merge record only where the app does not merge it.
                 if entry.isOwnRecord(estimate.evidence),

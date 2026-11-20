@@ -142,7 +142,7 @@ def transform_matches(derivation, nutrient, value) -> bool:
 
 def source_types(schema) -> set:
     """The closed source-type list of one catalogue schema (label photo phase gate section 1)."""
-    return SOURCE_TYPES | {V3.TOKEN} if schema == V3.SCHEMA else SOURCE_TYPES
+    return SOURCE_TYPES | {V3.TOKEN} if schema in (V3.SCHEMA, export_v1.SCHEMA_ESTIMATES_V4) else SOURCE_TYPES
 
 
 def check_record(rec, corpora, err, where, schema=SCHEMA):
@@ -260,7 +260,8 @@ def check(doc, report, failed_items, duplicate_ids):
         report(code, detail)
 
     schema = doc.get("schema")
-    item_keys = export_v1.ITEM_KEYS | {"estimated_nutrients"}
+    item_keys = export_v1.ITEM_KEYS | {"estimated_nutrients"} \
+        | ({"identity_facts"} if doc.get("schema") == export_v1.SCHEMA_ESTIMATES_V4 else set())
     corpora = {c["source"] for c in doc["generic_corpora"]
                if isinstance(c, dict) and isinstance(c.get("source"), str)} \
         if isinstance(doc["generic_corpora"], list) else set()
