@@ -10,14 +10,13 @@ public struct LabelPhotoScreenView: View {
     private let openRouterSettings: () -> Void
     private let pasteLabel: () -> Void
     private let searchFoods: () -> Void
-    private let privacyPolicy: () -> Void
     private let leave: () -> Void
 
     public init(model: LabelPhotoScreenModel, views: any LabelPhotoViewFactory, openSettings: @escaping () -> Void,
                 openRouterSettings: @escaping () -> Void, pasteLabel: @escaping () -> Void, searchFoods: @escaping () -> Void,
-                privacyPolicy: @escaping () -> Void, leave: @escaping () -> Void) {
+                leave: @escaping () -> Void) {
         self.model = model; self.views = views; self.openSettings = openSettings; self.openRouterSettings = openRouterSettings
-        self.pasteLabel = pasteLabel; self.searchFoods = searchFoods; self.privacyPolicy = privacyPolicy; self.leave = leave
+        self.pasteLabel = pasteLabel; self.searchFoods = searchFoods; self.leave = leave
     }
 
     public var body: some View {
@@ -47,7 +46,6 @@ public struct LabelPhotoScreenView: View {
                 }
             }
         }
-        .sheet(isPresented: $model.showsFirstUseSheet) { firstUseSheet }
     }
 
     @ViewBuilder private var photoSection: some View {
@@ -84,8 +82,6 @@ public struct LabelPhotoScreenView: View {
                     Button(action) { blocker == .offline ? pasteLabel() : openRouterSettings() }.frame(minHeight: 44)
                 }
             }
-            // The egress statement sits directly above the button, every time (7.1).
-            Text(LabelPhotoText.egressStatement).font(.subheadline).accessibilityIdentifier("labelPhoto.egress")
             if let progress = model.progressText {
                 HStack(spacing: 12) {
                     ProgressView()
@@ -100,8 +96,6 @@ public struct LabelPhotoScreenView: View {
                 .disabled(!model.canRead)
                 .accessibilityIdentifier("labelPhoto.read")
             }
-        } footer: {
-            if let underButton = model.underButton { Text(underButton) }
         }
     }
 
@@ -129,30 +123,6 @@ public struct LabelPhotoScreenView: View {
         Button(LabelPhotoText.searchFoods, action: searchFoods).frame(minHeight: 44)
     }
 
-    private var firstUseSheet: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    // The title wraps at every text size (no truncation at AX5).
-                    Text(LabelPhotoText.firstUseTitle).font(.title2.bold()).accessibilityAddTraits(.isHeader)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Text(LabelPhotoText.firstUseBody)
-                    Button(LabelPhotoText.privacyPolicy, action: privacyPolicy).frame(minHeight: 44)
-                    Button { model.firstUseAccepted() } label: {
-                        Text(LabelPhotoText.firstUseSend).frame(maxWidth: .infinity, minHeight: 44)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .accessibilityIdentifier("labelPhoto.firstUse.send")
-                    Button { model.firstUseDeclined() } label: {
-                        Text(LabelPhotoText.firstUseNotNow).frame(maxWidth: .infinity, minHeight: 44)
-                    }
-                    .buttonStyle(.bordered)
-                }
-                .padding()
-            }
-        }
-        .presentationDetents([.large])
-    }
 }
 
 /// Confirm's "Label photo" and "Nutrition from the photo" sections (4.2 items 4 and 5, 5, 7.3).

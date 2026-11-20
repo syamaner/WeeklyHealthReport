@@ -179,13 +179,12 @@ final class LabelPhotoPresentationTests: XCTestCase {
     final class Script {
         var reads = 0
         var outcome: LabelPhotoReadFlow.Outcome = .failed(.timedOut)
-        var consented = false
+        var consented = true
         var key: LabelPhotoScreenModel.KeyState = .valid
         var online = true
         var status = LabelPhotoReadSession.Status(day: .open(reads: 3), routeUnavailable: false)
         var hold = false
         var finishedReads = 0
-        var enabled = true
     }
 
     func screen(_ script: Script, prepare: LabelImagePreparationError? = nil) throws -> LabelPhotoScreenModel {
@@ -205,8 +204,8 @@ final class LabelPhotoPresentationTests: XCTestCase {
             },
             status: { script.status },
             keyState: { script.key }, isOnline: { script.online },
-            hasConsented: { script.consented }, recordConsent: { script.consented = true },
-            makeConfirm: { _, _, _ in source }, isEnabled: { script.enabled }))
+            consentOn: { script.consented },
+            makeConfirm: { _, _, _ in source }))
     }
 
     func ready(_ model: LabelPhotoScreenModel) async {
@@ -226,15 +225,16 @@ final class LabelPhotoPresentationTests: XCTestCase {
         XCTAssertFalse(model.canRead)
         model.name = "Synthetic crackers"
         XCTAssertFalse(model.canRead, "nothing is known about today's allowance yet")
-        XCTAssertNil(model.underButton, "never a count before it is known")
         await model.refresh()
         XCTAssertTrue(model.canRead)
-        XCTAssertEqual(model.underButton, "Uses your OpenRouter key and credit. Today: 3 of 30 reads.")
         script.key = .missing
-        XCTAssertEqual(model.blocker, .noKey); XCTAssertFalse(model.canRead)
-        XCTAssertEqual(model.blocker?.text, "Add your OpenRouter key to read label photos.")
+        XCTAssertEqual(model.blocker, .openRouter(.noKey)); XCTAssertFalse(model.canRead)
+        XCTAssertEqual(model.blocker?.text, "Add your OpenRouter key in Settings.")
+        XCTAssertEqual(model.blocker?.action, "OpenRouter settings")
         script.key = .notValidated
-        XCTAssertEqual(model.blocker, .keyNotValidated)
+        XCTAssertEqual(model.blocker, .openRouter(.keyNotValidated))
+        XCTAssertEqual(model.blocker?.text, "Validate your OpenRouter key in Settings.")
+        XCTAssertEqual(model.blocker?.action, "OpenRouter settings")
         script.key = .valid; script.online = false
         XCTAssertEqual(model.blocker, .offline)
         XCTAssertEqual(model.blocker?.action, "Paste nutrition label")
@@ -251,37 +251,33 @@ final class LabelPhotoPresentationTests: XCTestCase {
         }
         script.status = .init(day: .limitReached, routeUnavailable: false)
         await model.refresh()
-        XCTAssertNil(model.underButton, "no count is shown at the limit; the limit copy says it")
         XCTAssertEqual(model.blocker?.text, LabelPhotoText.dailyLimit)
         script.status = .init(day: .paused, routeUnavailable: false)
         await model.refresh()
         XCTAssertEqual(model.blocker?.text, LabelPhotoText.failedCostPaused)
     }
 
-    /// 17.22: turning the Settings switch off while the screen is open blocks the next tap, before
-    /// the key or any other state, and sends nothing; turning it on again clears the blocker.
-    func testTurningTheRouteOffBlocksTheNextTapAndSendsNothing() async throws {
+    /// O1.4 and O1.6 test 4: turning Settings › OpenRouter off while the screen is open blocks the
+    /// next tap with the blocked row, before the key or any other state, and sends nothing; turning
+    /// it on again clears the row. There is no first-use sheet.
+    func testTurningOpenRouterOffBlocksTheNextTapAndSendsNothing() async throws {
         let script = Script()
-        script.consented = true
         let model = try screen(script)
         await ready(model)
         XCTAssertTrue(model.canRead)
-        script.enabled = false
+        script.consented = false
         script.key = .missing
-        XCTAssertEqual(model.blocker, .turnedOff, "the switch comes before every other blocker")
+        XCTAssertEqual(model.blocker, .openRouter(.switchOff), "the switch comes before every other blocker")
         XCTAssertFalse(model.canRead)
-        XCTAssertEqual(model.blocker?.text,
-                       "Label photo reading is off. Turn on Read label photos with AI in Settings to read this photo.",
-                       "no claim about a read that may already be under way")
-        XCTAssertNil(model.blocker?.action)
+        XCTAssertEqual(model.blocker?.text, "Turn on OpenRouter in Settings to use this.")
+        XCTAssertEqual(model.blocker?.action, "OpenRouter settings")
         var redraws = 0
         let watch = model.objectWillChange.sink { redraws += 1 }
         model.readTapped()
         XCTAssertEqual(redraws, 1, "a refused tap redraws the screen so the blocker shows")
-        model.firstUseAccepted()
         await Task.yield()
-        XCTAssertEqual(script.reads, 0, "nothing is sent once the route is off")
-        script.enabled = true; script.key = .valid
+        XCTAssertEqual(script.reads, 0, "nothing is sent while OpenRouter is off")
+        script.consented = true; script.key = .valid
         XCTAssertNil(model.blocker)
         let before = redraws
         model.settingsChanged()
@@ -289,22 +285,45 @@ final class LabelPhotoPresentationTests: XCTestCase {
         watch.cancel()
     }
 
-    func testTheFirstUseSheetComesOnceAndNotNowSendsNothing() async throws {
+    /// O1.6 test 10: the first-use sheet cannot be presented; a tap with OpenRouter on reads at once.
+    func testThereIsNoFirstUseSheet() async throws {
         let script = Script()
         let model = try screen(script)
         await ready(model)
         model.readTapped()
-        XCTAssertTrue(model.showsFirstUseSheet)
-        model.firstUseDeclined()
-        await Task.yield()
-        XCTAssertEqual(script.reads, 0, "Not now sends nothing")
-        model.readTapped()
-        model.firstUseAccepted()
         try await waitUntil { script.reads == 1 && !model.isBusy }
-        XCTAssertTrue(script.consented)
         model.readTapped()
-        XCTAssertFalse(model.showsFirstUseSheet, "later reads do not show it")
         try await waitUntil { script.reads == 2 && !model.isBusy }
+    }
+
+    /// O1.2: a read refused at the request site with nothing sent shows the blocked row alone; one
+    /// refused after a sent attempt keeps the sent line above the row.
+    func testARefusedReadShowsTheBlockedRowAndASentOneSaysSo() async throws {
+        let script = Script()
+        let model = try screen(script)
+        await ready(model)
+        script.outcome = .failed(.notPermitted)
+        model.readTapped()
+        script.consented = false
+        try await waitUntil { script.reads == 1 && !model.isBusy }
+        XCTAssertEqual(model.phase, .editing, "no failure copy: the blocked row says why")
+        XCTAssertEqual(model.blocker, .openRouter(.switchOff))
+        script.consented = true
+        script.outcome = .failed(.notPermittedAfterSending)
+        model.readTapped()
+        script.consented = false
+        try await waitUntil { script.reads == 2 && !model.isBusy }
+        XCTAssertEqual(model.phase, .failed("Stopped. The photo may already have reached OpenRouter; nothing was saved."))
+        XCTAssertEqual(model.blocker, .openRouter(.switchOff))
+        // Switch on with the key removed: the closure gives .keyMissing and the no-key row.
+        script.consented = true
+        script.outcome = .failed(.keyMissing)
+        model.readTapped()
+        script.key = .missing
+        try await waitUntil { script.reads == 3 && !model.isBusy }
+        XCTAssertEqual(model.phase, .editing)
+        XCTAssertEqual(model.blocker, .openRouter(.noKey))
+        XCTAssertFalse(LabelPhotoText.failure(.keyMissing).contains("unavailable"))
     }
 
     func testOutcomesShowTheirCopyAndTryAgainIsANewTap() async throws {
@@ -370,7 +389,7 @@ final class LabelPhotoPresentationTests: XCTestCase {
                 return .failed(.cancelled)
             },
             status: { script.status }, keyState: { script.key }, isOnline: { script.online },
-            hasConsented: { script.consented }, recordConsent: { script.consented = true },
+            consentOn: { script.consented },
             makeConfirm: { _, _, _ in source }))
         await ready(model)
         model.readTapped()
@@ -403,7 +422,7 @@ final class LabelPhotoPresentationTests: XCTestCase {
                 return .init(day: .open(reads: 4), routeUnavailable: false)
             },
             keyState: { script.key }, isOnline: { script.online },
-            hasConsented: { script.consented }, recordConsent: { script.consented = true },
+            consentOn: { script.consented },
             makeConfirm: { _, _, _ in source }))
         let slow = Task { await model.refresh() }
         try await waitUntil { calls == 1 }
@@ -426,7 +445,8 @@ final class LabelPhotoPresentationTests: XCTestCase {
 
     func testEveryFailureAndDeclineHasCopy() {
         let failures: [LabelImageReadingFailure] = [.offline, .keyMissing, .keyRejected, .routeUnavailable, .dailyLimit, .paused, .timedOut,
-            .cancelled, .providerUnavailable, .wrongModel, .wrongProvider, .truncated, .refused, .oversize, .unreadableAnswer, .failed, .quotaLimited]
+            .cancelled, .providerUnavailable, .wrongModel, .wrongProvider, .truncated, .refused, .oversize, .unreadableAnswer, .failed, .quotaLimited,
+            .notPermitted, .notPermittedAfterSending]
         for failure in failures { XCTAssertFalse(LabelPhotoText.failure(failure).isEmpty, "\(failure)") }
         XCTAssertEqual(LabelPhotoText.failure(.quotaLimited), "OpenRouter reports a quota or rate limit. Check your quota and billing before trying again.")
         XCTAssertEqual(LabelPhotoText.failure(.paused), "This read cost more than the $0.05 limit, so label photo reading is paused for today.")
@@ -435,7 +455,10 @@ final class LabelPhotoPresentationTests: XCTestCase {
         }
         XCTAssertEqual(LabelPhotoText.declines(["no_table"]), ["No nutrition table was found in this photo. Crop to the table and try again."])
         XCTAssertEqual(LabelPhotoText.declines([]), [LabelPhotoText.failedUnusable])
-        let all = [LabelPhotoText.egressStatement, LabelPhotoText.firstUseBody, LabelPhotoText.honestyNote, LabelPhotoText.dailyLimit]
+        XCTAssertEqual(LabelPhotoText.failure(.notPermitted), "Turn on OpenRouter in Settings to use this.")
+        XCTAssertEqual(LabelPhotoText.failure(.notPermittedAfterSending), LabelPhotoText.cancelledAfterSending)
+        XCTAssertEqual(LabelPhotoText.failure(.keyRejected), "OpenRouter rejected the API key. Replace or revalidate it in Settings.")
+        let all = [LabelPhotoText.honestyNote, LabelPhotoText.dailyLimit]
         XCTAssertTrue(all.allSatisfy { !$0.contains("—") && !$0.lowercased().contains("verified") && !$0.lowercased().contains("confidence") })
     }
 
@@ -450,27 +473,26 @@ final class LabelPhotoPresentationTests: XCTestCase {
                        "Read by openai/gpt-6.1-sol on Azure through OpenRouter, 1 Nov 2026; checked by you")
     }
 
+    /// The day's status refreshes after every read and on return from Confirm. The count itself is
+    /// shown in Settings › OpenRouter (O1-D1), not under the button.
     func testTodaysCountRefreshesAfterEveryReadAndOnReturnFromConfirm() async throws {
-        let script = Script(); script.consented = true
+        let script = Script()
         script.outcome = .review(try review())
         let model = try screen(script)
         await ready(model)
-        XCTAssertEqual(model.underButton, "Uses your OpenRouter key and credit. Today: 3 of 30 reads.")
-        // The session counts the tap before it answers; the screen shows the new count with Confirm.
+        XCTAssertEqual(model.status?.day, .open(reads: 3))
         script.status = .init(day: .open(reads: 4), routeUnavailable: false)
         model.readTapped()
         try await waitUntil { model.confirmSource != nil }
-        XCTAssertEqual(model.underButton, "Uses your OpenRouter key and credit. Today: 4 of 30 reads.")
-        // Another session's read while Confirm was open is shown on return.
+        XCTAssertEqual(model.status?.day, .open(reads: 4))
         script.status = .init(day: .open(reads: 5), routeUnavailable: false)
         await model.returnedFromConfirm()
-        XCTAssertEqual(model.underButton, "Uses your OpenRouter key and credit. Today: 5 of 30 reads.")
-        // A failed read refreshes too.
+        XCTAssertEqual(model.status?.day, .open(reads: 5))
         script.outcome = .failed(.timedOut)
         script.status = .init(day: .open(reads: 6), routeUnavailable: false)
         model.readTapped()
         try await waitUntil { model.phase == .failed("Reading the photo timed out. You can try again.") }
-        XCTAssertEqual(model.underButton, "Uses your OpenRouter key and credit. Today: 6 of 30 reads.")
+        XCTAssertEqual(model.status?.day, .open(reads: 6))
     }
 
     func testTheSavedPhotoEntrysSourceRowAndDecisionsMatchThePastedRoute() throws {
@@ -510,9 +532,11 @@ final class LabelPhotoPresentationTests: XCTestCase {
         XCTAssertFalse(egress.contains("## Approved, not yet in force"))
         XCTAssertTrue(policy.contains("Camera access is optional and used to scan food barcodes and, if you choose, to photograph a nutrition label."))
         XCTAssertFalse(policy.contains("the current app does not offer label-photo OCR upload"))
-        XCTAssertTrue(policy.contains("Label photo reading is optional and uses your own validated OpenRouter key."))
+        // As amended by docs/openrouter-single-consent-v1-amendment.md (O1.3, section 3.5).
+        XCTAssertTrue(policy.contains("\nLabel photo reading. Available only in internal test builds. When you tap Read label with AI."))
         XCTAssertTrue(policy.contains("Avoid photographing anything other than the nutrition table."))
-        XCTAssertTrue(policy.contains("receipts, photos or audio to these web nutrition requests."))
+        XCTAssertTrue(policy.contains("Never sent: Apple Health records, saved food or diary history, notes, receipts, photos or audio."))
+        XCTAssertTrue(egress.contains("With OpenRouter turned on in Settings (O1), only when the user taps Read label with AI on the Label photo screen"))
         XCTAssertFalse(policy.contains("Effective 24 October 2026"))
         XCTAssertTrue(plist.contains("<string>Weekly Health Report uses the camera only when you choose to scan a food barcode or photograph a nutrition label.</string>"))
     }

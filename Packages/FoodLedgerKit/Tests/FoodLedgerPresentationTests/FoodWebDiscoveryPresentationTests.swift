@@ -1,6 +1,7 @@
 import FoodLedgerApplication
 import FoodLedgerPresentation
 import Foundation
+import FoodLedgerTestSupport
 import XCTest
 
 @MainActor
@@ -10,7 +11,7 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
     func testAutomaticCredentialGrantsAreExactTransientAndEditorClosePreservesValidation() async throws {
         let keys = MemoryWebKeys(key: key)
         let provider = DiscoverySpy()
-        let model = FoodWebDiscoveryViewModel(provider: provider, keys: keys)
+        let model = FoodWebDiscoveryViewModel(egress: PermittingOpenRouterEgress(), provider: provider, keys: keys)
         XCTAssertThrowsError(try model.credentialForRequest())
         await model.revalidateSavedKey()
         let old = try model.credentialForRequest()
@@ -37,7 +38,7 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
     func testAbsentKeyAndTypingNeverCallProviderThenSaveAndExplicitSearch() async throws {
         let provider = DiscoverySpy()
         let keys = MemoryWebKeys()
-        let model = FoodWebDiscoveryViewModel(provider: provider, keys: keys)
+        let model = FoodWebDiscoveryViewModel(egress: PermittingOpenRouterEgress(), provider: provider, keys: keys)
         model.foodTerms = "Greek yoghurt 10% fat"
         model.keyEntry = key
         await model.searchTheWeb()
@@ -68,7 +69,7 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
         for error in [FoodWebDiscoveryError.credentialRejected, .quotaExceeded, .permissionDenied, .serviceUnavailable] {
             let provider = DiscoverySpy(error: error)
             let keys = MemoryWebKeys()
-            let model = FoodWebDiscoveryViewModel(provider: provider, keys: keys)
+            let model = FoodWebDiscoveryViewModel(egress: PermittingOpenRouterEgress(), provider: provider, keys: keys)
             model.keyEntry = key
             await model.validateAndSaveKey()
             XCTAssertNil(try keys.load())
@@ -81,7 +82,7 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
     func testSearchRejectionDisablesKeyButQuotaAndNetworkPreserveIt() async {
         for error in [FoodWebDiscoveryError.credentialRejected, .quotaExceeded, .permissionDenied, .serviceUnavailable] {
             let keys = MemoryWebKeys(key: key)
-            let model = FoodWebDiscoveryViewModel(provider: DiscoverySpy(error: error, searchOnlyError: true), keys: keys)
+            let model = FoodWebDiscoveryViewModel(egress: PermittingOpenRouterEgress(), provider: DiscoverySpy(error: error, searchOnlyError: true), keys: keys)
             model.foodTerms = "milk"
             XCTAssertFalse(model.canSearch)
             await model.revalidateSavedKey()
@@ -97,7 +98,7 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
     func testDeleteDuringValidationCannotResurrectCredential() async throws {
         let provider = DiscoverySpy(suspended: true)
         let keys = MemoryWebKeys()
-        let model = FoodWebDiscoveryViewModel(provider: provider, keys: keys)
+        let model = FoodWebDiscoveryViewModel(egress: PermittingOpenRouterEgress(), provider: provider, keys: keys)
         model.keyEntry = key
         let work = Task { await model.validateAndSaveKey() }
         await provider.waitUntilPending()
@@ -113,7 +114,7 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
     func testEditedQueryRemovalAndLeavingDiscardEvenCancellationIgnoringProvider() async {
         for action in ["edit", "remove", "leave"] {
             let provider = DiscoverySpy(suspended: true, suspendOnlyOnSearch: true)
-            let model = FoodWebDiscoveryViewModel(provider: provider, keys: MemoryWebKeys(key: key))
+            let model = FoodWebDiscoveryViewModel(egress: PermittingOpenRouterEgress(), provider: provider, keys: MemoryWebKeys(key: key))
             model.foodTerms = "milk"
             await model.revalidateSavedKey()
             let work = Task { await model.searchTheWeb() }
@@ -134,7 +135,7 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
 
     func testKeychainReadSaveAndDeleteFailuresRemainVisible() async {
         let keys = MemoryWebKeys(fails: true)
-        let model = FoodWebDiscoveryViewModel(provider: DiscoverySpy(), keys: keys)
+        let model = FoodWebDiscoveryViewModel(egress: PermittingOpenRouterEgress(), provider: DiscoverySpy(), keys: keys)
         XCTAssertFalse(model.keyIsUsable)
         XCTAssertNotNil(model.keyMessage)
         model.keyEntry = key
@@ -150,7 +151,7 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
     func testAFailedReadIsNotNoKeyAndARecheckAfterUnlockFindsTheSavedKey() async {
         let keys = LockableWebKeys(key: key, failingReads: 1)
         let provider = DiscoverySpy()
-        let model = FoodWebDiscoveryViewModel(provider: provider, keys: keys)
+        let model = FoodWebDiscoveryViewModel(egress: PermittingOpenRouterEgress(), provider: provider, keys: keys)
         XCTAssertTrue(model.keyLoadFailed, "a read that throws is not \"no key saved\"")
         XCTAssertFalse(model.hasSavedKey)
         XCTAssertFalse(model.keyIsUsable)
@@ -179,7 +180,7 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
     func testAReadThatKeepsFailingStaysFailedAndNeverValid() async {
         let keys = LockableWebKeys(key: key, failingReads: .max)
         let provider = DiscoverySpy()
-        let model = FoodWebDiscoveryViewModel(provider: provider, keys: keys)
+        let model = FoodWebDiscoveryViewModel(egress: PermittingOpenRouterEgress(), provider: provider, keys: keys)
         for _ in 0..<3 {
             model.recheckSavedKey()
             XCTAssertTrue(model.keyLoadFailed)
@@ -195,7 +196,7 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
 
     func testNoSavedKeyStaysDistinctFromAFailedRead() {
         let keys = LockableWebKeys(key: nil, failingReads: 0)
-        let model = FoodWebDiscoveryViewModel(provider: DiscoverySpy(), keys: keys)
+        let model = FoodWebDiscoveryViewModel(egress: PermittingOpenRouterEgress(), provider: DiscoverySpy(), keys: keys)
         XCTAssertFalse(model.keyLoadFailed)
         XCTAssertFalse(model.hasSavedKey)
         XCTAssertNil(model.keyMessage)
@@ -203,7 +204,7 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
         XCTAssertEqual(keys.reads, 1, "with no failed read there is nothing to recheck")
 
         let locked = LockableWebKeys(key: nil, failingReads: 1)
-        let recovered = FoodWebDiscoveryViewModel(provider: DiscoverySpy(), keys: locked)
+        let recovered = FoodWebDiscoveryViewModel(egress: PermittingOpenRouterEgress(), provider: DiscoverySpy(), keys: locked)
         XCTAssertTrue(recovered.keyLoadFailed)
         recovered.recheckSavedKey()
         XCTAssertFalse(recovered.keyLoadFailed)
@@ -214,7 +215,7 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
     func testALockDuringValidationIsRecordedAsUnreadableAndRecheckedNotReadAsNoKey() async {
         let keys = LockableWebKeys(key: key, failingReads: 0)
         let provider = DiscoverySpy(suspended: true)
-        let model = FoodWebDiscoveryViewModel(provider: provider, keys: keys)
+        let model = FoodWebDiscoveryViewModel(egress: PermittingOpenRouterEgress(), provider: provider, keys: keys)
         XCTAssertTrue(model.hasSavedKey)
         let work = Task { await model.revalidateSavedKey() }
         await provider.waitUntilPending()
@@ -235,7 +236,7 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
     func testSavingANewKeyWhileTheReadFailedClearsTheFailedState() async {
         let keys = LockableWebKeys(key: nil, failingReads: 1)
         let provider = DiscoverySpy()
-        let model = FoodWebDiscoveryViewModel(provider: provider, keys: keys)
+        let model = FoodWebDiscoveryViewModel(egress: PermittingOpenRouterEgress(), provider: provider, keys: keys)
         XCTAssertTrue(model.keyLoadFailed)
         model.keyEntry = key
         await model.validateAndSaveKey()
@@ -247,7 +248,7 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
     func testAReadFailureDuringRevalidationIsRecordedAsUnreadAndRecheckedOnUnlock() async {
         let keys = LockableWebKeys(key: key, failingReads: 0)
         let provider = DiscoverySpy()
-        let model = FoodWebDiscoveryViewModel(provider: provider, keys: keys)
+        let model = FoodWebDiscoveryViewModel(egress: PermittingOpenRouterEgress(), provider: provider, keys: keys)
         XCTAssertTrue(model.hasSavedKey)
         XCTAssertFalse(model.keyLoadFailed)
         keys.locked = true
@@ -272,7 +273,7 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
 
     func testAReadFailureWhenGrantingARequestIsRecordedAsUnreadAndRechecked() async {
         let keys = LockableWebKeys(key: key, failingReads: 0)
-        let model = FoodWebDiscoveryViewModel(provider: DiscoverySpy(), keys: keys)
+        let model = FoodWebDiscoveryViewModel(egress: PermittingOpenRouterEgress(), provider: DiscoverySpy(), keys: keys)
         await model.revalidateSavedKey()
         XCTAssertTrue(model.keyIsUsable)
         keys.locked = true
@@ -292,7 +293,7 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
     func testARecheckDuringValidationRunsWhenValidationFails() async {
         let keys = LockableWebKeys(key: key, failingReads: 1)
         let provider = DiscoverySpy(error: .connectionFailed, suspended: true)
-        let model = FoodWebDiscoveryViewModel(provider: provider, keys: keys)
+        let model = FoodWebDiscoveryViewModel(egress: PermittingOpenRouterEgress(), provider: provider, keys: keys)
         XCTAssertTrue(model.keyLoadFailed)
         model.keyEntry = "replacement-synthetic-key-for-tests"
         let work = Task { await model.validateAndSaveKey() }
@@ -315,7 +316,7 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
     func testARecheckDuringValidationRunsWhenValidationIsCancelled() async {
         let keys = LockableWebKeys(key: key, failingReads: 1)
         let provider = DiscoverySpy(suspended: true)
-        let model = FoodWebDiscoveryViewModel(provider: provider, keys: keys)
+        let model = FoodWebDiscoveryViewModel(egress: PermittingOpenRouterEgress(), provider: provider, keys: keys)
         XCTAssertTrue(model.keyLoadFailed)
         model.keyEntry = "replacement-synthetic-key-for-tests"
         let work = Task { await model.validateAndSaveKey() }
@@ -337,7 +338,7 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
     }
 
     func testNoResultsAndQueryBounds() async {
-        let model = FoodWebDiscoveryViewModel(provider: DiscoverySpy(empty: true), keys: MemoryWebKeys(key: key))
+        let model = FoodWebDiscoveryViewModel(egress: PermittingOpenRouterEgress(), provider: DiscoverySpy(empty: true), keys: MemoryWebKeys(key: key))
         model.foodTerms = String(repeating: "x", count: 301)
         XCTAssertFalse(model.canSearch)
         model.foodTerms = "rice"
@@ -351,7 +352,7 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
 
     func testFailedRemovalCannotReactivateRetainedKeyOnReopen() async throws {
         let keys = MemoryWebKeys(key: key, deleteFails: true)
-        let first = FoodWebDiscoveryViewModel(provider: DiscoverySpy(), keys: keys)
+        let first = FoodWebDiscoveryViewModel(egress: PermittingOpenRouterEgress(), provider: DiscoverySpy(), keys: keys)
         first.foodTerms = "milk"
         XCTAssertFalse(first.canSearch)
         await first.revalidateSavedKey()
@@ -360,7 +361,7 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
         XCTAssertFalse(first.canSearch)
         XCTAssertNotNil(try keys.load())
 
-        let reopened = FoodWebDiscoveryViewModel(provider: DiscoverySpy(), keys: keys)
+        let reopened = FoodWebDiscoveryViewModel(egress: PermittingOpenRouterEgress(), provider: DiscoverySpy(), keys: keys)
         reopened.foodTerms = "milk"
         XCTAssertTrue(reopened.hasSavedKey)
         XCTAssertFalse(reopened.keyIsUsable)
@@ -369,7 +370,7 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
 
     func testReplacementKeyCannotInheritEarlierValidation() async throws {
         let provider = DiscoverySpy(); let keys = MemoryWebKeys(key: key)
-        let model = FoodWebDiscoveryViewModel(provider: provider, keys: keys)
+        let model = FoodWebDiscoveryViewModel(egress: PermittingOpenRouterEgress(), provider: provider, keys: keys)
         model.foodTerms = "milk"; await model.revalidateSavedKey()
         let replacement = "different-synthetic-key-for-tests"
         try keys.save(replacement)
@@ -383,7 +384,7 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
         for error: FoodWebDiscoveryError? in [nil, .credentialRejected, .quotaExceeded, .permissionDenied, .serviceUnavailable] {
             let provider = DiscoverySpy(error: error, suspended: true, searchOnlyError: true, suspendOnlyOnSearch: true)
             let keys = MemoryWebKeys(key: key)
-            let model = FoodWebDiscoveryViewModel(provider: provider, keys: keys)
+            let model = FoodWebDiscoveryViewModel(egress: PermittingOpenRouterEgress(), provider: provider, keys: keys)
             model.foodTerms = "milk"; await model.revalidateSavedKey()
             let work = Task { await model.searchTheWeb() }
             await provider.waitUntilPending()
@@ -397,7 +398,7 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
 
     func testReplacementDuringRevalidationIsNotMarkedValid() async throws {
         let provider = DiscoverySpy(suspended: true); let keys = MemoryWebKeys(key: key)
-        let model = FoodWebDiscoveryViewModel(provider: provider, keys: keys)
+        let model = FoodWebDiscoveryViewModel(egress: PermittingOpenRouterEgress(), provider: provider, keys: keys)
         let work = Task { await model.revalidateSavedKey() }
         await provider.waitUntilPending()
         let replacement = "different-synthetic-key-for-tests"
@@ -409,7 +410,7 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
 
     func testLeavingRequiresFreshValidationAndInvalidReplacementDoesNotReuseOldFlag() async throws {
         let provider = DiscoverySpy(); let keys = MemoryWebKeys(key: key)
-        let model = FoodWebDiscoveryViewModel(provider: provider, keys: keys)
+        let model = FoodWebDiscoveryViewModel(egress: PermittingOpenRouterEgress(), provider: provider, keys: keys)
         model.foodTerms = "milk"; await model.revalidateSavedKey()
         model.cancelPending(); await model.searchTheWeb()
         XCTAssertFalse(model.keyIsUsable)
@@ -428,6 +429,72 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
         XCTAssertFalse(FoodWebLinkPolicy.isAllowed(URL(string: "http://example.com")!))
         XCTAssertFalse(FoodWebLinkPolicy.isAllowed(URL(string: "file:///tmp/key")!))
         XCTAssertTrue(FoodWebLinkPolicy.isAllowed(URL(string: "https://example.com")!))
+    }
+}
+
+/// docs/openrouter-single-consent-v1-amendment.md O1.2, O1-D2 and O1.6 test 2 for the key model.
+@MainActor
+final class FoodWebDiscoveryConsentTests: XCTestCase {
+    private let key = "synthetic-key-for-contract-tests-only"
+
+    func testRevalidateWithTheSwitchOffKeepsTheSessionsValidationAndSendsNothing() async throws {
+        let keys = MemoryWebKeys(key: key)
+        let provider = DiscoverySpy()
+        let egress = RecordingOpenRouterEgress(permits: true)
+        let model = FoodWebDiscoveryViewModel(egress: egress, provider: provider, keys: keys, operatorName: "OpenRouter")
+        await model.revalidateSavedKey()
+        XCTAssertTrue(model.keyIsUsable)
+        let credential = try model.credentialForRequest()
+        egress.set(false)
+        model.closeCredentialEditor()
+        let current = try model.credentialForRequest()
+        await model.revalidateSavedKey()
+        XCTAssertTrue(model.keyIsUsable, "a refusal never clears usability")
+        XCTAssertTrue(model.isCurrent(current))
+        XCTAssertEqual(try keys.load(), key, "never rejected")
+        XCTAssertEqual(model.keyMessage, "Turn on OpenRouter in Settings to use this.")
+        XCTAssertFalse(model.keyMessage?.contains("rejected") ?? false)
+        XCTAssertEqual(model.blockedReason, .switchOff)
+        _ = credential
+        let counts = await provider.counts()
+        XCTAssertEqual(counts, [1, 0], "only the validation made with the switch on")
+    }
+
+    func testSaveKeyWithTheSwitchOffSavesUnvalidatedAndClearsTheSessionsKey() async throws {
+        let keys = MemoryWebKeys(key: key)
+        let provider = DiscoverySpy()
+        let egress = RecordingOpenRouterEgress(permits: true)
+        let model = FoodWebDiscoveryViewModel(egress: egress, provider: provider, keys: keys)
+        await model.revalidateSavedKey()
+        let old = try model.credentialForRequest()
+        egress.set(false)
+        XCTAssertEqual(model.saveButtonTitle, "Save key")
+        model.keyEntry = "replacement-synthetic-key-for-tests"
+        await model.validateAndSaveKey()
+        XCTAssertEqual(try keys.load(), "replacement-synthetic-key-for-tests")
+        XCTAssertEqual(model.keyMessage, "Key saved. Turn on OpenRouter in Settings to validate it.")
+        XCTAssertTrue(model.hasSavedKey)
+        XCTAssertFalse(model.keyIsUsable, "the session's validated key is cleared")
+        XCTAssertFalse(model.isCurrent(old), "the credential generation moved on")
+        XCTAssertThrowsError(try model.credentialForRequest())
+        egress.set(true)
+        XCTAssertEqual(model.saveButtonTitle, "Save and validate key")
+        XCTAssertThrowsError(try model.credentialForRequest(), "turning the switch on validates nothing by itself")
+        XCTAssertEqual(model.blockedReason, .keyNotValidated)
+        let counts = await provider.counts()
+        XCTAssertEqual(counts, [1, 0], "nothing is sent while saving")
+    }
+
+    func testARefusedSearchIsNotARejectedKey() async throws {
+        let keys = MemoryWebKeys(key: key)
+        let provider = DiscoverySpy(error: .notPermitted, searchOnlyError: true)
+        let model = FoodWebDiscoveryViewModel(egress: PermittingOpenRouterEgress(), provider: provider, keys: keys, operatorName: "OpenRouter")
+        await model.revalidateSavedKey()
+        model.foodTerms = "plain yoghurt"
+        await model.searchTheWeb()
+        XCTAssertTrue(model.keyIsUsable)
+        XCTAssertEqual(try keys.load(), key)
+        XCTAssertEqual(model.searchMessage, "Turn on OpenRouter in Settings to use this.")
     }
 }
 
