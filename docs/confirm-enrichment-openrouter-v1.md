@@ -307,10 +307,11 @@ sends nothing:
 6. **When details or basis change after B answered.** As assistant estimates 5.6: the rows are cleared
    from the list (stored nothing), and B may be asked again under CE1.1 rule 3.
 7. **Log.** The saved version holds the kept rows (not left out). B is never a log's only nutrition: a
-   new requirement, on every route where B applies, counts the nutrients known with every B row left
-   out, and when none is known Log is blocked with the existing "needs one known nutrient" reason.
-   Estimates v2's `estimatesLeaveNothingKnown` only covers candidates with approved-estimate keys, so it
-   is not enough on its own. Daily totals keep
+   new case `FoodLogRequirement.onlyEstimatedByOpenRouter`, on every route where B applies, counts the
+   nutrients known with every B row left out, and when none is known Log is blocked with its frozen copy
+   `Nothing to log yet: every value here is an estimate from OpenRouter.` The existing `.nothingKnown`
+   ("Nothing to log: every value was left out") keeps its meaning and its behaviour without B; when
+   every B row is left out and nothing else is known, `.nothingKnown` is raised as today. Daily totals keep
    `includesEstimates`; a partial total stays a known minimum.
 
 ### CE1.7 Records and exports
@@ -568,8 +569,9 @@ for that food is skipped, with no note), and the gate is a backstop, not a guara
 - [ ] **CE-T13 Qualification before enabling.** Section 12's bars pass on the evaluation, run by
   developer tooling under its own terms (CE-T15), before the route is reachable outside a Debug build;
   then internal TestFlight builds first.
-- [ ] **CE-T14 Records.** The `privacy-and-egress.md` rows and privacy policy entries of section 11 take
-  effect in the PR that wires the live transport, not before.
+- [ ] **CE-T14 Records.** The `privacy-and-egress.md` rows and privacy policy entries of sections 11.1
+  and 11.2 take effect in the PR that wires the live transport, not before; the developer tooling
+  paragraph of 11.1a takes effect before the first evaluation call.
 - [ ] **CE-T15 Evaluation egress.** The evaluation tool sends the same request shapes, built from
   public Open Food Facts product data and bundled composition rows only (no owner data), to the same
   two destinations, with the owner's key read into memory only, a $5 programme spend stop and a $0.05
@@ -589,6 +591,27 @@ for that food is skipped, with no note), and the gate is a backstop, not a guara
 per-subject cache of validated answers stays in the protected app data directory; a capture of the
 request and response is stored only with a log that keeps a suggestion. The food daily export carries,
 for an OpenRouter estimate only, the model, the contract version and the response's SHA-256."
+
+### 11.1a `docs/privacy-and-egress.md`, developer tooling paragraph (before the first evaluation call)
+
+Unlike the app rows, this paragraph takes effect, with the owner's approval of CE-T15, **before the
+first evaluation call**, beside the existing tooling paragraphs:
+
+"Developer tooling for the Confirm enrichment evaluation ([confirm-enrichment-openrouter-v1.md](confirm-enrichment-openrouter-v1.md)
+section 12, #549) runs on the owner's Mac, not in the app, and is not app egress. It sends to
+`https://openrouter.ai/api/v1/systemone` (model `jev-1.13`) and `https://openrouter.ai/api/v1/chat/completions`
+(the CE-D2 route) only, plus keyless GETs of their endpoint and zero-data-retention listings. Each
+request carries exactly the app's request shape for one evaluation case, built from public Open Food
+Facts product data and bundled composition rows only, never the owner's data: the description fields,
+the food details known, and for nutrient estimates the basis, the known values and the keys asked,
+with the fixed questions or instruction and schema. Every request pins a zero-data-retention endpoint
+with data collection denied and no fallbacks. The key is the OpenRouter key already approved for the
+evaluations, read into memory only and never printed or stored. Spend stops at $5 for the programme
+and $0.05 per call, enforced in the evaluation's own spend ledger before every call; a transient
+failure is retried at most twice more with backoff that honours `Retry-After`. Raw responses, the
+cache and the ledger stay in the owner's private evaluation folder; the repository gets counts,
+versions and hashes only. The sealed set is sent once, by the frozen configuration. Owner approval:
+<date> (CE-T15)."
 
 ### 11.2 Privacy policy, OpenRouter section (an entry in O1's list)
 
@@ -740,6 +763,9 @@ manifests and the scorer are committed before the sealed run, and the sealed set
       A decided difference and an A fill never coexist on save (a difference arising clears the fill);
       the Your food database description golden for a title holding a pack size sends it only inside the
       title; the parity test's target is allowed by `check-boundaries.sh`.
+      A candidate with no known source values and one kept B row is blocked with
+      `onlyEstimatedByOpenRouter` and its copy; with every B row left out, `.nothingKnown` as today. No
+      evaluation artefact is committed before the 11.1a paragraph is in `privacy-and-egress.md`.
       Two identities: the layer alone enables Log; the one-tap row is hidden while a Jev fill shows and
       returns after `Not these`. B and the off-label layer never fill one key, in either order. The
       `responseHash`, `byteHash` and export hash bind as specified and tampering with any shows
@@ -828,4 +854,9 @@ compatibility choice of section 14 with the approval.
   policy text; and a layered state never carries a decided difference (a difference arising clears the
   fill), so no record holds both a fill correction and a decision record and `staleDecisions` cannot
   arise.
-- **Architecture gate, seventh round:** pending.
+- **Architecture gate, seventh round (20 November 2026, at `58ba5896`): PASS WITH CHANGES.** Both
+  findings taken: a developer tooling paragraph for the evaluation's egress (section 11.1a), in force
+  with CE-T15's approval before the first evaluation call; and a named Log requirement,
+  `onlyEstimatedByOpenRouter`, with frozen copy, since no "needs one known nutrient" reason exists and
+  `.nothingKnown`'s copy would be false when B rows are kept.
+- **Architecture gate, eighth round:** pending.
