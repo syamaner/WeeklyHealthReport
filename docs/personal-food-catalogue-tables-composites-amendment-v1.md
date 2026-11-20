@@ -14,7 +14,7 @@ document gains a dated note pointing here.
 
 ## 1. Why
 
-The owner's goal for the private catalogue is coverage ("all I care is %", 19 November 2026), with
+The owner's goal for the private catalogue is coverage, measured as the share of entries with a value (19 November 2026), with
 honest labels. Counts only, from the owner's catalogue on 19 November 2026 (836 entries, 807 with
 energy, protein, fat and fibre all known): 17 of the 29 entries still missing one of them are packaged
 composite dishes whose only sources are other brands' labels, and about 8 single-ingredient entries
@@ -100,6 +100,6 @@ query. All are taken here.
 
 | # | Question | Decision |
 |---|---|---|
-| G7 | May another brand's label fill a composite dish? | Yes, as a `low` similar-food estimate with the fixed sentence. **Owner, 19 November 2026** ("approved", after "leave composite ones to last"). |
-| G8 | May a composition-table record address carry its query string? | Yes, for the closed list of section 3 only. **Owner, 19 November 2026** ("approved"). |
-| G6 | Density conversion | Deferred. **Owner, 19 November 2026** ("G7 and G8 now, G6 later"). |
+| G7 | May another brand's label fill a composite dish? | Yes, as a `low` similar-food estimate with the fixed sentence. **Owner, 19 November 2026**, after asking for composite dishes to be handled last. |
+| G8 | May a composition-table record address carry its query string? | Yes, for the closed list of section 3 only. **Owner, 19 November 2026**. |
+| G6 | Density conversion | Deferred. **Owner, 19 November 2026**: G7 and G8 now, G6 later. |

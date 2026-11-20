@@ -1,6 +1,6 @@
 # TestFlight 0.3.0 (42)
 
-Status: **0.3.0 (42) is the build testers should install.** It was uploaded on 20 November 2026 on the owner's request ("Do a release please"), processed as VALID, given the What to Test text below (en-GB) and added to the Internal Testing group the same day on the owner's yes ("Yes, let's go"). It was exported with `testFlightInternalTestingOnly`, so App Store Connect never offers it to an external group or the App Store. Not yet checked on the device.
+Status: **0.3.0 (42) is the build testers should install.** It was uploaded on 20 November 2026 on the owner's request, processed as VALID, given the What to Test text below (en-GB) and added to the Internal Testing group the same day on the owner's yes. It was exported with `testFlightInternalTestingOnly`, so App Store Connect never offers it to an external group or the App Store. Not yet checked on the device.
 
 **This build collects four small fixes since [build 41](internal-testflight-0.3.0-build41.md).** **No store, food contract or export schema changes**: the food log is not migrated.
 
