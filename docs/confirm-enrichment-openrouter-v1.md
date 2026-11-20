@@ -326,7 +326,10 @@ sends nothing:
 - **Capture `confirm-nutrient-capture-v1`.** Inline `CaptureEvidence`, kind `.labelText`,
   canonical JSON: contract, route and prompt versions; model, provider and generation ID; the exact
   request body without the key; the response verbatim (at most 100,000 bytes, as checked); its hash;
-  every row with its result code; and the left-out keys of the saved version. Committed only with a Log
+  every row with its result code. Which rows a saved version keeps or leaves out is not in the capture
+  (it would be fixed at the first save); it is in a small evidence item per saved version,
+  `confirm-nutrient-choices-v1` (the resolution version ID, the capture hash and the sorted left-out
+  keys), covered by the floor rule like the capture. Committed only with a Log
   whose saved version keeps at least one B value; with every row left out, nothing is stored.
 - **Verification** on save and on reopen: the payload hash equals `byteHash` and each value's
   `responseHash`; the row checks, re-run on the stored response against the stored request, give the
@@ -379,8 +382,16 @@ sends nothing:
   suggestions again without sending.
 - **Re-resolution** does not carry B values (the fresh candidate may hold its own) and shows
   "Estimates from OpenRouter are not carried over", beside estimates v2's notice.
-- **Reopen** reads no network: saved values show as saved; Leave out writes a new version under the
-  existing save rules.
+- **Reopen** reads no network. The suggestion layer is rebuilt from the effective version's cited
+  capture (verified first) and its `confirm-nutrient-choices-v1` item: Confirm shows the saved B values
+  with `est.` and the left-out rows with Put back, because for a candidate with no approved-estimate
+  keys Confirm otherwise shows the candidate's nutrients, where these keys are unknown. Leave out and
+  Put back on a B key change the layer, and save writes a new version that cites the same capture and
+  a new choices item; verification accepts a later version that keeps fewer (or more) rows, as long as
+  each saved value equals a kept row of the cited capture. A food details correction on reopen keeps the
+  B values only when B's subject (CE1.5) is unchanged; otherwise they are removed with the visible note
+  `Estimates from OpenRouter were removed because the food details changed.`, never silently, and B
+  may be asked for the new subject under CE1.1.
 - **Search, the catalogue and import** are untouched. A B value never enters a catalogue file.
 
 ## 5a. The suggestion layer on Confirm
@@ -566,7 +577,7 @@ for that food is skipped, with no note), and the gate is a backstop, not a guara
 
 ```diff
 +| OpenRouter System One and its one allow-listed Jev endpoint (ZDR where listed, data collection denied, no fallbacks) | One food description for the food on Confirm (the source's name and brand, CoFID's variant text, and for Your food database entries the pack size and pack type, category, product type and state where present, a closed source token and the food details already known) and fixed choice questions for each unknown food detail; never text typed in a correction, the amount eaten, time or date, notes, other entries, Health data, barcode, identifiers, addresses, photos, prices or the key outside the Authorization header | With OpenRouter turned on in Settings (O1) and Suggest missing food details and values on, with the user's own validated key: <CE-D1 wording>, when the selected food has unknown food details; two keyless catalogue requests confirm the endpoint on the first request of a session and of each local day, and again after a check that could not connect; at most 3 attempts in 60 s per request; at most <CE-D4 cap> per day across both Confirm suggestion rows; a cached answer is reused without sending | [confirm-enrichment-openrouter-v1.md](confirm-enrichment-openrouter-v1.md) |
-+| OpenRouter and its one allow-listed model endpoint for nutrient estimates (ZDR, data collection denied, no fallbacks) | The same food description, the food details after any suggestion, the nutrition basis, each known nutrient value with its unit and source phrase, the unknown nutrients asked, a fixed instruction and output schema; never the items listed in the row above | As the row above, when at least one nutrient is unknown and eligible; at most $0.02 per request and the shared daily cap | [confirm-enrichment-openrouter-v1.md](confirm-enrichment-openrouter-v1.md) |
++| OpenRouter and its one allow-listed model endpoint for nutrient estimates (ZDR, data collection denied, no fallbacks) | The same food description, the food details after any suggestion, the nutrition basis, each known nutrient value with its unit and source phrase, the unknown nutrients asked, a fixed instruction and output schema; never the items listed in the row above | With OpenRouter turned on in Settings (O1) and Suggest missing food details and values on, with the user's own validated key: <CE-D1 wording>, when at least one nutrient is unknown and eligible; two keyless catalogue requests confirm the endpoint as in the row above; at most $0.02 per request and the shared daily cap | [confirm-enrichment-openrouter-v1.md](confirm-enrichment-openrouter-v1.md) |
 ```
 
 `Stays on the device unless the user sends it`, added: "**Confirm suggestions** (#549): the
@@ -655,6 +666,9 @@ manifests and the scorer are committed before the sealed run, and the sealed set
     of request sites and its boundary check.
   - **Presentation:** the details line, the `est.` tag and Leave out rows, the loading row and note,
     the Settings rows, the Developer tools disclosure.
+  - **Your food database entry reading:** the read port `PersonalFoodDatabaseEntryReading` (section 7)
+    lives in the application layer; its adapter, over the active release, in
+    `FoodLedgerPersonalDatabase`; it is wired at the root and makes no network call.
   - **Composition root:** wires the adapters, the gate, the cache, the ledger and the switch. It is
     the only importer of `FoodConfirmEnrichment`; `check-boundaries.sh` enforces that beside the URL
     confinement rule and O1's request site check.
@@ -696,7 +710,9 @@ manifests and the scorer are committed before the sealed run, and the sealed set
   11. Re-log, quick add, re-resolution: a Jev fill is carried; B values are not, and the entry opens
       Confirm.
   12. Shared port contract suites in `FoodLedgerTestSupport`, passed by the scripted and the live
-      implementations of both suggesting ports, and by the file and in-memory cache and day ledger.
+      implementations of both suggesting ports, by the file and in-memory cache and day ledger, and by
+      the file-backed and in-memory `PersonalFoodDatabaseEntryReading` (given a `recordID` it returns
+      exactly the section 7 fields, and refuses a record not in the active release).
   13. Suggestion layer: B never changes `candidate.nutrients` or `correction.nutrients`; the A fill
       stays a fill after B arrives; changing a suggested fact needs no reason and keeps weight and
       conversion; a fill is refused while `state.decisions` is not empty; B never sends correction
@@ -712,6 +728,10 @@ manifests and the scorer are committed before the sealed run, and the sealed set
       catalogue checks mapping to their own rows. A Your foods search row and a rescan row whose saved
       product has a corrected name or variant send nothing; a Your foods row whose saved version holds
       B values offers those keys as unknown and is classified by its real source.
+      Reopen of an entry with B values shows them with `est.`; Leave out and Put back on a B key write a
+      new version that passes verification; a details correction that changes B's subject removes the
+      values with the note, and one that does not keeps them. Each of the four uses maps to exactly one
+      egress row whose "When" names both switches.
       Two identities: the layer alone enables Log; the one-tap row is hidden while a Jev fill shows and
       returns after `Not these`. B and the off-label layer never fill one key, in either order. The
       `responseHash`, `byteHash` and export hash bind as specified and tampering with any shows
@@ -788,4 +808,10 @@ compatibility choice of section 14 with the approval.
   unchanged contract, because an older build would decode A's evidence but fail to reopen a layered
   Open Food Facts entry citing it, so the floor rule covers A's capture too and older builds refuse
   closed; the catalogue check is split into one use per route, each mapped to its own egress row.
-- **Architecture gate, fifth round:** pending.
+- **Architecture gate, fifth round (20 November 2026, at `0db9f2a3`): PASS WITH CHANGES.** All three
+  findings taken: reopen rebuilds the B layer from the cited capture and a new per-version choices item
+  (the first draft's capture held the left-out keys, fixed at the first save), Leave out and Put back
+  write new versions, and a details correction that changes B's subject removes B values with a visible
+  note; the second egress row's "When" names both switches; the Your food database read port is placed
+  with its adapter and shared contract suite.
+- **Architecture gate, sixth round:** pending.
