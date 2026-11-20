@@ -222,6 +222,8 @@ A `merge` reference takes its decisive identity from the referenced record; the 
 only where identity contract section 8 finds the two compatible (section 6). Nothing is inferred
 from the title.
 
+*Amendment, 20 November 2026 ([food details from the catalogue, I1](personal-food-catalogue-identity-facts-v1-amendment.md) section I1.3, approved by the owner and implemented in #547):* for a `personal-food-catalogue-estimates-v4` file, an entry's candidate takes each fact its `identity_facts` states and today's mapping for the rest; with a merge, the record's identity stands and only the facts the record leaves unknown come from the file, and a stated fact that contradicts the record makes the merge ineligible. For v4 files, "Nothing is inferred from the title" reads: the app infers nothing from the title; a fact the file states was proposed by the skill and approved by the owner.
+
 ### 4.2 Rejection rules
 
 The importer rejects the whole file, with a visible reason and the active release unchanged, for:
@@ -240,6 +242,8 @@ source unit or source kind, a value that does not follow from its `source_value`
 role, a `merge` role that fails the merge condition, an undeclared corpus hash, or a TFDA record ID
 without `tfda:` (or a non-TFDA record ID with it). The importer never crashes on a
 malformed file: every unexpected type is a rejection.
+
+*Amendment, 20 November 2026 ([I1](personal-food-catalogue-identity-facts-v1-amendment.md) sections I1.1 and I1.2, implemented in #547):* schema `personal-food-catalogue-estimates-v4` adds the required entry key `identity_facts` (null or an object of six closed values; fortified is never admitted) and the codes `facts-keys`, `facts-value` and `facts-state` (`estimatesV4Only`). An `identity_facts` key in a v1, v2 or v3 file stays `item-keys`. Shared fixtures: `docs/fixtures/personal-food-database-estimates-v4/`.
 
 ## 5. Search: local first, then online
 
@@ -346,6 +350,8 @@ contract section 8, in the same change that implements this document. Its method
   locked until you unlock your iPhone"), never as search guidance: the database route's no-result is
   never the composite's fallback route. The composite gains one init parameter, `databaseSource`, for
   the database group.
+
+*Amendment, 20 November 2026 ([I1](personal-food-catalogue-identity-facts-v1-amendment.md) section I1.4, implemented in #547):* a fact the catalogue states counts as stated by the source, so Confirm asks only the facts still unknown, and shows "Food details from your food database:" with the facts taken from the file (a frozen note in the candidate's match metadata), and "Correct food details" stays available when every fact is stated. Changing such a fact (one the note lists, not one a merged record or `state` supplied) needs no typed reason (decision I1-D1); an empty reason is stored as "Food details changed from your food database", and the change is not a fill. Candidates and re-resolution targets from a v4 file carry `pfc-resolution-v2`; resolver-built "Generic" rows keep `pfc-resolution-v1`.
 
 ## 8. Privacy and egress
 

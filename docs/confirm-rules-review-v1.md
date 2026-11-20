@@ -4,6 +4,8 @@ Status: owner decisions 1 to 5 taken, 11 November 2026. Architecture gate FAIL o
 
 Amends, once decided: [`food-confirmation-contract-v5.md`](food-confirmation-contract-v5.md) section 3 (mandatory identity for exact products) and section 7 (the frozen `applyCorrection` reducer), [`food-quick-add-contract-v1.md`](food-quick-add-contract-v1.md) rule 3 and its favourite label line, and [`ux-revamp-phase-3-search.md`](ux-revamp-phase-3-search.md) ("a corrected exact product asks for identity details again; carrying corrections is #198"). Evidence: the owner's use of TestFlight 0.3.0 (30) on 11 November 2026, and a read-only inventory of every rule that blocks or adds a step on Confirm (same day).
 
+**Amendment, 20 November 2026 ([food details from the catalogue, I1](personal-food-catalogue-identity-facts-v1-amendment.md) decision I1-D1, implemented in #547).** Rule 2.2 gains one exception: changing a food detail that a Your food database candidate states (its note carries the frozen prefix "Food details from your food database:") needs no typed reason when every detail it changes is one that note lists or one the candidate left unknown (a detail the merged record or the entry's state supplied still needs one); an empty reason is stored as "Food details changed from your food database". It is still not a fill (rule 2.4 clears weight and conversion; rule 3.2 does not carry it). `FoodLogPolicy` and `food_confirmation_v5` are unchanged.
+
 ## Problem
 
 The owner finds logging an Open Food Facts product tedious, and saving it as a favourite does not help, because every later log asks for the same food details again. Direction: review the rules and relax them, because they were stricter than needed.

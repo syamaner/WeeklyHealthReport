@@ -355,6 +355,8 @@ other facet. Owner values are `measured`; Open Food Facts and generic values are
 saved resolution links every release its values cite. Every other source keeps the rules above
 unchanged.
 
+**Amendment to A1, 20 November 2026 (Your food database, food details).** Recorded by [food details from the catalogue](personal-food-catalogue-identity-facts-v1-amendment.md) section I1.3 and implemented in #547, for `personal-food-catalogue-estimates-v4` files only. The merge also needs that no fact the entry's `identity_facts` states is known on both sides and different from the record's (the A2 comparison). When it merges, each fact the record leaves unknown comes from the file, in place of "the record's identity for every other facet". Candidates from such files carry method version `pfc-resolution-v2`; v1 to v3 files keep `pfc-resolution-v1` and A1 exactly.
+
 **Amendment A2, 16 November 2026 (Your food database, labelled estimates).** Recorded by
 [estimates on catalogue v2](personal-food-catalogue-estimates-v2-proposal.md) section 3; not yet
 implemented. For a Your food database entry, an owner-approved estimate may supply a nutrient from
