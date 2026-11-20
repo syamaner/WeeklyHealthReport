@@ -1,6 +1,7 @@
 import Foundation
 import FoodLedgerApplication
 import FoodGenericSearch
+import FoodLedgerTestSupport
 import XCTest
 
 /// #500: the web lookup model-call retry loop in the OpenRouter adapter, with a scripted
@@ -134,7 +135,7 @@ final class OpenRouterFoodRetryTests: XCTestCase {
 
     func testDisabledRetryAndKeyValidationMakeExactlyOneAttempt() async throws {
         let disabled = Script([.status(503, retryAfter: nil), .ok(try success())])
-        let single = OpenRouterFoodProvider(transport: { try await disabled.send($0) })
+        let single = OpenRouterFoodProvider(egress: PermittingOpenRouterEgress(), transport: { try await disabled.send($0) })
         do { _ = try await single.chooseSource(foodTerms: "synthetic food", leads: leads, key: key); XCTFail("Expected failure") }
         catch { XCTAssertEqual(error as? FoodWebDiscoveryError, .serviceUnavailable) }
         let disabledCount = await disabled.requests.count
@@ -148,8 +149,24 @@ final class OpenRouterFoodRetryTests: XCTestCase {
 
     // MARK: - Fixtures
 
-    private func provider(_ script: Script) -> OpenRouterFoodProvider {
-        OpenRouterFoodProvider(retry: OpenRouterFoodRetry(enabled: true, now: { script.clock.now },
+    // MARK: O1 consent (docs/openrouter-single-consent-v1-amendment.md O1.2, O1.6 test 2)
+
+    /// A refusal on attempt 2 of a retried request, asked after the backoff wait: exactly one send,
+    /// exactly one wait, `.notPermitted`, and nothing after the refusal.
+    func testARefusalAfterTheBackoffWaitEndsWithOneSendAndOneWait() async throws {
+        let script = Script([.status(503, retryAfter: nil), .ok(try success())])
+        let egress = RecordingOpenRouterEgress(permits: true, then: [false])
+        do { _ = try await provider(script, egress: egress).chooseSource(foodTerms: "synthetic food", leads: leads, key: key); XCTFail("Expected a refusal") }
+        catch { XCTAssertEqual(error as? FoodWebDiscoveryError, .notPermitted) }
+        let count = await script.requests.count
+        XCTAssertEqual(count, 1)
+        let waits = await script.waits
+        XCTAssertEqual(waits.count, 1)
+        XCTAssertEqual(egress.uses, [.webLookup, .webLookup])
+    }
+
+    private func provider(_ script: Script, egress: any OpenRouterEgressPermitting = PermittingOpenRouterEgress()) -> OpenRouterFoodProvider {
+        OpenRouterFoodProvider(egress: egress, retry: OpenRouterFoodRetry(enabled: true, now: { script.clock.now },
             sleep: { try await script.sleep($0) }, jitter: { 1 })) { try await script.send($0) }
     }
 

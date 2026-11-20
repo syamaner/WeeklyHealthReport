@@ -4,6 +4,12 @@ import FoodGenericSearch
 import FoodLedgerApplication
 import FoodLedgerDomain
 
+/// The probe's own gate (docs/openrouter-single-consent-v1-amendment.md section 6): it runs on the
+/// owner's Mac under its own approved terms, not as app egress, so it permits the web lookup uses it makes.
+struct ProbeEgress: OpenRouterEgressPermitting {
+    func permits(_ use: OpenRouterUse) -> Bool { use == .webLookup || use == .keyValidation }
+}
+
 /// Opt-in local evaluation executable. No credentials in arguments or output.
 /// Capture is keyless. Extraction requires the caller's private environment loader.
 @main
@@ -63,10 +69,10 @@ enum FoodProposalProbe {
             let requests = ProbeJournal(directory: destination, key: key, maximumRequests: 6)
             let stages = ReviewSmokeJournal(directory: destination)
             let captures = CaptureProbeJournal(directory: destination)
-            let provider = SmokeProvider(provider: OpenRouterFoodProvider(extractionRoute: .grok, selectionRoute: .applicability,
+            let provider = SmokeProvider(provider: OpenRouterFoodProvider(egress: ProbeEgress(), extractionRoute: .grok, selectionRoute: .applicability,
                 transport: { try await requests.call($0) }), journal: stages)
             let capture = SmokeCapture(capture: PublicFoodSourceCapture(observe: { try captures.record($0) }), journal: stages)
-            let reviewer = GenericFoodProposalReviewer(discovery: provider, capture: capture,
+            let reviewer = GenericFoodProposalReviewer(egress: ProbeEgress(), discovery: provider, capture: capture,
                 extraction: provider, sourceSelection: provider, selection: provider, timeout: .seconds(150))
             var result: [String: Any] = ["query": args[1], "maximum_provider_requests": 6,
                 "reviewer_deadline_seconds": 150, "save_authorised": false, "numeric_accuracy_scored": false,
@@ -101,7 +107,7 @@ enum FoodProposalProbe {
             let destination = URL(fileURLWithPath: args[2], isDirectory: true)
             try createDestination(destination)
             let journal = ProbeJournal(directory: destination, key: key, maximumRequests: 1)
-            let provider = OpenRouterFoodProvider(transport: { try await journal.call($0) })
+            let provider = OpenRouterFoodProvider(egress: ProbeEgress(), transport: { try await journal.call($0) })
             let discovery = try await provider.discover(foodTerms: args[1], key: key)
             let result: [String: Any] = ["query": args[1], "leads": discovery.leads.map {
                 ["title": $0.title, "url": $0.url.absoluteString, "cited_text": $0.citedText ?? ""]
@@ -127,7 +133,7 @@ enum FoodProposalProbe {
             let destination = URL(fileURLWithPath: args[3 + offset], isDirectory: true)
             try createDestination(destination)
             let journal = ProbeJournal(directory: destination, key: key, maximumRequests: selectionEnabled ? 2 : 1)
-            let provider = OpenRouterFoodProvider(extractionRoute: route, selectionRoute: checking ? .applicability : .jev, transport: { try await journal.call($0) })
+            let provider = OpenRouterFoodProvider(egress: ProbeEgress(), extractionRoute: route, selectionRoute: checking ? .applicability : .jev, transport: { try await journal.call($0) })
             let extraction = try await provider.extract(foodTerms: args[2 + offset], documents: documents, key: key)
             try encode(extraction).write(to: destination.appendingPathComponent("extraction.json"))
             let bound = try FoodProposalBinding.validate(extraction, documents: documents)

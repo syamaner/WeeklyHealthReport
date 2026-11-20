@@ -374,7 +374,7 @@ public enum SendCommand {
                          cache: ResponseCache, output start: Output) async throws -> Output {
         var output = start
         let (transport, keys) = options.connection.resolved(labelID: options.labelID)
-        let checker = OpenRouterPastedLabelAITextRouteChecker(transport: transport, clock: SystemLedgerClock(),
+        let checker = OpenRouterPastedLabelAITextRouteChecker(egress: PastedLabelAITextEvalEgress(), transport: transport, clock: SystemLedgerClock(),
                                                               reasoningBilledSeparately: options.reasoningBilledSeparately)
         let check: LabelPhotoManifest.CatalogueCheck
         // A catalogue failure is a structured record, not an error exit, so it is told apart from a
@@ -400,7 +400,7 @@ public enum SendCommand {
         }
         output.reservedUSD = "\(worstCase)"
         let ledger = try EvalSpendLedger(url: options.ledgerURL, cellStop: options.cellStop, programmeStop: options.programmeStop)
-        let attempt = OpenRouterPastedLabelAITextAttempt(transport: transport, keys: keys, request: request)
+        let attempt = OpenRouterPastedLabelAITextAttempt(egress: PastedLabelAITextEvalEgress(), transport: transport, keys: keys, request: request)
         let policy = options.retry
         let started = policy.now()
         var reservations = 0
@@ -543,4 +543,12 @@ public struct ResponseCache: Sendable {
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
         try encoder.encode(output).write(to: file(key), options: .atomic)
     }
+}
+
+/// The evaluation tool's own gate (docs/openrouter-single-consent-v1-amendment.md section 6): it runs
+/// on the owner's Mac under its own approved terms (T1 to T7), not as app egress, so it permits the
+/// pasted label text uses it makes. Its private records therefore never contain `not_permitted`.
+public struct PastedLabelAITextEvalEgress: OpenRouterEgressPermitting {
+    public init() {}
+    public func permits(_ use: OpenRouterUse) -> Bool { use == .pastedLabelTextRead || use == .pastedLabelTextCatalogueCheck }
 }

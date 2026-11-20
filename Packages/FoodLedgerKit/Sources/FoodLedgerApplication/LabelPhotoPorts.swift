@@ -94,6 +94,10 @@ public enum LabelImageReadingFailure: Error, Equatable, Sendable {
     case providerUnavailable, wrongModel, wrongProvider, truncated, refused, oversize, unreadableAnswer, failed
     /// HTTP 429: OpenRouter reports a quota or rate limit (7.2, its own copy). Still retried (E11).
     case quotaLimited
+    /// Settings › OpenRouter is off: this tap sent nothing (O1.2).
+    case notPermitted
+    /// Settings › OpenRouter went off before a retry, after an earlier attempt of the tap was sent (O1.2).
+    case notPermittedAfterSending
 }
 
 /// What one attempt that sent the prepared bytes returned (12.1, 17.5). A failed attempt carries
@@ -134,6 +138,8 @@ public protocol LabelValueLocating: Sendable {
 /// and is kept as route unavailable for the day.
 public enum LabelPhotoRouteCheckFailure: Error, Equatable, Sendable {
     case transport(Transport)
+    /// Settings › OpenRouter is off: no catalogue request was sent, and the route is not marked unavailable (O1.2).
+    case notPermitted
 
     /// The closed set of transport failures a catalogue check reports.
     public enum Transport: Equatable, Sendable {

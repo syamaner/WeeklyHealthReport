@@ -37,6 +37,8 @@ public enum FoodWebDiscoveryError: Error, Equatable, Sendable {
     case connectionFailed
     case serviceUnavailable
     case invalidResponse
+    /// Settings › OpenRouter is off: nothing was sent (O1.2). Never a rejected key or a broken route.
+    case notPermitted
 }
 
 public protocol FoodWebDiscovering: Sendable {

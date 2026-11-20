@@ -2,6 +2,7 @@ import Foundation
 import FoodLedgerApplication
 import FoodLedgerDomain
 @testable import FoodGenericSearch
+import FoodLedgerTestSupport
 import XCTest
 
 /// O1.6 test 3 (docs/openrouter-single-consent-v1-amendment.md): with OpenRouter turned on, every web
@@ -56,7 +57,7 @@ final class OpenRouterWebLookupRequestGoldenTests: XCTestCase {
     private func requests() throws -> [(String, Run)] {
         let key = self.key
         let document = try Self.document()
-        let (milk, validation) = try Self.validation()
+        let (milk, validation) = try Self.milkValidation()
         let leads = [FoodWebLead(title: "Plain yoghurt nutrition", url: URL(string: "https://example.com/yoghurt")!,
                                  citedText: "Per 100g energy 61kcal"),
                      FoodWebLead(title: "Yoghurt", url: URL(string: "https://example.org/yoghurt")!, citedText: nil)]
@@ -74,9 +75,9 @@ final class OpenRouterWebLookupRequestGoldenTests: XCTestCase {
     private func makeProvider(name: String, transport: @escaping OpenRouterFoodProvider.Transport) -> OpenRouterFoodProvider {
         switch name {
         case "extractionGrok", "applicability":
-            OpenRouterFoodProvider(extractionRoute: .grok, selectionRoute: .applicability, transport: transport)
+            OpenRouterFoodProvider(egress: PermittingOpenRouterEgress(), extractionRoute: .grok, selectionRoute: .applicability, transport: transport)
         default:
-            OpenRouterFoodProvider(transport: transport)
+            OpenRouterFoodProvider(egress: PermittingOpenRouterEgress(), transport: transport)
         }
     }
 
@@ -86,7 +87,7 @@ final class OpenRouterWebLookupRequestGoldenTests: XCTestCase {
             origin: "synthetic_fixture")
     }
 
-    private static func validation() throws -> (CapturedFoodDocument, FoodProposalValidation) {
+    static func milkValidation() throws -> (CapturedFoodDocument, FoodProposalValidation) {
         let text = "Milk Per 100ml Protein 3g"
         let document = try CapturedFoodDocument(id: "d1", url: "https://example.com/milk", rawSha256: String(repeating: "a", count: 64),
             captureOrigin: "synthetic", retrievedAt: "2026-10-04T00:00:00Z", blocks: [.init(id: "b1", kind: "p", text: text, locator: "p1")])

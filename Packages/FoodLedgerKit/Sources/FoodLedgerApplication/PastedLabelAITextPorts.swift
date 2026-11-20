@@ -22,6 +22,8 @@ public enum PastedLabelAITextNotSent: String, Equatable, Sendable, Codable, Case
     case textTooLong = "text_too_long"
     /// The request could not be built (a resource changed, or the key would appear in the body).
     case requestRefused = "request_refused"
+    /// OpenRouter is not permitted for this use (O1.2); the app always refuses it while the route is not wired.
+    case notPermitted = "not_permitted"
 }
 
 /// A transport failure after the request may have been sent.
