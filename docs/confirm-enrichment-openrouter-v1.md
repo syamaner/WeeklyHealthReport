@@ -46,12 +46,22 @@ changeable, never replacing a known value and never saved without Log.
 | Bundled tables (CoFID, USDA, TFDA, Ciqual) | not needed: generic rows do not raise `sourceIdentityMissing` | yes |
 | Web lookup (reviewed web proposal) | no, in v1 | no, in v1 |
 | Pasted label and label photo | no: they have their own fixed identity and fortification question | no, in v1 |
+| Your foods (`personal-library:` rows from search or a barcode rescan) | no, in v1 | no, in v1 |
 
 Web lookup and the label routes are left out of v1 for the reason assistant estimates gave: their
 candidates are admitted at save only while the saved nutrients equal the verified source's
 (`FoodConfirmationService.save`, the `invalidReviewedSource` and `invalidPastedLabelSource` guards),
 and a reviewed web proposal has its own identity review. Adding them is a change to those verifiers,
 in its own contract.
+
+Your foods rows are built from a saved product version (`CoFIDGenericFoodSearch` and `BarcodeCapture`
+build them from the saved name, brand, variant, pack facts and resolution nutrients), so their text may
+be the owner's own correction and their nutrients may already hold earlier estimates; describing them
+from the underlying source only is a later change. And a saved resolution version's
+`openrouter_estimate` values never become source values: the Your foods builders rebuild each such key
+as `.unknown` (`not_declared`) when they make a candidate, so `isProductCandidate` and
+`isGenericEstimate` classify the row by its real source as today, and B values are never carried
+through search or a rescan.
 
 B is offered only for a candidate whose basis is `per_100_g` or `per_100_ml`. Neither part runs on
 the re-resolution screen, the quick add sheet or a reopened log whose details are already saved.
@@ -142,7 +152,7 @@ sends nothing:
   is automatic). The on-the-day identity check of label photo E7 applies: once per app session and per
   local day, two keyless catalogue requests (`/api/v1/models/typesafe/jev-1.13/endpoints` and the ZDR
   listing) confirm the endpoint before the first A request, under O1's gate as use
-  `confirmEnrichmentCatalogueCheck`.
+  `confirmEnrichmentDetailsCatalogueCheck`.
 - **Questions.** One `choice` question per fact that is **unknown** on the bound candidate, never for
   a known one, with exactly the closed values of I1.1:
 
@@ -220,10 +230,13 @@ sends nothing:
   applied. It is cited from the candidate decision's evidence IDs, appended last (the mechanism
   estimates v2 section 5 defines for leave-out evidence), so no stored type gains a field. Other
   `.labelText` readers select by `captureMethodVersion` and ignore it (one test each way).
-- **No food contract change for A** if, as the phase gate must confirm, `captureMethodVersion` is
-  free text to the decoder (`ValidatedDecoding` decodes it as `LedgerText`): a record holding A's
-  evidence then decodes on older builds unchanged. If the gate finds otherwise, A shares B's contract
-  step (CE1.7).
+- **A shares B's food contract step.** `captureMethodVersion` decodes as free text (`LedgerText`), so an
+  older build would decode A's evidence, but it would not reopen it safely: on an Open Food Facts entry
+  with the #464 layer, an older build's `OpenFoodFactsEstimateSource.applies` requires every candidate
+  evidence ID to be product evidence, so its reopen and estimate status would throw `integrityFailure`.
+  So the floor rule of CE1.7 also returns the new contract for any record citing
+  `confirm-details-capture-v1` evidence, and an older build refuses such a store closed rather than
+  failing on reopen.
 
 ## 5. B. Unknown nutrients through a chat model
 
@@ -235,7 +248,7 @@ sends nothing:
   outputs). Provider block exactly as label photo E5: `only` and `order` set to the one endpoint,
   `allow_fallbacks: false`, `require_parameters: true`, `data_collection: "deny"`, `zdr: true`; the
   response's model and provider must match or the request fails. On-the-day catalogue check as E7, as
-  use `confirmEnrichmentCatalogueCheck`. The route is changed only by a route version bump.
+  use `confirmEnrichmentNutrientsCatalogueCheck`. The route is changed only by a route version bump.
 - **Strict JSON.** `response_format` is a strict `json_schema`:
   `{"schema":"confirm-nutrient-estimate-v1","basis":"per_100_g"|"per_100_ml","values":[{"nutrient":<key>,"value":<number>,"unit":<unit>}]}`,
   where `nutrient` is an enum of exactly the eligible keys of this request and `unit` of their
@@ -323,7 +336,7 @@ sends nothing:
   the new kind. Following the allocation rule of estimates v2 and assistant estimates, B takes the
   **next free food contract** when its phase starts (13 at the time of writing: 11 is in use and 12 is
   reserved for assistant estimates), with the floor rule (a record holding `openrouter_estimate`
-  provenance or `confirm-nutrient-capture-v1` evidence) checked before the earlier ones and a
+  provenance, `confirm-nutrient-capture-v1` evidence or `confirm-details-capture-v1` evidence) checked before the earlier ones and a
   metadata-only migration. An archive or store holding none keeps its contract and its bytes.
 - **Daily export.** B takes the **next free daily export version** (7 at the time of writing: 4 and 6
   are reserved by assistant estimates and the union rule, and 5 is in use), written only for a day
@@ -480,13 +493,14 @@ for that food is skipped, with no note), and the gate is a backstop, not a guara
 ## 9. Consent and the Settings switch
 
 - **Under O1's single consent.** Enrichment sends nothing unless the OpenRouter switch is on, under
-  the gate of O1 with three new `OpenRouterUse` cases, `confirmEnrichmentDetails` (A),
-  `confirmEnrichmentNutrients` (B) and `confirmEnrichmentCatalogueCheck`, each with its policy entry
+  the gate of O1 with four new `OpenRouterUse` cases, `confirmEnrichmentDetails` (A),
+  `confirmEnrichmentNutrients` (B), `confirmEnrichmentDetailsCatalogueCheck` and
+  `confirmEnrichmentNutrientsCatalogueCheck`, each with its policy entry
   and egress row (section 11). No per-feature consent, first-use sheet or egress statement.
 - **O1's caption and mapping.** Under O1 section 3 a route that widens the consent switch's scope
   changes it in its own contract, so on approval the switch title becomes `Use OpenRouter for food
   lookups, label reading and Confirm suggestions`, its key (`openRouter.consent.v1`) unchanged, and
-  the three new uses join `OpenRouterUse` with their `policyEntry` (`Confirm suggestions.`) and
+  the four new uses join `OpenRouterUse` with their `policyEntry` (`Confirm suggestions.`) and
   `egressRow` mapping, checked by O1's test 8. Because both rows of section 11 link to this contract,
   each use's `egressRow` identifies its row by the contract link plus the row's destination cell, so
   each use maps to exactly one row. O1's named list of request sites, and its boundary check, grow by
@@ -602,10 +616,10 @@ manifests and the scorer are committed before the sealed run, and the sealed set
 
 ## 14. Compatibility and rollback
 
-- **A** adds no record shape (a fill and a capture evidence with a new method version, subject to the
-  phase gate's check in CE1.4a), so records with Jev fills decode on older builds unchanged.
-- **B** adds a provenance kind, so it raises the food contract (CE1.7). Records and stores without B
-  values keep their contract and bytes, and older builds decode them unchanged. **A record that holds a
+- **A** adds no record type (a fill and a capture evidence with a new method version), but a record
+  citing A's capture takes the same new contract as B (CE1.4a), so an older build refuses it closed.
+- **B** adds a provenance kind, so it raises the food contract (CE1.7). Records and stores without A or B
+  evidence keep their contract and bytes, and older builds decode them unchanged. **A record that holds a
   B value cannot be decoded by an older build**, which refuses the newer contract at open and fails
   closed, as every estimate kind before it has. #549 asks for provenance that older builds can decode;
   the only way to give that is to store B values under an existing kind, and none is true
@@ -631,7 +645,7 @@ manifests and the scorer are committed before the sealed run, and the sealed set
     once-per-subject state machine with an injected clock); `ConfirmEnrichmentCaching` and
     `ConfirmEnrichmentSpendLedger` ports; the fill builder in `FoodDetailsFillPolicy`; Confirm reducer
     actions to apply a fill, apply or clear B rows and leave out a row; the save service's
-    re-check; the O1 gate with the three new uses.
+    re-check; the O1 gate with the four new uses.
   - **Infrastructure:** `OpenRouterJevFoodDetailsAdapter` (System One request and response checks) and
     `OpenRouterNutrientEstimateAdapter` (chat completions, provider block, strict schema, response
     checks), both over an injected transport, both taking `OpenRouterEgressPermitting`; a catalogue
@@ -670,9 +684,9 @@ manifests and the scorer are committed before the sealed run, and the sealed set
      kept and read as "none: 0 g"; shape failures show nothing.
   7. Save: the service refuses a B value on a non-eligible key; B never satisfies "one known nutrient";
      a left-out value is unknown; the capture is committed only when a value is kept.
-  8. Records: A evidence leaves `minimumContractVersion` unchanged, and a frozen golden archive holding
-     A evidence decodes and re-encodes byte for byte; a record with a B value raises the
-     contract and an older reader refuses it closed; records without either keep their bytes; capture
+  8. Records: a record citing A's capture, and one holding a B value, each raise `minimumContractVersion`
+     to the new contract (including an Open Food Facts entry with the #464 layer and an A capture), and an
+     older reader refuses them closed; records without either keep their bytes; capture
      verification on reopen.
   9. Export: a day with a B value writes the new version with the three new fields and the constant
      release ID; other days are byte for byte as before; the validator rejects the new fields in older
@@ -694,7 +708,10 @@ manifests and the scorer are committed before the sealed run, and the sealed set
       edit round trips for an Open Food Facts entry with the #464 layer plus A, plus B, and plus both,
       and for a Your food database entry with approved estimates, leave-out evidence and B. A candidate
       whose only known values would be B values is blocked, including one with no approved estimates.
-      O1's request site list and `egressRow` mapping are complete for the three new uses.
+      O1's request site list and `egressRow` mapping are complete for the four new uses, the two
+      catalogue checks mapping to their own rows. A Your foods search row and a rescan row whose saved
+      product has a corrected name or variant send nothing; a Your foods row whose saved version holds
+      B values offers those keys as unknown and is classified by its real source.
       Two identities: the layer alone enables Log; the one-tap row is hidden while a Jev fill shows and
       returns after `Not these`. B and the off-label layer never fill one key, in either order. The
       `responseHash`, `byteHash` and export hash bind as specified and tampering with any shows
@@ -764,4 +781,11 @@ compatibility choice of section 14 with the approval.
   off-label layer and the approved-estimate paths skip enrichment captures and expect the B rows; an
   explicit guard hides the one-tap row after a partial fill; a new rule keeps B from being a log's only
   nutrition on every route; O1's request site list grows and each use maps to one egress row.
-- **Architecture gate, fourth round:** pending.
+- **Architecture gate, fourth round (20 November 2026, at `c1dd9653`): PASS WITH CHANGES.** All three
+  findings taken: Your foods rows (built from saved product versions, so possibly corrected text and
+  earlier estimates) are out of scope in v1, and their builders rebuild saved `openrouter_estimate`
+  keys as unknown so B values are never carried through search or a rescan; A no longer claims an
+  unchanged contract, because an older build would decode A's evidence but fail to reopen a layered
+  Open Food Facts entry citing it, so the floor rule covers A's capture too and older builds refuse
+  closed; the catalogue check is split into one use per route, each mapped to its own egress row.
+- **Architecture gate, fifth round:** pending.
