@@ -1,0 +1,682 @@
+# Confirm enrichment through OpenRouter v1 (CE1)
+
+Status: **proposed, 20 November 2026; not approved, documentation only.** Written for #549 (which
+folds in #553) against `main` at `91fa7479`, after the owner approved
+[one OpenRouter consent O1](openrouter-single-consent-v1-amendment.md) (#551, PR #554) the same day.
+No app egress, code, fixture or policy text changes before the owner approves the exact terms of
+section 10 and the decisions of section 16. The [privacy and egress](privacy-and-egress.md) rows and
+the privacy policy entries of section 11 are written here and take effect only in the PR that wires
+the live transport, as label photo E16 did.
+
+It is a delta on the [Confirm rules review](confirm-rules-review-v1.md) (rule 2, the fill path, and
+rule 3, carrying fills), [food details from the catalogue I1](personal-food-catalogue-identity-facts-v1-amendment.md)
+(the closed values of I1.1 and the Jev terms of I1.6, which stay developer-tooling terms),
+[labelled estimates on catalogue v2](personal-food-catalogue-estimates-v2-proposal.md) (the estimate
+states, leave-out and ranking), [assistant-pasted estimates v1](assistant-pasted-estimates-v1-proposal.md)
+(whose eligibility, parsing and storage shapes this contract follows wherever it can), the
+[food daily export v2](food-daily-export-contract-v2.md), and O1. It repeats none of them, and
+everything they say that this document does not name stays as written.
+
+## 1. Why
+
+When the owner picks a food on Confirm, two kinds of gap are common:
+
+1. **Unknown food details.** Confirm blocks Log with `sourceIdentityMissing` until preparation, bone,
+   skin, drained state, packing medium and fortification are known (`FoodLogPolicy`,
+   `FoodConfirmationPolicy.unresolvedIdentity`). Open Food Facts products arrive with all six
+   unknown (`OpenFoodFactsLookup`), and so do Your food database entries without catalogue facts.
+   Rule 1's one tap ("Packaged product, eaten as sold") helps only on Open Food Facts and still asks
+   fortification; I1 helps only entries the owner has reviewed in the catalogue.
+2. **Unknown nutrients.** Unknown stays unknown, correctly, and the estimate layers that exist
+   cover only some routes and only from bundled reference rows or the owner's catalogue.
+
+The owner's direction (20 November 2026) is that enrichment should run in the app: when Confirm has
+gaps, the app may ask OpenRouter, sending the product details and the values already known, and
+pre-fill suggestions the owner checks and corrects before Log. The catalogue's Jev terms (I1.6)
+already let the owner's Mac send titles, brands, pack details, categories, product types and states
+to Jev; the app terms follow the same shape. Everything a model returns is a suggestion: labelled,
+changeable, never replacing a known value and never saved without Log.
+
+## 2. Scope
+
+| Route on Confirm | A. Food details | B. Unknown nutrients |
+|---|---|---|
+| Open Food Facts search and barcode | yes | yes |
+| Your food database | yes, subject to decision CE-D5 | yes |
+| Bundled tables (CoFID, USDA, TFDA, Ciqual) | not needed: generic rows do not raise `sourceIdentityMissing` | yes |
+| Web lookup (reviewed web proposal) | no, in v1 | no, in v1 |
+| Pasted label and label photo | no: they have their own fixed identity and fortification question | no, in v1 |
+
+Web lookup and the label routes are left out of v1 for the reason assistant estimates gave: their
+candidates are admitted at save only while the saved nutrients equal the verified source's
+(`FoodConfirmationService.save`, the `invalidReviewedSource` and `invalidPastedLabelSource` guards),
+and a reviewed web proposal has its own identity review. Adding them is a change to those verifiers,
+in its own contract.
+
+B is offered only for a candidate whose basis is `per_100_g` or `per_100_ml`. Neither part runs on
+the re-resolution screen, the quick add sheet or a reopened log whose details are already saved.
+
+## 3. When it runs (trigger, debounce, cache, caps)
+
+### CE1.1 Trigger
+
+Under decision CE-D1. The recommendation is **automatic**: once the enrichment switch (section 9) and the
+OpenRouter switch (O1) are on and the key is validated in this session, Confirm starts enrichment by
+itself when the bound candidate has gaps and the debounce below has passed. The alternative is **one
+tap**: a `Suggest missing details and values` row on Confirm that starts the same requests.
+
+Whichever is chosen, the request rules are the same:
+
+1. **A first, then B.** A runs when the candidate raises `sourceIdentityMissing`, no
+   `decideDifference` is pending, no difference has been decided (`state.decisions` is empty, as the
+   Food details sheet's own fill rule requires, because a fill clears decided answers) and no
+   correction or reopened entry applies. B runs when at least
+   one nutrient is eligible (CE1.4) and the subject of B (CE1.5) is settled: after A has returned,
+   failed or was not needed, so B describes the food with A's pre-fills as they stand.
+2. **Debounce.** A request starts only after the candidate, its identity and its basis have stayed
+   the same for 1.5 seconds on an open Confirm. Changing the candidate ("Choose a different match"),
+   correcting details or leaving Confirm within that time sends nothing.
+3. **One request of each kind per subject per Confirm.** A subject (CE1.5) is asked at most once for
+   A and once for B on one Confirm. If the owner changes details after B has answered, B's
+   suggestions are cleared under CE1.6 rule 6 and, in automatic mode, B may be asked once more for
+   the new subject; a third subject on the same Confirm is not asked automatically; an `Ask again` row, present
+   in both modes once a subject has been asked, sends it on a tap, within the cap.
+4. **In flight.** A request in flight when the candidate or subject changes, or Confirm closes, is
+   cancelled; its answer, if it arrives, is discarded and never cached. A request already sent cannot
+   be recalled.
+5. **No key validation.** Enrichment never validates or revalidates the key. If the key is not
+   validated in this session (after a relaunch, say), nothing is sent and no note is shown.
+6. **Log never waits.** Log is enabled or blocked exactly as today while a request is in flight. If
+   the owner logs first, the late answer is discarded.
+
+### CE1.2 Per-subject cache
+
+A successful, validated answer is kept on the device so that reopening Confirm for the same subject
+sends nothing:
+
+- **Key:** the SHA-256 of the canonical request subject (CE1.5) plus the contract, route and prompt
+  versions. Never the key, the amount or a date.
+- **Value:** the validated response bytes, the response hash, model, provider, cost, and the time
+  received.
+- **Store:** one file, `confirm-enrichment-cache-v1.json`, in the protected, backup-excluded app data
+  directory, at most 500 entries, oldest first out, an entry expiring after 30 days. A corrupt or
+  unknown file is discarded whole and rebuilt; it is never a reason to send more.
+- **Not in any record, archive or export.** A cached answer reaches a record only through a Log, as
+  the capture of CE1.7.
+- **Turning enrichment or OpenRouter off** keeps the cache; **Remove key** keeps it; a `Clear
+  suggestions cache` row in Settings › OpenRouter deletes the file.
+
+### CE1.3 Caps and limits
+
+- **Daily cap** under decision CE-D4. Recommendation: **50 requests and $0.25 of reported cost per
+  local day** (a request is one A or one B request, counted once whatever its retries; the cost counts
+  every attempt), A and B together, counted on device in their own versioned day record,
+  `confirm-enrichment-day-v1`, separate from `label-ai-spend-day-v1`, so one feature cannot use up the
+  other. A request with no reported cost counts as its per-request worst case W. A cached answer
+  counts nothing.
+- **Per request:** A at most $0.01 and B at most $0.02 worst case W, sized from the route's
+  catalogue prices and `max_tokens` (CE1.5); a reported cost above the per-request cap pauses that
+  part for the rest of the day.
+- **Retries:** as label photo E11 and the network resilience rule: only transport errors, timeouts,
+  HTTP 408, 429, 500, 502, 503, 504 and provider-overloaded answers; exponential backoff with jitter
+  honouring `Retry-After` in seconds and HTTP-date forms; at most 3 attempts within a 60 s whole-call
+  deadline (30 s per attempt); identical bytes; every attempt counted. Content failures are never
+  retried.
+- **Reaching the cap** stops new requests until the next local day and shows the quiet note of section 6.
+
+## 4. A. Food details through Jev
+
+### CE1.4 Questions, answers and the confidence threshold
+
+- **Destination.** `https://openrouter.ai/api/v1/systemone`, the System One request shape (`state` and
+  typed `questions`), the endpoint the owner's catalogue tooling uses under I1.6. The request model is
+  `typesafe/jev-1.13` and the response must name the model `typesafe/jev-1.13` (or the dated slug
+  `typesafe/jev-1.13-20260917`) and the provider `TypeSafe`, the values the app's existing Jev route
+  already checks (`OpenRouterFoodProvider`, web lookup's selection route, which calls
+  `api/alpha/decisions` and is not enabled in the default flow). The evaluation's first request
+  confirms that System One accepts this body and returns this shape; if it does not, switching to
+  `alpha/decisions` is a route version change recorded here before release. A zero-data-retention endpoint with data collection denied
+  is pinned where OpenRouter lists one for the model, with `allow_fallbacks: false`; where none is
+  listed, the route is not enabled (this differs from I1.6, which only reports it, because app egress
+  is automatic). The on-the-day identity check of label photo E7 applies: once per app session and per
+  local day, two keyless catalogue requests (`/api/v1/models/typesafe/jev-1.13/endpoints` and the ZDR
+  listing) confirm the endpoint before the first A request, under O1's gate as use
+  `confirmEnrichmentCatalogueCheck`.
+- **Questions.** One `choice` question per fact that is **unknown** on the bound candidate, never for
+  a known one, with exactly the closed values of I1.1:
+
+  | Fact | Choices |
+  |---|---|
+  | preparation | `as_sold`, `raw`, `cooked`, `unknown` |
+  | bone | `with_bone`, `boneless`, `not_applicable`, `unknown` |
+  | skin | `skin_on`, `skinless`, `not_applicable`, `unknown` |
+  | drained | `drained`, `undrained`, `not_applicable`, `unknown` |
+  | packing_medium | `as sold`, `not applicable`, `water`, `brine`, `oil`, `olive_oil`, `sauce`, `unknown` |
+  | fortification | `unfortified`, `unknown` |
+
+  **Fortified is never a choice, so it can never be pre-filled.** A fortified food keeps fortification
+  unknown and is asked on Confirm as today (I1-D2's reason). The instructions are fixed text, pinned by
+  the prompt version `confirm-details-prompt-v1`, and tell the model to choose `unknown` whenever the
+  description does not settle the fact.
+- **Response checks.** The provider and model must be exactly those requested (`jev-1.13` or a dated
+  slug pinned at the evaluation); `answers` holds exactly the asked question keys; each answer is a
+  `choice` whose value is one of that question's choices, with a `confidence` and `probabilities` that
+  are finite numbers from 0 to 1. At most 50,000 bytes. Anything else is a failed request and nothing
+  is pre-filled.
+- **What is pre-filled.** An answer pre-fills its fact only when its choice is not `unknown` and its
+  `confidence` is at least the threshold of decision CE-D3 (recommendation **0.85**). Everything else
+  stays unknown and is asked exactly as today. For a Your food database candidate, a `raw` or `cooked`
+  preparation that disagrees with the entry's `state` under I1.1's agreement rule is not pre-filled.
+- **Never replaced.** A fact the source states, a fact the catalogue states, and a fact the owner has
+  already set on this Confirm are never asked and never changed.
+
+### CE1.4a How a pre-fill is applied and stored (the fill path)
+
+- **One fill, held as a suggestion layer.** The pre-filled facts are not written into
+  `state.correction`. They are held in a transient **suggestion layer** on Confirm (section 5a), and
+  `FoodDetailsFillPolicy.currentIdentity` reads it after the correction and the reopened entry and
+  before the candidate: correction, else reopened saved product, else candidate with the suggested
+  facts applied. A new builder in `FoodDetailsFillPolicy` (beside `PackagedAsSoldPolicy.correction(for:fortified:)`)
+  turns the layer into the correction that save writes, changing only facts that were unknown. The live
+  fill-only test (rule 2.1) therefore holds: weight, conversion and portion guide are kept (rule 2.4)
+  and no typed reason is needed.
+- **New frozen reason.** The stored reason is the frozen string `Food details suggested by Jev`
+  beside the existing fixed reasons in `FoodDetailsFillPolicy`. Like them it is data, not copy.
+- **Changeable (a dated amendment to Confirm rules review rule 2.1).** Confirm shows the facts on one
+  line (section 8) with Change, which opens the Food details sheet. For the live fill-only test, a fact
+  set only by the suggestion layer counts as unknown in the current identity, since it was unknown in
+  the source: so changing a suggested fact, or a blank the suggestion left unknown, is a fill and needs
+  no reason, and weight and conversion are kept. Changing a fact the source states needs a typed reason
+  as today. Once the owner applies the sheet, the result is an ordinary `state.correction` and the
+  layer's facts are folded into it; the stored reason is then `Food details added` unless every saved
+  fact equals the suggestion, when it stays `Food details suggested by Jev`. Removing the suggestion (`Not these`) clears the fill and returns every suggested fact to
+  unknown.
+- **Stored as any fill today.** A new `ProductVersion` and `UserAssertion` with the claim
+  `Corrected populated confirmation for …` and the frozen reason; no new record type, field or
+  operation type. A Jev fill is carried on re-log and quick add exactly as other fills (rule 3,
+  `isStoredFill` over typed fields), shown there as "Food details from your last entry".
+- **Evidence.** One inline `CaptureEvidence` of kind `.labelText` with `captureMethodVersion`
+  `confirm-details-capture-v1`, committed with the Log, holding (canonical JSON): the contract and
+  prompt versions, model, provider, endpoint, the exact request body without the key, the response
+  verbatim, its SHA-256, each question's choice and confidence, the threshold, and which facts were
+  applied. It is cited from the candidate decision's evidence IDs, appended last (the mechanism
+  estimates v2 section 5 defines for leave-out evidence), so no stored type gains a field. Other
+  `.labelText` readers select by `captureMethodVersion` and ignore it (one test each way).
+- **No food contract change for A** if, as the phase gate must confirm, `captureMethodVersion` is
+  free text to the decoder (`ValidatedDecoding` decodes it as `LedgerText`): a record holding A's
+  evidence then decodes on older builds unchanged. If the gate finds otherwise, A shares B's contract
+  step (CE1.7).
+
+## 5. B. Unknown nutrients through a chat model
+
+### CE1.5 The request
+
+- **Destination.** `https://openrouter.ai/api/v1/chat/completions`, one route pinned by decision
+  CE-D2 (recommendation: **GPT-6.1 Sol on Azure**, `openai/gpt-6.1-sol` with endpoint `azure`, the
+  route the pasted label text evaluation measured, listed with zero data retention and structured
+  outputs). Provider block exactly as label photo E5: `only` and `order` set to the one endpoint,
+  `allow_fallbacks: false`, `require_parameters: true`, `data_collection: "deny"`, `zdr: true`; the
+  response's model and provider must match or the request fails. On-the-day catalogue check as E7, as
+  use `confirmEnrichmentCatalogueCheck`. The route is changed only by a route version bump.
+- **Strict JSON.** `response_format` is a strict `json_schema`:
+  `{"schema":"confirm-nutrient-estimate-v1","basis":"per_100_g"|"per_100_ml","values":[{"nutrient":<key>,"value":<number>,"unit":<unit>}]}`,
+  where `nutrient` is an enum of exactly the eligible keys of this request and `unit` of their
+  canonical units. `max_tokens` 1,200 and a reasoning limit of 500 tokens, from which W is computed.
+  The model supplies no tier and no confidence: every value it gives is stored at tier `low` (CE1.6).
+- **Eligible nutrients.** Exactly the rule of assistant estimates section 5.1: a nutrient that, on the
+  bound candidate, is `.unknown` with status `resolved` and reason `not_declared` or
+  `no_compatible_source`, and has no catalogue estimate in any state. A label value, an Open Food Facts
+  value, a merged record's value, a catalogue estimate (kept, withheld or left out), a bounded value, a
+  conflict and a `missing_conversion` key are never requested. If no key is eligible, B sends nothing.
+- **The subject** (what the cache key and the clearing rule hash): contract, route and prompt
+  versions, the description fields of section 7 that this request sends, the typed identity tokens
+  after any A fill, the basis, the sorted eligible keys and the SHA-256 of the canonical list of known
+  values (key, value, unit, source phrase), since the parent and energy checks depend on them. A cached
+  answer is reused only for the same subject, so it always validates as it did when received.
+- **Instructions.** Fixed text, prompt version `confirm-nutrient-prompt-v1`: answer for the food
+  exactly as described, per the stated basis only, never converting; use exactly the unit given; leave
+  out any nutrient it cannot estimate and never write 0 for unknown; never change a known value. No
+  health, target or diet wording.
+
+### CE1.6 Validation and presentation of the estimate layer
+
+1. **Response checks.** At most 100,000 bytes; one choice, `finish_reason` `stop`, no tool calls or
+   refusal; strict schema validation; `schema` and `basis` equal to the request's. Any failure of shape
+   fails the whole request and nothing is shown.
+2. **Row checks** (a failing row is dropped, the others stay; codes as assistant estimates 4.2 where
+   they exist): a key not requested (`unknown_nutrient`); a unit that is not the key's canonical unit
+   (`unit`); a value that is negative, not finite or too large to hold (`value`); on a per 100 g entry
+   a mass above 100 g in the key's unit, or energy above 900 kcal on either basis (`impossible_value`);
+   a child above its parent, saturated, monounsaturated or polyunsaturated fat above total fat or
+   sugars above carbohydrates, where the parent is known or a kept row of the same reply
+   (`exceeds_parent`); a key repeated (`duplicate_nutrient`, which drops every row for that key).
+3. **Energy against macros.** When energy, protein, carbohydrate and fat are all available after the
+   merge (known or estimated) and at least one of the four is an estimate, a domain function
+   `EstimateEnergyCheck` with its own constants (4 kcal/g protein and carbohydrate, 9 kcal/g fat, and
+   the fibre forms) must pass for at least one of the three forms `LabelArithmeticChecks.energyCheck`
+   knows: the general form, the UK form (carbohydrate excludes fibre, fibre at 2 kcal/g, when fibre is
+   known) and the Taiwan form (carbohydrate includes fibre), each with tolerance 15 kcal or 10%. Any form
+   is accepted because the candidate's jurisdiction is not reliably known; a parity test pins the
+   constants against `LabelArithmeticChecks` (which the domain cannot import); if it fails, every estimated value
+   among the four is dropped (`energy_mismatch`) and the known values stay as they are. On a per 100 ml
+   basis the check runs on the same per 100 ml values.
+4. **Never replacing a known value.** Enforced three times: the request asks only eligible keys, the
+   row check drops any other, and the save service re-checks eligibility on the final nutrient set and
+   refuses a state that fails.
+5. **Shown as a labelled estimate layer, pre-filled.** Each kept row appears in Confirm's nutrient list
+   in its normal place with one short `est.` tag beside the value (decided 20 November 2026 in #551),
+   no sentence, and nothing on values read from a source. Each row has `Leave out` / `Put back`, the
+   control catalogue estimates already use (`ApprovedEstimatePresentation`), so the owner accepts or
+   leaves out each value before Log; a left-out value is unknown, never zero. VoiceOver reads "estimated"
+   for the tag. Details (the existing Source details disclosure) show "Estimated by <model> through
+   OpenRouter from the description of this food" and the time received.
+6. **When details or basis change after B answered.** As assistant estimates 5.6: the rows are cleared
+   from the list (stored nothing), and B may be asked again under CE1.1 rule 3.
+7. **Log.** The saved version holds the kept rows (not left out). A B value never satisfies estimates
+   v2's "Log needs one known nutrient" rule, so B is never a log's only nutrition. Daily totals keep
+   `includesEstimates`; a partial total stays a known minimum.
+
+### CE1.7 Records and exports
+
+- **Provenance kind `openrouter_estimate`.** A new `ProvenanceSourceKind.openRouterEstimate` (raw value
+  `openrouter_estimate`). Neither `approved_estimate` (it names a catalogue release and an
+  owner-approved evidence record) nor `assistant_estimate` (the owner's own assistant, outside the
+  app) is true here. Rules, in `NutrientEntry` validation: only inside `.augmented`, never `.measured`
+  or `.bounded`; its tier is implied by the kind (always `low`, exported as that constant, since
+  `NutrientProvenance` has no tier field); `recordID` `ore:<capture evidence ID>`; `evidenceID` the capture below; `responseHash` the SHA-256 of the
+  response bytes; `manifestReference` `confirm-nutrient-capture-v1#<nutrient key>`; `transforms`
+  empty; `sourceID` `confirm-enrichment-openrouter`; a source release per capture,
+  `openrouter-estimate:sha256:<capture hash>`, committed with the log. The phase gate pins the other
+  required release and evidence fields with truthful constants.
+- **Capture `confirm-nutrient-capture-v1`.** Inline `CaptureEvidence`, kind `.labelText`,
+  canonical JSON: contract, route and prompt versions; model, provider and generation ID; the exact
+  request body without the key; the response verbatim (at most 100,000 bytes, as checked); its hash;
+  every row with its result code; and the left-out keys of the saved version. Committed only with a Log
+  whose saved version keeps at least one B value; with every row left out, nothing is stored.
+- **Verification** on save and on reopen: the payload hash equals `byteHash` and each value's
+  `responseHash`; the row checks, re-run on the stored response against the stored request, give the
+  stored rows; each saved value equals a kept row. A mismatch shows "Evidence not available" and never
+  changes a stored value.
+- **Food contract.** `ProvenanceSourceKind` is a closed string enum, so an older build cannot decode
+  the new kind. Following the allocation rule of estimates v2 and assistant estimates, B takes the
+  **next free food contract** when its phase starts (13 at the time of writing: 11 is in use and 12 is
+  reserved for assistant estimates), with the floor rule (a record holding `openrouter_estimate`
+  provenance or `confirm-nutrient-capture-v1` evidence) checked before the earlier ones and a
+  metadata-only migration. An archive or store holding none keeps its contract and its bytes.
+- **Daily export.** B takes the **next free daily export version** (7 at the time of writing: 4 and 6
+  are reserved by assistant estimates and the union rule, and 5 is in use), written only for a day
+  holding at least one `openrouter_estimate` value; any other day is written exactly as before, byte
+  for byte. The new version admits everything version 5 admits (approved estimate and label photo
+  estimate fields), and everything version 6 admits once that lands, so a day mixing them is one
+  file; goldens cover mixed days. Origin `openrouter_estimate` joins the closed origin table; the value exports `state:
+  "estimated"`, `calculated: false`, `source_kind` `openrouter_estimate`, `estimate_quality` `low`
+  (required, the only value), and three new fields for this kind only: `estimate_model` (the model
+  slug), `estimate_contract` (`confirm-enrichment-openrouter-v1`) and `estimate_response_sha256`.
+  `source_release_id` is the constant `confirm-enrichment-openrouter`, never the per-capture
+  identifier. No request text, response text or description field is exported. `notes` gains one
+  constant sentence: "origin openrouter_estimate marks a value estimated by an OpenRouter model from a
+  description of the food and kept by the user for that entry. It is not measured and does not come
+  from a label or a food composition table." A build without this change rejects the new version in
+  `validate` and fails closed. A Jev fill (A) changes no export field: food daily export v2 carries no
+  identity facts.
+- **Developer tools.** A session-only "Last Confirm enrichment" disclosure in Search details, like
+  "Last web lookup": per request the use, route, model, provider, request field names sent, request
+  and response hashes, latency, attempts, reported cost, the threshold and the outcome; no key. On a
+  saved log, Source details show the capture hash, so a value can be reproduced from the stored
+  request and response.
+
+### CE1.7a Other routes and later edits
+
+- **Re-log and quick add.** A fill (A) is carried as rule 3 says. For that, the stored fill test
+  `isStoredFill` treats `openrouter_estimate` values as hidden, exactly as it treats approved estimates
+  today (`matchesExceptHiddenEstimates` gains this kind), so an entry holding a Jev fill and B values
+  still carries its fill. B values are **not** carried: an
+  entry whose saved version holds an `openrouter_estimate` value always opens Confirm on re-log and
+  quick add (a new quick add ineligibility reason), where the per-subject cache may supply the
+  suggestions again without sending.
+- **Re-resolution** does not carry B values (the fresh candidate may hold its own) and shows
+  "Estimates from OpenRouter are not carried over", beside estimates v2's notice.
+- **Reopen** reads no network: saved values show as saved; Leave out writes a new version under the
+  existing save rules.
+- **Search, the catalogue and import** are untouched. A B value never enters a catalogue file.
+
+## 5a. The suggestion layer on Confirm
+
+- **Where suggestions live.** One transient value on `FoodConfirmationState`, never encoded with it (as
+  `answersLabelFortification` and the assistant estimate selection are): the A fill (suggested facts,
+  the capture) and the B rows (kept and left out, the capture). Neither the candidate (`candidate.nutrients`
+  stays the source's) nor `FoodCorrection` ever holds a model value, so `isValuePreserving` and
+  `isFill` keep comparing source against owner, and the candidate decision stored with the log holds
+  the source's values only.
+- **Merge order at save.** The saved resolution version's nutrients are the candidate's (or the
+  correction's), then estimates v2's withheld and left-out keys as unknown, then the #464 label estimate
+  layer where it applies, then the kept B rows on keys still eligible. A key a label estimate fills is
+  not eligible for B (CE1.5's rule already excludes it); when assistant estimates are implemented, a
+  key B fills is not offered to the assistant, and the assistant section is offered only for keys
+  still unknown after B, so no key ever has two model contenders.
+- **New logs from saved decisions.** A new log built from a saved decision (re-log, quick add) drops
+  that decision's A and B capture evidence IDs, as estimates v2 does for leave-out IDs, and asks or
+  reuses the cache afresh.
+
+## 6. Failure states
+
+Confirm behaves exactly as it does today in every failure, and shows at most one quiet note in the
+Food details or nutrient section, never a sheet or alert:
+
+| State | Note |
+|---|---|
+| OpenRouter off, no key or key not validated | none in automatic mode (the O1 blocked row appears only on the one-tap row, if CE-D1 chooses it) |
+| Enrichment switch off | none |
+| Offline, timeout, connection failure | `Suggestions are not available right now.` |
+| Refusal, invalid or mismatched response, route check failed | `Suggestions are not available right now.` |
+| Daily cap reached or a part paused | `Today's limit for suggestions is reached.` |
+| Every A answer below the threshold, or every B row dropped | none; the facts or values stay unknown as today |
+
+A failure is not cached, so the next Confirm for the subject may ask again, within the cap. Nothing
+about a failure is stored with a record.
+
+## 7. Exact fields sent and never sent
+
+**A (Jev) sends** one food description, built by one pure function from the bound candidate, and the
+questions of CE1.4:
+
+| Field | Source |
+|---|---|
+| `name` | the source candidate's name, never text the owner typed in a correction |
+| `brand` | the source candidate's brand, when there is one |
+| `variant` | the source candidate's variant, for Your food database and bundled rows only; never for Open Food Facts, whose variant holds the app's own review copy (`OpenFoodFactsLookup`) |
+| `pack_size` | the net quantity from `PackFacts`, or the catalogue entry's pack size, when stated |
+| `pack_type` | the catalogue entry's pack type (for example bag, can, jar, tin or bottle), when stated |
+| `category` | the catalogue entry's category, when there is one |
+| `product_type`, `state` | the catalogue entry's, when present |
+| `source` | one closed token: `open_food_facts`, `your_food_database` or `composition_table` |
+| `known_details` | the facts already known, as I1.1 tokens, so the model does not contradict them |
+
+**B (chat model) sends** the same description (source fields only, never correction text), the typed identity after any A fill (as I1.1 tokens),
+the basis, each known nutrient value with its canonical unit and one closed phrase for its source
+("from the label", "from the product's Open Food Facts record", "from a food composition table", "from
+your food database", "estimated in your food database"), the eligible keys with their units, the fixed
+instruction and the schema.
+
+**Never sent, by either:** the amount eaten, the time or date, notes, any other entry, totals, Apple
+Health data, the barcode, entry, record, release, evidence or decision identifiers, source addresses,
+digests, photos, receipt text, shop names other than the brand, prices, location, device or account
+identifiers, the catalogue's free-text states and assumptions, and the key anywhere but the
+Authorization header (a request containing it in the body is refused). A Your food database name can
+come from a receipt product title, so it may hold a shop word or pack size; the app has no private
+shop list to remove them, which is stated in the privacy entry.
+
+**An on-device gate** runs on every description before it is sent, as AI search by name A6 and the
+skill's `safe_query` do: a description holding an email address, a phone number, a UK postcode, a
+run of 8 or more digits, a currency amount, or order, payment or account words is not sent (A or B
+for that food is skipped, with no note), and the gate is a backstop, not a guarantee.
+
+## 8. Presentation
+
+- **Food details.** With a fill applied, Confirm shows one line in the food details area: `Food
+  details suggested: <facts in plain words>`, for example "as sold, no packing liquid, not fortified",
+  with `Change` and `Not these`. Facts left unknown are asked as today, below it. The line is hidden
+  after a correction or on a reopened entry.
+- **Nutrients.** Estimated values in the list with `est.` (CE1.6 rule 5). No other sentence.
+- **Loading.** While a request runs, one quiet row `Looking for suggestions…` with `Stop` (explicit
+  loading state; Stop cancels and sends nothing more). Log is unaffected.
+- **Failure.** The one note of section 6.
+- **Settings.** Under Settings › OpenRouter, after the consent switch: a toggle `Suggest missing food
+  details and values on Confirm`, caption `Off by default. Sends a description of the food you are
+  logging and its known values; never the amount, time, notes or Health data.`; a value row `Confirm
+  suggestions today`, detail `<n> of <cap>`; and `Clear suggestions cache`.
+- Native grouped style, Dynamic Type, VoiceOver labels on the tag, line and rows, 44 pt targets, no
+  colour alone, British spelling, no emoji. No medical classification or advice anywhere.
+
+## 9. Consent and the Settings switch
+
+- **Under O1's single consent.** Enrichment sends nothing unless the OpenRouter switch is on, under
+  the gate of O1 with three new `OpenRouterUse` cases, `confirmEnrichmentDetails` (A),
+  `confirmEnrichmentNutrients` (B) and `confirmEnrichmentCatalogueCheck`, each with its policy entry
+  and egress row (section 11). No per-feature consent, first-use sheet or egress statement.
+- **O1's caption and mapping.** Under O1 section 3 a route that widens the consent switch's scope
+  changes it in its own contract, so on approval the switch title becomes `Use OpenRouter for food
+  lookups, label reading and Confirm suggestions`, its key (`openRouter.consent.v1`) unchanged, and
+  the three new uses join `OpenRouterUse` with their `policyEntry` (`Confirm suggestions.`) and
+  `egressRow` (the two rows of section 11) mapping, checked by O1's test 8.
+- **The enrichment switch** (`confirmEnrichment.enabled.v1`, Boolean, missing reads as off, removed
+  when off, read from the persistent domain only as O1 requires) turns the feature off independently.
+  It is a feature switch, not a consent: with OpenRouter off it does nothing.
+- **Turning either off** stops new requests at once; a request on the wire is not recalled; suggestions
+  already shown stay until Confirm closes but nothing new arrives.
+
+## 10. Egress terms (for the owner's approval, line by line; nothing sent before)
+
+- [ ] **CE-T1 Destinations.** `https://openrouter.ai/api/v1/systemone` (A, model `jev-1.13`) and
+  `https://openrouter.ai/api/v1/chat/completions` (B, the CE-D2 route), plus the keyless catalogue
+  listings of E7 for both models. No other destination.
+- [ ] **CE-T2 Payload.** Exactly the fields of section 7, with the fixed questions or instruction and
+  schema.
+- [ ] **CE-T3 Never sent.** The list of section 7, and the on-device gate.
+- [ ] **CE-T3a Differences from the catalogue's Jev terms (I1.6), approved knowingly.** The app sends
+  more than I1.6's catalogue tooling does: the variant text (bundled rows and Your food database
+  only), a closed source token, the food details already known and, for B only and to a chat model,
+  known nutrient values with their source phrases (I1.6 never sends nutrient values). It also has no
+  private shop-marker list, so a Your food database name is sent as stored, and its deny gate is the
+  on-device gate above, not the skill's `safe_query`. Requests are automatic under CE-D1 rather than
+  listed for the owner before a run.
+- [ ] **CE-T4 When.** Under CE-D1: automatically on Confirm after the 1.5 s debounce when gaps exist,
+  or only on the one-tap row; in both cases only with OpenRouter on (O1), the enrichment switch on and
+  a key validated in this session; never in the background, from search results, on quick add, on
+  re-resolution or for a reopened log's saved details.
+- [ ] **CE-T5 Routing.** Zero-data-retention endpoints only, `data_collection: "deny"`,
+  `allow_fallbacks: false`, one endpoint pinned per route; the response's model and provider must
+  match; a model with no listed ZDR endpoint is not enabled.
+- [ ] **CE-T6 Identity check on the day.** E7's catalogue check per route, once per app session and per
+  local day, and again after a check that could not connect.
+- [ ] **CE-T7 Key.** The existing OpenRouter key from this-device-only Keychain, validated in the
+  session; never in a body, log, capture, cache or export.
+- [ ] **CE-T8 Caps.** CE-D4's daily cap in `confirm-enrichment-day-v1`, the per-request caps of CE1.3,
+  and the owner's own limit on the key.
+- [ ] **CE-T9 Retries.** As CE1.3.
+- [ ] **CE-T10 Response limits.** As CE1.4 and CE1.6 rule 1.
+- [ ] **CE-T11 On-device retention.** The per-subject cache of CE1.2 (protected, backup excluded,
+  500 entries, 30 days, clearable); captures only with a Log that uses them; nothing in the Drive food
+  export but the fields of CE1.7.
+- [ ] **CE-T12 Provider records.** ZDR and no-collection cover the model endpoints only; OpenRouter
+  keeps account and usage records (model, tokens, cost, time, generation ID) under its own terms, and
+  the policy says so.
+- [ ] **CE-T13 Qualification before enabling.** Section 12's bars pass on the evaluation, run by
+  developer tooling under its own terms (CE-T15), before the route is reachable outside a Debug build;
+  then internal TestFlight builds first.
+- [ ] **CE-T14 Records.** The `privacy-and-egress.md` rows and privacy policy entries of section 11 take
+  effect in the PR that wires the live transport, not before.
+- [ ] **CE-T15 Evaluation egress.** The evaluation tool sends the same request shapes, built from
+  public Open Food Facts product data and bundled composition rows only (no owner data), to the same
+  two destinations, with the owner's key read into memory only, a $5 programme spend stop and a $0.05
+  per-call stop, raw responses kept in the owner's private evaluation folder, and counts, versions and
+  hashes only in the repository.
+
+## 11. Records text (added on approval, in the wiring PR)
+
+### 11.1 `docs/privacy-and-egress.md`, Allowed egress, two rows
+
+```diff
++| OpenRouter System One and its one allow-listed Jev endpoint (ZDR where listed, data collection denied, no fallbacks) | One food description for the food on Confirm (the source's name and brand, its variant text for bundled rows and Your food database entries, pack size and pack type, category, product type and state where present, a closed source token and the food details already known) and fixed choice questions for each unknown food detail; never text typed in a correction, the amount eaten, time or date, notes, other entries, Health data, barcode, identifiers, addresses, photos, prices or the key outside the Authorization header | With OpenRouter turned on in Settings (O1) and Suggest missing food details and values on, with the user's own validated key: <CE-D1 wording>, when the selected food has unknown food details; two keyless catalogue requests confirm the endpoint on the first request of a session and of each local day, and again after a check that could not connect; at most 3 attempts in 60 s per request; at most <CE-D4 cap> per day across both Confirm suggestion rows; a cached answer is reused without sending | [confirm-enrichment-openrouter-v1.md](confirm-enrichment-openrouter-v1.md) |
++| OpenRouter and its one allow-listed model endpoint for nutrient estimates (ZDR, data collection denied, no fallbacks) | The same food description, the food details after any suggestion, the nutrition basis, each known nutrient value with its unit and source phrase, the unknown nutrients asked, a fixed instruction and output schema; never the items listed in the row above | As the row above, when at least one nutrient is unknown and eligible; at most $0.02 per request and the shared daily cap | [confirm-enrichment-openrouter-v1.md](confirm-enrichment-openrouter-v1.md) |
+```
+
+`Stays on the device unless the user sends it`, added: "**Confirm suggestions** (#549): the
+per-subject cache of validated answers stays in the protected app data directory; a capture of the
+request and response is stored only with a log that keeps a suggestion. The food daily export carries,
+for an OpenRouter estimate only, the model, the contract version and the response's SHA-256."
+
+### 11.2 Privacy policy, OpenRouter section (an entry in O1's list)
+
+```text
+Confirm suggestions. Only if you also turn on Suggest missing food details and values on Confirm in Settings › OpenRouter. <CE-D1 wording: When the food you are confirming has unknown food details or unknown nutrient values, the app asks automatically, a moment after the food is chosen / When you tap Suggest missing details and values>. Sends a description of that food as its source gives it (never words you typed in a correction): the name and brand, its variant text for database and table foods, pack size and pack type, category, product type and state where the app has them, the food details already known and, for nutrient estimates, the nutrition basis and the known values. A name from your own food database can come from a receipt product title, so check names you would not want sent. Food details go to the Jev model through OpenRouter's System One service; nutrient estimates go to one named model endpoint (currently <CE-D2 model> on <provider>) with no fallback to other providers. Never sent: the amount you ate, the time or date, notes, other entries, Apple Health data, barcodes, identifiers, photos or prices. Suggested food details are filled in for you to check and change; estimated values are marked est. and you can leave out each one before you tap Log. Nothing is saved until you tap Log, and an estimate never replaces a value from a label or a database. A failed request is retried at most twice; suggestions are limited to <CE-D4 cap> a day, and answers are kept on your device so the same food is not sent again. If you log a food with an estimated value, the Drive food file names the model that estimated it.
+```
+
+## 12. Evaluation bar before release
+
+Run by developer tooling (CE-T15) on two sets built from public data only, never the owner's data:
+a development set of 60 Open Food Facts products (UK and Taiwan, packaged, with complete declared
+panels and food details checked by the owner on a review sheet) and 40 bundled composition rows, and
+a sealed set of the same size and mix, opened once by the frozen configuration. For B, known values
+are hidden per case (energy, a macro, fibre, sodium and one micronutrient at a time) and the model's
+estimate is compared with the hidden declared value.
+
+| Bar | A. Food details | B. Nutrients |
+|---|---|---|
+| Wrong pre-fills | at most 2% of pre-filled facts, and 0 wrong `preparation` pre-fills | n/a |
+| Coverage | at least 60% of unknown facts pre-filled | at least 70% of requested nutrients returned and kept after validation |
+| Accuracy | n/a | median absolute error, as a percentage of the declared value or of a floor where the declared value is smaller (5 kcal energy, 0.5 g for macronutrients and fibre, 5 mg sodium, 10% of the key's UK reference intake for other micronutrients), at most 20% for energy and macronutrients, 35% for fibre and sodium, 50% for other micronutrients |
+| Safety | 0 fortified pre-fills (by construction) and 0 `unfortified` pre-fills on fortified foods (both sets include fortified products, at least 8 each) | 0 known values replaced (by construction) |
+| Cost | median at most $0.002 per request | median at most $0.005 per request |
+| Latency | p90 at most 10 s | p90 at most 20 s |
+
+A missed bar stops release of that part; the other part may ship on its own. The bars, the sets'
+manifests and the scorer are committed before the sealed run, and the sealed set is never reused.
+
+## 13. What stays closed
+
+- Nothing is saved without the owner's explicit Log; no automatic selection of a food.
+- Unknown is never zero; estimates are labelled (`est.`), left out values are unknown; partial totals
+  are known minimums.
+- A suggestion never replaces a value or fact the source, the catalogue or the owner states.
+- Fortified is never pre-filled; food details are asked wherever they stay unknown.
+- Model output, confidence or citations never authorise nutrition by themselves.
+- No medical classification, target, diagnosis or advice; the instructions hold none.
+- HealthKit stays read-only and no Health data reaches any request.
+- Stored records, archives and exports decode and re-encode unchanged across versions; a record
+  without B values keeps its contract and bytes.
+
+## 14. Compatibility and rollback
+
+- **A** adds no record shape (a fill and a capture evidence with a new method version, subject to the
+  phase gate's check in CE1.4a), so records with Jev fills decode on older builds unchanged.
+- **B** adds a provenance kind, so it raises the food contract (CE1.7). Records and stores without B
+  values keep their contract and bytes, and older builds decode them unchanged. **A record that holds a
+  B value cannot be decoded by an older build**, which refuses the newer contract at open and fails
+  closed, as every estimate kind before it has. #549 asks for provenance that older builds can decode;
+  the only way to give that is to store B values under an existing kind, and none is true
+  (`approved_estimate` names a catalogue release, `assistant_estimate` the owner's own assistant). This
+  contract chooses truthful provenance; the owner is asked to confirm with the approval (section 16).
+- **Rollback.** Turning enrichment off stops new suggestions; saved logs keep what they were saved with.
+  Downgrading the app past the B contract is refused for a store that holds a B value, as for earlier
+  contract steps.
+
+## 15. Architecture gate
+
+- **Responsibilities.**
+  - **Domain** (`FoodLedgerDomain`): `ProvenanceSourceKind.openRouterEstimate` and its validation; the
+    capture payload types `confirm-details-capture-v1` and `confirm-nutrient-capture-v1` with
+    canonical encoding; the closed fact choice lists, taken from I1.1's existing domain values; the pure
+    row checks and energy check (reusing `LabelArithmeticChecks.energyCheck`'s formula through a small
+    shared function, not the label parser's types).
+  - **Application** (`FoodLedgerApplication`): ports `FoodDetailsSuggesting` (A) and
+    `NutrientEstimateSuggesting` (B), each one method from a typed request to a typed outcome;
+    `ConfirmEnrichmentPolicy` (eligibility, subject and request building, the debounce and
+    once-per-subject state machine with an injected clock); `ConfirmEnrichmentCaching` and
+    `ConfirmEnrichmentSpendLedger` ports; the fill builder in `FoodDetailsFillPolicy`; Confirm reducer
+    actions to apply a fill, apply or clear B rows and leave out a row; the save service's
+    re-check; the O1 gate with the three new uses.
+  - **Infrastructure:** `OpenRouterJevFoodDetailsAdapter` (System One request and response checks) and
+    `OpenRouterNutrientEstimateAdapter` (chat completions, provider block, strict schema, response
+    checks), both over an injected transport, both taking `OpenRouterEgressPermitting`; a catalogue
+    checker per route; a file cache and a file day ledger. They live in a new package target,
+    `FoodConfirmEnrichment`, allowed by `check-boundaries.sh` to import `FoodLedgerApplication` and
+    `FoodLedgerDomain` only, with one transport file allowed to load URLs, and covered by O1's request
+    site check.
+  - **Presentation:** the details line, the `est.` tag and Leave out rows, the loading row and note,
+    the Settings rows, the Developer tools disclosure.
+  - **Composition root:** wires the adapters, the gate, the cache, the ledger and the switch. It is
+    the only importer of `FoodConfirmEnrichment`; `check-boundaries.sh` enforces that beside the URL
+    confinement rule and O1's request site check.
+- **Dependency direction.** Domain ← application ← infrastructure and presentation; no framework,
+  network, file or clock type crosses a port.
+- **Invariants.** No request with OpenRouter or enrichment off; a known value or fact is never asked
+  or replaced; fortified never pre-filled; a B value is `.augmented`, `low`, `openrouter_estimate` and
+  never a log's only nutrition; nothing stored without Log; caps never exceeded; the cache never holds
+  a key or an amount; a record without B values keeps its contract and bytes.
+- **Extension axes.** Another route on Confirm (web lookup, labels) is a scope change with its own
+  verifier amendment; another model is a route version bump; another fact is an I1 schema step first.
+  No generic AI framework, no protocol per method.
+- **Contract tests (synthetic fixtures only, written first).**
+  1. Eligibility: only unknown facts are asked; only eligible nutrients are requested; each ineligible
+     class (label, Open Food Facts, merged, catalogue estimate in each state, bounded, conflict,
+     `missing_conversion`) is never requested.
+  2. Request bytes: goldens for A and B with every field of section 7; a description carrying a
+     forbidden field is refused before sending; the key appears only in the header.
+  3. Gate: with OpenRouter off, enrichment off or no validated key, zero requests on every path (O1
+     test pattern, each new `OpenRouterUse`).
+  4. Debounce and once-per-subject: a candidate change within 1.5 s sends nothing; one request per
+     subject per Confirm; the second subject rule; in-flight cancellation discards the answer.
+  5. A answers: below threshold, `unknown`, a choice outside the list, a mismatched model and an
+     oversize response pre-fill nothing; a fill keeps weight and conversion and needs no reason; a
+     state-disagreeing preparation is not pre-filled; fortified cannot be expressed.
+  6. B rows: each row code drops its row only; the energy check drops only estimated values; a zero is
+     kept and read as "none: 0 g"; shape failures show nothing.
+  7. Save: the service refuses a B value on a non-eligible key; B never satisfies "one known nutrient";
+     a left-out value is unknown; the capture is committed only when a value is kept.
+  8. Records: a record with a Jev fill decodes on the previous build; a record with a B value raises the
+     contract and an older reader refuses it closed; records without either keep their bytes; capture
+     verification on reopen.
+  9. Export: a day with a B value writes the new version with the three new fields and the constant
+     release ID; other days are byte for byte as before; the validator rejects the new fields in older
+     versions.
+  10. Cache and ledger: a cached subject sends nothing; corrupt files are discarded; the day cap and
+      per-request caps hold, with unreported cost counted as W.
+  11. Re-log, quick add, re-resolution: a Jev fill is carried; B values are not, and the entry opens
+      Confirm.
+  12. Shared port contract suites in `FoodLedgerTestSupport`, passed by the scripted and the live
+      implementations of both suggesting ports, and by the file and in-memory cache and day ledger.
+  13. Suggestion layer: B never changes `candidate.nutrients` or `correction.nutrients`; the A fill
+      stays a fill after B arrives; changing a suggested fact needs no reason and keeps weight and
+      conversion; a fill is refused while `state.decisions` is not empty; B never sends correction
+      text; the deny gate stops a description holding each pattern.
+  14. Re-log of an entry holding an A fill and B values: the fill is carried, the B values are not,
+      and Confirm opens. A new log drops the earlier capture IDs.
+  15. Energy check parity with `LabelArithmeticChecks`, Taiwan and UK forms included; a cache miss when
+      a known value changes; mixed-day export goldens; the boundary script fails a non-root importer.
+  16. Simulator journey: an Open Food Facts product with all facts unknown is filled and logged with
+      one amount; a bundled row gets two estimates, one left out, and logs; enrichment off sends
+      nothing; a scripted failure shows the one note.
+
+## 16. Decisions for the owner
+
+Asked one at a time on #549, each with a recommendation, then the egress terms of section 10 and the
+compatibility choice of section 14 with the approval.
+
+- **CE-D1. Trigger mode.** Recommendation: **automatic**, after the 1.5 s debounce, once per subject,
+  with the enrichment switch off by default. It matches the assistive principle (AI pre-fills, the owner
+  validates) and the owner's direction; the cache and the daily cap bound it. The alternative is one tap
+  on Confirm, which sends only when asked.
+- **CE-D2. The model for B.** Recommendation: **GPT-6.1 Sol on Azure** (`openai/gpt-6.1-sol`, `azure`):
+  listed with zero data retention and strict structured outputs, already measured on nutrition text in
+  the pasted label evaluation, where its cost was about a cent a read for much longer inputs. Its
+  latency there missed a 20 s bar on long labels; B's prompts are short and run in the background of
+  Confirm, so section 12 measures it afresh. The alternative is Gemini 4 Argon on Google Vertex, already
+  qualified for label photos.
+- **CE-D3. The confidence threshold for A.** Recommendation: **0.85**, on Jev's reported confidence,
+  confirmed by section 12's wrong pre-fill bar (if 0.85 misses it, the evaluation reports the lowest
+  threshold that passes, and the owner chooses). Jev's confidence is uncalibrated, so the threshold is a
+  frozen contract value, changed only by a new version.
+- **CE-D4. The daily cap.** Recommendation: **50 requests and $0.25 of reported cost a day**, A and B
+  together, with $0.01 (A) and $0.02 (B) per request: well above a normal day of logging, small enough
+  that a fault cannot spend much.
+- **CE-D5. Your food database entries with catalogue facts.** Recommendation: **skip A for any entry
+  whose `identity_facts` is not null** (the owner has reviewed it in the catalogue), and ask A for
+  entries without facts like any other route. B is unaffected.
+
+## 17. Review record
+
+- **Architecture gate, first round (20 November 2026): PASS WITH CHANGES.** All sixteen findings
+  taken: suggestions live in a transient layer outside both the candidate and the correction, with a
+  merge order at save and capture IDs dropped on new logs; a suggested fact counts as unknown for the
+  live fill test, recorded as a dated amendment to rule 2.1, since the first draft's claim that
+  changing it stays a fill was false against `currentIdentity`; `isStoredFill` treats B values as
+  hidden so the fill is carried; B sends source fields only, never correction text, and Open Food
+  Facts' variant (which holds app copy) is not sent; an on-device deny gate and a term listing every
+  difference from I1.6; the Jev route pinned (path, slugs, provider) against the app's existing route;
+  A also requires no decided differences; a domain energy check accepting any of the three forms with
+  a parity test; the export version admits version 5's fields with mixed-day goldens; known values in
+  the cache subject; evaluation bars for a wrong `unfortified` and a floor for small values; shared
+  port suites and the import rule; O1's caption and mapping; tier and `recordID`; the `Ask again` row,
+  the request count and no key validation; the `PackagedAsSoldPolicy` reference.
+- **Architecture gate, second round:** pending.
