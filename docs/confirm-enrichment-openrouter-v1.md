@@ -186,9 +186,15 @@ sends nothing:
   - the **fill-test baseline** (`FoodDetailsFillPolicy.currentIdentity`, unchanged: correction, else
     reopened saved product, else candidate) leaves the layer out, so a suggested fact is still unknown
     there.
-  While a Jev fill is shown, the one-tap "Packaged product, eaten as sold" row is not offered (its
-  `offers` reads the effective identity, and the suggestion already fills what it would); `Not these`
-  brings it back. A new builder in `FoodDetailsFillPolicy` (beside `PackagedAsSoldPolicy.correction(for:fortified:)`)
+  **Differences.** `IdentityCompatibility.contradictions` counts a fact as a difference whenever either
+  side is unknown, and today `pendingDifferences` hides missing facts only because `unresolvedIdentity`
+  lists them. So, while the layer holds an A fill, `pendingDifferences` leaves out the facts the fill
+  sets (they are fills of unknown source facts, not differences to decide), and `savesEstimate` and
+  `decisionRecord` apply the same rule; any other difference (basis, a stated fact) is still asked. At
+  save the fill is written as a correction, exactly as a sheet fill is.
+  While a Jev fill is shown, the one-tap "Packaged product, eaten as sold" row is not offered:
+  `PackagedAsSoldPolicy.offers` gains an explicit guard (no A fill in the layer), because after a
+  partial fill `unresolvedIdentity` is still not empty; `Not these` brings the row back. A new builder in `FoodDetailsFillPolicy` (beside `PackagedAsSoldPolicy.correction(for:fortified:)`)
   turns the layer into the correction that save writes, changing only facts that were unknown. The live
   fill-only test (rule 2.1) therefore holds: weight, conversion and portion guide are kept (rule 2.4)
   and no typed reason is needed.
@@ -284,8 +290,11 @@ sends nothing:
    OpenRouter from the description of this food" and the time received.
 6. **When details or basis change after B answered.** As assistant estimates 5.6: the rows are cleared
    from the list (stored nothing), and B may be asked again under CE1.1 rule 3.
-7. **Log.** The saved version holds the kept rows (not left out). A B value never satisfies estimates
-   v2's "Log needs one known nutrient" rule, so B is never a log's only nutrition. Daily totals keep
+7. **Log.** The saved version holds the kept rows (not left out). B is never a log's only nutrition: a
+   new requirement, on every route where B applies, counts the nutrients known with every B row left
+   out, and when none is known Log is blocked with the existing "needs one known nutrient" reason.
+   Estimates v2's `estimatesLeaveNothingKnown` only covers candidates with approved-estimate keys, so it
+   is not enough on its own. Daily totals keep
    `includesEstimates`; a partial total stays a known minimum.
 
 ### CE1.7 Records and exports
@@ -380,6 +389,14 @@ sends nothing:
   assistant estimates are implemented, a
   key B fills is not offered to the assistant, and the assistant section is offered only for keys
   still unknown after B, so no key ever has two model contenders.
+- **Reopen and edit with other layers.** Two existing checks would refuse a valid saved entry that
+  combines an enrichment capture with another layer: `OpenFoodFactsEstimateSource.applies` requires
+  every evidence ID on the decision candidate to be product evidence (reopen throws `integrityFailure`,
+  edit `invalidLabelEstimate`), and both compare the resolution version's nutrients with
+  `LabelEstimateLayer.expectedNutrients`. They are changed to skip evidence whose
+  `captureMethodVersion` is `confirm-details-capture-v1` or `confirm-nutrient-capture-v1`, and to
+  expect the layer merge plus the verified B rows. The approved-estimate manifest and leave-out paths on
+  Your food database entries get the same two changes.
 - **New logs from saved decisions.** A new log built from a saved decision (re-log, quick add) drops
   that decision's A and B capture evidence IDs, as estimates v2 does for leave-out IDs, and asks or
   reuses the cache afresh.
@@ -470,7 +487,10 @@ for that food is skipped, with no note), and the gate is a backstop, not a guara
   changes it in its own contract, so on approval the switch title becomes `Use OpenRouter for food
   lookups, label reading and Confirm suggestions`, its key (`openRouter.consent.v1`) unchanged, and
   the three new uses join `OpenRouterUse` with their `policyEntry` (`Confirm suggestions.`) and
-  `egressRow` (the two rows of section 11) mapping, checked by O1's test 8. The policy's opening
+  `egressRow` mapping, checked by O1's test 8. Because both rows of section 11 link to this contract,
+  each use's `egressRow` identifies its row by the contract link plus the row's destination cell, so
+  each use maps to exactly one row. O1's named list of request sites, and its boundary check, grow by
+  the two new adapters and their catalogue checkers. The policy's opening
   paragraph, which quotes the title, and its sentence "Lookups and label reads need your own OpenRouter
   API key" (which becomes "Lookups, label reads and Confirm suggestions need…") change with it, and
   O1's pinned framing sentences are updated in the same PR.
@@ -617,8 +637,8 @@ manifests and the scorer are committed before the sealed run, and the sealed set
     checks), both over an injected transport, both taking `OpenRouterEgressPermitting`; a catalogue
     checker per route; a file cache and a file day ledger. They live in a new package target,
     `FoodConfirmEnrichment`, allowed by `check-boundaries.sh` to import `FoodLedgerApplication` and
-    `FoodLedgerDomain` only, with one transport file allowed to load URLs, and covered by O1's request
-    site check.
+    `FoodLedgerDomain` only, with one transport file allowed to load URLs, and added to O1's named list
+    of request sites and its boundary check.
   - **Presentation:** the details line, the `est.` tag and Leave out rows, the loading row and note,
     the Settings rows, the Developer tools disclosure.
   - **Composition root:** wires the adapters, the gate, the cache, the ledger and the switch. It is
@@ -669,7 +689,13 @@ manifests and the scorer are committed before the sealed run, and the sealed set
       text; the deny gate stops a description holding each pattern.
   14. Re-log of an entry holding an A fill and B values: the fill is carried, the B values are not,
       and Confirm opens. A new log drops the earlier capture IDs.
-  15. Two identities: the layer alone enables Log; the one-tap row is hidden while a Jev fill shows and
+  15. On an Open Food Facts product with every fact unknown, the A fill raises no `decideDifference`,
+      saves, and writes no `FoodLogDecisionRecord`; a partial fill hides the one-tap row. Reopen and
+      edit round trips for an Open Food Facts entry with the #464 layer plus A, plus B, and plus both,
+      and for a Your food database entry with approved estimates, leave-out evidence and B. A candidate
+      whose only known values would be B values is blocked, including one with no approved estimates.
+      O1's request site list and `egressRow` mapping are complete for the three new uses.
+      Two identities: the layer alone enables Log; the one-tap row is hidden while a Jev fill shows and
       returns after `Not these`. B and the off-label layer never fill one key, in either order. The
       `responseHash`, `byteHash` and export hash bind as specified and tampering with any shows
       "Evidence not available". A version 7 file with only B values validates and one without is
@@ -731,4 +757,11 @@ compatibility choice of section 14 with the approval.
   copy) and the typed search text never sent; the export version's own validator row; the energy check
   placed in the domain with a parity test target; A's subject; a switch to `alpha/decisions` reopens
   CE-T1; O1's pinned framing sentences change with the title; a testable statement for A's decoding.
-- **Architecture gate, third round:** pending.
+- **Architecture gate, third round (20 November 2026, at `819a0d5b`): PASS WITH CHANGES.** All five
+  findings taken: the facts an A fill sets are left out of `pendingDifferences`, `savesEstimate` and
+  `decisionRecord` (otherwise the second round's effective identity would turn each filled fact into
+  a difference against the unknown source and keep Log blocked); reopen and edit checks for the
+  off-label layer and the approved-estimate paths skip enrichment captures and expect the B rows; an
+  explicit guard hides the one-tap row after a partial fill; a new rule keeps B from being a log's only
+  nutrition on every route; O1's request site list grows and each use maps to one egress row.
+- **Architecture gate, fourth round:** pending.
