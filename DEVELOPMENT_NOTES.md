@@ -5103,3 +5103,9 @@ Unmeasured: no boundary was captured at the start of this phase, separately from
 The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) traced an owner report of Your food database staying "Locked" on an unlocked iPhone until the next lock and unlock. A pending lock cleared only on "protected data did become available", which a suspended app does not receive. The protected-data rules moved into a pure `ProtectedDataLockState`; becoming active with protected data readable now clears a pending lock, warms the search index and reloads a locked Settings row. Pure tests cover the missed-notification case.
 
 Unmeasured: no boundary was captured at the start of this phase, separately from the other work done in the same session, so no token figure is recorded rather than an estimate.
+
+## WHR-BUILD42-RELEASE-2026-11-20: Claude Code TestFlight 0.3.0 (42) delivery
+
+The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) archived `main` at `25b855e3` on the owner's request, exported it for internal testing only, uploaded build 42, set What to Test and added it to Internal Testing on the owner's yes, and wrote [the build 42 record](docs/releases/internal-testflight-0.3.0-build42.md).
+
+Unmeasured: no boundary was captured at the start of this delivery, separately from the fix work done in the same session, so no token figure is recorded rather than an estimate.
