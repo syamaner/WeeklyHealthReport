@@ -5097,3 +5097,9 @@ Unmeasured: no boundary was captured at the start of this phase, separately from
 The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) made the daily notes speech path report a refused transcript (over the per-note or daily limit) once, on the speech review card, instead of also setting the notes controller's error: a new `speechTranscriptRejection` returns the refusal without publishing it, and the unused `appendSpeechTranscript` is removed. The speech tests now assert one error channel and an editable candidate for final and reviewed over-limit transcripts.
 
 Unmeasured: no boundary was captured at the start of this phase, separately from the other work done in the same session, so no token figure is recorded rather than an estimate.
+
+## WHR-543-2026-11-20: Claude Code Your food database no longer stays locked after a missed unlock (#543)
+
+The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) traced an owner report of Your food database staying "Locked" on an unlocked iPhone until the next lock and unlock. A pending lock cleared only on "protected data did become available", which a suspended app does not receive. The protected-data rules moved into a pure `ProtectedDataLockState`; becoming active with protected data readable now clears a pending lock, warms the search index and reloads a locked Settings row. Pure tests cover the missed-notification case.
+
+Unmeasured: no boundary was captured at the start of this phase, separately from the other work done in the same session, so no token figure is recorded rather than an estimate.

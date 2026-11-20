@@ -295,6 +295,49 @@ private struct FixedKeyStore: FoodWebKeyStoring {
     func delete() throws {}
 }
 
+/// The protected-data rules behind Your food database's "Locked" row: a pending lock clears on
+/// "did become available", or on becoming active when that notification was missed while suspended.
+final class ProtectedDataLockStateTests: XCTestCase {
+    func testAPendingLockReadsUnavailableWhileTheLiveValueIsStillTrue() {
+        var state = ProtectedDataLockState()
+        state.observe(true)
+        XCTAssertTrue(state.isReadable)
+        state.willBecomeUnavailable(live: true)
+        XCTAssertFalse(state.isReadable)
+        state.observe(true)
+        XCTAssertFalse(state.isReadable, "a live read never clears a pending lock")
+    }
+
+    func testDidBecomeAvailableClearsAPendingLock() {
+        var state = ProtectedDataLockState()
+        state.willBecomeUnavailable(live: true)
+        state.didBecomeAvailable(live: true)
+        XCTAssertTrue(state.isReadable)
+    }
+
+    func testBecomingActiveClearsALockWhoseUnlockNotificationWasMissed() {
+        var state = ProtectedDataLockState()
+        state.observe(true)
+        state.willBecomeUnavailable(live: true)
+        // Suspended: the phone locks and unlocks, and "did become available" never arrives.
+        state.becameActive(live: true)
+        XCTAssertTrue(state.isReadable)
+    }
+
+    func testBecomingActiveWhileStillUnreadableKeepsTheLock() {
+        var state = ProtectedDataLockState()
+        state.willBecomeUnavailable(live: false)
+        state.becameActive(live: false)
+        XCTAssertFalse(state.isReadable)
+        state.becameActive(live: true)
+        XCTAssertTrue(state.isReadable)
+    }
+
+    func testAnUnseededStateIsUnreadable() {
+        XCTAssertFalse(ProtectedDataLockState().isReadable)
+    }
+}
+
 @MainActor
 private final class FoodSearchUserDefaultsPreferencesFake: FoodSearchPreferences {
     var onlineDatabaseEnabled = false
