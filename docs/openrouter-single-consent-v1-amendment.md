@@ -1,6 +1,8 @@
 # One OpenRouter consent in Settings, explained in Privacy (O1)
 
-Status: **proposed, 20 November 2026; not approved, no code.** Written for #551 against `main` at
+Status: **proposed, 20 November 2026; decisions O1-D1 to O1-D3 made as recommended the same day;
+the amendment as a whole is not yet approved, and there is no code.** Architecture gate PASS at round
+eight (section 8). Written for #551 against `main` at
 `91fa7479`. Nothing in this document changes app behaviour, [privacy and egress](privacy-and-egress.md)
 or the bundled [privacy policy](privacy-policy.txt) until the owner approves the exact terms of
 section 2 and the decisions of section 7. On approval, the amended documents of section 3 change in
@@ -607,10 +609,11 @@ notes", "Remove your OpenRouter key and disconnect Drive before deleting the app
 Asked one at a time on #551, each with a recommendation. Approval of the amendment as a whole
 (sections 2 to 6) is asked last, after these.
 
-- **O1-D1. The daily label read count.** Recommendation: **Settings only**, as the `Label photo reads
+- **O1-D1. The daily label read count.** **Decided as recommended (20 November 2026).** Recommendation: **Settings only**, as the `Label photo reads
   today` row of O1.1, and in the journey only when the cap blocks a read (the existing daily limit and
   paused blockers). The alternative keeps the under-button line on the Label photo screen.
-- **O1-D2. Key validation while the switch is off.** Recommendation: **blocked too**, so "off sends
+- **O1-D2. Key validation while the switch is off.** **Decided as recommended (20 November 2026).**
+  Recommendation: **blocked too**, so "off sends
   nothing to OpenRouter" holds without exception and the policy can say so plainly. The key can still
   be pasted and saved locally with the switch off. That is new behaviour: today a key is saved only
   after it validates (`FoodWebDiscoveryViewModel.validate(key:saveNewKey:)`). With the switch off the
@@ -623,7 +626,7 @@ Asked one at a time on #551, each with a recommendation. Approval of the amendme
   blocked row says to). A test proves nothing is sent while saving. The alternative allows validation with
   the switch off, since it sends only the key, but then "off" has an exception the policy has to
   explain.
-- **O1-D3. The label photo switch.** Recommendation: **replace it with the consent switch**: the photo
+- **O1-D3. The label photo switch.** **Decided as recommended (20 November 2026).** Recommendation: **replace it with the consent switch**: the photo
   entry appears when OpenRouter is on and a key is saved (in builds that contain the route), so there
   is one switch, not a consent plus a feature switch. The alternative keeps "Read label photos with AI"
   as a feature switch under Settings › OpenRouter, which would leave two OpenRouter switches.
@@ -694,4 +697,9 @@ Asked one at a time on #551, each with a recommendation. Approval of the amendme
   key state from the mode's own source, so scripted runs need no real key, and a not-validated key
   passes through as today; the pasted label text adapters get named refusal cases, with the `Codable`
   not-sent enum's new raw value stated as additive and outside every record.
-- **Architecture gate, eighth round:** pending.
+- **Architecture gate, eighth round (20 November 2026, at `3574ca21`): PASS.** No finding. It checked
+  every request site and use, the refusal paths, the key state ordering, the layering, section 3.5
+  sentence by sentence against the current policy and key screen, the replaced egress text and the
+  stored formats.
+- **Owner decisions (20 November 2026).** O1-D1, O1-D2 and O1-D3 decided as recommended, asked one at a
+  time.
