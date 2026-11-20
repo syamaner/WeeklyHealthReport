@@ -307,11 +307,11 @@ sends nothing:
 6. **When details or basis change after B answered.** As assistant estimates 5.6: the rows are cleared
    from the list (stored nothing), and B may be asked again under CE1.1 rule 3.
 7. **Log.** The saved version holds the kept rows (not left out). B is never a log's only nutrition: a
-   new case `FoodLogRequirement.onlyEstimatedByOpenRouter`, on every route where B applies, counts the
-   nutrients known with every B row left out, and when none is known Log is blocked with its frozen copy
-   `Nothing to log yet: every value here is an estimate from OpenRouter.` The existing `.nothingKnown`
-   ("Nothing to log: every value was left out") keeps its meaning and its behaviour without B; when
-   every B row is left out and nothing else is known, `.nothingKnown` is raised as today. Daily totals keep
+   new case `FoodLogRequirement.onlyEstimatedByOpenRouter`, on every route where B applies, is raised
+   only when at least one B row is kept and no value from any other source is known, with frozen copy
+   `Nothing to log yet: every value here is an estimate from OpenRouter.` With every B row left out, Log
+   requirements are exactly what they would be with no B answer at all (`.nothingKnown` only under its
+   existing estimates v2 condition), so B never blocks a state that logs today. Daily totals keep
    `includesEstimates`; a partial total stays a known minimum.
 
 ### CE1.7 Records and exports
@@ -764,7 +764,9 @@ manifests and the scorer are committed before the sealed run, and the sealed set
       the Your food database description golden for a title holding a pack size sends it only inside the
       title; the parity test's target is allowed by `check-boundaries.sh`.
       A candidate with no known source values and one kept B row is blocked with
-      `onlyEstimatedByOpenRouter` and its copy; with every B row left out, `.nothingKnown` as today. No
+      `onlyEstimatedByOpenRouter`, not `.nothingKnown`; with one other source value known, it is not
+      blocked; with every B row left out, the requirements equal those with no B answer at all, with
+      and without approved-estimate keys. No
       evaluation artefact is committed before the 11.1a paragraph is in `privacy-and-egress.md`.
       Two identities: the layer alone enables Log; the one-tap row is hidden while a Jev fill shows and
       returns after `Not these`. B and the off-label layer never fill one key, in either order. The
@@ -859,4 +861,8 @@ compatibility choice of section 14 with the approval.
   with CE-T15's approval before the first evaluation call; and a named Log requirement,
   `onlyEstimatedByOpenRouter`, with frozen copy, since no "needs one known nutrient" reason exists and
   `.nothingKnown`'s copy would be false when B rows are kept.
-- **Architecture gate, eighth round:** pending.
+- **Architecture gate, eighth round (20 November 2026, at `13f6f4e8`): PASS WITH CHANGES.** One finding
+  taken: the new requirement is raised only when a B row is kept and nothing else is known, and with
+  every B row left out the requirements equal those without B (the round-seven text would have blocked
+  a state that logs today and contradicted its own test).
+- **Architecture gate, ninth round:** pending.
