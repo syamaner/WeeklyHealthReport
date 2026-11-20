@@ -1,8 +1,7 @@
 # One OpenRouter consent in Settings, explained in Privacy (O1)
 
-Status: **proposed, 20 November 2026; decisions O1-D1 to O1-D3 made as recommended the same day;
-the amendment as a whole is not yet approved, and there is no code.** Architecture gate PASS at round
-eight (section 8). Written for #551 against `main` at
+Status: **approved by the owner on 20 November 2026, with decisions O1-D1 to O1-D3 as recommended;
+implementation in the same PR (#554).** Architecture gate PASS at round eight (section 8). Written for #551 against `main` at
 `91fa7479`. Nothing in this document changes app behaviour, [privacy and egress](privacy-and-egress.md)
 or the bundled [privacy policy](privacy-policy.txt) until the owner approves the exact terms of
 section 2 and the decisions of section 7. On approval, the amended documents of section 3 change in
@@ -702,4 +701,4 @@ Asked one at a time on #551, each with a recommendation. Approval of the amendme
   sentence by sentence against the current policy and key screen, the replaced egress text and the
   stored formats.
 - **Owner decisions (20 November 2026).** O1-D1, O1-D2 and O1-D3 decided as recommended, asked one at a
-  time.
+  time; the amendment as a whole (sections 2 to 6, at `2dbc39a8`) then approved for implementation.
