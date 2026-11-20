@@ -55,6 +55,8 @@ CODE_READ_DOCS = {
     "docs/personal-food-catalogue-composite-web-amendment-v1.md",
     # Cited by the G7 and G8 amendment code and tests (#532).
     "docs/personal-food-catalogue-tables-composites-amendment-v1.md",
+    # Cited by the identity facts amendment code, tests, fixtures and the catalogue skill (#546).
+    "docs/personal-food-catalogue-identity-facts-v1-amendment.md",
     # Cited by the manifest v3 contract tests (#508).
     "docs/web-lookup-part-read-pages-v1-proposal.md",
     "docs/web-lookup-larger-pages-phase1-gate.md",
