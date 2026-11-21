@@ -254,7 +254,8 @@ Same protection and backup exclusion as the cache. The arithmetic lives in a pur
   (10,000 or 20,000) as `charged_microusd` in one atomic update before the first attempt is sent, as
   label photo reserves its whole per-tap limit (`LabelPhotoSpendPolicy.swift:177-180`); each sent
   attempt increments `attempts_sent` in the same way, and the reconcile at the end lowers the charge to
-  the reported costs (unreported attempts at W). So a request cut short by a crash or a kill still
+  the reported costs (unreported attempts at W), up or down, never clamped to the reservation, as label
+  photo does (`LabelPhotoSpendPolicy.swift:204-205`). So a request cut short by a crash or a kill still
   counts at its cap on relaunch. The day cap is then checked once, at reservation, against the cap, and
   retries stay inside that reservation. A reported cost above the per-request cap adds
   the part to `paused` for the rest of the local day.
@@ -394,12 +395,14 @@ gains, each with a self-test fixture that makes it fail:
    row candidates are built there (`CoFIDGenericFoodSearch.swift:306-330` and the other tables), but it
    also holds network clients, so a further rule fails the tool if any of its files names
    `OpenFoodFactsLookup`, `OpenFoodFactsSearch`, `GeminiFoodSearch`, `OpenRouterFoodProvider` or
-   `URLSession` outside its live-transport file. Open Food Facts cases go through a pure
-   `OpenFoodFactsProductMapping.candidate(product:)` in `FoodGenericSearch`, extracted in PR 3 from the
-   mapping `OpenFoodFactsLookup` performs after its fetch (`OpenFoodFactsLookup.swift:23, 38`), so a
-   record read from the downloaded export becomes exactly the app's Open Food Facts candidate; the
-   lookup calls the same function. A golden shows an export record and the app's candidate for the
-   same product give the same A and B request bytes.
+   `URLSession` outside its live-transport file. Open Food Facts cases go through the existing pure
+   `OpenFoodFactsLookup.project(product:artifact:gtin:evidence:retrievedAt:searchScore:searchCategory:)`
+   (`OpenFoodFactsLookup.swift:112`), which barcode (`:106`) and search (`OpenFoodFactsSearch.swift:74`)
+   already call. PR 3 moves it unchanged, with its full parameter list, into an
+   `OpenFoodFactsProductMapping` enum in the same target that names no network type, and both callers
+   use it, so a record read from the downloaded export becomes exactly the app's search or barcode
+   candidate. The existing lookup tests pass unchanged, and a golden shows an export record gives the
+   same A and B request bytes as both candidates for the same product.
 6. The energy check parity test lives in `FoodLabelPhotoReadingTests` (dependencies
    `FoodLedgerDomain` and `NutritionLabelParsing`), allowed by the existing rule at `:82`.
 
@@ -425,7 +428,9 @@ implementation (CE1 test 12).
 | `OpenRouterEgressPermitting` (existing, O1) | asked by the session before reserving, by each adapter before each attempt, and by the route checker before each of its two catalogue fetches, with the catalogue use its caller passes (as `OpenRouterLabelRouteChecker.swift:27-29, 59`); the checker's result gains `.notPermitted`, as `LabelPhotoRouteCheckFailure.notPermitted` | `OpenRouterConsentPreference` composed with `ConfirmEnrichmentPreference`; tool-local gate |
 
 `ConfirmEnrichmentAttemptResult` is `.notSent(reason)` (refused by the gate, no key, cancelled before
-sending), `.sent(status, responseBytes, reportedCost, retryAfter, generationID)` or `.transportFailed
+sending), `.sent(status, responseBytes, reportedCost, retryAfter)` (no generation ID: the capture's
+`generation_id` comes only from the pure response parse that a cache hit also runs, and is JSON `null`
+when the response body carries none) or `.transportFailed
 (class)` after sending. The session also takes the key state (`OpenRouterKeyState`, O1) as an input:
 nothing starts unless it is `valid` in this session (CE1.1 rule 5). A key replaced while OpenRouter was
 off is never sent (O1 test 2), because the adapter reads the key per attempt and the session reads the
@@ -521,7 +526,9 @@ CE1 section 15's seventeen tests are adopted as written. The gate adds:
   Confirm for the same subject the cache hit gives a capture with identical payload bytes and
   `byteHash`, the same `capturedAt`, provenance `capturedAt` and `releasedAt` (the cached
   `received_at`, compared as encoded values at millisecond precision), and the recording transport sees
-  zero requests. With the file cache too, which round-trips `received_at` without loss.
+  zero requests. With the file cache too, which round-trips `received_at` without loss. Both for a
+  response with a generation ID in its body and for one with none (`generation_id` null); no header
+  value reaches the capture.
 - **G2 Cache content.** The decoded key set equals 2.5's; a request with a sentinel description,
   amount and key, answered by a scripted response that does not echo them, leaves none of the three
   strings in the file bytes or in any decoded `response`; an extra key, unknown schema or
@@ -536,7 +543,8 @@ CE1 section 15's seventeen tests are adopted as written. The gate adds:
   only; a corrupt ledger refuses until the next local day; a request whose cap would take the day past
   500,000 micro-dollars does not start, so no retry can either; `.absent`, `.unreadable` and `.day` behave as 2.6 says in
   both ledgers; a failed reservation write sends nothing and a failed reconcile closes the part; W
-  and reported costs round up to whole micro-dollars.
+  and reported costs round up to whole micro-dollars; an attempt reported above W is reconciled to its
+  full reported amount, above the reservation, counted in `settled_microusd` and pausing the part.
 - **G4 Numbers.** An archive labelled 12 is refused at each of the three range sites; an archive
   labelled 11 holding each kind of CE1 content (B provenance, an A capture, a B capture, a choices item)
   fails decoding; 11 and 13 are
@@ -551,7 +559,8 @@ CE1 section 15's seventeen tests are adopted as written. The gate adds:
 - **G6 Wire bytes.** The bytes the transport records equal the capture's `request_body` and the
   committed golden; only the Authorization header holds the key; the provider block equals the route
   version's; a redirect is refused.
-- **G7 Boundaries.** Each of the six items of section 3.3 fails on its self-test fixture.
+- **G7 Boundaries.** Every boundary self-test fails on its fixture: the six items of section 3.3, the
+  availability literal and the scripted gate name (section 6).
 - **G8 Layers on reopen.** A B entry with the #464 layer, chosen before and after B answers: save,
   reopen and edit verify; `layer_dropped`, `merge_parent_dropped` and `merge_energy_dropped` are
   rebuilt exactly; altering any list shows "Evidence not available". A layer chosen after B whose merge
@@ -634,10 +643,20 @@ export goldens for schema 7 alone and mixed with schema 3 and 5 content.
   checks the food details of the Open Food Facts cases on a review sheet before any A score counts.
   Manifests (case identifiers, barcodes or row identifiers, content hashes) are committed; product data
   and responses stay in the private folder.
-- **Micronutrient floor.** The 10% of the UK reference intake in CE1 section 12 uses the reference
-  intakes of Annex XIII of retained Regulation (EU) No 1169/2011, held as a constant table in the
-  scorer only (the app gains no reference value). A key with no reference intake there uses no floor,
-  which makes its bar stricter (section 11, point 6).
+- **Bar class and floor per key.** The error is `|estimate - declared| / max(declared, floor)`, so a
+  declared 0 never divides by zero. Every `NutrientKey` (`Nutrition.swift:12-50`) is in exactly one row:
+
+  | Class (CE1 section 12) | Keys | Floor | Bar |
+  |---|---|---|---|
+  | Energy | `energy_consumed` | 5 kcal | 20% |
+  | Macronutrients | `carbohydrates`, `protein`, `fat_total`, `fat_saturated`, `fat_monounsaturated`, `fat_polyunsaturated`, `sugar` | 0.5 g | 20% |
+  | Fibre and sodium | `fiber` (0.5 g), `sodium` (5 mg) | as shown | 35% |
+  | Other micronutrients | the thirteen vitamins and the fourteen other minerals (`calcium` to `selenium`) | 10% of the key's reference intake in Annex XIII of retained Regulation (EU) No 1169/2011, held as a constant table in the scorer only (the app gains no reference value); every one of these keys has one | 50% |
+  | Not measured | `cholesterol`, `water`, `caffeine`: no Annex XIII reference intake and not in any CE1 class | none | none |
+
+  Because no bar can measure the last row, the gate removes those three keys from B's eligible set in
+  v1 (`ConfirmEnrichmentPolicy` never requests them), so the app never shows an estimate the
+  evaluation did not measure (section 11, point 6). A scorer test maps every key to exactly one row.
 - **Run.** The tool sends exactly the app's request bytes through the `FoodConfirmEnrichment` adapters
   with a tool-local gate, under CE-T15 ($5 programme, $0.05 per call, in its own spend ledger before
   every call; at most 3 attempts with backoff honouring `Retry-After`). It runs its own loop over the
@@ -654,6 +673,10 @@ export goldens for schema 7 alone and mixed with schema 3 and 5 content.
   catalogue prices with the route version's ceilings; if W is above the part's per-request cap, the run
   stops for the owner, since the part could pass every bar and still never run in the app. The 4b
   report records W per part.
+- **Route freeze.** `confirm-details-route-v1` is frozen only after the first A request has shown
+  whether System One accepts `max_tokens`. Any change that follows to `ConfirmEnrichmentRoutes.swift`
+  and A's request golden lands in PR 4a, before the frozen configuration, and the committed golden
+  equals the body that first request sent.
 - **Order.** PR 4a commits the scorer, the bars as code, both manifests and the frozen configuration,
   and merges. Only then is the sealed set sent, once, by that configuration, and its report lands in
   PR 4b. A prompt change during development is a prompt version bump.
@@ -673,7 +696,7 @@ Each PR has its own branch, a ledger row, the validation gates of `AGENTS.md`, a
 | 1. Formats | Domain kinds, provenance and release constants, capture and choices types, row and energy checks with the parity test, the application response checks and the request input types with their decoders (which verification needs), the strip, skip, drop-on-new-log and verification rules of 2.4a (the B-choices term of "The reopen path" and `OpenRouterEstimateChoicesText` land in PR 2 with the suggestion layer), the four `OpenRouterUse` cases not in force with nil mappings, contract 13 floor and accepted set, store 13, export 7 writer and validators, verification on save and reopen, fixtures; dated notes in assistant-pasted estimates v1 and food daily export v2. Store 13 migrates every store on first open, so a downgrade past it is refused. No UI writes CE1 records yet. | None |
 | 2. Confirm layer | Application policy, session, spend, retry and cache policies, ports and their suites; the `FoodConfirmEnrichment` target and product with the file cache and ledger, the scripted adapters and the Debug scripted gate (no live adapter); the Debug seed argument, the Debug-only scripted wiring at the composition root and `ConfirmEnrichmentAvailability`; the B-choices term of 2.4a's reopen path with `OpenRouterEstimateChoicesText`; boundary items 1, 2 and 4 and the scripted gate self-test; the Your food database read port and adapter; the suggestion layer, reducer, fill builder, Log requirement, re-log, quick add, re-resolution and reopen rules; presentation; the save-side writing of the captures and choices item in `FoodConfirmationService.save`; `OpenRouterEstimateCarry` and its use in both Your foods builders; scripted answers reachable only by a Debug launch argument; simulator journey with scripted answers. | None |
 | 3. Adapters and tooling | The two adapters, route checker, routes file and transport; `OpenFoodFactsProductMapping`; boundary items 3 and 5; `Tools/ConfirmEnrichmentEval` with its preflight; the section 11.1a paragraph. Not wired into the app. | Tooling only, after merge |
-| 4a. Evaluation freeze | Development runs, review sheet outcome, scorer, bars as code, manifests, frozen configuration. | Tooling only |
+| 4a. Evaluation freeze | Any route constant and golden change from the first request (route freeze), development runs, review sheet outcome, scorer, bars as code, manifests, frozen configuration. | Tooling only |
 | 4b. Sealed report | The single sealed run's report. | Tooling only |
 | 5. Wiring | Composition root, Settings rows and switch, the uses in force for each part that passed, section 11.1 rows, 11.2 entry, O1 title and framing changes, Developer tools disclosure, journey QA; then the combined device check. | App, with both switches on |
 
@@ -704,8 +727,10 @@ PRs 1 to 3 can be reviewed and merged without any network call from the app.
    contract step did (`FoodLedgerMigrations.swift:76`, `FoodLedgerGRDBStore.swift:1248`). Archives and
    exports without CE1 content keep their bytes and labels, as CE1.7 says. So no build cut from `main`
    after PR 1 can be downgraded below it.
-6. **Evaluation floor.** A micronutrient with no UK reference intake is scored with no floor, which is
-   stricter than giving it one.
+6. **Three keys not requested from B.** CE1 section 12 gives no bar class to `cholesterol`, `water` or
+   `caffeine`, and Annex XIII gives them no reference intake, so the evaluation cannot measure them.
+   The gate leaves them out of B's eligible keys in v1 (they stay unknown, as today). This narrows
+   CE1.5; adding them later needs a bar and a version bump.
 7. **Three more key lists in the choices item.** CE1.7 lists the choices item as the version ID, the
    capture hash and the left-out keys. The gate adds `layer_dropped`, `merge_parent_dropped` and
    `merge_energy_dropped` (section 2.4): nutrient keys only, no values, so reopen can rebuild the merge
@@ -795,3 +820,9 @@ its skill; external TestFlight or App Store builds; any evaluation call before s
   Facts product mapping makes an export record the app's candidate; a reported prompt above the
   ceiling pauses the part, with a worst-case golden; an archive labelled below 13 holding CE1 content
   fails decoding; PR 1 and PR 2 split the 2.4a rules by what each can compile.
+- **Architecture gate, eighth round (21 November 2026, at `e07e931f`): PASS WITH CHANGES.** All six
+  findings taken: the generation ID comes only from the response parse, null when absent; every
+  nutrient key has a bar class and a floor, and the three with no class or reference intake are left out
+  of B in v1 (an owner point); A's route is frozen after the first request, with any change in PR 4a;
+  the existing Open Food Facts `project` function is moved unchanged rather than a new one written; the
+  reconcile moves the charge up or down; every boundary self-test is in G7.
