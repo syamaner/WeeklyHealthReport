@@ -3,6 +3,7 @@ import FoodGenericSearch
 import FoodLedgerApplication
 import FoodLedgerDomain
 import FoodLedgerPresentation
+import FoodLedgerTestSupport
 import XCTest
 
 @MainActor
@@ -157,7 +158,7 @@ final class GenericFoodProposalReviewPresentationTests: XCTestCase {
         let task = Task { await model.search() }; await reviewer.waitForRequest()
         await reviewer.fail(FoodWebDiscoveryError.credentialRejected); await task.value
         XCTAssertEqual(keys.rejections, 1); XCTAssertNil(model.result)
-        XCTAssertTrue(model.message?.contains("rejected this key") == true)
+        XCTAssertTrue(model.message?.contains("rejected the API key") == true)
     }
 
     func testCredentialChangeAfterResultsPreventsDetailScreenConfirmation() async throws {
@@ -513,9 +514,54 @@ final class GenericFoodProposalReviewPresentationTests: XCTestCase {
         XCTAssertEqual(GenericFoodProposalReviewCopy.leadTitle(FoodWebLead(title: " \n ", url: url)), "shop.example.com")
     }
 
+    // MARK: O1 consent (docs/openrouter-single-consent-v1-amendment.md O1.2, O1.4, O1.6 tests 1, 2 and 4)
+
+    func testARefusalShowsTheBlockedRowWithNoPartialOrDidNotCompleteCopy() async throws {
+        let reviewer = ControlledProposalReview()
+        let keys = ProposalCredentials()
+        let egress = RecordingOpenRouterEgress(permits: true)
+        let model = make(reviewer, keys: keys, egress: egress)
+        model.foodTerms = "tofu"
+        XCTAssertNil(model.blockedReason)
+        let search = Task { await model.search() }
+        await reviewer.waitForRequest()
+        egress.set(false)
+        await reviewer.fail(FoodWebDiscoveryError.notPermitted)
+        await search.value
+        XCTAssertNil(model.result)
+        XCTAssertNil(model.message, "no partial, failure or 'did not complete' copy")
+        XCTAssertTrue(model.alternativeSources.isEmpty)
+        XCTAssertEqual(model.blockedReason, .switchOff)
+        XCTAssertEqual(keys.rejections, 0, "never a rejected key")
+        XCTAssertFalse(model.isSearching)
+    }
+
+    func testWithTheSwitchOffLookUpSendsNothing() async throws {
+        let reviewer = ControlledProposalReview()
+        let model = make(reviewer, egress: RecordingOpenRouterEgress(permits: false))
+        model.foodTerms = "tofu"
+        await model.search()
+        let calls = await reviewer.callCount
+        XCTAssertEqual(calls, 0)
+        XCTAssertEqual(model.blockedReason, .switchOff)
+        XCTAssertNil(model.message)
+    }
+
+    func testTheRejectedKeyCopyNamesSettings() async throws {
+        let reviewer = ControlledProposalReview()
+        let model = make(reviewer)
+        model.foodTerms = "tofu"
+        let search = Task { await model.search() }
+        await reviewer.waitForRequest()
+        await reviewer.fail(FoodWebDiscoveryError.credentialRejected)
+        await search.value
+        XCTAssertEqual(model.message, "OpenRouter rejected the API key. Replace or revalidate it in Settings.")
+    }
+
     private func make(_ reviewer: any GenericFoodProposalReviewing, keys: ProposalCredentials = ProposalCredentials(),
+                      egress: any OpenRouterEgressPermitting = PermittingOpenRouterEgress(),
                       initialMarket: FoodReviewMarket = .unspecified, saveMarket: @escaping (FoodReviewMarket) -> Void = { _ in }) -> GenericFoodProposalReviewViewModel {
-        GenericFoodProposalReviewViewModel(reviewer: reviewer, credentials: keys,
+        GenericFoodProposalReviewViewModel(egress: egress, reviewer: reviewer, credentials: keys, keyState: { .valid },
             confirmation: ReviewedFoodProposalConfirmation(ids: RandomLedgerIDGenerator(), clock: SystemLedgerClock(),
                 encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester()), locale: try! LedgerText("en_GB"), initialMarket: initialMarket, saveMarket: saveMarket)
     }

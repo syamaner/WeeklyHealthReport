@@ -1,6 +1,7 @@
 @testable import FoodLabelPhotoCapture
 import FoodLedgerApplication
 import Foundation
+import FoodLedgerTestSupport
 import XCTest
 
 /// The live transport's obligations (docs/label-photo-ai-prefill-v1.md 17.18), against a stub
@@ -135,7 +136,7 @@ final class OpenRouterTransportTests: XCTestCase {
 
     func testACatalogueTransportFailureIsNotTheRoutesFault() async {
         Stub.reply = .fail(.notConnectedToInternet)
-        let checker = OpenRouterLabelRouteChecker(transport: transport(), clock: ScriptedLabelPhotoRouteTests.FixedClock())
+        let checker = OpenRouterLabelRouteChecker(egress: PermittingOpenRouterEgress(), transport: transport(), clock: ScriptedLabelPhotoRouteTests.FixedClock())
         do { _ = try await checker.check(LabelPhotoRoute.current); XCTFail("offline") } catch {
             XCTAssertEqual(error as? LabelPhotoRouteCheckFailure, .transport(.offline))
         }

@@ -12,11 +12,15 @@ public struct OpenRouterPastedLabelAITextAttempt: PastedLabelAITextAttempting {
     let transport: any LabelPhotoHTTPTransporting
     let keys: any FoodWebKeyStoring
     let request: OpenRouterPastedLabelAITextRequest
+    /// The Settings › OpenRouter gate, asked as `pastedLabelTextRead` before the send (O1.2). The
+    /// app's gate always refuses it, since the route is not in force.
+    let egress: any OpenRouterEgressPermitting
 
     public var route: PastedLabelAITextRoute.Route { request.route }
 
-    public init(transport: any LabelPhotoHTTPTransporting, keys: any FoodWebKeyStoring, request: OpenRouterPastedLabelAITextRequest) {
-        self.transport = transport; self.keys = keys; self.request = request
+    public init(egress: any OpenRouterEgressPermitting, transport: any LabelPhotoHTTPTransporting, keys: any FoodWebKeyStoring,
+                request: OpenRouterPastedLabelAITextRequest) {
+        self.egress = egress; self.transport = transport; self.keys = keys; self.request = request
     }
 
     public func attempt(text: String, timeout: TimeInterval) async -> PastedLabelAITextAttemptResult {
@@ -26,6 +30,7 @@ public struct OpenRouterPastedLabelAITextAttempt: PastedLabelAITextAttempting {
         } catch { return .notSent(.textEmpty) }
         guard let key = try? keys.load(), FoodWebKeySyntax.isValid(key) else { return .notSent(.keyMissing) }
         guard let http = try? request.httpRequest(text, key: key) else { return .notSent(.requestRefused) }
+        guard egress.permits(.pastedLabelTextRead) else { return .notSent(.notPermitted) }
         do {
             let response = try await transport.send(http, timeout: timeout, maximumBodyBytes: Self.maximumResponseBytes)
             return .responded(PastedLabelAITextRawResponse(status: response.status, headers: response.headers, body: response.body,

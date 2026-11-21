@@ -2,6 +2,7 @@ import Foundation
 import CryptoKit
 import FoodLedgerApplication
 @testable import FoodGenericSearch
+import FoodLedgerTestSupport
 import XCTest
 
 @MainActor
@@ -66,7 +67,7 @@ final class OpenRouterFoodLeadSelectionTests: XCTestCase {
     func testRequestContainsOnlyOfferedMetadataAndPinnedQualifiedControls() async throws {
         let payload = try reply(content())
         let testKey = key
-        let provider = OpenRouterFoodProvider(extractionRoute: .grok) { request in
+        let provider = OpenRouterFoodProvider(egress: PermittingOpenRouterEgress(), extractionRoute: .grok) { request in
             XCTAssertEqual(request.url?.absoluteString, "https://openrouter.ai/api/v1/chat/completions")
             XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer " + testKey)
             let bytes = try XCTUnwrap(request.httpBody)
@@ -118,7 +119,7 @@ final class OpenRouterFoodLeadSelectionTests: XCTestCase {
     }
 
     func testInvalidInputsAndCredentialInMetadataNeverReachTransport() async throws {
-        let provider = OpenRouterFoodProvider { _ in
+        let provider = OpenRouterFoodProvider(egress: PermittingOpenRouterEgress()) { _ in
             XCTFail("Invalid input reached transport")
             return .init(status: 500, data: Data())
         }
@@ -161,7 +162,7 @@ final class OpenRouterFoodLeadSelectionTests: XCTestCase {
                     url: try XCTUnwrap(URL(string: XCTUnwrap(row["url"] as? String))), citedText: row["excerpt"] as? String)
             }
             let raw = try read(id + "-response.json")
-            let provider = OpenRouterFoodProvider { request in
+            let provider = OpenRouterFoodProvider(egress: PermittingOpenRouterEgress()) { request in
                 let frozenBody = try StrictFoodProposalJSON.object(requestData)
                 let frozenMessages = try XCTUnwrap(frozenBody["messages"] as? [[String: String]])
                 let frozenMetadata = try StrictFoodProposalJSON.object(Data(XCTUnwrap(frozenMessages.last?["content"]).utf8))

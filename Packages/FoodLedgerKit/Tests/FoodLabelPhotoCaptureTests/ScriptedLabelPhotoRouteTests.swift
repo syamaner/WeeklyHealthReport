@@ -4,6 +4,7 @@ import FoodLedgerApplication
 import Foundation
 import ImageIO
 import UniformTypeIdentifiers
+import FoodLedgerTestSupport
 import XCTest
 
 /// The fake route used by the simulator journeys (docs/label-photo-ai-prefill-v1.md 14, 17.19):
@@ -46,7 +47,7 @@ final class ScriptedLabelPhotoRouteTests: XCTestCase {
     func testEveryScenarioAnswersWithoutTheNetwork() async throws {
         for scenario in ScriptedLabelPhotoTransport.Scenario.allCases where scenario != .slow {
             let transport = ScriptedLabelPhotoTransport(scenario: scenario)
-            let check = try await OpenRouterLabelRouteChecker(transport: transport, clock: FixedClock()).check(LabelPhotoRoute.current)
+            let check = try await OpenRouterLabelRouteChecker(egress: PermittingOpenRouterEgress(), transport: transport, clock: FixedClock()).check(LabelPhotoRoute.current)
             XCTAssertEqual(check.zeroDataRetention, scenario != .routeUnavailable, "\(scenario)")
         }
     }

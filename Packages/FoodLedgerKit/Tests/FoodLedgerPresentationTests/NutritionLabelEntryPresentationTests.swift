@@ -53,7 +53,7 @@ final class NutritionLabelEntryPresentationTests: XCTestCase {
         let on = entry(photos: true, routes)
         XCTAssertTrue(on.showsPhotoSection)
         XCTAssertTrue(on.acceptsImages)
-        XCTAssertEqual(on.photoFooter, "Taiwan labels only. The part you crop is sent to OpenRouter to be read. Nothing else is sent.")
+        XCTAssertEqual(on.photoFooter, "Taiwan labels only.")
         XCTAssertEqual(on.pasteFooter, "Paste a screenshot of a label, or its text. Text is read on this device.")
         XCTAssertEqual(on.addFoodRowSubtitle,
                        "Photo, screenshot or pasted text. Photos: Taiwan labels (營養標示), read by AI; you check every value.")
@@ -229,7 +229,7 @@ final class NutritionLabelEntryPresentationTests: XCTestCase {
 
     final class Script {
         var reads = 0
-        var consented = false
+        var consented = true
         var key: LabelPhotoScreenModel.KeyState = .valid
         var online = true
         var status = LabelPhotoReadSession.Status(day: .open(reads: 3), routeUnavailable: false)
@@ -245,7 +245,7 @@ final class NutritionLabelEntryPresentationTests: XCTestCase {
             prepare: { _, _ in .success(Self.prepared) },
             read: { _, _ in script.reads += 1; return .failed(.timedOut) },
             status: { script.status }, keyState: { script.key }, isOnline: { script.online },
-            hasConsented: { script.consented }, recordConsent: { script.consented = true },
+            consentOn: { script.consented },
             makeConfirm: { _, _, _ in throw CancellationError() }))
     }
 
@@ -270,15 +270,16 @@ final class NutritionLabelEntryPresentationTests: XCTestCase {
         XCTAssertEqual(script.reads, 0)
         photo.useCrop(.whole)
         XCTAssertTrue(photo.canRead)
+        script.consented = false
         photo.readTapped()
-        XCTAssertTrue(photo.showsFirstUseSheet, "without consent the first-use sheet comes first")
         await Task.yield()
-        XCTAssertEqual(script.reads, 0, "nothing is sent before Send photo")
+        XCTAssertEqual(script.reads, 0, "nothing is sent while OpenRouter is off")
+        XCTAssertEqual(photo.blocker, .openRouter(.switchOff))
     }
 
     func testWithEachBlockerAPastedImageKeepsReadDisabled() async {
         let blockers: [(LabelPhotoScreenModel.Blocker, (Script) -> Void)] = [
-            (.noKey, { $0.key = .missing }), (.keyNotValidated, { $0.key = .notValidated }), (.offline, { $0.online = false }),
+            (.openRouter(.switchOff), { $0.consented = false }), (.openRouter(.noKey), { $0.key = .missing }), (.openRouter(.keyNotValidated), { $0.key = .notValidated }), (.offline, { $0.online = false }),
             (.dailyLimit, { $0.status = .init(day: .limitReached, routeUnavailable: false) }),
             (.paused, { $0.status = .init(day: .paused, routeUnavailable: false) }),
             (.routeUnavailable, { $0.status = .init(day: .open(reads: 1), routeUnavailable: true) }),

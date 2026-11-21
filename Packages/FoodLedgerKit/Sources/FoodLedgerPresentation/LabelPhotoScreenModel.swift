@@ -2,42 +2,52 @@ import FoodLedgerApplication
 import FoodLedgerDomain
 import SwiftUI
 
-/// The Label photo screen (docs/label-photo-ai-prefill-v1.md 4.1, 7.1, 7.2 and 9): the cropped
-/// photo as it will be sent, Name and Brand (never sent), the egress statement and the one Read
-/// label with AI action. Every send is an explicit tap, first behind a one-time sheet; Try again
-/// is a new tap. The photo stays in memory only and leaves with the screen.
+/// The Label photo screen (docs/label-photo-ai-prefill-v1.md 4.1, 7.1, 7.2 and 9, as amended by
+/// docs/openrouter-single-consent-v1-amendment.md O1.4): the cropped photo as it will be sent, Name
+/// and Brand (never sent) and the one Read label with AI action. Every send is an explicit tap with
+/// Settings › OpenRouter turned on; Try again is a new tap. The photo stays in memory only and
+/// leaves with the screen. There is no first-use sheet.
 @MainActor
 public final class LabelPhotoScreenModel: ObservableObject {
     /// Why Read label with AI is disabled before any tap (section 9), each with its 7.2 copy.
     public enum Blocker: Equatable, Sendable {
-        case noKey, keyNotValidated, offline, dailyLimit, paused, routeUnavailable
-        /// The Settings switch was turned off while this screen was open (17.22).
-        case turnedOff
+        /// The O1.4 blocked row (switch off, no key, key not validated), in place of the earlier
+        /// `turnedOff`, `noKey` and `keyNotValidated` blockers.
+        case openRouter(OpenRouterBlockedReason)
+        case offline, dailyLimit, paused, routeUnavailable
 
         public var text: String {
             switch self {
-            case .noKey: LabelPhotoText.noKey
-            case .keyNotValidated: LabelPhotoText.keyNotValidated
+            case let .openRouter(reason): OpenRouterBlockedText.text(reason)
             case .offline: LabelPhotoText.offline
             case .dailyLimit: LabelPhotoText.dailyLimit
             case .paused: LabelPhotoText.failedCostPaused
             case .routeUnavailable: LabelPhotoText.routeUnavailable
-            case .turnedOff: LabelPhotoText.turnedOff
             }
         }
 
         /// The one-tap way out, if any.
         public var action: String? {
             switch self {
-            case .noKey: LabelPhotoText.openRouterSettings
-            case .keyNotValidated: LabelPhotoText.validateKey
+            case .openRouter: OpenRouterBlockedText.link
             case .offline: LabelPhotoText.pasteLabel
-            case .dailyLimit, .paused, .routeUnavailable, .turnedOff: nil
+            case .dailyLimit, .paused, .routeUnavailable: nil
             }
         }
     }
 
-    public enum KeyState: Equatable, Sendable { case missing, notValidated, valid }
+    public enum KeyState: Equatable, Sendable {
+        case missing, notValidated, valid
+
+        /// Case for case, the application's key state (section 6).
+        public var openRouter: OpenRouterKeyState {
+            switch self {
+            case .missing: .missing
+            case .notValidated: .notValidated
+            case .valid: .valid
+            }
+        }
+    }
 
     public enum Phase: Equatable {
         case editing
@@ -55,22 +65,18 @@ public final class LabelPhotoScreenModel: ObservableObject {
         public let status: () async -> LabelPhotoReadSession.Status
         public let keyState: () -> KeyState
         public let isOnline: () -> Bool
-        public let hasConsented: () -> Bool
-        public let recordConsent: () -> Void
+        /// The gate's answer for a label photo read (Settings › OpenRouter), asked before every tap,
+        /// so turning the switch off shows the blocked row and stops the next send (O1.2).
+        public let consentOn: () -> Bool
         public let makeConfirm: (LabelPhotoReview, PreparedLabelImage, PastedLabelDetails) throws -> LabelPhotoSourceModel
-        /// Whether the route this screen was built for is still the one in force (17.22): asked
-        /// before every tap, so turning the Settings switch off stops the next send.
-        public let isEnabled: () -> Bool
 
         public init(prepare: @escaping (Data, LabelCropRect) -> Result<PreparedLabelImage, LabelImagePreparationError>,
                     read: @escaping (PreparedLabelImage, @escaping @Sendable (Int) -> Void) async -> LabelPhotoReadFlow.Outcome,
                     status: @escaping () async -> LabelPhotoReadSession.Status, keyState: @escaping () -> KeyState, isOnline: @escaping () -> Bool,
-                    hasConsented: @escaping () -> Bool, recordConsent: @escaping () -> Void,
-                    makeConfirm: @escaping (LabelPhotoReview, PreparedLabelImage, PastedLabelDetails) throws -> LabelPhotoSourceModel,
-                    isEnabled: @escaping () -> Bool = { true }) {
+                    consentOn: @escaping () -> Bool,
+                    makeConfirm: @escaping (LabelPhotoReview, PreparedLabelImage, PastedLabelDetails) throws -> LabelPhotoSourceModel) {
             self.prepare = prepare; self.read = read; self.status = status; self.keyState = keyState; self.isOnline = isOnline
-            self.hasConsented = hasConsented; self.recordConsent = recordConsent; self.makeConfirm = makeConfirm
-            self.isEnabled = isEnabled
+            self.consentOn = consentOn; self.makeConfirm = makeConfirm
         }
     }
 
@@ -84,7 +90,6 @@ public final class LabelPhotoScreenModel: ObservableObject {
     @Published public var cropping = false
     @Published public private(set) var cameraDenied = false
     @Published public private(set) var phase: Phase = .editing
-    @Published public var showsFirstUseSheet = false
     /// The day's admission and the session's route state; nil until first read, when nothing is
     /// claimed about the allowance and Read stays disabled.
     @Published public private(set) var status: LabelPhotoReadSession.Status?
@@ -104,11 +109,8 @@ public final class LabelPhotoScreenModel: ObservableObject {
     // MARK: State
 
     public var blocker: Blocker? {
-        guard environment.isEnabled() else { return .turnedOff }
-        switch environment.keyState() {
-        case .missing: return .noKey
-        case .notValidated: return .keyNotValidated
-        case .valid: break
+        if let reason = OpenRouterAccess.blockedReason(consentOn: environment.consentOn(), keyState: environment.keyState().openRouter) {
+            return .openRouter(reason)
         }
         if !environment.isOnline() { return .offline }
         guard let status else { return nil }
@@ -138,12 +140,6 @@ public final class LabelPhotoScreenModel: ObservableObject {
         case let .retrying(attempt): LabelPhotoText.retrying(attempt: attempt)
         default: nil
         }
-    }
-
-    /// "Uses your OpenRouter key and credit. Today: n of 30 reads.", only once the count is known.
-    public var underButton: String? {
-        guard case let .open(reads)? = status?.day else { return nil }
-        return LabelPhotoText.underButton(reads: reads)
     }
 
     // MARK: Actions
@@ -193,25 +189,17 @@ public final class LabelPhotoScreenModel: ObservableObject {
         photo = nil; prepared = nil; preparationFailure = nil; phase = .editing; confirmSource = nil
     }
 
-    /// A setting the blockers read on demand changed (the 17.22 switch, say): redraw so the screen
+    /// A setting the blockers read on demand changed (Settings › OpenRouter, say): redraw so the screen
     /// shows the current blocker, or none, without waiting for an unrelated change (Qodo review of #316).
     public func settingsChanged() { objectWillChange.send() }
 
-    /// Read label with AI. The first use shows the sheet; nothing is sent until Send photo.
+    /// Read label with AI. There is no first-use sheet: Settings › OpenRouter is the consent (O1.4).
     public func readTapped() {
         // A blocker read on demand (the Settings switch, say) changes without publishing, so a
         // refused tap redraws the screen to show why instead of doing nothing (Qodo review of #316).
         guard canRead else { objectWillChange.send(); return }
-        if environment.hasConsented() { startRead() } else { showsFirstUseSheet = true }
-    }
-
-    public func firstUseAccepted() {
-        environment.recordConsent()
-        showsFirstUseSheet = false
         startRead()
     }
-
-    public func firstUseDeclined() { showsFirstUseSheet = false }
 
     /// Cancel during Reading or Retrying: stops at once; the session charges per E10.
     public func cancel() { readTask?.cancel() }
@@ -268,8 +256,17 @@ public final class LabelPhotoScreenModel: ObservableObject {
             }
         case let .declined(codes):
             phase = .declined(LabelPhotoText.declines(codes))
+        case .failed(.notPermitted) where isOpenRouterBlocked, .failed(.keyMissing) where isOpenRouterBlocked:
+            // Nothing was sent: the blocked row alone says why (O1.2, O1.4).
+            phase = .editing
+            objectWillChange.send()
         case let .failed(failure):
             phase = .failed(LabelPhotoText.failure(failure))
         }
+    }
+
+    private var isOpenRouterBlocked: Bool {
+        if case .openRouter = blocker { return true }
+        return false
     }
 }

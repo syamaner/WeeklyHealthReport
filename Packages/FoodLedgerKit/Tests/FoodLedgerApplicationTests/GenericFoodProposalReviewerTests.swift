@@ -11,7 +11,7 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
 
     func testSingleEmptySourceRetainsExtractionOutcomeWithoutExtraProviderCalls() async throws {
         let ports = ReviewPorts(empty: true, leadURLs: [url])
-        let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports, sourceSelection: ports)
+        let service = GenericFoodProposalReviewer(egress: PermittingOpenRouterEgress(), discovery: ports, capture: ports, extraction: ports, sourceSelection: ports)
         let result = try await service.review(foodTerms: "tofu", key: key)
         XCTAssertTrue(result.validation.candidates.isEmpty)
         XCTAssertEqual(result.sourceAttempts, [url])
@@ -21,7 +21,7 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
 
     func testSingleUnreadableSourceRetainsItsAcquisitionReason() async throws {
         let ports = ReviewPorts(captureError: .unsupportedContent, leadURLs: [url])
-        let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports, sourceSelection: ports)
+        let service = GenericFoodProposalReviewer(egress: PermittingOpenRouterEgress(), discovery: ports, capture: ports, extraction: ports, sourceSelection: ports)
         do { _ = try await service.review(foodTerms: "tofu", key: key); XCTFail("Expected unreadable source") }
         catch let failure as GenericFoodProposalPartialFailure {
             guard case .acquisition(.unsupportedContent) = failure.reason else { return XCTFail("Original reason was replaced") }
@@ -31,7 +31,7 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
 
     func testUnreadableSourcesStopAtTwoAndPreserveFailedAttemptURLs() async throws {
         let ports = ReviewPorts(captureError: .unsupportedContent)
-        let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports, sourceSelection: ports)
+        let service = GenericFoodProposalReviewer(egress: PermittingOpenRouterEgress(), discovery: ports, capture: ports, extraction: ports, sourceSelection: ports)
         do { _ = try await service.review(foodTerms: "tofu", key: key); XCTFail("Expected unreadable sources") }
         catch let failure as GenericFoodProposalPartialFailure {
             XCTAssertEqual(failure.sourceAttempts.map(\.host), ["publisher.example", "other.example"])
@@ -43,7 +43,7 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
 
     func testSuppliedURLNeverAutomaticallyTriesAnotherSource() async throws {
         let ports = ReviewPorts(empty: true)
-        let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports, sourceSelection: ports)
+        let service = GenericFoodProposalReviewer(egress: PermittingOpenRouterEgress(), discovery: ports, capture: ports, extraction: ports, sourceSelection: ports)
         let result = try await service.review(foodTerms: "tofu", sourceURL: url, key: key)
         XCTAssertEqual(result.sourceAttempts, [url])
         let calls = await ports.calls
@@ -52,7 +52,7 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
 
     func testApplicabilityAbstentionDoesNotSearchUntilItFindsAPassingSource() async throws {
         let ports = ReviewPorts(selectionChoice: "none")
-        let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports,
+        let service = GenericFoodProposalReviewer(egress: PermittingOpenRouterEgress(), discovery: ports, capture: ports, extraction: ports,
             sourceSelection: ports, selection: ports)
         let result = try await service.review(foodTerms: "tofu", key: key)
         XCTAssertEqual(result.suggestedChoice, "none")
@@ -65,7 +65,7 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
     // large, so it is reviewed and the second lead is never captured.
     func testFirstLeadBetweenOldAndNewBoundsIsReviewedWithoutASecondCapture() async throws {
         let ports = ReviewPorts(extraBlocks: 700)
-        let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports,
+        let service = GenericFoodProposalReviewer(egress: PermittingOpenRouterEgress(), discovery: ports, capture: ports, extraction: ports,
             sourceSelection: ports, selection: ports)
         let result = try await service.review(foodTerms: "tofu", key: key)
         let calls = await ports.calls
@@ -81,7 +81,7 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
     func testCompetingPanelsGetTheCheckAndItsAnswerIsRecorded() async throws {
         for (choice, offered, preselected) in [("c1", ["c1", "c2"], "c1" as String?), ("clarify", ["c1", "c2"], nil)] {
             let ports = ReviewPorts(selectionChoice: choice, competingPanels: true)
-            let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports,
+            let service = GenericFoodProposalReviewer(egress: PermittingOpenRouterEgress(), discovery: ports, capture: ports, extraction: ports,
                 sourceSelection: ports, selection: ports)
             let result = try await service.review(foodTerms: "tofu", sourceURL: url, key: key)
             let calls = await ports.calls
@@ -110,7 +110,7 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
         let permissions = await supplied.permissions
         XCTAssertEqual(permissions, [.permitted])
         let unselected = ReviewPorts(pageShapes: [url: .overBoundsWithPanel])
-        let run = try await GenericFoodProposalReviewer(discovery: unselected, capture: unselected, extraction: unselected)
+        let run = try await GenericFoodProposalReviewer(egress: PermittingOpenRouterEgress(), discovery: unselected, capture: unselected, extraction: unselected)
             .review(foodTerms: "tofu", key: key)
         XCTAssertNotNil(run.documents.first?.partialRead)
         let unselectedPermissions = await unselected.permissions, calls = await unselected.calls
@@ -121,7 +121,7 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
     func testAFirstLeadOverTheBoundsYieldsToAnotherLeadAndIsReadInPartOnlyWithoutOne() async throws {
         let other = URL(string: "https://other.example/tofu")!
         let ports = ReviewPorts(pageShapes: [url: .overBoundsWithPanel])
-        let result = try await GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports, sourceSelection: ports,
+        let result = try await GenericFoodProposalReviewer(egress: PermittingOpenRouterEgress(), discovery: ports, capture: ports, extraction: ports, sourceSelection: ports,
             selection: ports).review(foodTerms: "tofu", key: key)
         let permissions = await ports.permissions
         XCTAssertEqual(permissions, [.refused, .permitted])
@@ -129,7 +129,7 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
         XCTAssertNil(result.documents.first?.partialRead)
         // With no other admissible lead, the first capture may read in part: one capture.
         let alone = ReviewPorts(leadURLs: [url], pageShapes: [url: .overBoundsWithPanel])
-        let single = try await GenericFoodProposalReviewer(discovery: alone, capture: alone, extraction: alone, sourceSelection: alone,
+        let single = try await GenericFoodProposalReviewer(egress: PermittingOpenRouterEgress(), discovery: alone, capture: alone, extraction: alone, sourceSelection: alone,
             selection: alone).review(foodTerms: "tofu", key: key)
         let alonePermissions = await alone.permissions
         XCTAssertEqual(alonePermissions, [.permitted])
@@ -150,7 +150,7 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
         let provider = ReviewPorts(pageShapes: [url: .overBoundsWithPanel])
         await provider.secondChoice(error: .quotaExceeded)
         for (ports, expected) in [(abstains, "sourceNotSuggested"), (provider, "provider")] {
-            let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports, sourceSelection: ports)
+            let service = GenericFoodProposalReviewer(egress: PermittingOpenRouterEgress(), discovery: ports, capture: ports, extraction: ports, sourceSelection: ports)
             do { _ = try await service.review(foodTerms: "tofu", key: key); XCTFail("Expected the run to end") }
             catch let failure as GenericFoodProposalPartialFailure {
                 switch failure.reason {
@@ -166,7 +166,7 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
         let first = URL(string: "https://publisher.co.uk/yoghurt")!
         let market = ReviewPorts(leadURLs: [first, URL(string: "https://ie.fage/yoghurts/fage-total-0")!],
                                  pageShapes: [first: .overBoundsWithPanel])
-        let service = GenericFoodProposalReviewer(discovery: market, capture: market, extraction: market, sourceSelection: market)
+        let service = GenericFoodProposalReviewer(egress: PermittingOpenRouterEgress(), discovery: market, capture: market, extraction: market, sourceSelection: market)
         do { _ = try await service.review(foodTerms: "FAGE plain yoghurt UK", key: key); XCTFail("Expected market conflict") }
         catch let failure as GenericFoodProposalPartialFailure {
             guard case .sourceMarketConflict = failure.reason else { return XCTFail("Wrong failure reason") }
@@ -179,7 +179,7 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
     func testAnEmptyFirstExtractionThenASecondPageOverTheBoundsReadsItInPart() async throws {
         let other = URL(string: "https://other.example/tofu")!
         let ports = ReviewPorts(emptyFirstOnly: true, pageShapes: [other: .overBoundsWithPanel])
-        let result = try await GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports, sourceSelection: ports,
+        let result = try await GenericFoodProposalReviewer(egress: PermittingOpenRouterEgress(), discovery: ports, capture: ports, extraction: ports, sourceSelection: ports,
             selection: ports).review(foodTerms: "tofu", key: key)
         let permissions = await ports.permissions, calls = await ports.calls
         XCTAssertEqual(permissions, [.refused, .permitted])
@@ -189,7 +189,7 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
 
     func testEmptyFirstSourceUsesOneDistinctAlternativeWithoutRediscovery() async throws {
         let ports = ReviewPorts(emptyFirstOnly: true)
-        let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports,
+        let service = GenericFoodProposalReviewer(egress: PermittingOpenRouterEgress(), discovery: ports, capture: ports, extraction: ports,
             sourceSelection: ports, selection: ports)
         let result = try await service.review(foodTerms: "tofu", key: key)
         let calls = await ports.calls
@@ -202,7 +202,7 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
 
     func testEmptyAlternativeStopsAtTwoSourcesAndNoApplicability() async throws {
         let ports = ReviewPorts(empty: true)
-        let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports,
+        let service = GenericFoodProposalReviewer(egress: PermittingOpenRouterEgress(), discovery: ports, capture: ports, extraction: ports,
             sourceSelection: ports, selection: ports)
         let result = try await service.review(foodTerms: "tofu", key: key)
         XCTAssertEqual(result.sourceAttempts.count, 2)
@@ -214,7 +214,7 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
 
     func testProviderFailureDoesNotSpendOnAlternativeSource() async throws {
         let ports = ReviewPorts(extractionError: .quotaExceeded)
-        let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports, sourceSelection: ports)
+        let service = GenericFoodProposalReviewer(egress: PermittingOpenRouterEgress(), discovery: ports, capture: ports, extraction: ports, sourceSelection: ports)
         do { _ = try await service.review(foodTerms: "tofu", key: key); XCTFail("Expected quota failure") } catch {}
         let calls = await ports.calls
         XCTAssertEqual(calls, ["discover", "chooseSource", "capture", "extract"])
@@ -222,7 +222,7 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
 
     func testRepresentativeLeadRetainsRestrictedScope() async throws {
         let ports = ReviewPorts(sourceChoice: .selected(index: 0, purpose: .representativeEstimate, reason: "representative_food_lead"))
-        let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports, sourceSelection: ports)
+        let service = GenericFoodProposalReviewer(egress: PermittingOpenRouterEgress(), discovery: ports, capture: ports, extraction: ports, sourceSelection: ports)
         let result = try await service.review(foodTerms: "tofu", key: key)
         XCTAssertTrue(result.representativeSourceOnly)
     }
@@ -231,7 +231,7 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
         for useSelector in [true, false] {
             let urls = [URL(string: "https://ie.fage/yoghurts/fage-total-0")!, URL(string: "https://publisher.co.uk/yoghurt")!]
             let ports = ReviewPorts(leadURLs: urls)
-            let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports,
+            let service = GenericFoodProposalReviewer(egress: PermittingOpenRouterEgress(), discovery: ports, capture: ports, extraction: ports,
                 sourceSelection: useSelector ? ports : nil)
             do { _ = try await service.review(foodTerms: "FAGE plain yoghurt UK", key: key); XCTFail("Expected market conflict") }
             catch let failure as GenericFoodProposalPartialFailure {
@@ -274,7 +274,7 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
 
     func testSourceSelectionChoosesOnlyAnOfferedLeadBeforeCapture() async throws {
         let ports = ReviewPorts(sourceChoice: .selected(index: 1, purpose: .primaryProduct, reason: "Exact source"))
-        let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports, sourceSelection: ports)
+        let service = GenericFoodProposalReviewer(egress: PermittingOpenRouterEgress(), discovery: ports, capture: ports, extraction: ports, sourceSelection: ports)
         let result = try await service.review(foodTerms: "tofu", key: key)
         XCTAssertEqual(result.attemptedSourceURL?.host, "other.example")
         XCTAssertEqual(result.documents.first?.url, "https://other.example/tofu")
@@ -287,7 +287,7 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
                       ReviewPorts(sourceChoice: .selected(index: 2, purpose: .primaryProduct, reason: "Invented choice")),
                       ReviewPorts(sourceChoice: .selected(index: -1, purpose: .primaryProduct, reason: "Invalid choice")),
                       ReviewPorts(sourceError: .quotaExceeded)] {
-            let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports, sourceSelection: ports)
+            let service = GenericFoodProposalReviewer(egress: PermittingOpenRouterEgress(), discovery: ports, capture: ports, extraction: ports, sourceSelection: ports)
             do { _ = try await service.review(foodTerms: "tofu", key: key); XCTFail("Expected closed source choice") }
             catch let failure as GenericFoodProposalPartialFailure {
                 XCTAssertEqual(failure.discovery?.leads.count, 2)
@@ -300,7 +300,7 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
 
     func testSuppliedURLSkipsSourceSelectionAndRejectedKeyRemainsDistinct() async throws {
         let ports = ReviewPorts(sourceError: .credentialRejected)
-        let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports, sourceSelection: ports)
+        let service = GenericFoodProposalReviewer(egress: PermittingOpenRouterEgress(), discovery: ports, capture: ports, extraction: ports, sourceSelection: ports)
         do { _ = try await service.review(foodTerms: "tofu", key: key); XCTFail("Expected key rejection") }
         catch { XCTAssertEqual(error as? FoodWebDiscoveryError, .credentialRejected) }
         let result = try await service.review(foodTerms: "tofu", sourceURL: url, key: key)
@@ -311,7 +311,7 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
 
     func testDeadlineDuringSourceChoicePreventsCapture() async throws {
         let ports = ReviewPorts(suspendSourceChoice: true)
-        let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports,
+        let service = GenericFoodProposalReviewer(egress: PermittingOpenRouterEgress(), discovery: ports, capture: ports, extraction: ports,
             sourceSelection: ports, timeout: .milliseconds(30))
         do { _ = try await service.review(foodTerms: "tofu", key: key); XCTFail("Expected timeout") }
         catch { XCTAssertEqual(error as? FoodWebDiscoveryError, .timedOut) }
@@ -450,8 +450,68 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
         XCTAssertTrue(calls.isEmpty)
     }
 
+    // MARK: O1 consent (docs/openrouter-single-consent-v1-amendment.md O1.2, O1.6 tests 1, 2 and 4)
+
+    /// A gate that permits the first `allowed` asks and refuses the next.
+    private func gate(refusingAsk number: Int) -> RecordingOpenRouterEgress {
+        number == 1 ? RecordingOpenRouterEgress(permits: false)
+            : RecordingOpenRouterEgress(permits: true, then: Array(repeating: true, count: number - 2) + [false])
+    }
+
+    func testARefusalAtEachStepReachesTheCallerUnwrappedAndStopsThere() async throws {
+        let steps = ["discover", "chooseSource", "capture", "extract", "select"]
+        for (index, _) in steps.enumerated() {
+            let ports = ReviewPorts(leadURLs: [url])
+            let egress = gate(refusingAsk: index + 1)
+            let service = GenericFoodProposalReviewer(egress: egress, discovery: ports, capture: ports, extraction: ports,
+                                                      sourceSelection: ports, selection: ports)
+            do { _ = try await service.review(foodTerms: "tofu", key: key); XCTFail("Expected a refusal at \(steps[index])") }
+            catch { XCTAssertEqual(error as? FoodWebDiscoveryError, .notPermitted, "unwrapped at \(steps[index]), never a partial failure") }
+            let calls = await ports.calls
+            XCTAssertEqual(calls, Array(steps.prefix(index)), "nothing after the refused step")
+            XCTAssertEqual(egress.uses, Array(repeating: .webLookup, count: index + 1))
+        }
+    }
+
+    func testASuppliedAddressFetchesNoPageWhenRefused() async throws {
+        let ports = ReviewPorts(leadURLs: [url])
+        let service = GenericFoodProposalReviewer(egress: RecordingOpenRouterEgress(permits: false), discovery: ports, capture: ports,
+                                                  extraction: ports, sourceSelection: ports, selection: ports)
+        do { _ = try await service.review(foodTerms: "tofu", sourceURL: url, key: key); XCTFail("Expected a refusal") }
+        catch { XCTAssertEqual(error as? FoodWebDiscoveryError, .notPermitted) }
+        let calls = await ports.calls
+        XCTAssertTrue(calls.isEmpty, "no page fetch and no model request")
+    }
+
+    /// The switch goes off before the second lead's capture: no page is fetched, no model request
+    /// follows, and the refusal is not turned into the second-lead failure.
+    func testASwitchTurnedOffBeforeTheSecondLeadsCaptureFetchesNoPage() async throws {
+        let ports = ReviewPorts(empty: true)
+        // discover, chooseSource, capture, extract (empty), chooseSource, then the second capture is refused.
+        let egress = gate(refusingAsk: 6)
+        let service = GenericFoodProposalReviewer(egress: egress, discovery: ports, capture: ports, extraction: ports,
+                                                  sourceSelection: ports, selection: ports)
+        do { _ = try await service.review(foodTerms: "tofu", key: key); XCTFail("Expected a refusal") }
+        catch {
+            XCTAssertEqual(error as? FoodWebDiscoveryError, .notPermitted)
+            XCTAssertFalse(error is GenericFoodProposalPartialFailure)
+        }
+        let calls = await ports.calls
+        XCTAssertEqual(calls, ["discover", "chooseSource", "capture", "extract", "chooseSource"])
+    }
+
+    func testAProviderRefusalAtAnyStepIsRethrownUnwrapped() async throws {
+        for ports in [ReviewPorts(extractionError: .notPermitted, leadURLs: [url]), ReviewPorts(selectionError: .notPermitted, leadURLs: [url]),
+                      ReviewPorts(sourceError: .notPermitted, leadURLs: [url])] {
+            let service = GenericFoodProposalReviewer(egress: PermittingOpenRouterEgress(), discovery: ports, capture: ports,
+                                                      extraction: ports, sourceSelection: ports, selection: ports)
+            do { _ = try await service.review(foodTerms: "tofu", key: key); XCTFail("Expected a refusal") }
+            catch { XCTAssertEqual(error as? FoodWebDiscoveryError, .notPermitted, "no selection failure, partial failure or usable review") }
+        }
+    }
+
     private func reviewer(_ ports: ReviewPorts, ranking: Bool = true, timeout: Duration = .seconds(2)) -> GenericFoodProposalReviewer {
-        GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports,
+        GenericFoodProposalReviewer(egress: PermittingOpenRouterEgress(), discovery: ports, capture: ports, extraction: ports,
                                     selection: ranking ? ports : nil, timeout: timeout)
     }
 

@@ -294,7 +294,7 @@ final class AddFoodSearchPresentationTests: XCTestCase {
         XCTAssertEqual(searchCalls, 0)
 
         let reviewer = CountingProposalReview()
-        let review = GenericFoodProposalReviewViewModel(reviewer: reviewer, credentials: CountingCredentials(),
+        let review = GenericFoodProposalReviewViewModel(egress: PermittingOpenRouterEgress(), reviewer: reviewer, credentials: CountingCredentials(), keyState: { .valid },
             confirmation: ReviewedFoodProposalConfirmation(ids: RandomLedgerIDGenerator(), clock: SystemLedgerClock(),
                 encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester()), locale: try LedgerText("en_GB"))
         for text in ["c", "chicken", "chicken caesar wrap"] { review.foodTerms = text }

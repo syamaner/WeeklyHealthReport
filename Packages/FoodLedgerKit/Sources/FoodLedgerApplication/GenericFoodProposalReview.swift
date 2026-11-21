@@ -122,12 +122,17 @@ public actor GenericFoodProposalReviewer: GenericFoodProposalReviewing {
     private let sourceSelection: (any FoodSourceLeadSelecting)?
     private let selection: (any FoodProposalSelecting)?
     private let timeout: Duration
+    /// The Settings › OpenRouter gate, asked as `webLookup` before each page capture and each model
+    /// call (docs/openrouter-single-consent-v1-amendment.md O1.2). Required: missing wiring does not compile.
+    private let egress: any OpenRouterEgressPermitting
     private var active = false
 
-    public init(discovery: any FoodWebDiscovering, capture: any FoodDocumentCapturing,
+    public init(egress: any OpenRouterEgressPermitting,
+                discovery: any FoodWebDiscovering, capture: any FoodDocumentCapturing,
                 extraction: any FoodProposalExtracting, sourceSelection: (any FoodSourceLeadSelecting)? = nil,
                 selection: (any FoodProposalSelecting)? = nil,
                 timeout: Duration = .seconds(150)) {
+        self.egress = egress
         self.discovery = discovery; self.capture = capture; self.extraction = extraction; self.selection = selection
         self.sourceSelection = sourceSelection
         self.timeout = min(max(timeout, .milliseconds(1)), .seconds(150))
@@ -202,6 +207,17 @@ public actor GenericFoodProposalReviewer: GenericFoodProposalReviewing {
         }
     }
 
+    /// Throws `.notPermitted` when Settings › OpenRouter is off, before a page fetch or model call.
+    private func permit() throws {
+        guard egress.permits(.webLookup) else { throw FoodWebDiscoveryError.notPermitted }
+    }
+
+    /// Errors rethrown unwrapped, never turned into a partial failure, a selection failure or an
+    /// acquisition failure: cancellation, a rejected key and a refusal (O1.2).
+    static func passesThrough(_ error: any Error) -> Bool {
+        error is CancellationError || [.credentialRejected, .notPermitted].contains(error as? FoodWebDiscoveryError)
+    }
+
     /// The second-lead pool: every lead of the discovery result that is not excluded and that the
     /// link policy admits. The part-read predicate uses the same filter, so they cannot drift.
     static func admissibleLeads(_ result: FoodWebDiscoveryResult, excluding excluded: Set<URL>) -> [FoodWebLead] {
@@ -224,7 +240,7 @@ public actor GenericFoodProposalReviewer: GenericFoodProposalReviewing {
         else {
             let found: FoodWebDiscoveryResult
             if let existingDiscovery { found = existingDiscovery }
-            else { found = try await discovery.discover(foodTerms: terms, key: key) }
+            else { try permit(); found = try await discovery.discover(foodTerms: terms, key: key) }
             try Task.checkCancellation()
             let offered = Array(found.leads.filter { FoodWebLinkPolicy.isAllowed($0.url) }.prefix(3))
             guard let first = offered.first else {
@@ -233,10 +249,11 @@ public actor GenericFoodProposalReviewer: GenericFoodProposalReviewing {
             result = found
             if let sourceSelection {
                 let decision: FoodSourceLeadDecision
+                try permit()
                 do { decision = try await sourceSelection.chooseSource(foodTerms: terms, leads: offered, key: key) }
                 catch {
                     try Task.checkCancellation()
-                    if error is CancellationError || error as? FoodWebDiscoveryError == .credentialRejected { throw error }
+                    if Self.passesThrough(error) { throw error }
                     throw GenericFoodProposalPartialFailure(discovery: found, reason: .provider(error as? FoodWebDiscoveryError ?? .invalidResponse))
                 }
                 try Task.checkCancellation()
@@ -257,6 +274,8 @@ public actor GenericFoodProposalReviewer: GenericFoodProposalReviewing {
             throw GenericFoodProposalPartialFailure(discovery: result, reason: .sourceMarketConflict)
         }
         let document: CapturedFoodDocument
+        // Outside the capture handler, so a refusal never reaches the second-lead retry (O1.2).
+        try permit()
         do { document = try await capture.capture(url, partRead: partRead) }
         catch {
             try Task.checkCancellation()
@@ -270,10 +289,11 @@ public actor GenericFoodProposalReviewer: GenericFoodProposalReviewing {
         }
         guard !document.blocks.contains(where: { $0.text.contains(key) }) else { throw GenericFoodProposalError.invalidDocument }
         let extracted: FoodProposalExtraction
+        try permit()
         do { extracted = try await extraction.extract(foodTerms: terms, documents: [document], key: key) }
         catch {
             try Task.checkCancellation()
-            if error is CancellationError || error as? FoodWebDiscoveryError == .credentialRejected { throw error }
+            if Self.passesThrough(error) { throw error }
             throw GenericFoodProposalPartialFailure(discovery: result, reason: .provider(error as? FoodWebDiscoveryError ?? .invalidResponse), attemptedSourceURL: url)
         }
         try Task.checkCancellation()
@@ -284,6 +304,7 @@ public actor GenericFoodProposalReviewer: GenericFoodProposalReviewing {
         var selectionFailure: FoodProposalSelectionFailure?
         // The check runs whenever a candidate is choosable, including competing panels (#508).
         if let selection, validation.candidates.contains(where: \.choosable) {
+            try permit()
             do {
                 let suggested = try await selection.select(foodTerms: terms, documents: [document], validation: validation, key: key)
                 // Rebind even a substituted selector to this request's offered candidates.
@@ -293,7 +314,7 @@ public actor GenericFoodProposalReviewer: GenericFoodProposalReviewing {
                         rawConfidence: suggested.rawConfidence, validation: validation)
             } catch {
                 try Task.checkCancellation()
-                if error is CancellationError || error as? FoodWebDiscoveryError == .credentialRejected { throw error }
+                if Self.passesThrough(error) { throw error }
                 selectionFailure = FoodProposalSelectionFailure(error)
             }
         }

@@ -179,7 +179,7 @@ public enum HeldOutRun {
         // The key and the route's catalogue entry, so an outage refuses the run before it starts.
         let (transport, keys) = connection.resolved(labelID: labels.first?.id ?? "")
         guard let key = try? keys.load(), !key.isEmpty else { throw Refusal.keyMissing }
-        let checker = OpenRouterPastedLabelAITextRouteChecker(transport: transport, clock: SystemLedgerClock(), reasoningBilledSeparately: true)
+        let checker = OpenRouterPastedLabelAITextRouteChecker(egress: PastedLabelAITextEvalEgress(), transport: transport, clock: SystemLedgerClock(), reasoningBilledSeparately: true)
         guard let check = try? await checker.check(route),
               let prompt = Decimal(string: check.promptPrice, locale: Locale(identifier: "en_US_POSIX")),
               let completion = Decimal(string: check.completionPrice, locale: Locale(identifier: "en_US_POSIX")) else {

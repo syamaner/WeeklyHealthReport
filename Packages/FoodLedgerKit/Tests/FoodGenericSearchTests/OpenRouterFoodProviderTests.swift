@@ -2,6 +2,7 @@ import Foundation
 import FoodLedgerApplication
 import FoodLedgerDomain
 @testable import FoodGenericSearch
+import FoodLedgerTestSupport
 import XCTest
 
 @MainActor
@@ -45,7 +46,7 @@ final class OpenRouterFoodProviderTests: XCTestCase {
 
     func testDiscoveryAddsNutritionIntentWithoutReplacingFoodOrMarket() async throws {
         let payload = try reply(content: "No sources")
-        let provider = OpenRouterFoodProvider { request in
+        let provider = OpenRouterFoodProvider(egress: PermittingOpenRouterEgress()) { request in
             let body = try StrictFoodProposalJSON.object(XCTUnwrap(request.httpBody))
             let messages = try XCTUnwrap(body["messages"] as? [[String: Any]])
             XCTAssertEqual(messages.last?["content"] as? String,
@@ -58,7 +59,7 @@ final class OpenRouterFoodProviderTests: XCTestCase {
     func testExtractionRouteDoesNotChangeDiscoveryRoute() async throws {
         let payload = try reply(content: "No sources")
         for route in OpenRouterFoodExtractionRoute.allCases {
-            let provider = OpenRouterFoodProvider(extractionRoute: route) { request in
+            let provider = OpenRouterFoodProvider(egress: PermittingOpenRouterEgress(), extractionRoute: route) { request in
                 let body = try StrictFoodProposalJSON.object(XCTUnwrap(request.httpBody))
                 XCTAssertEqual(body["model"] as? String, OpenRouterFoodProvider.extractionModel)
                 XCTAssertEqual((body["provider"] as? [String: Any])?["only"] as? [String], ["azure"])
@@ -182,13 +183,13 @@ final class OpenRouterFoodProviderTests: XCTestCase {
 
     func test400IsRequestFailureAndDoesNotInvalidateKeyAs401Does() async throws {
         for (status, expected) in [(400, FoodWebDiscoveryError.requestRejected), (401, .credentialRejected), (402, .quotaExceeded), (403, .permissionDenied), (429, .quotaExceeded)] {
-            let provider = OpenRouterFoodProvider { _ in .init(status: status, data: Data("{}".utf8)) }
+            let provider = OpenRouterFoodProvider(egress: PermittingOpenRouterEgress()) { _ in .init(status: status, data: Data("{}".utf8)) }
             do { try await provider.validate(key: key); XCTFail("Expected failure") }
             catch { XCTAssertEqual(error as? FoodWebDiscoveryError, expected) }
         }
     }
     func testHTTP200UpstreamRateLimitDoesNotBecomeCredentialFailure() async {
-        let provider = OpenRouterFoodProvider { _ in
+        let provider = OpenRouterFoodProvider(egress: PermittingOpenRouterEgress()) { _ in
             .init(status: 200, data: Data(#"{"error":{"code":429,"message":"Provider upstream details"}}"#.utf8))
         }
         do { try await provider.validate(key: key); XCTFail("Expected upstream quota classification") }
@@ -196,7 +197,7 @@ final class OpenRouterFoodProviderTests: XCTestCase {
     }
 
     func testKeyValidationUsesGETAndNeverSubmitsFoodTerms() async throws {
-        let provider = OpenRouterFoodProvider { request in
+        let provider = OpenRouterFoodProvider(egress: PermittingOpenRouterEgress()) { request in
             XCTAssertEqual(request.url?.absoluteString, "https://openrouter.ai/api/v1/key")
             XCTAssertEqual(request.httpMethod, "GET")
             XCTAssertNil(request.httpBody)
@@ -208,7 +209,7 @@ final class OpenRouterFoodProviderTests: XCTestCase {
 
     func testEchoedKeyIsNotReturnedOrDisplayed() async throws {
         let echo = key
-        let provider = OpenRouterFoodProvider { _ in .init(status: 200, data: Data(echo.utf8)) }
+        let provider = OpenRouterFoodProvider(egress: PermittingOpenRouterEgress()) { _ in .init(status: 200, data: Data(echo.utf8)) }
         do { try await provider.validate(key: key); XCTFail("Expected rejection") }
         catch { XCTAssertEqual(error as? FoodWebDiscoveryError, .invalidResponse) }
     }
@@ -218,7 +219,7 @@ final class OpenRouterFoodProviderTests: XCTestCase {
             "choices": [["finish_reason": "stop", "message": ["content": "Use https://invented.example/food", "annotations": [
                 ["type": "url_citation", "url_citation": ["url": "https://publisher.example/food", "title": "Food", "content": "Nutrition source"]],
                 ["type": "url_citation", "url_citation": ["url": "http://insecure.example/food", "title": "Insecure"]]]]]]])
-        let provider = OpenRouterFoodProvider { request in
+        let provider = OpenRouterFoodProvider(egress: PermittingOpenRouterEgress()) { request in
             let body = try StrictFoodProposalJSON.object(XCTUnwrap(request.httpBody))
             let plugin = try XCTUnwrap((body["plugins"] as? [[String: Any]])?.first)
             XCTAssertEqual(plugin["engine"] as? String, "exa")
@@ -230,7 +231,7 @@ final class OpenRouterFoodProviderTests: XCTestCase {
     }
 
     func testCredentialInQueryIsRejectedBeforeTransport() async {
-        let provider = OpenRouterFoodProvider { _ in XCTFail("No transport permitted"); return .init(status: 500, data: Data()) }
+        let provider = OpenRouterFoodProvider(egress: PermittingOpenRouterEgress()) { _ in XCTFail("No transport permitted"); return .init(status: 500, data: Data()) }
         do { _ = try await provider.discover(foodTerms: key, key: key); XCTFail("Expected rejection") }
         catch { XCTAssertEqual(error as? FoodWebDiscoveryError, .invalidQuery) }
     }
@@ -243,7 +244,7 @@ final class OpenRouterFoodProviderTests: XCTestCase {
                 "provider": "TypeSafe", "answers": ["best_candidate": ["type": "choice", "choice": "none",
                     "probabilities": ["none": booleanField == "probability" ? true as Any : 1.0, "clarify": 0.0],
                     "confidence": booleanField == "confidence" ? true as Any : 1.0]]])
-            let provider = OpenRouterFoodProvider { _ in .init(status: 200, data: payload) }
+            let provider = OpenRouterFoodProvider(egress: PermittingOpenRouterEgress()) { _ in .init(status: 200, data: payload) }
             do {
                 _ = try await provider.select(foodTerms: "tofu", documents: [document()], validation: validation, key: key)
                 XCTFail("JSON boolean must not become numeric confidence")

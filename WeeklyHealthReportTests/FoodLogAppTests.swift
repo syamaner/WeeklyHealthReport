@@ -51,8 +51,10 @@ final class FoodLogAppTests: XCTestCase {
     /// `todayNotes` and `todayNoteEditor` for Home's notes row.
     func testNoRouteWasAddedForTheSavedEntry() {
         // #424 P1b appends one Settings route (Your food database); no Food Log route was added.
-        XCTAssertEqual(AppRoute.allCases.count, 25)
-        XCTAssertEqual(Array(AppRoute.allCases.suffix(6)), [.addFood, .exportDestination, .favourites, .todayNotes, .todayNoteEditor, .personalFoodDatabase])
+        // O1 (#551) appends one Settings route (the OpenRouter privacy anchor).
+        XCTAssertEqual(AppRoute.allCases.count, 26)
+        XCTAssertEqual(Array(AppRoute.allCases.suffix(7)), [.addFood, .exportDestination, .favourites, .todayNotes, .todayNoteEditor, .personalFoodDatabase,
+                                                           .openRouterPrivacy])
     }
 
     // MARK: No egress

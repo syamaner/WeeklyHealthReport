@@ -116,6 +116,8 @@ public enum FoodProposalSelectionFailure: String, CaseIterable, Equatable, Senda
             case .serviceUnavailable: self = .serverError
             case .requestRejected, .permissionDenied, .invalidQuery, .credentialRejected: self = .requestRejected
             case .invalidResponse: self = .invalidResponse
+            // Unreachable: the reviewer rethrows a refusal before classifying (O1.2); pinned by a test.
+            case .notPermitted: self = .requestRejected
             }
         case let error as GenericFoodProposalError where error == .invalidSelection: self = .choiceNotOffered
         default: self = .invalidResponse

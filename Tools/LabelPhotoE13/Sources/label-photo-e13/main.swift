@@ -262,7 +262,13 @@ if separateRecords, let full = try? String(contentsOf: fullRunURL, encoding: .ut
 let clock = SystemLedgerClock()
 let live = OpenRouterTransport()
 let transport = RecordingTransport(live)
-let checker = OpenRouterLabelRouteChecker(transport: transport, clock: clock, reasoningBilledSeparately: true)
+// The tool's own gate (docs/openrouter-single-consent-v1-amendment.md section 6): it runs on the
+// owner's Mac under E13's approved terms, not as app egress, so it permits the photo uses it makes.
+struct E13Egress: OpenRouterEgressPermitting {
+    func permits(_ use: OpenRouterUse) -> Bool { use == .labelPhotoRead || use == .labelPhotoCatalogueCheck }
+}
+let egress = E13Egress()
+let checker = OpenRouterLabelRouteChecker(egress: egress, transport: transport, clock: clock, reasoningBilledSeparately: true)
 
 // The free, keyless catalogue check first: the route must be admitted and W known before any spend.
 let check: LabelPhotoManifest.CatalogueCheck
@@ -274,7 +280,7 @@ let worstCase = LabelPhotoSpendPolicy.worstCase(prices)
 FileHandle.standardError.write(Data("route \(LabelPhotoRoute.current.endpoint) admitted; W \(worstCase) USD; spent so far \(spent) USD; \(done.count) done\n".utf8))
 
 let ledger = PerPhotoLedger()
-let session = LabelPhotoReadSession(checker: checker, attempter: OpenRouterLabelPhotoAttempt(transport: transport, keys: keys,
+let session = LabelPhotoReadSession(egress: egress, checker: checker, attempter: OpenRouterLabelPhotoAttempt(egress: egress, transport: transport, keys: keys,
                                                                                            request: try OpenRouterLabelPhotoRequest()),
                                     ledger: ledger, keys: keys, clock: clock, calendar: Calendar(identifier: .gregorian),
                                     sleeper: TaskLabelPhotoSleeper(), jitter: { Double.random(in: 0...1) }, tapIDs: { UUID().uuidString },

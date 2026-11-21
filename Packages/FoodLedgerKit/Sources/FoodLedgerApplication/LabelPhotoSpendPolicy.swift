@@ -147,7 +147,7 @@ public enum LabelPhotoSpendPolicy {
 
     /// The day `stored` counts against: its own when it is today or later (a clock moved back
     /// never resets the allowance), otherwise a fresh day.
-    static func current(today: String, stored: Day?) -> Day {
+    public static func current(today: String, stored: Day?) -> Day {
         guard let stored, stored.day >= today else { return Day.empty(today) }
         return stored
     }
