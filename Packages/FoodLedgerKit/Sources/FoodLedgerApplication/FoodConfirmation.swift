@@ -518,6 +518,10 @@ public enum FoodConfirmationSaveError: Error, Equatable, Sendable {
     /// An approved estimate whose capture manifest does not verify, or a state that would write an
     /// estimated nutrient with any value but the manifest's own or unknown (estimates on catalogue v2).
     case invalidApprovedEstimate
+    /// A state that would write an `openrouter_estimate` value that its cited capture and choices item
+    /// do not verify (Confirm enrichment v1, CE1.6 rule 4 and CE1.7). No path writes one before the
+    /// Confirm suggestion layer lands, so any such value is refused.
+    case invalidOpenRouterEstimate
     /// The one-step sheet tried to save an entry that holds an approved estimate or its manifest:
     /// such an entry always goes through Confirm.
     case approvedEstimateNeedsConfirm
@@ -856,13 +860,28 @@ public final class FoodConfirmationService: @unchecked Sendable {
         // Evidence is reached through the decision's embedded candidate, so the new decision's
         // candidate lists the leave-out item after the bound candidate's own evidence IDs, and
         // differs from the bound candidate in that list only.
-        let decisionCandidate = try leftOutEvidence.map { item in
-            try ProviderNeutralCandidate(
+        // Confirm enrichment (phase gate section 2.4a): a save of a candidate that cites CE1 items
+        // rebuilds the list from the candidate's own IDs, so no earlier CE1 or leave-out item is carried.
+        let stripsEnrichment = changesProduct
+            && ConfirmEnrichmentCitation.citesEnrichment(selected.candidate, evidence: state.input.evidence)
+        let decisionCandidate: ProviderNeutralCandidate
+        if stripsEnrichment {
+            decisionCandidate = try ProviderNeutralCandidate(
                 sourceReleaseID: selected.candidate.sourceReleaseID, recordID: selected.candidate.recordID,
                 identity: selected.candidate.identity, edibleQuantity: selected.candidate.edibleQuantity,
-                nutrients: selected.candidate.nutrients, evidenceIDs: selected.candidate.evidenceIDs + [item.evidenceID],
+                nutrients: selected.candidate.nutrients,
+                evidenceIDs: ConfirmEnrichmentCitation.ownEvidenceIDs(selected.candidate, evidence: state.input.evidence)
+                    + (leftOutEvidence.map { [$0.evidenceID] } ?? []),
                 matchMetadata: selected.candidate.matchMetadata)
-        } ?? selected.candidate
+        } else {
+            decisionCandidate = try leftOutEvidence.map { item in
+                try ProviderNeutralCandidate(
+                    sourceReleaseID: selected.candidate.sourceReleaseID, recordID: selected.candidate.recordID,
+                    identity: selected.candidate.identity, edibleQuantity: selected.candidate.edibleQuantity,
+                    nutrients: selected.candidate.nutrients, evidenceIDs: selected.candidate.evidenceIDs + [item.evidenceID],
+                    matchMetadata: selected.candidate.matchMetadata)
+            } ?? selected.candidate
+        }
         let assertion = changesProduct
             ? try makeAssertion(state: state, selected: selected, previous: previous, record: decisionRecord,
                                 labelEstimate: layer?.assertion, leftOut: leaveOutChanged ? savedLeftOut : nil, at: now)
@@ -891,7 +910,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
                 itemClass: state.correction?.itemClass ?? selected.itemClass,
                 packFacts: selected.packFacts,
                 identity: identity,
-                evidenceIDs: selected.candidate.evidenceIDs,
+                evidenceIDs: stripsEnrichment ? decisionCandidate.evidenceIDs : selected.candidate.evidenceIDs,
                 assertionIDs: assertion.map { [$0.assertionID] } ?? [],
                 createdAt: now
             )
@@ -935,6 +954,11 @@ public final class FoodConfirmationService: @unchecked Sendable {
             // The effective set: the candidate's or the correction's, with every withheld or left-out
             // estimate unknown. Without an approved estimate it is what was written before.
             let nutrients = layer?.nutrients ?? state.effectiveNutrients
+            // CE1.6 rule 4: no `openrouter_estimate` value is written unless it verifies; before the
+            // suggestion layer there is no verified source for one.
+            guard !ConfirmEnrichmentCitation.holdsOpenRouterEstimate(nutrients) else {
+                throw FoodConfirmationSaveError.invalidOpenRouterEstimate
+            }
             resolutionVersion = try NutritionResolutionVersion(
                 resolutionVersionID: leftOutVersionID ?? ids.makeID(ResolutionVersionTag.self),
                 resolutionID: resolution.resolutionID,
@@ -1129,7 +1153,9 @@ public final class FoodConfirmationService: @unchecked Sendable {
         var source = restored.candidates[0]
         // A new log built from a saved decision drops that decision's leave-out evidence: earlier
         // leave-outs are not carried, and the capture manifest stays (estimates on catalogue v2 section 5).
+        // Confirm enrichment (CE1 section 5a): the earlier A and B capture and choices IDs are dropped too.
         let leftOutIDs = Set(restored.evidence.filter(ApprovedEstimateSource.isLeftOut).map(\.evidenceID))
+            .union(ConfirmEnrichmentCitation.enrichmentEvidenceIDs(restored.evidence))
         if !leftOutIDs.isEmpty {
             let kept = try ProviderNeutralCandidate(
                 sourceReleaseID: source.candidate.sourceReleaseID, recordID: source.candidate.recordID,
