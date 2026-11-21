@@ -113,9 +113,9 @@ sends nothing:
 - **Key:** the SHA-256 of the canonical request subject (CE1.5) plus the contract, route and prompt
   versions. Never the key, the amount or a date.
 - **Value:** the validated response bytes, the response hash, model, provider, cost, and the time
-  received. The request body is not kept: a hit means an identical subject and versions, and the
-  request is one pure function of those (section 7), so a capture built from a cached answer rebuilds
-  the exact request body without the key and holds the same request and response as one built from a
+  received. The request body is not kept: the request is one pure function of the Confirm inputs the
+  subject hashes (section 7), and a hit means those inputs and the versions are identical, so a capture
+  built from a cached answer rebuilds the exact request body without the key from the live state and holds the same request and response as one built from a
   live answer (one test). The generation ID is read from the response bytes, and the endpoint is a
   constant of the route version, so neither needs a field of its own.
 - **Store:** one file, `confirm-enrichment-cache-v1.json`, in the protected, backup-excluded app data
@@ -191,8 +191,9 @@ sends nothing:
 - **Never replaced.** A fact the source states, a fact the catalogue states, and a fact the owner has
   already set on this Confirm are never asked and never changed.
 
-- **A's subject** (cache key and once-per-subject rule): contract and prompt versions, the description
-  fields sent, the sorted asked fact keys and `known_details`.
+- **A's subject** (cache key and once-per-subject rule): contract, route and prompt versions, the
+  description fields sent, the sorted asked fact keys and `known_details`. A's route version names the
+  model, provider and pinned endpoint; they change only by a route version bump.
 
 ### CE1.4a How a pre-fill is applied and stored (the fill path)
 
@@ -237,8 +238,8 @@ sends nothing:
   operation type. A Jev fill is carried on re-log and quick add exactly as other fills (rule 3,
   `isStoredFill` over typed fields), shown there as "Food details from your last entry".
 - **Evidence.** One inline `CaptureEvidence` of kind `.labelText` with `captureMethodVersion`
-  `confirm-details-capture-v1`, committed with the Log, holding (canonical JSON): the contract and
-  prompt versions, model, provider, endpoint, the exact request body without the key, the response
+  `confirm-details-capture-v1`, committed with the Log, holding (canonical JSON): the contract, route
+  and prompt versions, model, provider, endpoint, the exact request body without the key, the response
   verbatim, its SHA-256, each question's choice and confidence, the threshold, and which facts were
   applied. It is cited from the candidate decision's evidence IDs, appended last (the mechanism
   estimates v2 section 5 defines for leave-out evidence), so no stored type gains a field. Other
@@ -935,3 +936,6 @@ compatibility choice of section 14 with the approval.
   reverted: the cache value is again the approved one, and a capture from a cached answer rebuilds the
   request from the identical subject, with a test that it equals a live capture. The generation ID
   comes from the response bytes and the endpoint from the route version. No term changed.
+- **Blind invariant re-review 7 (21 November 2026, at `69add3a4`): PASS.** Two low wording gaps taken:
+  A now has a named route version in its subject and capture, so its endpoint is fixed by that version
+  as B's is, and the rebuild is stated to come from the live Confirm inputs the subject hashes.
