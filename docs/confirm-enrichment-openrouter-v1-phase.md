@@ -1,7 +1,7 @@
 # Confirm enrichment through OpenRouter v1: phase gate
 
-Status: **phase gate, 21 November 2026, under blind review (section 13); awaiting the owner's approval
-before any production code. No app egress and no evaluation call until the steps of section 10 say
+Status: **phase gate, 21 November 2026, architecture gate PASS at round fifteen (section 13);
+awaiting the owner's approval before any production code. No app egress and no evaluation call until the steps of section 10 say
 so.** Implements the approved contract
 [Confirm enrichment through OpenRouter v1 (CE1)](confirm-enrichment-openrouter-v1.md) (PR 555;
 decisions CE-D1 to CE-D5 and terms CE-T1 to CE-T15 approved 20 November 2026). Part of #549. Written
@@ -445,9 +445,9 @@ implementation (CE1 test 12).
 | `ConfirmEnrichmentCaching` | `answer(subject:part:now:) -> CachedAnswer?`, `store(_:now:)`, `remove(subject:part:)`, `clear()` | file; in-memory |
 | `ConfirmEnrichmentSpendLedger` | `read() -> Stored` (`.absent`, `.day(Day)`, `.unreadable`), `update(_ transform: (Stored) throws -> Day) throws -> Day` (atomic) | file; in-memory |
 | `PersonalFoodDatabaseEntryReading` | `descriptionFields(recordID:) -> PersonalFoodDescriptionFields?` | `ActiveReleaseEntryReader`; in-memory |
-| `ConfirmEnrichmentDelaying` | `wait(seconds:) async throws` (cancellable), for the 1.5 s debounce and backoff | the app's task sleep; scripted |
-| `ConfirmEnrichmentElapsedTiming` | `now() -> Duration` (monotonic), for the 60 s whole-call and 30 s attempt deadlines | the app's continuous clock; scripted |
-| `ConfirmEnrichmentJittering` | `fraction() -> Double` in 0 to 1, for backoff jitter | system random; seeded |
+| `ConfirmEnrichmentDelaying` | `wait(seconds:) async throws` (cancellable), for the 1.5 s debounce and backoff | `TaskConfirmEnrichmentDelaying` in `FoodConfirmEnrichment`, as `TaskLabelPhotoSleeper` sits in `FoodLabelPhotoCapture` (`LabelPhotoComponents.swift:12`); scripted |
+| `ConfirmEnrichmentElapsedTiming` | `now() -> Duration` (monotonic), for the 60 s whole-call and 30 s attempt deadlines | `ContinuousConfirmEnrichmentTiming` in `FoodConfirmEnrichment`; scripted |
+| `ConfirmEnrichmentJittering` | `fraction() -> Double` in 0 to 1, for backoff jitter | `SystemConfirmEnrichmentJitter` in `FoodConfirmEnrichment`; seeded |
 | `LedgerClock`, `LedgerIDGenerating` (existing, `LedgerCommands.swift:488, 492`) and a `TimeZone` value | wall time for the local day, `received_at` and the 30-day expiry; `request_id` and evidence IDs | existing |
 | Lifecycle input | `ConfirmEnrichmentSession.appBecameInactive()` and `appBecameActive()`, called by the view model from the scene phase | none (an action, not a port) |
 | `FoodWebKeyStoring` (existing, `FoodWebDiscovery.swift:49`) | read by the adapters on every attempt | Keychain; test |
@@ -463,6 +463,10 @@ W) and unreported prompt tokens (no pause). The session also takes the key state
 nothing starts unless it is `valid` in this session (CE1.1 rule 5). A key replaced while OpenRouter was
 off is never sent (O1 test 2), because the adapter reads the key per attempt and the session reads the
 key state per request. Framework, URL and HTTP types never cross a port.
+
+The three real timing implementations run their shared suites in `FoodConfirmEnrichmentTests`; the
+composed gate and the Keychain store implement existing ports and stay covered by G17 and
+`OpenRouterConsentTests`.
 
 ## 5. Invariants (each with the test that holds it)
 
@@ -926,3 +930,7 @@ its skill; external TestFlight or App Store builds; any evaluation call before s
   findings taken: the session tests' home and their doubles are named, with every implementation
   passing the shared suites; the PR 2 route test checks the constants, and the scripted-versus-live
   comparison moves to PR 5. Two test paths were made explicit.
+- **Architecture gate, fifteenth round (21 November 2026, at `eb96ad76`): PASS.** One optional low
+  finding taken: the real delaying, elapsed-timing and jitter implementations live in
+  `FoodConfirmEnrichment`, where their shared suites run, and the composed gate and Keychain store stay
+  covered by their existing tests.
