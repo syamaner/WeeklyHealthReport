@@ -18,7 +18,9 @@
 		F09300000000000000000402 /* PastedLabelRouteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F09300000000000000000401 /* PastedLabelRouteTests.swift */; };
 		F19400000000000000000016 /* FoodLedgerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000015 /* FoodLedgerSettings.swift */; };
 		F55100000000000000000002 /* OpenRouterConsent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F55100000000000000000001 /* OpenRouterConsent.swift */; };
+		F54900000000000000000002 /* ConfirmEnrichmentPreference.swift in Sources */ = {isa = PBXBuildFile; fileRef = F54900000000000000000001 /* ConfirmEnrichmentPreference.swift */; };
 		F55100000000000000000004 /* OpenRouterConsentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F55100000000000000000003 /* OpenRouterConsentTests.swift */; };
+		F54900000000000000000004 /* ConfirmEnrichmentPreferenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F54900000000000000000003 /* ConfirmEnrichmentPreferenceTests.swift */; };
 		F19400000000000000000014 /* DeveloperToolsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000013 /* DeveloperToolsSettingsView.swift */; };
 		F19400000000000000000012 /* SettingsContributions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000011 /* SettingsContributions.swift */; };
 		F19400000000000000000010 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1940000000000000000000F /* SettingsView.swift */; };
@@ -140,6 +142,7 @@
 		P00000000000000000000011 /* FoodLabelPhotoCapture in Frameworks */ = {isa = PBXBuildFile; productRef = X00000000000000000000011 /* FoodLabelPhotoCapture */; };
 		P00000000000000000000012 /* FoodLabelPhotoUI in Frameworks */ = {isa = PBXBuildFile; productRef = X00000000000000000000012 /* FoodLabelPhotoUI */; };
 		P00000000000000000000013 /* FoodLedgerPersonalDatabase in Frameworks */ = {isa = PBXBuildFile; productRef = X00000000000000000000013 /* FoodLedgerPersonalDatabase */; };
+		P00000000000000000000014 /* FoodConfirmEnrichment in Frameworks */ = {isa = PBXBuildFile; productRef = X00000000000000000000014 /* FoodConfirmEnrichment */; };
 		A00000000000000000000071 /* LocalHealthStorageDirectory.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000071 /* LocalHealthStorageDirectory.swift */; };
 		A00000000000000000000072 /* PrivacyPolicyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000072 /* PrivacyPolicyView.swift */; };
 		A00000000000000000000073 /* privacy-policy.txt in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000073 /* privacy-policy.txt */; };
@@ -181,7 +184,9 @@
 		F09300000000000000000401 /* PastedLabelRouteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PastedLabelRouteTests.swift; sourceTree = "<group>"; };
 		F19400000000000000000015 /* FoodLedgerSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodLedgerSettings.swift; sourceTree = "<group>"; };
 		F55100000000000000000001 /* OpenRouterConsent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterConsent.swift; sourceTree = "<group>"; };
+		F54900000000000000000001 /* ConfirmEnrichmentPreference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmEnrichmentPreference.swift; sourceTree = "<group>"; };
 		F55100000000000000000003 /* OpenRouterConsentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterConsentTests.swift; sourceTree = "<group>"; };
+		F54900000000000000000003 /* ConfirmEnrichmentPreferenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmEnrichmentPreferenceTests.swift; sourceTree = "<group>"; };
 		F19400000000000000000013 /* DeveloperToolsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperToolsSettingsView.swift; sourceTree = "<group>"; };
 		F19400000000000000000011 /* SettingsContributions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsContributions.swift; sourceTree = "<group>"; };
 		F1940000000000000000000F /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -333,6 +338,7 @@
 				P00000000000000000000011 /* FoodLabelPhotoCapture in Frameworks */,
 				P00000000000000000000012 /* FoodLabelPhotoUI in Frameworks */,
 				P00000000000000000000013 /* FoodLedgerPersonalDatabase in Frameworks */,
+				P00000000000000000000014 /* FoodConfirmEnrichment in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -490,6 +496,7 @@
 				B0000000000000000000003F /* DailyNotesStoreTests.swift */,
 				F19400000000000000000019 /* SettingsContributionTests.swift */,
 				F55100000000000000000003 /* OpenRouterConsentTests.swift */,
+				F54900000000000000000003 /* ConfirmEnrichmentPreferenceTests.swift */,
 				F19400000000000000000017 /* AppNavigationTests.swift */,
 				F19700000000000000000006 /* FoodLogAppTests.swift */,
 				F31600000000000000000001 /* LabelPhotoCompositionTests.swift */,
@@ -593,6 +600,7 @@
 				F6000000000000000000000F /* FoodHomeCards.swift */,
 				F19400000000000000000015 /* FoodLedgerSettings.swift */,
 				F55100000000000000000001 /* OpenRouterConsent.swift */,
+				F54900000000000000000001 /* ConfirmEnrichmentPreference.swift */,
 				B96000000000000000000001 /* FoodVoiceCapture.swift */,
 				B96000000000000000000002 /* FoodVoiceInputView.swift */,
 			);
@@ -630,6 +638,7 @@
 				X00000000000000000000011 /* FoodLabelPhotoCapture */,
 				X00000000000000000000012 /* FoodLabelPhotoUI */,
 				X00000000000000000000013 /* FoodLedgerPersonalDatabase */,
+				X00000000000000000000014 /* FoodConfirmEnrichment */,
 			);
 			productName = WeeklyHealthReport;
 			productReference = B0000000000000000000000C /* WeeklyHealthReport.app */;
@@ -809,6 +818,7 @@
 				F60000000000000000000010 /* FoodHomeCards.swift in Sources */,
 				F19400000000000000000016 /* FoodLedgerSettings.swift in Sources */,
 				F55100000000000000000002 /* OpenRouterConsent.swift in Sources */,
+				F54900000000000000000002 /* ConfirmEnrichmentPreference.swift in Sources */,
 				A96000000000000000000001 /* FoodVoiceCapture.swift in Sources */,
 				A96000000000000000000002 /* FoodVoiceInputView.swift in Sources */,
 			);
@@ -846,6 +856,7 @@
 				F1940000000000000000001C /* IsolatedApplicationSupportFileManager.swift in Sources */,
 				F1940000000000000000001A /* SettingsContributionTests.swift in Sources */,
 				F55100000000000000000004 /* OpenRouterConsentTests.swift in Sources */,
+				F54900000000000000000004 /* ConfirmEnrichmentPreferenceTests.swift in Sources */,
 				F19400000000000000000018 /* AppNavigationTests.swift in Sources */,
 				F19700000000000000000007 /* FoodLogAppTests.swift in Sources */,
 				F31600000000000000000002 /* LabelPhotoCompositionTests.swift in Sources */,
@@ -1124,6 +1135,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = X00000000000000000000008 /* XCLocalSwiftPackageReference "Packages/FoodLedgerKit" */;
 			productName = FoodLedgerPersonalDatabase;
+		};
+		X00000000000000000000014 /* FoodConfirmEnrichment */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = X00000000000000000000008 /* XCLocalSwiftPackageReference "Packages/FoodLedgerKit" */;
+			productName = FoodConfirmEnrichment;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

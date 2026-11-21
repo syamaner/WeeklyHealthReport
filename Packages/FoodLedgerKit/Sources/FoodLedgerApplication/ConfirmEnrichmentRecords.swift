@@ -107,6 +107,9 @@ public enum ConfirmEnrichmentVerification {
         guard parentDropped == choices.mergeParentDroppedKeys else { return .notAvailable }
         parentDropped.forEach { kept[$0] = nil }
         var merged = others
+        // The layer's values as the save merged them: a bounded fill enters at its bound, as in
+        // ConfirmEnrichmentMerge.merge.
+        for (key, amount) in layer where merged[key] == nil { merged[key] = amount }
         for (key, amount) in kept { merged[key] = amount }
         let energyDropped = EstimateEnergyCheck.dropped(merged: merged, estimated: Set(kept.keys))
         guard energyDropped == choices.mergeEnergyDroppedKeys else { return .notAvailable }
@@ -118,5 +121,19 @@ public enum ConfirmEnrichmentVerification {
               saved.allSatisfy({ kept[$0.key] == $0.value.0 }) else { return .notAvailable }
         return .verified(Verified(capture: capture, captureEvidence: captureEvidence, choices: choices,
                                   values: saved.mapValues(\.0)))
+    }
+}
+
+extension ConfirmEnrichmentCitation {
+    /// `saved` with each `openrouter_estimate` entry replaced by `expected`'s entry for that key, so a
+    /// layered entry's layer check compares everything but the B rows, which verification checks
+    /// (CE1 section 5a).
+    public static func replacingOpenRouterEstimates(_ saved: NutrientSet, from expected: NutrientSet) -> NutrientSet {
+        guard holdsOpenRouterEstimate(saved) else { return saved }
+        let entries = saved.entries.map { entry -> NutrientEntry in
+            guard entry.value.provenance.contains(where: { $0.sourceKind == .openRouterEstimate }) else { return entry }
+            return expected.entries.first { $0.key == entry.key } ?? entry
+        }
+        return (try? NutrientSet(entries: entries)) ?? saved
     }
 }

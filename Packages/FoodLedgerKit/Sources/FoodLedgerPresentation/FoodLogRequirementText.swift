@@ -38,6 +38,8 @@ public enum FoodLogRequirementText {
             "Choose a time within the last \(FoodLogPolicy.backdatingDays) days."
         case .nothingKnown:
             "Nothing to log: every value was left out"
+        case .onlyEstimatedByOpenRouter:
+            ConfirmEnrichmentText.onlyEstimated
         }
     }
 

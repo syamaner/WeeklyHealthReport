@@ -213,7 +213,11 @@ extension FoodConfirmationState {
     /// The one application predicate "the log's food facts changed" (contract section 5): a
     /// correction is present, or the leave-out set differs from its seed (for a new log, is not
     /// empty). It decides only whether new records are written.
-    public var foodFactsChanged: Bool { correction != nil || savedLeaveOutSet != estimateSeed.leftOut }
+    /// Confirm enrichment (phase gate section 2.4a): a change of kept or left-out B rows on a reopened
+    /// log is one too, through its own term.
+    public var foodFactsChanged: Bool {
+        correction != nil || savedLeaveOutSet != estimateSeed.leftOut || enrichment.choicesChanged
+    }
 
     private static func unknown(_ nutrients: NutrientSet, keys: Set<NutrientKey>) -> NutrientSet {
         guard !keys.isEmpty else { return nutrients }
@@ -259,9 +263,9 @@ extension FoodConfirmationState {
         return (try? NutrientSet(entries: entries)) ?? saved
     }
 
-    /// The nutrients Confirm shows and totals. For a candidate without an approved estimate it is
-    /// exactly what the view read before (the correction's, else the candidate's).
-    public var displayNutrients: NutrientSet {
+    /// The nutrients Confirm shows before any Confirm suggestion: for a candidate without an approved
+    /// estimate it is exactly what the view read before (the correction's, else the candidate's).
+    public var sourceDisplayNutrients: NutrientSet {
         estimateKeys.isEmpty ? correction?.nutrients ?? selectedCandidate.candidate.nutrients : effectiveNutrients
     }
 
@@ -297,6 +301,7 @@ extension FoodConfirmationState {
         copy.estimateRecords = other.estimateRecords
         copy.estimateManifests = other.estimateManifests
         copy.estimateSeed = other.estimateSeed
+        copy.enrichment = other.enrichment
         return copy
     }
 }

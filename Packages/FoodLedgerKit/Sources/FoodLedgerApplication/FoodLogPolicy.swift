@@ -22,6 +22,9 @@ public enum FoodLogRequirement: Equatable, Hashable, Sendable {
     /// Withholding and leaving out left no nutrient of the log known (estimates on catalogue v2
     /// section 5). Never raised for a state without a withheld or left-out estimate.
     case nothingKnown
+    /// Confirm enrichment (CE1.6 rule 7): at least one OpenRouter estimate is kept and no value from
+    /// any other source is known. Never raised with every B row left out.
+    case onlyEstimatedByOpenRouter
 }
 
 /// Pure food_confirmation_v5 policy shared by the view model and the save service.
@@ -58,6 +61,7 @@ public enum FoodLogPolicy {
         result += plateRequirements(quantity)
         if let time = timeRequirement(state, now: now, calendar: calendar) { result.append(time) }
         if state.estimatesLeaveNothingKnown { result.append(.nothingKnown) }
+        if state.onlyEstimatedByOpenRouter { result.append(.onlyEstimatedByOpenRouter) }
         return result
     }
 
@@ -67,7 +71,9 @@ public enum FoodLogPolicy {
     public static func pendingDifferences(_ state: FoodConfirmationState) -> [IdentityContradiction] {
         guard state.reopened == nil, state.correction == nil else { return [] }
         let missing = Set(state.unresolvedIdentity)
-        return state.materialDifferences.filter { !missing.contains($0) }
+        // CE1.4a: facts a Confirm suggestion fills are fills of unknown source facts, not differences.
+        let filled = state.enrichmentFilledFacets
+        return state.materialDifferences.filter { !missing.contains($0) && !filled.contains($0) }
     }
 
     public static func sourceState(_ state: FoodConfirmationState, facet: IdentityContradiction) -> FoodLogSourceState {
@@ -112,7 +118,7 @@ public enum FoodLogPolicy {
         }
         return FoodEntryEstimateStatus.isEstimate(
             sourceIsGeneric: state.isGenericEstimate,
-            identity: state.correction?.identity ?? state.selectedCandidate.candidate.identity,
+            identity: state.correction?.identity ?? state.enrichedIdentity,
             decisions: pendingDifferences(state).compactMap { state.decisions[$0] })
     }
 

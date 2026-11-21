@@ -123,6 +123,11 @@ public struct FoodReresolutionView: View {
             ForEach(ApprovedEstimatePresentation.reresolutionNotes(proposal), id: \.self) { note in
                 Text(note).font(.caption).accessibilityLabel(note)
             }
+            // Confirm enrichment (CE1.7a): re-resolution never carries OpenRouter estimates.
+            if ConfirmEnrichmentCitation.holdsOpenRouterEstimate(proposal.before.resolutionVersion.nutrients) {
+                Text(ConfirmEnrichmentText.notCarriedOnReresolution).font(.caption)
+                    .accessibilityLabel(ConfirmEnrichmentText.notCarriedOnReresolution)
+            }
             if !proposal.identityGaps.isEmpty {
                 Text("Source identity gaps: \(proposal.identityGaps.map(\.rawValue).joined(separator: ", "))")
                 Toggle("I checked that this source applies to the unchanged logged identity despite those gaps", isOn: $model.confirmsIdentityGaps)

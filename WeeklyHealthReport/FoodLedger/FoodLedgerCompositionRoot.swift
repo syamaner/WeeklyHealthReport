@@ -6,6 +6,7 @@ import FoodLedgerGRDB
 import FoodLedgerPersonalDatabase
 import FoodLedgerPresentation
 import FoodBarcodeCapture
+import FoodConfirmEnrichment
 import FoodInventoryImport
 import FoodLabelPhotoCapture
 import FoodLabelPhotoUI
@@ -46,6 +47,12 @@ final class FoodLedgerCompositionRoot {
     /// Settings › OpenRouter, the one gate every OpenRouter adapter, journey and the label photo
     /// session ask (docs/openrouter-single-consent-v1-amendment.md section 6).
     let openRouterConsent: OpenRouterConsentPreference
+    /// The Confirm enrichment feature switch (docs/confirm-enrichment-openrouter-v1.md section 9).
+    let confirmEnrichmentPreference: ConfirmEnrichmentPreference
+    /// Confirm enrichment's app session (phase gate section 6). Nil in every build until the wiring PR
+    /// adds the live adapters; in a Debug build `-ConfirmEnrichmentRoute scripted` builds the scripted
+    /// branch, with its own gate, adapters, in-memory cache and day record and no key.
+    private(set) var confirmEnrichment: ConfirmEnrichmentRootBranch?
     /// The one OpenRouter key store, shared by web lookup and the live label photo route (17.22).
     /// Injectable so tests decide whether a key is saved without the device Keychain.
     let openRouterKeys: any FoodWebKeyStoring
@@ -98,6 +105,9 @@ final class FoodLedgerCompositionRoot {
         let consent = OpenRouterConsentPreference(defaults: userDefaults, domainName: openRouterConsentDomain)
         OpenRouterConsentSeed.apply(userDefaults, preference: consent)
         openRouterConsent = consent
+        let enrichmentPreference = ConfirmEnrichmentPreference(defaults: userDefaults, domainName: openRouterConsentDomain)
+        ConfirmEnrichmentSeed.apply(userDefaults, preference: enrichmentPreference)
+        confirmEnrichmentPreference = enrichmentPreference
         self.confirmationClock = confirmationClock
         self.confirmationCalendar = confirmationCalendar
         let applicationSupport = try fileManager.url(
@@ -191,6 +201,8 @@ final class FoodLedgerCompositionRoot {
         genericRecordResolvers = resolvers
         let index = PersonalFoodDatabaseIndex(store: databaseStore, resolver: resolvers)
         personalFoodDatabaseIndex = index
+        confirmEnrichment = ConfirmEnrichmentRootBranch.make(defaults: userDefaults, consent: consent, preference: enrichmentPreference,
+                                                             database: ActiveReleaseEntryReader(index: index), ids: ids)
         foodSearchWithDatabase = CompositeGenericFoodSearch(sources: [cofid, usda], regionalSources: [tfda],
             referenceSources: [ciqual],
             databaseSource: PersonalFoodDatabaseFoodSearch(index: index, resolver: resolvers, ids: ids,
@@ -261,7 +273,8 @@ final class FoodLedgerCompositionRoot {
                                          savesFavourite: savesFavourite, favouriteAction: favouriteAction,
                                          whenNotice: FoodLogText.whenNotice(when),
                                          labelEstimate: saveEstimate == nil ? nil : labelEstimateModel(),
-                                         estimateSaveAction: saveEstimate, estimateBinder: estimateBinder) { [confirmations, ids] state in
+                                         estimateSaveAction: saveEstimate, estimateBinder: estimateBinder,
+                                         enrichmentContext: confirmEnrichment?.context(origin: .fresh)) { [confirmations, ids] state in
             if let save { return try save(state) }
             return try confirmations.save(
                 state,
@@ -358,7 +371,8 @@ final class FoodLedgerCompositionRoot {
                                          now: { clock.now() }, calendar: confirmationCalendar,
                                          favouriteAction: favouriteAction(unlessFavourite: state),
                                          whenNotice: FoodLogText.whenNotice(when), labelEstimateNotCarried: layered,
-                                         estimateBinder: estimateBinder) { [confirmations, ids] state in
+                                         estimateBinder: estimateBinder,
+                                         enrichmentContext: confirmEnrichment?.context(origin: .relogOrQuickAdd)) { [confirmations, ids] state in
             try confirmations.save(state, operationID: ids.makeID(OperationTag.self), idempotencyKey: nil)
         }
     }
@@ -467,7 +481,8 @@ final class FoodLedgerCompositionRoot {
                                          calendar: confirmationCalendar,
                                          favouriteAction: favouriteAction(unlessFavourite: prepared), whenNotice: whenNotice,
                                          labelEstimateNotCarried: labelEstimateNotCarried,
-                                         estimateBinder: estimateBinder) { [confirmations, ids] state in
+                                         estimateBinder: estimateBinder,
+                                         enrichmentContext: confirmEnrichment?.context(origin: .relogOrQuickAdd)) { [confirmations, ids] state in
             try confirmations.save(state, operationID: ids.makeID(OperationTag.self), idempotencyKey: nil)
         }
     }
@@ -2225,5 +2240,43 @@ struct NutritionLabelFlowView: View {
             .navigationDestination(isPresented: $visit.showsText) {
                 PastedLabelFlowView(root: root, finish: finish, initialText: visit.text, close: close).id(visit.textVisit)
             }
+    }
+}
+
+/// Confirm enrichment at the root (docs/confirm-enrichment-openrouter-v1-phase.md section 6). PR 2 has no
+/// live adapters, so the live branch builds nothing and sends nothing; its availability will be
+/// `ConfirmEnrichmentAvailability.inForce` when the wiring PR adds them. The Debug scripted branch is
+/// built only under `-ConfirmEnrichmentRoute scripted`, with only scripted adapters.
+struct ConfirmEnrichmentRootBranch: Sendable {
+    static let routeArgumentKey = "ConfirmEnrichmentRoute"
+
+    let session: ConfirmEnrichmentSession
+    let preconditions: @Sendable () -> ConfirmEnrichmentSession.Preconditions
+    let database: any PersonalFoodDatabaseEntryReading
+
+    func context(origin: ConfirmEnrichmentPolicy.Origin) -> ConfirmEnrichmentContext {
+        ConfirmEnrichmentContext(session: session, preconditions: preconditions, database: database, origin: origin,
+                                 digester: SHA256Digester())
+    }
+
+    static func make(defaults: UserDefaults, consent: OpenRouterConsentPreference, preference: ConfirmEnrichmentPreference,
+                     database: any PersonalFoodDatabaseEntryReading, ids: any LedgerIDGenerating) -> ConfirmEnrichmentRootBranch? {
+        #if DEBUG
+        guard defaults.string(forKey: routeArgumentKey) == "scripted" else { return nil }
+        let gate = ScriptedConfirmEnrichmentGate(openRouterOn: { consent.isOn }, enrichmentOn: { preference.isOn })
+        let session = ConfirmEnrichmentSession(
+            availability: ConfirmEnrichmentAvailability(details: true, nutrients: true), routes: ConfirmEnrichmentRoutes.all,
+            details: ScriptedFoodDetailsSuggester(egress: gate), nutrients: ScriptedNutrientEstimateSuggester(egress: gate),
+            checker: ScriptedConfirmEnrichmentRouteChecker(egress: gate), cache: InMemoryConfirmEnrichmentCache(),
+            ledger: InMemoryConfirmEnrichmentDayLedger(), egress: gate, delaying: TaskConfirmEnrichmentDelaying(),
+            timing: ContinuousConfirmEnrichmentTiming(), jitter: SystemConfirmEnrichmentJitter(), clock: SystemLedgerClock(),
+            timeZone: .autoupdatingCurrent, ids: ids, digester: SHA256Digester())
+        return ConfirmEnrichmentRootBranch(session: session, preconditions: {
+            ConfirmEnrichmentSession.Preconditions(openRouterOn: consent.isOn, enrichmentOn: preference.isOn,
+                                                   keyState: ScriptedConfirmEnrichmentKeySource.state)
+        }, database: database)
+        #else
+        return nil
+        #endif
     }
 }

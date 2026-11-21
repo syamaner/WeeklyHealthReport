@@ -24,6 +24,9 @@ public enum QuickAddIneligibility: Equatable, Sendable {
     /// (estimates on catalogue v2 section 5): Confirm shows the labels and tiers and re-checks the
     /// estimates against the carried details. Earlier leave-outs are not carried.
     case approvedEstimate
+    /// The pinned entry holds an OpenRouter estimate (CE1.7a): B values are never carried, so the
+    /// favourite always opens Confirm, where they stay unknown unless the cache supplies them again.
+    case openRouterEstimate
 }
 
 public enum QuickAddEligibility: Equatable, Sendable {
@@ -46,7 +49,7 @@ public enum QuickAddPolicy {
         case .decideDifference, .sourceIdentityMissing, .recipeServingsRequired, .sourceServingsRequired,
              .measuredWeightMissing, .weightBasisMissing, .retainedWeightNeedsConfirmation,
              .countNeedsMeasuredAmount, .emptyPlateWeightMissing, .plateNeedsGramTotal, .plateNotLighterThanTotal,
-             .nothingKnown:
+             .nothingKnown, .onlyEstimatedByOpenRouter:
             return .confirm
         }
     }
@@ -79,6 +82,9 @@ public enum QuickAddPolicy {
         // a favourite whose estimates were all withheld or left out is caught too.
         if ApprovedEstimateSource.holdsManifest(rebuilt.selectedCandidate.candidate, evidence: rebuilt.input.evidence) {
             return .confirm(.approvedEstimate)
+        }
+        if let pinned, ConfirmEnrichmentCitation.holdsOpenRouterEstimate(pinned.resolutionVersion.nutrients) {
+            return .confirm(.openRouterEstimate)
         }
         if pinnedIsEstimate || FoodLogPolicy.savesEstimate(rebuilt) { return .confirm(.estimate) }
         if let pinned, FoodEntryEstimateStatus.isPartlyEstimated(pinned) { return .confirm(.labelEstimateNotCarried) }
