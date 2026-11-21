@@ -1,7 +1,7 @@
 # Confirm enrichment through OpenRouter v1: phase gate
 
 Status: **phase gate, 21 November 2026, architecture gate PASS at round fifteen (section 13);
-awaiting the owner's approval before any production code. No app egress and no evaluation call until the steps of section 10 say
+approved by the owner on 21 November 2026, with the nine readings of section 11. No app egress and no evaluation call until the steps of section 10 say
 so.** Implements the approved contract
 [Confirm enrichment through OpenRouter v1 (CE1)](confirm-enrichment-openrouter-v1.md) (PR 555;
 decisions CE-D1 to CE-D5 and terms CE-T1 to CE-T15 approved 20 November 2026). Part of #549. Written
@@ -934,3 +934,5 @@ its skill; external TestFlight or App Store builds; any evaluation call before s
   finding taken: the real delaying, elapsed-timing and jitter implementations live in
   `FoodConfirmEnrichment`, where their shared suites run, and the composed gate and Keychain store stay
   covered by their existing tests.
+- **Owner approval (21 November 2026).** The owner approved the gate as written, including the nine
+  readings of section 11, so implementation may start with PR 1 (formats).
