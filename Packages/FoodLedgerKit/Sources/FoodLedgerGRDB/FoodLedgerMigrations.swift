@@ -81,6 +81,15 @@ extension FoodLedgerGRDBStore {
             try db.execute(sql: "UPDATE ledger_metadata SET value = 'food-ledger-v11' WHERE key = 'schema_identity'")
             try db.execute(sql: "PRAGMA user_version = 11")
         }
+        migrator.registerMigration("v13_confirm_enrichment") { db in
+            // Confirm enrichment through OpenRouter (docs/confirm-enrichment-openrouter-v1.md, food
+            // contract 13): a new provenance source kind and three inline evidence method versions, all
+            // in existing columns. Metadata only: no table is created and no immutable row is rewritten.
+            // Contract 12 is never used (phase gate section 2.7). Older binaries decline schema 13
+            // instead of failing to decode the kind.
+            try db.execute(sql: "UPDATE ledger_metadata SET value = 'food-ledger-v13' WHERE key = 'schema_identity'")
+            try db.execute(sql: "PRAGMA user_version = 13")
+        }
         return migrator
     }
 

@@ -18,6 +18,11 @@ public struct FoodDailyExportDocument: Codable, Equatable, Sendable {
     /// v1, daily export version 5): schema 3's shape plus the `product_dataset_photo` token. Version 4
     /// is claimed by assistant-pasted estimates and not built; a later union takes a new number.
     public static let photoEstimatesSchemaVersion = 5
+    /// The schema of a document holding at least one `openrouter_estimate` value (Confirm enrichment
+    /// v1, daily export version 7): everything version 5 admits plus that origin and its three fields.
+    /// Versions 4 and 6 are reserved for assistant-pasted estimates and not built; version 7 admits no
+    /// assistant field, so a later union takes a new number.
+    public static let openRouterEstimatesSchemaVersion = 7
 
     public let foodDailySchemaVersion: Int
     public let reportDate: String
@@ -64,10 +69,23 @@ public struct FoodDailyExportNotes: Codable, Equatable, Sendable {
     /// Schema 2 only (`docs/food-daily-export-contract-v2.md` 3.4, #312): the constant sentence
     /// about estimated amounts. Absent from a schema-1 file, so it is encoded only when present.
     public let quantityEstimates: String?
+    /// Schema 7 only (Confirm enrichment v1, CE1.7): the constant sentence about the
+    /// `openrouter_estimate` origin. Encoded only when present, so earlier schemas keep their bytes.
+    public let openRouterEstimates: String?
 
-    init(occurredAt: String, unknownValues: String, plainWater: String, quantityEstimates: String? = nil) {
+    public static let openRouterEstimatesSentence = "origin openrouter_estimate marks a value estimated by an OpenRouter model from a description of the food and kept by the user for that entry. It is not measured and does not come from a label or a food composition table."
+
+    init(occurredAt: String, unknownValues: String, plainWater: String, quantityEstimates: String? = nil,
+         openRouterEstimates: String? = nil) {
         self.occurredAt = occurredAt; self.unknownValues = unknownValues; self.plainWater = plainWater
-        self.quantityEstimates = quantityEstimates
+        self.quantityEstimates = quantityEstimates; self.openRouterEstimates = openRouterEstimates
+    }
+
+    /// The notes of a schema 7 document: the current notes plus the origin sentence.
+    public static var withOpenRouterEstimates: FoodDailyExportNotes {
+        FoodDailyExportNotes(occurredAt: current.occurredAt, unknownValues: current.unknownValues,
+                             plainWater: current.plainWater, quantityEstimates: current.quantityEstimates,
+                             openRouterEstimates: openRouterEstimatesSentence)
     }
 
     enum CodingKeys: String, CodingKey {
@@ -75,6 +93,7 @@ public struct FoodDailyExportNotes: Codable, Equatable, Sendable {
         case unknownValues = "unknown_values"
         case plainWater = "plain_water"
         case quantityEstimates = "quantity_estimates"
+        case openRouterEstimates = "openrouter_estimates"
     }
 }
 
@@ -350,14 +369,21 @@ public struct FoodDailyExportProvenance: Codable, Equatable, Sendable {
     public let estimateMethod: String?
     public let estimateStateBasis: String?
     public let estimateQuality: String?
+    /// Schema 7, `openrouter_estimate` values only (CE1.7): the model slug, the contract version and
+    /// the raw response's SHA-256. No request text, response text or description is exported.
+    public let estimateModel: String?
+    public let estimateContract: String?
+    public let estimateResponseSHA256: String?
 
     init(sourceKind: String, sourceReleaseID: String, transforms: [FoodDailyExportTransform], sourceURL: String?,
          contentHash: String?, estimateSourceType: String? = nil, estimateMethod: String? = nil,
-         estimateStateBasis: String? = nil, estimateQuality: String? = nil) {
+         estimateStateBasis: String? = nil, estimateQuality: String? = nil, estimateModel: String? = nil,
+         estimateContract: String? = nil, estimateResponseSHA256: String? = nil) {
         self.sourceKind = sourceKind; self.sourceReleaseID = sourceReleaseID; self.transforms = transforms
         self.sourceURL = sourceURL; self.contentHash = contentHash; self.estimateSourceType = estimateSourceType
         self.estimateMethod = estimateMethod; self.estimateStateBasis = estimateStateBasis
-        self.estimateQuality = estimateQuality
+        self.estimateQuality = estimateQuality; self.estimateModel = estimateModel
+        self.estimateContract = estimateContract; self.estimateResponseSHA256 = estimateResponseSHA256
     }
 
     enum CodingKeys: String, CodingKey {
@@ -370,9 +396,14 @@ public struct FoodDailyExportProvenance: Codable, Equatable, Sendable {
         case estimateMethod = "estimate_method"
         case estimateStateBasis = "estimate_state_basis"
         case estimateQuality = "estimate_quality"
+        case estimateModel = "estimate_model"
+        case estimateContract = "estimate_contract"
+        case estimateResponseSHA256 = "estimate_response_sha256"
     }
 
     public var isApprovedEstimate: Bool { sourceKind == ProvenanceSourceKind.approvedEstimate.rawValue }
+    public var isOpenRouterEstimate: Bool { sourceKind == ProvenanceSourceKind.openRouterEstimate.rawValue }
+    var hasOpenRouterField: Bool { estimateModel != nil || estimateContract != nil || estimateResponseSHA256 != nil }
     var hasEstimateField: Bool {
         estimateSourceType != nil || estimateMethod != nil || estimateStateBasis != nil || estimateQuality != nil
     }
@@ -515,7 +546,8 @@ public enum FoodDailyExportOrigin {
         ProvenanceSourceKind.recipeReconstruction.rawValue: "recipe",
         ProvenanceSourceKind.reviewedWebProposal.rawValue: "web_review",
         ProvenanceSourceKind.appReferenceDefinition.rawValue: "app_reference",
-        ProvenanceSourceKind.approvedEstimate.rawValue: "approved_estimate"
+        ProvenanceSourceKind.approvedEstimate.rawValue: "approved_estimate",
+        ProvenanceSourceKind.openRouterEstimate.rawValue: "openrouter_estimate"
     ]
 
     public static func origin(sourceKind rawValue: String) throws -> String {
@@ -591,14 +623,17 @@ public enum FoodDailyExportBuilder {
         let holdsEstimate = entries.contains { FoodDailyExportShape.holdsApprovedEstimate($0) }
         // Schema 5 only for a document holding a label photo estimate; otherwise as before, byte for byte.
         let holdsPhoto = entries.contains { FoodDailyExportShape.holdsPhotoEstimate($0) }
+        // Schema 7 only for a document holding an OpenRouter estimate (CE1.7), checked first.
+        let holdsOpenRouter = entries.contains { FoodDailyExportShape.holdsOpenRouterEstimate($0) }
         let document = FoodDailyExportDocument(
-            foodDailySchemaVersion: holdsPhoto ? FoodDailyExportDocument.photoEstimatesSchemaVersion
+            foodDailySchemaVersion: holdsOpenRouter ? FoodDailyExportDocument.openRouterEstimatesSchemaVersion
+                : holdsPhoto ? FoodDailyExportDocument.photoEstimatesSchemaVersion
                 : holdsEstimate ? FoodDailyExportDocument.estimatesSchemaVersion
                 : FoodDailyExportDocument.schemaVersion, reportDate: request.reportDate,
             timeZone: request.timeZone.identifier, dataAsOf: timestamp.string(request.dataAsOf),
             exportedAt: timestamp.string(request.exportedAt), nutrientCatalogueVersion: NutrientSet.catalogueVersion,
             summaryVersion: FoodIntakeSummary.version, entries: entries, summary: summary, plainWater: plainWater,
-            notes: .current, appContext: request.appContext)
+            notes: holdsOpenRouter ? .withOpenRouterEstimates : .current, appContext: request.appContext)
         // Fail closed: the writer never emits a file its own readers would reject (for example a
         // stored combination where the method and the estimate rule disagree). No document then.
         // The summary version and notes are constants here, and the schema number follows from the
@@ -779,6 +814,25 @@ public enum FoodDailyExportBuilder {
             }
             return typed
         }
+
+        /// The capture an `openrouter_estimate` value names, verified as on reopen: its payload hashes
+        /// to the stored hash and the provenance's, and the value equals a kept row of that key.
+        func openRouterCapture(_ provenance: NutrientProvenance, key: NutrientKey, amount: Double,
+                               unit: NutrientUnit) throws -> ConfirmNutrientCapture {
+            guard let digester, let id = provenance.evidenceID,
+                  let stored = records.evidence.first(where: { $0.evidenceID == id }),
+                  stored.captureMethodVersion.value == ConfirmEnrichmentVersions.nutrientCaptureMethodVersion,
+                  let hash = stored.byteHash, hash == provenance.responseHash,
+                  case let .text(payload) = stored.originalPayload,
+                  (try? digester.sha256(Data(payload.value.utf8))) == hash,
+                  let capture = ConfirmEnrichmentEvidence.nutrients(stored),
+                  unit == key.canonicalUnit,
+                  capture.rows.contains(where: { $0.nutrient == key.rawValue && $0.result == ConfirmNutrientRowResult.kept.rawValue
+                      && $0.unit == unit.rawValue && Double($0.value) == amount }) else {
+                throw FoodDailyExportError.missingReference
+            }
+            return capture
+        }
     }
 
     private static func value(_ value: NutrientValue, key: NutrientKey, includeKey: Bool, scale: Double?,
@@ -799,6 +853,11 @@ public enum FoodDailyExportBuilder {
                                              rowOrigin: rowOrigin, conflict: nil, estimates: estimates) }
         }
         let provenance = try value.provenance.map { provenance -> FoodDailyExportProvenance in
+            if provenance.sourceKind == .openRouterEstimate {
+                guard case let .augmented(exact) = value else { throw FoodDailyExportError.missingReference }
+                let capture = try estimates.openRouterCapture(provenance, key: key, amount: exact.amount, unit: exact.unit)
+                return Self.openRouterProvenance(provenance, capture: capture)
+            }
             guard provenance.sourceKind == .approvedEstimate else { return Self.provenance(provenance) }
             // An approved estimate is always an exact augmented value (`NutrientEntry` validation).
             guard case let .augmented(exact) = value else { throw FoodDailyExportError.missingReference }
@@ -834,6 +893,17 @@ public enum FoodDailyExportBuilder {
         case let .unknown(reason):
             return unknown(reason)
         }
+    }
+
+    /// An OpenRouter estimate's provenance (schema 7, CE1.7): the constant release ID, `low`, and the
+    /// three fields; the per-capture release ID, the request and the response never leave.
+    private static func openRouterProvenance(_ provenance: NutrientProvenance,
+                                             capture: ConfirmNutrientCapture) -> FoodDailyExportProvenance {
+        FoodDailyExportProvenance(
+            sourceKind: provenance.sourceKind.rawValue, sourceReleaseID: OpenRouterEstimateProvenance.sourceID,
+            transforms: [], sourceURL: nil, contentHash: nil,
+            estimateQuality: OpenRouterEstimateProvenance.tier, estimateModel: capture.model,
+            estimateContract: ConfirmEnrichmentVersions.contract, estimateResponseSHA256: capture.responseSHA256)
     }
 
     /// An approved estimate's provenance (schema 3): the four closed tokens, and for a page type its
