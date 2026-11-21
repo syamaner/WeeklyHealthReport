@@ -701,7 +701,12 @@ export goldens for schema 7 alone and mixed with schema 3 and 5 content.
   are read locally from a public Open Food Facts data export that the owner downloads by hand outside
   the tool and outside the app (no user data, like the bundled source datasets). Composition rows come
   from the app's bundled projections. No agent or tool fetches the export; a fetch by either would need
-  its own approved paragraph in `privacy-and-egress.md` first. The tool's only network calls are the 11.1a destinations (section 11,
+  its own approved paragraph in `privacy-and-egress.md` first.
+  **Dated amendment, 21 November 2026 (owner approval, #549):** that paragraph now exists. At the owner's
+  request an agent may download the one public export named there into the owner's private folder and
+  run the tool's deterministic `select` command, which draws both sets with a recorded seed and prints
+  only counts and manifest hashes. The agent never opens or reads the export, case lists, records or
+  review sheet. The review sheet and every send to OpenRouter stay the owner's own steps, as below. The tool's only network calls are the 11.1a destinations (section 11,
   point 4).
 - **Sets.** Development set: 60 Open Food Facts products (UK and Taiwan, packaged, complete declared
   panels, at least 8 fortified) and 40 bundled rows; a sealed set of the same size and mix. The owner

@@ -10,6 +10,7 @@ import Foundation
 //   preflight [--repo DIR]
 //   manifest CASES
 //   send --part details|nutrients --cases CASES --private DIR [--fake DIR] [--repo DIR]
+//   select --export FILE --private DIR [--seed N] [--repo DIR]
 
 func fail(_ message: String) -> Never {
     FileHandle.standardError.write(Data((message + "\n").utf8))
@@ -20,28 +21,6 @@ func value(_ name: String, in arguments: [String]) -> String? {
     guard let index = arguments.firstIndex(of: name), arguments.indices.contains(index + 1),
           !arguments[index + 1].hasPrefix("--") else { return nil }
     return arguments[index + 1]
-}
-
-/// Whether a folder (or, when it does not exist yet, its nearest existing ancestor) is inside a git work
-/// tree: `git rev-parse --is-inside-work-tree`, run locally with the key unset. An unknown answer refuses.
-func insideWorkTree(_ folder: URL) -> Bool {
-    var probe = folder.standardizedFileURL
-    while !FileManager.default.fileExists(atPath: probe.path), probe.path != "/" { probe.deleteLastPathComponent() }
-    let process = Process()
-    process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-    process.arguments = ["git", "-C", probe.path, "rev-parse", "--is-inside-work-tree"]
-    var environment = ProcessInfo.processInfo.environment
-    environment["OPENROUTER_API_KEY"] = nil
-    process.environment = environment
-    let output = Pipe()
-    process.standardOutput = output
-    process.standardError = Pipe()
-    do { try process.run() } catch { return true }
-    process.waitUntilExit()
-    let text = String(decoding: output.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-    // "true" inside a work tree; a non-zero exit with no output is outside one.
-    if process.terminationStatus != 0 { return false }
-    return text.trimmingCharacters(in: .whitespacesAndNewlines) != "false"
 }
 
 /// `git show origin/main:docs/privacy-and-egress.md`, run locally: no network (run.sh fetched already).
@@ -80,7 +59,7 @@ func cases(_ path: String) -> EvalCaseList {
 
 let arguments = Array(CommandLine.arguments.dropFirst())
 // A flag given without a value is a usage error, never "not given" (a bare `--fake` must not run live).
-for flag in ["--part", "--cases", "--private", "--fake", "--repo"] where arguments.contains(flag) && value(flag, in: arguments) == nil {
+for flag in ["--part", "--cases", "--private", "--fake", "--repo", "--export", "--seed"] where arguments.contains(flag) && value(flag, in: arguments) == nil {
     fail("usage: \(flag) needs a value")
 }
 let repo = URL(fileURLWithPath: value("--repo", in: arguments) ?? FileManager.default.currentDirectoryPath)
@@ -103,7 +82,7 @@ case "send":
     let chosenFolder = URL(fileURLWithPath: privatePath, isDirectory: true)
     // 11.1a: raw responses and the ledger stay in the private folder, never inside the repository or any
     // other git work tree (a worktree's main checkout included).
-    if EvalPaths.isInside(chosenFolder.path, repository: repo.path) || insideWorkTree(chosenFolder) {
+    if EvalPaths.isInside(chosenFolder.path, repository: repo.path) || EvalWorkTree.contains(chosenFolder) {
         fail(EvalConsole.stopLine("private_folder_inside_repository"))
     }
     // A fake run writes under its own subfolder: its ledger, responses and first-request record never
@@ -130,6 +109,27 @@ case "send":
     }
     semaphore.wait()
     output.lines.forEach { print($0) }
+case "select":
+    // The owner-approved case selection (docs/privacy-and-egress.md): deterministic, sends nothing, writes
+    // only in the private folder and prints counts, manifests and stop codes only.
+    guard let exportPath = value("--export", in: arguments), let privatePath = value("--private", in: arguments) else {
+        fail("usage: select --export FILE --private DIR [--seed N] [--repo DIR]")
+    }
+    let privateFolder = URL(fileURLWithPath: privatePath, isDirectory: true)
+    if EvalPaths.isInside(privateFolder.path, repository: repo.path) || EvalWorkTree.contains(privateFolder) {
+        fail(EvalConsole.stopLine("private_folder_inside_repository"))
+    }
+    let seed: UInt64
+    if let text = value("--seed", in: arguments) {
+        guard let parsed = UInt64(text) else { fail("usage: --seed needs a whole number") }
+        seed = parsed
+    } else {
+        var system = SystemRandomNumberGenerator()
+        seed = system.next()
+    }
+    let lines = EvalSelector().select(export: URL(fileURLWithPath: exportPath), privateFolder: privateFolder, seed: seed)
+    lines.forEach { print($0) }
+    if lines.last?.hasPrefix("stop ") == true { exit(1) }
 default:
-    fail("usage: preflight | manifest CASES | send --part details|nutrients --cases CASES --private DIR [--fake DIR]")
+    fail("usage: preflight | manifest CASES | send --part details|nutrients --cases CASES --private DIR [--fake DIR] | select --export FILE --private DIR [--seed N]")
 }
