@@ -1,7 +1,8 @@
 # Confirm enrichment through OpenRouter v1: phase gate
 
 Status: **phase gate, 21 November 2026, architecture gate PASS at round fifteen (section 13);
-approved by the owner on 21 November 2026, with the nine readings of section 11. No app egress and no evaluation call until the steps of section 10 say
+approved by the owner on 21 November 2026, with the nine readings of section 11; edits made after
+approval (section 13) only narrow terms and are shown to the owner with the merge ask. No app egress and no evaluation call until the steps of section 10 say
 so.** Implements the approved contract
 [Confirm enrichment through OpenRouter v1 (CE1)](confirm-enrichment-openrouter-v1.md) (PR 555;
 decisions CE-D1 to CE-D5 and terms CE-T1 to CE-T15 approved 20 November 2026). Part of #549. Written
@@ -724,6 +725,10 @@ export goldens for schema 7 alone and mixed with schema 3 and 5 content.
   v1 (`ConfirmEnrichmentPolicy` never requests them), so the app never shows an estimate the
   evaluation did not measure (section 11, point 6). A scorer test maps all 39 keys (1 + 7 + 2 + 26 + 3)
   to exactly one row each, `sodium` only in the fibre and sodium row.
+- **Who runs it.** The owner runs the tool and reads the review sheet on the Mac. An agent may start a
+  run or read its summary, but sees only what the repository may hold (counts, versions, hashes and the
+  aggregate figures above), never case contents or raw responses, so no case data reaches an agent's
+  model provider.
 - **Run.** The tool sends exactly the app's request bytes through the `FoodConfirmEnrichment` adapters
   with a tool-local gate, under CE-T15 ($5 programme, $0.05 per call, in its own spend ledger before
   every call; at most 3 attempts with backoff honouring `Retry-After`). It runs its own loop over the
@@ -744,12 +749,15 @@ export goldens for schema 7 alone and mixed with schema 3 and 5 content.
   whether System One accepts `max_tokens`. Any change that follows to `ConfirmEnrichmentRoutes.swift`
   and to A's synthetic request golden of PR 2 lands in PR 4a, before the frozen configuration. The first
   request is an evaluation case, so its body never enters the repository: PR 4a commits only its
-  SHA-256, and the route freeze test rebuilds that body from the private case through the app's builder
-  and compares the hash.
+  SHA-256. The route freeze check is part of `Tools/ConfirmEnrichmentEval`, run from the private folder,
+  which rebuilds that body from the private case through the app's builder and compares the hash. No
+  repository test reads the private folder, and no evaluation case is ever committed as a fixture.
 - **Order.** PR 4a commits the scorer, the bars as code, both manifests and the frozen configuration,
   and merges. Only then is the sealed set sent, once, by that configuration, and its report lands in
   PR 4b. A prompt change during development is a prompt version bump.
-- **Outcome.** Counts, versions and hashes per bar in the repository. A missed bar stops release of
+- **Outcome.** The repository gets, per bar and per part, counts, versions, hashes and the aggregate
+  figures the bars are defined on (medians, the p90 latency, median costs and W), and never a per-case
+  value, input or response; that is how the gate reads "counts" in 11.1a. A missed bar stops release of
   that part; the other may ship alone. If A misses the wrong pre-fill bar at 0.85, the report gives the
   lowest threshold that passes and the owner chooses (CE-D3).
 - **Release.** No build that can reach a route outside Debug goes anywhere until its part passes; then
@@ -778,8 +786,8 @@ citation sequence and the reopen and edit of a B entry with the #464 layer, G9, 
 G16, G17 and G7's items 1, 2 and 4, the routes file exemption, the scripted gate and the availability
 literal, and a test that the scripted answers, captures and goldens take model, provider and endpoint
 from the `ConfirmEnrichmentRoutes` constants; **PR 3** G5 (live
-adapters), G6, G11, G14 and G7's items 3 and 5; **PR 4a** the scorer table test and the route freeze
-hash test; **PR 5** G10, the verbatim records test, and a test that the scripted and live branches read the same
+adapters), G6, G11, G14 and G7's items 3 and 5; **PR 4a** the scorer table test (the route freeze
+check runs in the tool, not as a repository test); **PR 5** G10, the verbatim records test, and a test that the scripted and live branches read the same
 route values.
 
 ## 11. Points the owner sees before approving
@@ -956,3 +964,8 @@ its skill; external TestFlight or App Store builds; any evaluation call before s
   reviews above) only narrow terms: what the repository receives from the evaluation, and who fetches
   the Open Food Facts export (the owner by hand, a new manual step for the owner). They are shown to
   the owner with the merge ask.
+- **Blind invariant re-review 2 (21 November 2026, at `9972e6bc`): PASS.** Three low findings taken: the
+  route freeze check runs inside the tool from the private folder, and no repository test or fixture
+  holds an evaluation case; the outcome names the aggregate figures it commits, never per-case data;
+  the status line notes the edits after approval. The open question is answered in section 9: the
+  owner runs the tool, and an agent sees only what the repository may hold.
