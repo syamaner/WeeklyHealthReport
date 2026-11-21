@@ -5237,3 +5237,20 @@ Excluded:
 - any hosted review run.
 
 Pricing: `claude-opus-5-5` at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, so the figures are a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
+## WHR-549-2026-11-21-PR4A: Codex Confirm enrichment scorer and bars (#549)
+
+| Phase | Input (cached) | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: |
+| Scorer, synthetic tests and local review | 5,785,859 (5,656,832) | 31,468 | 5,817,327 | $1.14 |
+
+Measured from the intake snapshot of 65,989 input tokens (42,752 cached) and 456 output tokens in
+Codex session `01a20076-5e4c-7193-82dd-329ad2a55e39` to the pre-ledger snapshot. The
+recorded phase had no cache-write tokens. The snapshot excludes the initial intake, ledger edit,
+later verification, GitHub delivery, hosted checks and private owner runs. No external review
+usage is included.
+
+Comparison at [GPT-6.2 Sol Standard short-context rates](https://developers.openai.com/api/docs/models/gpt-6.2-sol),
+checked on 21 November 2026: $2/M uncached input, $0.10/M cached input and $10/M output.
+129,027 uncached input, 5,656,832 cached input and 31,468 output give $1.1384172 before rounding.
+This is an API-equivalent comparison under a subscription. Separate tool charges are unmeasured.

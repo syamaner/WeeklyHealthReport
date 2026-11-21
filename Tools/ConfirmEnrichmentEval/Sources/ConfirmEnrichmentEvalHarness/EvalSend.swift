@@ -90,7 +90,8 @@ public struct EvalSender: Sendable {
     func save(_ bytes: Data, hash: String, attempt: Int) {
         let folder = privateFolder.appendingPathComponent("responses", isDirectory: true)
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        try? bytes.write(to: folder.appendingPathComponent("\(hash)-\(part.rawValue)-\(attempt).json"), options: .atomic)
+        let url = EvalRequestEvidence.responseURL(folder: privateFolder, hash: hash, part: part, attempt: attempt)
+        try? bytes.write(to: url, options: .atomic)
     }
 
     /// The reported prompt tokens of a reply; nil when it reports none.
@@ -98,16 +99,16 @@ public struct EvalSender: Sendable {
         guard let root = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
               let tokens = (root["usage"] as? [String: Any])?["prompt_tokens"] as? NSNumber,
               CFGetTypeID(tokens) != CFBooleanGetTypeID() else { return nil }
-        return tokens.intValue
+        return Int(exactly: tokens.doubleValue)
     }
 
     /// The first request's record, private folder only: part, whether `max_tokens` was sent and
     /// whether the body was accepted, and the reported prompt tokens. Never a body or a response.
-    func saveFirstRequest(accepted: Bool, outcome: String, promptTokens: Int?) {
+    func saveFirstRequest(accepted: Bool, outcome: String, promptTokens: Int?, requestHash: String) {
         let route = routes.route(part)
         let record: [String: Any] = ["part": part.rawValue, "route": route.version, "max_tokens_sent": route.sendsMaxTokens,
                                      "accepted": accepted, "outcome": outcome, "prompt_tokens": promptTokens.map { $0 as Any } ?? NSNull(),
-                                     "prompt_ceiling": route.promptCeilingTokens]
+                                     "prompt_ceiling": route.promptCeilingTokens, "request_sha256": requestHash]
         try? FileManager.default.createDirectory(at: privateFolder, withIntermediateDirectories: true)
         // The first request of the folder: kept, never overwritten by a later run.
         let url = privateFolder.appendingPathComponent("first-request-\(part.rawValue).json")
@@ -117,7 +118,7 @@ public struct EvalSender: Sendable {
     }
 
     /// Runs every case and returns the console lines. Stops at the first ledger refusal.
-    public func run(_ list: EvalCaseList) async -> [String] {
+    public func run(_ list: EvalCaseList, firstRequestOnly: Bool = false) async -> [String] {
         var lines: [String] = []
         var counts: [EvalConsole.Outcome: Int] = [:]
         func record(_ hash: String, _ outcome: EvalConsole.Outcome, _ attempts: Int) {
@@ -139,8 +140,23 @@ public struct EvalSender: Sendable {
         case .notPermitted: return lines + [EvalConsole.stopLine("route_check_not_permitted")]
         case .unavailable: return lines + [EvalConsole.stopLine("route_unavailable")]
         }
+        let runID = UUID()
         var firstRequestChecked = false
-        caseLoop: for evalCase in list.cases {
+        let cases: [EvalCase]
+        do {
+            if part == .nutrients {
+                cases = try list.cases.enumerated().flatMap { index, item -> [EvalCase] in
+                    if !item.hiddenKeys.isEmpty { return [item] }
+                    let variants = try candidates.nutrientVariants(for: item, index: index, privateFolder: privateFolder)
+                    return variants.map { $0.0 }
+                }
+            } else {
+                cases = list.cases.filter { $0.kind == .openFoodFacts }
+            }
+        } catch {
+            return lines + [EvalConsole.stopLine("variants_unavailable")]
+        }
+        caseLoop: for evalCase in cases {
             guard let hash = try? EvalHashes.hash(evalCase) else { continue }
             let built: Built
             do {
@@ -216,12 +232,29 @@ public struct EvalSender: Sendable {
                 case let .retry(after): await wait(after)
                 }
             }
+            if attempts > 0 {
+                let total = ConfirmEnrichmentSpendPolicy.attemptsCharged(charged, w: w)
+                let cost = charged.contains { ($0.reportedMicroUSD ?? w) < 0 } ? nil : total
+                let timing = EvalScoring.Timing(costMicroUSD: cost, elapsedSeconds: now().timeIntervalSince(started))
+                do {
+                    let response = outcome == .answered ? lastBody : nil
+                    let evidence = try EvalRequestEvidence(runID: runID, request: built.body, response: response,
+                                                           attempt: attempts, timing: timing)
+                    try evidence.write(folder: privateFolder, hash: hash, part: part)
+                } catch {
+                    return lines + [EvalConsole.stopLine("request_evidence_unwritable")]
+                }
+            }
             record(hash, outcome, attempts)
             // Section 9: the first case that sent decides whether the run may go on.
             if attempts > 0, !firstRequestChecked {
                 firstRequestChecked = true
                 let tokens = lastBody.flatMap(Self.promptTokens)
-                saveFirstRequest(accepted: outcome == .answered, outcome: outcome.rawValue, promptTokens: tokens)
+                guard let requestHash = try? EvalRequestEvidence.hash(built.body) else {
+                    return lines + [EvalConsole.stopLine("first_request_hash_failed")]
+                }
+                saveFirstRequest(accepted: outcome == .answered, outcome: outcome.rawValue,
+                                 promptTokens: tokens, requestHash: requestHash)
                 // A transport failure never judged the body: its own stop, so it does not read as a refusal.
                 if outcome == .transportFailed {
                     lines.append(EvalConsole.stopLine("first_request_transport_failed"))
@@ -231,10 +264,26 @@ public struct EvalSender: Sendable {
                     lines.append(EvalConsole.stopLine("first_request_not_accepted"))
                     break caseLoop
                 }
-                if let tokens, tokens > route.promptCeilingTokens {
+                guard let tokens else {
+                    lines.append(EvalConsole.stopLine("first_request_prompt_unreported"))
+                    break caseLoop
+                }
+                if tokens < 0 || tokens > route.promptCeilingTokens {
                     lines.append(EvalConsole.stopLine("first_request_prompt_over_ceiling"))
                     break caseLoop
                 }
+                if firstRequestOnly {
+                    lines.append(EvalConsole.firstRequestLine(part: part, maxTokensSent: route.sendsMaxTokens, sha256: requestHash))
+                    break caseLoop
+                }
+            }
+        }
+        if !firstRequestChecked { lines.append(EvalConsole.stopLine("first_request_missing")) }
+        if !firstRequestOnly && !lines.contains(where: { $0.hasPrefix("stop ") }) {
+            do {
+                try EvalCompletedRun.write(runID: runID, list: list, folder: privateFolder, part: part)
+            } catch {
+                lines.append(EvalConsole.stopLine("completion_record_unwritable"))
             }
         }
         lines.append(EvalConsole.summaryLine(part: part.rawValue, counts: counts))

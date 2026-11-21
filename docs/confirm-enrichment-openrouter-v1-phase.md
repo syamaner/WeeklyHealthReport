@@ -773,6 +773,26 @@ export goldens for schema 7 alone and mixed with schema 3 and 5 content.
 - **Release.** No build that can reach a route outside Debug goes anywhere until its part passes; then
   internal TestFlight only (CE-T13), after the owner's one combined device check of O1 and CE1.
 
+### PR 4a scorer architecture
+
+The evaluation core owns the versioned nutrient classes, hidden-key policy and bar arithmetic.
+The harness reads local evidence and reuses the app's request, response and merge rules. The CLI
+only renders aggregate counts and pass or fail. Dependencies point from the executable and harness
+to the core and from the core to the existing domain and application types. The scorer has no
+network access or open extension for new bars. An alternative evidence reader must supply the
+same typed observations and pass the synthetic integration tests. The contract tests cover all
+keys, hidden variants, validation drops, missing evidence and boundary values for each bar.
+
+For a legacy Open Food Facts panel with only declared salt, the scoring reference uses declared
+salt divided by 2.5, converted from grams to milligrams. The app's projection stays unknown for
+sodium. B creates one variant per available class in the order energy, macro, fibre, sodium,
+other micronutrient. Within the macro and other micronutrient classes, the case's position in its
+manifest rotates through its declared keys in raw-key order. Each variant hides one key; other
+eligible unknowns remain eligible. Only the hidden key has a reference for accuracy. B's coverage
+uses all requested keys. A's fact bars use the owner-reviewed Open Food Facts cases. A pre-fill
+without a confirmed match counts outside the wrong pre-fill bar. The fortified safety bar needs
+at least eight owner-confirmed fortified products in each set.
+
 ## 10. PR split
 
 Each PR has its own branch, a ledger row, the validation gates of `AGENTS.md`, a blind
@@ -991,3 +1011,29 @@ its skill; external TestFlight or App Store builds; any evaluation call before s
 - **Blind invariant re-review 4 (21 November 2026, at `5ec923df`): PASS.** Every change since the
   approval at `af12ad6b` narrows a term or adds a step. One low citation fix taken after it: the key
   sentence now credits 11.1a only with what it says. That commit changes wording only.
+
+## PR 4a configuration record
+
+| Version or count | Value |
+|---|---|
+| Evaluation configuration | `confirm-enrichment-eval-configuration-v1` |
+| Scorer | `confirm-enrichment-eval-scorer-v1` |
+| Case list | `confirm-enrichment-eval-cases-v1` |
+| Request and completion evidence | `confirm-enrichment-eval-request-v1`, `confirm-enrichment-eval-completed-run-v1` |
+| A route and prompt | `confirm-details-route-v1`, `confirm-details-prompt-v1` |
+| B route, prompt and response schema | `confirm-nutrient-route-v1`, `confirm-nutrient-prompt-v1`, `confirm-nutrient-estimate-v1` |
+| Development count | 100 |
+| Sealed count | 100 |
+| Open Food Facts per set | 60, 30 UK, 30 Taiwan, 8 fortified |
+| Bundled rows per set | 40, 10 per table |
+| Development SHA-256 | `1c357f97866f1a5f62b078201e5217d9f814e00f93a59942099a948dcd619bfa` |
+| Sealed SHA-256 | `a3396991fe7b42a9a5faeb027a5e74f891ef5eacbe539cc6385fbe0b6dcc495b` |
+
+Route freeze is pending the owner's first A request and the development and review counts.
+The owner can use `send --part details --first-request-only` with the development set and
+their private folder. The tool reports the body SHA-256 after response validation and the
+first-request ceiling check. Once that hash is committed, `verify-freeze` rebuilds the first
+request privately and checks its hash. A score requires the completed review CSV passed as
+`--review-sheet`. B derives its variants from the selected case list, so the case-list
+manifests are unchanged. Scores use request cost across attempts, charging W when an attempt
+reported no cost, and elapsed wall time including retries. The latency bar uses nearest-rank p90.

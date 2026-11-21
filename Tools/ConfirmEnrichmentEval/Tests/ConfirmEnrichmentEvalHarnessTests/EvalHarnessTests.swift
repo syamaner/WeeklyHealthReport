@@ -106,7 +106,71 @@ final class EvalHarnessTests: XCTestCase {
             XCTAssertEqual(sent.method == "POST", sent.headerNames.contains("Authorization"), "only the POSTs carry the key")
         }
         let responses = try FileManager.default.contentsOfDirectory(atPath: folder.appendingPathComponent("responses").path)
-        XCTAssertEqual(responses.count, 2, "raw responses stay in the private folder")
+        XCTAssertEqual(responses.filter { !$0.hasSuffix("-evidence.json") }.count, 2)
+        XCTAssertEqual(responses.filter { $0.hasSuffix("-evidence.json") }.count, 2)
+    }
+
+    func testDetailsScoreRebuildsTheRequestAndRejectsChangedResponseBytes() async throws {
+        let (folder, list) = try privateFolder()
+        let transport = Self.answering()
+        let lines = await sender(.details, transport: transport, folder: folder).run(list, firstRequestOnly: true)
+        let posts = transport.sent.filter { $0.method == "POST" }
+        XCTAssertEqual(posts.count, 1)
+        let body = try XCTUnwrap(posts.first?.body)
+        let digest = try SHA256Digester().sha256(body).value
+        XCTAssertTrue(lines.contains("first_request details accepted max_tokens_sent true sha256 " + digest))
+
+        let hash = try EvalHashes.hash(list.cases[0])
+        let row = [hash, "Synthetic, \"quoted\"\rrecord", Self.brand, Self.code, "yes",
+                   "as_sold", "unknown", "unknown", "unknown", "unknown", "fortified"]
+        let csv = [EvalSelection.reviewSheetHeader, row]
+            .map { $0.map(EvalSelection.csvField).joined(separator: ",") }
+            .joined(separator: "\r\n")
+        let sheet = folder.appendingPathComponent("review.csv")
+        try Data(csv.utf8).write(to: sheet)
+        let scorer = EvalScorer()
+        let probe = scorer.score(list, part: .details, folder: folder, reviewSheet: sheet)
+        XCTAssertEqual(probe.map(EvalConsole.scoreLine), ["details evidence fail within 0 outside 1"])
+        _ = await sender(.details, transport: transport, folder: folder).run(list)
+        let score = scorer.score(list, part: .details, folder: folder, reviewSheet: sheet)
+        XCTAssertEqual(score.first { $0.bar == .coverage }?.passed, false)
+        XCTAssertEqual(score.first { $0.bar == .cost }?.passed, true)
+        XCTAssertEqual(score.first { $0.bar == .unfortifiedOnFortified }?.within, 1)
+        XCTAssertEqual(score.first { $0.bar == .unfortifiedOnFortified }?.passed, false)
+        XCTAssertTrue(scorer.verifyDetailsFreeze(list, folder: folder, expectedSHA256: digest))
+        XCTAssertFalse(scorer.verifyDetailsFreeze(list, folder: folder, expectedSHA256: nil))
+        let response = folder.appendingPathComponent("responses/\(hash)-details-1.json")
+        try Data("unbound response".utf8).write(to: response)
+        let invalid = scorer.score(list, part: .details, folder: folder, reviewSheet: sheet)
+        XCTAssertEqual(invalid.map(EvalConsole.scoreLine), ["details evidence fail within 0 outside 1"])
+    }
+
+    func testBVariantsKeepReferencesOutOfTheWireAndScoreMissingClasses() async throws {
+        let (folder, list) = try privateFolder()
+        var product = Self.product
+        var declared = try XCTUnwrap(product["nutriments"] as? [String: Any])
+        declared["salt_100g"] = 1.25
+        product["nutriments"] = declared
+        try JSONSerialization.data(withJSONObject: product).write(to: folder.appendingPathComponent("records/synthetic.json"))
+
+        let item = list.cases[0]
+        let unhidden = EvalCase(kind: item.kind, record: item.record, shape: item.shape, retrievedAt: item.retrievedAt)
+        let inputs = EvalCaseList(cases: [unhidden])
+        let transport = Self.answering()
+        _ = await sender(.nutrients, transport: transport, folder: folder).run(inputs)
+        let posts = transport.sent.filter { $0.method == "POST" }
+        XCTAssertEqual(posts.count, 3)
+        for (post, hidden) in zip(posts, [NutrientKey.energyConsumed, .fatTotal, .sodium]) {
+            let bytes = try XCTUnwrap(post.body)
+            let request = try XCTUnwrap(ConfirmNutrientRequestInputs.decode(requestBody: String(decoding: bytes, as: UTF8.self)))
+            XCTAssertTrue(request.eligibleKeys.contains(hidden))
+            XCTAssertNil(request.knownAmounts[hidden])
+            XCTAssertNil(request.knownAmounts[.sodium])
+        }
+        let score = EvalScorer().score(inputs, part: .nutrients, folder: folder, reviewSheet: nil)
+        XCTAssertEqual(score.first { $0.bar == .knownReplaced }?.passed, true)
+        XCTAssertEqual(score.first { $0.bar == .micronutrients }?.passed, false)
+        XCTAssertEqual(score.first { $0.bar == .cost }?.within, 3)
     }
 
     func testTheRunStopsAtTheProgrammeStop() async throws {

@@ -10,6 +10,8 @@ import Foundation
 //   preflight [--repo DIR]
 //   manifest CASES
 //   send --part details|nutrients --cases CASES --private DIR [--fake DIR] [--repo DIR]
+//   verify-freeze --cases DEVELOPMENT_CASES --private DIR
+//   score --part details|nutrients --cases CASES --private DIR [--review-sheet CSV]
 //   select --export FILE --private DIR [--seed N] [--repo DIR]
 
 func fail(_ message: String) -> Never {
@@ -21,6 +23,19 @@ func value(_ name: String, in arguments: [String]) -> String? {
     guard let index = arguments.firstIndex(of: name), arguments.indices.contains(index + 1),
           !arguments[index + 1].hasPrefix("--") else { return nil }
     return arguments[index + 1]
+}
+
+/// A misspelt or repeated option must never turn a one-request probe into a full send.
+func validSendArguments(_ arguments: [String]) -> Bool {
+    let options: Set<String> = ["--part", "--cases", "--private", "--fake", "--repo"]
+    var seen: Set<String> = []
+    var remaining = arguments.dropFirst()
+    while let option = remaining.popFirst() {
+        guard seen.insert(option).inserted else { return false }
+        if option == "--first-request-only" { continue }
+        guard options.contains(option), let value = remaining.popFirst(), !value.hasPrefix("--") else { return false }
+    }
+    return true
 }
 
 /// `git show origin/main:docs/privacy-and-egress.md`, run locally: no network (run.sh fetched already).
@@ -58,6 +73,27 @@ func cases(_ path: String) -> EvalCaseList {
 }
 
 let arguments = Array(CommandLine.arguments.dropFirst())
+if arguments.first == "score" {
+    let part = value("--part", in: arguments).flatMap(ConfirmEnrichmentPart.init(rawValue:))
+    let reportPart = part ?? .details
+    let results: [EvalScoring.Result]
+    if let part, let path = value("--cases", in: arguments), let folder = value("--private", in: arguments),
+       let bytes = FileManager.default.contents(atPath: path), let list = try? EvalCaseList.decode(bytes),
+       let manifest = try? EvalHashes.manifest(list),
+       manifest == EvalConfiguration.development || manifest == EvalConfiguration.sealed {
+        let local = URL(fileURLWithPath: folder, isDirectory: true)
+        let sheet = value("--review-sheet", in: arguments).map { URL(fileURLWithPath: $0) }
+        if EvalWorkTree.contains(local) {
+            results = [EvalScorer.invalid(part)]
+        } else {
+            results = EvalScorer().score(list, part: part, folder: local, reviewSheet: sheet)
+        }
+    } else {
+        results = [EvalScorer.invalid(reportPart)]
+    }
+    results.forEach { print(EvalConsole.scoreLine($0)) }
+    exit(results.allSatisfy(\.passed) ? 0 : 1)
+}
 // A flag given without a value is a usage error, never "not given" (a bare `--fake` must not run live).
 for flag in ["--part", "--cases", "--private", "--fake", "--repo", "--export", "--seed"] where arguments.contains(flag) && value(flag, in: arguments) == nil {
     fail("usage: \(flag) needs a value")
@@ -72,13 +108,36 @@ case "manifest":
     guard arguments.count >= 2 else { fail("usage: manifest CASES") }
     guard let manifest = try? EvalHashes.manifest(cases(arguments[1])) else { fail(EvalConsole.stopLine("manifest_failed")) }
     print(EvalConsole.manifestLine(manifest))
+case "verify-freeze":
+    guard let path = value("--cases", in: arguments), let folder = value("--private", in: arguments),
+          let expected = EvalConfiguration.firstDetailsRequestSHA256 else {
+        fail(EvalConsole.stopLine("route_freeze_pending"))
+    }
+    let local = URL(fileURLWithPath: folder, isDirectory: true)
+    guard !EvalWorkTree.contains(local), !EvalPaths.isInside(local.path, repository: repo.path) else {
+        fail(EvalConsole.stopLine("private_folder_inside_repository"))
+    }
+    let list = cases(path)
+    guard (try? EvalHashes.manifest(list)) == EvalConfiguration.development,
+          EvalScorer().verifyDetailsFreeze(list, folder: local, expectedSHA256: expected) else {
+        fail(EvalConsole.stopLine("route_freeze_mismatch"))
+    }
+    print("route freeze pass")
 case "send":
-    guard let partName = value("--part", in: arguments), let part = ConfirmEnrichmentPart(rawValue: partName),
+    guard validSendArguments(arguments),
+          let partName = value("--part", in: arguments), let part = ConfirmEnrichmentPart(rawValue: partName),
           let casesPath = value("--cases", in: arguments), let privatePath = value("--private", in: arguments) else {
-        fail("usage: send --part details|nutrients --cases CASES --private DIR [--fake DIR] [--repo DIR]")
+        fail("usage: send --part details|nutrients --cases CASES --private DIR [--fake DIR] [--first-request-only] [--repo DIR]")
     }
     preflight(repo: repo)
     let list = cases(casesPath)
+    let firstRequestOnly = arguments.contains("--first-request-only")
+    if firstRequestOnly && part != .details { fail(EvalConsole.stopLine("first_request_details_only")) }
+    if value("--fake", in: arguments) == nil {
+        guard let manifest = try? EvalHashes.manifest(list), manifest == EvalConfiguration.development else {
+            fail(EvalConsole.stopLine("sealed_run_requires_frozen_configuration"))
+        }
+    }
     let chosenFolder = URL(fileURLWithPath: privatePath, isDirectory: true)
     // 11.1a: raw responses and the ledger stay in the private folder, never inside the repository or any
     // other git work tree (a worktree's main checkout included).
@@ -104,11 +163,12 @@ case "send":
     // Detached: top-level code is main-actor isolated in Swift 6, so an inherited task would wait for
     // the main thread this line blocks (defect review of PR 3).
     Task.detached {
-        output.set(await sender.run(list))
+        output.set(await sender.run(list, firstRequestOnly: firstRequestOnly))
         semaphore.signal()
     }
     semaphore.wait()
     output.lines.forEach { print($0) }
+    if output.lines.contains(where: { $0.hasPrefix("stop ") }) { exit(1) }
 case "select":
     // The owner-approved case selection (docs/privacy-and-egress.md): deterministic, sends nothing, writes
     // only in the private folder and prints counts, manifests and stop codes only.
@@ -131,5 +191,5 @@ case "select":
     lines.forEach { print($0) }
     if lines.last?.hasPrefix("stop ") == true { exit(1) }
 default:
-    fail("usage: preflight | manifest CASES | send --part details|nutrients --cases CASES --private DIR [--fake DIR] | select --export FILE --private DIR [--seed N]")
+    fail("usage: preflight | manifest CASES | verify-freeze --cases CASES --private DIR | send --part details|nutrients --cases CASES --private DIR [--fake DIR] | score --part details|nutrients --cases CASES --private DIR [--review-sheet CSV] | select --export FILE --private DIR [--seed N]")
 }
