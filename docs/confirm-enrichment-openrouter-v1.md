@@ -561,7 +561,8 @@ for that food is skipped, with no note), and the gate is a backstop, not a guara
 - [x] **CE-T5 Routing.** Zero-data-retention endpoints only, `data_collection: "deny"`,
   `allow_fallbacks: false`, one endpoint pinned per route; the response's model and provider must
   match; a model with no listed ZDR endpoint is not enabled.
-- [x] **CE-T6 Identity check on the day.** E7's catalogue check per route, once per app session and per
+- [x] **CE-T6 Identity check on the day.** (Clarified after review: the check runs only immediately
+  before a foreground request, never on a timer.) E7's catalogue check per route, once per app session and per
   local day, and again after a check that could not connect.
 - [x] **CE-T7 Key.** The existing OpenRouter key from this-device-only Keychain, validated in the
   session; never in a body, log, capture, cache or export.
@@ -587,7 +588,7 @@ for that food is skipped, with no note), and the gate is a backstop, not a guara
   per-call stop, raw responses kept in the owner's private evaluation folder, and counts, versions and
   hashes only in the repository.
 
-## 11. Records text (added on approval, in the wiring PR)
+## 11. Records text (11.1 and 11.2 added in the wiring PR; 11.1a before the first evaluation call)
 
 ### 11.1 `docs/privacy-and-egress.md`, Allowed egress, two rows
 
@@ -626,7 +627,7 @@ versions and hashes only. The sealed set is sent once, by the frozen configurati
 ### 11.2 Privacy policy, OpenRouter section (an entry in O1's list)
 
 ```text
-Confirm suggestions. Only if you also turn on Suggest missing food details and values on Confirm in Settings › OpenRouter. When the food you are confirming has unknown food details or unknown nutrient values, the app asks automatically, a moment after the food is chosen. It never asks when you log again from an earlier entry or a favourite, when you reopen a log, or for web lookups, label readings or foods from Your foods. Sends a description of that food as its source gives it (never words you typed in a correction): the name and brand, a composition table's variant text, and for your own food database its category, product type and state where the app has them (a pack size written in a name is sent with the name), the food details already known, which source the food comes from (for example a food composition table), the questions asked or the nutrients wanted and, for nutrient estimates, the nutrition basis and the known values. A name from your own food database can come from a receipt product title, so check names you would not want sent. Food details go to the Jev model through OpenRouter's System One service; nutrient estimates go to one named model endpoint (currently GPT-6.1 Sol on Azure) with no fallback to other providers. You can also tap Ask again on Confirm to send the same request once more, within the daily limit. Never sent: the search text you typed, words you typed in a correction, the amount you ate, the time or date, notes, other entries, Apple Health data, barcodes, identifiers, photos or prices. Suggested food details are filled in for you to check and change; estimated values are marked est. and you can leave out each one before you tap Log. Nothing is saved until you tap Log, and an estimate never replaces a value from a label or a database. A failed request is retried at most twice; suggestions are limited to 100 requests and $0.50 of reported cost a day, and answers are kept on your device, so the same food is usually not sent again (a tap of Ask again, a change of details before you log or an answer older than 30 days sends again). OpenRouter keeps its own account and usage records for these requests, including the model, token counts, cost and time, under its terms. If you log a food with an estimated value, the Drive food file names the model that estimated it.
+Confirm suggestions. Only if you also turn on Suggest missing food details and values on Confirm in Settings › OpenRouter. When the food you are confirming has unknown food details or unknown nutrient values, the app asks automatically, a moment after the food is chosen. It never asks in the background, from search results, on the quick add sheet, when you log again from an earlier entry or a favourite, when you reopen a log or update its nutrition from your database, or for web lookups, label readings or foods from Your foods. Sends a description of that food as its source gives it (never words you typed in a correction): the name and brand, a composition table's variant text, and for your own food database its category, product type and state where the app has them (a pack size written in a name is sent with the name), the food details already known, which source the food comes from (for example a food composition table), the questions asked or the nutrients wanted and, for nutrient estimates, the nutrition basis and the known values. A name from your own food database can come from a receipt product title, so check names you would not want sent. Food details go to the Jev model through OpenRouter's System One service; nutrient estimates go to one named model endpoint (currently GPT-6.1 Sol on Azure) with no fallback to other providers. You can also tap Ask again on Confirm to send the same request once more, within the daily limit. Never sent: the search text you typed, words you typed in a correction, the amount you ate, the time or date, notes, other entries, Apple Health data, barcodes, identifiers, photos or prices. Suggested food details are filled in for you to check and change; estimated values are marked est. and you can leave out each one before you tap Log. Nothing is saved until you tap Log, and an estimate never replaces a value from a label or a database. A failed request is retried at most twice; suggestions are limited to 100 requests and $0.50 of reported cost a day, and answers are kept on your device, so the same food is usually not sent again (a tap of Ask again, a change of details before you log or an answer older than 30 days sends again). OpenRouter keeps its own account and usage records for these requests, including the model, token counts, cost and time, under its terms. If you log a food with an estimated value, the Drive food file names the model that estimated it.
 ```
 
 ## 12. Evaluation bar before release
@@ -918,3 +919,7 @@ compatibility choice of section 14 with the approval.
   names the source token, the source phrases and the questions or nutrients asked. Read as covered,
   and flagged to the owner: the evaluation's keyless catalogue GETs, which CE-T1 lists for the app's
   request shapes that CE-T15 reuses.
+- **Blind invariant re-review 4 (21 November 2026, at `92dc2d41`): no breach path; two false statements
+  fixed.** The policy entry now names every CE-T4 exclusion (the background, search results, the quick
+  add sheet, re-resolution), and section 11's heading states 11.1a's earlier timing; the catalogue check
+  is stated to run only immediately before a foreground request.
