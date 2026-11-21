@@ -170,11 +170,16 @@ public enum EvalSelection {
 
     /// The counts printed for one set: closed names and numbers only.
     public static func counts(products: [Product], rows: [Row]) -> [(String, Int)] {
-        [("open_food_facts", products.count),
-         ("uk", products.filter { $0.country == .unitedKingdom }.count),
-         ("taiwan", products.filter { $0.country == .taiwan }.count),
-         ("fortified", products.filter(\.fortified).count)]
-            + EvalCase.Table.allCases.map { table in (table.rawValue, rows.filter { $0.table == table }.count) }
+        // Built step by step: CI's compiler times out type-checking this as one expression.
+        let uk: Int = products.filter { $0.country == .unitedKingdom }.count
+        let taiwan: Int = products.filter { $0.country == .taiwan }.count
+        let fortified: Int = products.filter(\.fortified).count
+        var counts: [(String, Int)] = [("open_food_facts", products.count), ("uk", uk), ("taiwan", taiwan), ("fortified", fortified)]
+        for table in EvalCase.Table.allCases {
+            let count: Int = rows.filter { $0.table == table }.count
+            counts.append((table.rawValue, count))
+        }
+        return counts
     }
 
     /// The review sheet header (the owner's check of the development set's food details, section 9). The
