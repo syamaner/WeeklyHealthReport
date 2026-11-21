@@ -18,6 +18,9 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
     @Published public private(set) var result: FoodWebDiscoveryResult?
     private let provider: any FoodWebDiscovering
     private let keys: any FoodWebKeyStoring
+    /// The Settings › OpenRouter gate (docs/openrouter-single-consent-v1-amendment.md O1.2, O1-D2):
+    /// asked before validation, so Revalidate with the switch off keeps the session's validation.
+    private let egress: any OpenRouterEgressPermitting
     public let providerName: String
     private let operatorName: String
     private let keyManagementName: String
@@ -31,8 +34,9 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
     /// or is cancelled, and only if the key is still unread (#493).
     private var recheckPending = false
 
-    public init(provider: any FoodWebDiscovering, keys: any FoodWebKeyStoring,
+    public init(egress: any OpenRouterEgressPermitting, provider: any FoodWebDiscovering, keys: any FoodWebKeyStoring,
                 providerName: String = "Gemini", operatorName: String = "Google", keyManagementName: String = "AI Studio") {
+        self.egress = egress
         self.provider = provider
         self.keys = keys
         self.providerName = providerName; self.operatorName = operatorName; self.keyManagementName = keyManagementName
@@ -77,6 +81,26 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
 
     private static let unreadKeyMessage = "The device Keychain is unavailable, so the saved key could not be read yet. It is checked again when you unlock your device or return to the app."
 
+    /// The key as a journey sees it (section 6): a usable key is valid, else a saved key is not validated.
+    public var keyState: OpenRouterKeyState { OpenRouterAccess.keyState(hasSavedKey: hasSavedKey, keyIsUsable: keyIsUsable) }
+
+    /// Whether Settings › OpenRouter permits key validation now. Read on demand, never stored.
+    public var validationPermitted: Bool { egress.permits(.keyValidation) }
+
+    /// The O1.4 blocked row's reason for web lookup, or nil when Look up may be offered.
+    public var blockedReason: OpenRouterBlockedReason? {
+        OpenRouterAccess.blockedReason(consentOn: egress.permits(.webLookup), keyState: keyState)
+    }
+
+    /// The key screen's save button (O1-D2): with the switch off it saves the key without validating it.
+    public var saveButtonTitle: String {
+        if !validationPermitted { return "Save key" }
+        return isValidating ? "Validating…" : "Save and validate key"
+    }
+
+    /// Settings › OpenRouter changed: redraw what reads the switch on demand.
+    public func consentChanged() { objectWillChange.send() }
+
     public var canSearch: Bool {
         keyIsUsable && !isValidating && !isSearching && !outboundTerms.isEmpty && outboundTerms.count <= 300
     }
@@ -111,7 +135,15 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
 
     private func validate(key: String, saveNewKey: Bool) async {
         guard !isValidating else { return }
+        // Asked first, before usability is cleared: a refusal never changes key state (O1.2).
+        guard egress.permits(.keyValidation) else {
+            if saveNewKey { saveWithoutValidating(key) } else { keyMessage = message(for: FoodWebDiscoveryError.notPermitted) }
+            return
+        }
         cancelSearch()
+        // Kept so a refusal that races this validation (the switch turned off after the check above,
+        // refused by the provider's own gate) restores the session's earlier validation (O1.2).
+        let priorKey = validatedKey, priorUsable = keyIsUsable
         invalidateUsability()
         guard FoodWebKeySyntax.isValid(key) else {
             keyMessage = "Enter a valid API key without spaces or line breaks. Web search remains unavailable."
@@ -153,6 +185,20 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
                 : "Saved key revalidated. Search access and quota are checked when you search."
         } catch {
             guard generation == current else { return }
+            if error as? FoodWebDiscoveryError == .notPermitted {
+                // A refusal is never a rejected key and never changes key state: nothing was sent.
+                isValidating = false
+                validation = nil
+                if saveNewKey {
+                    saveWithoutValidating(key)
+                } else {
+                    validatedKey = priorKey
+                    keyIsUsable = priorUsable
+                    keyMessage = message(for: error)
+                }
+                runPendingRecheck()
+                return
+            }
             if error as? FoodWebDiscoveryError == .credentialRejected, (try? loadKey()) == key {
                 invalidateRejectedKey(expectedKey: key)
             }
@@ -161,6 +207,26 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
         isValidating = false
         validation = nil
         runPendingRecheck()
+    }
+
+    /// O1-D2: with Settings › OpenRouter off, Save key stores the key unvalidated and sends nothing.
+    /// It clears the session's validated key and bumps the credential generation, exactly as saving
+    /// a new key does, so a key validated earlier is never sent in place of this one.
+    private func saveWithoutValidating(_ key: String) {
+        guard FoodWebKeySyntax.isValid(key) else {
+            keyMessage = "Enter a valid API key without spaces or line breaks. Web search remains unavailable."
+            return
+        }
+        cancelSearch()
+        invalidateUsability()
+        generation += 1
+        do { try keys.save(key) } catch {
+            keyMessage = "The device Keychain could not save the key."
+            return
+        }
+        hasSavedKey = true
+        keyLoadFailed = false
+        keyMessage = "Key saved. Turn on OpenRouter in Settings to validate it."
     }
 
     /// No automatic retries, typing hooks, offline fallbacks or lifecycle calls invoke this.
@@ -345,6 +411,7 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
         case .requestRejected: "\(operatorName) could not accept this request or model. Check provider availability before trying again."
         case .invalidQuery: "Enter between 1 and 300 characters of food terms."
         case .invalidResponse: "\(operatorName) returned an unsupported or incomplete response. No food was selected or saved."
+        case .notPermitted: OpenRouterBlockedText.switchOff
         default: "The request could not complete. Check your connection and try again. Offline search is still available."
         }
     }

@@ -441,6 +441,79 @@ self_test_clipboard() {
 }
 self_test_clipboard
 
+# One OpenRouter consent (docs/openrouter-single-consent-v1-amendment.md O1.6 test 6): every Swift
+# file under the package's Sources or the app target that builds or sends an OpenRouter request (it
+# holds an `https://openrouter.ai/api` address, or is one of the six request sites of O1.2) must
+# reference `OpenRouterEgressPermitting`. A request site that goes missing fails too, so a rename
+# cannot drop it from the check. The one file that holds an API address only as a constant a gated
+# site uses is exempt by name; a new exemption is a reviewed change here. This is a backstop (a file
+# passes by naming the protocol); the contract tests prove what each site asks. Prints each violation.
+openrouter_request_sites=(
+  "FoodGenericSearch/OpenRouterFoodProvider.swift"
+  "FoodLedgerApplication/GenericFoodProposalReview.swift"
+  "FoodLabelPhotoCapture/OpenRouterLabelPhotoAttempt.swift"
+  "FoodLabelPhotoCapture/OpenRouterLabelRouteChecker.swift"
+  "FoodLabelPhotoCapture/OpenRouterPastedLabelAITextAttempt.swift"
+  "FoodLabelPhotoCapture/OpenRouterPastedLabelAITextRouteChecker.swift"
+)
+openrouter_exempt=("FoodLabelPhotoCapture/OpenRouterLabelPhotoRequest.swift")
+openrouter_gate_violations() {
+  local sources="$1" app="$2" file site relative candidates=()
+  if [[ ! -d "$sources" ]]; then echo "$sources: missing"; return 0; fi
+  for site in "${openrouter_request_sites[@]}"; do
+    if [[ -f "$sources/$site" ]]; then candidates+=("$sources/$site"); else echo "$sources/$site: request site missing"; fi
+  done
+  while IFS= read -r file; do
+    [[ -n "$file" ]] && candidates+=("$file")
+  done < <(grep -rlF --include='*.swift' 'https://openrouter.ai/api' "$sources" "$app" 2>/dev/null || true)
+  for file in "${candidates[@]}"; do
+    relative="${file#"$sources"/}"
+    [[ " ${openrouter_exempt[*]} " == *" $relative "* ]] && continue
+    grep -q 'OpenRouterEgressPermitting' "$file" || echo "$file sends to OpenRouter without OpenRouterEgressPermitting"
+  done | sort -u
+}
+self_test_openrouter_gate() {
+  local scratch status=0 fixture base sources app site
+  scratch="$(mktemp -d "${TMPDIR:-/tmp}/check-boundaries-openrouter.XXXXXX")"
+  base="$scratch/base"
+  sources="$base/Packages/FoodLedgerKit/Sources"; app="$base/WeeklyHealthReport"
+  mkdir -p "$sources/FoodGenericSearch" "$sources/FoodLedgerApplication" "$sources/FoodLabelPhotoCapture" "$app/FoodLedger"
+  for site in "${openrouter_request_sites[@]}"; do
+    printf 'struct Site { let egress: any OpenRouterEgressPermitting }\n' > "$sources/$site"
+  done
+  printf 'let api = URL(string: "https://openrouter.ai/api/v1/chat/completions")!\nlet egress: any OpenRouterEgressPermitting\n' \
+    >> "$sources/FoodGenericSearch/OpenRouterFoodProvider.swift"
+  printf 'let endpoint = "https://openrouter.ai/api/v1/chat/completions"\n' > "$sources/FoodLabelPhotoCapture/OpenRouterLabelPhotoRequest.swift"
+  # A link to the key settings page is not a request.
+  printf 'let keys = URL(string: "https://openrouter.ai/settings/keys")!\n' > "$app/FoodLedger/FoodLedgerSettings.swift"
+  if [[ -n "$(openrouter_gate_violations "$sources" "$app")" ]]; then
+    echo "check-boundaries self-test: the OpenRouter gate baseline must pass" >&2; status=1
+  fi
+  for fixture in ungated_site ungated_reviewer new_package_request new_app_request missing_site renamed_exemption; do
+    cp -R "$base" "$scratch/$fixture"
+    sources="$scratch/$fixture/Packages/FoodLedgerKit/Sources"; app="$scratch/$fixture/WeeklyHealthReport"
+    case "$fixture" in
+      ungated_site) printf 'struct Site {}\n' > "$sources/FoodLabelPhotoCapture/OpenRouterLabelPhotoAttempt.swift" ;;
+      ungated_reviewer) printf 'actor Reviewer {}\n' > "$sources/FoodLedgerApplication/GenericFoodProposalReview.swift" ;;
+      new_package_request) printf 'let url = URL(string: "https://openrouter.ai/api/v1/key")!\n' > "$sources/FoodGenericSearch/OpenRouterKeyCheck.swift" ;;
+      new_app_request) printf 'let url = URL(string: "https://openrouter.ai/api/v1/models")!\n' > "$app/FoodLedger/Enrichment.swift" ;;
+      missing_site) rm "$sources/FoodLabelPhotoCapture/OpenRouterPastedLabelAITextRouteChecker.swift" ;;
+      renamed_exemption) mv "$sources/FoodLabelPhotoCapture/OpenRouterLabelPhotoRequest.swift" "$sources/FoodLabelPhotoCapture/OpenRouterLabelPhotoRequests.swift" ;;
+    esac
+    if [[ -z "$(openrouter_gate_violations "$sources" "$app")" ]]; then
+      echo "check-boundaries self-test: the OpenRouter gate $fixture fixture must fail" >&2; status=1
+    fi
+  done
+  rm -rf "$scratch"
+  return "$status"
+}
+self_test_openrouter_gate
+openrouter_violations="$(openrouter_gate_violations "$package_root/Sources" "$app_root/WeeklyHealthReport")"
+if [[ -n "$openrouter_violations" ]]; then
+  echo "$openrouter_violations" >&2
+  echo "Every OpenRouter request site must ask OpenRouterEgressPermitting (O1.6 test 6)" >&2; exit 1
+fi
+
 # Your food database store (#424 P1b, docs/personal-food-database-import-v1-phase-1.md 3.1, change 9):
 # Foundation, the application and the domain only; no network API; imported only by the
 # composition root and the target's own tests; no other package target depends on it.

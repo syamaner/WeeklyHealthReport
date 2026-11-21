@@ -165,7 +165,8 @@ let package = Package(
                 "FoodLedgerApplication",
                 "FoodGenericSearch",
                 "FoodLedgerTestSupport"
-            ]
+            ],
+            exclude: ["Fixtures"]
         ),
         .testTarget(
             name: "FoodLedgerPresentationTests",

@@ -3,6 +3,7 @@ import Foundation
 import FoodLedgerApplication
 import FoodLedgerDomain
 @testable import FoodGenericSearch
+import FoodLedgerTestSupport
 import XCTest
 
 /// Actual retained public responses, replayed through current orchestration with
@@ -67,8 +68,8 @@ final class FrozenFoodWorkflowReplayTests: XCTestCase {
                 entries.append((request, response))
             }
             let transport = FrozenWorkflowTransport(entries: entries, historicalSystemPrompt: true)
-            let provider = OpenRouterFoodProvider(extractionRoute: .grok) { request in try await transport.reply(request) }
-            let reviewer = GenericFoodProposalReviewer(discovery: provider, capture: capture, extraction: provider, sourceSelection: provider)
+            let provider = OpenRouterFoodProvider(egress: PermittingOpenRouterEgress(), extractionRoute: .grok) { request in try await transport.reply(request) }
+            let reviewer = GenericFoodProposalReviewer(egress: PermittingOpenRouterEgress(), discovery: provider, capture: capture, extraction: provider, sourceSelection: provider)
             if abstain {
                 do { _ = try await reviewer.review(foodTerms: query, key: "synthetic-replay-key-no-network"); XCTFail("Expected source abstention") }
                 catch let failure as GenericFoodProposalPartialFailure {
@@ -122,9 +123,9 @@ final class FrozenFoodWorkflowReplayTests: XCTestCase {
             entries.append((request, response))
         }
         let transport = FrozenWorkflowTransport(entries: entries, historicalSystemPrompt: true)
-        let provider = OpenRouterFoodProvider(extractionRoute: .grok) { request in try await transport.reply(request) }
+        let provider = OpenRouterFoodProvider(egress: PermittingOpenRouterEgress(), extractionRoute: .grok) { request in try await transport.reply(request) }
         let capture = ForbiddenMarketCapture()
-        let reviewer = GenericFoodProposalReviewer(discovery: provider, capture: capture, extraction: provider, sourceSelection: provider)
+        let reviewer = GenericFoodProposalReviewer(egress: PermittingOpenRouterEgress(), discovery: provider, capture: capture, extraction: provider, sourceSelection: provider)
         do {
             _ = try await reviewer.review(foodTerms: query, key: "synthetic-replay-key-no-network")
             XCTFail("The retained Irish source choice must not reach capture")
@@ -169,8 +170,8 @@ final class FrozenFoodWorkflowReplayTests: XCTestCase {
         let capture = FrozenCapture(document: document, raw: raw, mediaType: "text/html",
             expectedURL: try XCTUnwrap(URL(string: document.url)))
         let transport = FrozenWorkflowTransport(entries: entries)
-        let provider = OpenRouterFoodProvider(extractionRoute: .grok, selectionRoute: .applicability) { request in try await transport.reply(request) }
-        let reviewer = GenericFoodProposalReviewer(discovery: provider, capture: capture, extraction: provider,
+        let provider = OpenRouterFoodProvider(egress: PermittingOpenRouterEgress(), extractionRoute: .grok, selectionRoute: .applicability) { request in try await transport.reply(request) }
+        let reviewer = GenericFoodProposalReviewer(egress: PermittingOpenRouterEgress(), discovery: provider, capture: capture, extraction: provider,
             sourceSelection: provider, selection: provider)
         let result = try await reviewer.review(foodTerms: XCTUnwrap(plan["query"] as? String), key: "synthetic-replay-key-no-network")
         XCTAssertFalse(result.rankingUnavailable)

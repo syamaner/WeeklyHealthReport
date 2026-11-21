@@ -27,6 +27,9 @@ public final class GenericFoodProposalReviewViewModel: ObservableObject {
     private let saveMarket: (FoodReviewMarket) -> Void
     private let reviewer: any GenericFoodProposalReviewing
     private let credentials: any FoodWebCredentialAuthorizing
+    /// The Settings › OpenRouter gate, asked before a lookup starts (docs/openrouter-single-consent-v1-amendment.md O1.2).
+    private let egress: any OpenRouterEgressPermitting
+    private let keyState: () -> OpenRouterKeyState
     private let confirmation: ReviewedFoodProposalConfirmation
     private let locale: LedgerText
     private var generation = 0
@@ -34,13 +37,24 @@ public final class GenericFoodProposalReviewViewModel: ObservableObject {
     private var resultCredential: FoodWebRequestCredential?
     private var knownSources: [FoodWebLead] = []
 
-    public init(reviewer: any GenericFoodProposalReviewing, credentials: any FoodWebCredentialAuthorizing,
+    /// `keyState` is the shared key model's state (`FoodWebDiscoveryViewModel.keyState`).
+    public init(egress: any OpenRouterEgressPermitting, reviewer: any GenericFoodProposalReviewing,
+                credentials: any FoodWebCredentialAuthorizing, keyState: @escaping () -> OpenRouterKeyState,
                 confirmation: ReviewedFoodProposalConfirmation, locale: LedgerText,
                 initialMarket: FoodReviewMarket = .unspecified,
                 saveMarket: @escaping (FoodReviewMarket) -> Void = { _ in }) {
+        self.egress = egress; self.keyState = keyState
         self.reviewer = reviewer; self.credentials = credentials; self.confirmation = confirmation; self.locale = locale
         self.market = initialMarket; self.saveMarket = saveMarket
     }
+
+    /// The O1.4 blocked row's reason, in place of Look up, or nil when a lookup may be offered.
+    public var blockedReason: OpenRouterBlockedReason? {
+        OpenRouterAccess.blockedReason(consentOn: egress.permits(.webLookup), keyState: keyState())
+    }
+
+    /// Settings › OpenRouter changed: redraw what reads the switch on demand.
+    public func consentChanged() { objectWillChange.send() }
     public var requestTerms: String {
         let query = foodTerms.trimmingCharacters(in: .whitespacesAndNewlines)
         return market == .unspecified || query.isEmpty ? query : query + " [market: " + market.rawValue + "]"
@@ -59,9 +73,11 @@ public final class GenericFoodProposalReviewViewModel: ObservableObject {
         guard address.isEmpty || url.map(FoodWebLinkPolicy.isAllowed) == true else {
             message = "Enter a public HTTPS source address, or leave it empty to search."; return
         }
+        // Consent and the key block at the send action, as the O1.4 row, not as a message.
+        guard blockedReason == nil else { message = nil; objectWillChange.send(); return }
         let credential: FoodWebRequestCredential
         do { credential = try credentials.credentialForRequest() }
-        catch { message = "Add or revalidate your OpenRouter key first."; return }
+        catch { message = OpenRouterBlockedText.keyNotValidated; return }
         isSearching = true
         let task = Task { [reviewer] in try await reviewer.review(foodTerms: query, sourceURL: url, key: credential.key) }
         self.task = task
@@ -84,6 +100,14 @@ public final class GenericFoodProposalReviewViewModel: ObservableObject {
             guard generation == current else { return }
             guard credentials.isCurrent(credential) else {
                 cancel(); message = "The key changed. Revalidate it and search again."; return
+            }
+            if error as? FoodWebDiscoveryError == .notPermitted {
+                // A refusal: no rejected key, no partial result and no "did not complete" copy; the
+                // blocked row says why (O1.2).
+                message = nil
+                isSearching = false; self.task = nil
+                objectWillChange.send()
+                return
             }
             if error as? FoodWebDiscoveryError == .credentialRejected { credentials.reject(credential) }
             if let partial = error as? GenericFoodProposalPartialFailure { publishOtherSources(partial.discovery, attemptedURL: partial.attemptedSourceURL ?? url) }
@@ -172,7 +196,8 @@ public final class GenericFoodProposalReviewViewModel: ObservableObject {
         }
         if error as? GenericFoodProposalReviewError == .noSourceLinks { return "No usable source links were found. Try a more specific description or supply a source address." }
         switch error as? FoodWebDiscoveryError {
-        case .credentialRejected: return "OpenRouter rejected this key. Add or revalidate a key."
+        case .credentialRejected: return "OpenRouter rejected the API key. Replace or revalidate it in Settings."
+        case .notPermitted: return OpenRouterBlockedText.switchOff
         case .permissionDenied: return "OpenRouter refused access. Check the key's permissions."
         case .quotaExceeded: return "OpenRouter reported a rate or credit limit. Check your account before retrying."
         case .requestRejected: return "OpenRouter could not accept the request or model configuration. Your key has not been marked invalid."
@@ -190,6 +215,8 @@ public struct GenericFoodProposalReviewView: View {
     @ObservedObject private var credentials: FoodWebDiscoveryViewModel
     private let confirm: (PopulatedFoodConfirmation) -> Void
     private let recordDiagnostics: ([String]) -> Void
+    /// Settings › OpenRouter, opened by the blocked row's link; the key screen when not supplied.
+    private let openRouterSettings: (() -> AnyView)?
     @State private var showsKey = false
     @State private var scope: FoodProposalReviewScope?
     @State private var useMessage: String?
@@ -197,8 +224,10 @@ public struct GenericFoodProposalReviewView: View {
     public init(model: GenericFoodProposalReviewViewModel, credentials: FoodWebDiscoveryViewModel,
                 initialScope: FoodProposalReviewScope? = nil,
                 recordDiagnostics: @escaping ([String]) -> Void = { _ in },
+                openRouterSettings: (() -> AnyView)? = nil,
                 confirm: @escaping (PopulatedFoodConfirmation) -> Void) {
         self.model = model; self.credentials = credentials; self.confirm = confirm
+        self.openRouterSettings = openRouterSettings
         self.recordDiagnostics = recordDiagnostics
         _scope = State(initialValue: initialScope)
     }
@@ -214,12 +243,11 @@ public struct GenericFoodProposalReviewView: View {
                         .textInputAutocapitalization(.never).keyboardType(.URL)
                         #endif
                 }
-                if credentials.keyIsUsable {
+                if let reason = model.blockedReason {
+                    OpenRouterBlockedRow(reason, identifier: "webLookup.blocker") { model.cancel(); showsKey = true }
+                } else {
                     Button("Look up") { scope = nil; useMessage = nil; Task { await model.search() } }
                         .disabled(!model.canSearch)
-                } else {
-                    Text("Web lookup needs your OpenRouter key.").font(.subheadline)
-                    Button("Add or validate key") { model.cancel(); showsKey = true }
                 }
                 if model.isSearching {
                     HStack {
@@ -255,7 +283,7 @@ public struct GenericFoodProposalReviewView: View {
                     Section {
                         Text(noSuggestion.text)
                         switch noSuggestion.action {
-                        case .lookUpAgain where credentials.keyIsUsable:
+                        case .lookUpAgain where model.blockedReason == nil:
                             Button("Look up again") { scope = nil; useMessage = nil; Task { await model.search() } }
                                 .frame(minHeight: 44)
                                 .disabled(!model.canSearch)
@@ -272,13 +300,16 @@ public struct GenericFoodProposalReviewView: View {
             } else if !model.alternativeSources.isEmpty {
                 otherSourcesSection(nil)
             }
-            Section {
-                Text("Only your food terms, the market set in Settings and the captured page text are sent to OpenRouter and its selected providers. Saved foods, your food log and Health data are never sent. Charges use your OpenRouter account.")
-                    .font(.footnote).foregroundStyle(.secondary)
-            }
         }
         .navigationTitle("Web lookup")
-        .sheet(isPresented: $showsKey) { NavigationStack { OpenRouterFoodKeyView(model: credentials) } }
+        .sheet(isPresented: $showsKey) {
+            NavigationStack {
+                if let openRouterSettings { openRouterSettings() } else { OpenRouterFoodKeyView(model: credentials) }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification).receive(on: RunLoop.main)) { _ in
+            model.consentChanged(); credentials.consentChanged()
+        }
         .onReceive(credentials.$keyIsUsable) { if !$0 { model.cancel() } }
         .onChange(of: model.result) { _, _ in scope = nil; useMessage = nil; recordDiagnostics(model.diagnosticLines) }
         .onDisappear { model.cancel(clearResult: false) }
@@ -408,7 +439,7 @@ public struct GenericFoodProposalReviewView: View {
                         Button("Check \(GenericFoodProposalReviewCopy.leadTitle(lead))") {
                             model.sourceAddress = lead.url.absoluteString
                             Task { await model.search() }
-                        }.disabled(!credentials.keyIsUsable)
+                        }.disabled(model.blockedReason != nil)
                     }
                 }
             }
@@ -417,24 +448,30 @@ public struct GenericFoodProposalReviewView: View {
 
 }
 
-/// Key entry and privacy terms for OpenRouter web lookup.
-/// Only the explicit save and revalidate buttons contact OpenRouter; opening this screen sends nothing.
+/// Key entry for OpenRouter. Its privacy and charges prose lives in the privacy policy's OpenRouter
+/// section (docs/openrouter-single-consent-v1-amendment.md O1.1). Only the explicit save and
+/// revalidate buttons contact OpenRouter, and only with Settings › OpenRouter on (O1-D2); opening
+/// this screen sends nothing.
 public struct OpenRouterFoodKeyView: View {
+    public static let keychainLine = "Your key stays in this device's Keychain."
+    public static let howTheAppUsesOpenRouter = "How the app uses OpenRouter"
     @ObservedObject var model: FoodWebDiscoveryViewModel
     @Environment(\.dismiss) private var dismiss
     private let showsDone: Bool
+    /// The Privacy policy screen at its OpenRouter section, supplied by the app.
+    private let openRouterPolicy: (() -> AnyView)?
 
-    public init(model: FoodWebDiscoveryViewModel, showsDone: Bool = true) {
-        self.model = model; self.showsDone = showsDone
+    public init(model: FoodWebDiscoveryViewModel, showsDone: Bool = true, openRouterPolicy: (() -> AnyView)? = nil) {
+        self.model = model; self.showsDone = showsDone; self.openRouterPolicy = openRouterPolicy
     }
 
     public var body: some View {
         Form {
-            Section("Privacy and charges") {
-                Text("OpenRouter finds public food sources and reads their nutrition into proposals for you to review.")
-                Text("Validation sends only the key to OpenRouter. A search sends your displayed terms, and extraction sends captured public source text. Model requests require providers configured for no data collection and zero data retention; search services have their own terms.")
-                Text("Your key stays in this device's Keychain, without sync or backup migration. Requests already sent cannot be recalled. Set credit limits in OpenRouter; the app has no monetary spending cap.")
-                Text("Each review uses at most one search request, one source-selection request, three website connections including redirects, one extraction request, and one applicability check. Supplying a source address skips search and source selection. A model request that fails for a temporary reason, such as a timeout or a busy service, is sent again unchanged at most twice; website connections are never retried.")
+            Section {
+                Text(Self.keychainLine)
+                if let openRouterPolicy {
+                    NavigationLink(Self.howTheAppUsesOpenRouter) { openRouterPolicy() }
+                }
                 Link("OpenRouter privacy", destination: URL(string: "https://openrouter.ai/privacy")!)
                 Link("Manage OpenRouter keys and limits", destination: URL(string: "https://openrouter.ai/settings/keys")!)
             }
@@ -443,7 +480,7 @@ public struct OpenRouterFoodKeyView: View {
                     #if os(iOS)
                     .textInputAutocapitalization(.never)
                     #endif
-                Button(model.isValidating ? "Validating…" : "Save and validate key") { Task { await model.validateAndSaveKey() } }
+                Button(model.saveButtonTitle) { Task { await model.validateAndSaveKey() } }
                     .disabled(model.isValidating || model.keyEntry.isEmpty)
                 if model.hasSavedKey && !model.keyIsUsable {
                     Button("Revalidate saved key") { Task { await model.revalidateSavedKey() } }.disabled(model.isValidating)
@@ -453,6 +490,9 @@ public struct OpenRouterFoodKeyView: View {
             }
         }
         .navigationTitle("OpenRouter API key")
+        .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification).receive(on: RunLoop.main)) { _ in
+            model.consentChanged()
+        }
         .toolbar { if showsDone { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } } }
         .onDisappear { model.closeCredentialEditor() }
     }

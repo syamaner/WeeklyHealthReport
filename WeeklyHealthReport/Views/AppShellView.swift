@@ -238,8 +238,13 @@ struct AppShellView: View {
             DeveloperDiagnosticsView(viewModel: viewModel, todaySoFar: todaySoFar)
         case .settings:
             SettingsView(settings: settings)
+        case .openRouterPrivacy:
+            PrivacyPolicyView(anchor: PrivacyPolicySections.openRouterHeading)
         case .webLookupKey:
-            if let foodLedger { OpenRouterFoodKeyView(model: foodLedger.webDiscovery, showsDone: false) }
+            if let foodLedger {
+                OpenRouterFoodKeyView(model: foodLedger.webDiscovery, showsDone: false,
+                                      openRouterPolicy: { AnyView(PrivacyPolicyView(anchor: PrivacyPolicySections.openRouterHeading)) })
+            }
             else { ContentUnavailableView("Web lookup unavailable", systemImage: "exclamationmark.triangle", description: Text("The local food ledger could not be opened.")) }
         case .foodMarket:
             if let foodLedger { FoodMarketSelectionView(preference: foodLedger.foodMarket) }

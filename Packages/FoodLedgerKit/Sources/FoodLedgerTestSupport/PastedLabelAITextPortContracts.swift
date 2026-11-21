@@ -53,6 +53,18 @@ public enum PastedLabelAITextPortContracts {
 
     // MARK: PastedLabelAITextAttempting
 
+    /// The refusal contract (docs/openrouter-single-consent-v1-amendment.md O1.2): a subject whose
+    /// OpenRouter gate refuses returns `.notSent(.notPermitted)` for a valid text and sends nothing.
+    public static func refusing(_ subject: any PastedLabelAITextAttempting, sends: @Sendable () -> Int) async -> [String] {
+        var violations: [String] = []
+        let before = sends()
+        let result = await subject.attempt(text: ukText, timeout: 5)
+        if result != .notSent(.notPermitted) { violations.append("a refused attempt did not return not_permitted: \(result)") }
+        if result.sentBytes { violations.append("a refused attempt reports sent bytes") }
+        if sends() != before { violations.append("a refused attempt reached the transport") }
+        return violations
+    }
+
     /// The attempting contract. `sends` counts the bytes the subject has handed its transport;
     /// `body` is the canned reply body the transport returns with HTTP 200.
     public static func attempting(_ subject: any PastedLabelAITextAttempting, body: Data, sends: @Sendable () -> Int) async -> [String] {

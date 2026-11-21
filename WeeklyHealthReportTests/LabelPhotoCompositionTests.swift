@@ -18,9 +18,9 @@ final class LabelPhotoCompositionTests: XCTestCase {
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
         if let route { defaults.set(route, forKey: "LabelPhotoRoute") }
-        if switchOn { defaults.set(true, forKey: "labelPhoto.liveRoute.enabled.v1") }
+        if switchOn { defaults.set(true, forKey: OpenRouterConsentPreference.key) }
         return (try FoodLedgerCompositionRoot(fileManager: IntakeRenderFileManager(directory: directory), userDefaults: defaults,
-                                              openRouterKeys: keys ?? SyntheticOpenRouterKeys(key: savedKey)), directory)
+                                              openRouterKeys: keys ?? SyntheticOpenRouterKeys(key: savedKey), openRouterConsentDomain: suite), directory)
     }
 
     // MARK: A key the Keychain could not return at launch (#493)
@@ -68,10 +68,10 @@ final class LabelPhotoCompositionTests: XCTestCase {
         let (root, _) = try makeRoot(route: nil, savedKey: "sk-or-v1-synthetic")
         let availability = AddFoodLabelPhotoAvailability(root: root)
         XCTAssertFalse(availability.enabled)
-        root.labelPhotoReading.isOn = true
+        root.openRouterConsent.isOn = true
         RunLoop.main.run(until: Date().addingTimeInterval(0.05))
         XCTAssertTrue(availability.enabled)
-        root.labelPhotoReading.isOn = false
+        root.openRouterConsent.isOn = false
         RunLoop.main.run(until: Date().addingTimeInterval(0.05))
         XCTAssertFalse(availability.enabled)
     }
@@ -85,36 +85,35 @@ final class LabelPhotoCompositionTests: XCTestCase {
         return nil
     }
 
-    // MARK: The Settings switch (17.22)
+    // MARK: The consent switch (O1-D3, the O1.2 matrix)
 
     func testModeResolutionMatrix() {
         typealias Mode = LabelPhotoRouteMode
         for debug in [false, true] {
             for (on, key) in [(false, false), (false, true), (true, false), (true, true)] {
-                XCTAssertEqual(Mode.resolve(launchArgument: nil, switchOn: on, keySaved: key, debugBuild: debug),
+                XCTAssertEqual(Mode.resolve(launchArgument: nil, consentOn: on, keySaved: key, debugBuild: debug),
                                on && key ? .live : .off, "no argument, debug \(debug), switch \(on), key \(key)")
             }
         }
         for argument in ["live", "answer", "routeUnavailable", "Live", "unknown", ""] {
             for (on, key) in [(false, false), (false, true), (true, false), (true, true)] {
-                XCTAssertEqual(Mode.resolve(launchArgument: argument, switchOn: on, keySaved: key, debugBuild: false),
+                XCTAssertEqual(Mode.resolve(launchArgument: argument, consentOn: on, keySaved: key, debugBuild: false),
                                on && key ? .live : .off, "Release ignores `\(argument)` and never reaches a scripted scenario")
             }
         }
-        XCTAssertEqual(Mode.resolve(launchArgument: "answer", switchOn: true, keySaved: true, debugBuild: true), .fake(.answer),
-                       "a Debug scenario wins over the switch")
-        XCTAssertEqual(Mode.resolve(launchArgument: "live", switchOn: false, keySaved: false, debugBuild: true), .live,
-                       "Debug `live` wins regardless of the switch and key")
-        XCTAssertEqual(Mode.resolve(launchArgument: "Live", switchOn: true, keySaved: true, debugBuild: true), .off,
+        XCTAssertEqual(Mode.resolve(launchArgument: "answer", consentOn: false, keySaved: false, debugBuild: true), .fake(.answer),
+                       "a Debug scenario is reached whatever the switch; the gate then refuses")
+        XCTAssertEqual(Mode.resolve(launchArgument: "live", consentOn: false, keySaved: false, debugBuild: true), .live,
+                       "Debug `live` is reached whatever the switch and key; the gate then refuses")
+        XCTAssertEqual(Mode.resolve(launchArgument: "Live", consentOn: true, keySaved: true, debugBuild: true), .off,
                        "an unknown Debug argument keeps the route off, even with the switch on")
     }
 
     func testTheSwitchWithASavedKeyTurnsOnTheLiveRouteAndOffHidesIt() throws {
         let (root, _) = try makeRoot(route: nil, savedKey: "sk-or-v1-synthetic")
         XCTAssertEqual(root.labelPhotoMode, .off, "off by default, even with a saved key")
-        root.labelPhotoReading.isOn = true
+        root.openRouterConsent.isOn = true
         XCTAssertEqual(root.labelPhotoMode, .live)
-        XCTAssertEqual(root.labelPhotoActiveConsentKey, "labelPhoto.egressConsent.live.v1")
         XCTAssertEqual(root.labelPhotoActiveSpendLedgerURL, root.labelPhotoLiveSpendLedgerURL)
         XCTAssertTrue(root.labelPhotoActiveSpendLedgerURL.standardizedFileURL.path.hasPrefix(root.healthDirectory.standardizedFileURL.path + "/"))
         XCTAssertNil(root.labelPhotoSample, "the live route reads only real photos")
@@ -122,7 +121,7 @@ final class LabelPhotoCompositionTests: XCTestCase {
         XCTAssertTrue(NutritionLabelVisit(root: root).entry.photosEnabled)
         XCTAssertEqual(addFoodPhotos(root), true)
 
-        root.labelPhotoReading.isOn = false
+        root.openRouterConsent.isOn = false
         assertHidden(root)
     }
 
@@ -134,19 +133,18 @@ final class LabelPhotoCompositionTests: XCTestCase {
     func testADebugScenarioWithTheSwitchOnKeepsTheScriptedRecords() throws {
         let (root, _) = try makeRoot(route: "answer", switchOn: true, savedKey: "sk-or-v1-synthetic")
         XCTAssertEqual(root.labelPhotoMode, .fake(.answer))
-        XCTAssertEqual(root.labelPhotoActiveConsentKey, "labelPhoto.egressConsent.scripted.v1")
         XCTAssertEqual(root.labelPhotoActiveSpendLedgerURL, root.labelPhotoSpendLedgerURL)
     }
 
     func testTurningTheSwitchOffWhileTheScreenIsOpenStopsTheNextSend() async throws {
         let (root, _) = try makeRoot(route: nil, switchOn: true, savedKey: "sk-or-v1-synthetic")
         let model = try XCTUnwrap(root.labelPhotoScreenModel())
-        XCTAssertNotEqual(model.blocker, .turnedOff)
-        root.labelPhotoReading.isOn = false
-        XCTAssertEqual(model.blocker, .turnedOff)
+        XCTAssertNotEqual(model.blocker, .openRouter(.switchOff))
+        root.openRouterConsent.isOn = false
+        XCTAssertEqual(model.blocker, .openRouter(.switchOff))
         XCTAssertFalse(model.canRead)
-        root.labelPhotoReading.isOn = true
-        XCTAssertNotEqual(model.blocker, .turnedOff, "back on with the same key and build, the same route is in force")
+        root.openRouterConsent.isOn = true
+        XCTAssertNotEqual(model.blocker, .openRouter(.switchOff), "back on with the same key and build, the same route is in force")
     }
 
     func testRemovingTheKeyWhileTheScreenIsOpenShowsNoKeyNotTurnedOff() throws {
@@ -154,7 +152,7 @@ final class LabelPhotoCompositionTests: XCTestCase {
         let model = try XCTUnwrap(root.labelPhotoScreenModel())
         root.webDiscovery.removeKey()
         XCTAssertFalse(root.webDiscovery.hasSavedKey)
-        XCTAssertEqual(model.blocker, .noKey, "the switch is still on; the cause is the missing key")
+        XCTAssertEqual(model.blocker, .openRouter(.noKey), "the switch is still on; the cause is the missing key")
         XCTAssertFalse(model.canRead)
     }
 
@@ -189,12 +187,10 @@ final class LabelPhotoCompositionTests: XCTestCase {
     func testTheLiveRouteIsALaunchArgumentWithItsOwnConsentLedgerAndNoSample() throws {
         let (root, _) = try makeRoot(route: "live")
         XCTAssertEqual(root.labelPhotoMode, .live)
-        XCTAssertEqual(root.labelPhotoActiveConsentKey, "labelPhoto.egressConsent.live.v1")
         XCTAssertNotEqual(root.labelPhotoActiveSpendLedgerURL, root.labelPhotoSpendLedgerURL, "scripted reads never touch the real allowance")
         XCTAssertTrue(root.labelPhotoActiveSpendLedgerURL.standardizedFileURL.path.hasPrefix(root.healthDirectory.standardizedFileURL.path + "/"))
         XCTAssertNil(root.labelPhotoSample, "the live route reads only real photos")
         let (fake, _) = try makeRoot(route: "answer")
-        XCTAssertEqual(fake.labelPhotoActiveConsentKey, "labelPhoto.egressConsent.scripted.v1")
         XCTAssertEqual(fake.labelPhotoActiveSpendLedgerURL, fake.labelPhotoSpendLedgerURL)
         XCTAssertNotNil(fake.labelPhotoSample)
     }
@@ -366,9 +362,30 @@ final class LabelPhotoCompositionTests: XCTestCase {
         window.isHidden = true
     }
 
-    func testTheScriptedRoutesConsentIsItsOwn() {
-        // A consent given to the scripted transport never stands for live egress (L5 uses a fresh key).
-        XCTAssertEqual(FoodLedgerCompositionRoot.labelPhotoConsentKey, "labelPhoto.egressConsent.scripted.v1")
+    /// O1.6 test 2: the read closure's decision, from the mode's own key source.
+    func testTheReadClosureRefusesOnlyForSwitchOffAndAMissingKey() {
+        XCTAssertEqual(FoodLedgerCompositionRoot.labelPhotoReadRefusal(consentOn: false, keyState: .valid), .notPermitted)
+        XCTAssertEqual(FoodLedgerCompositionRoot.labelPhotoReadRefusal(consentOn: false, keyState: .missing), .notPermitted)
+        XCTAssertEqual(FoodLedgerCompositionRoot.labelPhotoReadRefusal(consentOn: true, keyState: .missing), .keyMissing)
+        XCTAssertNil(FoodLedgerCompositionRoot.labelPhotoReadRefusal(consentOn: true, keyState: .notValidated),
+                     "a not-validated key passes; the screen's row blocks the tap")
+        XCTAssertNil(FoodLedgerCompositionRoot.labelPhotoReadRefusal(consentOn: true, keyState: .valid))
+    }
+
+    /// O1.6 test 2: with `-LabelPhotoRoute <scenario>`, the switch on and no real Keychain key, a
+    /// scripted read succeeds; with the switch off it gives `.failed(.notPermitted)` and reads nothing.
+    func testAScriptedReadFollowsTheSwitch() async throws {
+        let (root, _) = try makeRoot(route: "answer", switchOn: true)
+        let model = try XCTUnwrap(root.labelPhotoScreenModel())
+        XCTAssertNil(model.blocker.flatMap { if case .openRouter = $0 { return $0 } else { return nil } })
+        root.openRouterConsent.isOn = false
+        XCTAssertEqual(model.blocker, .openRouter(.switchOff))
+        let flow = try XCTUnwrap(root.labelPhotoFlow(mode: .fake(.answer)))
+        let image = try flow.prepare(try XCTUnwrap(root.labelPhotoSample), crop: .whole).get()
+        let refused = await flow.read(image, progress: nil)
+        XCTAssertEqual(refused, .failed(.notPermitted))
+        root.openRouterConsent.isOn = true
+        if case .failed(.notPermitted) = await flow.read(image, progress: nil) { XCTFail("the switch back on lets the scripted read through") }
     }
 }
 

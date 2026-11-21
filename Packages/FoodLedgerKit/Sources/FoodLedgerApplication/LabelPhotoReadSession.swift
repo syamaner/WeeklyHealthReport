@@ -35,6 +35,9 @@ public actor LabelPhotoReadSession {
     let tapIDs: @Sendable () -> String
     /// Whether the endpoint bills reasoning outside `max_tokens` (an explicit composition choice; 17.18).
     let reasoningBilledSeparately: Bool
+    /// The Settings › OpenRouter gate, asked before the catalogue check and before the tap is
+    /// reserved (docs/openrouter-single-consent-v1-amendment.md O1.2): a refusal there reserves nothing.
+    let egress: any OpenRouterEgressPermitting
     /// The catalogue check that passed, and the local day it passed on (prices are per day).
     private(set) var catalogue: (check: LabelPhotoManifest.CatalogueCheck, day: String)?
     /// Set before the first suspension of a tap, so a second tap waits for nothing and sends nothing.
@@ -42,11 +45,12 @@ public actor LabelPhotoReadSession {
     /// A spend ledger write failed: every further read this session is refused (fails closed).
     private(set) var ledgerFailed = false
 
-    public init(route: LabelPhotoRoute.Route = LabelPhotoRoute.current, checker: any LabelPhotoRouteChecking, attempter: any LabelPhotoAttempting,
+    public init(egress: any OpenRouterEgressPermitting,
+                route: LabelPhotoRoute.Route = LabelPhotoRoute.current, checker: any LabelPhotoRouteChecking, attempter: any LabelPhotoAttempting,
                 ledger: any LabelPhotoSpendLedger, keys: any FoodWebKeyStoring, clock: any LedgerClock, calendar: Calendar,
                 sleeper: any LabelPhotoSleeping, jitter: @escaping @Sendable () -> Double, tapIDs: @escaping @Sendable () -> String,
                 reasoningBilledSeparately: Bool = false) {
-        self.tapIDs = tapIDs
+        self.tapIDs = tapIDs; self.egress = egress
         self.route = route; self.checker = checker; self.attempter = attempter; self.ledger = ledger; self.keys = keys; self.clock = clock
         self.calendar = calendar; self.sleeper = sleeper; self.jitter = jitter; self.reasoningBilledSeparately = reasoningBilledSeparately
     }
@@ -124,9 +128,13 @@ public actor LabelPhotoReadSession {
         if let cached = catalogue, cached.day == today {
             check = cached.check
         } else {
+            guard egress.permits(.labelPhotoCatalogueCheck) else { return .failed(.notPermitted) }
             let fresh: LabelPhotoManifest.CatalogueCheck
             do {
                 fresh = try await checker.check(route)
+            } catch LabelPhotoRouteCheckFailure.notPermitted {
+                // Switched off between the ask and the fetch: not the route's fault, and not kept.
+                return .failed(Task.isCancelled ? .cancelled : .notPermitted)
             } catch let LabelPhotoRouteCheckFailure.transport(failure) {
                 // Not the route's fault: said as offline or a connection failure, and not kept.
                 return .failed(Task.isCancelled ? .cancelled : failure.readingFailure)
@@ -149,6 +157,8 @@ public actor LabelPhotoReadSession {
         // atomic update of the ledger as it is now: a kill mid-attempt leaves it counted, another
         // session's taps are never overwritten, and an unreadable ledger is never written.
         // The reservation is tagged with this tap's ID, and settled on the day it was written.
+        // A refusal here reserves nothing and is not counted towards the day's reads (O1.2).
+        guard egress.permits(.labelPhotoRead) else { return .failed(.notPermitted) }
         let tap = tapIDs()
         let reservedOn: String
         do {
@@ -188,7 +198,10 @@ public actor LabelPhotoReadSession {
             switch result {
             case let .notSent(failure):
                 number -= 1
-                outcome = .failed(Task.isCancelled ? .cancelled : failure)
+                // A refusal of a retry, after an attempt was sent, says so (O1.2): the screen keeps
+                // "may already have reached OpenRouter" above the blocked row.
+                let refused: LabelImageReadingFailure = failure == .notPermitted && !attempts.isEmpty ? .notPermittedAfterSending : failure
+                outcome = .failed(Task.isCancelled ? .cancelled : refused)
                 break loop
             case let .answered(wireText, model, provider, generationID, finishReason, usage):
                 attempts.append(.init(reportedCost: usage.costUSD == LabelPhotoManifest.Usage.unknownCost ? nil : Decimal(string: usage.costUSD),

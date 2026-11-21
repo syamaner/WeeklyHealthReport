@@ -6,7 +6,8 @@ public enum NutritionLabelEntryText {
     public static let addFoodRowSubtitlePhotos = "Photo, screenshot or pasted text. Photos: Taiwan labels (營養標示), read by AI; you check every value."
     public static let addFoodRowSubtitleTextOnly = "Paste or type the label text. Read on this device."
     public static let photoSectionTitle = "Photo or screenshot"
-    public static let photoFooter = "Taiwan labels only. The part you crop is sent to OpenRouter to be read. Nothing else is sent."
+    /// O1.4: the sentence on what is sent moves to the privacy policy's OpenRouter section.
+    public static let photoFooter = "Taiwan labels only."
     public static let pasteSectionTitle = "Paste"
     public static let pasteFooterPhotos = "Paste a screenshot of a label, or its text. Text is read on this device."
     public static let pasteFooterTextOnly = "Paste the label text. Reading label photos is not available in this version."

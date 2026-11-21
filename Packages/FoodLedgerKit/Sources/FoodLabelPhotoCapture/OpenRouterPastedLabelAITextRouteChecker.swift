@@ -13,14 +13,19 @@ public struct OpenRouterPastedLabelAITextRouteChecker: Sendable {
         case notATextRoute
         /// The endpoint is not listed with zero data retention, or does not take text.
         case unavailable
+        /// OpenRouter is not permitted for this use (O1.2): nothing was sent.
+        case notPermitted
     }
 
     let photo: OpenRouterLabelRouteChecker
     let clock: any LedgerClock
     let reasoningBilledSeparately: Bool
 
-    public init(transport: any LabelPhotoHTTPTransporting, clock: any LedgerClock, reasoningBilledSeparately: Bool = false) {
-        photo = OpenRouterLabelRouteChecker(transport: transport, clock: clock, reasoningBilledSeparately: reasoningBilledSeparately)
+    /// The gate is passed on to the photo checker it builds, and every fetch asks it as
+    /// `pastedLabelTextCatalogueCheck` (O1.2), which the app's gate always refuses.
+    public init(egress: any OpenRouterEgressPermitting, transport: any LabelPhotoHTTPTransporting, clock: any LedgerClock,
+                reasoningBilledSeparately: Bool = false) {
+        photo = OpenRouterLabelRouteChecker(egress: egress, transport: transport, clock: clock, reasoningBilledSeparately: reasoningBilledSeparately)
         self.clock = clock; self.reasoningBilledSeparately = reasoningBilledSeparately
     }
 
@@ -35,8 +40,13 @@ public struct OpenRouterPastedLabelAITextRouteChecker: Sendable {
         guard PastedLabelAITextRoute.isAdmitted(route), let url = OpenRouterLabelRouteChecker.endpointsURL(Self.listingShape(route)) else {
             throw CheckError.notATextRoute
         }
-        let listing = try await photo.fetch(url)
-        let zeroDataRetention = try await photo.fetch(OpenRouterLabelRouteChecker.zeroDataRetentionURL)
+        let listing: Data, zeroDataRetention: Data
+        do {
+            listing = try await photo.fetch(url, use: .pastedLabelTextCatalogueCheck)
+            zeroDataRetention = try await photo.fetch(OpenRouterLabelRouteChecker.zeroDataRetentionURL, use: .pastedLabelTextCatalogueCheck)
+        } catch LabelPhotoRouteCheckFailure.notPermitted {
+            throw CheckError.notPermitted
+        }
         return try Self.parse(listing: listing, zeroDataRetention: zeroDataRetention, route: route,
                               at: PastedLabelBasisChoice.milliseconds(clock.now()), reasoningBilledSeparately: reasoningBilledSeparately)
     }

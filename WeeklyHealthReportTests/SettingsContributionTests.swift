@@ -10,9 +10,9 @@ final class SettingsContributionTests: XCTestCase {
         let (root, defaults) = try makeFoodLedger()
         let settings = WeeklyHealthReportApp.makeSettings(foodLedger: root, defaults: defaults, medicationAccessAvailable: true)
 
-        XCTAssertEqual(settings.sections.map(\.id), [.foodSearch, .export, .data, .appleHealth, .about])
+        XCTAssertEqual(settings.sections.map(\.id), [.foodSearch, .openRouter, .export, .data, .appleHealth, .about])
         XCTAssertEqual(settings.linkedRoutes, [
-            .webLookupKey, .foodMarket, .exportDestination, .dataBackup, .personalFoodDatabase, .inventoryReview,
+            .foodMarket, .webLookupKey, .openRouterPrivacy, .exportDestination, .dataBackup, .personalFoodDatabase, .inventoryReview,
             .commonFoods, .foodReresolution, .medicationAccess, .privacy, .developerTools
         ])
         XCTAssertEqual(Set(settings.linkedRoutes).count, settings.linkedRoutes.count)
@@ -83,75 +83,70 @@ final class SettingsContributionTests: XCTestCase {
     }
 
     func testBuildingAndReadingFoodSearchSettingsSendsNoRequests() throws {
-        for savedKey in [nil, "synthetic-key"] as [String?] {
-            let provider = RecordingWebProvider()
-            let lookup = FoodWebDiscoveryViewModel(provider: provider, keys: FixedKeyStore(key: savedKey))
-            let preferences = FoodSearchUserDefaultsPreferencesFake()
-            let section = FoodSearchSettingsContribution.section(
-                preferences: preferences, onlineDatabaseAvailable: true,
-                webLookup: lookup, market: FoodMarketPreference(defaults: isolatedDefaults()),
-                labelPhotoReading: LabelPhotoReadingPreference(defaults: isolatedDefaults())
-            )
-            var details: [String?] = []
-            for row in section.rows {
-                switch row.kind {
-                case let .link(detail, _): details.append(detail())
-                case let .toggle(toggle): toggle.set(true); toggle.set(false)
-                case .text: XCTFail("Food search has no plain text rows")
-                }
+        let preferences = FoodSearchUserDefaultsPreferencesFake()
+        let section = FoodSearchSettingsContribution.section(
+            preferences: preferences, onlineDatabaseAvailable: true, market: FoodMarketPreference(defaults: isolatedDefaults()))
+        var details: [String?] = []
+        for row in section.rows {
+            switch row.kind {
+            case let .link(detail, _): details.append(detail())
+            case let .toggle(toggle): toggle.set(true); toggle.set(false)
+            case .text, .value: XCTFail("Food search has no plain text or value rows")
             }
-            XCTAssertEqual(details, [savedKey == nil ? "Key missing" : "Revalidate key", "Unspecified"])
-            XCTAssertEqual(provider.requestCount, 0)
-            XCTAssertEqual(section.footerLink?.title, "Open Food Facts terms and data licences")
-            XCTAssertEqual(section.footerLink?.url, URL(string: "https://world.openfoodfacts.org/terms-of-use"))
-            guard case let .toggle(toggle) = section.rows.first?.kind else { return XCTFail("Expected the database toggle") }
-            XCTAssertTrue(toggle.caption?.contains("Community product data can be incomplete.") == true)
         }
+        XCTAssertEqual(details, ["Unspecified"])
+        XCTAssertEqual(section.footerLink?.title, "Open Food Facts terms and data licences")
+        XCTAssertEqual(section.footerLink?.url, URL(string: "https://world.openfoodfacts.org/terms-of-use"))
+        guard case let .toggle(toggle) = section.rows.first?.kind else { return XCTFail("Expected the database toggle") }
+        XCTAssertTrue(toggle.caption?.contains("Community product data can be incomplete.") == true)
     }
 
-    /// 17.22: Read label photos with AI sits directly after Web lookup, off by default, with its exact
-    /// copy and the amended footer; it writes only its versioned key, and building or toggling it
-    /// sends nothing and builds no read flow.
-    func testLabelPhotoReadingRowIsOffByDefaultAfterWebLookup() throws {
-        let defaults = isolatedDefaults()
-        let provider = RecordingWebProvider()
-        let lookup = FoodWebDiscoveryViewModel(provider: provider, keys: FixedKeyStore(key: "synthetic-key"))
-        let sessions = LabelPhotoSessions.count
+    /// O1.6 test 9: Food search keeps only Online food database and Food market, with the Open Food
+    /// Facts footer, word for word; the Web lookup row and the photo toggle are gone.
+    func testFoodSearchHasNoOpenRouterRowsAndItsFooterIsVerbatim() {
         let section = FoodSearchSettingsContribution.section(
             preferences: FoodSearchUserDefaultsPreferencesFake(), onlineDatabaseAvailable: true,
-            webLookup: lookup, market: FoodMarketPreference(defaults: isolatedDefaults()),
-            labelPhotoReading: LabelPhotoReadingPreference(defaults: defaults))
-        XCTAssertEqual(section.rows.map(\.id), ["toggle.onlineFoodDatabase", "route.webLookupKey", "toggle.labelPhotoReading", "route.foodMarket"])
-        XCTAssertEqual(section.footer, "Online sources receive only the food terms you search for, and any label photo you choose to send. Your Health data and food log stay on this device unless you export them to Google Drive.")
-        let row = section.rows[2]
-        guard case let .toggle(toggle) = row.kind else { return XCTFail("Expected the label photo toggle") }
-        XCTAssertEqual(row.title, "Read label photos with AI", "the Toggle's title is its VoiceOver label")
-        XCTAssertEqual(toggle.title, "Read label photos with AI")
-        XCTAssertEqual(toggle.caption, "Adds photos and pasted images to Nutrition label. Read label with AI sends only the cropped photo to OpenRouter, using your OpenRouter key and credit, and you check every value on Confirm before logging. Needs an OpenRouter key under Web lookup.")
-        XCTAssertTrue(toggle.isEnabled)
-        XCTAssertFalse(toggle.isOn, "off by default")
-        XCTAssertNil(defaults.object(forKey: "labelPhoto.liveRoute.enabled.v1"))
-        toggle.set(true)
-        XCTAssertTrue(toggle.isOn)
-        XCTAssertEqual(defaults.object(forKey: "labelPhoto.liveRoute.enabled.v1") as? Bool, true)
-        toggle.set(false)
-        XCTAssertFalse(toggle.isOn)
-        XCTAssertNil(defaults.object(forKey: "labelPhoto.liveRoute.enabled.v1"), "off removes the value")
-        XCTAssertEqual(provider.requestCount, 0)
-        XCTAssertEqual(LabelPhotoSessions.count, sessions, "the switch builds no read flow")
+            market: FoodMarketPreference(defaults: isolatedDefaults()))
+        XCTAssertEqual(section.rows.map(\.id), ["toggle.onlineFoodDatabase", "route.foodMarket"])
+        XCTAssertEqual(section.footer, "Open Food Facts receives only the food terms you search for or a barcode you look up. Your Health data and food log stay on this device unless you export them to Google Drive.")
     }
 
-    func testLabelPhotoReadingPreferenceReadsOffUnlessTrue() {
-        let defaults = isolatedDefaults()
-        let preference = LabelPhotoReadingPreference(defaults: defaults)
-        XCTAssertFalse(preference.isOn)
-        defaults.set("yes", forKey: LabelPhotoReadingPreference.key)
-        XCTAssertFalse(preference.isOn, "a non-Boolean value reads as off")
-        preference.isOn = true
-        XCTAssertEqual(LabelPhotoReadingPreference.key, "labelPhoto.liveRoute.enabled.v1")
-        XCTAssertEqual(defaults.object(forKey: "labelPhoto.liveRoute.enabled.v1") as? Bool, true)
-        preference.isOn = false
-        XCTAssertNil(defaults.object(forKey: "labelPhoto.liveRoute.enabled.v1"))
+    /// O1.6 test 9: Settings › OpenRouter has the exact rows, copy and order of O1.1; the switch is
+    /// off by default and writes only its versioned key; building and toggling it, and showing the
+    /// label reads row, sends no request and creates no read session.
+    func testTheOpenRouterSectionRowsCopyAndOrder() throws {
+        let (root, defaults) = try makeFoodLedger()
+        let sessions = LabelPhotoSessions.count
+        let section = root.openRouterSettingsSection()
+        XCTAssertEqual(section.id, .openRouter)
+        XCTAssertEqual(section.title, "OpenRouter")
+        XCTAssertEqual(section.rows.map(\.id), ["toggle.openRouterConsent", "route.webLookupKey", "value.labelPhotoReadsToday",
+                                                "route.openRouterPrivacy"])
+        XCTAssertEqual(section.rows.map(\.title), ["Use OpenRouter for food lookups and label reading", "API key",
+                                                   "Label photo reads today", "How the app uses OpenRouter"])
+        XCTAssertNil(section.footer)
+        XCTAssertEqual(section.footerLink?.title, "Manage OpenRouter keys and limits")
+        XCTAssertEqual(section.footerLink?.url, URL(string: "https://openrouter.ai/settings/keys"))
+        guard case let .toggle(toggle) = section.rows[0].kind else { return XCTFail("Expected the consent switch") }
+        XCTAssertEqual(toggle.caption, "Off by default. While it is off, the app sends nothing to OpenRouter. Uses your own key and credit.")
+        XCTAssertFalse(toggle.isOn, "off by default")
+        guard case let .link(keyDetail, _) = section.rows[1].kind, case let .value(reads) = section.rows[2].kind else {
+            return XCTFail("Expected the key link and the reads row")
+        }
+        XCTAssertEqual(keyDetail(), FoodSearchSettingsContribution.webLookupDetail(hasSavedKey: root.webDiscovery.hasSavedKey,
+            keyIsUsable: root.webDiscovery.keyIsUsable, keyLoadFailed: root.webDiscovery.keyLoadFailed))
+        XCTAssertNil(reads(), "hidden while the switch is off")
+        toggle.set(true)
+        XCTAssertTrue(toggle.isOn)
+        if root.webDiscovery.hasSavedKey { XCTAssertEqual(reads(), "0 of 30") } else { XCTAssertNil(reads(), "hidden while no key is saved") }
+        toggle.set(false)
+        XCTAssertNil(defaults.persistentDomain(forName: consentDomains[ObjectIdentifier(defaults)] ?? "")?[OpenRouterConsentPreference.key])
+        XCTAssertEqual(LabelPhotoSessions.count, sessions, "the section builds no read flow")
+    }
+
+    func testTheLabelReadsDetail() {
+        XCTAssertEqual(OpenRouterSettingsContribution.readsDetail(.absent, today: "2026-11-20"), "0 of 30")
+        XCTAssertEqual(OpenRouterSettingsContribution.readsDetail(.unreadable, today: "2026-11-20"), "Not available")
     }
 
     func testFoodMarketPreferenceSetRemoveAndReviewModel() throws {
@@ -265,12 +260,16 @@ final class SettingsContributionTests: XCTestCase {
     private func makeFoodLedger() throws -> (FoodLedgerCompositionRoot, UserDefaults) {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
-        let defaults = isolatedDefaults()
+        let name = "settings-contribution-" + UUID().uuidString
+        let defaults = UserDefaults(suiteName: name)!
+        addTeardownBlock { defaults.removePersistentDomain(forName: name) }
+        consentDomains[ObjectIdentifier(defaults)] = name
         let root = try FoodLedgerCompositionRoot(
-            fileManager: IntakeRenderFileManager(directory: directory), userDefaults: defaults
+            fileManager: IntakeRenderFileManager(directory: directory), userDefaults: defaults, openRouterConsentDomain: name
         )
         return (root, defaults)
     }
+    private var consentDomains: [ObjectIdentifier: String] = [:]
 }
 
 private final class RecordingWebProvider: FoodWebDiscovering, @unchecked Sendable {

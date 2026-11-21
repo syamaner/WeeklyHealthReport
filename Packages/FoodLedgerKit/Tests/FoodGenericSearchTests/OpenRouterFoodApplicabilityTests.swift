@@ -2,6 +2,7 @@ import Foundation
 import FoodLedgerDomain
 import FoodLedgerApplication
 @testable import FoodGenericSearch
+import FoodLedgerTestSupport
 import XCTest
 
 @MainActor
@@ -9,7 +10,7 @@ final class OpenRouterFoodApplicabilityTests: XCTestCase {
     func testPartialPanelCanPassWithoutInventingConfidence() async throws {
         let (document, validation) = try fixture()
         let payload = try reply()
-        let provider = OpenRouterFoodProvider(extractionRoute: .grok, selectionRoute: .applicability) { request in
+        let provider = OpenRouterFoodProvider(egress: PermittingOpenRouterEgress(), extractionRoute: .grok, selectionRoute: .applicability) { request in
             let body = try StrictFoodProposalJSON.object(XCTUnwrap(request.httpBody))
             XCTAssertEqual(body["model"] as? String, "openai/gpt-6-luna")
             XCTAssertNil(body["plugins"])

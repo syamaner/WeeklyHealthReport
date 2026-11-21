@@ -44,7 +44,7 @@ Responsibilities and dependency direction:
 * Infrastructure: public HTTPS acquisition, format-based document projection,
   OpenRouter transport and optional Jev selection. Keychain credentials are isolated
   from website acquisition; only submitted food terms and source material go out.
-* Presentation: explicit opt-in/key validation, source/proposal review, unresolved
+* Presentation: the Settings › OpenRouter switch (O1) and key validation, source/proposal review, unresolved
   values and conflicts, followed by the existing editable food confirmation.
 
 Extension axes are discovery, capture formats, structured extraction and selection.
@@ -57,7 +57,9 @@ kJ conversion; no cross-panel merging; source hash and exact quotes retained;
 missing basis blocks scaling; distinct partial/failed/cancelled states; stale query
 or key changes invalidate results; source content is untrusted data. AI output is
 never labelled independently verified. Explicit user review cannot silently remove
-unknown exact-product identity requirements.
+unknown exact-product identity requirements. No OpenRouter request while the switch is off; the adapter asks OpenRouterEgressPermitting before every request.
+
+**Amendment, 20 November 2026 ([O1](openrouter-single-consent-v1-amendment.md), implemented in #554).** The presentation bullet and the closed invariants above are amended by O1: web lookup and key validation send only while Settings › OpenRouter is turned on, and the reviewer also asks the gate before each page capture.
 
 ### Confirmation extension
 

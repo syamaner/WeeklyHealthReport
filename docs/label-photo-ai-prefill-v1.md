@@ -4,6 +4,8 @@ Status: **design spec, egress amendment and architecture gate, 25 October 2026. 
 
 It adds a new entry route. It does **not** amend [reader v3](pasted-nutrition-label-reader-v3.md) or any file pinned by `ReaderV3FreezeTests` (section 12.6). It reuses the pasted route's Confirm rules from [pasted label Confirm v1](pasted-label-confirm-v1.md) and [food confirmation v5](food-confirmation-contract-v5.md), and extends them only where a photo differs (section 4).
 
+**Amendment, 20 November 2026 (#551, implemented in #554): one OpenRouter consent ([O1](openrouter-single-consent-v1-amendment.md)).** Settings › OpenRouter is the route's only consent and its only switch: E4, E7, E8, P6, 4.1, 7.1, 7.2, 9, 12, 14 and 17.22 are amended in place below, and the first-use sheet, the egress statement, the under-button line and `labelPhoto.liveRoute.enabled.v1` are retired. E1 to E3, E5, E6 and E9 to E16 are unchanged.
+
 **Amendment, 19 November 2026 (#491, owner: one spelling, "mL").** The app's copy spells millilitres "mL" everywhere: the source line reads "per 100 mL" for a volume basis. Stored codes and the wire schema are unchanged.
 
 ## 1. Problem
@@ -50,7 +52,7 @@ Each row is a design decision. Rows marked **Owner** need an answer before the p
 | P3 | **Crop before sending.** A mandatory crop screen; the user frames the table. Nothing outside the crop is sent or kept | Free-form rectangle with handles, pinch-zoom and pan under it, initial crop the whole image; rotate in 90° steps. No automatic table detection in v1 (it would be another on-device model to qualify) | No |
 | P4 | **Metadata.** The sent image is re-encoded from decoded pixels: orientation applied to the pixels, colour converted to sRGB, written by ImageIO as baseline JPEG with no metadata dictionary. No EXIF, GPS, TIFF, IPTC, XMP, maker notes (including Apple's), thumbnails, depth, gain maps or auxiliary images survive | As stated, proven by the tests in 12.5 | No (owner decided) |
 | P5 | **Size.** After crop: long edge at most **2,048 px** and at most **3,200,000 px** in total, JPEG quality 0.85; if the encoded file exceeds **1,500,000 bytes**, re-encode at 0.75 then 0.65; if still over, the read is refused with the copy in 7.2. A crop whose short edge is under **160 px**, before or after scaling, is refused as too small (480 px, then 240 px after L0 (17.9), then 160 px after E13 (17.21)), and a crop whose sides differ by more than **8 times** is refused as too narrow (17.17) | As stated; 2,048 px keeps small Chinese print legible. **The evaluation sent full-size images**, so section 10 E13 re-qualifies at this size before release | Approved (E3); minimum decided 25 October 2026 (17.9), lowered 27 October 2026 (17.21) |
-| P6 | **Explicit send.** Nothing leaves the device until the user taps **Read label with AI**, beside a statement that the photo goes to OpenRouter and the model. The first read on a device shows a one-time confirmation sheet | As stated; copy in 7.1 | Approved (E4) |
+| P6 | **Explicit send.** Nothing leaves the device until the user taps Read label with AI, with OpenRouter turned on in Settings (O1). | As stated; copy in 7.1 | Approved (E4) |
 | P7 | **What is sent.** The prepared image, a fixed instruction and a fixed strict output schema. Not the name, brand, notes, food log, health data, device or account identifiers | As stated; name and brand stay on device | Approved (E2) |
 | P8 | **Output.** The model returns the evaluation's wire shape (headers with printed text and basis; rows with printed label, nutrient, parent and per-header printed text; serving lines as printed text). The app, not the model, turns printed text into numbers, units and comparators, and builds the same `label-capture-candidate-v1` the pasted route produces | Port the evaluation's `route_c_mapping.py` to Swift as `label-photo-wire-mapping-v1`, behind exported parity vectors, as the gate was ported | No |
 | P9 | **Same rules as pasted.** The candidate goes through the frozen decline gate v2 (G1 and G2 hard declines, G3 to G6 flags), the Taiwan launch scope, `pasted-label-conversions-v1`, `label-arithmetic-checks-v2`, the basis options function and the identity mapping, all called, never copied or changed | As stated (section 12.6 lists the calls) | No |
@@ -92,7 +94,7 @@ Add food ─ Photo of nutrition label ─ Source (camera / library) ─ Crop ─
 
 - **Photo** (the crop, as it will be sent), with **Retake** / **Choose another** and **Adjust crop**.
 - **Name** (required) and **Brand** (optional), as on the pasted route. They are stored with the entry and never sent.
-- The **egress statement** (7.1) directly above the button, every time.
+- ~~The **egress statement** (7.1) directly above the button, every time.~~ Struck by [O1](openrouter-single-consent-v1-amendment.md) (O1.4).
 - **Read label with AI**, disabled while Name is empty, no photo is chosen, or a blocking state of section 9 holds.
 - **Leave without saving** discards the photo from memory.
 
@@ -161,12 +163,10 @@ British spelling, plain language, no emoji. Strings live in a new `LabelPhotoTex
 | Crop screen title / instruction | `Crop to the label` / `Drag the corners so the nutrition table fills the frame. Only this part is sent.` |
 | Crop actions | `Use crop`, `Rotate`, `Cancel` |
 | Name / Brand | as the pasted route |
-| Egress statement (above the button, always) | `Read label with AI sends this cropped photo to OpenRouter, which passes it to <Model> on <Provider> to read the table. Location and camera details are removed first. Your name, brand and food log are not sent. Nothing is saved until you tap Log.` |
+| ~~Egress statement (above the button, always)~~ | Struck by [O1](openrouter-single-consent-v1-amendment.md) (O1.4): Settings › OpenRouter and the privacy policy's OpenRouter section explain what is sent |
 | Button | `Read label with AI` |
-| Under the button | `Uses your OpenRouter key and credit. Today: <n> of 30 reads.` |
-| First-use sheet title | `Send label photos to OpenRouter?` |
-| First-use sheet body | `To read a label photo, the app sends the cropped photo to OpenRouter and the model it names, using your key. OpenRouter is asked to use only an endpoint that keeps no copy and does not train on it, with no fallback to other providers. OpenRouter keeps its own account and usage records. You check and correct every value before anything is saved.` |
-| First-use sheet actions | `Send photo`, `Not now`, link `Privacy policy` |
+| ~~Under the button~~ | Struck by [O1](openrouter-single-consent-v1-amendment.md) (O1.4, O1-D1): today's count is the `Label photo reads today` row of Settings › OpenRouter |
+| ~~First-use sheet title, body and actions~~ | Struck by [O1](openrouter-single-consent-v1-amendment.md) (O1.4): there is no first-use sheet; Settings › OpenRouter is the consent |
 | Leave | `Leave without saving` |
 
 ### 7.2 Blocking, reading, declined and failed states
@@ -174,8 +174,9 @@ British spelling, plain language, no emoji. Strings live in a new `LabelPhotoTex
 | State | Copy |
 |---|---|
 | Camera permission denied | `Camera access is off for this app. You can choose a photo from your library instead, or turn on the camera in Settings.` with `Choose from library` and `Open Settings` |
-| No key | `Add your OpenRouter key to read label photos.` with `OpenRouter settings` |
-| Key not validated this session | `Validate your OpenRouter key before reading a photo.` with `Validate key` |
+| No key | The O1.4 blocked row: `Add your OpenRouter key in Settings.` with `OpenRouter settings` ([O1](openrouter-single-consent-v1-amendment.md)) |
+| Key not validated this session | The O1.4 blocked row: `Validate your OpenRouter key in Settings.` with `OpenRouter settings` ([O1](openrouter-single-consent-v1-amendment.md)) |
+| OpenRouter turned off | The O1.4 blocked row: `Turn on OpenRouter in Settings to use this.` with `OpenRouter settings` ([O1](openrouter-single-consent-v1-amendment.md)) |
 | Offline | `You're offline. Reading a label photo needs a connection. You can paste the label text instead.` with `Paste nutrition label` |
 | Daily limit reached | `You've reached today's limit of 30 label photo reads (or $0.50 of reported cost). It resets at midnight.` |
 | Route unavailable (on-the-day check failed) | `Label photo reading is unavailable: the model's private endpoint could not be confirmed. Nothing was sent.` |
@@ -190,7 +191,7 @@ British spelling, plain language, no emoji. Strings live in a new `LabelPhotoTex
 | Declined: prepared or drained | the pasted route's `basis_state_not_supported` sentence |
 | Failed: timed out | `Reading the photo timed out. You can try again.` |
 | Failed: connection | `Reading the photo could not connect. Check your connection and try again.` |
-| Failed: key rejected | `OpenRouter rejected the API key. Replace or revalidate it.` |
+| Failed: key rejected | `OpenRouter rejected the API key. Replace or revalidate it in Settings.` ([O1](openrouter-single-consent-v1-amendment.md), O1.4) |
 | Failed: quota | `OpenRouter reports a quota or rate limit. Check your quota and billing before trying again.` |
 | Failed: unusable answer (schema, truncation, refusal, wrong model or provider) | `The model's answer could not be used, so nothing is shown. You can try again, or paste the label text.` |
 | Failed: cost over the per-call limit | `This read cost more than the $0.05 limit, so label photo reading is paused for today.` |
@@ -280,7 +281,7 @@ At save (`invalidLabelPhotoSource`, before policy) and at reopen (`integrityFail
 | Empty | Route opened | Take photo, Choose from library | n/a |
 | Camera denied | Camera permission off | 7.2 copy, library still offered | n/a |
 | Cropping | Photo chosen | Crop screen | n/a |
-| Ready | Crop set, Name entered, key validated, online, under limits | Photo, fields, egress statement, button enabled | Read enabled |
+| Ready | Crop set, Name entered, OpenRouter turned on, key validated, online, under limits | Photo, fields, button enabled (no egress statement, [O1](openrouter-single-consent-v1-amendment.md)) | Read enabled |
 | No key / not validated / offline / daily limit / route unavailable | As named | 7.2 copy, one-tap way out | Read disabled |
 | Reading | After the tap | Progress, Cancel | n/a |
 | Retrying | Retryable failure within the deadline | 7.2 retrying copy, Cancel | n/a |
@@ -302,11 +303,11 @@ Try again after a failure is a new user tap, never automatic, and it counts agai
 - [x] **E1 Destination.** `https://openrouter.ai/api/v1/chat/completions` only, which forwards to the one pinned model endpoint (E6). *Recommend: approve.*
 - [x] **E2 Payload.** One prepared JPEG as a data URI, the fixed instruction and the fixed strict JSON schema; nothing else: no name, brand, notes, food log, health data, location, device or account identifiers. The key travels only in the Authorization header and a request containing it in the body is refused. *Recommend: approve.*
 - [x] **E3 Image.** Cropped by the user; re-encoded from pixels with every metadata block removed (a test proves it); long edge at most 2,048 px, at most 3.2 megapixels, at most 1,500,000 bytes. *Recommend: approve.*
-- [x] **E4 When.** Only on the explicit Read label with AI tap beside the egress statement, with a one-time confirmation sheet on first use; no background, prefetch or automatic re-read. *Recommend: approve.*
+- [x] **E4 When.** Only on the explicit Read label with AI tap, with OpenRouter turned on in Settings (O1); no background, prefetch or automatic re-read. *Amended by [O1](openrouter-single-consent-v1-amendment.md) (20 November 2026): the one-time confirmation sheet and the egress statement it stood beside are replaced by the Settings consent and the privacy policy's OpenRouter section.*
 - [x] **E5 Routing.** Provider block `only` and `order` set to the one endpoint, `allow_fallbacks: false`, `require_parameters: true`, `data_collection: "deny"`, `zdr: true`; the response's model and provider must match the request or the read fails and nothing is shown. *Recommend: approve.*
 - [x] **E6 Model allow-list.** Exactly one route: Gemini 4 Argon (`google/gemini-4-argon`) on the ZDR endpoint OpenRouter lists on the day (expected Google Vertex); GPT-6.1 Sol on Azure named as the alternative, switched only by a route version bump; no fallbacks; Luna excluded. *Recommend: approve, subject to E7 and E13.*
-- [x] **E7 Identity check on the day.** Before each release that enables the route, and at runtime once per app session before the first read, a free catalogue request (no user data) confirms slug, endpoint, image input, ZDR and prices; any mismatch disables reading and nothing is sent. *Recommend: approve.*
-- [x] **E8 Key.** The user's existing OpenRouter key from this-device-only Keychain, validated in the current session; never in a body, log, manifest or export. *Recommend: approve.*
+- [x] **E7 Identity check on the day.** Before each release that enables the route, and at runtime once per app session before the first read, a free catalogue request (no user data) confirms slug, endpoint, image input, ZDR and prices; any mismatch disables reading and nothing is sent. *Recommend: approve.* The catalogue requests are sent only while OpenRouter is turned on (O1).
+- [x] **E8 Key.** The user's existing OpenRouter key from this-device-only Keychain, validated in the current session; never in a body, log, manifest or export. *Recommend: approve.* A key is validated only while OpenRouter is turned on (O1-D2).
 - [x] **E9 Per-call cap.** Output limited to 4,000 tokens so the worst case at the day's catalogue prices stays under **$0.05**; a reported cost above $0.05 pauses the route for the rest of the day. *Recommend: approve.*
 - [x] **E10 Daily cap.** At most **30 reads and $0.50** of reported cost per local calendar day, counted on device; a read with no reported cost counts as $0.05. The owner also sets a limit on the OpenRouter key. *Recommend: approve.*
   - *Amended by #416 D14 (owner, 7 November 2026):* the 30 reads and $0.50 are one shared day record across the label photo route and the pasted label text route ([pasted-label-ai-text-v1.md](pasted-label-ai-text-v1.md) 4.2). The photo route's own per-read cap and its over-ceiling pause are unchanged and pause only the photo route (D17). The record is versioned (`label-ai-spend-day-v1`). An unversioned record reads as photo-only, and a corrupt or unknown one fails closed. Until the text route is enabled, only photo reads are counted, so photo behaviour is as approved.
@@ -378,6 +379,8 @@ The camera usage string (`NSCameraUsageDescription`) becomes: `Weekly Health Rep
 | **Capture UI** (new target `FoodLabelPhotoUI`, like `FoodBarcodeCapture`; SwiftUI, UIKit, PhotosUI) | Camera picker, `PhotosPicker`, the crop screen and the zoom, pan and highlight photo view, behind application-owned closures or an injected view factory (17.2) | Decide, persist or send |
 | **Composition root** | Registers the entry route, wires adapters; in phases before approval, wires only a fake transport | Contain rules |
 
+**Amended by [O1](openrouter-single-consent-v1-amendment.md) (20 November 2026).** `LabelPhotoScreenModel.Environment` loses `hasConsented` and `recordConsent` (and the 17.22 `isEnabled`) and gains the gate's answer, `consentOn`. Every OpenRouter adapter of this route takes `OpenRouterEgressPermitting` at construction (O1 section 6).
+
 ### 12.2 Dependency direction
 
 presentation → application → domain; `FoodLabelPhotoReading` → application, domain, `NutritionLabelParsing`; `FoodLabelPhotoCapture` → application, domain, `FoodLabelPhotoReading`, Apple frameworks. `check-boundaries.sh` gains `check_imports FoodLabelPhotoReading '^(Foundation|FoodLedgerApplication|FoodLedgerDomain|NutritionLabelParsing)$'` and an allow-list for `FoodLabelPhotoCapture` (`Foundation|ImageIO|CoreGraphics|UniformTypeIdentifiers|Vision|Network|CryptoKit|FoodLedgerApplication|FoodLedgerDomain|FoodLabelPhotoReading`), plus the importer rules of 17.2: `FoodLabelPhotoCapture` is imported only by the composition root and its tests, and `FoodLabelPhotoReading` only by its own tests, `FoodLabelPhotoCapture` and that adapter's tests (the app is never linked to it directly); `NutritionLabelParsing` is still imported only by its existing users and `FoodLabelPhotoReading`. The OpenRouter key store stays in `FoodGenericSearch` and is passed in through the existing `FoodWebKeyStoring` port.
@@ -448,7 +451,7 @@ Section 17.8 adds eleven contract tests from the architecture gate (tests 15 to 
 ## 14. Test plan
 
 - **Pure**: 12.5 tests 1 to 12, plus copy mapping for every decline and failure code.
-- **View model**: Read label disabled in every blocking state; first-use sheet once; Cancel during Reading and Retrying; Try again is a new tap and counts toward the limit; focus requests from value rows; attention resolution enabling Log; Retake resets answers and corrections after confirmation; fortification C1 to C12 behaviour unchanged on this route.
+- **View model**: Read label disabled in every blocking state; no first-use sheet; the blocked row while the switch is off ([O1](openrouter-single-consent-v1-amendment.md)); Cancel during Reading and Retrying; Try again is a new tap and counts toward the limit; focus requests from value rows; attention resolution enabling Log; Retake resets answers and corrections after confirmation; fortification C1 to C12 behaviour unchanged on this route.
 - **Simulator UI** (fake transport via a launch argument, never the network; photos from the library seeded with synthetic Taiwan label images rendered from the evaluation's synthetic template, never real user photos): the journey of section 4 at default and AX5 sizes; a read with two not-found values blocks Log until resolved; zoom, pan and focus; each 7.2 state through the fake; VoiceOver labels on the pane and attention actions.
 - **Device (owner)**: one real label through the camera after approval, comparing the saved values with the pack; the simulator proves software behaviour only.
 
@@ -1465,6 +1468,8 @@ xcodebuild test -scheme FoodLedgerKit-Package -destination 'platform=iOS,id=0000
 - a ZDR listing of 1,161,203 bytes, inside the checker's 8,000,000-byte cap.
 
 The listing now also shows Google AI Studio endpoints (`google-ai-studio`, `/flex`, `/priority`). None is in the ZDR listing, and the request pins `only` and `order` to `google-vertex/us` with no fallbacks, so they change nothing. The route identity, the request golden, `pinnedSnapshots` and every section 10 term stay as they are.
+
+**Amended by [O1](openrouter-single-consent-v1-amendment.md) (20 November 2026).** The "Read label photos with AI" switch and `labelPhoto.liveRoute.enabled.v1` are replaced by the consent switch of O1.1 (Settings › OpenRouter) and the mode matrix of O1.2; the `turnedOff` blocker becomes the O1.4 blocked row; the live consent key `labelPhoto.egressConsent.live.v1` is retired (O1.5). The internal TestFlight rule's scope sentence now reads: "A build that can reach the live label photo route goes only to the internal testing group", since every build now contains the consent switch; no build flag removes the route today, so every Release build that carries O1 is internal-only. Everything else in this section stands. The text below is the record of 14 November 2026.
 
 **Where the switch lives.** Settings › Food search, as a toggle row directly after Web lookup (the OpenRouter key and privacy screen), because the route uses that key and the same provider.
 

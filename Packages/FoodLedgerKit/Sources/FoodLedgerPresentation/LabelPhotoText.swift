@@ -21,16 +21,9 @@ public enum LabelPhotoText {
     public static let retake = "Retake"
     public static let chooseAnother = "Choose another"
     public static let adjustCrop = "Adjust crop"
-    public static let egressStatement = "Read label with AI sends this cropped photo to OpenRouter, which passes it to \(modelName) on \(providerName) to read the table. Location and camera details are removed first. Your name, brand and food log are not sent. Nothing is saved until you tap Log."
+    // The egress statement, the under-button line and the first-use sheet are removed by O1.4
+    // (docs/openrouter-single-consent-v1-amendment.md): Settings › OpenRouter and the privacy policy explain them.
     public static let readButton = "Read label with AI"
-    public static func underButton(reads: Int) -> String {
-        "Uses your OpenRouter key and credit. Today: \(reads) of \(LabelPhotoSpendPolicy.dailyReadLimit) reads."
-    }
-    public static let firstUseTitle = "Send label photos to OpenRouter?"
-    public static let firstUseBody = "To read a label photo, the app sends the cropped photo to OpenRouter and the model it names, using your key. OpenRouter is asked to use only an endpoint that keeps no copy and does not train on it, with no fallback to other providers. OpenRouter keeps its own account and usage records. You check and correct every value before anything is saved."
-    public static let firstUseSend = "Send photo"
-    public static let firstUseNotNow = "Not now"
-    public static let privacyPolicy = "Privacy policy"
     public static let leave = "Leave without saving"
     public static let photoAccessibilityLabel = "Cropped label photo, as it will be sent"
 
@@ -38,17 +31,14 @@ public enum LabelPhotoText {
 
     public static let cameraDenied = "Camera access is off for this app. You can choose a photo from your library instead, or turn on the camera in Settings."
     public static let openSettings = "Open Settings"
-    public static let noKey = "Add your OpenRouter key to read label photos."
-    public static let openRouterSettings = "OpenRouter settings"
-    public static let keyNotValidated = "Validate your OpenRouter key before reading a photo."
-    public static let validateKey = "Validate key"
+    /// The O1.4 no-key row, also the copy of a `.keyMissing` read.
+    public static let noKey = OpenRouterBlockedText.noKey
+    public static let openRouterSettings = OpenRouterBlockedText.link
     public static let offline = "You're offline. Reading a label photo needs a connection. You can paste the label text instead."
     public static let pasteLabel = "Paste nutrition label"
     public static let searchFoods = "Search foods"
     public static let dailyLimit = "You've reached today's limit of 30 label photo reads (or $0.50 of reported cost). It resets at midnight."
     public static let routeUnavailable = "Label photo reading is unavailable: the model's private endpoint could not be confirmed. Nothing was sent."
-    /// 17.22: the Settings switch was turned off while the screen was open.
-    public static let turnedOff = "Label photo reading is off. Turn on Read label photos with AI in Settings to read this photo."
     public static let cropTooSmall = "This crop is too small to read. Move closer or crop less tightly."
     public static let photoTooLarge = "This photo could not be made small enough to send. Crop more tightly and try again."
     public static let reading = "Reading the label…"
@@ -58,7 +48,7 @@ public enum LabelPhotoText {
     public static let declinedSupplement = "This looks like a supplement panel, which the app does not read."
     public static let failedTimedOut = "Reading the photo timed out. You can try again."
     public static let failedConnection = "Reading the photo could not connect. Check your connection and try again."
-    public static let failedKeyRejected = "OpenRouter rejected the API key. Replace or revalidate it."
+    public static let failedKeyRejected = "OpenRouter rejected the API key. Replace or revalidate it in Settings."
     public static let failedQuota = "OpenRouter reports a quota or rate limit. Check your quota and billing before trying again."
     public static let failedUnusable = "The model's answer could not be used, so nothing is shown. You can try again, or paste the label text."
     public static let failedCostPaused = "This read cost more than the $0.05 limit, so label photo reading is paused for today."
@@ -80,6 +70,9 @@ public enum LabelPhotoText {
         case .providerUnavailable: failedConnection
         case .quotaLimited: failedQuota
         case .wrongModel, .wrongProvider, .truncated, .refused, .oversize, .unreadableAnswer, .failed: failedUnusable
+        // O1.2: a refusal with nothing sent is the blocked row; after a sent attempt, the sent line.
+        case .notPermitted: OpenRouterBlockedText.switchOff
+        case .notPermittedAfterSending: cancelledAfterSending
         }
     }
 

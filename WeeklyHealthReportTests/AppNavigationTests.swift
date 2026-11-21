@@ -35,7 +35,8 @@ final class AppNavigationTests: XCTestCase {
             .favourites: ([.favourites], [.favourites]),
             .todayNotes: ([.todayNotes], [.todayNotes]),
             .todayNoteEditor: ([.todayNotes, .todayNoteEditor], [.todayNotes]),
-            .personalFoodDatabase: ([.settings, .personalFoodDatabase], [.settings, .personalFoodDatabase])
+            .personalFoodDatabase: ([.settings, .personalFoodDatabase], [.settings, .personalFoodDatabase]),
+            .openRouterPrivacy: ([.settings, .openRouterPrivacy], [.settings, .openRouterPrivacy])
         ]
         XCTAssertEqual(Set(expected.keys), Set(AppRoute.allCases))
         for (route, paths) in expected {
@@ -58,7 +59,9 @@ final class AppNavigationTests: XCTestCase {
     func testExportDestinationRestoresInsideSettingsAndDailyExportIsUnchanged() {
         // Phase 7 appended exportDestination after addFood; phase 5 (#198) appends favourites after it;
         // phase 6 (#199) appends Home's today notes routes; #424 P1b appends Your food database.
-        XCTAssertEqual(Array(AppRoute.allCases.suffix(6)), [.addFood, .exportDestination, .favourites, .todayNotes, .todayNoteEditor, .personalFoodDatabase])
+        // O1 (#551) appends Settings › OpenRouter's privacy anchor.
+        XCTAssertEqual(Array(AppRoute.allCases.suffix(7)), [.addFood, .exportDestination, .favourites, .todayNotes, .todayNoteEditor, .personalFoodDatabase,
+                                                           .openRouterPrivacy])
         XCTAssertEqual(AppRoute.exportDestination.rawValue, "exportDestination")
         XCTAssertTrue(AppRoute.fixedRoutes.contains(.exportDestination))
         for available in [allAvailable, withoutComposedSettings] {

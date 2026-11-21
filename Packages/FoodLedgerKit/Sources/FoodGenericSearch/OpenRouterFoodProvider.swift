@@ -90,10 +90,15 @@ public struct OpenRouterFoodProvider: FoodWebDiscovering, FoodProposalExtracting
     private let transport: Transport
     private let extractionRoute: OpenRouterFoodExtractionRoute
     private let retry: OpenRouterFoodRetry
-    public init(extractionRoute: OpenRouterFoodExtractionRoute = .luna,
+    /// The Settings › OpenRouter gate (docs/openrouter-single-consent-v1-amendment.md O1.2), asked
+    /// immediately before every send, each retry attempt included. Required: missing wiring does not compile.
+    private let egress: any OpenRouterEgressPermitting
+    public init(egress: any OpenRouterEgressPermitting,
+                extractionRoute: OpenRouterFoodExtractionRoute = .luna,
                 selectionRoute: SelectionRoute = .jev,
                 retry: OpenRouterFoodRetry = .disabled,
                 transport: @escaping Transport = Self.liveTransport) {
+        self.egress = egress
         self.extractionRoute = extractionRoute; self.transport = transport; self.selectionRoute = selectionRoute
         self.retry = retry
     }
@@ -389,8 +394,11 @@ public struct OpenRouterFoodProvider: FoodWebDiscovering, FoodProposalExtracting
 
     /// One model call. With retries composed, a transient failure resends the identical request
     /// (same endpoint, headers and body bytes) under `FoodWebModelCallRetryPolicy`; the last
-    /// attempt's classification is what the caller sees.
+    /// attempt's classification is what the caller sees. The gate is asked before each attempt, after
+    /// any backoff wait, and a refusal throws `.notPermitted` before the attempt starts, so it is never
+    /// classified, retried or slept on (O1.2, section 6).
     private func request(path: String, key: String, body: Data?, retries: Bool = true) async throws -> Data {
+        let use: OpenRouterUse = path == "v1/key" ? .keyValidation : .webLookup
         guard FoodWebKeySyntax.isValid(key) else { throw FoodWebDiscoveryError.credentialRejected }
         guard body.flatMap({ String(data: $0, encoding: .utf8) })?.contains(key) != true else { throw FoodWebDiscoveryError.invalidQuery }
         var request = URLRequest(url: URL(string: "https://openrouter.ai/api/" + path)!)
@@ -399,6 +407,7 @@ public struct OpenRouterFoodProvider: FoodWebDiscovering, FoodProposalExtracting
         request.setValue("Bearer " + key, forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         guard retries, retry.enabled else {
+            guard egress.permits(use) else { throw FoodWebDiscoveryError.notPermitted }
             switch try await attempt(request, key: key) {
             case let .success(data): return data
             case let .failure(failure): throw failure.error
@@ -408,6 +417,7 @@ public struct OpenRouterFoodProvider: FoodWebDiscovering, FoodProposalExtracting
         var attemptNumber = 1
         while true {
             let failure: AttemptFailure
+            guard egress.permits(use) else { throw FoodWebDiscoveryError.notPermitted }
             switch try await attempt(request, key: key) {
             case let .success(data): return data
             case let .failure(value): failure = value

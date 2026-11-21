@@ -304,18 +304,18 @@ final class OpenRouterPastedLabelAITextRouteTests: XCTestCase {
     func testTheAttemptPassesTheAttemptingContract() async throws {
         let body = Data(#"{"id":"gen-1","choices":[]}"#.utf8)
         let transport = CountingTransport(body: body)
-        let attempt = OpenRouterPastedLabelAITextAttempt(transport: transport, keys: Keys(Self.key), request: try request())
+        let attempt = OpenRouterPastedLabelAITextAttempt(egress: PermittingOpenRouterEgress(), transport: transport, keys: Keys(Self.key), request: try request())
         let violations = await PastedLabelAITextPortContracts.attempting(attempt, body: body, sends: { transport.sends })
         XCTAssertEqual(violations, [])
     }
 
     func testNoKeyAndTransportFailures() async throws {
-        let none = OpenRouterPastedLabelAITextAttempt(transport: Fake([]), keys: Keys(nil), request: try request())
+        let none = OpenRouterPastedLabelAITextAttempt(egress: PermittingOpenRouterEgress(), transport: Fake([]), keys: Keys(nil), request: try request())
         let noKey = await none.attempt(text: "Fat 5g", timeout: 5)
         XCTAssertEqual(noKey, .notSent(.keyMissing))
         for (error, failure) in [(LabelPhotoTransportError.timedOut, PastedLabelAITextTransportFailure.timedOut), (.offline, .offline),
                                  (.cancelled, .cancelled), (.failed, .failed)] {
-            let attempt = OpenRouterPastedLabelAITextAttempt(transport: Fake([.failure(error)]), keys: Keys(Self.key), request: try request())
+            let attempt = OpenRouterPastedLabelAITextAttempt(egress: PermittingOpenRouterEgress(), transport: Fake([.failure(error)]), keys: Keys(Self.key), request: try request())
             let result = await attempt.attempt(text: "Fat 5g", timeout: 5)
             XCTAssertEqual(result, .transportFailed(failure))
         }
@@ -453,14 +453,14 @@ final class OpenRouterPastedLabelAITextRouteTests: XCTestCase {
                                                        maxOutputTokens: LabelPhotoRoute.current.maxOutputTokens, reasoningLimit: 500)
         let textTransport = Fake([])
         do {
-            _ = try await OpenRouterPastedLabelAITextRouteChecker(transport: textTransport, clock: OpenRouterLabelPhotoRouteTests.Clock()).check(photoAsText)
+            _ = try await OpenRouterPastedLabelAITextRouteChecker(egress: PermittingOpenRouterEgress(), transport: textTransport, clock: OpenRouterLabelPhotoRouteTests.Clock()).check(photoAsText)
             XCTFail("a photo route was checked as a text route")
         } catch { XCTAssertEqual(error as? OpenRouterPastedLabelAITextRouteChecker.CheckError, .notATextRoute) }
         XCTAssertTrue(textTransport.sent.isEmpty, "nothing fetched")
         let textAsPhoto = OpenRouterPastedLabelAITextRouteChecker.listingShape(Self.route)
         let photoTransport = Fake([])
         do {
-            _ = try await OpenRouterLabelRouteChecker(transport: photoTransport, clock: OpenRouterLabelPhotoRouteTests.Clock()).check(textAsPhoto)
+            _ = try await OpenRouterLabelRouteChecker(egress: PermittingOpenRouterEgress(), transport: photoTransport, clock: OpenRouterLabelPhotoRouteTests.Clock()).check(textAsPhoto)
             XCTFail("a text route was checked as a photo route")
         } catch { XCTAssertEqual(error as? OpenRouterLabelRouteChecker.CheckError, .malformed) }
         XCTAssertTrue(photoTransport.sent.isEmpty)
@@ -468,7 +468,7 @@ final class OpenRouterPastedLabelAITextRouteTests: XCTestCase {
         let (listing, zdr) = catalogue()
         let transport = Fake([.success(.init(status: 200, headers: [:], body: listing, exceededLimit: false)),
                               .success(.init(status: 200, headers: [:], body: zdr, exceededLimit: false))])
-        let check = try await OpenRouterPastedLabelAITextRouteChecker(transport: transport, clock: OpenRouterLabelPhotoRouteTests.Clock(), reasoningBilledSeparately: true).check(Self.route)
+        let check = try await OpenRouterPastedLabelAITextRouteChecker(egress: PermittingOpenRouterEgress(), transport: transport, clock: OpenRouterLabelPhotoRouteTests.Clock(), reasoningBilledSeparately: true).check(Self.route)
         XCTAssertTrue(check.zeroDataRetention)
         XCTAssertEqual(transport.sent.map { $0.0.headers }, [["Accept": "application/json"], ["Accept": "application/json"]])
     }

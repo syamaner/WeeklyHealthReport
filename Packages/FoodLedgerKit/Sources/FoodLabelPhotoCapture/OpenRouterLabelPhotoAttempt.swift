@@ -17,15 +17,20 @@ public struct OpenRouterLabelPhotoAttempt: LabelPhotoAttempting {
     let transport: any LabelPhotoHTTPTransporting
     let keys: any FoodWebKeyStoring
     let request: OpenRouterLabelPhotoRequest
+    /// The Settings › OpenRouter gate, asked as `labelPhotoRead` immediately before every send
+    /// (docs/openrouter-single-consent-v1-amendment.md O1.2). Required: missing wiring does not compile.
+    let egress: any OpenRouterEgressPermitting
 
-    public init(transport: any LabelPhotoHTTPTransporting, keys: any FoodWebKeyStoring, request: OpenRouterLabelPhotoRequest) {
-        self.transport = transport; self.keys = keys; self.request = request
+    public init(egress: any OpenRouterEgressPermitting, transport: any LabelPhotoHTTPTransporting, keys: any FoodWebKeyStoring,
+                request: OpenRouterLabelPhotoRequest) {
+        self.egress = egress; self.transport = transport; self.keys = keys; self.request = request
     }
 
     public func attempt(_ image: PreparedLabelImage, timeout: TimeInterval) async -> LabelPhotoAttemptResult {
         if Task.isCancelled { return .notSent(.cancelled) }
         guard let key = try? keys.load(), FoodWebKeySyntax.isValid(key) else { return .notSent(.keyMissing) }
         guard let http = try? request.httpRequest(image, key: key) else { return .notSent(.failed) }
+        guard egress.permits(.labelPhotoRead) else { return .notSent(.notPermitted) }
         let response: LabelPhotoHTTPResponse
         do {
             response = try await transport.send(http, timeout: timeout, maximumBodyBytes: Self.maximumResponseBytes)

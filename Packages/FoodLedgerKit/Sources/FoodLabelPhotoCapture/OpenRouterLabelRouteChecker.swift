@@ -22,8 +22,13 @@ public struct OpenRouterLabelRouteChecker: LabelPhotoRouteChecking {
     /// Whether the session's W includes the reasoning limit (17.21): a non-zero reasoning price is
     /// admitted only then.
     let reasoningBilledSeparately: Bool
+    /// The Settings › OpenRouter gate, asked before each catalogue fetch with the caller's use
+    /// (docs/openrouter-single-consent-v1-amendment.md O1.2). Required: missing wiring does not compile.
+    let egress: any OpenRouterEgressPermitting
 
-    public init(transport: any LabelPhotoHTTPTransporting, clock: any LedgerClock, reasoningBilledSeparately: Bool = false) {
+    public init(egress: any OpenRouterEgressPermitting, transport: any LabelPhotoHTTPTransporting, clock: any LedgerClock,
+                reasoningBilledSeparately: Bool = false) {
+        self.egress = egress
         self.transport = transport; self.clock = clock; self.reasoningBilledSeparately = reasoningBilledSeparately
     }
 
@@ -42,13 +47,16 @@ public struct OpenRouterLabelRouteChecker: LabelPhotoRouteChecking {
         // Only the closed photo route set is checked, so a text route never is (docs/pasted-label-ai-text-v1.md
         // 4.2, test 21; A2 gate finding 13).
         guard LabelPhotoRoute.admitted.contains(route), let url = Self.endpointsURL(route) else { throw CheckError.malformed }
-        let listing = try await fetch(url)
-        let zeroDataRetention = try await fetch(Self.zeroDataRetentionURL)
+        let listing = try await fetch(url, use: .labelPhotoCatalogueCheck)
+        let zeroDataRetention = try await fetch(Self.zeroDataRetentionURL, use: .labelPhotoCatalogueCheck)
         return try Self.parse(listing: listing, zeroDataRetention: zeroDataRetention, route: route,
                               at: PastedLabelBasisChoice.milliseconds(clock.now()), reasoningBilledSeparately: reasoningBilledSeparately)
     }
 
-    func fetch(_ url: URL) async throws -> Data {
+    /// One keyless catalogue GET. The use comes from the caller, so a text route checker cannot
+    /// borrow the photo use (O1.2). A refusal throws `.notPermitted` and sends nothing.
+    func fetch(_ url: URL, use: OpenRouterUse) async throws -> Data {
+        guard egress.permits(use) else { throw LabelPhotoRouteCheckFailure.notPermitted }
         let response: LabelPhotoHTTPResponse
         do {
             response = try await transport.send(Self.get(url), timeout: Self.timeout, maximumBodyBytes: Self.maximumResponseBytes)

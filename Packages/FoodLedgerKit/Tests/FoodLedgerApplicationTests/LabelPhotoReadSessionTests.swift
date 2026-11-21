@@ -1,5 +1,6 @@
 import FoodLedgerApplication
 import Foundation
+import FoodLedgerTestSupport
 import XCTest
 
 /// The read orchestrator (docs/label-photo-ai-prefill-v1.md E4, E7, E9 to E11, 17.5; contract
@@ -170,12 +171,12 @@ final class LabelPhotoReadSessionTests: XCTestCase {
 
     func makeSession(_ script: [LabelPhotoAttemptResult], checker: Checker = Checker(.success(good)), ledger: Ledger = Ledger(),
                      keys: Keys = Keys(), clock: Clock = Clock(), route: LabelPhotoRoute.Route = LabelPhotoRoute.v1US,
-                     reasoningBilledSeparately: Bool = false)
+                     reasoningBilledSeparately: Bool = false, egress: any OpenRouterEgressPermitting = PermittingOpenRouterEgress())
         -> (LabelPhotoReadSession, Attempter, Checker, Ledger, Sleeper) {
         // The budget arithmetic below is route v1's (1,200 tokens, W $0.024); route v2 has its own test.
         let attempter = Attempter(script, clock: clock)
         let sleeper = Sleeper(clock: clock)
-        let session = LabelPhotoReadSession(route: route, checker: checker, attempter: attempter, ledger: ledger, keys: keys, clock: clock,
+        let session = LabelPhotoReadSession(egress: egress, route: route, checker: checker, attempter: attempter, ledger: ledger, keys: keys, clock: clock,
                                             calendar: calendar, sleeper: sleeper, jitter: { 0 }, tapIDs: Self.taps.next,
                                             reasoningBilledSeparately: reasoningBilledSeparately)
         return (session, attempter, checker, ledger, sleeper)
