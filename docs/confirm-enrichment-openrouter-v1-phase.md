@@ -519,7 +519,9 @@ key state per request. Framework, URL and HTTP types never cross a port.
   `OpenRouterLabelConsentTests.swift:77` (the not-in-force set, now six uses) and
   `FoodDailyExportContractTests.swift:451` (`ProvenanceSourceKind.allCases` against the origin table,
   gaining `openrouter_estimate` as the schema 7 origin row); PR 5 updates
-  `OpenRouterConsentSessionTests.swift:26` (the in-force list).
+  `OpenRouterConsentSessionTests.swift:26` (the in-force list) and `OpenRouterLabelConsentTests.swift:77`
+  again (the not-in-force set becomes the pasted label text uses plus the uses of any part that missed
+  its bar).
 - **The Debug scripted journey (PR 2).** A `ScriptedConfirmEnrichmentGate` in `FoodConfirmEnrichment`,
   wholly inside `#if DEBUG`, permits the four uses only when both switches are on. The root builds it
   only together with the scripted adapters, never with a live adapter, when the Debug launch argument
@@ -533,6 +535,12 @@ key state per request. Framework, URL and HTTP types never cross a port.
   a Debug-only scripted source inside the same `#if DEBUG` branch, as O1's scripted label photo mode
   takes its own; it holds no real key. A boundary self-test fails if the scripted gate's name appears outside an
   `#if DEBUG` block, or in the same root branch as a live adapter.
+- **Scripted state is separate.** The scripted branch uses the in-memory cache and day ledger, never
+  `confirm-enrichment-cache-v1.json` or `confirm-enrichment-day-v1.json`, as label photo gives its
+  scripted mode its own ledger (`WeeklyHealthReport/FoodLedger/FoodLedgerCompositionRoot.swift:1811-1817`).
+  So a scripted answer, which must name the live route's model and provider to pass the checks, is
+  never a hit for a later live request, and scripted requests never use up or pause the live day.
+  `Clear suggestions cache` and the Developer tools disclosure act on the active mode's stores only.
 - **In PR 5**, for each part that passed its bars, its two uses become in force with `policyEntry`
   `Confirm suggestions.` and `egressRow` the string `<contract link>#<destination prefix>`:
   `confirm-enrichment-openrouter-v1.md#OpenRouter System One` for the Jev uses and
@@ -597,7 +605,8 @@ CE1 section 15's seventeen tests are adopted as written. The gate adds:
   kept B child drops that child.
 - **G9 Your foods.** Through both builders, each saved `openrouter_estimate` key becomes
   `.unknown(not_declared)` and the row is classified by its real source.
-- **G10 Consent records.** Before PR 5 the four uses are nil and refused; after it, each in-force use
+- **G10 Consent records.** Before PR 5 the four uses are nil and refused; after it, the not-in-force set
+  is the pasted label text uses plus any part that missed its bar, and each in-force use
   maps to exactly one row and one policy entry.
 - **G11 Evaluation tool.** The tool binary's only network calls go to the 11.1a destinations; it refuses to send
   without the 11.1a paragraph on `origin/main`; it stops at the spend limits.
@@ -618,7 +627,9 @@ CE1 section 15's seventeen tests are adopted as written. The gate adds:
   fetch sends nothing more, reserves nothing and leaves the part available.
 - **G15 Cache writes and Debug wiring.** A cancelled or late answer is never stored; an all-unknown A
   answer and an all-dropped B answer are stored and reused; the file and in-memory caches give the
-  same results under `ConfirmEnrichmentCachePolicy`; the scripted gate cannot be reached in Release
+  same results under `ConfirmEnrichmentCachePolicy`; a scripted answer is never a hit for the live
+  cache, and scripted requests never change the live day record (`requests`, `settled_microusd`,
+  `paused`); the scripted gate cannot be reached in Release
   (boundary self-test of section 6).
 
 - **G16 Seed isolation.** `-confirmEnrichment.enabled.v1 YES` in the argument domain reads as off in
@@ -884,3 +895,7 @@ its skill; external TestFlight or App Store builds; any evaluation call before s
   keys on both sides, so it holds whichever order the layer was chosen in, with a G17 case for each; G12
   is split between PR 1 (fixture cases) and PR 2 (the choices sequence and the layered edit); the
   attempt result's third case is restored to the list.
+- **Architecture gate, twelfth round (21 November 2026, at `5a6f1f1f`): PASS WITH CHANGES.** Both
+  findings taken: the scripted branch uses in-memory cache and ledger, so a scripted answer never
+  reaches the live cache or day record, with a G15 case; PR 5 also updates the not-in-force pin, with
+  G10 to match.
