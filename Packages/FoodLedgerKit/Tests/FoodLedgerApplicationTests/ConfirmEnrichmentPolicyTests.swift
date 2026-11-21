@@ -226,6 +226,22 @@ final class ConfirmEnrichmentPolicyTests: XCTestCase {
         XCTAssertTrue(withLayer.saved.isEmpty)
     }
 
+    /// Re-review of PR 2: a layer that fills a key with a bound still fills it, so B drops its row.
+    func testABoundedLayerFillDropsTheBRowForThatKey() throws {
+        let release = try ExternalIdentifier("cofid-release")
+        let bound = NutrientValue.bounded(try NutrientBounds(lower: nil, upper: 0.1, lowerClosed: false, upperClosed: false,
+            origin: .augmented, unit: .grams,
+            sourceValue: .exact(try SourceExactNutrientValue(amount: 0.1, unit: LedgerText("g"), basis: .per100Grams)),
+            provenance: [NutrientProvenance(sourceKind: .genericCompositionDataset, sourceID: ExternalIdentifier("cofid"),
+                                            sourceReleaseID: release, recordID: ExternalIdentifier("r1"))]))
+        let layered = try ConfirmEnrichmentFixtures.nutrients([.fiber: bound])
+        let layer = ConfirmEnrichmentMerge.values(layered, release: release)
+        XCTAssertEqual(layer, [.fiber: 0.1])
+        let merge = ConfirmEnrichmentMerge.merge(kept: [.fiber: 3, .sodium: 100], leftOut: [], base: layered, layer: layer)
+        XCTAssertEqual(merge.layerDropped, [.fiber])
+        XCTAssertEqual(merge.saved, [.sodium: 100])
+    }
+
     func testTheThreeUnmeasuredKeysAreNeverRequested() {
         XCTAssertEqual(ConfirmNutrientRequestInputs.unmeasuredKeys, [.cholesterol, .water, .caffeine])
         XCTAssertThrowsError(try ConfirmNutrientRequestInputs(description: ConfirmEnrichmentFixtures.description(), identity: [:],

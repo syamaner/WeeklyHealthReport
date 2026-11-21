@@ -273,6 +273,9 @@ final class ConfirmEnrichmentConfirmLayerContractTests: XCTestCase {
         XCTAssertFalse(FoodLogPolicy.requirements(state, now: LedgerFixtures.date, calendar: Self.utc).contains(.onlyEstimatedByOpenRouter))
         Self.reduce(&state, .restoreOpenRouterEstimate(.iron))
         XCTAssertTrue(FoodLogPolicy.requirements(state, now: LedgerFixtures.date, calendar: Self.utc).contains(.onlyEstimatedByOpenRouter))
+        // Values a chosen label layer fills are known from another source (invariant review of PR 2).
+        Self.reduce(&state, .setEnrichmentLabelLayer([.fatTotal: 2]))
+        XCTAssertFalse(FoodLogPolicy.requirements(state, now: LedgerFixtures.date, calendar: Self.utc).contains(.onlyEstimatedByOpenRouter))
     }
 
     // MARK: Reopen

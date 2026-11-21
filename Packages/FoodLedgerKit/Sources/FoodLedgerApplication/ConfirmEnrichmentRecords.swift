@@ -107,6 +107,9 @@ public enum ConfirmEnrichmentVerification {
         guard parentDropped == choices.mergeParentDroppedKeys else { return .notAvailable }
         parentDropped.forEach { kept[$0] = nil }
         var merged = others
+        // The layer's values as the save merged them: a bounded fill enters at its bound, as in
+        // ConfirmEnrichmentMerge.merge.
+        for (key, amount) in layer where merged[key] == nil { merged[key] = amount }
         for (key, amount) in kept { merged[key] = amount }
         let energyDropped = EstimateEnergyCheck.dropped(merged: merged, estimated: Set(kept.keys))
         guard energyDropped == choices.mergeEnergyDroppedKeys else { return .notAvailable }

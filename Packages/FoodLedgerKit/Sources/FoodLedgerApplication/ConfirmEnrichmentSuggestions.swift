@@ -138,12 +138,18 @@ public enum ConfirmEnrichmentMerge {
         return values(merged, release: choice.sourceRelease.sourceReleaseID)
     }
 
+    /// Every key the layer fills, a bounded fill included (a trace, say), so B never asks for it and
+    /// drops a row for it. A bound enters the parent and energy checks at its upper end, else its lower
+    /// end. One function for Confirm, save and reopen, so their merges and verification agree.
     static func values(_ nutrients: NutrientSet, release: ExternalIdentifier) -> [NutrientKey: Double] {
         var result: [NutrientKey: Double] = [:]
         for entry in nutrients.entries {
             guard entry.value.provenance.contains(where: { $0.sourceReleaseID == release }) else { continue }
-            if case let .augmented(exact) = entry.value { result[entry.key] = exact.amount }
-            if case let .measured(exact) = entry.value { result[entry.key] = exact.amount }
+            switch entry.value {
+            case let .augmented(exact), let .measured(exact): result[entry.key] = exact.amount
+            case let .bounded(bounds): if let amount = bounds.upper ?? bounds.lower { result[entry.key] = amount }
+            case .unknown: break
+            }
         }
         return result
     }
