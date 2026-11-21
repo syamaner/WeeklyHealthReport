@@ -5118,6 +5118,12 @@ After the owner approved I1 with the recommendations for I1-D1 to I1-D3, an impl
 
 Unmeasured: no boundary was captured at the start of this phase, separately from the other work done in the same session, so no token figure is recorded rather than an estimate.
 
+## WHR-BUILD43-RELEASE-2026-11-20: Claude Code TestFlight 0.3.0 (43) delivery
+
+The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) archived `main` at `91fa7479` on the owner's request, exported it for internal testing only, uploaded build 43, set What to Test and added it to Internal Testing on the owner's yes, and wrote [the build 43 record](docs/releases/internal-testflight-0.3.0-build43.md).
+
+Unmeasured: no boundary was captured at the start of this delivery, separately from the other work done in the same session, so no token figure is recorded rather than an estimate.
+
 ## WHR-549-2026-11-20: Claude Code Confirm enrichment through OpenRouter contract, CE1 (#549)
 
 The session (`8d9b7f8d-3fee-4b04-b3ff-ceb2371a648e`, `claude-opus-5-5`) wrote contract CE1 after the owner approved amendment O1 (#551): on Confirm, Jev (`jev-1.13` through OpenRouter's System One endpoint) answers I1's closed questions for unknown food details only, pre-filled at or above a confidence threshold through the fill path with a new frozen reason, fortified never a choice; and one named chat model on a zero-data-retention endpoint estimates only eligible unknown nutrients as strict JSON on the candidate's basis, validated (units, ranges, parents, energy against macros) and shown as an `est.` layer kept or left out per nutrient, stored under a new `openrouter_estimate` provenance kind. Trigger, debounce, cache, caps, exact payload, failure states, records and export fields, the evaluation bar and the egress rows are written; the owner approved decisions CE-D1 to CE-D5 and terms CE-T1 to CE-T15 on 20 November 2026; no app egress or code. The blind architecture-gate rounds are recorded in the document's section 17.
