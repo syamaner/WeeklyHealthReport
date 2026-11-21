@@ -508,7 +508,9 @@ final class FoodWebDiscoveryConsentTests: XCTestCase {
         await model.validateAndSaveKey()
         XCTAssertEqual(try keys.load(), "replacement-synthetic-key-for-tests")
         XCTAssertFalse(model.keyIsUsable)
-        XCTAssertFalse(model.keyMessage?.contains("was not saved") ?? true)
+        XCTAssertEqual(model.keyMessage, "Key saved. Turn on OpenRouter in Settings to validate it.")
+        let counts = await provider.counts()
+        XCTAssertEqual(counts, [2, 0])
     }
 
     func testARefusedSearchIsNotARejectedKey() async throws {
