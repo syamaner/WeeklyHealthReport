@@ -135,6 +135,22 @@ final class EvalHarnessTests: XCTestCase {
         XCTAssertNil(record["body"]); XCTAssertNil(record["response"])
     }
 
+    func testAFirstRequestTransportFailureHasItsOwnStopAndANegativeCostStopsTheLedger() async throws {
+        let (folder, list) = try privateFolder()
+        struct Offline: ConfirmEnrichmentHTTPTransporting {
+            func send(_ request: ConfirmEnrichmentHTTPRequest, timeout: TimeInterval, maximumBodyBytes: Int) async throws
+                -> ConfirmEnrichmentHTTPResponse {
+                if let response = EvalHarnessTests.catalogue(request, prompt: "0.0000002") { return response }
+                throw ConfirmEnrichmentTransportError.offline
+            }
+        }
+        let lines = await EvalSender(part: .details, transport: Offline(), keys: FixedEvalKey(),
+                                     ledger: EvalSpendLedger(url: folder.appendingPathComponent("ledger.json")), privateFolder: folder,
+                                     wait: { _ in }).run(list)
+        XCTAssertTrue(lines.contains("stop first_request_transport_failed"), "\(lines)")
+        XCTAssertEqual(EvalSender.reportedCost(Data(#"{"usage":{"cost":-0.01}}"#.utf8)), -1)
+    }
+
     func testAFirstRequestReportingPromptTokensAboveTheCeilingStopsTheRun() async throws {
         let (folder, list) = try privateFolder()
         let transport = Self.answering(promptTokens: ConfirmEnrichmentRoutes.details.promptCeilingTokens + 1)
@@ -143,8 +159,8 @@ final class EvalHarnessTests: XCTestCase {
         XCTAssertEqual(transport.sent.filter { $0.method == "POST" }.count, 1)
     }
 
-    /// Defect review of PR 3: the tool's retries follow the app's whole-request cap. W of $0.012 on B fits
-    /// the $0.02 cap once, so after a 503 no second attempt starts.
+    /// Defect review of PR 3: the tool's retries follow the app's whole-request cap. W of about $0.0104 on
+    /// B fits the $0.02 cap once, so after a 503 no second attempt starts.
     func testRetriesStopWhereTheAppsWholeRequestCapWould() async throws {
         let (folder, list) = try privateFolder()
         // prompt 0.0000015, completion 0.0000008: W = 6,000 * 1.5e-6 + 1,700 * 8e-7 = 0.01036, under the $0.02 cap once.

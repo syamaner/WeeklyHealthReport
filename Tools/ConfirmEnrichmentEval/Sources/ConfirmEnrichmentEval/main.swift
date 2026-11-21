@@ -22,6 +22,28 @@ func value(_ name: String, in arguments: [String]) -> String? {
     return arguments[index + 1]
 }
 
+/// Whether a folder (or, when it does not exist yet, its nearest existing ancestor) is inside a git work
+/// tree: `git rev-parse --is-inside-work-tree`, run locally with the key unset. An unknown answer refuses.
+func insideWorkTree(_ folder: URL) -> Bool {
+    var probe = folder.standardizedFileURL
+    while !FileManager.default.fileExists(atPath: probe.path), probe.path != "/" { probe.deleteLastPathComponent() }
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+    process.arguments = ["git", "-C", probe.path, "rev-parse", "--is-inside-work-tree"]
+    var environment = ProcessInfo.processInfo.environment
+    environment["OPENROUTER_API_KEY"] = nil
+    process.environment = environment
+    let output = Pipe()
+    process.standardOutput = output
+    process.standardError = Pipe()
+    do { try process.run() } catch { return true }
+    process.waitUntilExit()
+    let text = String(decoding: output.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+    // "true" inside a work tree; a non-zero exit with no output is outside one.
+    if process.terminationStatus != 0 { return false }
+    return text.trimmingCharacters(in: .whitespacesAndNewlines) != "false"
+}
+
 /// `git show origin/main:docs/privacy-and-egress.md`, run locally: no network (run.sh fetched already).
 func originMainPolicy(repo: URL) -> String? {
     let process = Process()
@@ -57,6 +79,10 @@ func cases(_ path: String) -> EvalCaseList {
 }
 
 let arguments = Array(CommandLine.arguments.dropFirst())
+// A flag given without a value is a usage error, never "not given" (a bare `--fake` must not run live).
+for flag in ["--part", "--cases", "--private", "--fake", "--repo"] where arguments.contains(flag) && value(flag, in: arguments) == nil {
+    fail("usage: \(flag) needs a value")
+}
 let repo = URL(fileURLWithPath: value("--repo", in: arguments) ?? FileManager.default.currentDirectoryPath)
 
 switch arguments.first {
@@ -74,9 +100,15 @@ case "send":
     }
     preflight(repo: repo)
     let list = cases(casesPath)
-    let privateFolder = URL(fileURLWithPath: privatePath, isDirectory: true)
-    // 11.1a: raw responses and the ledger stay in the private folder, never inside the repository.
-    if EvalPaths.isInside(privateFolder.path, repository: repo.path) { fail(EvalConsole.stopLine("private_folder_inside_repository")) }
+    let chosenFolder = URL(fileURLWithPath: privatePath, isDirectory: true)
+    // 11.1a: raw responses and the ledger stay in the private folder, never inside the repository or any
+    // other git work tree (a worktree's main checkout included).
+    if EvalPaths.isInside(chosenFolder.path, repository: repo.path) || insideWorkTree(chosenFolder) {
+        fail(EvalConsole.stopLine("private_folder_inside_repository"))
+    }
+    // A fake run writes under its own subfolder: its ledger, responses and first-request record never
+    // touch a live run's.
+    let privateFolder = value("--fake", in: arguments) == nil ? chosenFolder : chosenFolder.appendingPathComponent("fake", isDirectory: true)
     let transport: any ConfirmEnrichmentHTTPTransportingBox
     let keys: any FoodWebKeyStoring
     if let fake = value("--fake", in: arguments) {
@@ -86,10 +118,7 @@ case "send":
         do { keys = try EnvironmentKey() } catch { fail(EvalConsole.stopLine("\(error)")) }
         transport = Box(LiveTransport.make())
     }
-    // A fake run keeps its own ledger, so it never spends from the real CE-T15 budget.
-    let ledgerName = value("--fake", in: arguments) == nil ? "confirm-enrichment-eval-spend-ledger-v1.json"
-        : "confirm-enrichment-eval-spend-ledger-v1-fake.json"
-    let ledger = EvalSpendLedger(url: privateFolder.appendingPathComponent(ledgerName))
+    let ledger = EvalSpendLedger(url: privateFolder.appendingPathComponent("confirm-enrichment-eval-spend-ledger-v1.json"))
     let sender = EvalSender(part: part, transport: transport.value, keys: keys, ledger: ledger, privateFolder: privateFolder)
     let semaphore = DispatchSemaphore(value: 0)
     let output = OutputLines()

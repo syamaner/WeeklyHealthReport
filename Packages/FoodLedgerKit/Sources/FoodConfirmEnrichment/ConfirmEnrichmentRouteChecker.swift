@@ -101,7 +101,9 @@ public struct ConfirmEnrichmentRouteChecker: ConfirmEnrichmentRouteChecking {
                       number.doubleValue.isFinite, number.doubleValue >= 0, number.doubleValue < 1 else { return false }
                 continue
             }
-            guard let text = value as? String, let amount = price(text) else { return false }
+            // Strict plain decimal text for every field; the ceiling binds only prompt and completion, so a
+            // field the request never sends (a web search at USD 0.014, say) passes at any price.
+            guard let text = value as? String, let amount = decimal(text) else { return false }
             if name == "internal_reasoning" {
                 if amount > completion || (amount > 0 && !reasoningBilledSeparately) { return false }
             } else if inputAtMostPrompt.contains(name) {
@@ -120,9 +122,14 @@ public struct ConfirmEnrichmentRouteChecker: ConfirmEnrichmentRouteChecking {
     /// A price as a non-negative decimal written as plain decimal text, at most the ceiling; nil for
     /// anything else (a comma, trailing text, spaces, a sign or an exponent fails closed).
     static func price(_ text: String) -> Decimal? {
+        guard let value = decimal(text), value <= maximumPricePerToken else { return nil }
+        return value
+    }
+
+    /// Plain, non-negative decimal text (no comma, trailing text, space, sign or exponent), or nil.
+    static func decimal(_ text: String) -> Decimal? {
         guard text.range(of: #"^[0-9]+(\.[0-9]+)?$"#, options: .regularExpression) != nil,
-              let value = Decimal(string: text, locale: Locale(identifier: "en_US_POSIX")), !value.isNaN,
-              value >= 0, value <= maximumPricePerToken else { return nil }
+              let value = Decimal(string: text, locale: Locale(identifier: "en_US_POSIX")), !value.isNaN, value >= 0 else { return nil }
         return value
     }
 }

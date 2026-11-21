@@ -1013,7 +1013,7 @@ confirm_eval_core_allowed='^(Foundation|FoodLedgerDomain|FoodLedgerApplication)$
 confirm_eval_live_pattern='\bConfirmEnrichmentTransport\b'
 # The shared URL pattern, plus a request type and a remote read through Foundation's file initialisers
 # (local files are read by path or file URL, never `URL(string:)`), as the package rule catches.
-confirm_eval_url_pattern="$url_loading_pattern|URLRequest|contentsOf:[[:space:]]*URL\\(string:"
+confirm_eval_url_pattern="$url_loading_pattern|URLRequest|URL\\(string:"
 confirm_eval_network_names='\b(OpenFoodFactsLookup|OpenFoodFactsSearch|GeminiFoodSearch|OpenRouterFoodProvider|URLSession)\b'
 confirm_eval_violations() {
   local tool="$1" file line allowed
@@ -1055,7 +1055,7 @@ self_test_confirm_eval() {
     echo "check-boundaries self-test: the Confirm enrichment evaluation baseline must pass" >&2; status=1
   fi
   for fixture in label_capture core_application_only core_url live_type_elsewhere live_file_url_session cli_url_session \
-                 off_lookup off_search gemini openrouter_provider test_url_session url_request remote_read missing_tool; do
+                 off_lookup off_search gemini openrouter_provider test_url_session url_request remote_read remote_read_two_step missing_tool; do
     target="$scratch/$fixture"
     cp -R "$base" "$target"
     case "$fixture" in
@@ -1071,6 +1071,7 @@ self_test_confirm_eval() {
       openrouter_provider) echo 'let provider: OpenRouterFoodProvider? = nil' > "$target/Sources/ConfirmEnrichmentEvalHarness/Leak.swift" ;;
       test_url_session) echo 'let session = URLSession.shared' >> "$target/Tests/ConfirmEnrichmentEvalHarnessTests/Tests.swift" ;;
       url_request) echo 'let request = URLRequest(url: URL(fileURLWithPath: "/"))' >> "$target/Sources/ConfirmEnrichmentEval/main.swift" ;;
+      remote_read_two_step) printf 'let u = URL(string: "https://example.invalid")!\nlet d = try? Data(contentsOf: u)\n' >> "$target/Sources/ConfirmEnrichmentEvalHarness/EvalSend.swift" ;;
       remote_read) echo 'let page = try? Data(contentsOf: URL(string: "https://example.invalid")!)' >> "$target/Sources/ConfirmEnrichmentEvalHarness/EvalSend.swift" ;;
       missing_tool) rm -rf "$target/Sources" ;;
     esac

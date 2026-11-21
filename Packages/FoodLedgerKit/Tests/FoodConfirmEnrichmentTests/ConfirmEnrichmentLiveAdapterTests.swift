@@ -310,6 +310,12 @@ final class ConfirmEnrichmentLiveAdapterTests: XCTestCase {
                                                             zeroDataRetention: Data(try Self.retention(route).utf8), route: route))
         XCTAssertEqual(ConfirmEnrichmentSpendPolicy.microUSD(Decimal(string: "1e20")!), ConfirmEnrichmentSpendPolicy.saturatedMicroUSD)
         XCTAssertEqual(ConfirmEnrichmentSpendPolicy.microUSD(Decimal(string: "-0.01")!), ConfirmEnrichmentSpendPolicy.saturatedMicroUSD)
+        // A field the request never sends passes at any well-formed price (a live listing lists web search
+        // at USD 0.014), and fails closed when malformed.
+        XCTAssertNotNil(ConfirmEnrichmentRouteChecker.parse(listing: Data(try Self.listing(route, extra: ["web_search": "0.014", "image": "0.0048"]).utf8),
+                                                            zeroDataRetention: Data(try Self.retention(route).utf8), route: route))
+        XCTAssertNil(ConfirmEnrichmentRouteChecker.parse(listing: Data(try Self.listing(route, extra: ["web_search": "0.014 per call"]).utf8),
+                                                         zeroDataRetention: Data(try Self.retention(route).utf8), route: route))
         let huge = ConfirmEnrichmentPrices(promptPerTokenUSD: Decimal(string: "1e20")!, completionPerTokenUSD: 0)
         XCTAssertFalse(ConfirmEnrichmentSpendPolicy.routeFits(route, prices: huge))
     }

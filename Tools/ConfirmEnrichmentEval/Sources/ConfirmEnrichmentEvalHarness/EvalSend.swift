@@ -78,10 +78,12 @@ public struct EvalSender: Sendable {
     }
 
     /// The reported cost of a reply in whole micro-dollars, rounded up; nil when it reports none.
-    static func reportedCost(_ body: Data) -> Int? {
+    public static func reportedCost(_ body: Data) -> Int? {
         guard let root = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
               let cost = ((root["usage"] as? [String: Any])?["cost"] as? NSNumber),
               CFGetTypeID(cost) != CFBooleanGetTypeID(), let decimal = Decimal(string: cost.stringValue) else { return nil }
+        // A negative report reaches the ledger as negative, which charges the call at W and stops the run.
+        if decimal < 0 { return -1 }
         return ConfirmEnrichmentSpendPolicy.microUSD(decimal)
     }
 
@@ -101,15 +103,17 @@ public struct EvalSender: Sendable {
 
     /// The first request's record, private folder only: part, whether `max_tokens` was sent and
     /// whether the body was accepted, and the reported prompt tokens. Never a body or a response.
-    func saveFirstRequest(accepted: Bool, promptTokens: Int?) {
+    func saveFirstRequest(accepted: Bool, outcome: String, promptTokens: Int?) {
         let route = routes.route(part)
         let record: [String: Any] = ["part": part.rawValue, "route": route.version, "max_tokens_sent": route.sendsMaxTokens,
-                                     "accepted": accepted, "prompt_tokens": promptTokens.map { $0 as Any } ?? NSNull(),
+                                     "accepted": accepted, "outcome": outcome, "prompt_tokens": promptTokens.map { $0 as Any } ?? NSNull(),
                                      "prompt_ceiling": route.promptCeilingTokens]
         try? FileManager.default.createDirectory(at: privateFolder, withIntermediateDirectories: true)
-        if let data = try? JSONSerialization.data(withJSONObject: record, options: [.sortedKeys]) {
-            try? data.write(to: privateFolder.appendingPathComponent("first-request-\(part.rawValue).json"), options: .atomic)
-        }
+        // The first request of the folder: kept, never overwritten by a later run.
+        let url = privateFolder.appendingPathComponent("first-request-\(part.rawValue).json")
+        guard !FileManager.default.fileExists(atPath: url.path),
+              let data = try? JSONSerialization.data(withJSONObject: record, options: [.sortedKeys]) else { return }
+        try? data.write(to: url, options: .withoutOverwriting)
     }
 
     /// Runs every case and returns the console lines. Stops at the first ledger refusal.
@@ -217,7 +221,12 @@ public struct EvalSender: Sendable {
             if attempts > 0, !firstRequestChecked {
                 firstRequestChecked = true
                 let tokens = lastBody.flatMap(Self.promptTokens)
-                saveFirstRequest(accepted: outcome == .answered, promptTokens: tokens)
+                saveFirstRequest(accepted: outcome == .answered, outcome: outcome.rawValue, promptTokens: tokens)
+                // A transport failure never judged the body: its own stop, so it does not read as a refusal.
+                if outcome == .transportFailed {
+                    lines.append(EvalConsole.stopLine("first_request_transport_failed"))
+                    break caseLoop
+                }
                 if outcome != .answered {
                     lines.append(EvalConsole.stopLine("first_request_not_accepted"))
                     break caseLoop
