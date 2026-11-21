@@ -78,42 +78,77 @@ public enum EvalSelection {
         }
     }
 
-    /// The products of both sets. The pool is put in a fixed order first (by code, one entry per code),
+    /// One product per item: the code without leading zeros, so a UPC-12, an EAN-13 and a GTIN-14 of the
+    /// same product count once and can never land in both sets.
+    public static func itemKey(_ code: String) -> String {
+        let trimmed = code.drop { $0 == "0" }
+        return trimmed.isEmpty ? "0" : String(trimmed)
+    }
+
+    /// A Fisher-Yates shuffle over the tool's own generator, with rejection sampling for an unbiased
+    /// index. Written out rather than `shuffled(using:)`, whose algorithm the standard library does not
+    /// promise to keep, so a recorded seed reproduces the sets on any toolchain.
+    public static func shuffle<T>(_ items: [T], generator: inout Generator) -> [T] {
+        var result = items
+        guard result.count > 1 else { return result }
+        for upper in stride(from: result.count - 1, to: 0, by: -1) {
+            let bound = UInt64(upper + 1)
+            let limit = UInt64.max - UInt64.max % bound
+            var draw = generator.next()
+            while draw >= limit { draw = generator.next() }
+            result.swapAt(upper, Int(draw % bound))
+        }
+        return result
+    }
+
+    /// The products of both sets. The pool is put in a fixed order first (by item, one entry per item),
     /// so the draw depends only on the pool's contents and the seed, never on the export's line order.
     public static func drawProducts(_ pool: [Product], generator: inout Generator) throws -> Draw {
         var seen = Set<String>()
-        let unique = pool.sorted { $0.code == $1.code ? $0.line < $1.line : $0.code < $1.code }.filter { seen.insert($0.code).inserted }
+        let unique = pool.sorted { ($0.code, $0.line) < ($1.code, $1.line) }.filter { seen.insert(itemKey($0.code)).inserted }
         guard unique.count >= 2 * productsPerSet else { throw Stop.poolTooSmall }
         guard unique.filter(\.fortified).count >= 2 * minimumFortifiedPerSet else { throw Stop.tooFewFortified }
-        var remaining = unique.shuffled(using: &generator)
-        func take(_ count: Int, into chosen: inout [Product], where predicate: (Product) -> Bool) {
-            var taken = 0
-            var index = 0
-            while taken < count, index < remaining.count {
-                if predicate(remaining[index]) {
-                    chosen.append(remaining.remove(at: index))
-                    taken += 1
-                } else {
-                    index += 1
+        var remaining = shuffle(unique, generator: &generator)
+        func takeOne(into chosen: inout [Product], where predicate: (Product) -> Bool) -> Bool {
+            guard let index = remaining.firstIndex(where: predicate) else { return false }
+            chosen.append(remaining.remove(at: index))
+            return true
+        }
+        // The two sets take turns, one product at a time, at every step, so neither set can use up a
+        // scarce kind before the other has its share: first the fortified minimum, then each country up
+        // to half the set, then any product (a short country is filled from the other).
+        var development: [Product] = [], sealed: [Product] = []
+        // Within a step, a set first tries the country it holds fewer of than the other set, so the
+        // fortified minimum and the final fill do not tilt one set's country mix.
+        func takeBalanced(into chosen: inout [Product], other: [Product], where predicate: @escaping (Product) -> Bool) -> Bool {
+            for country in [Country.unitedKingdom, .taiwan]
+            where chosen.filter({ $0.country == country }).count < other.filter({ $0.country == country }).count {
+                if takeOne(into: &chosen, where: { predicate($0) && $0.country == country }) { return true }
+            }
+            return takeOne(into: &chosen, where: predicate)
+        }
+        // One product per turn, always to the set that holds fewer of what the step is filling (ties go
+        // to the development set), so the sets stay within one product of each other at every step.
+        func alternate(until full: ([Product]) -> Bool, rank: ([Product]) -> Int, where predicate: @escaping (Product) -> Bool) {
+            var stuck = (development: false, sealed: false)
+            while true {
+                let developmentOpen = !stuck.development && !full(development)
+                let sealedOpen = !stuck.sealed && !full(sealed)
+                if !developmentOpen && !sealedOpen { return }
+                if developmentOpen && (!sealedOpen || rank(development) <= rank(sealed)) {
+                    if !takeBalanced(into: &development, other: sealed, where: predicate) { stuck.development = true }
+                } else if !takeBalanced(into: &sealed, other: development, where: predicate) {
+                    stuck.sealed = true
                 }
             }
         }
-        // Both sets take their fortified minimum before either fills its countries, so the development
-        // set's country fill can never leave the sealed set short of fortified products.
-        var development: [Product] = [], sealed: [Product] = []
-        take(minimumFortifiedPerSet, into: &development) { $0.fortified }
-        take(minimumFortifiedPerSet, into: &sealed) { $0.fortified }
-        func fill(_ chosen: inout [Product]) {
-            let half = productsPerSet / 2
-            let uk = chosen.filter { $0.country == .unitedKingdom }.count
-            take(max(0, half - uk), into: &chosen) { $0.country == .unitedKingdom }
-            let taiwan = chosen.filter { $0.country == .taiwan }.count
-            take(max(0, half - taiwan), into: &chosen) { $0.country == .taiwan }
-            // A short country is filled from the other, in the shuffled order.
-            take(productsPerSet - chosen.count, into: &chosen) { _ in true }
+        alternate(until: { $0.count >= minimumFortifiedPerSet }, rank: { $0.count }) { $0.fortified }
+        let half = productsPerSet / 2
+        for country in [Country.unitedKingdom, .taiwan] {
+            let held: ([Product]) -> Int = { set in set.filter { $0.country == country }.count }
+            alternate(until: { $0.count >= productsPerSet || held($0) >= half }, rank: held) { $0.country == country }
         }
-        fill(&development)
-        fill(&sealed)
+        alternate(until: { $0.count >= productsPerSet }, rank: { $0.count }) { _ in true }
         return Draw(development: development, sealed: sealed)
     }
 
@@ -126,7 +161,7 @@ public enum EvalSelection {
                 .sorted { $0.recordID == $1.recordID ? $0.search < $1.search : $0.recordID < $1.recordID }
                 .filter { seen.insert($0.recordID).inserted }
             guard unique.count >= 2 * rowsPerTablePerSet else { throw Stop.tooFewRows(table) }
-            let shuffled = unique.shuffled(using: &generator)
+            let shuffled = shuffle(unique, generator: &generator)
             development += shuffled.prefix(rowsPerTablePerSet)
             sealed += shuffled.dropFirst(rowsPerTablePerSet).prefix(rowsPerTablePerSet)
         }
@@ -156,11 +191,12 @@ public enum EvalSelection {
     public static let reviewSheetNote = "# fortified_by_rule: yes when the Open Food Facts record's vitamins_tags or minerals_tags is not empty. "
         + "Fill each food detail from the pack as sold; leave unknown when the pack does not settle it."
 
-    /// One CSV field, quoted, with quotes doubled.
-    /// A field that opens with `=`, `+`, `-`, `@`, a tab or a carriage return gets a leading apostrophe,
-    /// so a spreadsheet never reads record text as a formula.
+    /// One CSV field, quoted, with quotes doubled. A field whose first character after any spaces is `=`,
+    /// `+`, `-`, `@`, `|`, a tab or a carriage return gets a leading apostrophe, so a spreadsheet never
+    /// reads record text as a formula.
     public static func csvField(_ text: String) -> String {
-        let safe = text.first.map { "=+-@\t\r".contains($0) } == true ? "'" + text : text
+        let opening = text.first { !$0.isWhitespace || $0 == "\t" || $0 == "\r" }
+        let safe = opening.map { "=+-@|\t\r".contains($0) } == true ? "'" + text : text
         return "\"" + safe.replacingOccurrences(of: "\"", with: "\"\"").replacingOccurrences(of: "\n", with: " ") + "\""
     }
 }

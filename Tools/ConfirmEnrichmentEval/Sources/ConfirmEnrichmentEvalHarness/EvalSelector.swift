@@ -15,7 +15,7 @@ import Foundation
 ///    `search(_:)` over a fixed word list.
 /// 3. A second streaming pass extracts only the chosen records.
 /// 4. Only then is anything written: the two case lists, the records, the seed and the development
-///    review sheet. A stop writes nothing.
+///    review sheet, staged and moved into place only when all of it is written. A stop writes nothing.
 ///
 /// The returned lines hold counts, manifests and stop codes only: never a name, brand, barcode or any
 /// record text (G11).
@@ -63,9 +63,20 @@ public struct EvalSelector: Sendable {
 
     // MARK: Streaming the export
 
+    /// The longest line accepted: far above any real product record, so a corrupt file without line
+    /// breaks stops instead of growing the buffer without limit.
+    static let maximumLineBytes = 64 << 20
+
     /// Calls `body` with each line (without its newline) and its 1-based number. `.gz` streams through
-    /// `/usr/bin/gzip -dc`; anything else is read directly. Memory stays bounded by one chunk and one line.
+    /// `/usr/bin/gzip -dc`; anything else is read directly. Every chunk read and every line handled sits in
+    /// its own autorelease pool: a command-line tool's main thread never drains one, so without them each
+    /// chunk would stay resident until exit and memory would grow with the export. Memory stays bounded by
+    /// one chunk and one line.
     static func lines(of export: URL, _ body: (Data, Int) throws -> Void) throws {
+        var isFolder: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: export.path, isDirectory: &isFolder), !isFolder.boolValue else {
+            throw Problem.exportUnreadable
+        }
         let handle: FileHandle
         var process: Process?
         if export.pathExtension.lowercased() == "gz" {
@@ -74,7 +85,7 @@ public struct EvalSelector: Sendable {
             gzip.arguments = ["-dc", export.path]
             let pipe = Pipe()
             gzip.standardOutput = pipe
-            gzip.standardError = Pipe()
+            gzip.standardError = FileHandle.nullDevice
             do { try gzip.run() } catch { throw Problem.exportUnreadable }
             handle = pipe.fileHandleForReading
             process = gzip
@@ -84,25 +95,37 @@ public struct EvalSelector: Sendable {
         }
         defer {
             try? handle.close()
-            if let process, process.isRunning { process.terminate() }
+            if let process, process.isRunning {
+                process.terminate()
+                process.waitUntilExit()
+            }
         }
         var buffer = Data()
         var number = 0
         while true {
-            let chunk = handle.readData(ofLength: 1 << 20)
+            // `read(upToCount:)` throws a Swift error on an I/O failure, where `readData` would raise an
+            // Objective-C exception that ends the process without a stop line.
+            let chunk: Data
+            do {
+                chunk = try autoreleasepool { try handle.read(upToCount: 1 << 20) ?? Data() }
+            } catch {
+                throw Problem.exportUnreadable
+            }
             if chunk.isEmpty { break }
             buffer.append(chunk)
             var start = buffer.startIndex
             while let newline = buffer[start...].firstIndex(of: 0x0A) {
                 number += 1
-                try body(buffer[start..<newline], number)
+                let line = buffer[start..<newline]
+                try autoreleasepool { try body(line, number) }
                 start = buffer.index(after: newline)
             }
             buffer = Data(buffer[start...])
+            if buffer.count > maximumLineBytes { throw Problem.exportUnreadable }
         }
         if !buffer.isEmpty {
             number += 1
-            try body(buffer, number)
+            try autoreleasepool { try body(buffer, number) }
         }
         process?.waitUntilExit()
         if let process, process.terminationStatus != 0 { throw Problem.exportUnreadable }
@@ -218,20 +241,31 @@ public struct EvalSelector: Sendable {
         } catch {
             return lines + [EvalConsole.stopLine("selection_failed")]
         }
-        // Pass 2: the chosen records only.
-        let wanted = Set((draw.development + draw.sealed).map(\.line))
+        // Pass 2: the chosen records only. Each line must still hold the product pass 1 chose, and still
+        // be eligible, so an export replaced between the passes stops instead of writing another record.
+        let wanted = Dictionary(uniqueKeysWithValues: (draw.development + draw.sealed).map { ($0.line, $0) })
         var records: [Int: [String: Any]] = [:]
+        var mismatch = false
         do {
             try Self.lines(of: export) { line, number in
-                guard wanted.contains(number),
-                      let product = (try? JSONSerialization.jsonObject(with: line)) as? [String: Any] else { return }
+                guard let chosen = wanted[number] else { return }
+                guard let product = (try? JSONSerialization.jsonObject(with: line)) as? [String: Any],
+                      product["code"] as? String == chosen.code, eligible(product, line: number) == chosen else {
+                    mismatch = true
+                    return
+                }
                 records[number] = product
             }
         } catch {
             return lines + [EvalConsole.stopLine(Problem.exportUnreadable.description)]
         }
-        guard records.count == wanted.count else { return lines + [EvalConsole.stopLine(Problem.recordMissing.description)] }
-        let retrievedAt = ISO8601DateFormatter().string(from: now())
+        guard !mismatch, records.count == wanted.count else { return lines + [EvalConsole.stopLine(Problem.recordMissing.description)] }
+        // The retrieval time is the export's own modification time, so the same export and seed give the
+        // same case lists, hashes and manifests on every run.
+        guard let modified = (try? files.attributesOfItem(atPath: export.path))?[.modificationDate] as? Date else {
+            return lines + [EvalConsole.stopLine(Problem.exportUnreadable.description)]
+        }
+        let retrievedAt = ISO8601DateFormatter().string(from: Date(timeIntervalSince1970: modified.timeIntervalSince1970.rounded(.down)))
         func cases(_ products: [EvalSelection.Product], _ rows: [EvalSelection.Row]) -> EvalCaseList {
             EvalCaseList(cases: products.map { EvalCase(kind: .openFoodFacts, record: "records/\($0.code).json", shape: .search,
                                                         retrievedAt: retrievedAt) }
@@ -239,43 +273,73 @@ public struct EvalSelector: Sendable {
         }
         let development = cases(draw.development, rowDraw.development)
         let sealed = cases(draw.sealed, rowDraw.sealed)
-        // Writes, all in the private folder.
+        // Everything is written into a staging folder inside the private folder first and moved into place
+        // only once all of it is written, so a failed write leaves no partial output to block a rerun.
+        let staging = privateFolder.appendingPathComponent(".select-staging-\(seed)", isDirectory: true)
+        let outputs = ["records", Self.developmentFile, Self.sealedFile, Self.seedFile, Self.reviewSheetFile]
+        var moved: [String] = []
         do {
-            let encoder = FoundationCanonicalJSONEncoder()
-            let recordsFolder = privateFolder.appendingPathComponent("records", isDirectory: true)
             try files.createDirectory(at: privateFolder, withIntermediateDirectories: true)
+            try? files.removeItem(at: staging)
+            try files.createDirectory(at: staging, withIntermediateDirectories: false)
+            let encoder = FoundationCanonicalJSONEncoder()
+            let recordsFolder = staging.appendingPathComponent("records", isDirectory: true)
             try files.createDirectory(at: recordsFolder, withIntermediateDirectories: false)
             for product in draw.development + draw.sealed {
                 guard let record = records[product.line] else { throw Problem.recordMissing }
                 try JSONSerialization.data(withJSONObject: record, options: [.sortedKeys])
                     .write(to: recordsFolder.appendingPathComponent("\(product.code).json"), options: .withoutOverwriting)
             }
-            try encoder.encode(development).write(to: privateFolder.appendingPathComponent(Self.developmentFile), options: .withoutOverwriting)
-            try encoder.encode(sealed).write(to: privateFolder.appendingPathComponent(Self.sealedFile), options: .withoutOverwriting)
-            try Data("\(seed)\n".utf8).write(to: privateFolder.appendingPathComponent(Self.seedFile), options: .withoutOverwriting)
+            try encoder.encode(development).write(to: staging.appendingPathComponent(Self.developmentFile), options: .withoutOverwriting)
+            try encoder.encode(sealed).write(to: staging.appendingPathComponent(Self.sealedFile), options: .withoutOverwriting)
+            try Data("\(seed)\n".utf8).write(to: staging.appendingPathComponent(Self.seedFile), options: .withoutOverwriting)
             var sheet = [EvalSelection.reviewSheetNote, EvalSelection.reviewSheetHeader.map(EvalSelection.csvField).joined(separator: ",")]
             for (product, evalCase) in zip(draw.development, development.cases) {
                 guard let record = records[product.line] else { throw Problem.recordMissing }
-                let fields = [try EvalHashes.hash(evalCase), (record["product_name"] as? String) ?? "", (record["brands"] as? String) ?? "",
+                let fields = [try EvalHashes.hash(evalCase), Self.name(record), (record["brands"] as? String) ?? "",
                               product.code, product.fortified ? "yes" : "no"] + Array(repeating: "", count: 6)
                 sheet.append(fields.map(EvalSelection.csvField).joined(separator: ","))
             }
             try Data((sheet.joined(separator: "\n") + "\n").utf8)
-                .write(to: privateFolder.appendingPathComponent(Self.reviewSheetFile), options: .withoutOverwriting)
-            lines.append(EvalConsole.selectionLine(set: "development", counts: EvalSelection.counts(products: draw.development, rows: rowDraw.development)))
-            lines.append(EvalConsole.selectionLine(set: "sealed", counts: EvalSelection.counts(products: draw.sealed, rows: rowDraw.sealed)))
-            lines.append(EvalConsole.setManifestLine(set: "development", try EvalHashes.manifest(development)))
-            lines.append(EvalConsole.setManifestLine(set: "sealed", try EvalHashes.manifest(sealed)))
+                .write(to: staging.appendingPathComponent(Self.reviewSheetFile), options: .withoutOverwriting)
+            let summary = [
+                EvalConsole.selectionLine(set: "development", counts: EvalSelection.counts(products: draw.development, rows: rowDraw.development)),
+                EvalConsole.selectionLine(set: "sealed", counts: EvalSelection.counts(products: draw.sealed, rows: rowDraw.sealed)),
+                EvalConsole.setManifestLine(set: "development", try EvalHashes.manifest(development)),
+                EvalConsole.setManifestLine(set: "sealed", try EvalHashes.manifest(sealed)),
+            ]
+            // `moveItem` never replaces an existing item, so a folder filled meanwhile still refuses.
+            for name in outputs {
+                try files.moveItem(at: staging.appendingPathComponent(name), to: privateFolder.appendingPathComponent(name))
+                moved.append(name)
+            }
+            try files.removeItem(at: staging)
+            lines += summary
         } catch {
+            for name in moved { try? files.removeItem(at: privateFolder.appendingPathComponent(name)) }
+            try? files.removeItem(at: staging)
             return lines + [EvalConsole.stopLine(Problem.writeFailed.description)]
         }
         return lines
     }
+
+    /// The review sheet's name rule, for tests.
+    public static func nameForTesting(_ record: [String: Any]) -> String { name(record) }
+
+    /// The product's name for the review sheet: `product_name`, or else the first non-empty
+    /// `product_name_<language>` in a fixed order (many Taiwan records carry only `product_name_zh`).
+    static func name(_ record: [String: Any]) -> String {
+        if let name = record["product_name"] as? String, !name.isEmpty { return name }
+        return record.keys.filter { $0.hasPrefix("product_name_") }.sorted()
+            .lazy.compactMap { record[$0] as? String }.first { !$0.isEmpty } ?? ""
+    }
 }
 
 /// Whether a folder (or, when it does not exist yet, its nearest existing ancestor) is inside a git work
-/// tree: `git rev-parse --is-inside-work-tree`, run locally with the key unset. A git that cannot be
-/// started refuses.
+/// tree or a `.git` folder: `git rev-parse --is-inside-work-tree`, run locally with the key and every
+/// `GIT_*` variable unset, so the owner's shell cannot point git elsewhere. It fails closed: only git's own
+/// "not a git repository" answer counts as outside; a git that is missing, cannot start or refuses for any
+/// other reason (for example dubious ownership) counts as inside.
 public enum EvalWorkTree {
     public static func contains(_ folder: URL) -> Bool {
         var probe = folder.standardizedFileURL
@@ -283,17 +347,21 @@ public enum EvalWorkTree {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         process.arguments = ["git", "-C", probe.path, "rev-parse", "--is-inside-work-tree"]
-        var environment = ProcessInfo.processInfo.environment
+        var environment = ProcessInfo.processInfo.environment.filter { !$0.key.hasPrefix("GIT_") }
         environment[EnvironmentKey.variable] = nil
+        environment["LC_ALL"] = "C"
         process.environment = environment
-        let output = Pipe()
+        let output = Pipe(), errors = Pipe()
         process.standardOutput = output
-        process.standardError = Pipe()
+        process.standardError = errors
         do { try process.run() } catch { return true }
-        process.waitUntilExit()
         let text = String(decoding: output.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-        // "true" inside a work tree; a non-zero exit with no output is outside one.
-        if process.terminationStatus != 0 { return false }
-        return text.trimmingCharacters(in: .whitespacesAndNewlines) != "false"
+        let errorText = String(decoding: errors.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        process.waitUntilExit()
+        if process.terminationStatus != 0 {
+            return !(process.terminationStatus == 128 && errorText.contains("not a git repository"))
+        }
+        // "true" inside a work tree; "false" inside a `.git` folder, which is inside a repository too.
+        return true
     }
 }

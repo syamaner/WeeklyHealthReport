@@ -110,6 +110,9 @@ final class EvalSelectorTests: XCTestCase {
         let work = try folder()
         let plain = try Self.export(uk: 70, taiwan: 70, in: work)
         let zipped = try Self.export(uk: 70, taiwan: 70, in: work, gzip: true)
+        // The retrieval time is the export's modification time: give both files the same one.
+        let modified = Date(timeIntervalSince1970: 1_795_000_000)
+        for url in [plain, zipped] { try FileManager.default.setAttributes([.modificationDate: modified], ofItemAtPath: url.path) }
         let a = work.appendingPathComponent("a"), b = work.appendingPathComponent("b")
         _ = selector().select(export: plain, privateFolder: a, seed: 7)
         _ = selector().select(export: zipped, privateFolder: b, seed: 7)
@@ -249,6 +252,8 @@ final class EvalSelectorTests: XCTestCase {
     func testAnySpreadsheetFormulaOpeningIsDefused() {
         XCTAssertEqual(EvalSelection.csvField("=HYPERLINK(1)"), "\"'=HYPERLINK(1)\"")
         XCTAssertEqual(EvalSelection.csvField("-1"), "\"'-1\"")
+        XCTAssertEqual(EvalSelection.csvField("  =1"), "\"'  =1\"")
+        XCTAssertEqual(EvalSelection.csvField("|cmd"), "\"'|cmd\"")
         XCTAssertEqual(EvalSelection.csvField("Oat \"milk\""), "\"Oat \"\"milk\"\"\"")
     }
 
@@ -258,5 +263,84 @@ final class EvalSelectorTests: XCTestCase {
         let out = work.appendingPathComponent("out")
         try FileManager.default.createDirectory(at: out.appendingPathComponent("records"), withIntermediateDirectories: true)
         XCTAssertEqual(selector().select(export: export, privateFolder: out, seed: 5), ["stop case_lists_exist"])
+    }
+
+    func testTheSameExportAndSeedGiveTheSameManifestsAtAnyTime() throws {
+        let work = try folder()
+        let export = try Self.export(uk: 70, taiwan: 70, in: work)
+        let early = EvalSelector(now: { Date(timeIntervalSince1970: 1_000) }, rows: { Self.syntheticRows })
+        let late = EvalSelector(now: { Date(timeIntervalSince1970: 2_000_000_000) }, rows: { Self.syntheticRows })
+        let a = early.select(export: export, privateFolder: work.appendingPathComponent("a"), seed: 21)
+        let b = late.select(export: export, privateFolder: work.appendingPathComponent("b"), seed: 21)
+        XCTAssertEqual(a.filter { $0.hasPrefix("manifest ") }, b.filter { $0.hasPrefix("manifest ") })
+        XCTAssertEqual(a.filter { $0.hasPrefix("manifest ") }.count, 2)
+    }
+
+    func testTheShuffleIsTheToolsOwnAndFixedForASeed() {
+        var generator = EvalSelection.Generator(seed: 1)
+        XCTAssertEqual(EvalSelection.shuffle(Array(0..<10), generator: &generator), Self.shuffleOfTenSeedOne)
+    }
+
+    static let shuffleOfTenSeedOne: [Int] = [4, 2, 8, 1, 9, 3, 0, 6, 7, 5]
+
+    func testOneItemUnderTwoBarcodeLengthsIsInAtMostOneSet() throws {
+        var pool: [EvalSelection.Product] = []
+        for n in 0..<130 {
+            pool.append(.init(code: String(format: "%013d", 1_000 + n), line: n + 1, country: n % 2 == 0 ? .unitedKingdom : .taiwan, fortified: n < 20))
+            pool.append(.init(code: String(format: "%014d", 1_000 + n), line: 1_000 + n, country: n % 2 == 0 ? .unitedKingdom : .taiwan, fortified: n < 20))
+        }
+        for seed in UInt64(0)..<20 {
+            var generator = EvalSelection.Generator(seed: seed)
+            let draw = try EvalSelection.drawProducts(pool, generator: &generator)
+            let items = (draw.development + draw.sealed).map { EvalSelection.itemKey($0.code) }
+            XCTAssertEqual(Set(items).count, items.count, "seed \(seed)")
+        }
+    }
+
+    func testAScarceCountryIsSharedEvenlyBetweenTheSets() throws {
+        var pool: [EvalSelection.Product] = []
+        for n in 0..<160 {
+            pool.append(.init(code: String(format: "%013d", n), line: n + 1, country: n < 40 ? .unitedKingdom : .taiwan, fortified: n % 8 == 0))
+        }
+        for seed in UInt64(0)..<20 {
+            var generator = EvalSelection.Generator(seed: seed)
+            let draw = try EvalSelection.drawProducts(pool, generator: &generator)
+            let uk = [draw.development, draw.sealed].map { $0.filter { $0.country == .unitedKingdom }.count }
+            XCTAssertLessThanOrEqual(abs(uk[0] - uk[1]), 1, "seed \(seed): \(uk)")
+            XCTAssertEqual(draw.development.count, 60)
+            XCTAssertEqual(draw.sealed.count, 60)
+        }
+    }
+
+    func testAFolderInsideADotGitFolderCountsAsInside() throws {
+        let work = try folder()
+        let repo = work.appendingPathComponent("repo", isDirectory: true)
+        try FileManager.default.createDirectory(at: repo, withIntermediateDirectories: true)
+        let git = Process()
+        git.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        git.arguments = ["git", "-C", repo.path, "init", "-q"]
+        try git.run()
+        git.waitUntilExit()
+        XCTAssertTrue(EvalWorkTree.contains(repo.appendingPathComponent(".git/private")))
+    }
+
+    func testTheReviewSheetNameFallsBackToALanguageName() {
+        XCTAssertEqual(EvalSelector.nameForTesting(["product_name": "", "product_name_zh": "\u{8C46}\u{6F3F}"]), "\u{8C46}\u{6F3F}")
+        XCTAssertEqual(EvalSelector.nameForTesting(["product_name": "Oat drink", "product_name_zh": "x"]), "Oat drink")
+        XCTAssertEqual(EvalSelector.nameForTesting([:]), "")
+    }
+
+    func testNoStagingFolderOrPartialOutputIsLeftBehind() throws {
+        let work = try folder()
+        let export = try Self.export(uk: 70, taiwan: 70, in: work)
+        let out = work.appendingPathComponent("out")
+        _ = selector().select(export: export, privateFolder: out, seed: 4)
+        let names = try FileManager.default.contentsOfDirectory(atPath: out.path).sorted()
+        XCTAssertEqual(names, [EvalSelector.developmentFile, "records", EvalSelector.reviewSheetFile, EvalSelector.seedFile, EvalSelector.sealedFile].sorted())
+    }
+
+    func testAnExportThatIsAFolderStops() throws {
+        let work = try folder()
+        XCTAssertEqual(selector().select(export: work, privateFolder: work.appendingPathComponent("out"), seed: 1), ["stop export_unreadable"])
     }
 }

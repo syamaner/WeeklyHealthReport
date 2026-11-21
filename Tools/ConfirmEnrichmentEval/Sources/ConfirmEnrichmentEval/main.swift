@@ -127,7 +127,6 @@ case "select":
         var system = SystemRandomNumberGenerator()
         seed = system.next()
     }
-    try? FileManager.default.createDirectory(at: privateFolder, withIntermediateDirectories: true)
     let lines = EvalSelector().select(export: URL(fileURLWithPath: exportPath), privateFolder: privateFolder, seed: seed)
     lines.forEach { print($0) }
     if lines.last?.hasPrefix("stop ") == true { exit(1) }
