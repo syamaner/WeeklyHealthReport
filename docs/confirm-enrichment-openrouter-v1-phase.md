@@ -92,10 +92,11 @@ the response), `request_body` (the exact body as a UTF-8 string, no key), `respo
 As 2.2, with `captureMethod` `Values estimated through OpenRouter`, the response at most 100,000
 bytes, no `answers`, `threshold` or `applied`, and `rows`: one item per response row in response
 order with `nutrient`, `value` (the decimal as received, as a string), `unit` and `result`. `result` is
-`kept` or a code that depends only on the stored request and response: `unknown_nutrient`, `unit`,
-`value`, `impossible_value`, `exceeds_parent`, `duplicate_nutrient`, or `energy_mismatch` computed
-against the request's known values and the reply alone. Drops that depend on a later choice on
-Confirm are not in the capture: they are in the choices item (2.4). Committed only with a Log whose
+`kept` or a CE1.6 rule 2 code, which depends only on the stored request and response:
+`unknown_nutrient`, `unit`, `value`, `impossible_value`, `exceeds_parent` (against the request's known
+parents and kept rows of the same reply) or `duplicate_nutrient`. The energy check of CE1.6 rule 3
+runs "after the merge", so it is never in the capture: it and a parent check against parents that the
+chosen label layer adds are computed on the merge and recorded in the choices item (2.4). Committed only with a Log whose
 saved version keeps at least one B value.
 
 ### 2.4 `confirm-nutrient-choices-v1` (B, per saved version)
@@ -103,16 +104,19 @@ saved version keeps at least one B value.
 `CaptureEvidence`, kind `.labelText`, `captureMethod` `Estimated values left out by you`,
 `captureMethodVersion` `confirm-nutrient-choices-v1`. Payload keys: `schema`, `resolution_version_id`,
 `capture_sha256`, `left_out` (sorted keys the owner left out), `layer_dropped` (sorted keys dropped
-because the chosen #464 or off-label layer fills them, CE1 section 5a, `label_estimate`), and
-`merge_energy_dropped` (sorted estimated keys dropped by the energy check run after that layer's
-values are merged, `energy_mismatch`). Nutrient keys only, no values. One per saved version that cites
-a B capture.
+because the chosen #464 or off-label layer fills them, CE1 section 5a, `label_estimate`),
+`merge_parent_dropped` (sorted B keys above a parent that the chosen layer supplies, `exceeds_parent`)
+and `merge_energy_dropped` (sorted B keys dropped by the CE1.6 rule 3 energy check on the merge of
+known values, the layer and the remaining B rows, `energy_mismatch`). Nutrient keys only, no values.
+One per saved version that cites a B capture. On Confirm the same merge checks run live whenever the
+layer choice changes, so a B row the merge no longer rejects comes back.
 
 Verification (CE1.7) re-runs the row checks on the stored response against the stored request, giving
-the capture's `rows`; then removes `layer_dropped`, checks those keys are exactly the B keys the saved
-version's label layer fills, re-runs the energy check on the merge of the saved version's known values,
-its label layer and the kept B rows, giving `merge_energy_dropped`; then requires each saved B value
-to equal a kept row not in `left_out`. Any mismatch shows "Evidence not available" and changes nothing.
+the capture's `rows`; then removes `layer_dropped` after checking those keys are exactly the B keys
+the saved version's label layer fills; re-runs the parent and energy checks on the merge of the saved
+version's known values, its label layer and the remaining B rows, which must give exactly
+`merge_parent_dropped` and `merge_energy_dropped`; then requires each saved B value to equal a kept
+row not in `left_out`. Any mismatch shows "Evidence not available" and changes nothing.
 
 ### 2.4a Where each item is cited
 
@@ -161,7 +165,11 @@ mismatch or a failed check is a miss and the entry is removed.
 
 **Rebuild equals live.** The request body is not cached. A capture made from a hit rebuilds the body
 from the live Confirm inputs through the same pure builder (section 3.2), reads `generation_id` from
-the cached response and takes `endpoint` from the route version. Test G1 proves that capture is
+the cached response and takes `endpoint` from the route version. Its `CaptureEvidence.capturedAt`,
+the provenance `capturedAt` and the `SourceRelease.releasedAt` are all the cached `received_at`, never
+the time of the hit. A verbatim response may echo request text (System One may echo `state`); CE1.2
+keeps the response verbatim, so the cache may hold such an echo, and only the request body itself is
+excluded. Test G1 proves that capture is
 byte-identical, `byteHash` included, to the capture of a live answer for the same subject.
 
 ### 2.6 `confirm-enrichment-day-v1.json` (CE1.3)
@@ -183,11 +191,13 @@ Same protection and backup exclusion as the cache. The arithmetic lives in a pur
 
   | Route | Prompt ceiling | Completion ceiling | Reasoning limit |
   |---|---|---|---|
-  | `confirm-details-route-v1` | 4,000 tokens | 400 tokens (sent as `max_tokens` if System One accepts it; otherwise used for W only, and the first-request stop of section 9 records which) | none |
+  | `confirm-details-route-v1` | 4,000 tokens | 400 tokens, sent as `max_tokens`; if System One does not accept `max_tokens`, the route version's completion ceiling is the 50,000-byte response limit counted as tokens, so W stays a true worst case | none |
   | `confirm-nutrient-route-v1` | 6,000 tokens | 1,200 (`max_tokens`, CE1.5) | 500 (CE1.5) |
 
   A request body longer in UTF-8 bytes than its prompt ceiling in tokens is refused before sending
-  (bytes bound tokens from above), with no note, as the deny gate is. If the day's prices make W
+  (bytes bound the tokens the app sends from above), with no note, as the deny gate is. Because System
+  One builds its own prompt from `state` and `questions`, the evaluation's first request also checks
+  that the reported prompt tokens are within the ceiling (section 9). If the day's prices make W
   exceed the per-request cap, the route check fails as route unavailable for that day and the part
   sends nothing.
 - **Whole-request cap.** An attempt may start only when the request's charged total plus W is at most
@@ -329,7 +339,7 @@ implementation (CE1 test 12).
 | `LedgerClock`, `LedgerIDGenerating` (existing, `LedgerCommands.swift:488, 492`) and a `TimeZone` value | wall time for the local day, `received_at` and the 30-day expiry; `request_id` and evidence IDs | existing |
 | Lifecycle input | `ConfirmEnrichmentSession.appBecameInactive()` and `appBecameActive()`, called by the view model from the scene phase | none (an action, not a port) |
 | `FoodWebKeyStoring` (existing, `FoodWebDiscovery.swift:49`) | read by the adapters on every attempt | Keychain; test |
-| `OpenRouterEgressPermitting` (existing, O1) | asked by the session before reserving and by each adapter before each attempt | `OpenRouterConsentPreference` composed with `ConfirmEnrichmentPreference`; tool-local gate |
+| `OpenRouterEgressPermitting` (existing, O1) | asked by the session before reserving, by each adapter before each attempt, and by the route checker before each of its two catalogue fetches, with the catalogue use its caller passes (as `OpenRouterLabelRouteChecker.swift:27-29, 59`); the checker's result gains `.notPermitted`, as `LabelPhotoRouteCheckFailure.notPermitted` | `OpenRouterConsentPreference` composed with `ConfirmEnrichmentPreference`; tool-local gate |
 
 `ConfirmEnrichmentAttemptResult` is `.notSent(reason)` (refused by the gate, no key, cancelled before
 sending), `.sent(status, responseBytes, reportedCost, retryAfter, generationID)` or `.transportFailed
@@ -377,14 +387,23 @@ key state per request. Framework, URL and HTTP types never cross a port.
   with `isInForce` false and `policyEntry` and `egressRow` nil, exactly like the pasted label text uses
   (`OpenRouterEgress.swift:29, 38`), so the existing `OpenRouterConsentTests`
   (`WeeklyHealthReportTests/OpenRouterConsentTests.swift:164-166`) holds and the app's gate refuses them
-  even with both switches on.
+  even with both switches on. Three existing pins change with them: PR 1 updates
+  `OpenRouterLabelConsentTests.swift:77` (the not-in-force set, now six uses) and
+  `FoodDailyExportContractTests.swift:451` (`ProvenanceSourceKind.allCases` against the origin table,
+  gaining `openrouter_estimate` as the schema 7 origin row); PR 5 updates
+  `OpenRouterConsentSessionTests.swift:26` (the in-force list).
 - **The Debug scripted journey (PR 2).** A `ScriptedConfirmEnrichmentGate` in `FoodConfirmEnrichment`,
   wholly inside `#if DEBUG`, permits the four uses only when both switches are on. The root builds it
   only together with the scripted adapters, never with a live adapter, when the Debug launch argument
   `-ConfirmEnrichmentRoute scripted` is present. The enrichment switch is set for that journey by a
-  Debug-only seed argument, `-confirmEnrichment.enabled.v1 on`, resolved like O1's
-  `OpenRouterConsentSeed` (writes only with `debugBuild` true); in Release the argument domain is never
-  read, as O1 requires. A boundary self-test fails if the scripted gate's name appears outside an
+  seed argument with its own key, `-ConfirmEnrichment on|off`, resolved like
+  `OpenRouterConsentSeed.resolve(argument:debugBuild:)` (`WeeklyHealthReport/FoodLedger/OpenRouterConsent.swift:59-66`):
+  it writes or removes `confirmEnrichment.enabled.v1` only with `debugBuild` true and is ignored in
+  Release. `ConfirmEnrichmentPreference` reads only the persistent domain
+  (`persistentDomain(forName:)`), as O1 requires of the consent switch, so the preference key in the
+  argument domain never reads as on. With the scripted route, the session's key state is `valid` from
+  a Debug-only scripted source inside the same `#if DEBUG` branch, as O1's scripted label photo mode
+  takes its own; it holds no real key. A boundary self-test fails if the scripted gate's name appears outside an
   `#if DEBUG` block, or in the same root branch as a live adapter.
 - **In PR 5**, for each part that passed its bars, its two uses become in force with `policyEntry`
   `Confirm suggestions.` and `egressRow` the string `<contract link>#<destination prefix>`:
@@ -402,9 +421,11 @@ CE1 section 15's seventeen tests are adopted as written. The gate adds:
 
 - **G1 Rebuild equals live.** For A and for B: a live scripted answer gives a capture; on a second
   Confirm for the same subject the cache hit gives a capture with identical payload bytes and
-  `byteHash`, and the recording transport sees zero requests. With the file cache too.
+  `byteHash`, the same `capturedAt`, provenance `capturedAt` and `releasedAt` (the cached
+  `received_at`), and the recording transport sees zero requests. With the file cache too.
 - **G2 Cache content.** The decoded key set equals 2.5's; a request with a sentinel description,
-  amount and key leaves none of the three strings in the file bytes; an extra key, unknown schema or
+  amount and key, answered by a scripted response that does not echo them, leaves none of the three
+  strings in the file bytes or in any decoded `response`; an extra key, unknown schema or
   more than 500 entries discards the file; an entry older than 30 days misses; a hit whose bytes fail
   the checks or whose hash differs misses and is dropped.
 - **G3 Spend.** Pure `ConfirmEnrichmentSpendPolicy` tests: the 101st request of a day and a request
@@ -426,8 +447,10 @@ CE1 section 15's seventeen tests are adopted as written. The gate adds:
   version's; a redirect is refused.
 - **G7 Boundaries.** Each of the six items of section 3.3 fails on its self-test fixture.
 - **G8 Layers on reopen.** A B entry with the #464 layer, chosen before and after B answers: save,
-  reopen and edit verify; `layer_dropped` and `merge_energy_dropped` are rebuilt exactly; altering
-  either list shows "Evidence not available".
+  reopen and edit verify; `layer_dropped`, `merge_parent_dropped` and `merge_energy_dropped` are
+  rebuilt exactly; altering any list shows "Evidence not available". A layer chosen after B whose merge
+  passes the energy check keeps B rows that B's own values alone would not; a layer parent below a
+  kept B child drops that child.
 - **G9 Your foods.** Through both builders, each saved `openrouter_estimate` key becomes
   `.unknown(not_declared)` and the row is classified by its real source.
 - **G10 Consent records.** Before PR 5 the four uses are nil and refused; after it, each in-force use
@@ -443,7 +466,13 @@ CE1 section 15's seventeen tests are adopted as written. The gate adds:
   deadlines, `Retry-After`, the day reset and the 30-day expiry; no new application file calls `Date()`.
 - **G14 Route check.** Runs once per app session and local day, and again after a connection failure;
   a failed or refused check reserves and counts nothing; a day whose prices make W exceed the cap
-  makes the part unavailable; a body over its prompt ceiling is refused before sending.
+  makes the part unavailable; a body over its prompt ceiling is refused before sending; with
+  `max_tokens` not accepted, W uses the response-limit ceiling. The route checker asks the gate before
+  each of its two catalogue fetches with the catalogue use its caller passes; a refusal before either
+  fetch sends nothing more, reserves nothing and leaves the part available.
+- **G16 Seed isolation.** `-confirmEnrichment.enabled.v1 YES` in the argument domain reads as off in
+  every build; the `-ConfirmEnrichment on` seed writes only with `debugBuild` true; the Debug key-state
+  source is not compiled in Release.
 - **G15 Cache writes and Debug wiring.** A cancelled or late answer is never stored; an all-unknown A
   answer and an all-dropped B answer are stored and reused; the file and in-memory caches give the
   same results under `ConfirmEnrichmentCachePolicy`; the scripted gate cannot be reached in Release
@@ -491,7 +520,9 @@ export goldens for schema 7 alone and mixed with schema 3 and 5 content.
   per case as CE1 section 12 says.
 - **First request stop.** The first A request checks that System One accepts the body and returns the
   CE1.4 shape. If it does not, the run stops: switching to `alpha/decisions` reopens CE-T1 and the 11.1
-  row for the owner (CE1.4).
+  row for the owner (CE1.4). It also records whether `max_tokens` was accepted (which fixes the route
+  version's completion ceiling, section 2.6) and stops if the reported prompt tokens exceed the route's
+  prompt ceiling, since W would then not be a worst case.
 - **Order.** PR 4a commits the scorer, the bars as code, both manifests and the frozen configuration,
   and merges. Only then is the sealed set sent, once, by that configuration, and its report lands in
   PR 4b. A prompt change during development is a prompt version bump.
@@ -544,6 +575,10 @@ PRs 1 to 3 can be reviewed and merged without any network call from the app.
    after PR 1 can be downgraded below it.
 6. **Evaluation floor.** A micronutrient with no UK reference intake is scored with no floor, which is
    stricter than giving it one.
+7. **A second, Debug-only gate.** O1's Debug label photo flow reuses the app's preference as its gate.
+   The CE1 uses are not in force until PR 5, so PR 2's scripted journey needs its own Debug-only gate
+   (section 6). It is built only with the scripted adapters, makes no network call and is not compiled
+   in Release.
 
 ## 12. Not in this phase
 
@@ -579,3 +614,12 @@ its skill; external TestFlight or App Store builds; any evaluation call before s
   owner; response checks move into PR 1; the corrupt ledger and day change rules are mechanical; the
   `egressRow` encoding is pinned; a reader test each way; the preflight checks `origin/main`; the
   micronutrient floor choice is listed; CE-D5's source field is named.
+- **Architecture gate, third round (21 November 2026, at `82120dab`): PASS WITH CHANGES.** All nine
+  findings taken: A's completion ceiling falls back to the response limit when `max_tokens` is not
+  accepted, and the first request stops on prompt tokens above the ceiling; the three existing test
+  pins that change are named per PR; the seed argument has its own key and the preference reads only
+  the persistent domain; the route checker asks the gate before each fetch and returns `.notPermitted`;
+  the energy check and a parent check against layer parents run on the merge, as CE1.6 rule 3 says,
+  and are recorded in the choices item, so the capture holds only request-and-reply codes; G2 checks
+  decoded responses and the echo rule is stated; a hit's three times are the cached `received_at`; the
+  scripted key state is named; the Debug-only gate is an owner point.
