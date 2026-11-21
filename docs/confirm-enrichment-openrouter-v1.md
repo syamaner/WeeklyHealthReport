@@ -77,10 +77,8 @@ the re-resolution screen, the quick add sheet or a reopened log whose details ar
 
 Under decision CE-D1, **decided as recommended: automatic**: once the enrichment switch (section 9) and the
 OpenRouter switch (O1) are on and the key is validated in this session, Confirm starts enrichment by
-itself when the bound candidate has gaps and the debounce below has passed. The alternative is **one
-tap**: a `Suggest missing details and values` row on Confirm that starts the same requests.
-
-Whichever is chosen, the request rules are the same:
+itself when the bound candidate has gaps and the debounce below has passed. (The one-tap alternative
+was not chosen.) The request rules:
 
 1. **A first, then B.** A runs when the candidate raises `sourceIdentityMissing`, no
    `decideDifference` is pending, no difference has been decided (`state.decisions` is empty, as the
@@ -180,7 +178,7 @@ sends nothing:
   are finite numbers from 0 to 1. At most 50,000 bytes. Anything else is a failed request and nothing
   is pre-filled.
 - **What is pre-filled.** An answer pre-fills its fact only when its choice is not `unknown` and its
-  `confidence` is at least the threshold of decision CE-D3 (recommendation **0.85**). Everything else
+  `confidence` is at least the threshold of decision CE-D3 (decided: **0.85**). Everything else
   stays unknown and is asked exactly as today. For a Your food database candidate, a `raw` or `cooked`
   preparation that disagrees with the entry's `state` under I1.1's agreement rule is not pre-filled.
 - **Never replaced.** A fact the source states, a fact the catalogue states, and a fact the owner has
@@ -433,8 +431,8 @@ sends nothing:
   expect the layer merge plus the verified B rows. The approved-estimate manifest and leave-out paths on
   Your food database entries get the same two changes.
 - **New logs from saved decisions.** A new log built from a saved decision (re-log, quick add) drops
-  that decision's A and B capture evidence IDs, as estimates v2 does for leave-out IDs, and asks or
-  reuses the cache afresh.
+  that decision's A and B capture evidence IDs, as estimates v2 does for leave-out IDs, and reuses the
+  cache only and sends nothing (CE1.7a).
 
 ## 6. Failure states
 
@@ -443,7 +441,7 @@ Food details or nutrient section, never a sheet or alert:
 
 | State | Note |
 |---|---|
-| OpenRouter off, no key or key not validated | none in automatic mode (the O1 blocked row appears only on the one-tap row, if CE-D1 chooses it) |
+| OpenRouter off, no key or key not validated | none (O1's blocked row appears only on the `Ask again` row) |
 | Enrichment switch off | none |
 | Offline, timeout, connection failure | `Suggestions are not available right now.` |
 | Refusal, invalid or mismatched response, route check failed | `Suggestions are not available right now.` |
@@ -591,8 +589,8 @@ for that food is skipped, with no note), and the gate is a backstop, not a guara
 ### 11.1 `docs/privacy-and-egress.md`, Allowed egress, two rows
 
 ```diff
-+| OpenRouter System One and its one allow-listed Jev endpoint (ZDR, data collection denied, no fallbacks; not enabled where no ZDR endpoint is listed) | One food description for the food on Confirm (the source's name and brand, CoFID's variant text, and for Your food database entries the category, product type and state where present (pack details only as written in the title), a closed source token and the food details already known) and fixed choice questions for each unknown food detail; never the search text typed, text typed in a correction, the amount eaten, time or date, notes, other entries, Health data, barcode, entry, record, release or device and account identifiers, addresses, location, photos, receipt text, shop names other than the brand, prices or the key outside the Authorization header (section 7 of the contract) | With OpenRouter turned on in Settings (O1) and Suggest missing food details and values on, with the user's own validated key: automatically on Confirm, 1.5 s after a food with gaps is chosen, once per food and its details, or on a tap of Ask again, within the cap, when the selected food has unknown food details; two keyless catalogue requests confirm the endpoint on the first request of a session and of each local day, and again after a check that could not connect; at most 3 attempts in 60 s and $0.01 per request; at most 100 requests and $0.50 of reported cost per day across both Confirm suggestion rows; a cached answer is reused without sending | [confirm-enrichment-openrouter-v1.md](confirm-enrichment-openrouter-v1.md) |
-+| OpenRouter and its one allow-listed model endpoint for nutrient estimates (ZDR, data collection denied, no fallbacks; not enabled where no ZDR endpoint is listed) | The same food description, the food details after any suggestion, the nutrition basis, each known nutrient value with its unit and source phrase, the unknown nutrients asked, a fixed instruction and output schema; never the items listed in the row above | With OpenRouter turned on in Settings (O1) and Suggest missing food details and values on, with the user's own validated key: automatically on Confirm, 1.5 s after a food with gaps is chosen, once per food and its details, or on a tap of Ask again, within the cap, when at least one nutrient is unknown and eligible; two keyless catalogue requests confirm the endpoint as in the row above; at most 3 attempts in 60 s and $0.02 per request, and the shared daily cap | [confirm-enrichment-openrouter-v1.md](confirm-enrichment-openrouter-v1.md) |
++| OpenRouter System One and its one allow-listed Jev endpoint (ZDR, data collection denied, no fallbacks; not enabled where no ZDR endpoint is listed) | One food description for the food on Confirm (the source's name and brand, CoFID's variant text, and for Your food database entries the category, product type and state where present (pack details only as written in the title), a closed source token and the food details already known) and fixed choice questions for each unknown food detail; never the search text typed, text typed in a correction, the amount eaten, time or date, notes, other entries, Health data, barcode, entry, record, release, evidence, decision, device or account identifiers, digests, the catalogue's free-text states, addresses, location, photos, receipt text, shop names other than the brand, prices or the key outside the Authorization header (section 7 of the contract) | With OpenRouter turned on in Settings (O1) and Suggest missing food details and values on, with the user's own validated key: automatically on Confirm, 1.5 s after a food with gaps is chosen, once per food and its details, or on a tap of Ask again, within the cap, when the selected food has unknown food details. Never on a Confirm opened by re-log or quick add, on the quick add sheet, on a reopened log, on re-resolution, from search results or in the background; never for web lookup, pasted label, label photo or Your foods rows; nutrient estimates only on a per 100 g or per 100 ml basis.  two keyless catalogue requests confirm the endpoint on the first request of a session and of each local day, and again after a check that could not connect; at most 3 attempts in 60 s and $0.01 per request; at most 100 requests and $0.50 of reported cost per day across both Confirm suggestion rows; a cached answer is reused without sending | [confirm-enrichment-openrouter-v1.md](confirm-enrichment-openrouter-v1.md) |
++| OpenRouter and its one allow-listed model endpoint for nutrient estimates (ZDR, data collection denied, no fallbacks; not enabled where no ZDR endpoint is listed) | The same food description, the food details after any suggestion, the nutrition basis, each known nutrient value with its unit and source phrase, the unknown nutrients asked, a fixed instruction and output schema; never the items listed in the row above | With OpenRouter turned on in Settings (O1) and Suggest missing food details and values on, with the user's own validated key: automatically on Confirm, 1.5 s after a food with gaps is chosen, once per food and its details, or on a tap of Ask again, within the cap, when at least one nutrient is unknown and eligible. Never on a Confirm opened by re-log or quick add, on the quick add sheet, on a reopened log, on re-resolution, from search results or in the background; never for web lookup, pasted label, label photo or Your foods rows; nutrient estimates only on a per 100 g or per 100 ml basis.  two keyless catalogue requests confirm the endpoint as in the row above; at most 3 attempts in 60 s and $0.02 per request, and the shared daily cap | [confirm-enrichment-openrouter-v1.md](confirm-enrichment-openrouter-v1.md) |
 ```
 
 `Stays on the device unless the user sends it`, added: "**Confirm suggestions** (#549): the
@@ -624,7 +622,7 @@ versions and hashes only. The sealed set is sent once, by the frozen configurati
 ### 11.2 Privacy policy, OpenRouter section (an entry in O1's list)
 
 ```text
-Confirm suggestions. Only if you also turn on Suggest missing food details and values on Confirm in Settings › OpenRouter. When the food you are confirming has unknown food details or unknown nutrient values, the app asks automatically, a moment after the food is chosen. Sends a description of that food as its source gives it (never words you typed in a correction): the name and brand, a composition table's variant text, and for your own food database its category, product type and state where the app has them (a pack size written in a name is sent with the name), the food details already known and, for nutrient estimates, the nutrition basis and the known values. A name from your own food database can come from a receipt product title, so check names you would not want sent. Food details go to the Jev model through OpenRouter's System One service; nutrient estimates go to one named model endpoint (currently GPT-6.1 Sol on Azure) with no fallback to other providers. You can also tap Ask again on Confirm to send the same request once more, within the daily limit. Never sent: the search text you typed, words you typed in a correction, the amount you ate, the time or date, notes, other entries, Apple Health data, barcodes, identifiers, photos or prices. Suggested food details are filled in for you to check and change; estimated values are marked est. and you can leave out each one before you tap Log. Nothing is saved until you tap Log, and an estimate never replaces a value from a label or a database. A failed request is retried at most twice; suggestions are limited to 100 requests and $0.50 of reported cost a day, and answers are kept on your device, so the same food is usually not sent again (a tap of Ask again, a change of details or an answer older than 30 days sends again). OpenRouter keeps its own account and usage records for these requests, including the model, token counts, cost and time, under its terms. If you log a food with an estimated value, the Drive food file names the model that estimated it.
+Confirm suggestions. Only if you also turn on Suggest missing food details and values on Confirm in Settings › OpenRouter. When the food you are confirming has unknown food details or unknown nutrient values, the app asks automatically, a moment after the food is chosen. It never asks when you log again from an earlier entry or a favourite, when you reopen a log, or for web lookups, label readings or foods from Your foods. Sends a description of that food as its source gives it (never words you typed in a correction): the name and brand, a composition table's variant text, and for your own food database its category, product type and state where the app has them (a pack size written in a name is sent with the name), the food details already known and, for nutrient estimates, the nutrition basis and the known values. A name from your own food database can come from a receipt product title, so check names you would not want sent. Food details go to the Jev model through OpenRouter's System One service; nutrient estimates go to one named model endpoint (currently GPT-6.1 Sol on Azure) with no fallback to other providers. You can also tap Ask again on Confirm to send the same request once more, within the daily limit. Never sent: the search text you typed, words you typed in a correction, the amount you ate, the time or date, notes, other entries, Apple Health data, barcodes, identifiers, photos or prices. Suggested food details are filled in for you to check and change; estimated values are marked est. and you can leave out each one before you tap Log. Nothing is saved until you tap Log, and an estimate never replaces a value from a label or a database. A failed request is retried at most twice; suggestions are limited to 100 requests and $0.50 of reported cost a day, and answers are kept on your device, so the same food is usually not sent again (a tap of Ask again, a change of details before you log or an answer older than 30 days sends again). OpenRouter keeps its own account and usage records for these requests, including the model, token counts, cost and time, under its terms. If you log a food with an estimated value, the Drive food file names the model that estimated it.
 ```
 
 ## 12. Evaluation bar before release
@@ -680,7 +678,7 @@ Two choices are stated plainly so they are not missed:
   closed, as every estimate kind before it has. #549 asks for provenance that older builds can decode;
   the only way to give that is to store B values under an existing kind, and none is true
   (`approved_estimate` names a catalogue release, `assistant_estimate` the owner's own assistant). This
-  contract chooses truthful provenance; the owner is asked to confirm with the approval (section 16).
+  contract chooses truthful provenance, which the owner confirmed on 20 November 2026 (section 17).
 - **Rollback.** Turning enrichment off stops new suggestions; saved logs keep what they were saved with.
   Downgrading the app past the B contract is refused for a store that holds a B value, as for earlier
   contract steps.
@@ -791,6 +789,8 @@ Two choices are stated plainly so they are not missed:
       "Evidence not available". A version 7 file with only B values validates and one without is
       rejected. A-subject cache hit and miss. Energy check parity with `LabelArithmeticChecks`, Taiwan and UK forms included; a cache miss when
       a known value changes; mixed-day export goldens; the boundary script fails a non-root importer.
+  17. Zero requests: a Confirm opened by re-log or quick add (with a cache miss), the quick add sheet, a
+      reopened log (including after a details correction), and re-resolution each send nothing.
   16. Simulator journey: an Open Food Facts product with all facts unknown is filled and logged with
       one amount; a bundled row gets two estimates, one left out, and logs; enrichment off sends
       nothing; a scripted failure shows the one note.
@@ -901,3 +901,9 @@ compatibility choice of section 14 with the approval.
   uses the cache only and sends nothing; the cache sentence says "usually", and the entry names Ask
   again and the typed search text; the nutrient row states the ZDR rule; the ledger row says approved.
   Each fix narrows or restates; none widens a term.
+- **Blind invariant re-review 2 (21 November 2026, at `0ae91926`): BLOCK, fixed.** Taken: section 5a no
+  longer says a new log from a saved decision may ask (it uses the cache only, as CE1.7a and CE-T4
+  say); both egress rows and the policy entry now carry CE-T4's exclusions and section 2's route
+  scope; a zero-request test for re-log, quick add, reopen and re-resolution; "before you log" in the
+  cache sentence; decided wording where the text still read as undecided; the full never-sent list
+  in the Jev row. Narrowing and restating only.
