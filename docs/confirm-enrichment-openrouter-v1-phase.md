@@ -84,7 +84,7 @@ time received, `locale` that of the first of the bound candidate's own evidence 
 list order, or `en_GB` (the constant `PersonalFoodDatabaseSearch.swift:299` uses) when that list is empty, `originalPayload` `.text` of the canonical
 payload, `byteHash` its SHA-256 (citation sites in section 2.4a). Payload keys: `schema`, `contract`, `route`, `prompt`, `model`,
 `provider`, `endpoint` (the route version's constant, section 3.3 item 3), `generation_id` (read from
-the response), `request_body` (the exact body as a UTF-8 string, no key), `response` (verbatim, at most
+the response, as CE1.7 names it for B), `request_body` (the exact body as a UTF-8 string, no key), `response` (verbatim, at most
 50,000 bytes), `response_sha256`, `answers` (per asked fact, sorted: `fact`, `choice`, `confidence`),
 `threshold` (`"0.85"`), `applied` (sorted fact keys pre-filled).
 
@@ -192,7 +192,7 @@ decision (verification refuses otherwise).
 ```
 
 Exactly CE1.2's value: response bytes, response hash, model, provider, cost and time received. **No
-request body, key, amount, description field or other date.** `subject_sha256` is the SHA-256 of the
+field for the request body, key, amount, description or any other date.** `subject_sha256` is the SHA-256 of the
 canonical subject of CE1.4 (A) or CE1.5 (B), whose versions are inside it. At most 500 entries ordered
 by `received_at`, oldest dropped first; an entry older than 30 days is a miss and is dropped at the
 next write. Stored with `NSFileProtectionComplete` in the backup-excluded app data directory. A corrupt,
@@ -426,7 +426,7 @@ gains, each with a self-test fixture that makes it fail:
    candidate. The existing lookup tests pass unchanged, and a golden shows an export record gives the
    same A and B request bytes as both candidates for the same product. **Bundled rows** are reached
    through each table's existing public `search(_:)` (`CoFIDGenericFoodSearch.swift:68` and the other
-   tables): the case manifest holds the search text and the row's `recordID`, and the tool selects the
+   tables): the private case list holds the search text and the row's `recordID`, and the tool selects the
    result with that `recordID`, failing the case if it is absent, so no new public API is added for
    them; a test shows the selected candidate equals that row's app search candidate.
 6. The energy check parity test lives in `FoodLabelPhotoReadingTests` (dependencies
@@ -696,15 +696,20 @@ export goldens for schema 7 alone and mixed with schema 3 and 5 content.
 ## 9. Evaluation before any release (CE1 section 12)
 
 - **Data source, no new destination.** The tool makes no Open Food Facts request. Open Food Facts cases
-  are read locally from a public Open Food Facts data export that the developer has downloaded outside
-  the tool (it carries no user data, like the bundled source datasets), and composition rows from the
+  are read locally from a public Open Food Facts data export that the owner downloads by hand outside
+  the tool and outside the app, carrying no user data, as the bundled source datasets are; no agent and
+  no tool fetches it, and a fetch by either would need its own approved paragraph in
+  `privacy-and-egress.md` first, and composition rows from the
   app's bundled projections. The tool's only network calls are the 11.1a destinations (section 11,
   point 4).
 - **Sets.** Development set: 60 Open Food Facts products (UK and Taiwan, packaged, complete declared
   panels, at least 8 fortified) and 40 bundled rows; a sealed set of the same size and mix. The owner
   checks the food details of the Open Food Facts cases on a review sheet before any A score counts.
-  Manifests (case identifiers, barcodes or row identifiers, content hashes) are committed; product data
-  and responses stay in the private folder.
+  The case lists themselves (case identifiers, barcodes, search texts, row identifiers) and the review
+  sheet stay in the private folder with the product data and responses. The repository gets only what
+  the 11.1a paragraph allows: counts, versions and hashes, so the committed manifest of each set is the
+  SHA-256 of its canonical case list with the case count, and the review sheet outcome is committed as
+  counts only.
 - **Bar class and floor per key.** The error is `|estimate - declared| / max(declared, floor)`, so a
   declared 0 never divides by zero. Every `NutrientKey` (`Nutrition.swift:12-50`) is in exactly one row:
 
@@ -759,7 +764,7 @@ Each PR has its own branch, a ledger row, the validation gates of `AGENTS.md`, a
 | 1. Formats | Domain kinds, provenance and release constants, capture and choices types, row and energy checks with the parity test, the application response checks and the request input types with their decoders (which verification needs), the strip, skip, drop-on-new-log and verification rules of 2.4a (the B-choices term of "The reopen path" and `OpenRouterEstimateChoicesText` land in PR 2 with the suggestion layer), the four `OpenRouterUse` cases not in force with nil mappings, contract 13 floor and accepted set, store 13, export 7 writer and validators, verification on save and reopen, fixtures; dated notes in assistant-pasted estimates v1 and food daily export v2. Store 13 migrates every store on first open, so a downgrade past it is refused. No UI writes CE1 records yet. | None |
 | 2. Confirm layer | Application policy, session, spend, retry and cache policies, ports and their suites; the `FoodConfirmEnrichment` target and product with the file cache and ledger, the scripted adapters and the Debug scripted gate and the in-memory cache and ledger (no live adapter); `ConfirmEnrichmentRoutes.swift` with its `openrouter_exempt` entry, and the request goldens; `ConfirmEnrichmentPreference` (persistent-domain read of `confirmEnrichment.enabled.v1`), the Debug seed argument, the Debug-only scripted wiring at the composition root and `ConfirmEnrichmentAvailability`; the B-choices term of 2.4a's reopen path with `OpenRouterEstimateChoicesText`; boundary items 1, 2 and 4, the scripted gate self-test and the availability literal self-test; the Your food database read port and adapter; the suggestion layer, reducer, fill builder, Log requirement, re-log, quick add, re-resolution and reopen rules; presentation; the save-side writing of the captures and choices item in `FoodConfirmationService.save`; `OpenRouterEstimateCarry` and its use in both Your foods builders; scripted answers reachable only by a Debug launch argument; simulator journey with scripted answers. | None |
 | 3. Adapters and tooling | The two adapters, route checker and transport (G6 compares their wire bytes with PR 2's goldens); the public `OpenFoodFactsProductMapping`; boundary items 3 and 5; `Tools/ConfirmEnrichmentEval` with its preflight; the section 11.1a paragraph. Not wired into the app. | Tooling only, after merge |
-| 4a. Evaluation freeze | Any route constant and golden change from the first request (route freeze), development runs, review sheet outcome, scorer, bars as code, manifests, frozen configuration. | Tooling only |
+| 4a. Evaluation freeze | Any route constant and golden change from the first request (route freeze), development runs, review sheet outcome as counts, scorer, bars as code, manifests, frozen configuration. | Tooling only |
 | 4b. Sealed report | The single sealed run's report. | Tooling only |
 | 5. Wiring | Composition root and the composed live gate, the Settings toggle row with its caption and the other Settings rows, the uses in force for each part that passed, section 11.1 rows, 11.2 entry, O1 title and framing changes, Developer tools disclosure, journey QA; then the combined device check. | App, with both switches on |
 
@@ -936,3 +941,8 @@ its skill; external TestFlight or App Store builds; any evaluation call before s
   covered by their existing tests.
 - **Owner approval (21 November 2026).** The owner approved the gate as written, including the nine
   readings of section 11, so implementation may start with PR 1 (formats).
+- **Blind invariant review (21 November 2026, at `af12ad6b`): PASS.** Taken: the evaluation case lists
+  and review sheet stay private and the repository gets only hashed manifests and counts, as 11.1a
+  allows; the Open Food Facts export is downloaded by the owner by hand, never by an agent or the tool;
+  the cache sentence says no field holds the request body; `generation_id` in A's capture is noted as
+  CE1.7 names it for B; the PR count is corrected.
