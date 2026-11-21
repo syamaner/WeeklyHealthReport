@@ -122,16 +122,30 @@ row not in `left_out`. Any mismatch shows "Evidence not available" and changes n
 ### 2.4a Where each item is cited
 
 Evidence is reached through the decision's embedded candidate, as estimates v2's leave-out item is
-(`FoodConfirmation.swift:856-864`). Each save that writes a resolution version with CE1 evidence writes
-a new candidate decision whose candidate equals the bound candidate except its evidence IDs. On
+(`FoodConfirmation.swift:856-864`). Each save that writes CE1 evidence, **and each save whose bound
+candidate cites any item of the three CE1 method versions**, writes a new candidate decision whose
+candidate equals the bound candidate except its evidence IDs, so no earlier CE1 item is ever carried
+through `?? selected.candidate` (`:859-865`). On
 reopen the bound candidate is the stored decision's candidate (`FoodConfirmation.swift:1229, 1237`),
 which already lists earlier items, so **the bound candidate's own IDs** are its evidence IDs with every
 estimates v2 leave-out item and every item of the three CE1 method versions removed, order kept. The
-new list is those own IDs, then, once each, the leave-out item, the A capture, the B capture and that
-version's new choices item. So each version's decision cites exactly one choices item, its own, whose
-`resolution_version_id` must equal the version citing the decision (verification refuses otherwise).
-A Leave out or Put back on a B key counts as a change in `foodFactsChanged`, so it never takes the
-`leaveOutOnly` path (`:832-835`), which carries the decision unchanged.
+new list is those own IDs, then, once each and only when its rule below holds, the leave-out item,
+the A capture, the B capture and that version's new choices item. So each version's decision cites at
+most one choices item, its own, whose `resolution_version_id` must equal the version citing the
+decision (verification refuses otherwise).
+
+- **A capture** is appended only while the saved correction still holds at least one fact equal to
+  the fill. It is never committed after `Not these`, or when the sheet replaced every suggested fact.
+- **B capture and choices item** are appended only while the saved version keeps at least one B
+  value. A version with every B row left out cites neither (CE1.7: with every row left out, nothing is
+  stored), so its B values are gone and a later reopen offers no Put back for them.
+- **The reopen path.** Today `leaveOutChanged` is `correction == nil && savedLeftOut != seed.leftOut`
+  and `leaveOutOnly` is `previous != nil && leaveOutChanged` (`:832, 835`); that path keeps the earlier
+  decision's expected quantity and outcome but writes a new decision candidate (`:900-913`). CE1
+  widens both: a change of B choices sets `changesProduct` through its own term, and `leaveOutOnly`
+  becomes `previous != nil && correction == nil && (approved leave-out changed || B choices changed)`.
+  The path still keeps the earlier expectations and outcome, and its new decision candidate carries
+  the list above.
 
 - **Skip list.** `OpenFoodFactsEstimateSource.applies` (`OpenFoodFactsEstimateSource.swift:29-30`),
   `LabelEstimateLayer.expectedNutrients` callers and the approved-estimate manifest and leave-out paths
@@ -213,25 +227,35 @@ Same protection and backup exclusion as the cache. The arithmetic lives in a pur
   $0.01 (A) or $0.02 (B), checked before every attempt, so one request, retries included, never counts
   or spends more than the approved per-request figure. An attempt with no reported cost is charged W.
   If W is so close to the cap that no retry fits, the request simply makes fewer attempts.
-- **Day cap.** A request may start only when `requests` is below 100, and **every attempt**, the first
-  and each retry, may start only when `settled_microusd` plus the open requests' charges plus W is at
-  most 500,000, so retries never take the day past $0.50. A request counts once, at its first
-  reservation.
+- **Day cap.** A request may start only when `requests` is below 100 and `settled_microusd` plus the
+  open requests' charges plus its per-request cap is at most 500,000, so neither it nor its retries can
+  take the day past $0.50. A request counts once, at its reservation.
 - **Reservations** are tagged with a `request_id` from an injected generator, so reconcile and release
-  are idempotent per request, across a day change too. A reported cost above the per-request cap adds
+  are idempotent per request, across a day change too. A reservation writes the whole per-request cap
+  (10,000 or 20,000) as `charged_microusd` in one atomic update before the first attempt is sent, as
+  label photo reserves its whole per-tap limit (`LabelPhotoSpendPolicy.swift:177-180`); each sent
+  attempt increments `attempts_sent` in the same way, and the reconcile at the end lowers the charge to
+  the reported costs (unreported attempts at W). So a request cut short by a crash or a kill still
+  counts at its cap on relaunch. The day cap is then checked once, at reservation, against the cap, and
+  retries stay inside that reservation. A reported cost above the per-request cap adds
   the part to `paused` for the rest of the local day.
 - **Fail closed.** The port reports `.absent`, `.day(Day)` or `.unreadable`, as label photo's
-  `Stored` does (`LabelPhotoPorts.swift:168-174`). `ConfirmEnrichmentSpendPolicy`, not the adapter,
+  `Stored` does (`LabelPhotoSpendPolicy.swift:142-146`). `ConfirmEnrichmentSpendPolicy`, not the adapter,
   turns `.unreadable` into a record for today whose `requests` is 100, written at once, so nothing more
   is sent that local day, after a relaunch too; `.absent` is a fresh day. A failed reservation write
   sends nothing. A failed reconcile write is retried once, then the part closes for the app session,
-  as `LabelPhotoReadSession.swift:229-238` does.
-- **Day change.** A new local day (from the injected clock and time zone) starts a new record. Open
+  as `LabelPhotoReadSession.swift:241-245` does.
+- **Day change.** A new local day (from the injected clock and time zone) starts a new record only
+  when today is later than the stored day; a stored day on or after today is kept, so a clock moved back
+  never resets the allowance (label photo's `stored.day >= today`, `LabelPhotoSpendPolicy.swift:150-151`). Open
   requests of the previous day are closed at their charged amounts, which stay counted in the day they
   were sent; a later reconcile or release for such a `request_id` is ignored.
 
 The `ConfirmEnrichmentSpendLedger` port only reads a `Stored` value and applies one atomic
-`update(_:) throws`; its shared suite covers persistence and the three stored states. Separate from `label-ai-spend-day-v1`, which is unchanged.
+`update(_ transform: (Stored) throws -> Day) throws -> Day`, as label photo's ledger does
+(`LabelPhotoPorts.swift:174`), so the policy sees `.absent` and `.unreadable` inside the update and a
+refusal throws without writing; its shared suite covers persistence, the three stored states and that
+a throwing transform stores nothing. Separate from `label-ai-spend-day-v1`, which is unchanged.
 
 ### 2.7 Food contract 13 and the store
 
@@ -345,7 +369,7 @@ implementation (CE1 test 12).
 | `NutrientEstimateSuggesting` | the same shape | nutrient adapter; scripted |
 | `ConfirmEnrichmentRouteChecking` | `check(_ part:) async -> ConfirmEnrichmentRouteCheckResult` | route checker; scripted |
 | `ConfirmEnrichmentCaching` | `answer(subject:part:now:) -> CachedAnswer?`, `store(_:now:)`, `remove(subject:part:)`, `clear()` | file; in-memory |
-| `ConfirmEnrichmentSpendLedger` | `read() -> Stored` (`.absent`, `.day(Day)`, `.unreadable`), `update(_ change: (Day) -> Day) throws` (atomic) | file; in-memory |
+| `ConfirmEnrichmentSpendLedger` | `read() -> Stored` (`.absent`, `.day(Day)`, `.unreadable`), `update(_ transform: (Stored) throws -> Day) throws -> Day` (atomic) | file; in-memory |
 | `PersonalFoodDatabaseEntryReading` | `descriptionFields(recordID:) -> PersonalFoodDescriptionFields?` | `ActiveReleaseEntryReader`; in-memory |
 | `ConfirmEnrichmentDelaying` | `wait(seconds:) async throws` (cancellable), for the 1.5 s debounce and backoff | the app's task sleep; scripted |
 | `ConfirmEnrichmentElapsedTiming` | `now() -> Duration` (monotonic), for the 60 s whole-call and 30 s attempt deadlines | the app's continuous clock; scripted |
@@ -381,6 +405,13 @@ key state per request. Framework, URL and HTTP types never cross a port.
 
 ## 6. Consent gating through `OpenRouterEgressPermitting`
 
+- **Preconditions for anything.** No cache lookup, display of a cached answer or request happens
+  unless the app's gate would permit the part's use (the use in force, OpenRouter on, enrichment on)
+  and the key state is `valid` in this session. So with either switch off or no validated key a
+  Confirm shows no suggestion, cached or not, as CE1 section 6 says. The cache-only Confirm that re-log
+  or quick add opens (CE1.7a) meets the same preconditions and then reads the cache only.
+- **Ask again** skips the cache lookup, sends once within the caps, and replaces the subject's entry
+  when the answer validates (CE1.1 rule 3, the 11.2 policy text).
 - **Order of one request.** (1) The cache: a hit sends nothing and counts nothing. (2) The ledger may
   admit the request (section 2.6). (3) The gate permits the part's use. (4) The route check, when due:
   the first request of the app session and of each local day, and the next request after a check that
@@ -447,8 +478,8 @@ CE1 section 15's seventeen tests are adopted as written. The gate adds:
   that would pass $0.50 do not start, and the gate is not asked; no attempt starts when charged plus W
   would pass $0.01 (A) or $0.02 (B); an unreported cost is charged W; reconcile and release are
   idempotent per `request_id`, across a day change; a reported cost above the cap pauses that part
-  only; a corrupt ledger refuses until the next local day; a third attempt that would take the day
-  past 500,000 micro-dollars does not start; `.absent`, `.unreadable` and `.day` behave as 2.6 says in
+  only; a corrupt ledger refuses until the next local day; a request whose cap would take the day past
+  500,000 micro-dollars does not start, so no retry can either; `.absent`, `.unreadable` and `.day` behave as 2.6 says in
   both ledgers; a failed reservation write sends nothing and a failed reconcile closes the part; W
   and reported costs round up to whole micro-dollars.
 - **G4 Numbers.** An archive labelled 12 is refused at each of the three range sites; 11 and 13 are
@@ -473,7 +504,7 @@ CE1 section 15's seventeen tests are adopted as written. The gate adds:
   `.unknown(not_declared)` and the row is classified by its real source.
 - **G10 Consent records.** Before PR 5 the four uses are nil and refused; after it, each in-force use
   maps to exactly one row and one policy entry.
-- **G11 Evaluation tool.** Its only network calls go to the 11.1a destinations; it refuses to send
+- **G11 Evaluation tool.** The tool binary's only network calls go to the 11.1a destinations; it refuses to send
   without the 11.1a paragraph on `origin/main`; it stops at the spend limits.
 - **G12 Readers and citations.** The pasted label, label photo and approved-estimate `.labelText`
   readers ignore the three CE1 method versions, and the CE1 readers ignore every other version; an
@@ -490,6 +521,15 @@ CE1 section 15's seventeen tests are adopted as written. The gate adds:
   `max_tokens` not accepted, W uses the response-limit ceiling. The route checker asks the gate before
   each of its two catalogue fetches with the catalogue use its caller passes; a refusal before either
   fetch sends nothing more, reserves nothing and leaves the part available.
+- **G17 Preconditions and composition.** With enrichment off, OpenRouter off or no validated key, a
+  cached subject shows no suggestion and nothing is sent; `Ask again` on a cached subject sends once
+  and replaces the entry; every CE request site and the route checker receive the composed gate, which
+  refuses with enrichment off and OpenRouter on, while the bare `OpenRouterConsentPreference` is
+  unchanged (`OpenRouterConsentTests.swift:48`). A save of a reopened CE1 entry that writes no new CE1
+  evidence (a details correction removing B, every B row left out, a fill replaced in the sheet)
+  carries no earlier CE1 item and verifies; `Not these` before the first Log commits no A capture; a
+  B-only Leave out on a reopened log keeps the earlier expectations and outcome; a kill between
+  reservation and reply leaves the request counted at its cap; a clock moved back resets nothing.
 - **G16 Seed isolation.** `-confirmEnrichment.enabled.v1 YES` in the argument domain reads as off in
   every build; the `-ConfirmEnrichment on` seed writes only with `debugBuild` true; the Debug key-state
   source is not compiled in Release.
@@ -516,7 +556,9 @@ export goldens for schema 7 alone and mixed with schema 3 and 5 content.
 - **Section 11.1a**, the tooling paragraph, is added word for word in PR 3 and must be on `main` before
   the tool's first network call. The tool's preflight refuses to send unless the paragraph is present,
   word for word, both in `docs/privacy-and-egress.md` of the checkout it runs from and in that file on
-  `origin/main` after a fetch (`git show origin/main:docs/privacy-and-egress.md`).
+  `origin/main` (`git show origin/main:docs/privacy-and-egress.md`). The tool binary never runs git
+  over the network: a wrapper script runs `git fetch origin` first with the key unset, as
+  `Tools/PastedLabelAITextEval/promptfoo/run-heldout.sh:41` does, and the tool only reads.
 
 ## 9. Evaluation before any release (CE1 section 12)
 
@@ -536,7 +578,9 @@ export goldens for schema 7 alone and mixed with schema 3 and 5 content.
   which makes its bar stricter (section 11, point 6).
 - **Run.** The tool sends exactly the app's request bytes through the `FoodConfirmEnrichment` adapters
   with a tool-local gate, under CE-T15 ($5 programme, $0.05 per call, in its own spend ledger before
-  every call; at most 3 attempts with backoff honouring `Retry-After`). For B, known values are hidden
+  every call; at most 3 attempts with backoff honouring `Retry-After`). It runs its own loop over the
+  pure `ConfirmEnrichmentRetryPolicy` and its CE-T15 ledger, not `ConfirmEnrichmentSession`, so the app's
+  daily caps do not apply to it and the retry behaviour the latency bar measures is the app's. For B, known values are hidden
   per case as CE1 section 12 says.
 - **First request stop.** The first A request checks that System One accepts the body and returns the
   CE1.4 shape. If it does not, the run stops: switching to `alpha/decisions` reopens CE-T1 and the 11.1
@@ -562,7 +606,7 @@ Each PR has its own branch, a ledger row, the validation gates of `AGENTS.md`, a
 | PR | Content | Egress |
 |---|---|---|
 | 1. Formats | Domain kinds, provenance and release constants, capture and choices types, row and energy checks with the parity test, the application response checks (which verification needs), the citation and skip rules of 2.4a, the four `OpenRouterUse` cases not in force with nil mappings, contract 13 floor and accepted set, store 13, export 7 writer and validators, verification on save and reopen, fixtures; dated notes in assistant-pasted estimates v1 and food daily export v2. Store 13 migrates every store on first open, so a downgrade past it is refused. No UI writes CE1 records yet. | None |
-| 2. Confirm layer | Application policy, session, spend, retry and cache policies, ports and their suites; the `FoodConfirmEnrichment` target and product with the file cache and ledger, the scripted adapters and the Debug scripted gate (no live adapter); the Debug seed argument; boundary items 1, 2 and 4 and the scripted gate self-test; the Your food database read port and adapter; the suggestion layer, reducer, fill builder, Log requirement, re-log, quick add, re-resolution and reopen rules; presentation; the save-side writing of the captures and choices item in `FoodConfirmationService.save`; `OpenRouterEstimateCarry` and its use in both Your foods builders; scripted answers reachable only by a Debug launch argument; simulator journey with scripted answers. | None |
+| 2. Confirm layer | Application policy, session, spend, retry and cache policies, ports and their suites; the `FoodConfirmEnrichment` target and product with the file cache and ledger, the scripted adapters and the Debug scripted gate (no live adapter); the Debug seed argument and the Debug-only scripted wiring at the composition root; boundary items 1, 2 and 4 and the scripted gate self-test; the Your food database read port and adapter; the suggestion layer, reducer, fill builder, Log requirement, re-log, quick add, re-resolution and reopen rules; presentation; the save-side writing of the captures and choices item in `FoodConfirmationService.save`; `OpenRouterEstimateCarry` and its use in both Your foods builders; scripted answers reachable only by a Debug launch argument; simulator journey with scripted answers. | None |
 | 3. Adapters and tooling | The two adapters, route checker, routes file and transport; boundary items 3 and 5; `Tools/ConfirmEnrichmentEval` with its preflight; the section 11.1a paragraph. Not wired into the app. | Tooling only, after merge |
 | 4a. Evaluation freeze | Development runs, review sheet outcome, scorer, bars as code, manifests, frozen configuration. | Tooling only |
 | 4b. Sealed report | The single sealed run's report. | Tooling only |
@@ -601,7 +645,11 @@ PRs 1 to 3 can be reviewed and merged without any network call from the app.
    capture hash and the left-out keys. The gate adds `layer_dropped`, `merge_parent_dropped` and
    `merge_energy_dropped` (section 2.4): nutrient keys only, no values, so reopen can rebuild the merge
    checks that CE1.6 rule 3 runs after the merge.
-8. **A second, Debug-only gate.** O1's Debug label photo flow reuses the app's preference as its gate.
+8. **The evaluation tool also imports the adapters.** CE1 section 15 names the composition root as
+   the only importer of `FoodConfirmEnrichment`. The gate also lets `Tools/ConfirmEnrichmentEval`
+   import it, so the evaluation sends exactly the app's request shapes (CE-T15); the tool is outside
+   the app and the boundary rule names it.
+9. **A second, Debug-only gate.** O1's Debug label photo flow reuses the app's preference as its gate.
    The CE1 uses are not in force until PR 5, so PR 2's scripted journey needs its own Debug-only gate
    (section 6). It is built only with the scripted adapters, makes no network call and is not compiled
    in Release.
@@ -658,3 +706,12 @@ its skill; external TestFlight or App Store builds; any evaluation call before s
   digits; a refused `max_tokens` with W above the cap is a first-request stop; the choices item's extra
   lists are an owner point; costs round up to whole micro-dollars; save-side writing and the Your foods
   carry function are placed in PR 2; the locale source is pinned; two citations corrected.
+- **Architecture gate, fifth round (21 November 2026, at `1a5f1ef5`): PASS WITH CHANGES.** All nine
+  findings taken: the reopen path is described as the code has it, and widened so a B choice change
+  keeps the earlier expectations and outcome; the strip rule applies to every save of a CE1 entry, with
+  a rule per item for when it is cited and an all-left-out version citing neither B item; the ledger
+  update takes the stored state and may throw without writing; a reservation writes the whole
+  per-request cap before sending and a clock moved back resets nothing; the cache and every request
+  need both switches and a validated key, and `Ask again` bypasses the cache; two citations corrected;
+  the git fetch runs in a wrapper; the tool runs its own retry loop; the tool import is an owner point,
+  the Debug root wiring is in PR 2 and the composed gate has a test.
