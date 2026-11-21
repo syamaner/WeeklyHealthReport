@@ -17,7 +17,7 @@ where the gate reads CE1 strictly, for the owner to see before approving. No poi
 
 | Item | Value | Why |
 |---|---|---|
-| Food contract | **13** | CE1.7: the next free number when the phase starts. 11 is in use (`CanonicalFoodProjection.foodContractVersion`, `CanonicalFoodArchive.swift:44`); 12 is reserved by [assistant-pasted estimates v1](assistant-pasted-estimates-v1-proposal.md) section 7. Section 2.7 says how 12 is treated. |
+| Food contract | **13** | CE1.7: the next free number when the phase starts. 11 is in use (`CanonicalFoodProjection.foodContractVersion`, `CanonicalFoodArchive.swift:44`); 12 is reserved for [assistant-pasted estimates v1](assistant-pasted-estimates-v1-proposal.md) by its dated amendment of 18 November 2026 (line 11), and its section 7 says a phase takes the next free number. Section 2.7 says how 12 is treated. |
 | Store | `FoodLedgerGRDBStore.schemaVersion` 13, migration `v13_confirm_enrichment`, metadata `food-ledger-v13` | Metadata only, as `v11_label_photo_estimate` (`FoodLedgerMigrations.swift:76`). |
 | Daily food export | **`food_daily_schema_version` 7** | CE1.7: 5 is in use; 4 and 6 are reserved by assistant estimates and the union rule. |
 | Provenance kind | `ProvenanceSourceKind.openRouterEstimate`, raw value `openrouter_estimate` | CE1.7. |
@@ -309,7 +309,8 @@ a throwing transform stores nothing. Separate from `label-ai-spend-day-v1`, whic
   holds a label photo estimate (`CanonicalFoodArchive.swift:98-104`).
   `migrationIdentifiers` (`:335-340`) for contract 13 is `food-ledger-v1` to `food-ledger-v11` plus
   `food-ledger-v13`, never `v12`. Assistant-pasted estimates, unbuilt, takes the next free number when
-  its phase starts, as its section 7 already allows; PR 1 adds a dated note there.
+  its phase starts, as its section 7's next-free rule allows (the reservation of 12 is the dated
+  amendment at line 11 of that document); PR 1 adds a dated note there.
 - **Store.** `v13_confirm_enrichment` changes metadata only. Every store at 11 migrates to 13 on first
   open of a build carrying PR 1, so a downgrade to a store-11 build is then refused for every store, as
   it was for each earlier step (section 11, point 5); a store or archive with no CE1 record keeps its record bytes and, for
@@ -393,7 +394,9 @@ gains, each with a self-test fixture that makes it fail:
    (the dependents rule at `check-boundaries.sh:207-217`).
 3. `openrouter_request_sites` (`:451-458`) gains the two adapters and `ConfirmEnrichmentRouteChecker.swift`.
    `ConfirmEnrichmentRoutes.swift`, which holds the URLs only as route-version constants used by gated
-   sites, joins `openrouter_exempt` (`:459`) as a reviewed exemption. No application file holds an
+   sites, joins `openrouter_exempt` (`:459`) as a reviewed exemption. The routes file and its exemption
+   land in PR 2, because the scripted captures, W, the request goldens and the scripted answers all
+   need the route values; the request-site additions land in PR 3 with the adapters. No application file holds an
    OpenRouter URL: the capture's `endpoint` is passed in from the route version at the root.
 4. The application file-and-network ban (`check_personal_database_search_edges`, `:619-622`, today
    `PersonalFoodDatabase*.swift` and `ApprovedEstimate*.swift` only) extends to `ConfirmEnrichment*.swift`,
@@ -535,7 +538,10 @@ key state per request. Framework, URL and HTTP types never cross a port.
   a Debug-only scripted source inside the same `#if DEBUG` branch, as O1's scripted label photo mode
   takes its own; it holds no real key. A boundary self-test fails if the scripted gate's name appears outside an
   `#if DEBUG` block, or in the same root branch as a live adapter.
-- **Scripted state is separate.** The scripted branch uses the in-memory cache and day ledger, never
+- **Scripted state is separate.** The scripted branch uses the in-memory cache and day ledger
+  (`InMemoryConfirmEnrichmentCache` and `InMemoryConfirmEnrichmentDayLedger`, production types in
+  `FoodConfirmEnrichment` inside `#if DEBUG`, covered by the scripted gate's self-test, and the same
+  types the shared suites run, since the app does not link `FoodLedgerTestSupport`), never
   `confirm-enrichment-cache-v1.json` or `confirm-enrichment-day-v1.json`, as label photo gives its
   scripted mode its own ledger (`WeeklyHealthReport/FoodLedger/FoodLedgerCompositionRoot.swift:1811-1817`).
   So a scripted answer, which must name the live route's model and provider to pass the checks, is
@@ -596,7 +602,9 @@ CE1 section 15's seventeen tests are adopted as written. The gate adds:
 - **G6 Wire bytes.** The bytes the transport records equal the capture's `request_body` and the
   committed golden; only the Authorization header holds the key; the provider block equals the route
   version's; a redirect is refused.
-- **G7 Boundaries.** Every boundary self-test fails on its fixture: the six items of section 3.3, the
+- **G7 Boundaries.** Every boundary self-test fails on its fixture: items 1 to 5 of section 3.3 (item 6
+  adds no rule; its parity test lands in PR 1 under the existing rule at `:82`), the routes file passing
+  only through its exemption, the
   availability literal and the scripted gate name (section 6).
 - **G8 Layers on reopen.** A B entry with the #464 layer, chosen before and after B answers: save,
   reopen and edit verify; `layer_dropped`, `merge_parent_dropped` and `merge_energy_dropped` are
@@ -717,7 +725,7 @@ export goldens for schema 7 alone and mixed with schema 3 and 5 content.
   catalogue prices with the route version's ceilings; if W is above the part's per-request cap, the run
   stops for the owner, since the part could pass every bar and still never run in the app. The 4b
   report records W per part.
-- **Route freeze.** `confirm-details-route-v1` is frozen only after the first A request has shown
+- **Route freeze.** `confirm-details-route-v1` (committed in PR 2) is frozen only after the first A request has shown
   whether System One accepts `max_tokens`. Any change that follows to `ConfirmEnrichmentRoutes.swift`
   and A's request golden lands in PR 4a, before the frozen configuration, and the committed golden
   equals the body that first request sent.
@@ -738,8 +746,8 @@ Each PR has its own branch, a ledger row, the validation gates of `AGENTS.md`, a
 | PR | Content | Egress |
 |---|---|---|
 | 1. Formats | Domain kinds, provenance and release constants, capture and choices types, row and energy checks with the parity test, the application response checks and the request input types with their decoders (which verification needs), the strip, skip, drop-on-new-log and verification rules of 2.4a (the B-choices term of "The reopen path" and `OpenRouterEstimateChoicesText` land in PR 2 with the suggestion layer), the four `OpenRouterUse` cases not in force with nil mappings, contract 13 floor and accepted set, store 13, export 7 writer and validators, verification on save and reopen, fixtures; dated notes in assistant-pasted estimates v1 and food daily export v2. Store 13 migrates every store on first open, so a downgrade past it is refused. No UI writes CE1 records yet. | None |
-| 2. Confirm layer | Application policy, session, spend, retry and cache policies, ports and their suites; the `FoodConfirmEnrichment` target and product with the file cache and ledger, the scripted adapters and the Debug scripted gate (no live adapter); `ConfirmEnrichmentPreference` (persistent-domain read of `confirmEnrichment.enabled.v1`), the Debug seed argument, the Debug-only scripted wiring at the composition root and `ConfirmEnrichmentAvailability`; the B-choices term of 2.4a's reopen path with `OpenRouterEstimateChoicesText`; boundary items 1, 2 and 4, the scripted gate self-test and the availability literal self-test; the Your food database read port and adapter; the suggestion layer, reducer, fill builder, Log requirement, re-log, quick add, re-resolution and reopen rules; presentation; the save-side writing of the captures and choices item in `FoodConfirmationService.save`; `OpenRouterEstimateCarry` and its use in both Your foods builders; scripted answers reachable only by a Debug launch argument; simulator journey with scripted answers. | None |
-| 3. Adapters and tooling | The two adapters, route checker, routes file and transport; the public `OpenFoodFactsProductMapping`; boundary items 3 and 5; `Tools/ConfirmEnrichmentEval` with its preflight; the section 11.1a paragraph. Not wired into the app. | Tooling only, after merge |
+| 2. Confirm layer | Application policy, session, spend, retry and cache policies, ports and their suites; the `FoodConfirmEnrichment` target and product with the file cache and ledger, the scripted adapters and the Debug scripted gate and the in-memory cache and ledger (no live adapter); `ConfirmEnrichmentRoutes.swift` with its `openrouter_exempt` entry, and the request goldens; `ConfirmEnrichmentPreference` (persistent-domain read of `confirmEnrichment.enabled.v1`), the Debug seed argument, the Debug-only scripted wiring at the composition root and `ConfirmEnrichmentAvailability`; the B-choices term of 2.4a's reopen path with `OpenRouterEstimateChoicesText`; boundary items 1, 2 and 4, the scripted gate self-test and the availability literal self-test; the Your food database read port and adapter; the suggestion layer, reducer, fill builder, Log requirement, re-log, quick add, re-resolution and reopen rules; presentation; the save-side writing of the captures and choices item in `FoodConfirmationService.save`; `OpenRouterEstimateCarry` and its use in both Your foods builders; scripted answers reachable only by a Debug launch argument; simulator journey with scripted answers. | None |
+| 3. Adapters and tooling | The two adapters, route checker and transport (G6 compares their wire bytes with PR 2's goldens); the public `OpenFoodFactsProductMapping`; boundary items 3 and 5; `Tools/ConfirmEnrichmentEval` with its preflight; the section 11.1a paragraph. Not wired into the app. | Tooling only, after merge |
 | 4a. Evaluation freeze | Any route constant and golden change from the first request (route freeze), development runs, review sheet outcome, scorer, bars as code, manifests, frozen configuration. | Tooling only |
 | 4b. Sealed report | The single sealed run's report. | Tooling only |
 | 5. Wiring | Composition root and the composed live gate, the Settings toggle row with its caption and the other Settings rows, the uses in force for each part that passed, section 11.1 rows, 11.2 entry, O1 title and framing changes, Developer tools disclosure, journey QA; then the combined device check. | App, with both switches on |
@@ -750,7 +758,9 @@ Tests per PR (CE1 section 15 tests land with the code they cover): **PR 1** G4, 
 each way, the `resolution_version_id` refusal, re-log and quick add dropping all three ID kinds,
 `applies` on fixture records) and the format and verification half of G8; **PR 2** G1, G2, G3, G5 (scripted adapters), the rest of G8, G12's Put back and Leave out
 citation sequence and the reopen and edit of a B entry with the #464 layer, G9, G13, G15,
-G16, G17 and G7's items 1, 2, 4 and 6, the scripted gate and the availability literal; **PR 3** G5 (live
+G16, G17 and G7's items 1, 2 and 4, the routes file exemption, the scripted gate and the availability
+literal, and a test that the scripted branch's model, provider and endpoint come from the same
+`ConfirmEnrichmentRoutes` values as the live branch; **PR 3** G5 (live
 adapters), G6, G11, G14 and G7's items 3 and 5; **PR 4a** the scorer table test and the route freeze
 golden; **PR 5** G10 and the verbatim records test.
 
@@ -899,3 +909,8 @@ its skill; external TestFlight or App Store builds; any evaluation call before s
   findings taken: the scripted branch uses in-memory cache and ledger, so a scripted answer never
   reaches the live cache or day record, with a G15 case; PR 5 also updates the not-in-force pin, with
   G10 to match.
+- **Architecture gate, thirteenth round (21 November 2026, at `99948264`): PASS WITH CHANGES.** All four
+  findings taken: the routes file, its exemption and the request goldens move into PR 2, with the
+  request sites still in PR 3; the in-memory cache and ledger are production Debug-only types in
+  `FoodConfirmEnrichment` that the shared suites run; G7 drops item 6, which adds no rule; the
+  reservation of contract 12 is cited to the dated amendment.
