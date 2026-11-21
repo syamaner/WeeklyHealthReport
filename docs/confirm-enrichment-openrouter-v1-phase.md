@@ -729,8 +729,9 @@ export goldens for schema 7 alone and mixed with schema 3 and 5 content.
 - **Who runs it.** The owner runs the tool on the Mac and reads its output and the review sheet there.
   No agent starts a run, reads its console output or reads the private folder, so no case data reaches
   an agent's model provider; an agent sees only what the owner commits to the repository (counts,
-  versions and hashes). The key is read, as 11.1a says, from the owner's own environment into memory
-  only and is never printed or stored. The tool's console output, every error and stop message
+  versions and hashes). The key, as 11.1a says, is the OpenRouter key already approved for the
+  evaluations, read into memory only and never printed or stored; the gate adds that it is read from
+  the owner's own environment. The tool's console output, every error and stop message
   included, still names a case only by its hash (a G11 case), so a pasted log carries no case data.
 - **Run.** The tool sends exactly the app's request bytes through the `FoodConfirmEnrichment` adapters
   with a tool-local gate, under CE-T15 ($5 programme, $0.05 per call, in its own spend ledger before
@@ -982,3 +983,6 @@ its skill; external TestFlight or App Store builds; any evaluation call before s
   private. Also taken: the owner runs the tool and no agent reads its output or the private folder;
   the tool's output names cases by hash only, with a G11 case; the key source is stated; the record of
   edits after approval is complete.
+- **Blind invariant re-review 4 (21 November 2026, at `5ec923df`): PASS.** Every change since the
+  approval at `af12ad6b` narrows a term or adds a step. One low citation fix taken after it: the key
+  sentence now credits 11.1a only with what it says. That commit changes wording only.
