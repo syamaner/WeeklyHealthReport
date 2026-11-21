@@ -242,8 +242,8 @@ final class ReviewManifestV2ContractTests: XCTestCase {
     func test08ContractFiveSchemaFiveAndDailyPinBoundaries() throws {
         // Contracts 6 (favourites, #198), 7 (pasted label, #93), 8 (label estimate, #383) and 9 (Open
         // Food Facts estimate, #464) followed; contract 5 conditions are unchanged.
-        XCTAssertEqual(CanonicalFoodProjection.foodContractVersion, 11)
-        XCTAssertEqual(FoodLedgerGRDBStore.schemaVersion, 11)
+        XCTAssertEqual(CanonicalFoodProjection.foodContractVersion, 13)
+        XCTAssertEqual(FoodLedgerGRDBStore.schemaVersion, 13)
         for harness in try LedgerFixtures.harnesses() {
             defer { harness.cleanup() }
             _ = try saveRepresentative(try ReviewedWebFixtures.v1Fixture("representative-serving").input, harness, operation: 1180)

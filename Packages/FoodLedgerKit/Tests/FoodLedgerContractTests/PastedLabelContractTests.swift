@@ -516,6 +516,7 @@ final class PastedLabelContractTests: XCTestCase {
             try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v9_off_label_estimate'")
             try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v10_approved_estimate'")
             try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v11_label_photo_estimate'")
+            try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v13_confirm_enrichment'")
             try db.execute(sql: "UPDATE ledger_metadata SET value = 'food-ledger-v6' WHERE key = 'schema_identity'")
             try db.execute(sql: "PRAGMA user_version = 6")
         }
@@ -534,12 +535,12 @@ final class PastedLabelContractTests: XCTestCase {
         let check = try DatabaseQueue(path: database.path)
         XCTAssertEqual(try Self.schema(check), schemaBefore, "No table, index or trigger definition changes")
         try check.read { db in
-            XCTAssertEqual(try Int.fetchOne(db, sql: "PRAGMA user_version"), 11)
-            XCTAssertEqual(try String.fetchOne(db, sql: "SELECT value FROM ledger_metadata WHERE key = 'schema_identity'"), "food-ledger-v11")
+            XCTAssertEqual(try Int.fetchOne(db, sql: "PRAGMA user_version"), 13)
+            XCTAssertEqual(try String.fetchOne(db, sql: "SELECT value FROM ledger_metadata WHERE key = 'schema_identity'"), "food-ledger-v13")
             // GRDB's own migration log records the metadata migrations (v7, v8, then v9).
-            XCTAssertEqual(try String.fetchAll(db, sql: "SELECT identifier FROM grdb_migrations ORDER BY rowid").suffix(5),
+            XCTAssertEqual(try String.fetchAll(db, sql: "SELECT identifier FROM grdb_migrations ORDER BY rowid").suffix(6),
                            ["v7_pasted_label", "v8_label_estimate", "v9_off_label_estimate", "v10_approved_estimate",
-                            "v11_label_photo_estimate"])
+                            "v11_label_photo_estimate", "v13_confirm_enrichment"])
         }
     }
 
