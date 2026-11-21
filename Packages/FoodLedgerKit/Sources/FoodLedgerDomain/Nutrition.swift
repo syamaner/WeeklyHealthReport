@@ -155,6 +155,38 @@ public enum ProvenanceSourceKind: String, Codable, CaseIterable, Sendable {
     /// An owner-approved estimate from Your food database (estimates on catalogue v2, food archive
     /// contract 10). Only ever augmented: approval never makes a value measured.
     case approvedEstimate = "approved_estimate"
+    /// A value estimated by an OpenRouter model on Confirm and kept by the user for that entry (Confirm
+    /// enrichment v1, food archive contract 13). Only ever augmented, at the implied tier `low`.
+    case openRouterEstimate = "openrouter_estimate"
+}
+
+/// The fixed provenance form of an `openrouter_estimate` value (Confirm enrichment v1 phase gate
+/// section 2.1): what binds a saved value to its `confirm-nutrient-capture-v1` evidence.
+public enum OpenRouterEstimateProvenance {
+    public static let sourceID = "confirm-enrichment-openrouter"
+    public static let captureMethodVersion = "confirm-nutrient-capture-v1"
+    public static let recordIDPrefix = "ore:"
+    public static let sourceReleasePrefix = "openrouter-estimate:sha256:"
+    /// The only tier an `openrouter_estimate` value carries; implied by the kind, never stored.
+    public static let tier = "low"
+
+    public static func manifestReference(_ key: NutrientKey) -> String { "\(captureMethodVersion)#\(key.rawValue)" }
+    public static func sourceReleaseID(captureHash: SHA256Digest) -> String { sourceReleasePrefix + captureHash.value }
+    public static func recordID(evidenceID: EvidenceID) -> String { recordIDPrefix + evidenceID.rawValue }
+
+    /// Every field of the pinned form, in its exact value.
+    public static func isValid(_ provenance: NutrientProvenance, key: NutrientKey) -> Bool {
+        guard provenance.sourceKind == .openRouterEstimate,
+              let evidenceID = provenance.evidenceID,
+              let hash = provenance.responseHash,
+              provenance.capturedAt != nil else { return false }
+        return provenance.sourceID.value == sourceID
+            && provenance.sourceReleaseID.value == sourceReleaseID(captureHash: hash)
+            && provenance.recordID?.value == recordID(evidenceID: evidenceID)
+            && provenance.manifestReference?.value == manifestReference(key)
+            && provenance.decisionID == nil && provenance.assertionID == nil
+            && provenance.transforms.isEmpty
+    }
 }
 
 /// The fixed provenance form of an `approved_estimate` value (estimates v1 section 5.1): what binds a
@@ -368,11 +400,16 @@ public struct NutrientEntry: Codable, Equatable, Sendable {
                 // An exact app reference value names its reference record.
                 case .appReferenceDefinition: $0.recordID != nil
                 // An approved estimate is never measured.
-                case .genericCompositionDataset, .recipeReconstruction, .reviewedWebProposal, .approvedEstimate: false
+                case .genericCompositionDataset, .recipeReconstruction, .reviewedWebProposal, .approvedEstimate,
+                     .openRouterEstimate: false
                 }
             }) else { throw FoodLedgerValidationError.invalidProvenance }
         case let .augmented(exact):
             guard exact.unit == key.canonicalUnit else { throw FoodLedgerValidationError.invalidUnit }
+            // An OpenRouter estimate stands alone: one provenance, never beside another source.
+            if exact.provenance.contains(where: { $0.sourceKind == .openRouterEstimate }) {
+                guard exact.provenance.count == 1 else { throw FoodLedgerValidationError.invalidProvenance }
+            }
             guard exact.provenance.allSatisfy({ provenance in
                 switch provenance.sourceKind {
                 case .genericCompositionDataset, .exactProductDataset:
@@ -384,6 +421,8 @@ public struct NutrientEntry: Codable, Equatable, Sendable {
                         && provenance.responseHash != nil && provenance.manifestReference != nil
                 case .approvedEstimate:
                     ApprovedEstimateProvenance.isValid(provenance, key: key)
+                case .openRouterEstimate:
+                    OpenRouterEstimateProvenance.isValid(provenance, key: key)
                 case .userVerifiedPanel, .manualDeclaration, .appReferenceDefinition:
                     false
                 }
