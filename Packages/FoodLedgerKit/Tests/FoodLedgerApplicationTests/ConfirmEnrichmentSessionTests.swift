@@ -201,7 +201,9 @@ final class ConfirmEnrichmentSessionTests: XCTestCase {
     func testACancelledRequestsAnswerIsDiscardedAndNeverCached() async throws {
         let h = harness([try Self.ok()])
         let req = try request()
-        let task = Task { await h.session.nutrients(req, mode: .automatic, preconditions: Self.on, locale: Self.locale) }
+        // Only Sendable values cross into the task: the actor and the request, never the harness.
+        let session = h.session, on = Self.on, locale = Self.locale
+        let task = Task { [session, req] in await session.nutrients(req, mode: .automatic, preconditions: on, locale: locale) }
         task.cancel()
         let outcome = await task.value
         XCTAssertNotEqual(outcome, .failed(.silent))
