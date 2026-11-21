@@ -789,9 +789,9 @@ Two choices are stated plainly so they are not missed:
       "Evidence not available". A version 7 file with only B values validates and one without is
       rejected. A-subject cache hit and miss. Energy check parity with `LabelArithmeticChecks`, Taiwan and UK forms included; a cache miss when
       a known value changes; mixed-day export goldens; the boundary script fails a non-root importer.
-  17. Zero requests: a Confirm opened by re-log or quick add (with a cache miss), the quick add sheet, a
+  16. Zero requests: a Confirm opened by re-log or quick add (with a cache miss), the quick add sheet, a
       reopened log (including after a details correction), and re-resolution each send nothing.
-  16. Simulator journey: an Open Food Facts product with all facts unknown is filled and logged with
+  17. Simulator journey: an Open Food Facts product with all facts unknown is filled and logged with
       one amount; a bundled row gets two estimates, one left out, and logs; enrichment off sends
       nothing; a scripted failure shows the one note.
 
