@@ -628,7 +628,8 @@ CE1 section 15's seventeen tests are adopted as written. The gate adds:
 - **G10 Consent records.** Before PR 5 the four uses are nil and refused; after it, the not-in-force set
   is the pasted label text uses plus any part that missed its bar, and each in-force use
   maps to exactly one row and one policy entry.
-- **G11 Evaluation tool.** The tool binary's only network calls go to the 11.1a destinations; it refuses to send
+- **G11 Evaluation tool.** Its console output, every error and stop message included, names cases only
+  by hash and carries no request body, response, barcode or description. The tool binary's only network calls go to the 11.1a destinations; it refuses to send
   without the 11.1a paragraph on `origin/main`; it stops at the spend limits.
 - **G12 Readers and citations.** The pasted label, label photo and approved-estimate `.labelText`
   readers ignore the three CE1 method versions, and the CE1 readers ignore every other version; an
@@ -725,10 +726,12 @@ export goldens for schema 7 alone and mixed with schema 3 and 5 content.
   v1 (`ConfirmEnrichmentPolicy` never requests them), so the app never shows an estimate the
   evaluation did not measure (section 11, point 6). A scorer test maps all 39 keys (1 + 7 + 2 + 26 + 3)
   to exactly one row each, `sodium` only in the fibre and sodium row.
-- **Who runs it.** The owner runs the tool and reads the review sheet on the Mac. An agent may start a
-  run or read its summary, but sees only what the repository may hold (counts, versions, hashes and the
-  aggregate figures above), never case contents or raw responses, so no case data reaches an agent's
-  model provider.
+- **Who runs it.** The owner runs the tool on the Mac and reads its output and the review sheet there.
+  No agent starts a run, reads its console output or reads the private folder, so no case data reaches
+  an agent's model provider; an agent sees only what the owner commits to the repository (counts,
+  versions and hashes). The key is read, as 11.1a says, from the owner's own environment into memory
+  only and is never printed or stored. The tool's console output, every error and stop message
+  included, still names a case only by its hash (a G11 case), so a pasted log carries no case data.
 - **Run.** The tool sends exactly the app's request bytes through the `FoodConfirmEnrichment` adapters
   with a tool-local gate, under CE-T15 ($5 programme, $0.05 per call, in its own spend ledger before
   every call; at most 3 attempts with backoff honouring `Retry-After`). It runs its own loop over the
@@ -744,7 +747,7 @@ export goldens for schema 7 alone and mixed with schema 3 and 5 content.
   then never run in the app. More generally, the first request of each part computes W at that day's
   catalogue prices with the route version's ceilings; if W is above the part's per-request cap, the run
   stops for the owner, since the part could pass every bar and still never run in the app. The 4b
-  report records W per part.
+  report records, per part, only whether W was within the cap; W itself stays private.
 - **Route freeze.** `confirm-details-route-v1` (committed in PR 2) is frozen only after the first A request has shown
   whether System One accepts `max_tokens`. Any change that follows to `ConfirmEnrichmentRoutes.swift`
   and to A's synthetic request golden of PR 2 lands in PR 4a, before the frozen configuration. The first
@@ -755,9 +758,10 @@ export goldens for schema 7 alone and mixed with schema 3 and 5 content.
 - **Order.** PR 4a commits the scorer, the bars as code, both manifests and the frozen configuration,
   and merges. Only then is the sealed set sent, once, by that configuration, and its report lands in
   PR 4b. A prompt change during development is a prompt version bump.
-- **Outcome.** The repository gets, per bar and per part, counts, versions, hashes and the aggregate
-  figures the bars are defined on (medians, the p90 latency, median costs and W), and never a per-case
-  value, input or response; that is how the gate reads "counts" in 11.1a. A missed bar stops release of
+- **Outcome.** The repository gets counts, versions and hashes only, as 11.1a says: per bar, pass or
+  fail and the number of cases within and outside its threshold; per part, whether W at the day's prices
+  is within the per-request cap. The medians, the p90 latency, the costs and W themselves stay in the
+  private folder with the per-case results, for the owner to read there. A missed bar stops release of
   that part; the other may ship alone. If A misses the wrong pre-fill bar at 0.85, the report gives the
   lowest threshold that passes and the owner chooses (CE-D3).
 - **Release.** No build that can reach a route outside Debug goes anywhere until its part passes; then
@@ -960,12 +964,21 @@ its skill; external TestFlight or App Store builds; any evaluation call before s
   the first request body's SHA-256. Also taken: PR 4a commits development run counts, versions and
   hashes only; a broken section 9 sentence is split; section 11 point 4 says the owner downloads the
   export by hand.
-- **After approval.** The edits after the owner's approval of 21 November 2026 (the two invariant
-  reviews above) only narrow terms: what the repository receives from the evaluation, and who fetches
-  the Open Food Facts export (the owner by hand, a new manual step for the owner). They are shown to
-  the owner with the merge ask.
+- **After approval.** Every edit after the owner's approval of 21 November 2026 (the invariant review
+  and its three re-reviews recorded here) narrows a term or states a step, and none widens one: the
+  evaluation case lists and review sheet stay private and the repository gets hashed manifests and
+  counts; the route freeze keeps only a body hash and runs inside the tool; the outcome stays counts,
+  versions and hashes, with medians, latency, costs and W kept private; the owner, not an agent, runs
+  the tool and fetches the Open Food Facts export by hand (a new manual step for the owner); the tool's
+  output names cases by hash only. They are shown to the owner with the merge ask.
 - **Blind invariant re-review 2 (21 November 2026, at `9972e6bc`): PASS.** Three low findings taken: the
   route freeze check runs inside the tool from the private folder, and no repository test or fixture
   holds an evaluation case; the outcome names the aggregate figures it commits, never per-case data;
   the status line notes the edits after approval. The open question is answered in section 9: the
   owner runs the tool, and an agent sees only what the repository may hold.
+- **Blind invariant re-review 3 (21 November 2026, at `1dcfb85e`): BLOCK, fixed.** The previous edit had
+  read "counts" in 11.1a as including medians, latency and costs, a widening after approval; the
+  outcome is back to counts, versions and hashes, with pass or fail per bar and the figures kept
+  private. Also taken: the owner runs the tool and no agent reads its output or the private folder;
+  the tool's output names cases by hash only, with a G11 case; the key source is stated; the record of
+  edits after approval is complete.
