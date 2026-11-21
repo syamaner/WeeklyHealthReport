@@ -137,4 +137,24 @@ final class EvalCoreTests: XCTestCase {
         XCTAssertEqual(hidden.entries.first { $0.key == .fiber }?.value, .unknown(.notDeclared))
         XCTAssertEqual(try EvalHiding.hide(set, keys: []), set)
     }
+
+    func testAPrivateFolderInsideTheRepositoryIsRefused() {
+        XCTAssertTrue(EvalPaths.isInside("/tmp/repo/private", repository: "/tmp/repo"))
+        XCTAssertTrue(EvalPaths.isInside("/tmp/repo", repository: "/tmp/repo"))
+        XCTAssertTrue(EvalPaths.isInside("/tmp/other/../repo/x", repository: "/tmp/repo"))
+        XCTAssertFalse(EvalPaths.isInside("/tmp/repository-private", repository: "/tmp/repo"))
+        XCTAssertFalse(EvalPaths.isInside("/tmp/eval-private", repository: "/tmp/repo"))
+    }
+
+    /// Defect review of PR 3: a negative amount never lowers the total.
+    func testANegativeWorstCaseIsRefusedAndANegativeCostStopsTheLedger() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("ce1-neg-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let ledger = EvalSpendLedger(url: folder.appendingPathComponent("ledger.json"))
+        XCTAssertThrowsError(try ledger.reserve(part: "details", caseHash: "a", worstCaseMicroUSD: -5))
+        let id = try ledger.reserve(part: "details", caseHash: "a", worstCaseMicroUSD: 3_000)
+        try ledger.settle(id, reportedMicroUSD: -1_000)
+        XCTAssertEqual(try ledger.chargedMicroUSD(), 3_000, "charged at W, never the negative report")
+        XCTAssertThrowsError(try ledger.reserve(part: "details", caseHash: "b", worstCaseMicroUSD: 1), "the ledger stopped")
+    }
 }

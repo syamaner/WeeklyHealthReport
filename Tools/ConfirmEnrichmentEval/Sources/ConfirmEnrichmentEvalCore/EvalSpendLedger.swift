@@ -88,7 +88,8 @@ public final class EvalSpendLedger: @unchecked Sendable {
         try lock.withLock {
             var file = try read()
             guard !file.stopped else { throw Refusal.stopped }
-            guard w <= Self.perCallStopMicroUSD else { throw Refusal.perCallStop }
+            // A negative W could only come from an overflow: refused, never subtracted from the total.
+            guard w >= 0, w <= Self.perCallStopMicroUSD else { throw Refusal.perCallStop }
             guard charged(file) + w <= Self.programmeStopMicroUSD else { throw Refusal.programmeStop }
             sequence += 1
             let id = "\(file.entries.count + 1)-\(sequence)"
@@ -104,7 +105,13 @@ public final class EvalSpendLedger: @unchecked Sendable {
             var file = try read()
             guard let index = file.entries.firstIndex(where: { $0.id == id && $0.open }) else { throw Refusal.noOpenReservation }
             file.entries[index].open = false
-            file.entries[index].costMicroUSD = reportedMicroUSD
+            // A negative reported cost is not believed: the call stays charged at W and the ledger stops.
+            if let reported = reportedMicroUSD, reported < 0 {
+                file.entries[index].costMicroUSD = nil
+                file.stopped = true
+            } else {
+                file.entries[index].costMicroUSD = reportedMicroUSD
+            }
             if let reported = reportedMicroUSD, reported > Self.perCallStopMicroUSD { file.stopped = true }
             try write(file)
         }

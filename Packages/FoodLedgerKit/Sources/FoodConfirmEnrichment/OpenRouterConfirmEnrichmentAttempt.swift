@@ -14,6 +14,9 @@ enum OpenRouterConfirmEnrichmentAttempt {
                         keys: any FoodWebKeyStoring, egress: any OpenRouterEgressPermitting,
                         transport: any ConfirmEnrichmentHTTPTransporting) async -> ConfirmEnrichmentAttemptResult {
         if Task.isCancelled { return .notSent(.cancelled) }
+        // CE-T1: each adapter sends only to its own route-version address, whatever route it is given.
+        let allowed = use == .confirmEnrichmentDetails ? ConfirmEnrichmentRoutes.detailsURL : ConfirmEnrichmentRoutes.nutrientURL
+        guard route.endpoint == allowed else { return .notSent(.notPermitted) }
         guard egress.permits(use) else { return .notSent(.notPermitted) }
         guard let key = try? keys.load(), FoodWebKeySyntax.isValid(key), let url = URL(string: route.endpoint) else {
             return .notSent(.noKey)

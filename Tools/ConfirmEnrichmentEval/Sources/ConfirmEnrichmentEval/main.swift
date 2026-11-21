@@ -17,7 +17,8 @@ func fail(_ message: String) -> Never {
 }
 
 func value(_ name: String, in arguments: [String]) -> String? {
-    guard let index = arguments.firstIndex(of: name), arguments.indices.contains(index + 1) else { return nil }
+    guard let index = arguments.firstIndex(of: name), arguments.indices.contains(index + 1),
+          !arguments[index + 1].hasPrefix("--") else { return nil }
     return arguments[index + 1]
 }
 
@@ -74,6 +75,8 @@ case "send":
     preflight(repo: repo)
     let list = cases(casesPath)
     let privateFolder = URL(fileURLWithPath: privatePath, isDirectory: true)
+    // 11.1a: raw responses and the ledger stay in the private folder, never inside the repository.
+    if EvalPaths.isInside(privateFolder.path, repository: repo.path) { fail(EvalConsole.stopLine("private_folder_inside_repository")) }
     let transport: any ConfirmEnrichmentHTTPTransportingBox
     let keys: any FoodWebKeyStoring
     if let fake = value("--fake", in: arguments) {
@@ -83,11 +86,16 @@ case "send":
         do { keys = try EnvironmentKey() } catch { fail(EvalConsole.stopLine("\(error)")) }
         transport = Box(LiveTransport.make())
     }
-    let ledger = EvalSpendLedger(url: privateFolder.appendingPathComponent("confirm-enrichment-eval-spend-ledger-v1.json"))
+    // A fake run keeps its own ledger, so it never spends from the real CE-T15 budget.
+    let ledgerName = value("--fake", in: arguments) == nil ? "confirm-enrichment-eval-spend-ledger-v1.json"
+        : "confirm-enrichment-eval-spend-ledger-v1-fake.json"
+    let ledger = EvalSpendLedger(url: privateFolder.appendingPathComponent(ledgerName))
     let sender = EvalSender(part: part, transport: transport.value, keys: keys, ledger: ledger, privateFolder: privateFolder)
     let semaphore = DispatchSemaphore(value: 0)
     let output = OutputLines()
-    Task {
+    // Detached: top-level code is main-actor isolated in Swift 6, so an inherited task would wait for
+    // the main thread this line blocks (defect review of PR 3).
+    Task.detached {
         output.set(await sender.run(list))
         semaphore.signal()
     }

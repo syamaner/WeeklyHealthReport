@@ -34,7 +34,7 @@ public final class ConfirmEnrichmentTransport: NSObject, ConfirmEnrichmentHTTPTr
 
     public func send(_ request: ConfirmEnrichmentHTTPRequest, timeout: TimeInterval, maximumBodyBytes: Int) async throws
         -> ConfirmEnrichmentHTTPResponse {
-        guard timeout > 0 else { throw ConfirmEnrichmentTransportError.timedOut }
+        guard timeout > 0, timeout.isFinite, timeout <= 300 else { throw ConfirmEnrichmentTransportError.timedOut }
         var urlRequest = URLRequest(url: request.url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: timeout)
         urlRequest.httpMethod = request.method
         urlRequest.httpBody = request.body

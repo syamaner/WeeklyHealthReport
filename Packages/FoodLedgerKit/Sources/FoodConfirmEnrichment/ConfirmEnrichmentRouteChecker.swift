@@ -113,9 +113,16 @@ public struct ConfirmEnrichmentRouteChecker: ConfirmEnrichmentRouteChecking {
         return true
     }
 
-    /// A price as a non-negative decimal, or nil.
+    /// The largest per-token price admitted: USD 0.001 (1,000 per million tokens), far above any listed
+    /// model, so a larger price is malformed and fails the route closed before W is worked out.
+    static let maximumPricePerToken = Decimal(string: "0.001")!
+
+    /// A price as a non-negative decimal written as plain decimal text, at most the ceiling; nil for
+    /// anything else (a comma, trailing text, spaces, a sign or an exponent fails closed).
     static func price(_ text: String) -> Decimal? {
-        guard let value = Decimal(string: text, locale: Locale(identifier: "en_US_POSIX")), value >= 0, !value.isNaN else { return nil }
+        guard text.range(of: #"^[0-9]+(\.[0-9]+)?$"#, options: .regularExpression) != nil,
+              let value = Decimal(string: text, locale: Locale(identifier: "en_US_POSIX")), !value.isNaN,
+              value >= 0, value <= maximumPricePerToken else { return nil }
         return value
     }
 }

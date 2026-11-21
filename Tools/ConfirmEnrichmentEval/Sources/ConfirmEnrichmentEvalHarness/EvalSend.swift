@@ -13,6 +13,10 @@ import Foundation
 /// 2. Before every call, a reservation of W in the CE-T15 ledger ($0.05 per call, $5 for the programme).
 /// 3. The call; its reported cost settles the reservation (unreported: charged at W).
 /// 4. At most 3 attempts, with backoff that honours `Retry-After`.
+/// 5. The first request stop (section 9): the run's first case that sends must return the checked
+///    shape, and its reported prompt tokens must be within the route's ceiling; otherwise the run stops
+///    for the owner. Whether the body (with `max_tokens` where the route sends it) was accepted is
+///    recorded in the private folder only.
 ///
 /// Raw responses are written under the private folder only. The returned lines name cases by hash and
 /// hold closed codes and counts only (G11).
@@ -87,6 +91,27 @@ public struct EvalSender: Sendable {
         try? bytes.write(to: folder.appendingPathComponent("\(hash)-\(part.rawValue)-\(attempt).json"), options: .atomic)
     }
 
+    /// The reported prompt tokens of a reply; nil when it reports none.
+    static func promptTokens(_ body: Data) -> Int? {
+        guard let root = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+              let tokens = (root["usage"] as? [String: Any])?["prompt_tokens"] as? NSNumber,
+              CFGetTypeID(tokens) != CFBooleanGetTypeID() else { return nil }
+        return tokens.intValue
+    }
+
+    /// The first request's record, private folder only: part, whether `max_tokens` was sent and
+    /// whether the body was accepted, and the reported prompt tokens. Never a body or a response.
+    func saveFirstRequest(accepted: Bool, promptTokens: Int?) {
+        let route = routes.route(part)
+        let record: [String: Any] = ["part": part.rawValue, "route": route.version, "max_tokens_sent": route.sendsMaxTokens,
+                                     "accepted": accepted, "prompt_tokens": promptTokens.map { $0 as Any } ?? NSNull(),
+                                     "prompt_ceiling": route.promptCeilingTokens]
+        try? FileManager.default.createDirectory(at: privateFolder, withIntermediateDirectories: true)
+        if let data = try? JSONSerialization.data(withJSONObject: record, options: [.sortedKeys]) {
+            try? data.write(to: privateFolder.appendingPathComponent("first-request-\(part.rawValue).json"), options: .atomic)
+        }
+    }
+
     /// Runs every case and returns the console lines. Stops at the first ledger refusal.
     public func run(_ list: EvalCaseList) async -> [String] {
         var lines: [String] = []
@@ -110,6 +135,7 @@ public struct EvalSender: Sendable {
         case .notPermitted: return lines + [EvalConsole.stopLine("route_check_not_permitted")]
         case .unavailable: return lines + [EvalConsole.stopLine("route_unavailable")]
         }
+        var firstRequestChecked = false
         caseLoop: for evalCase in list.cases {
             guard let hash = try? EvalHashes.hash(evalCase) else { continue }
             let built: Built
@@ -123,8 +149,15 @@ public struct EvalSender: Sendable {
             }
             let started = now()
             var attempts = 0
+            var charged: [ConfirmEnrichmentSpendPolicy.Attempt] = []
             var outcome: EvalConsole.Outcome = .transportFailed
+            var lastBody: Data?
             attemptLoop: while attempts < ConfirmEnrichmentRetryPolicy.maxAttempts {
+                // As the app's session: an attempt starts only within the whole-request cap and while the
+                // 60 s deadline leaves time for it.
+                guard ConfirmEnrichmentSpendPolicy.mayStartAttempt(charged, w: w, part: part) else { break attemptLoop }
+                let timeout = ConfirmEnrichmentRetryPolicy.attemptTimeout(elapsed: now().timeIntervalSince(started))
+                guard timeout > 0 else { break attemptLoop }
                 let reservation: String
                 do {
                     reservation = try ledger.reserve(part: part.rawValue, caseHash: hash, worstCaseMicroUSD: w)
@@ -137,23 +170,35 @@ public struct EvalSender: Sendable {
                     lines.append(EvalConsole.stopLine("ledger_unwritable"))
                     break caseLoop
                 }
-                let elapsed = now().timeIntervalSince(started)
-                let result = await attempt(built.body, timeout: ConfirmEnrichmentRetryPolicy.attemptTimeout(elapsed: elapsed))
+                let result = await attempt(built.body, timeout: timeout)
                 let retry: ConfirmEnrichmentRetryPolicy.Outcome
                 switch result {
                 case .notSent:
-                    try? ledger.release(reservation)
+                    _ = try? ledger.release(reservation)
                     outcome = .notSent
                     break attemptLoop
                 case let .transportFailed(failure):
                     attempts += 1
-                    try? ledger.settle(reservation, reportedMicroUSD: nil)
+                    charged.append(.init(reportedMicroUSD: nil, promptTokens: nil))
+                    guard (try? ledger.settle(reservation, reportedMicroUSD: nil)) != nil else {
+                        record(hash, .refusedByLedger, attempts)
+                        lines.append(EvalConsole.stopLine("ledger_unwritable"))
+                        break caseLoop
+                    }
                     outcome = .transportFailed
+                    // As the app: a cancelled attempt ends the request.
+                    if failure == .cancelled { break attemptLoop }
                     retry = failure == .timedOut ? .timedOut : failure == .tooLarge ? .contentFailure : .transportError
                 case let .sent(status, body, retryAfter):
                     attempts += 1
-                    try? ledger.settle(reservation, reportedMicroUSD: Self.reportedCost(body))
+                    charged.append(.init(reportedMicroUSD: Self.reportedCost(body), promptTokens: Self.promptTokens(body)))
+                    guard (try? ledger.settle(reservation, reportedMicroUSD: Self.reportedCost(body))) != nil else {
+                        record(hash, .refusedByLedger, attempts)
+                        lines.append(EvalConsole.stopLine("ledger_unwritable"))
+                        break caseLoop
+                    }
                     save(body, hash: hash, attempt: attempts)
+                    lastBody = body
                     if status == 200, !ConfirmEnrichmentRetryPolicy.isOverloadedEnvelope(body) {
                         outcome = built.check(body) ? .answered : .failedChecks
                         break attemptLoop
@@ -168,6 +213,20 @@ public struct EvalSender: Sendable {
                 }
             }
             record(hash, outcome, attempts)
+            // Section 9: the first case that sent decides whether the run may go on.
+            if attempts > 0, !firstRequestChecked {
+                firstRequestChecked = true
+                let tokens = lastBody.flatMap(Self.promptTokens)
+                saveFirstRequest(accepted: outcome == .answered, promptTokens: tokens)
+                if outcome != .answered {
+                    lines.append(EvalConsole.stopLine("first_request_not_accepted"))
+                    break caseLoop
+                }
+                if let tokens, tokens > route.promptCeilingTokens {
+                    lines.append(EvalConsole.stopLine("first_request_prompt_over_ceiling"))
+                    break caseLoop
+                }
+            }
         }
         lines.append(EvalConsole.summaryLine(part: part.rawValue, counts: counts))
         return lines

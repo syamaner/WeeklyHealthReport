@@ -46,7 +46,7 @@ final class EvalHarnessTests: XCTestCase {
     }
 
     /// Answers as the routes would, naming the live routes' models and providers.
-    static func answering(prompt: String = "0.0000002") -> FakeTransport {
+    static func answering(prompt: String = "0.0000002", promptTokens: Int = 200) -> FakeTransport {
         FakeTransport { request in
             if let response = catalogue(request, prompt: prompt) { return response }
             let body = String(decoding: request.body ?? Data(), as: UTF8.self)
@@ -57,7 +57,7 @@ final class EvalHarnessTests: XCTestCase {
                 }
                 let reply: [String: Any] = ["id": "gen-eval", "model": ConfirmEnrichmentRoutes.details.model,
                                             "provider": ConfirmEnrichmentRoutes.details.provider, "answers": answers,
-                                            "usage": ["cost": 0.0003, "prompt_tokens": 200]]
+                                            "usage": ["cost": 0.0003, "prompt_tokens": promptTokens]]
                 return .init(status: 200, headers: [:], body: try! JSONSerialization.data(withJSONObject: reply), exceededLimit: false)
             }
             if request.url.absoluteString == ConfirmEnrichmentRoutes.nutrientURL, let inputs = ConfirmNutrientRequestInputs.decode(requestBody: body) {
@@ -117,6 +117,47 @@ final class EvalHarnessTests: XCTestCase {
         let lines = await sender(.nutrients, transport: transport, folder: folder, ledger: ledger).run(list)
         XCTAssertTrue(lines.contains("stop programme_stop"), "\(lines)")
         XCTAssertFalse(transport.sent.contains { $0.method == "POST" }, "nothing is sent past the stop")
+    }
+
+    /// Section 9's first request stop (invariant review of PR 3).
+    func testAFirstRequestThatIsNotAcceptedStopsTheRunAfterOneCase() async throws {
+        let (folder, list) = try privateFolder()
+        let refusing = FakeTransport { request in
+            Self.catalogue(request, prompt: "0.0000002") ?? .init(status: 400, headers: [:], body: Data("{}".utf8), exceededLimit: false)
+        }
+        let lines = await sender(.details, transport: refusing, folder: folder).run(list)
+        XCTAssertTrue(lines.contains("stop first_request_not_accepted"), "\(lines)")
+        XCTAssertEqual(refusing.sent.filter { $0.method == "POST" }.count, 1, "nothing more after the first case")
+        let record = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: folder.appendingPathComponent("first-request-details.json")))
+                                   as? [String: Any])
+        XCTAssertEqual(record["accepted"] as? Bool, false)
+        XCTAssertEqual(record["max_tokens_sent"] as? Bool, ConfirmEnrichmentRoutes.details.sendsMaxTokens)
+        XCTAssertNil(record["body"]); XCTAssertNil(record["response"])
+    }
+
+    func testAFirstRequestReportingPromptTokensAboveTheCeilingStopsTheRun() async throws {
+        let (folder, list) = try privateFolder()
+        let transport = Self.answering(promptTokens: ConfirmEnrichmentRoutes.details.promptCeilingTokens + 1)
+        let lines = await sender(.details, transport: transport, folder: folder).run(list)
+        XCTAssertTrue(lines.contains("stop first_request_prompt_over_ceiling"), "\(lines)")
+        XCTAssertEqual(transport.sent.filter { $0.method == "POST" }.count, 1)
+    }
+
+    /// Defect review of PR 3: the tool's retries follow the app's whole-request cap. W of $0.012 on B fits
+    /// the $0.02 cap once, so after a 503 no second attempt starts.
+    func testRetriesStopWhereTheAppsWholeRequestCapWould() async throws {
+        let (folder, list) = try privateFolder()
+        // prompt 0.0000015, completion 0.0000008: W = 6,000 * 1.5e-6 + 1,700 * 8e-7 = 0.01036, under the $0.02 cap once.
+        let transport = FakeTransport { request in
+            if let response = Self.catalogue(request, prompt: "0.0000015") { return response }
+            return .init(status: 503, headers: [:], body: Data(), exceededLimit: false)
+        }
+        _ = await sender(.nutrients, transport: transport, folder: folder).run(list)
+        let posts = transport.sent.filter { $0.method == "POST" }.count
+        let w = ConfirmEnrichmentSpendPolicy.worstCase(ConfirmEnrichmentRoutes.nutrients,
+            prices: ConfirmEnrichmentPrices(promptPerTokenUSD: Decimal(string: "0.0000015")!, completionPerTokenUSD: Decimal(string: "0.0000008")!))
+        XCTAssertGreaterThan(2 * w, ConfirmEnrichmentPart.nutrients.perRequestCapMicroUSD, "the fixture needs W above half the cap")
+        XCTAssertEqual(posts, 1, "one attempt, as the app's session would make")
     }
 
     func testAWorstCaseAboveTheAppCapStopsBeforeAnyPost() async throws {

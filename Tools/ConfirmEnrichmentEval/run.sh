@@ -8,4 +8,7 @@ repo="${1:?usage: run.sh REPO_DIR -- <tool arguments>}"
 shift
 [[ "${1:-}" == "--" ]] && shift
 env -u OPENROUTER_API_KEY git -C "$repo" fetch origin
-exec swift run --package-path "$repo/Tools/ConfirmEnrichmentEval" ConfirmEnrichmentEval "$@" --repo "$repo"
+# Build with the key unset too, then run the built binary: only the tool's own process holds the key.
+env -u OPENROUTER_API_KEY swift build --package-path "$repo/Tools/ConfirmEnrichmentEval" --product ConfirmEnrichmentEval
+bin="$(env -u OPENROUTER_API_KEY swift build --package-path "$repo/Tools/ConfirmEnrichmentEval" --show-bin-path)"
+exec "$bin/ConfirmEnrichmentEval" "$@" --repo "$repo"

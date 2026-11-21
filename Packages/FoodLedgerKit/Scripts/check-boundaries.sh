@@ -1011,6 +1011,9 @@ fi
 confirm_eval_allowed='^(Foundation|FoodLedgerDomain|FoodLedgerApplication|FoodConfirmEnrichment|FoodGenericSearch|ConfirmEnrichmentEvalCore|ConfirmEnrichmentEvalHarness|XCTest)$'
 confirm_eval_core_allowed='^(Foundation|FoodLedgerDomain|FoodLedgerApplication)$'
 confirm_eval_live_pattern='\bConfirmEnrichmentTransport\b'
+# The shared URL pattern, plus a request type and a remote read through Foundation's file initialisers
+# (local files are read by path or file URL, never `URL(string:)`), as the package rule catches.
+confirm_eval_url_pattern="$url_loading_pattern|URLRequest|contentsOf:[[:space:]]*URL\\(string:"
 confirm_eval_network_names='\b(OpenFoodFactsLookup|OpenFoodFactsSearch|GeminiFoodSearch|OpenRouterFoodProvider|URLSession)\b'
 confirm_eval_violations() {
   local tool="$1" file line allowed
@@ -1030,7 +1033,7 @@ confirm_eval_violations() {
     echo "$tool/Sources/ConfirmEnrichmentEvalCore: missing"
   fi
   while IFS= read -r file; do [[ -n "$file" ]] && echo "$file loads URLs"; done \
-    < <(grep -rlE --include='*.swift' "$url_loading_pattern" "${scanned[@]}" || true)
+    < <(grep -rlE --include='*.swift' "$confirm_eval_url_pattern" "${scanned[@]}" || true)
   while IFS= read -r file; do
     [[ -z "$file" || "$file" == "$allowed" ]] || echo "$file names the live transport outside LiveTransport.swift"
   done < <(grep -rlE --include='*.swift' "$confirm_eval_live_pattern" "${scanned[@]}" || true)
@@ -1052,7 +1055,7 @@ self_test_confirm_eval() {
     echo "check-boundaries self-test: the Confirm enrichment evaluation baseline must pass" >&2; status=1
   fi
   for fixture in label_capture core_application_only core_url live_type_elsewhere live_file_url_session cli_url_session \
-                 off_lookup off_search gemini openrouter_provider test_url_session missing_tool; do
+                 off_lookup off_search gemini openrouter_provider test_url_session url_request remote_read missing_tool; do
     target="$scratch/$fixture"
     cp -R "$base" "$target"
     case "$fixture" in
@@ -1067,6 +1070,8 @@ self_test_confirm_eval() {
       gemini) echo 'let search: GeminiFoodSearch? = nil' > "$target/Sources/ConfirmEnrichmentEvalHarness/Leak.swift" ;;
       openrouter_provider) echo 'let provider: OpenRouterFoodProvider? = nil' > "$target/Sources/ConfirmEnrichmentEvalHarness/Leak.swift" ;;
       test_url_session) echo 'let session = URLSession.shared' >> "$target/Tests/ConfirmEnrichmentEvalHarnessTests/Tests.swift" ;;
+      url_request) echo 'let request = URLRequest(url: URL(fileURLWithPath: "/"))' >> "$target/Sources/ConfirmEnrichmentEval/main.swift" ;;
+      remote_read) echo 'let page = try? Data(contentsOf: URL(string: "https://example.invalid")!)' >> "$target/Sources/ConfirmEnrichmentEvalHarness/EvalSend.swift" ;;
       missing_tool) rm -rf "$target/Sources" ;;
     esac
     if [[ -z "$(confirm_eval_violations "$target")" ]]; then

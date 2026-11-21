@@ -93,6 +93,24 @@ final class ConfirmEnrichmentLiveAdapterTests: XCTestCase {
         XCTAssertEqual(transport.requests.count, 2)
     }
 
+    /// CE-T1 (invariant review of PR 3): an adapter sends only to its own route-version address.
+    func testAnAdapterGivenAnotherAddressSendsNothing() async {
+        let base = ConfirmEnrichmentRoutes.nutrients
+        let elsewhere = ConfirmEnrichmentRoute(
+            part: .nutrients, version: base.version, model: base.model, acceptedModels: base.acceptedModels, provider: base.provider,
+            providerEndpoint: base.providerEndpoint, endpoint: "https://elsewhere.example/v1/chat/completions",
+            promptCeilingTokens: base.promptCeilingTokens, completionCeilingTokens: base.completionCeilingTokens,
+            reasoningLimitTokens: base.reasoningLimitTokens, reasoningBilledSeparately: base.reasoningBilledSeparately, sendsMaxTokens: true)
+        let transport = Recording([Self.ok()])
+        let adapter = OpenRouterNutrientEstimateAdapter(egress: PermittingOpenRouterEgress(), transport: transport, keys: Keys(Self.key),
+                                                        route: elsewhere)
+        eq(await adapter.attempt(Data("{}".utf8), timeout: 30), .notSent(.notPermitted))
+        let swapped = OpenRouterJevFoodDetailsAdapter(egress: PermittingOpenRouterEgress(), transport: transport, keys: Keys(Self.key),
+                                                      route: ConfirmEnrichmentRoutes.nutrients)
+        eq(await swapped.attempt(Data("{}".utf8), timeout: 30), .notSent(.notPermitted), "the Jev adapter never posts to the chat route")
+        XCTAssertTrue(transport.requests.isEmpty)
+    }
+
     func testNoKeyOrAKeyInTheBodySendsNothing() async {
         let transport = Recording([Self.ok()])
         let none = OpenRouterNutrientEstimateAdapter(egress: PermittingOpenRouterEgress(), transport: transport, keys: Keys(nil))
@@ -279,6 +297,21 @@ final class ConfirmEnrichmentLiveAdapterTests: XCTestCase {
         eq(await ConfirmEnrichmentRouteChecker(egress: PermittingOpenRouterEgress(), transport: wrongUse)
                         .check(.details, catalogueUse: .labelPhotoCatalogueCheck), .unavailable)
         XCTAssertTrue(wrongUse.requests.isEmpty, "another feature's catalogue use is never borrowed")
+    }
+
+    /// Defect review of PR 3: a huge or malformed price fails closed, and money never wraps.
+    func testHugeOrMalformedPricesFailTheRouteClosedAndMoneyNeverWraps() throws {
+        let route = ConfirmEnrichmentRoutes.details
+        for prompt in ["100000000000000000000", "1e20", "0.002", "1,5", "0.5abc", " 1", "-0.1"] {
+            XCTAssertNil(ConfirmEnrichmentRouteChecker.parse(listing: Data(try Self.listing(route, prompt: prompt).utf8),
+                                                             zeroDataRetention: Data(try Self.retention(route).utf8), route: route), prompt)
+        }
+        XCTAssertNotNil(ConfirmEnrichmentRouteChecker.parse(listing: Data(try Self.listing(route, prompt: "0.001").utf8),
+                                                            zeroDataRetention: Data(try Self.retention(route).utf8), route: route))
+        XCTAssertEqual(ConfirmEnrichmentSpendPolicy.microUSD(Decimal(string: "1e20")!), ConfirmEnrichmentSpendPolicy.saturatedMicroUSD)
+        XCTAssertEqual(ConfirmEnrichmentSpendPolicy.microUSD(Decimal(string: "-0.01")!), ConfirmEnrichmentSpendPolicy.saturatedMicroUSD)
+        let huge = ConfirmEnrichmentPrices(promptPerTokenUSD: Decimal(string: "1e20")!, completionPerTokenUSD: 0)
+        XCTAssertFalse(ConfirmEnrichmentSpendPolicy.routeFits(route, prices: huge))
     }
 
     func testReasoningPricedSeparatelyIsAdmittedOnlyWhereWIncludesIt() throws {
