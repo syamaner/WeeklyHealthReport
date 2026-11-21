@@ -485,6 +485,32 @@ final class FoodWebDiscoveryConsentTests: XCTestCase {
         XCTAssertEqual(counts, [1, 0], "nothing is sent while saving")
     }
 
+    func testARefusalRacingARevalidationRestoresTheSessionsValidation() async throws {
+        let keys = MemoryWebKeys(key: key)
+        // The model's own check passes, then the provider's gate refuses the second validation.
+        let provider = DiscoverySpy(error: .notPermitted, failFromValidation: 2)
+        let model = FoodWebDiscoveryViewModel(egress: PermittingOpenRouterEgress(), provider: provider, keys: keys, operatorName: "OpenRouter")
+        await model.revalidateSavedKey()
+        XCTAssertTrue(model.keyIsUsable)
+        await model.revalidateSavedKey()
+        XCTAssertTrue(model.keyIsUsable, "a refusal never clears the session's earlier validation")
+        XCTAssertNoThrow(try model.credentialForRequest())
+        XCTAssertEqual(try keys.load(), key)
+        XCTAssertEqual(model.keyMessage, "Turn on OpenRouter in Settings to use this.")
+    }
+
+    func testARefusalRacingANewKeySavesItUnvalidated() async throws {
+        let keys = MemoryWebKeys(key: key)
+        let provider = DiscoverySpy(error: .notPermitted, failFromValidation: 2)
+        let model = FoodWebDiscoveryViewModel(egress: PermittingOpenRouterEgress(), provider: provider, keys: keys)
+        await model.revalidateSavedKey()
+        model.keyEntry = "replacement-synthetic-key-for-tests"
+        await model.validateAndSaveKey()
+        XCTAssertEqual(try keys.load(), "replacement-synthetic-key-for-tests")
+        XCTAssertFalse(model.keyIsUsable)
+        XCTAssertFalse(model.keyMessage?.contains("was not saved") ?? true)
+    }
+
     func testARefusedSearchIsNotARejectedKey() async throws {
         let keys = MemoryWebKeys(key: key)
         let provider = DiscoverySpy(error: .notPermitted, searchOnlyError: true)
@@ -504,19 +530,22 @@ private actor DiscoverySpy: FoodWebDiscovering {
     let searchOnlyError: Bool
     let suspendOnlyOnSearch: Bool
     let empty: Bool
+    /// The first validation that throws `error` (1 means every one, as before).
+    let failFromValidation: Int
     var validations = 0
     var searches = 0
     var continuation: CheckedContinuation<Void, Never>?
     init(error: FoodWebDiscoveryError? = nil, suspended: Bool = false, empty: Bool = false,
-         searchOnlyError: Bool = false, suspendOnlyOnSearch: Bool = false) {
+         searchOnlyError: Bool = false, suspendOnlyOnSearch: Bool = false, failFromValidation: Int = 1) {
         self.error = error; self.suspended = suspended; self.empty = empty
+        self.failFromValidation = failFromValidation
         self.searchOnlyError = searchOnlyError; self.suspendOnlyOnSearch = suspendOnlyOnSearch
     }
     func counts() -> [Int] { [validations, searches] }
     func validate(key: String) async throws {
         validations += 1
         if suspended && !suspendOnlyOnSearch { await withCheckedContinuation { continuation = $0 } }
-        if let error, !searchOnlyError { throw error }
+        if let error, !searchOnlyError, validations >= failFromValidation { throw error }
     }
     func discover(foodTerms: String, key: String) async throws -> FoodWebDiscoveryResult {
         searches += 1

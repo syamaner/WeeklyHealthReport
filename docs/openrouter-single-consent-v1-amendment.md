@@ -727,4 +727,13 @@ Asked one at a time on #551, each with a recommendation. Approval of the amendme
     carries O1 when that build is cut.
   Not done here: the release notes line of O1.5 (no build is cut in this PR), the sentence by sentence
   policy comparison as a PR note (the old and new texts are in this PR's diff of `privacy-policy.txt`),
-  and the `journey-qa` simulator checks of test 11.
+  and the `journey-qa` simulator checks of test 11 (run afterwards, below).
+- **Blind invariant review (21 November 2026, at `c6462587`): PASS.** One low finding taken: a refusal
+  that races a validation already started (the switch turned off after the view model's own check,
+  refused by the provider's gate) cleared the session's earlier validation. `FoodWebDiscoveryViewModel`
+  now restores it on `.notPermitted`, or saves a new key unvalidated, with two tests.
+- **Simulator journey check, test 11 (21 November 2026, at `c6462587`): PASS** on all five checks
+  (Settings, consent off, consent on with the scripted route, switching off with the screen open, large
+  text and labels), synthetic data only and no OpenRouter request. Not reachable there: the label reads
+  row's visible state, which needs a real key in the Keychain. Simulator runs prove software behaviour
+  only; the owner's check on the device stands.

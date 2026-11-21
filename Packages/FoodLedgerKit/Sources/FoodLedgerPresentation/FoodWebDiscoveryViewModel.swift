@@ -141,6 +141,9 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
             return
         }
         cancelSearch()
+        // Kept so a refusal that races this validation (the switch turned off after the check above,
+        // refused by the provider's own gate) restores the session's earlier validation (O1.2).
+        let priorKey = validatedKey, priorUsable = keyIsUsable
         invalidateUsability()
         guard FoodWebKeySyntax.isValid(key) else {
             keyMessage = "Enter a valid API key without spaces or line breaks. Web search remains unavailable."
@@ -182,6 +185,20 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
                 : "Saved key revalidated. Search access and quota are checked when you search."
         } catch {
             guard generation == current else { return }
+            if error as? FoodWebDiscoveryError == .notPermitted {
+                // A refusal is never a rejected key and never changes key state: nothing was sent.
+                isValidating = false
+                validation = nil
+                if saveNewKey {
+                    saveWithoutValidating(key)
+                } else {
+                    validatedKey = priorKey
+                    keyIsUsable = priorUsable
+                    keyMessage = message(for: error)
+                }
+                runPendingRecheck()
+                return
+            }
             if error as? FoodWebDiscoveryError == .credentialRejected, (try? loadKey()) == key {
                 invalidateRejectedKey(expectedKey: key)
             }
