@@ -122,20 +122,25 @@ row not in `left_out`. Any mismatch shows "Evidence not available" and changes n
 ### 2.4a Where each item is cited
 
 Evidence is reached through the decision's embedded candidate, as estimates v2's leave-out item is
-(`FoodConfirmation.swift:856-864`). Each save that writes CE1 evidence, **and each save whose bound
-candidate cites any item of the three CE1 method versions**, writes a new candidate decision whose
+(`FoodConfirmation.swift:856-864`). The rule applies only to saves where `changesProduct` holds (today
+the only saves that write a decision, product version and resolution version, `:881, 1040`); a save
+without it, such as a quantity-only edit, writes no decision and keeps citing the stored one unchanged.
+Each such save that writes CE1 evidence, **and each such save whose bound candidate cites any item of
+the three CE1 method versions**, writes a new candidate decision whose
 candidate equals the bound candidate except its evidence IDs, so no earlier CE1 item is ever carried
 through `?? selected.candidate` (`:859-865`). On
 reopen the bound candidate is the stored decision's candidate (`FoodConfirmation.swift:1229, 1237`),
 which already lists earlier items, so **the bound candidate's own IDs** are its evidence IDs with every
 estimates v2 leave-out item and every item of the three CE1 method versions removed, order kept. The
-new list is those own IDs, then, once each and only when its rule below holds, the leave-out item,
+new list is those own IDs, then, once each and only when its rule holds, the leave-out item
+(estimates v2's existing rule: `changesProduct` and a non-empty saved leave-out set, `:839-840`),
 the A capture, the B capture and that version's new choices item. So each version's decision cites at
 most one choices item, its own, whose `resolution_version_id` must equal the version citing the
 decision (verification refuses otherwise).
 
-- **A capture** is appended only while the saved correction still holds at least one fact equal to
-  the fill. It is never committed after `Not these`, or when the sheet replaced every suggested fact.
+- **A capture** is appended only while the version being saved still holds at least one fact equal
+  to the capture's `applied` facts (on a first save, the fill; on reopen, the earlier capture). It is
+  never committed after `Not these`, or when the sheet replaced every suggested fact.
 - **B capture and choices item** are appended only while the saved version keeps at least one B
   value. A version with every B row left out cites neither (CE1.7: with every row left out, nothing is
   stored), so its B values are gone and a later reopen offers no Put back for them.
@@ -145,7 +150,20 @@ decision (verification refuses otherwise).
   widens both: a change of B choices sets `changesProduct` through its own term, and `leaveOutOnly`
   becomes `previous != nil && correction == nil && (approved leave-out changed || B choices changed)`.
   The path still keeps the earlier expectations and outcome, and its new decision candidate carries
-  the list above.
+  the list above. The two places that write its stored texts use the widened predicate too:
+  `makeAssertion` (`:1434-1435`, which today returns nil without an approved leave-out change) writes an
+  assertion and carries the previous decision record (`:1438`), and the log edit reason (`:979`) uses
+  the B text. The texts are data, frozen in a new `OpenRouterEstimateChoicesText` beside
+  `ApprovedEstimateLeaveOutText` (`ApprovedEstimateConfirmation.swift:305-307`): reason
+  `Changed kept or left-out OpenRouter estimates under confirm-nutrient-choices-v1`, edit reason
+  `OpenRouter estimates left out or restored`, claim `Kept OpenRouter estimates; left out: <sorted keys
+  or none>`. When an approved leave-out and B choices change in one save, the reason and edit reason
+  are the B texts and the claim appends the approved suffix (`ApprovedEstimateLeaveOutText.claimSuffix`).
+- **B's subject on reopen** (CE1.7a, a details correction keeps B only when B's subject is unchanged)
+  is computed from the capture's stored request inputs (section 3.2), with the identity tokens, basis
+  and known values replaced by those of the version being saved; it is unchanged exactly when it equals
+  the subject of the stored inputs. Description fields are never re-read, so a newer Your food database
+  release between log and reopen changes nothing.
 
 - **Skip list.** `OpenFoodFactsEstimateSource.applies` (`OpenFoodFactsEstimateSource.swift:29-30`),
   `LabelEstimateLayer.expectedNutrients` callers and the approved-estimate manifest and leave-out paths
@@ -223,8 +241,9 @@ Same protection and backup exclusion as the cache. The arithmetic lives in a pur
   sends nothing. With the 50,000-token fallback, W for A is above $0.01 at almost any listed price, so
   A would never run; that case is a first-request stop for the owner (section 9), not a silent outcome.
   W and every reported cost are rounded up to whole micro-dollars.
-- **Whole-request cap.** An attempt may start only when the request's charged total plus W is at most
-  $0.01 (A) or $0.02 (B), checked before every attempt, so one request, retries included, never counts
+- **Whole-request cap.** An attempt may start only when the request's `attemptsCharged` (held in the
+  session: each sent attempt's reported cost, or W when none is reported; never the reserved
+  `charged_microusd`) plus W is at most $0.01 (A) or $0.02 (B), checked before every attempt, so one request, retries included, never counts
   or spends more than the approved per-request figure. An attempt with no reported cost is charged W.
   If W is so close to the cap that no retry fits, the request simply makes fewer attempts.
 - **Day cap.** A request may start only when `requests` is below 100 and `settled_microusd` plus the
@@ -327,7 +346,14 @@ application code, because the same checks must run on a cache hit and on reopen,
 - The **request body** is a typed `Encodable` value built by `ConfirmEnrichmentPolicy` from the live
   Confirm inputs (CE1 section 7 description, questions or instruction and schema, and the route
   version's model and provider block passed in as plain values), encoded once through
-  `CanonicalEncoding`. The port receives those exact bytes; the adapter sends them unchanged and adds
+  `CanonicalEncoding`. The variable part of each request is one canonical JSON object of a closed
+  type, `ConfirmDetailsRequestInputs` (description fields, known details, asked facts) or
+  `ConfirmNutrientRequestInputs` (description fields, identity tokens, basis, known values with unit and
+  source phrase, eligible keys with units), held in one fixed place: System One's `state` value for A,
+  the single user message's content for B (the fixed instruction is the system message). Verification
+  and the reopen subject decode that object from the capture's `request_body` with a closed decoder,
+  never the prose. These types and decoders are in PR 1; the builder is in PR 2. The port receives
+  those exact bytes; the adapter sends them unchanged and adds
   only the Authorization header. A golden per part and route pins the bytes (CE1 test 2); G6 pins that
   the wire bytes equal the capture's `request_body`.
 - The **response checks** (size, one choice, `finish_reason`, refusal, strict schema, `schema` and
@@ -406,8 +432,11 @@ key state per request. Framework, URL and HTTP types never cross a port.
 ## 6. Consent gating through `OpenRouterEgressPermitting`
 
 - **Preconditions for anything.** No cache lookup, display of a cached answer or request happens
-  unless the app's gate would permit the part's use (the use in force, OpenRouter on, enrichment on)
-  and the key state is `valid` in this session. So with either switch off or no validated key a
+  unless the part's use is in force, the OpenRouter and enrichment switch states (read from their
+  preferences by the view model, as O1's journeys read the consent state for the blocked row) are both
+  on, and the key state is `valid` in this session. This is a state read, not a `permits` call; the
+  gate itself is asked only at steps (3) and (4) and by the request sites, so it is enforced twice as
+  in O1. So with either switch off or no validated key a
   Confirm shows no suggestion, cached or not, as CE1 section 6 says. The cache-only Confirm that re-log
   or quick add opens (CE1.7a) meets the same preconditions and then reads the cache only.
 - **Ask again** skips the cache lookup, sends once within the caps, and replaces the subject's entry
@@ -475,7 +504,9 @@ CE1 section 15's seventeen tests are adopted as written. The gate adds:
   more than 500 entries discards the file; an entry older than 30 days misses; a hit whose bytes fail
   the checks or whose hash differs misses and is dropped.
 - **G3 Spend.** Pure `ConfirmEnrichmentSpendPolicy` tests: the 101st request of a day and a request
-  that would pass $0.50 do not start, and the gate is not asked; no attempt starts when charged plus W
+  that would pass $0.50 make no reservation, no gate call for the request use and no transport call;
+  the first attempt starts right after a reservation at the cap, and retries are gated by
+  `attemptsCharged`, never `charged_microusd`; no attempt starts when charged plus W
   would pass $0.01 (A) or $0.02 (B); an unreported cost is charged W; reconcile and release are
   idempotent per `request_id`, across a day change; a reported cost above the cap pauses that part
   only; a corrupt ledger refuses until the next local day; a request whose cap would take the day past
@@ -527,7 +558,12 @@ CE1 section 15's seventeen tests are adopted as written. The gate adds:
   refuses with enrichment off and OpenRouter on, while the bare `OpenRouterConsentPreference` is
   unchanged (`OpenRouterConsentTests.swift:48`). A save of a reopened CE1 entry that writes no new CE1
   evidence (a details correction removing B, every B row left out, a fill replaced in the sheet)
-  carries no earlier CE1 item and verifies; `Not these` before the first Log commits no A capture; a
+  carries no earlier B capture or choices item, carries the A capture exactly when the A rule holds,
+  and verifies; a quantity-only edit writes no new decision, product version or resolution version; a
+  B-only Leave out on reopen writes the frozen `OpenRouterEstimateChoicesText` reason, claim and edit
+  reason and carries the earlier decision record; the request inputs decode from each route golden,
+  and changing them while keeping the hashes fails verification; a details correction across a Your
+  food database release change keeps or removes B by the subject rule of 2.4a; `Not these` before the first Log commits no A capture; a
   B-only Leave out on a reopened log keeps the earlier expectations and outcome; a kill between
   reservation and reply leaves the request counted at its cap; a clock moved back resets nothing.
 - **G16 Seed isolation.** `-confirmEnrichment.enabled.v1 YES` in the argument domain reads as off in
@@ -558,7 +594,7 @@ export goldens for schema 7 alone and mixed with schema 3 and 5 content.
   word for word, both in `docs/privacy-and-egress.md` of the checkout it runs from and in that file on
   `origin/main` (`git show origin/main:docs/privacy-and-egress.md`). The tool binary never runs git
   over the network: a wrapper script runs `git fetch origin` first with the key unset, as
-  `Tools/PastedLabelAITextEval/promptfoo/run-heldout.sh:41` does, and the tool only reads.
+  `Tools/PastedLabelAITextEval/promptfoo/run-heldout.sh:36` does, and the tool only reads.
 
 ## 9. Evaluation before any release (CE1 section 12)
 
@@ -588,7 +624,10 @@ export goldens for schema 7 alone and mixed with schema 3 and 5 content.
   version's completion ceiling, section 2.6) and stops if the reported prompt tokens exceed the route's
   prompt ceiling, since W would then not be a worst case. If `max_tokens` is not accepted and the
   fallback W is above $0.01 at the day's prices, the run stops and the owner decides, because A could
-  then never run in the app.
+  then never run in the app. More generally, the first request of each part computes W at that day's
+  catalogue prices with the route version's ceilings; if W is above the part's per-request cap, the run
+  stops for the owner, since the part could pass every bar and still never run in the app. The 4b
+  report records W per part.
 - **Order.** PR 4a commits the scorer, the bars as code, both manifests and the frozen configuration,
   and merges. Only then is the sealed set sent, once, by that configuration, and its report lands in
   PR 4b. A prompt change during development is a prompt version bump.
@@ -715,3 +754,11 @@ its skill; external TestFlight or App Store builds; any evaluation call before s
   need both switches and a validated key, and `Ask again` bypasses the cache; two citations corrected;
   the git fetch runs in a wrapper; the tool runs its own retry loop; the tool import is an owner point,
   the Debug root wiring is in PR 2 and the composed gate has a test.
+- **Architecture gate, sixth round (21 November 2026, at `9058cf5f`): PASS WITH CHANGES.** All nine
+  findings taken: a B-only choices save writes frozen assertion and edit texts and carries the earlier
+  decision record; the citation rule applies only to saves that change the product; the A capture's
+  carry rule is stated against the version being saved and the leave-out rule is named; each request's
+  variable part is one canonical object with a closed decoder, in PR 1, so verification never parses
+  prose; B's subject on reopen is computed from the stored inputs; the per-attempt total is named apart
+  from the reservation; the evaluation stops when either part's W would exceed its cap; the
+  preconditions are a state read, not a gate call; one citation corrected.
