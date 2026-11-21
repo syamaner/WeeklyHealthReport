@@ -5118,6 +5118,12 @@ After the owner approved I1 with the recommendations for I1-D1 to I1-D3, an impl
 
 Unmeasured: no boundary was captured at the start of this phase, separately from the other work done in the same session, so no token figure is recorded rather than an estimate.
 
+## WHR-BUILD43-RELEASE-2026-11-20: Claude Code TestFlight 0.3.0 (43) delivery
+
+The session (`798fe8c6-41ec-426c-ba38-2bfe4f678123`, `claude-opus-5-5`) archived `main` at `91fa7479` on the owner's request, exported it for internal testing only, uploaded build 43, set What to Test and added it to Internal Testing on the owner's yes, and wrote [the build 43 record](docs/releases/internal-testflight-0.3.0-build43.md).
+
+Unmeasured: no boundary was captured at the start of this delivery, separately from the other work done in the same session, so no token figure is recorded rather than an estimate.
+
 ## WHR-551-2026-11-20: Claude Code one OpenRouter consent, amendment O1 (#551)
 
 The session (`8d9b7f8d-3fee-4b04-b3ff-ceb2371a648e`, `claude-opus-5-5`) inventoried every OpenRouter request, stored consent and egress string in the app (web lookup, label photo reading and its catalogue checks, key validation; the pasted label text route is not wired) and wrote amendment O1: one Settings › OpenRouter switch, off by default, enforced in presentation and at each OpenRouter adapter through one `OpenRouterEgressPermitting` port; one OpenRouter section in the privacy policy listing each use; the per-feature egress statements, first-use sheet and repeated warnings removed from the food journeys in favour of one blocked row; and no earlier consent key read as the new one. Documentation only until the owner approves; the blind architecture-gate rounds are recorded in the document's section 8.
