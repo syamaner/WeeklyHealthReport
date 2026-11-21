@@ -305,7 +305,8 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
             let credentials = FoodWebDiscoveryViewModel(egress: TestOpenRouterEgress(), provider: provider, keys: NativeEmptyWebKeys(),
                 providerName: "OpenRouter", operatorName: "OpenRouter", keyManagementName: "OpenRouter")
             let reviewer = NativeProposalReviewSpy()
-            let model = GenericFoodProposalReviewViewModel(egress: TestOpenRouterEgress(), reviewer: reviewer, credentials: credentials, keyState: { .valid },
+            let model = GenericFoodProposalReviewViewModel(egress: TestOpenRouterEgress(), reviewer: reviewer, credentials: credentials,
+                keyState: { MainActor.assumeIsolated { credentials.keyState } },
                 confirmation: ReviewedFoodProposalConfirmation(ids: NativeQuantityIDs(), clock: SystemLedgerClock(),
                     encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester()), locale: try LedgerText("en_GB"))
             let host = NativeHostingController(rootView: NavigationStack {
@@ -332,10 +333,12 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
             try VNImageRequestHandler(cgImage: XCTUnwrap(image.cgImage)).perform([request])
             let visible = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: "\n")
             let normalized = visible.split(whereSeparator: \.isWhitespace).joined(separator: " ")
-            XCTAssertTrue(normalized.contains("Web lookup needs your OpenRouter key"), visible)
+            // O1.4: the one blocked row, and no closing egress note.
+            XCTAssertTrue(normalized.contains("Add your OpenRouter key in Settings"), visible)
+            XCTAssertFalse(normalized.contains("Only your food terms"), visible)
             if size == .large {
                 XCTAssertTrue(visible.contains("Web lookup"), visible)
-                XCTAssertTrue(normalized.contains("Only your food terms, the market set in Settings and the captured page text are sent"), "Egress footnote: \(visible)")
+                XCTAssertTrue(visible.contains("OpenRouter settings"), visible)
             }
             XCTAssertFalse(visible.contains("Gemini"), visible)
             let attachment = XCTAttachment(image: image); attachment.name = "OpenRouter review \(name)"
@@ -1150,7 +1153,7 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
             ("search-basis-only", AnyView(results(basisOnly)), 1400, ["Best matches", "per 100 g"]),
             ("search-no-result", AnyView(results(none)), 1000, ["Not what you ate?", "Look it up on the web", "Scan the package barcode"]),
             ("web-lookup-scope-unset", AnyView(GenericFoodProposalReviewView(model: unset, credentials: credentials) { _ in XCTFail("No confirmation") }),
-             1600, ["Suggested source", "Exact product", "Similar food estimate", "Not stated", "Use this source", "Choose a match type first", "Only your food terms"]),
+             1600, ["Suggested source", "Exact product", "Similar food estimate", "Not stated", "Use this source", "Choose a match type first"]),
             ("web-lookup-scope-chosen", AnyView(GenericFoodProposalReviewView(model: chosen, credentials: credentials, initialScope: .representativeEstimate) { _ in XCTFail("No confirmation") }),
              1600, ["Similar food estimate", "Use this source"])
         ]
