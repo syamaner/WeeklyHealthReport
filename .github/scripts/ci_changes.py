@@ -43,6 +43,9 @@ CODE_READ_DOCS = {
     # Cited by the estimates v2 codec, importer, Confirm and export code, their tests, the
     # catalogue skill's checker and the shared fixtures (#511).
     "docs/personal-food-catalogue-estimates-v2-proposal.md",
+    # Cited by the Confirm enrichment formats, export 7, their tests and fixtures (#549).
+    "docs/confirm-enrichment-openrouter-v1.md",
+    "docs/confirm-enrichment-openrouter-v1-phase.md",
     "docs/personal-food-catalogue-estimates-v2-phase.md",
     # Cited by the label photo estimates codec, export, store and skill code and their tests (#518).
     "docs/personal-food-catalogue-off-estimates-v1-proposal.md",
