@@ -80,7 +80,7 @@ final class ConfirmEnrichmentFormatTests: XCTestCase {
                              "a nullable key is still required")
         let choices = try XCTUnwrap(ConfirmEnrichmentEvidence.choices(built.choicesEvidence))
         XCTAssertEqual(choices.leftOutKeys, [.sodium])
-        let details = ConfirmDetailsCapture(model: "typesafe/jev-1.13", provider: "TypeSafe", endpoint: "https://openrouter.ai/api/v1/systemone",
+        let details = ConfirmDetailsCapture(model: "typesafe/jev-1.13", provider: "TypeSafe", endpoint: "https://example.invalid/v1/systemone",
             generationID: nil, requestBody: "{}", response: "{}", responseSHA256: try digester.sha256(Data("{}".utf8)).value,
             answers: [.init(fact: "preparation", choice: "as_sold", confidence: 0.9)], applied: ["preparation"])
         let detailsPayload = try encoder.encode(details)

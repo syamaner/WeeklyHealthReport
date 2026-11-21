@@ -7,7 +7,8 @@ import FoodLedgerDomain
 public enum ConfirmEnrichmentFixtures {
     public static let model = "openai/gpt-6.1-sol"
     public static let provider = "Azure"
-    public static let endpoint = "https://openrouter.ai/api/v1/chat/completions"
+    /// A placeholder: fixtures never hold a real API address (O1.6 test 6).
+    public static let endpoint = "https://example.invalid/v1/chat/completions"
     public static let capturedAt = Date(timeIntervalSince1970: 1_795_000_000)
 
     public static func id<Tag>(_ n: Int) throws -> LedgerID<Tag> {
