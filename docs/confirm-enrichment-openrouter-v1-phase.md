@@ -519,10 +519,10 @@ key state per request. Framework, URL and HTTP types never cross a port.
   (`OpenRouterEgress.swift:29, 38`), so the existing `OpenRouterConsentTests`
   (`WeeklyHealthReportTests/OpenRouterConsentTests.swift:164-166`) holds and the app's gate refuses them
   even with both switches on. Three existing pins change with them: PR 1 updates
-  `OpenRouterLabelConsentTests.swift:77` (the not-in-force set, now six uses) and
+  `Packages/FoodLedgerKit/Tests/FoodLabelPhotoCaptureTests/OpenRouterLabelConsentTests.swift:77` (the not-in-force set, now six uses) and
   `FoodDailyExportContractTests.swift:451` (`ProvenanceSourceKind.allCases` against the origin table,
   gaining `openrouter_estimate` as the schema 7 origin row); PR 5 updates
-  `OpenRouterConsentSessionTests.swift:26` (the in-force list) and `OpenRouterLabelConsentTests.swift:77`
+  `Packages/FoodLedgerKit/Tests/FoodLedgerApplicationTests/OpenRouterConsentSessionTests.swift:26` (the in-force list) and `OpenRouterLabelConsentTests.swift:77`
   again (the not-in-force set becomes the pasted label text uses plus the uses of any part that missed
   its bar).
 - **The Debug scripted journey (PR 2).** A `ScriptedConfirmEnrichmentGate` in `FoodConfirmEnrichment`,
@@ -540,13 +540,20 @@ key state per request. Framework, URL and HTTP types never cross a port.
   `#if DEBUG` block, or in the same root branch as a live adapter.
 - **Scripted state is separate.** The scripted branch uses the in-memory cache and day ledger
   (`InMemoryConfirmEnrichmentCache` and `InMemoryConfirmEnrichmentDayLedger`, production types in
-  `FoodConfirmEnrichment` inside `#if DEBUG`, covered by the scripted gate's self-test, and the same
-  types the shared suites run, since the app does not link `FoodLedgerTestSupport`), never
+  `FoodConfirmEnrichment` inside `#if DEBUG`, covered by the scripted gate's self-test, since the app
+  does not link `FoodLedgerTestSupport`), never
   `confirm-enrichment-cache-v1.json` or `confirm-enrichment-day-v1.json`, as label photo gives its
   scripted mode its own ledger (`WeeklyHealthReport/FoodLedger/FoodLedgerCompositionRoot.swift:1811-1817`).
   So a scripted answer, which must name the live route's model and provider to pass the checks, is
   never a hit for a later live request, and scripted requests never use up or pause the live day.
   `Clear suggestions cache` and the Developer tools disclosure act on the active mode's stores only.
+- **Where the tests run.** The application session tests (G3's session cases, G5 with scripted
+  adapters, G13, G15 and G17's session cases) live in `FoodLedgerApplicationTests` and use test doubles
+  of the cache, ledger and suggesting ports in `FoodLedgerTestSupport`, as label photo's session tests
+  use their own (`Packages/FoodLedgerKit/Tests/FoodLedgerApplicationTests/LabelPhotoReadSessionTests.swift`).
+  Every implementation of each port, the file types, the Debug in-memory types (in
+  `FoodConfirmEnrichmentTests`) and those doubles, passes the same shared contract suite. This is the
+  package's first `#if DEBUG` source.
 - **In PR 5**, for each part that passed its bars, its two uses become in force with `policyEntry`
   `Confirm suggestions.` and `egressRow` the string `<contract link>#<destination prefix>`:
   `confirm-enrichment-openrouter-v1.md#OpenRouter System One` for the Jev uses and
@@ -759,10 +766,11 @@ each way, the `resolution_version_id` refusal, re-log and quick add dropping all
 `applies` on fixture records) and the format and verification half of G8; **PR 2** G1, G2, G3, G5 (scripted adapters), the rest of G8, G12's Put back and Leave out
 citation sequence and the reopen and edit of a B entry with the #464 layer, G9, G13, G15,
 G16, G17 and G7's items 1, 2 and 4, the routes file exemption, the scripted gate and the availability
-literal, and a test that the scripted branch's model, provider and endpoint come from the same
-`ConfirmEnrichmentRoutes` values as the live branch; **PR 3** G5 (live
+literal, and a test that the scripted answers, captures and goldens take model, provider and endpoint
+from the `ConfirmEnrichmentRoutes` constants; **PR 3** G5 (live
 adapters), G6, G11, G14 and G7's items 3 and 5; **PR 4a** the scorer table test and the route freeze
-golden; **PR 5** G10 and the verbatim records test.
+golden; **PR 5** G10, the verbatim records test, and a test that the scripted and live branches read the same
+route values.
 
 ## 11. Points the owner sees before approving
 
@@ -914,3 +922,7 @@ its skill; external TestFlight or App Store builds; any evaluation call before s
   request sites still in PR 3; the in-memory cache and ledger are production Debug-only types in
   `FoodConfirmEnrichment` that the shared suites run; G7 drops item 6, which adds no rule; the
   reservation of contract 12 is cited to the dated amendment.
+- **Architecture gate, fourteenth round (21 November 2026, at `c1975b36`): PASS WITH CHANGES.** Both
+  findings taken: the session tests' home and their doubles are named, with every implementation
+  passing the shared suites; the PR 2 route test checks the constants, and the scripted-versus-live
+  comparison moves to PR 5. Two test paths were made explicit.
