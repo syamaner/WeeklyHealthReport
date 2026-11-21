@@ -4,6 +4,8 @@
 # so the tool's preflight can read the committed privacy record locally; the tool itself never runs git
 # over the network. Usage: run.sh REPO_DIR -- <tool arguments>, for example
 #   run.sh REPO_DIR -- select --export EXPORT.jsonl.gz --private PRIVATE_DIR
+#   (select dates every case by the export's modification time: keep it when copying, `cp -p`, and
+#   download with `curl -R`, so the same export and seed reproduce the same manifests)
 #   run.sh REPO_DIR -- send --part details --cases PRIVATE_DIR/development-cases.json --private PRIVATE_DIR
 set -euo pipefail
 repo="${1:?usage: run.sh REPO_DIR -- <tool arguments>}"
