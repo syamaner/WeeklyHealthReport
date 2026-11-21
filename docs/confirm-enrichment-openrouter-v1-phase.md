@@ -169,7 +169,10 @@ decision (verification refuses otherwise).
   nothing; identity tokens and basis from the bound candidate plus the correction; known values from
   the bound candidate plus the correction, leaving out `openrouter_estimate` keys, keys the label layer
   fills and estimates v2's withheld and left-out keys, so neither B's own values nor the #464 layer
-  enter it. B is kept exactly when that subject equals the subject of the stored inputs.
+  enter it. Eligible keys depend on whether the label layer was chosen before or after B answered (CE1
+  section 5a), so the comparison removes the saved label layer's keys from the eligible keys on both
+  sides, the stored inputs and the reopened state, and compares every other part as is. B is kept
+  exactly when the two subjects so formed are equal, in either order.
 
 - **Skip list.** `OpenFoodFactsEstimateSource.applies` (`OpenFoodFactsEstimateSource.swift:29-30`),
   `LabelEstimateLayer.expectedNutrients` callers and the approved-estimate manifest and leave-out paths
@@ -448,12 +451,12 @@ implementation (CE1 test 12).
 | `OpenRouterEgressPermitting` (existing, O1) | asked by the session before reserving, by each adapter before each attempt, and by the route checker before each of its two catalogue fetches, with the catalogue use its caller passes (as `OpenRouterLabelRouteChecker.swift:27-29, 59`); the checker's result gains `.notPermitted`, as `LabelPhotoRouteCheckFailure.notPermitted` | `OpenRouterConsentPreference` composed with `ConfirmEnrichmentPreference`; tool-local gate |
 
 `ConfirmEnrichmentAttemptResult` is `.notSent(reason)` (refused by the gate, no key, cancelled before
-sending), `.sent(status, responseBytes, retryAfter)`. It carries no generation ID, cost or token
+sending), `.sent(status, responseBytes, retryAfter)`, or `.transportFailed(class)` after sending.
+`.sent` carries no generation ID, cost or token
 count: the capture's `generation_id`, the reported cost and the reported prompt tokens all come from
 one pure usage and response parse of the response bytes (OpenRouter's `usage` block), which a cache hit
 also runs. A value the body does not carry is JSON `null` in the capture, an unreported cost (charged
-W) and unreported prompt tokens (no pause) or `.transportFailed
-(class)` after sending. The session also takes the key state (`OpenRouterKeyState`, O1) as an input:
+W) and unreported prompt tokens (no pause). The session also takes the key state (`OpenRouterKeyState`, O1) as an input:
 nothing starts unless it is `valid` in this session (CE1.1 rule 5). A key replaced while OpenRouter was
 off is never sent (O1 test 2), because the adapter reads the key per attempt and the session reads the
 key state per request. Framework, URL and HTTP types never cross a port.
@@ -634,8 +637,8 @@ CE1 section 15's seventeen tests are adopted as written. The gate adds:
   reason and carries the earlier decision record; the request inputs decode from each route golden,
   and changing them while keeping the hashes fails verification; a details correction across a Your
   food database release change keeps or removes B by the subject rule of 2.4a; an Open Food Facts entry with the #464 layer and B rows keeps B after a details
-  correction that leaves the source-side subject unchanged, and removes it with the frozen note after one
-  that changes the identity tokens; `Not these` before the first Log commits no A capture; a
+  correction that leaves the source-side subject unchanged, with the layer chosen before B and with it
+  chosen after B, and removes it with the frozen note after one that changes the identity tokens; `Not these` before the first Log commits no A capture; a
   B-only Leave out on a reopened log keeps the earlier expectations and outcome; a kill between
   reservation and reply leaves the request counted at its cap; a clock moved back resets nothing.
 Fixtures are synthetic, under `docs/fixtures/confirm-enrichment-v1/`: request goldens per route
@@ -732,8 +735,10 @@ Each PR has its own branch, a ledger row, the validation gates of `AGENTS.md`, a
 
 PRs 1 to 3 can be reviewed and merged without any network call from the app.
 
-Tests per PR (CE1 section 15 tests land with the code they cover): **PR 1** G4, G12 and the format and
-verification half of G8; **PR 2** G1, G2, G3, G5 (scripted adapters), the rest of G8, G9, G13, G15,
+Tests per PR (CE1 section 15 tests land with the code they cover): **PR 1** G4, G12's fixture cases (reader selection
+each way, the `resolution_version_id` refusal, re-log and quick add dropping all three ID kinds,
+`applies` on fixture records) and the format and verification half of G8; **PR 2** G1, G2, G3, G5 (scripted adapters), the rest of G8, G12's Put back and Leave out
+citation sequence and the reopen and edit of a B entry with the #464 layer, G9, G13, G15,
 G16, G17 and G7's items 1, 2, 4 and 6, the scripted gate and the availability literal; **PR 3** G5 (live
 adapters), G6, G11, G14 and G7's items 3 and 5; **PR 4a** the scorer table test and the route freeze
 golden; **PR 5** G10 and the verbatim records test.
@@ -874,3 +879,8 @@ its skill; external TestFlight or App Store builds; any evaluation call before s
   public and bundled rows are reached through the tables' public search by `recordID`;
   `ConfirmEnrichmentPreference` and its seed test move into PR 2; tests are in numeric order with a
   per-PR list.
+- **Architecture gate, eleventh round (21 November 2026, at `a0502b9f`): PASS WITH CHANGES.** All three
+  findings taken: the reopen subject comparison removes the saved label layer's keys from the eligible
+  keys on both sides, so it holds whichever order the layer was chosen in, with a G17 case for each; G12
+  is split between PR 1 (fixture cases) and PR 2 (the choices sequence and the layered edit); the
+  attempt result's third case is restored to the list.
