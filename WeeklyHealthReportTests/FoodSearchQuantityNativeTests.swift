@@ -334,7 +334,10 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
             let visible = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: "\n")
             let normalized = visible.split(whereSeparator: \.isWhitespace).joined(separator: " ")
             // O1.4: the one blocked row, and no closing egress note.
-            XCTAssertTrue(normalized.contains("Add your OpenRouter key in Settings"), visible)
+            // OCR may split a word across a wrapped line ("Open Router" at large text), so the
+            // blocked-row check compares with all whitespace removed.
+            let compact = visible.filter { !$0.isWhitespace }
+            XCTAssertTrue(compact.contains("AddyourOpenRouterkeyinSettings"), visible)
             XCTAssertFalse(normalized.contains("Only your food terms"), visible)
             if size == .large {
                 XCTAssertTrue(visible.contains("Web lookup"), visible)
