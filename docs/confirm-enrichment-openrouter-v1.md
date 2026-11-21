@@ -88,13 +88,16 @@ was not chosen.) The request rules:
    failed or was not needed, so B describes the food with A's pre-fills as they stand.
 2. **Debounce.** A request starts only after the candidate, its identity and its basis have stayed
    the same for 1.5 seconds on an open Confirm. Changing the candidate ("Choose a different match"),
-   correcting details or leaving Confirm within that time sends nothing.
+   correcting details or leaving Confirm within that time sends nothing. The debounce runs only while
+   the app is active: moving the app to the background or locking the phone cancels a pending debounce,
+   and cancels a request in flight as rule 4 does, so nothing is ever sent from the background.
 3. **One request of each kind per subject per Confirm.** A subject (CE1.5) is asked at most once for
    A and once for B on one Confirm. If the owner changes details after B has answered, B's
    suggestions are cleared under CE1.6 rule 6 and, in automatic mode, B may be asked once more for
    the new subject; a third subject on the same Confirm is not asked automatically; an `Ask again` row, present
    in both modes once a subject has been asked, sends it on a tap, within the cap.
-4. **In flight.** A request in flight when the candidate or subject changes, or Confirm closes, is
+4. **In flight.** A request in flight when the candidate or subject changes, the app leaves the
+   foreground, or Confirm closes, is
    cancelled; its answer, if it arrives, is discarded and never cached. A request already sent cannot
    be recalled.
 5. **No key validation.** Enrichment never validates or revalidates the key. If the key is not
@@ -606,7 +609,8 @@ first evaluation call**, beside the existing tooling paragraphs:
 "Developer tooling for the Confirm enrichment evaluation ([confirm-enrichment-openrouter-v1.md](confirm-enrichment-openrouter-v1.md)
 section 12, #549) runs on the owner's Mac, not in the app, and is not app egress. It sends to
 `https://openrouter.ai/api/v1/systemone` (model `jev-1.13`) and `https://openrouter.ai/api/v1/chat/completions`
-(the CE-D2 route) only, plus keyless GETs of their endpoint and zero-data-retention listings. Each
+(the CE-D2 route) only, plus the keyless GETs of their endpoint and zero-data-retention listings that
+CE-T1 includes for the app's same request shapes. Each
 request carries exactly the app's request shape for one evaluation case, built from public Open Food
 Facts product data and bundled composition rows only, never the owner's data: the description fields,
 the food details known, and for nutrient estimates the basis, the known values and the keys asked,
@@ -622,7 +626,7 @@ versions and hashes only. The sealed set is sent once, by the frozen configurati
 ### 11.2 Privacy policy, OpenRouter section (an entry in O1's list)
 
 ```text
-Confirm suggestions. Only if you also turn on Suggest missing food details and values on Confirm in Settings › OpenRouter. When the food you are confirming has unknown food details or unknown nutrient values, the app asks automatically, a moment after the food is chosen. It never asks when you log again from an earlier entry or a favourite, when you reopen a log, or for web lookups, label readings or foods from Your foods. Sends a description of that food as its source gives it (never words you typed in a correction): the name and brand, a composition table's variant text, and for your own food database its category, product type and state where the app has them (a pack size written in a name is sent with the name), the food details already known and, for nutrient estimates, the nutrition basis and the known values. A name from your own food database can come from a receipt product title, so check names you would not want sent. Food details go to the Jev model through OpenRouter's System One service; nutrient estimates go to one named model endpoint (currently GPT-6.1 Sol on Azure) with no fallback to other providers. You can also tap Ask again on Confirm to send the same request once more, within the daily limit. Never sent: the search text you typed, words you typed in a correction, the amount you ate, the time or date, notes, other entries, Apple Health data, barcodes, identifiers, photos or prices. Suggested food details are filled in for you to check and change; estimated values are marked est. and you can leave out each one before you tap Log. Nothing is saved until you tap Log, and an estimate never replaces a value from a label or a database. A failed request is retried at most twice; suggestions are limited to 100 requests and $0.50 of reported cost a day, and answers are kept on your device, so the same food is usually not sent again (a tap of Ask again, a change of details before you log or an answer older than 30 days sends again). OpenRouter keeps its own account and usage records for these requests, including the model, token counts, cost and time, under its terms. If you log a food with an estimated value, the Drive food file names the model that estimated it.
+Confirm suggestions. Only if you also turn on Suggest missing food details and values on Confirm in Settings › OpenRouter. When the food you are confirming has unknown food details or unknown nutrient values, the app asks automatically, a moment after the food is chosen. It never asks when you log again from an earlier entry or a favourite, when you reopen a log, or for web lookups, label readings or foods from Your foods. Sends a description of that food as its source gives it (never words you typed in a correction): the name and brand, a composition table's variant text, and for your own food database its category, product type and state where the app has them (a pack size written in a name is sent with the name), the food details already known, which source the food comes from (for example a food composition table), the questions asked or the nutrients wanted and, for nutrient estimates, the nutrition basis and the known values. A name from your own food database can come from a receipt product title, so check names you would not want sent. Food details go to the Jev model through OpenRouter's System One service; nutrient estimates go to one named model endpoint (currently GPT-6.1 Sol on Azure) with no fallback to other providers. You can also tap Ask again on Confirm to send the same request once more, within the daily limit. Never sent: the search text you typed, words you typed in a correction, the amount you ate, the time or date, notes, other entries, Apple Health data, barcodes, identifiers, photos or prices. Suggested food details are filled in for you to check and change; estimated values are marked est. and you can leave out each one before you tap Log. Nothing is saved until you tap Log, and an estimate never replaces a value from a label or a database. A failed request is retried at most twice; suggestions are limited to 100 requests and $0.50 of reported cost a day, and answers are kept on your device, so the same food is usually not sent again (a tap of Ask again, a change of details before you log or an answer older than 30 days sends again). OpenRouter keeps its own account and usage records for these requests, including the model, token counts, cost and time, under its terms. If you log a food with an estimated value, the Drive food file names the model that estimated it.
 ```
 
 ## 12. Evaluation bar before release
@@ -789,7 +793,8 @@ Two choices are stated plainly so they are not missed:
       "Evidence not available". A version 7 file with only B values validates and one without is
       rejected. A-subject cache hit and miss. Energy check parity with `LabelArithmeticChecks`, Taiwan and UK forms included; a cache miss when
       a known value changes; mixed-day export goldens; the boundary script fails a non-root importer.
-  16. Zero requests: a Confirm opened by re-log or quick add (with a cache miss), the quick add sheet, a
+  16. Zero requests: the app moved to the background within the debounce, a Confirm opened by re-log or
+      quick add (with a cache miss), the quick add sheet, a
       reopened log (including after a details correction), and re-resolution each send nothing.
   17. Simulator journey: an Open Food Facts product with all facts unknown is filled and logged with
       one amount; a bundled row gets two estimates, one left out, and logs; enrichment off sends
@@ -907,3 +912,9 @@ compatibility choice of section 14 with the approval.
   scope; a zero-request test for re-log, quick add, reopen and re-resolution; "before you log" in the
   cache sentence; decided wording where the text still read as undecided; the full never-sent list
   in the Jev row. Narrowing and restating only.
+- **Blind invariant re-review 3 (21 November 2026, at `1f49a457`): BLOCK, fixed.** Taken: the debounce
+  runs only while the app is active, and moving to the background cancels a pending debounce and a
+  request in flight, with a zero-request test, so "never in the background" holds; the policy entry
+  names the source token, the source phrases and the questions or nutrients asked. Read as covered,
+  and flagged to the owner: the evaluation's keyless catalogue GETs, which CE-T1 lists for the app's
+  request shapes that CE-T15 reuses.
