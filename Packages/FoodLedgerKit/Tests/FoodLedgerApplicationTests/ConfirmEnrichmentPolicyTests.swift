@@ -211,6 +211,21 @@ final class ConfirmEnrichmentPolicyTests: XCTestCase {
         XCTAssertEqual(filled.fortification, .unknown, "fortified cannot be applied")
     }
 
+    /// Defect review of PR 2: the label layer's values enter the energy check on Confirm as at save.
+    func testTheLabelLayerTakesPartInTheEnergyCheck() throws {
+        let base = try ConfirmEnrichmentFixtures.nutrients([
+            .energyConsumed: try ConfirmEnrichmentFixtures.value(500, key: .energyConsumed,
+                provenance: NutrientProvenance(sourceKind: .exactProductDataset, sourceID: ExternalIdentifier("open-food-facts"),
+                                               sourceReleaseID: ExternalIdentifier("off-release"), recordID: ExternalIdentifier("1")))
+        ])
+        let kept: [NutrientKey: Double] = [.protein: 5, .carbohydrates: 10]
+        let withoutLayer = ConfirmEnrichmentMerge.merge(kept: kept, leftOut: [], base: base, layer: [:])
+        XCTAssertEqual(Set(withoutLayer.saved.keys), [.protein, .carbohydrates], "fat unknown: the check does not run")
+        let withLayer = ConfirmEnrichmentMerge.merge(kept: kept, leftOut: [], base: base, layer: [.fatTotal: 2])
+        XCTAssertEqual(withLayer.mergeEnergyDropped, [.protein, .carbohydrates], "500 kcal against 5, 10 and 2 g fails every form")
+        XCTAssertTrue(withLayer.saved.isEmpty)
+    }
+
     func testTheThreeUnmeasuredKeysAreNeverRequested() {
         XCTAssertEqual(ConfirmNutrientRequestInputs.unmeasuredKeys, [.cholesterol, .water, .caffeine])
         XCTAssertThrowsError(try ConfirmNutrientRequestInputs(description: ConfirmEnrichmentFixtures.description(), identity: [:],

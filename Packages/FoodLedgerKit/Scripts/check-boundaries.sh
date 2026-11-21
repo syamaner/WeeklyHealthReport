@@ -628,7 +628,7 @@ check_personal_database_search_edges() {
     if [[ -n "$file" ]]; then violations+="Confirm enrichment application code names a file, network, hashing or clock API in $file"$'\n'; fi
   done < <(find "$pkg/Sources/FoodLedgerApplication" \( -name 'ConfirmEnrichment*.swift' -o -name 'ConfirmDetails*.swift' \
     -o -name 'ConfirmNutrient*.swift' -o -name 'OpenRouterEstimate*.swift' \) -exec \
-    grep -lE '(FileManager|URLSession|URLRequest|NWConnection|contentsOf:|CryptoKit|Date\(\))' {} + 2>/dev/null || true)
+    grep -lE '(FileManager|URLSession|URLRequest|NWConnection|contentsOf:|CryptoKit|Date\(\)|Date\.now|timeIntervalSinceNow)' {} + 2>/dev/null || true)
   local resolvers="$pkg/Sources/FoodGenericSearch/PersonalFoodDatabaseResolvers.swift"
   if [[ ! -f "$resolvers" ]]; then
     violations+="missing $resolvers"$'\n'
@@ -651,7 +651,7 @@ self_test_personal_database_search_edges() {
   if ! check_personal_database_search_edges "$base" 2>/dev/null; then
     echo "check-boundaries self-test: the personal database search baseline must pass" >&2; status=1
   fi
-  for fixture in file_manager url_session estimate_url_session enrichment_url_session enrichment_cryptokit enrichment_clock \
+  for fixture in file_manager url_session estimate_url_session enrichment_url_session enrichment_cryptokit enrichment_clock enrichment_clock_now \
                  enrichment_file_manager resolver_load resolver_network resolver_foundation; do
     target="$scratch/$fixture/Packages/FoodLedgerKit"
     mkdir -p "$(dirname "$target")"; cp -R "$base" "$target"
@@ -662,6 +662,7 @@ self_test_personal_database_search_edges() {
       enrichment_url_session) echo 'let session = URLSession.shared' > "$target/Sources/FoodLedgerApplication/ConfirmEnrichmentSession.swift" ;;
       enrichment_cryptokit) echo 'import CryptoKit' > "$target/Sources/FoodLedgerApplication/ConfirmNutrientRows.swift" ;;
       enrichment_clock) echo 'let now = Date()' > "$target/Sources/FoodLedgerApplication/OpenRouterEstimateCarry.swift" ;;
+      enrichment_clock_now) echo 'let now = Date.now' > "$target/Sources/FoodLedgerApplication/ConfirmEnrichmentTimes.swift" ;;
       enrichment_file_manager) echo 'let files = FileManager.default' > "$target/Sources/FoodLedgerApplication/ConfirmDetailsFill.swift" ;;
       resolver_load) echo 'let page = try Data(contentsOf: url)' >> "$target/Sources/FoodGenericSearch/PersonalFoodDatabaseResolvers.swift" ;;
       resolver_network) echo '@preconcurrency import Network' >> "$target/Sources/FoodGenericSearch/PersonalFoodDatabaseResolvers.swift" ;;
@@ -693,9 +694,12 @@ enrichment_debug_only_lines() {
     awk -v pat="$pattern" -v live="$enrichment_live_adapters" -v f="$file" '
       function debug() { for (i = 1; i <= depth; i++) if (stack[i] == 1) return 1; return 0 }
       function flush() { if (blockHits != "" && blockLive) { n = split(blockHits, h, " "); for (k = 1; k <= n; k++) print f ":" h[k] " live" } blockHits = ""; blockLive = 0 }
-      /^[[:space:]]*#if[[:space:]]+DEBUG([[:space:]]|$)/ { depth++; stack[depth] = 1; next }
+      # 1: a Debug-only branch; 2: the release branch of `#if !DEBUG` (its `#else` is Debug); 0: anything else,
+      # including `#if DEBUG || X`, which also compiles outside Debug.
+      /^[[:space:]]*#if[[:space:]]+DEBUG[[:space:]]*(\/\/.*)?$/ { depth++; stack[depth] = 1; next }
+      /^[[:space:]]*#if[[:space:]]+!DEBUG[[:space:]]*(\/\/.*)?$/ { depth++; stack[depth] = 2; next }
       /^[[:space:]]*#if/ { depth++; stack[depth] = 0; next }
-      /^[[:space:]]*#else/ { if (depth > 0) { if (stack[depth] == 1) flush(); stack[depth] = (stack[depth] == 1 ? 0 : 0) } next }
+      /^[[:space:]]*#else/ { if (depth > 0) { if (stack[depth] == 1) flush(); stack[depth] = (stack[depth] == 2 ? 1 : 0) } next }
       /^[[:space:]]*#endif/ { if (depth > 0) { if (stack[depth] == 1) flush(); depth-- } next }
       {
         if (debug() && $0 ~ live) blockLive = 1
@@ -747,7 +751,7 @@ check_confirm_enrichment_edges() {
     done < <(enrichment_debug_only_lines 'ScriptedConfirmEnrichmentGate' "${sources[@]}")
     while IFS= read -r line; do
       [[ -n "$line" ]] && violations+="a true Confirm enrichment availability is set outside a Debug-only scripted block at $line"$'\n'
-    done < <(enrichment_debug_only_lines 'ConfirmEnrichmentAvailability[(][^)]*true' "${sources[@]}")
+    done < <(enrichment_debug_only_lines 'ConfirmEnrichmentAvailability[(]([^)]*true|[^)]*$)' "${sources[@]}")
   fi
   printf '%s' "$violations"
 }
@@ -761,7 +765,7 @@ self_test_confirm_enrichment_edges() {
   printf 'import Foundation\nimport FoodLedgerApplication\nimport FoodLedgerDomain\nstruct Cache {}\n' > "$pkg/Sources/FoodConfirmEnrichment/FileConfirmEnrichmentCache.swift"
   printf '#if DEBUG\nimport FoodLedgerApplication\npublic struct ScriptedConfirmEnrichmentGate {}\n#endif\n' > "$pkg/Sources/FoodConfirmEnrichment/ScriptedConfirmEnrichment.swift"
   printf 'import FoodConfirmEnrichment\n' > "$pkg/Tests/FoodConfirmEnrichmentTests/CacheTests.swift"
-  printf 'import FoodConfirmEnrichment\nlet live = ConfirmEnrichmentAvailability.inForce\n#if DEBUG\nlet gate = ScriptedConfirmEnrichmentGate()\nlet scripted = ConfirmEnrichmentAvailability(details: true, nutrients: true)\n#endif\n' \
+  printf 'import FoodConfirmEnrichment\nlet live = ConfirmEnrichmentAvailability.inForce\n#if DEBUG\nlet gate = ScriptedConfirmEnrichmentGate()\nlet scripted = ConfirmEnrichmentAvailability(details: true, nutrients: true)\n#endif\n#if !DEBUG\nlet off = 0\n#else\nlet other = ScriptedConfirmEnrichmentGate()\n#endif\n' \
     > "$app/WeeklyHealthReport/FoodLedger/FoodLedgerCompositionRoot.swift"
   cat > "$pkg/Package.swift" <<'MANIFEST'
 let package = Package(
@@ -776,7 +780,7 @@ MANIFEST
     echo "check-boundaries self-test: the Confirm enrichment baseline must pass" >&2; status=1
   fi
   for fixture in network_import url_outside_transport presentation_import app_import package_dependent gate_in_release \
-                 gate_beside_live availability_in_release availability_beside_live missing_target; do
+                 gate_beside_live gate_in_debug_or gate_in_release_else availability_in_release availability_multiline availability_beside_live missing_target; do
     target="$scratch/$fixture"
     cp -R "$base" "$target"
     pkg="$target/Packages/FoodLedgerKit"; app="$target"
@@ -790,6 +794,9 @@ MANIFEST
       gate_in_release) echo 'let leak = ScriptedConfirmEnrichmentGate()' >> "$root" ;;
       gate_beside_live) printf '#if DEBUG\nlet gate = ScriptedConfirmEnrichmentGate()\nlet live = OpenRouterNutrientEstimateAdapter()\n#endif\n' >> "$root" ;;
       availability_in_release) echo 'let open = ConfirmEnrichmentAvailability(details: true, nutrients: false)' >> "$root" ;;
+      gate_in_debug_or) printf '#if DEBUG || TESTING\nlet gate = ScriptedConfirmEnrichmentGate()\n#endif\n' >> "$root" ;;
+      gate_in_release_else) printf '#if DEBUG\nlet a = 1\n#else\nlet gate = ScriptedConfirmEnrichmentGate()\n#endif\n' >> "$root" ;;
+      availability_multiline) printf 'let open = ConfirmEnrichmentAvailability(\n    details: true, nutrients: false)\n' >> "$root" ;;
       availability_beside_live) printf '#if DEBUG\nlet a = ConfirmEnrichmentAvailability(details: true, nutrients: true)\nlet t = ConfirmEnrichmentTransport()\n#endif\n' >> "$root" ;;
       missing_target) rm -rf "$pkg/Sources/FoodConfirmEnrichment" ;;
     esac

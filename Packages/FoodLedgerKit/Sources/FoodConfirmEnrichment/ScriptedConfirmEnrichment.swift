@@ -110,7 +110,7 @@ public struct ScriptedConfirmEnrichmentRouteChecker: ConfirmEnrichmentRouteCheck
     public init(egress: any OpenRouterEgressPermitting) { self.egress = egress }
 
     public func check(_ part: ConfirmEnrichmentPart, catalogueUse: OpenRouterUse) async -> ConfirmEnrichmentRouteCheckResult {
-        guard egress.permits(catalogueUse), egress.permits(catalogueUse) else { return .notPermitted }
+        guard egress.permits(catalogueUse) else { return .notPermitted }
         return .passed(Self.prices)
     }
 }

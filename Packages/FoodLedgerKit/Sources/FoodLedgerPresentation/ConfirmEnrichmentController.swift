@@ -67,6 +67,7 @@ public final class ConfirmEnrichmentController: ObservableObject {
 
     func plan(_ state: FoodConfirmationState) -> Plan? {
         guard let (route, fields) = routeAndFields(state) else { return nil }
+        let preconditions = context.preconditions()
         let routes = context.session.routeValues
         let description = ConfirmEnrichmentPolicy.description(route, candidate: state.selectedCandidate, database: fields)
         var plan = Plan(details: nil, nutrients: nil, detailsSettled: true)
@@ -78,8 +79,9 @@ public final class ConfirmEnrichmentController: ObservableObject {
            let request = try? ConfirmEnrichmentPolicy.detailsRequest(inputs, route: routes.details, encoder: context.encoder,
                                                                      digester: context.digester) {
             plan.details = (request, fields?.state.flatMap(PersonalFoodDatabaseState.init(rawValue:)) ?? (fields == nil ? nil : .unknown))
-            // B waits until A has returned, failed or is not needed.
-            plan.detailsSettled = tracker.asked[.details]?.contains(request.subjectSHA256) == true && tasks[.details] == nil
+            // B waits until A has returned, failed or is not needed; A that cannot run is not needed.
+            plan.detailsSettled = !context.session.mayRun(.details, preconditions: preconditions)
+                || (tracker.asked[.details]?.contains(request.subjectSHA256) == true && tasks[.details] == nil)
         }
         if let inputs = ConfirmEnrichmentPolicy.nutrientInputs(state, route: route, description: description,
                                                               identity: state.enrichedIdentity,
@@ -141,7 +143,9 @@ public final class ConfirmEnrichmentController: ObservableObject {
     /// Whether the Ask again row is offered for `part` (once a subject was asked; never on a Confirm
     /// opened by re-log or quick add).
     public func offersAskAgain(_ part: ConfirmEnrichmentPart) -> Bool {
-        context.origin == .fresh && tracker.offersAskAgain(part) && tasks[part] == nil
+        guard context.origin == .fresh, tracker.offersAskAgain(part), tasks[part] == nil, let plan = plan(state()) else { return false }
+        // Only while there is something to ask: never beside a shown or folded fill, or after a correction.
+        return part == .details ? plan.details != nil : plan.nutrients != nil
     }
 
     public func askAgain(_ part: ConfirmEnrichmentPart) {
@@ -211,7 +215,11 @@ public final class ConfirmEnrichmentController: ObservableObject {
         let session = context.session
         let locale = locale(state())
         let task = Task { [weak self] in
-            if debounced, await !session.debounce() { return }
+            // A debounce that ends without cancellation (the app went inactive) frees the part again.
+            if debounced, await !session.debounce() {
+                if !Task.isCancelled { self?.tasks[.details] = nil }
+                return
+            }
             guard !Task.isCancelled else { return }
             self?.tracker.recordAsked(.details, subject: request.subjectSHA256)
             if mode != .cacheOnly { self?.loading.insert(.details) }
@@ -234,7 +242,11 @@ public final class ConfirmEnrichmentController: ObservableObject {
         let session = context.session
         let locale = locale(state())
         let task = Task { [weak self] in
-            if debounced, await !session.debounce() { return }
+            // A debounce that ends without cancellation (the app went inactive) frees the part again.
+            if debounced, await !session.debounce() {
+                if !Task.isCancelled { self?.tasks[.nutrients] = nil }
+                return
+            }
             guard !Task.isCancelled else { return }
             self?.tracker.recordAsked(.nutrients, subject: request.subjectSHA256)
             if mode != .cacheOnly { self?.loading.insert(.nutrients) }

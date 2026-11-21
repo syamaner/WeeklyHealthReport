@@ -373,7 +373,8 @@ public struct ConfirmEnrichmentConfirmTracker: Equatable, Sendable {
     public func mayAskAutomatically(_ part: ConfirmEnrichmentPart, subject: String) -> Bool {
         let subjects = asked[part] ?? []
         guard !subjects.contains(subject) else { return false }
-        return subjects.count < (part == .nutrients ? 2 : 1)
+        // A: once per subject (a new match is a new subject). B: its first subject and one more.
+        return part == .details || subjects.count < 2
     }
 
     public mutating func recordAsked(_ part: ConfirmEnrichmentPart, subject: String) {

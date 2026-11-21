@@ -217,9 +217,10 @@ public struct ConfirmEnrichmentAvailability: Equatable, Sendable {
 
     /// The live value: a part is available only when both of its uses are in force.
     public static var inForce: ConfirmEnrichmentAvailability {
-        ConfirmEnrichmentAvailability(
-            details: ConfirmEnrichmentPart.details.use.isInForce && ConfirmEnrichmentPart.details.catalogueUse.isInForce,
-            nutrients: ConfirmEnrichmentPart.nutrients.use.isInForce && ConfirmEnrichmentPart.nutrients.catalogueUse.isInForce)
+        let details = ConfirmEnrichmentPart.details.use.isInForce && ConfirmEnrichmentPart.details.catalogueUse.isInForce
+        let nutrients = ConfirmEnrichmentPart.nutrients.use.isInForce && ConfirmEnrichmentPart.nutrients.catalogueUse.isInForce
+        // One line: the boundary check refuses an initialiser split across lines (gate section 6).
+        return ConfirmEnrichmentAvailability(details: details, nutrients: nutrients)
     }
 
     public func isAvailable(_ part: ConfirmEnrichmentPart) -> Bool {

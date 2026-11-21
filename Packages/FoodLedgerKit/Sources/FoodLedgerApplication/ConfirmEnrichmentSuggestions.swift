@@ -115,6 +115,8 @@ public enum ConfirmEnrichmentMerge {
             if case let .measured(exact) = entry.value { merged[entry.key] = exact.amount }
             if case let .augmented(exact) = entry.value { merged[entry.key] = exact.amount }
         }
+        // The chosen label layer's values are known values of the merge too, on Confirm as at save.
+        for (key, amount) in layer where merged[key] == nil { merged[key] = amount }
         for (key, amount) in remaining { merged[key] = amount }
         let energyDropped = EstimateEnergyCheck.dropped(merged: merged, estimated: Set(remaining.keys))
         energyDropped.forEach { remaining[$0] = nil }
@@ -342,7 +344,8 @@ extension FoodConfirmationState {
 
     /// CE1.6 rule 7: at least one B value would be saved and no value from any other source is known.
     public var onlyEstimatedByOpenRouter: Bool {
-        guard let merge = enrichmentMerge(), !merge.saved.isEmpty else { return false }
+        // Values the chosen label layer fills are known from another source too.
+        guard let merge = enrichmentMerge(), !merge.saved.isEmpty, enrichment.labelLayer.isEmpty else { return false }
         return !enrichmentBase.entries.contains { entry in
             switch entry.value {
             case .measured, .augmented, .bounded: true

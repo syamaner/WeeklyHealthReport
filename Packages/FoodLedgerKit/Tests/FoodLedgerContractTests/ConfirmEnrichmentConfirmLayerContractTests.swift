@@ -224,6 +224,33 @@ final class ConfirmEnrichmentConfirmLayerContractTests: XCTestCase {
         }
     }
 
+    /// CE1.6 rule 4's third check (invariant review of PR 2): the save service itself refuses B values
+    /// beside a correction that changed the values, even for a state the reducer would never build.
+    func testSaveRefusesBValuesBesideACorrectionThatChangedTheValues() throws {
+        for harness in try LedgerFixtures.harnesses() {
+            defer { harness.cleanup() }
+            var state = try Self.bState()
+            let candidate = state.selectedCandidate
+            let changed = try NutrientSet(entries: candidate.candidate.nutrients.entries.map { entry in
+                entry.key == .protein ? try NutrientEntry(key: .protein, value: .unknown(.noCompatibleSource)) : entry
+            })
+            XCTAssertNotEqual(changed, candidate.candidate.nutrients)
+            let rows = try XCTUnwrap(state.enrichment.nutrients)
+            state.correction = FoodCorrection(name: candidate.name, brand: candidate.brand, variant: candidate.variant,
+                                              identity: state.enrichedIdentity, itemClass: candidate.itemClass, nutrients: changed,
+                                              reason: try LedgerText("Typed values"))
+            state.enrichment.nutrients = rows
+            XCTAssertThrowsError(try O.service(harness).save(state, operationID: LedgerFixtures.operationID(12_019))) {
+                XCTAssertEqual($0 as? FoodConfirmationSaveError, .invalidOpenRouterEstimate, harness.name)
+            }
+            var fresh = try Self.bState()
+            Self.reduce(&fresh, .clearNutrientSuggestion)
+            fresh.correction = state.correction
+            Self.reduce(&fresh, .applyNutrientSuggestion(rows))
+            XCTAssertNil(fresh.enrichment.nutrients, "the reducer refuses B rows beside changed values")
+        }
+    }
+
     func testEveryRowLeftOutCitesNeitherBItem() throws {
         for harness in try LedgerFixtures.harnesses() {
             defer { harness.cleanup() }

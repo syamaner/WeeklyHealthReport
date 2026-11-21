@@ -514,7 +514,8 @@ public enum FoodConfirmationReducer {
             state.enrichment.detailsFolded = false
             state.phase = .editing
         case let .applyNutrientSuggestion(suggestion):
-            guard state.reopened == nil, suggestion.capture.captureMethodVersion.value == ConfirmEnrichmentVersions.nutrientCaptureMethodVersion
+            guard state.reopened == nil, suggestion.capture.captureMethodVersion.value == ConfirmEnrichmentVersions.nutrientCaptureMethodVersion,
+                  state.correction.map({ $0.nutrients == state.selectedCandidate.candidate.nutrients }) ?? true
             else { return }
             state.enrichment.nutrients = suggestion
             state.enrichment.leftOut = []
@@ -1039,6 +1040,12 @@ public final class FoodConfirmationService: @unchecked Sendable {
             // A reopened version's earlier B values return to the candidate's entries first.
             var nutrients = layer?.nutrients ?? state.enrichmentBase
             if let merge = enrichmentMerge, let capture = nutrientCapture {
+                // CE1.6 rule 4, third check: a B value only ever replaces an eligible unknown of the set
+                // being saved, and never sits beside a correction that changed the values.
+                guard state.correction.map({ $0.nutrients == selected.candidate.nutrients }) ?? true,
+                      merge.saved.keys.allSatisfy({ key in
+                          nutrients.entries.first { $0.key == key }.map(ConfirmEnrichmentPolicy.isEligibleUnknown) ?? false
+                      }) else { throw FoodConfirmationSaveError.invalidOpenRouterEstimate }
                 let basis = selected.candidate.identity.servingBasis
                 nutrients = try NutrientSet(entries: nutrients.entries.map { entry in
                     guard let amount = merge.saved[entry.key] else { return entry }

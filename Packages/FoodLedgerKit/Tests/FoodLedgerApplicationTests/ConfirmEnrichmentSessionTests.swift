@@ -485,6 +485,7 @@ final class ConfirmEnrichmentSessionTests: XCTestCase {
         XCTAssertFalse(tracker.mayAskAutomatically(.nutrients, subject: "c"), "a third subject is not asked automatically")
         XCTAssertTrue(tracker.offersAskAgain(.nutrients))
         tracker.recordAsked(.details, subject: "x")
-        XCTAssertFalse(tracker.mayAskAutomatically(.details, subject: "y"))
+        XCTAssertFalse(tracker.mayAskAutomatically(.details, subject: "x"))
+        XCTAssertTrue(tracker.mayAskAutomatically(.details, subject: "y"), "A: once per subject, so a new match is asked")
     }
 }
