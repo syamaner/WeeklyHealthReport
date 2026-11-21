@@ -110,7 +110,10 @@ public struct ConfirmDetailsRequestInputs: Codable, Equatable, Sendable {
         case knownDetails = "known_details"
     }
 
-    public init(description: ConfirmEnrichmentDescription, knownDetails: [String: String], asked: [ConfirmDetailsFact]) {
+    public init(description: ConfirmEnrichmentDescription, knownDetails: [String: String], asked: [ConfirmDetailsFact]) throws {
+        guard !asked.isEmpty, Set(asked).count == asked.count, Set(knownDetails.keys).isDisjoint(with: asked.map(\.rawValue)) else {
+            throw FoodLedgerValidationError.invalidProvenance
+        }
         self.description = description
         self.knownDetails = knownDetails
         self.asked = asked.sorted { $0.rawValue < $1.rawValue }
@@ -131,7 +134,7 @@ public struct ConfirmDetailsRequestInputs: Codable, Equatable, Sendable {
     /// Decodes A's inputs from a stored request body: the `state` value of the System One body.
     public static func decode(requestBody: String) -> ConfirmDetailsRequestInputs? {
         guard let root = try? JSONSerialization.jsonObject(with: Data(requestBody.utf8)) as? [String: Any],
-              let state = root["state"],
+              let state = root["state"] as? [String: Any],
               let bytes = try? JSONSerialization.data(withJSONObject: state) else { return nil }
         return try? JSONDecoder().decode(ConfirmDetailsRequestInputs.self, from: bytes)
     }
@@ -147,7 +150,10 @@ public struct ConfirmNutrientRequestInputs: Codable, Equatable, Sendable {
 
         enum CodingKeys: String, CodingKey, CaseIterable { case nutrient, value, unit, source }
 
-        public init(nutrient: NutrientKey, value: Double, source: String) {
+        public init(nutrient: NutrientKey, value: Double, source: String) throws {
+            guard value.isFinite, value >= 0, ConfirmNutrientRequestInputs.sourcePhrases.contains(source) else {
+                throw FoodLedgerValidationError.invalidProvenance
+            }
             self.nutrient = nutrient.rawValue
             self.value = value
             unit = nutrient.canonicalUnit.rawValue
@@ -208,7 +214,13 @@ public struct ConfirmNutrientRequestInputs: Codable, Equatable, Sendable {
     enum CodingKeys: String, CodingKey, CaseIterable { case description, identity, basis, known, eligible }
 
     public init(description: ConfirmEnrichmentDescription, identity: [String: String], basis: ConfirmNutrientBasis,
-                known: [Known], eligible: [NutrientKey]) {
+                known: [Known], eligible: [NutrientKey]) throws {
+        // The same rules the strict decoder applies, so a stored request always decodes again.
+        let knownKeys = known.map(\.nutrient)
+        guard !eligible.isEmpty, Set(eligible).count == eligible.count, Set(knownKeys).count == knownKeys.count,
+              Set(knownKeys).isDisjoint(with: eligible.map(\.rawValue)), Self.unmeasuredKeys.isDisjoint(with: eligible) else {
+            throw FoodLedgerValidationError.invalidProvenance
+        }
         self.description = description
         self.identity = identity
         self.basis = basis
@@ -262,15 +274,6 @@ public struct ConfirmEnrichmentUsage: Equatable, Sendable {
     public let promptTokens: Int?
 }
 
-/// The numbers of a reply rendered as text: an integral value without a fractional part, any other in
-/// Swift's shortest round-trip form, so `Double(text)` always gives the same value back.
-enum ConfirmEnrichmentNumberText {
-    static func render(_ value: Double) -> String {
-        if value.rounded() == value, abs(value) < 1e15 { return String(Int64(value)) }
-        return "\(value)"
-    }
-}
-
 enum ConfirmEnrichmentUsageParse {
     static func usage(_ root: [String: Any]) -> ConfirmEnrichmentUsage {
         let usage = root["usage"] as? [String: Any]
@@ -303,20 +306,20 @@ public enum ConfirmNutrientResponseCheck {
               let message = choices[0]["message"] as? [String: Any] else { return .failure(.shape) }
         guard choices[0]["finish_reason"] as? String == "stop" else { return .failure(.notStopped) }
         if let refusal = message["refusal"], !(refusal is NSNull) { return .failure(.refusal) }
-        if let tools = message["tool_calls"], !(tools is NSNull) { return .failure(.shape) }
+        if let tools = message["tool_calls"], !(tools is NSNull), (tools as? [Any])?.isEmpty != true { return .failure(.shape) }
+        // The answer is read with the raw reader, so each number keeps its text exactly as received.
         guard let content = message["content"] as? String,
-              let answer = try? JSONSerialization.jsonObject(with: Data(content.utf8)) as? [String: Any],
+              case let .object(answer)? = ConfirmEnrichmentRawJSON.parse(content),
               Set(answer.keys) == ["schema", "basis", "values"],
-              let values = answer["values"] as? [[String: Any]] else { return .failure(.shape) }
-        guard answer["schema"] as? String == ConfirmEnrichmentVersions.nutrientSchema else { return .failure(.schemaMismatch) }
-        guard answer["basis"] as? String == request.basis.rawValue else { return .failure(.basisMismatch) }
+              case let .array(values)? = answer["values"] else { return .failure(.shape) }
+        guard answer["schema"] == .string(ConfirmEnrichmentVersions.nutrientSchema) else { return .failure(.schemaMismatch) }
+        guard answer["basis"] == .string(request.basis.rawValue) else { return .failure(.basisMismatch) }
         var rows: [ConfirmNutrientRowCheck.ReceivedRow] = []
         for value in values {
-            guard Set(value.keys) == ["nutrient", "value", "unit"],
-                  let nutrient = value["nutrient"] as? String, let unit = value["unit"] as? String,
-                  ConfirmEnrichmentUsageParse.isNumber(value["value"]),
-                  let number = (value["value"] as? NSNumber)?.doubleValue else { return .failure(.shape) }
-            rows.append(.init(nutrient: nutrient, value: ConfirmEnrichmentNumberText.render(number), unit: unit))
+            guard case let .object(row) = value, Set(row.keys) == ["nutrient", "value", "unit"],
+                  case let .string(nutrient)? = row["nutrient"], case let .string(unit)? = row["unit"],
+                  case let .number(text)? = row["value"] else { return .failure(.shape) }
+            rows.append(.init(nutrient: nutrient, value: text, unit: unit))
         }
         return .success(Parsed(rows: rows, usage: ConfirmEnrichmentUsageParse.usage(root)))
     }
@@ -352,7 +355,8 @@ public enum ConfirmDetailsResponseCheck {
                   let choice = answer["value"] as? String, fact.choices.contains(choice),
                   ConfirmEnrichmentUsageParse.isNumber(answer["confidence"]),
                   let confidence = (answer["confidence"] as? NSNumber)?.doubleValue, confidence.isFinite, (0...1).contains(confidence),
-                  let probabilities = answer["probabilities"] as? [String: Any],
+                  let probabilities = answer["probabilities"] as? [String: Any], !probabilities.isEmpty,
+                  Set(probabilities.keys).isSubset(of: fact.choices),
                   probabilities.values.allSatisfy({ value in
                       guard ConfirmEnrichmentUsageParse.isNumber(value), let p = (value as? NSNumber)?.doubleValue else { return false }
                       return p.isFinite && (0...1).contains(p)
@@ -366,5 +370,115 @@ public enum ConfirmDetailsResponseCheck {
     public static func applied(_ answers: [ConfirmDetailsCapture.Answer]) -> [String] {
         let threshold = Double(ConfirmEnrichmentVersions.detailsThreshold)!
         return answers.filter { $0.choice != "unknown" && $0.confidence >= threshold }.map(\.fact).sorted()
+    }
+}
+
+/// A minimal JSON reader that keeps each number's text exactly as received, so a B row's `value` is
+/// stored verbatim (phase gate section 2.3) and never re-rendered from a binary double.
+enum ConfirmEnrichmentRawJSON: Equatable {
+    case object([String: ConfirmEnrichmentRawJSON])
+    case array([ConfirmEnrichmentRawJSON])
+    case string(String)
+    case number(String)
+    case bool(Bool)
+    case null
+
+    static func parse(_ text: String) -> ConfirmEnrichmentRawJSON? {
+        var parser = Parser(bytes: Array(text.utf8))
+        guard let value = parser.value() else { return nil }
+        parser.skipSpace()
+        return parser.index == parser.bytes.count ? value : nil
+    }
+
+    private struct Parser {
+        let bytes: [UInt8]
+        var index = 0
+
+        mutating func skipSpace() {
+            while index < bytes.count, [0x20, 0x09, 0x0A, 0x0D].contains(bytes[index]) { index += 1 }
+        }
+
+        mutating func value() -> ConfirmEnrichmentRawJSON? {
+            skipSpace()
+            guard index < bytes.count else { return nil }
+            switch bytes[index] {
+            case UInt8(ascii: "{"): return object()
+            case UInt8(ascii: "["): return array()
+            case UInt8(ascii: "\""): return string().map(ConfirmEnrichmentRawJSON.string)
+            case UInt8(ascii: "t"): return literal("true", .bool(true))
+            case UInt8(ascii: "f"): return literal("false", .bool(false))
+            case UInt8(ascii: "n"): return literal("null", .null)
+            default: return number()
+            }
+        }
+
+        mutating func literal(_ word: String, _ result: ConfirmEnrichmentRawJSON) -> ConfirmEnrichmentRawJSON? {
+            let w = Array(word.utf8)
+            guard index + w.count <= bytes.count, Array(bytes[index..<index + w.count]) == w else { return nil }
+            index += w.count
+            return result
+        }
+
+        mutating func number() -> ConfirmEnrichmentRawJSON? {
+            let start = index
+            if index < bytes.count, bytes[index] == UInt8(ascii: "-") { index += 1 }
+            while index < bytes.count, "0123456789.eE+-".utf8.contains(bytes[index]) { index += 1 }
+            guard index > start, let text = String(bytes: bytes[start..<index], encoding: .utf8),
+                  text.range(of: #"^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?$"#, options: .regularExpression) != nil else { return nil }
+            return .number(text)
+        }
+
+        mutating func string() -> String? {
+            let start = index
+            index += 1
+            while index < bytes.count {
+                if bytes[index] == UInt8(ascii: "\\") { index += 2; continue }
+                if bytes[index] == UInt8(ascii: "\"") {
+                    index += 1
+                    // Decode escapes through Foundation on the exact string token.
+                    let token = Data(bytes[start..<index])
+                    return try? JSONDecoder().decode(String.self, from: token)
+                }
+                index += 1
+            }
+            return nil
+        }
+
+        mutating func array() -> ConfirmEnrichmentRawJSON? {
+            index += 1
+            var items: [ConfirmEnrichmentRawJSON] = []
+            skipSpace()
+            if index < bytes.count, bytes[index] == UInt8(ascii: "]") { index += 1; return .array(items) }
+            while true {
+                guard let item = value() else { return nil }
+                items.append(item)
+                skipSpace()
+                guard index < bytes.count else { return nil }
+                if bytes[index] == UInt8(ascii: ",") { index += 1; continue }
+                if bytes[index] == UInt8(ascii: "]") { index += 1; return .array(items) }
+                return nil
+            }
+        }
+
+        mutating func object() -> ConfirmEnrichmentRawJSON? {
+            index += 1
+            var members: [String: ConfirmEnrichmentRawJSON] = [:]
+            skipSpace()
+            if index < bytes.count, bytes[index] == UInt8(ascii: "}") { index += 1; return .object(members) }
+            while true {
+                skipSpace()
+                guard index < bytes.count, bytes[index] == UInt8(ascii: "\""), let key = string(), members[key] == nil else { return nil }
+                skipSpace()
+                guard index < bytes.count, bytes[index] == UInt8(ascii: ":") else { return nil }
+                index += 1
+                guard let item = value() else { return nil }
+                members[key] = item
+                skipSpace()
+                guard index < bytes.count else { return nil }
+                if bytes[index] == UInt8(ascii: ",") { index += 1; continue }
+                if bytes[index] == UInt8(ascii: "}") { index += 1; return .object(members) }
+                return nil
+            }
+        }
     }
 }

@@ -160,7 +160,9 @@ final class ConfirmEnrichmentStorageContractTests: XCTestCase {
         XCTAssertNoThrow(try FoodDailyExportShape.validate(try document(schema: 7)))
         // Earlier schemas reject the origin and its fields; version 7 needs its notes sentence.
         for schema in [2, 3, 5] {
-            XCTAssertThrowsError(try FoodDailyExportShape.validate(try document(schema: schema)), "schema \(schema)")
+            XCTAssertThrowsError(try FoodDailyExportShape.validate(try document(schema: schema)), "schema \(schema)") {
+                XCTAssertEqual($0 as? FoodDailyExportShapeError, .unexpectedEstimate, "schema \(schema) rejects the origin itself")
+            }
         }
         XCTAssertThrowsError(try FoodDailyExportShape.validate(try document(schema: 7, notes: false)))
         // A version 7 file with no OpenRouter estimate is rejected.

@@ -782,7 +782,9 @@ public enum FoodDailyExportBuilder {
     /// origin, from the first provenance in catalogue order (conflict candidates included).
     private static func sourceRowOrigin(_ nutrients: NutrientSet, manifest: PastedLabelEvidenceManifest?) throws -> String? {
         guard manifest == nil else { return nil }
-        let provenance = nutrients.entries.lazy.flatMap { [$0.value] + $0.conflictCandidates }.flatMap(\.provenance).first
+        // An OpenRouter estimate is never a row's source: unknowns keep the source's own origin.
+        let provenance = nutrients.entries.lazy.flatMap { [$0.value] + $0.conflictCandidates }.flatMap(\.provenance)
+            .first { $0.sourceKind != .openRouterEstimate }
         return try provenance.map { try FoodDailyExportOrigin.origin(sourceKind: $0.sourceKind.rawValue) }
     }
 
@@ -815,8 +817,10 @@ public enum FoodDailyExportBuilder {
             return typed
         }
 
-        /// The capture an `openrouter_estimate` value names, verified as on reopen: its payload hashes
-        /// to the stored hash and the provenance's, and the value equals a kept row of that key.
+        /// The capture an `openrouter_estimate` value names: its payload hashes to the stored hash and
+        /// the provenance's, and the value equals a kept row of that key. The full check against the
+        /// choices item (`ConfirmEnrichmentVerification`) runs on save, which refuses any value it does
+        /// not verify; this one makes an altered or swapped capture fail closed in the file.
         func openRouterCapture(_ provenance: NutrientProvenance, key: NutrientKey, amount: Double,
                                unit: NutrientUnit) throws -> ConfirmNutrientCapture {
             guard let digester, let id = provenance.evidenceID,
@@ -826,6 +830,8 @@ public enum FoodDailyExportBuilder {
                   case let .text(payload) = stored.originalPayload,
                   (try? digester.sha256(Data(payload.value.utf8))) == hash,
                   let capture = ConfirmEnrichmentEvidence.nutrients(stored),
+                  // The exported response hash is recomputed from the stored response, never trusted.
+                  (try? digester.sha256(Data(capture.response.utf8)))?.value == capture.responseSHA256,
                   unit == key.canonicalUnit,
                   capture.rows.contains(where: { $0.nutrient == key.rawValue && $0.result == ConfirmNutrientRowResult.kept.rawValue
                       && $0.unit == unit.rawValue && Double($0.value) == amount }) else {
@@ -869,7 +875,10 @@ public enum FoodDailyExportBuilder {
         func unknown(_ reason: UnknownReason) -> FoodDailyExportNutrientValue {
             FoodDailyExportNutrientValue(key: exportKey, state: "unknown", amount: nil, lower: nil, upper: nil,
                                          lowerClosed: nil, upperClosed: nil, estimated: nil, unit: nil,
-                                         reason: reason.rawValue, origin: origin, calculated: nil, provenance: nil,
+                                         reason: reason.rawValue,
+                                         // An unscalable OpenRouter estimate is unknown, so it takes the row's own origin.
+                                         origin: value.provenance.first?.sourceKind == .openRouterEstimate ? rowOrigin ?? origin : origin,
+                                         calculated: nil, provenance: nil,
                                          conflict: candidates == nil ? nil : true, candidates: candidates)
         }
         switch value {

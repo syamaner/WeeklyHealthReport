@@ -104,7 +104,10 @@ public struct ConfirmDetailsCapture: Codable, Equatable, Sendable {
     }
 
     public init(model: String, provider: String, endpoint: String, generationID: String?, requestBody: String,
-                response: String, responseSHA256: String, answers: [Answer], applied: [String]) {
+                response: String, responseSHA256: String, answers: [Answer], applied: [String]) throws {
+        guard response.utf8.count <= ConfirmEnrichmentVersions.detailsResponseByteLimit,
+              Set(applied).count == applied.count, Set(applied).isSubset(of: answers.map(\.fact)),
+              Set(answers.map(\.fact)).count == answers.count else { throw FoodLedgerValidationError.invalidProvenance }
         schema = ConfirmEnrichmentVersions.detailsCaptureMethodVersion
         contract = ConfirmEnrichmentVersions.contract
         route = ConfirmEnrichmentVersions.detailsRoute
@@ -146,7 +149,9 @@ public struct ConfirmDetailsCapture: Codable, Equatable, Sendable {
               response.utf8.count <= ConfirmEnrichmentVersions.detailsResponseByteLimit,
               (try? SHA256Digest(responseSHA256)) != nil,
               answers.map(\.fact) == answers.map(\.fact).sorted(), Set(answers.map(\.fact)).count == answers.count,
-              applied == applied.sorted(), Set(applied).isSubset(of: answers.map(\.fact)) else {
+              applied == applied.sorted(), Set(applied).count == applied.count,
+              Set(applied).isSubset(of: answers.map(\.fact)),
+              answers.allSatisfy({ $0.confidence.isFinite && (0...1).contains($0.confidence) }) else {
             throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Not a confirm-details-capture-v1 payload"))
         }
     }
@@ -222,7 +227,10 @@ public struct ConfirmNutrientCapture: Codable, Equatable, Sendable {
     }
 
     public init(model: String, provider: String, endpoint: String, generationID: String?, requestBody: String,
-                response: String, responseSHA256: String, rows: [Row]) {
+                response: String, responseSHA256: String, rows: [Row]) throws {
+        guard response.utf8.count <= ConfirmEnrichmentVersions.nutrientResponseByteLimit else {
+            throw FoodLedgerValidationError.invalidProvenance
+        }
         schema = ConfirmEnrichmentVersions.nutrientCaptureMethodVersion
         contract = ConfirmEnrichmentVersions.contract
         route = ConfirmEnrichmentVersions.nutrientRoute

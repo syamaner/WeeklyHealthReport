@@ -96,12 +96,12 @@ public enum FoodDailyExportShape {
     }
 
     /// Schema 7: a value whose provenance is an OpenRouter estimate is `estimated`, origin
-    /// `openrouter_estimate`, not calculated, with that one provenance. A value with that origin and no
-    /// such provenance is an unknown value of an entry led by one, and nothing else.
+    /// `openrouter_estimate`, not calculated, with that one provenance. No other value carries that
+    /// origin: an unknown keeps its source's origin.
     static func validateOpenRouterValue(_ value: FoodDailyExportNutrientValue) throws {
         let provenance = value.provenance ?? []
         guard provenance.contains(where: \.isOpenRouterEstimate) else {
-            if value.origin == openRouterEstimateOrigin, value.state != "unknown" { throw FoodDailyExportShapeError.invalidEstimateFields }
+            if value.origin == openRouterEstimateOrigin { throw FoodDailyExportShapeError.invalidEstimateFields }
             return
         }
         guard provenance.count == 1, value.state == "estimated", value.origin == openRouterEstimateOrigin,

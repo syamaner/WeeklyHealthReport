@@ -80,7 +80,7 @@ final class ConfirmEnrichmentFormatTests: XCTestCase {
                              "a nullable key is still required")
         let choices = try XCTUnwrap(ConfirmEnrichmentEvidence.choices(built.choicesEvidence))
         XCTAssertEqual(choices.leftOutKeys, [.sodium])
-        let details = ConfirmDetailsCapture(model: "typesafe/jev-1.13", provider: "TypeSafe", endpoint: "https://example.invalid/v1/systemone",
+        let details = try ConfirmDetailsCapture(model: "typesafe/jev-1.13", provider: "TypeSafe", endpoint: "https://example.invalid/v1/systemone",
             generationID: nil, requestBody: "{}", response: "{}", responseSHA256: try digester.sha256(Data("{}".utf8)).value,
             answers: [.init(fact: "preparation", choice: "as_sold", confidence: 0.9)], applied: ["preparation"])
         let detailsPayload = try encoder.encode(details)
@@ -103,10 +103,10 @@ final class ConfirmEnrichmentFormatTests: XCTestCase {
     // MARK: Request inputs, response and row checks
 
     func testRequestInputsDecodeFromTheStoredBody() throws {
-        let inputs = F.inputs()
+        let inputs = try F.inputs()
         XCTAssertEqual(ConfirmNutrientRequestInputs.decode(requestBody: try F.requestBody(inputs)), inputs)
         XCTAssertNil(ConfirmNutrientRequestInputs.decode(requestBody: "{\"messages\":[]}"))
-        let details = ConfirmDetailsRequestInputs(description: F.description(), knownDetails: ["bone": "not_applicable"],
+        let details = try ConfirmDetailsRequestInputs(description: F.description(), knownDetails: ["bone": "not_applicable"],
                                                   asked: [.preparation, .fortification])
         let body = "{\"model\":\"typesafe/jev-1.13\",\"state\":" + String(decoding: try FoundationCanonicalJSONEncoder().encode(details), as: UTF8.self) + "}"
         XCTAssertEqual(ConfirmDetailsRequestInputs.decode(requestBody: body), details)
@@ -114,7 +114,7 @@ final class ConfirmEnrichmentFormatTests: XCTestCase {
     }
 
     func testAShapeFailureFailsTheWholeResponse() throws {
-        let inputs = F.inputs()
+        let inputs = try F.inputs()
         func check(_ data: Data) -> ConfirmEnrichmentResponseFailure? {
             if case let .failure(failure) = ConfirmNutrientResponseCheck.check(data, request: inputs, models: [F.model], provider: F.provider) { return failure }
             return nil
@@ -204,6 +204,96 @@ final class ConfirmEnrichmentFormatTests: XCTestCase {
             citedEvidenceIDs: [built.captureEvidence.evidenceID, built.choicesEvidence.evidenceID],
             evidence: [built.captureEvidence, built.choicesEvidence], layer: [.fiber: 5], digester: digester)
         XCTAssertEqual(outcome, .notAvailable, "the layer fills fiber, but the choices item does not record it")
+    }
+
+    // MARK: Review hardening
+
+    func testRowValuesKeepTheNumberTextAsReceived() throws {
+        let inputs = try F.inputs()
+        let content = #"{"basis":"per_100_g","schema":"confirm-nutrient-estimate-v1","values":[{"nutrient":"fiber","unit":"g","value":12.50},{"nutrient":"sodium","unit":"mg","value":1e2}]}"#
+        let body = try JSONSerialization.data(withJSONObject: [
+            "id": "gen-1", "model": F.model, "provider": F.provider,
+            "choices": [["finish_reason": "stop", "message": ["role": "assistant", "content": content, "tool_calls": [Any]()]]]
+        ])
+        guard case let .success(parsed) = ConfirmNutrientResponseCheck.check(body, request: inputs, models: [F.model], provider: F.provider) else {
+            return XCTFail("an empty tool_calls list is no tool call")
+        }
+        XCTAssertEqual(parsed.rows.map(\.value), ["12.50", "1e2"])
+        XCTAssertEqual(ConfirmNutrientResponseCheck.captureRows(parsed, request: inputs).map(\.result), ["kept", "kept"])
+    }
+
+    func testMalformedStoredBodiesDecodeToNilWithoutTrapping() {
+        for body in [#"{"state":"x"}"#, #"{"state":null}"#, #"{"state":1}"#, "not json"] {
+            XCTAssertNil(ConfirmDetailsRequestInputs.decode(requestBody: body), body)
+            XCTAssertNil(ConfirmNutrientRequestInputs.decode(requestBody: body), body)
+        }
+    }
+
+    func testTheWriteSideRefusesWhatTheDecoderRefuses() throws {
+        XCTAssertThrowsError(try ConfirmNutrientRequestInputs.Known(nutrient: .protein, value: 1, source: "from somewhere"))
+        XCTAssertThrowsError(try ConfirmNutrientRequestInputs.Known(nutrient: .protein, value: -1, source: "from the label"))
+        XCTAssertThrowsError(try ConfirmNutrientRequestInputs(description: F.description(), identity: [:], basis: .per100Grams,
+                                                              known: [], eligible: [.caffeine]), "an unmeasured key is never requested")
+        XCTAssertThrowsError(try ConfirmNutrientRequestInputs(description: F.description(), identity: [:], basis: .per100Grams,
+                                                              known: [], eligible: []))
+        XCTAssertThrowsError(try ConfirmDetailsRequestInputs(description: F.description(), knownDetails: ["bone": "boneless"], asked: [.bone]))
+        XCTAssertThrowsError(try ConfirmDetailsCapture(model: "m", provider: "p", endpoint: "e", generationID: nil, requestBody: "{}",
+            response: "{}", responseSHA256: String(repeating: "0", count: 64), answers: [], applied: ["bone"]))
+    }
+
+    /// A capture rehashed after its rows were changed no longer matches its own stored reply.
+    func testARehashedCaptureWhoseRowsDisagreeIsNotAvailable() throws {
+        let built = try F.built(leftOut: [.sodium])
+        let encoder = FoundationCanonicalJSONEncoder()
+        func evidence(_ capture: ConfirmNutrientCapture, capturedAt: Date = F.capturedAt) throws -> CaptureEvidence {
+            let payload = try encoder.encode(capture)
+            return try CaptureEvidence(evidenceID: built.captureEvidence.evidenceID, kind: .labelText, capturedAt: capturedAt,
+                locale: LedgerText("en_GB"), captureMethod: LedgerText(ConfirmEnrichmentVersions.nutrientCaptureMethod),
+                captureMethodVersion: LedgerText(ConfirmEnrichmentVersions.nutrientCaptureMethodVersion),
+                originalPayload: .text(LedgerText(String(decoding: payload, as: UTF8.self))), byteHash: digester.sha256(payload))
+        }
+        let c = built.capture
+        let changedRows = try ConfirmNutrientCapture(model: c.model, provider: c.provider, endpoint: c.endpoint, generationID: c.generationID,
+            requestBody: c.requestBody, response: c.response, responseSHA256: c.responseSHA256,
+            rows: c.rows.map { .init(nutrient: $0.nutrient, value: $0.nutrient == "fiber" ? "7" : $0.value, unit: $0.unit,
+                                     result: ConfirmNutrientRowResult(rawValue: $0.result)!) })
+        let wrongHash = try ConfirmNutrientCapture(model: c.model, provider: c.provider, endpoint: c.endpoint, generationID: c.generationID,
+            requestBody: c.requestBody, response: c.response, responseSHA256: String(repeating: "d", count: 64), rows: c.rows)
+        for (name, item) in [("rows", try evidence(changedRows)), ("hash", try evidence(wrongHash)),
+                             ("time", try evidence(c, capturedAt: F.capturedAt.addingTimeInterval(1)))] {
+            let hash = try XCTUnwrap(item.byteHash)
+            let choices = ConfirmNutrientChoices(resolutionVersionID: built.resolutionVersionID.rawValue, captureSHA256: hash.value,
+                                                 leftOut: [.sodium], layerDropped: [], mergeParentDropped: [], mergeEnergyDropped: [])
+            let choicesPayload = try encoder.encode(choices)
+            let choicesItem = try CaptureEvidence(evidenceID: built.choicesEvidence.evidenceID, kind: .labelText, capturedAt: F.capturedAt,
+                locale: LedgerText("en_GB"), captureMethod: LedgerText(ConfirmEnrichmentVersions.choicesCaptureMethod),
+                captureMethodVersion: LedgerText(ConfirmEnrichmentVersions.choicesMethodVersion),
+                originalPayload: .text(LedgerText(String(decoding: choicesPayload, as: UTF8.self))), byteHash: digester.sha256(choicesPayload))
+            // The provenance is rebuilt for the rehashed item, at the original time, so only the named binding differs.
+            let provenance = NutrientProvenance(sourceKind: .openRouterEstimate, sourceID: try ExternalIdentifier(OpenRouterEstimateProvenance.sourceID),
+                sourceReleaseID: try ExternalIdentifier(OpenRouterEstimateProvenance.sourceReleaseID(captureHash: hash)),
+                recordID: try ExternalIdentifier(OpenRouterEstimateProvenance.recordID(evidenceID: item.evidenceID)),
+                evidenceID: item.evidenceID, capturedAt: F.capturedAt, responseHash: hash,
+                manifestReference: try LedgerText(OpenRouterEstimateProvenance.manifestReference(.fiber)))
+            let amount: Double = name == "rows" ? 7 : 6.5
+            let outcome = ConfirmEnrichmentVerification.verify(
+                nutrients: try F.nutrients([.fiber: try F.value(amount, key: .fiber, provenance: provenance)]),
+                resolutionVersionID: built.resolutionVersionID, citedEvidenceIDs: [item.evidenceID, choicesItem.evidenceID],
+                evidence: [item, choicesItem], layer: [:], digester: digester)
+            XCTAssertEqual(outcome, .notAvailable, name)
+        }
+    }
+
+    func testTheFloorReadsTheMethodVersionAndStripReadsLabelTextOnly() throws {
+        let other = try CaptureEvidence(evidenceID: F.id(9050), kind: .barcode, capturedAt: F.capturedAt, locale: LedgerText("en_GB"),
+            captureMethod: LedgerText("scan"), captureMethodVersion: LedgerText(ConfirmEnrichmentVersions.nutrientCaptureMethodVersion),
+            originalPayload: .barcode(value: try LedgerText("5000000000017"), symbology: try LedgerText("ean13")))
+        var records = LedgerMutation()
+        records.evidence = [other]
+        // The floor stays conservative (gate 2.7: the method version alone raises it); strip and skip
+        // act only on `.labelText` items.
+        XCTAssertTrue(CanonicalFoodProjection.holdsConfirmEnrichment(records))
+        XCTAssertFalse(ConfirmEnrichmentVersions.isEnrichmentEvidence(other))
     }
 
     // MARK: Citation (2.4a)

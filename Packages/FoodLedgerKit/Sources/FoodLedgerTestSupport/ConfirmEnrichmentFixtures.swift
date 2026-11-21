@@ -21,13 +21,13 @@ public enum ConfirmEnrichmentFixtures {
     }
 
     /// Known energy, protein, carbohydrate and fat; fibre and sodium asked.
-    public static func inputs() -> ConfirmNutrientRequestInputs {
-        ConfirmNutrientRequestInputs(
+    public static func inputs() throws -> ConfirmNutrientRequestInputs {
+        try ConfirmNutrientRequestInputs(
             description: description(), identity: ["preparation": "as_sold"], basis: .per100Grams,
-            known: [.init(nutrient: .energyConsumed, value: 400, source: "from the product's Open Food Facts record"),
-                    .init(nutrient: .protein, value: 10, source: "from the product's Open Food Facts record"),
-                    .init(nutrient: .carbohydrates, value: 60, source: "from the product's Open Food Facts record"),
-                    .init(nutrient: .fatTotal, value: 12, source: "from the product's Open Food Facts record")],
+            known: [try .init(nutrient: .energyConsumed, value: 400, source: "from the product's Open Food Facts record"),
+                    try .init(nutrient: .protein, value: 10, source: "from the product's Open Food Facts record"),
+                    try .init(nutrient: .carbohydrates, value: 60, source: "from the product's Open Food Facts record"),
+                    try .init(nutrient: .fatTotal, value: 12, source: "from the product's Open Food Facts record")],
             eligible: [.fiber, .sodium])
     }
 
@@ -69,13 +69,13 @@ public enum ConfirmEnrichmentFixtures {
     public static func built(leftOut: Set<NutrientKey> = [], values: [[String: Any]]? = nil,
                              resolutionVersionID: ResolutionVersionID? = nil) throws -> Built {
         let digester = SHA256Digester(), encoder = FoundationCanonicalJSONEncoder()
-        let inputs = inputs()
+        let inputs = try inputs()
         let body = try requestBody(inputs)
         let bytes = try response(values: values ?? defaultValues())
         guard case let .success(parsed) = ConfirmNutrientResponseCheck.check(bytes, request: inputs, models: [model], provider: provider) else {
             throw FoodLedgerValidationError.invalidProvenance
         }
-        let capture = ConfirmNutrientCapture(
+        let capture = try ConfirmNutrientCapture(
             model: model, provider: provider, endpoint: endpoint, generationID: parsed.usage.generationID, requestBody: body,
             response: String(decoding: bytes, as: UTF8.self), responseSHA256: try digester.sha256(bytes).value,
             rows: ConfirmNutrientResponseCheck.captureRows(parsed, request: inputs))

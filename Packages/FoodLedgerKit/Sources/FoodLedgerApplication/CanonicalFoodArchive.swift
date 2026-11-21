@@ -120,6 +120,7 @@ public struct CanonicalFoodProjection: Codable, Equatable, Sendable {
     /// Whether the records hold `openrouter_estimate` provenance anywhere a nutrient set is stored
     /// (conflict candidates included) or evidence of any of the three CE1 method versions.
     public static func holdsConfirmEnrichment(_ records: LedgerMutation) -> Bool {
+        // The method version alone raises the floor (gate 2.7), whatever the evidence kind: fail closed.
         if records.evidence.contains(where: { ConfirmEnrichmentVersions.methodVersions.contains($0.captureMethodVersion.value) }) {
             return true
         }
