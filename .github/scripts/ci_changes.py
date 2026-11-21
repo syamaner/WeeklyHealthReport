@@ -46,6 +46,8 @@ CODE_READ_DOCS = {
     # Cited by the Confirm enrichment formats, export 7, their tests and fixtures (#549).
     "docs/confirm-enrichment-openrouter-v1.md",
     "docs/confirm-enrichment-openrouter-v1-phase.md",
+    # Read word for word by the Confirm enrichment evaluation's 11.1a preflight and its test (#549 PR 3).
+    "docs/privacy-and-egress.md",
     "docs/personal-food-catalogue-estimates-v2-phase.md",
     # Cited by the label photo estimates codec, export, store and skill code and their tests (#518).
     "docs/personal-food-catalogue-off-estimates-v1-proposal.md",

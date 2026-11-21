@@ -71,7 +71,7 @@ public struct OpenFoodFactsSearch: FoodSearchEnriching {
                 category = String(tag.dropFirst(3)).replacingOccurrences(of: "-", with: " ")
             }
             let score = Double(terms.intersection(candidateTerms).count) / Double(max(1, terms.union(candidateTerms).count))
-            guard case let .candidate(input) = try OpenFoodFactsLookup.project(product: product,
+            guard case let .candidate(input) = try OpenFoodFactsProductMapping.project(product: product,
                 artifact: artifact, gtin: gtin, evidence: evidence, retrievedAt: now, searchScore: score,
                 searchCategory: category) else { continue }
             let matches = input.candidates.map { GenericFoodMatch(candidate: $0,

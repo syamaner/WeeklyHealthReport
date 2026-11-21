@@ -9,7 +9,7 @@ import XCTest
 /// 5.1 item 11).
 ///
 /// Reproduces every check in `.agents/skills/personal-food-catalogue/scripts/test_off_rules.py` (the Python port,
-/// `off_rules.py`) against the app's own `OpenFoodFactsLookup.project`, using synthetic v3.6 product records only.
+/// `off_rules.py`) against the app's own `OpenFoodFactsProductMapping.project`, using synthetic v3.6 product records only.
 /// "Admitted" in the port means `.candidate` here; "refused" (None) means `.insufficientData`; "left out" (key absent)
 /// means an `.unknown` entry.
 ///
@@ -67,7 +67,7 @@ final class OpenFoodFactsSkillParityTests: XCTestCase {
     private func run(_ product: [String: Any]) throws -> PackagedFoodLookupOutcome {
         let artifact = try JSONSerialization.data(withJSONObject: product, options: .sortedKeys)
         let decoded = try XCTUnwrap(JSONSerialization.jsonObject(with: artifact) as? [String: Any])
-        return try OpenFoodFactsLookup.project(product: decoded, artifact: artifact, gtin: LedgerText(gtin),
+        return try OpenFoodFactsProductMapping.project(product: decoded, artifact: artifact, gtin: LedgerText(gtin),
             evidence: evidence(), retrievedAt: now)
     }
 

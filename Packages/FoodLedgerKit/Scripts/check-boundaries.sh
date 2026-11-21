@@ -455,6 +455,12 @@ openrouter_request_sites=(
   "FoodLabelPhotoCapture/OpenRouterLabelRouteChecker.swift"
   "FoodLabelPhotoCapture/OpenRouterPastedLabelAITextAttempt.swift"
   "FoodLabelPhotoCapture/OpenRouterPastedLabelAITextRouteChecker.swift"
+  # Confirm enrichment (#549, phase gate section 3.3 item 3): the two adapters, their shared attempt
+  # and the route checker.
+  "FoodConfirmEnrichment/OpenRouterJevFoodDetailsAdapter.swift"
+  "FoodConfirmEnrichment/OpenRouterNutrientEstimateAdapter.swift"
+  "FoodConfirmEnrichment/OpenRouterConfirmEnrichmentAttempt.swift"
+  "FoodConfirmEnrichment/ConfirmEnrichmentRouteChecker.swift"
 )
 # Confirm enrichment (#549, docs/confirm-enrichment-openrouter-v1-phase.md section 3.3 item 3): the routes
 # file holds the addresses only as route-version constants used by gated sites (a reviewed exemption).
@@ -479,7 +485,9 @@ self_test_openrouter_gate() {
   scratch="$(mktemp -d "${TMPDIR:-/tmp}/check-boundaries-openrouter.XXXXXX")"
   base="$scratch/base"
   sources="$base/Packages/FoodLedgerKit/Sources"; app="$base/WeeklyHealthReport"
-  mkdir -p "$sources/FoodGenericSearch" "$sources/FoodLedgerApplication" "$sources/FoodLabelPhotoCapture" "$app/FoodLedger"
+  mkdir -p "$sources/FoodGenericSearch" "$sources/FoodLedgerApplication" "$sources/FoodLabelPhotoCapture" "$sources/FoodConfirmEnrichment" \
+    "$app/FoodLedger"
+  printf 'let endpoint = "https://openrouter.ai/api/v1/systemone"\n' > "$sources/FoodConfirmEnrichment/ConfirmEnrichmentRoutes.swift"
   for site in "${openrouter_request_sites[@]}"; do
     printf 'struct Site { let egress: any OpenRouterEgressPermitting }\n' > "$sources/$site"
   done
@@ -491,7 +499,8 @@ self_test_openrouter_gate() {
   if [[ -n "$(openrouter_gate_violations "$sources" "$app")" ]]; then
     echo "check-boundaries self-test: the OpenRouter gate baseline must pass" >&2; status=1
   fi
-  for fixture in ungated_site ungated_reviewer new_package_request new_app_request missing_site renamed_exemption; do
+  for fixture in ungated_site ungated_reviewer new_package_request new_app_request missing_site renamed_exemption \
+                 ungated_enrichment_adapter missing_enrichment_checker; do
     cp -R "$base" "$scratch/$fixture"
     sources="$scratch/$fixture/Packages/FoodLedgerKit/Sources"; app="$scratch/$fixture/WeeklyHealthReport"
     case "$fixture" in
@@ -500,6 +509,8 @@ self_test_openrouter_gate() {
       new_package_request) printf 'let url = URL(string: "https://openrouter.ai/api/v1/key")!\n' > "$sources/FoodGenericSearch/OpenRouterKeyCheck.swift" ;;
       new_app_request) printf 'let url = URL(string: "https://openrouter.ai/api/v1/models")!\n' > "$app/FoodLedger/Enrichment.swift" ;;
       missing_site) rm "$sources/FoodLabelPhotoCapture/OpenRouterPastedLabelAITextRouteChecker.swift" ;;
+      ungated_enrichment_adapter) printf 'struct Adapter {}\n' > "$sources/FoodConfirmEnrichment/OpenRouterNutrientEstimateAdapter.swift" ;;
+      missing_enrichment_checker) rm "$sources/FoodConfirmEnrichment/ConfirmEnrichmentRouteChecker.swift" ;;
       renamed_exemption) mv "$sources/FoodLabelPhotoCapture/OpenRouterLabelPhotoRequest.swift" "$sources/FoodLabelPhotoCapture/OpenRouterLabelPhotoRequests.swift" ;;
     esac
     if [[ -z "$(openrouter_gate_violations "$sources" "$app")" ]]; then
@@ -987,6 +998,89 @@ live_transport_files="$(tool_live_transport "$app_root/Tools/PastedLabelAITextEv
 if [[ -n "$live_transport_files" ]]; then
   echo "PastedLabelAITextEval loads URLs, or names the live transport outside PastedLabelAITextEvalHarness/LiveTransport.swift:" >&2
   echo "$live_transport_files" >&2
+  exit 1
+fi
+
+# Confirm enrichment evaluation tool (#549, docs/confirm-enrichment-openrouter-v1-phase.md section 3.3
+# item 5), the PastedLabelAITextEval rules applied to Tools/ConfirmEnrichmentEval: every tool Swift file
+# imports only Foundation, the domain, the application, FoodConfirmEnrichment, FoodGenericSearch, the
+# tool's own modules and (tests) XCTest; the pure core imports only Foundation, the domain and the
+# application and loads no URLs; no tool file loads URLs (url_loading_pattern over the whole tool); the
+# app's live transport is named only in Sources/ConfirmEnrichmentEvalHarness/LiveTransport.swift; and no
+# tool file names a FoodGenericSearch network client. Prints each violation; a missing tool fails.
+confirm_eval_allowed='^(Foundation|FoodLedgerDomain|FoodLedgerApplication|FoodConfirmEnrichment|FoodGenericSearch|ConfirmEnrichmentEvalCore|ConfirmEnrichmentEvalHarness|XCTest)$'
+confirm_eval_core_allowed='^(Foundation|FoodLedgerDomain|FoodLedgerApplication)$'
+confirm_eval_live_pattern='\bConfirmEnrichmentTransport\b'
+confirm_eval_network_names='\b(OpenFoodFactsLookup|OpenFoodFactsSearch|GeminiFoodSearch|OpenRouterFoodProvider|URLSession)\b'
+confirm_eval_violations() {
+  local tool="$1" file line allowed
+  if [[ ! -d "$tool/Sources" ]]; then echo "$tool: missing"; return 0; fi
+  allowed="$tool/Sources/ConfirmEnrichmentEvalHarness/LiveTransport.swift"
+  # Sources and Tests only: the tool's .build holds its dependencies' checkouts.
+  local scanned=("$tool/Sources")
+  [[ -d "$tool/Tests" ]] && scanned+=("$tool/Tests")
+  local dir
+  for dir in "${scanned[@]}"; do
+    while IFS= read -r line; do [[ -n "$line" ]] && echo "Tools/ConfirmEnrichmentEval imports $line"; done < <(tool_import_violations "$dir" "$confirm_eval_allowed")
+  done
+  if [[ -d "$tool/Sources/ConfirmEnrichmentEvalCore" ]]; then
+    while IFS= read -r line; do [[ -n "$line" ]] && echo "ConfirmEnrichmentEvalCore imports $line"; done \
+      < <(tool_import_violations "$tool/Sources/ConfirmEnrichmentEvalCore" "$confirm_eval_core_allowed")
+  else
+    echo "$tool/Sources/ConfirmEnrichmentEvalCore: missing"
+  fi
+  while IFS= read -r file; do [[ -n "$file" ]] && echo "$file loads URLs"; done \
+    < <(grep -rlE --include='*.swift' "$url_loading_pattern" "${scanned[@]}" || true)
+  while IFS= read -r file; do
+    [[ -z "$file" || "$file" == "$allowed" ]] || echo "$file names the live transport outside LiveTransport.swift"
+  done < <(grep -rlE --include='*.swift' "$confirm_eval_live_pattern" "${scanned[@]}" || true)
+  while IFS= read -r file; do [[ -n "$file" ]] && echo "$file names a network client"; done \
+    < <(grep -rlE --include='*.swift' "$confirm_eval_network_names" "${scanned[@]}" || true)
+}
+self_test_confirm_eval() {
+  local scratch status=0 fixture base target
+  scratch="$(mktemp -d "${TMPDIR:-/tmp}/check-boundaries-confirm-eval.XXXXXX")"
+  base="$scratch/base"
+  mkdir -p "$base/Sources/ConfirmEnrichmentEvalCore" "$base/Sources/ConfirmEnrichmentEvalHarness" "$base/Sources/ConfirmEnrichmentEval" \
+    "$base/Tests/ConfirmEnrichmentEvalHarnessTests"
+  printf 'import Foundation\nimport FoodLedgerApplication\n' > "$base/Sources/ConfirmEnrichmentEvalCore/EvalCase.swift"
+  printf 'import FoodConfirmEnrichment\nimport FoodGenericSearch\nimport ConfirmEnrichmentEvalCore\n' > "$base/Sources/ConfirmEnrichmentEvalHarness/EvalSend.swift"
+  printf 'import FoodConfirmEnrichment\nlet transport = ConfirmEnrichmentTransport()\n' > "$base/Sources/ConfirmEnrichmentEvalHarness/LiveTransport.swift"
+  printf 'import ConfirmEnrichmentEvalHarness\n' > "$base/Sources/ConfirmEnrichmentEval/main.swift"
+  printf 'import XCTest\nimport ConfirmEnrichmentEvalHarness\n' > "$base/Tests/ConfirmEnrichmentEvalHarnessTests/Tests.swift"
+  if [[ -n "$(confirm_eval_violations "$base")" ]]; then
+    echo "check-boundaries self-test: the Confirm enrichment evaluation baseline must pass" >&2; status=1
+  fi
+  for fixture in label_capture core_application_only core_url live_type_elsewhere live_file_url_session cli_url_session \
+                 off_lookup off_search gemini openrouter_provider test_url_session missing_tool; do
+    target="$scratch/$fixture"
+    cp -R "$base" "$target"
+    case "$fixture" in
+      label_capture) echo 'import FoodLabelPhotoCapture' > "$target/Sources/ConfirmEnrichmentEvalHarness/Leak.swift" ;;
+      core_application_only) echo 'import FoodConfirmEnrichment' >> "$target/Sources/ConfirmEnrichmentEvalCore/EvalCase.swift" ;;
+      core_url) echo 'let data = URLSession.shared' >> "$target/Sources/ConfirmEnrichmentEvalCore/EvalCase.swift" ;;
+      live_type_elsewhere) echo 'let transport = ConfirmEnrichmentTransport()' > "$target/Sources/ConfirmEnrichmentEval/Leak.swift" ;;
+      live_file_url_session) echo 'let session = URLSession.shared' >> "$target/Sources/ConfirmEnrichmentEvalHarness/LiveTransport.swift" ;;
+      cli_url_session) echo 'let task = CFStreamCreatePairWithSocket' >> "$target/Sources/ConfirmEnrichmentEval/main.swift" ;;
+      off_lookup) echo 'let lookup: OpenFoodFactsLookup? = nil' > "$target/Sources/ConfirmEnrichmentEvalHarness/Leak.swift" ;;
+      off_search) echo 'let search: OpenFoodFactsSearch? = nil' > "$target/Sources/ConfirmEnrichmentEvalHarness/Leak.swift" ;;
+      gemini) echo 'let search: GeminiFoodSearch? = nil' > "$target/Sources/ConfirmEnrichmentEvalHarness/Leak.swift" ;;
+      openrouter_provider) echo 'let provider: OpenRouterFoodProvider? = nil' > "$target/Sources/ConfirmEnrichmentEvalHarness/Leak.swift" ;;
+      test_url_session) echo 'let session = URLSession.shared' >> "$target/Tests/ConfirmEnrichmentEvalHarnessTests/Tests.swift" ;;
+      missing_tool) rm -rf "$target/Sources" ;;
+    esac
+    if [[ -z "$(confirm_eval_violations "$target")" ]]; then
+      echo "check-boundaries self-test: the Confirm enrichment evaluation $fixture fixture must fail" >&2; status=1
+    fi
+  done
+  rm -rf "$scratch"
+  return "$status"
+}
+self_test_confirm_eval
+confirm_eval_unexpected="$(confirm_eval_violations "$app_root/Tools/ConfirmEnrichmentEval")"
+if [[ -n "$confirm_eval_unexpected" ]]; then
+  echo "Tools/ConfirmEnrichmentEval breaks its boundary rules:" >&2
+  echo "$confirm_eval_unexpected" >&2
   exit 1
 fi
 
