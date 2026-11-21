@@ -33,13 +33,28 @@ public struct EvalCandidates: Sendable {
     public init(ids: any LedgerIDGenerating = RandomLedgerIDGenerator(),
                 tables: (@Sendable (EvalCase.Table) throws -> any GenericFoodSearching)? = nil) {
         self.ids = ids
-        self.tables = tables ?? { table in
-            let ids = RandomLedgerIDGenerator()
-            switch table {
-            case .cofid: return try CoFIDGenericFoodSearch(ids: ids)
-            case .usda: return try USDAGenericFoodSearch(ids: ids)
-            case .tfda: return try TFDAGenericFoodSearch(ids: ids)
-            case .ciqual: return try CiqualGenericFoodSearch(ids: ids)
+        let cache = TableCache()
+        self.tables = tables ?? { table in try cache.table(table) }
+    }
+
+    /// Each bundled table loaded once per `EvalCandidates`: a table is large to load, and a run or a
+    /// selection resolves many rows of the same table.
+    final class TableCache: @unchecked Sendable {
+        private let lock = NSLock()
+        private var loaded: [EvalCase.Table: any GenericFoodSearching] = [:]
+
+        func table(_ table: EvalCase.Table) throws -> any GenericFoodSearching {
+            try lock.withLock {
+                if let source = loaded[table] { return source }
+                let ids = RandomLedgerIDGenerator()
+                let source: any GenericFoodSearching = switch table {
+                case .cofid: try CoFIDGenericFoodSearch(ids: ids)
+                case .usda: try USDAGenericFoodSearch(ids: ids)
+                case .tfda: try TFDAGenericFoodSearch(ids: ids)
+                case .ciqual: try CiqualGenericFoodSearch(ids: ids)
+                }
+                loaded[table] = source
+                return source
             }
         }
     }

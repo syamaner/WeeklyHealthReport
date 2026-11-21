@@ -5212,3 +5212,28 @@ Excluded:
 - any hosted review run.
 
 Pricing: `claude-opus-5-5` at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, so the figure is a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
+## WHR-549-2026-11-21-SEL: Claude Code Confirm enrichment case selection (#549)
+
+Two sessions (`claude-opus-5-5`) delivered the evaluation's case selection, a prerequisite for PR 4a:
+
+- the owner-approved case-selection paragraph in `docs/privacy-and-egress.md` and the dated amendment in phase gate section 9;
+- `select` in `Tools/ConfirmEnrichmentEval`: a streaming scan of a downloaded Open Food Facts export, a seeded draw of the development and sealed sets, and writes only into the owner's private folder, printing counts, manifests and stop codes only;
+- the fixes from a blind invariant review and a general defect review (bounded memory, reproducible manifests, a fail-closed work-tree check, an even country split, a pass 2 identity check and staged writes), with a re-review of the fixes.
+
+No evaluation data was downloaded, opened or read. The window starts at `2026-11-21T21:02:27Z`, the start of the phase.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Case selection, session `4f99e76d` (the paragraph, and the fork that wrote `select`) | 48,553,731 (48,465,514) | 88,093 | 52,563 | 48,606,294 | $11.25 |
+| Case selection, session `caf41dcb` (pickup, fixes, reviews, gates) | 10,808,815 (10,383,467) | 425,164 | 69,748 | 10,878,563 | $6.01 |
+| **Subtotal** | 59,362,546 (58,848,981) | 513,257 | 122,311 | 59,484,857 | $17.26 |
+
+Method: `phase_usage.py --format claude --since 2026-11-21T21:02:27Z --include-subagents` on each transcript. Session `4f99e76d` was measured to `2026-11-21T21:23:09Z`, when it handed the worktree over (exact USD 11.2470578; 67,515 5-minute and 20,578 1-hour cache writes). Session `caf41dcb` was measured at `2026-11-21T21:37:07Z`, just before this ledger edit (exact USD 6.0090084; 288,231 5-minute and 136,933 1-hour cache writes). The two sessions overlap in time but not in tokens: each transcript holds only its own usage. The cache-write tokens are part of each input figure, and each total is input plus output. The subtotal is the sum of the two rows (exact USD 17.2560662).
+
+Excluded:
+- session `4f99e76d`'s turns before the window (PR 3, recorded in WHR-549-2026-11-21-PR3) and after `21:23:09Z`;
+- session `caf41dcb`'s turns after `21:37:07Z` (the last gate, the pull request and the handover);
+- any hosted review run.
+
+Pricing: `claude-opus-5-5` at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, so the figures are a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
