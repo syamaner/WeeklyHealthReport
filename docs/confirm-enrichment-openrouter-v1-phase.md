@@ -258,6 +258,11 @@ Same protection and backup exclusion as the cache. The arithmetic lives in a pur
   counts at its cap on relaunch. The day cap is then checked once, at reservation, against the cap, and
   retries stay inside that reservation. A reported cost above the per-request cap adds
   the part to `paused` for the rest of the local day.
+- **Prompt over the ceiling.** At reconcile, an attempt that reports more prompt tokens than its
+  route's ceiling adds that part to `paused` for the rest of the local day, as label photo's `overInput`
+  does (`LabelPhotoSpendPolicy.swift:206-213`), since W was then not a worst case; the other part stays
+  open. A committed worst-case B golden (the most eligible keys and the most known values) asserts the
+  body fits the 6,000-token ceiling, and the evaluation reports how many requests the ceiling refused.
 - **Fail closed.** The port reports `.absent`, `.day(Day)` or `.unreadable`, as label photo's
   `Stored` does (`LabelPhotoSpendPolicy.swift:142-146`). `ConfirmEnrichmentSpendPolicy`, not the adapter,
   turns `.unreadable` into a record for today whose `requests` is 100, written at once, so nothing more
@@ -287,6 +292,9 @@ a throwing transform stores nothing. Separate from `label-ai-spend-day-v1`, whic
   exists a later `v12` migration cannot run. The three range checks that admit `1...foodContractVersion`
   today (`CanonicalFoodArchive.swift:72`, the manifest init at `:326` and verification at `:488`) take
   one accepted set, `1...11` plus `13`, and refuse 12 with `unsupportedFoodContract(12)`.
+  Decoding an archive labelled below 13 that holds `openrouter_estimate` provenance or evidence of
+  any of the three CE1 method versions fails, as decoding already fails for an archive below 11 that
+  holds a label photo estimate (`CanonicalFoodArchive.swift:98-104`).
   `migrationIdentifiers` (`:335-340`) for contract 13 is `food-ledger-v1` to `food-ledger-v11` plus
   `food-ledger-v13`, never `v12`. Assistant-pasted estimates, unbuilt, takes the next free number when
   its phase starts, as its section 7 already allows; PR 1 adds a dated note there.
@@ -381,6 +389,17 @@ gains, each with a self-test fixture that makes it fail:
    `CryptoKit` and `Date()` there (`FoodLedgerApplication` may import `CryptoKit` elsewhere, `:707`).
 5. `Tools/ConfirmEnrichmentEval` follows the `PastedLabelAITextEval` rules (`:726-772`): a pure core
    with no URL loading, one live-transport file, and no network destination other than the 11.1a ones.
+   Its import allow-list is `Foundation`, `FoodLedgerDomain`, `FoodLedgerApplication`,
+   `FoodConfirmEnrichment` and `FoodGenericSearch`. `FoodGenericSearch` is admitted because the bundled
+   row candidates are built there (`CoFIDGenericFoodSearch.swift:306-330` and the other tables), but it
+   also holds network clients, so a further rule fails the tool if any of its files names
+   `OpenFoodFactsLookup`, `OpenFoodFactsSearch`, `GeminiFoodSearch`, `OpenRouterFoodProvider` or
+   `URLSession` outside its live-transport file. Open Food Facts cases go through a pure
+   `OpenFoodFactsProductMapping.candidate(product:)` in `FoodGenericSearch`, extracted in PR 3 from the
+   mapping `OpenFoodFactsLookup` performs after its fetch (`OpenFoodFactsLookup.swift:23, 38`), so a
+   record read from the downloaded export becomes exactly the app's Open Food Facts candidate; the
+   lookup calls the same function. A golden shows an export record and the app's candidate for the
+   same product give the same A and B request bytes.
 6. The energy check parity test lives in `FoodLabelPhotoReadingTests` (dependencies
    `FoodLedgerDomain` and `NutritionLabelParsing`), allowed by the existing rule at `:82`.
 
@@ -432,13 +451,18 @@ key state per request. Framework, URL and HTTP types never cross a port.
 ## 6. Consent gating through `OpenRouterEgressPermitting`
 
 - **Preconditions for anything.** No cache lookup, display of a cached answer or request happens
-  unless the part's use is in force, the OpenRouter and enrichment switch states (read from their
+  unless the part is available (below), the OpenRouter and enrichment switch states (read from their
   preferences by the view model, as O1's journeys read the consent state for the blocked row) are both
   on, and the key state is `valid` in this session. This is a state read, not a `permits` call; the
   gate itself is asked only at steps (3) and (4) and by the request sites, so it is enforced twice as
   in O1. So with either switch off or no validated key a
   Confirm shows no suggestion, cached or not, as CE1 section 6 says. The cache-only Confirm that re-log
   or quick add opens (CE1.7a) meets the same preconditions and then reads the cache only.
+- **Availability.** The session takes one injected value per part, `ConfirmEnrichmentAvailability`.
+  The root's live branch sets it to `use.isInForce`, so before PR 5 the live session never starts; only
+  the `#if DEBUG` scripted branch (below) sets it to true, so PR 2's scripted journey runs end to end
+  while the uses are not in force. A boundary self-test fails if a true literal for it appears outside
+  an `#if DEBUG` block or in a branch that builds a live adapter.
 - **Ask again** skips the cache lookup, sends once within the caps, and replaces the subject's entry
   when the answer validates (CE1.1 rule 3, the 11.2 policy text).
 - **Order of one request.** (1) The cache: a hit sends nothing and counts nothing. (2) The ledger may
@@ -513,7 +537,9 @@ CE1 section 15's seventeen tests are adopted as written. The gate adds:
   500,000 micro-dollars does not start, so no retry can either; `.absent`, `.unreadable` and `.day` behave as 2.6 says in
   both ledgers; a failed reservation write sends nothing and a failed reconcile closes the part; W
   and reported costs round up to whole micro-dollars.
-- **G4 Numbers.** An archive labelled 12 is refused at each of the three range sites; 11 and 13 are
+- **G4 Numbers.** An archive labelled 12 is refused at each of the three range sites; an archive
+  labelled 11 holding each kind of CE1 content (B provenance, an A capture, a B capture, a choices item)
+  fails decoding; 11 and 13 are
   accepted; contract 13's `migrationIdentifiers` are v1 to v11 plus v13; a store at 11 migrates to 13
   changing metadata only; each field of 2.1 is required in its exact form (one mutation test per field,
   giving "Evidence not available").
@@ -644,9 +670,9 @@ Each PR has its own branch, a ledger row, the validation gates of `AGENTS.md`, a
 
 | PR | Content | Egress |
 |---|---|---|
-| 1. Formats | Domain kinds, provenance and release constants, capture and choices types, row and energy checks with the parity test, the application response checks and the request input types with their decoders (which verification needs), the citation and skip rules of 2.4a, the four `OpenRouterUse` cases not in force with nil mappings, contract 13 floor and accepted set, store 13, export 7 writer and validators, verification on save and reopen, fixtures; dated notes in assistant-pasted estimates v1 and food daily export v2. Store 13 migrates every store on first open, so a downgrade past it is refused. No UI writes CE1 records yet. | None |
-| 2. Confirm layer | Application policy, session, spend, retry and cache policies, ports and their suites; the `FoodConfirmEnrichment` target and product with the file cache and ledger, the scripted adapters and the Debug scripted gate (no live adapter); the Debug seed argument and the Debug-only scripted wiring at the composition root; boundary items 1, 2 and 4 and the scripted gate self-test; the Your food database read port and adapter; the suggestion layer, reducer, fill builder, Log requirement, re-log, quick add, re-resolution and reopen rules; presentation; the save-side writing of the captures and choices item in `FoodConfirmationService.save`; `OpenRouterEstimateCarry` and its use in both Your foods builders; scripted answers reachable only by a Debug launch argument; simulator journey with scripted answers. | None |
-| 3. Adapters and tooling | The two adapters, route checker, routes file and transport; boundary items 3 and 5; `Tools/ConfirmEnrichmentEval` with its preflight; the section 11.1a paragraph. Not wired into the app. | Tooling only, after merge |
+| 1. Formats | Domain kinds, provenance and release constants, capture and choices types, row and energy checks with the parity test, the application response checks and the request input types with their decoders (which verification needs), the strip, skip, drop-on-new-log and verification rules of 2.4a (the B-choices term of "The reopen path" and `OpenRouterEstimateChoicesText` land in PR 2 with the suggestion layer), the four `OpenRouterUse` cases not in force with nil mappings, contract 13 floor and accepted set, store 13, export 7 writer and validators, verification on save and reopen, fixtures; dated notes in assistant-pasted estimates v1 and food daily export v2. Store 13 migrates every store on first open, so a downgrade past it is refused. No UI writes CE1 records yet. | None |
+| 2. Confirm layer | Application policy, session, spend, retry and cache policies, ports and their suites; the `FoodConfirmEnrichment` target and product with the file cache and ledger, the scripted adapters and the Debug scripted gate (no live adapter); the Debug seed argument, the Debug-only scripted wiring at the composition root and `ConfirmEnrichmentAvailability`; the B-choices term of 2.4a's reopen path with `OpenRouterEstimateChoicesText`; boundary items 1, 2 and 4 and the scripted gate self-test; the Your food database read port and adapter; the suggestion layer, reducer, fill builder, Log requirement, re-log, quick add, re-resolution and reopen rules; presentation; the save-side writing of the captures and choices item in `FoodConfirmationService.save`; `OpenRouterEstimateCarry` and its use in both Your foods builders; scripted answers reachable only by a Debug launch argument; simulator journey with scripted answers. | None |
+| 3. Adapters and tooling | The two adapters, route checker, routes file and transport; `OpenFoodFactsProductMapping`; boundary items 3 and 5; `Tools/ConfirmEnrichmentEval` with its preflight; the section 11.1a paragraph. Not wired into the app. | Tooling only, after merge |
 | 4a. Evaluation freeze | Development runs, review sheet outcome, scorer, bars as code, manifests, frozen configuration. | Tooling only |
 | 4b. Sealed report | The single sealed run's report. | Tooling only |
 | 5. Wiring | Composition root, Settings rows and switch, the uses in force for each part that passed, section 11.1 rows, 11.2 entry, O1 title and framing changes, Developer tools disclosure, journey QA; then the combined device check. | App, with both switches on |
@@ -762,3 +788,10 @@ its skill; external TestFlight or App Store builds; any evaluation call before s
   prose; B's subject on reopen is computed from the stored inputs; the per-attempt total is named apart
   from the reservation; the evaluation stops when either part's W would exceed its cap; the
   preconditions are a state read, not a gate call; one citation corrected.
+- **Architecture gate, seventh round (21 November 2026, at `3feec3b3`): PASS WITH CHANGES.** All six
+  findings taken: availability is an injected value per part, true only on the Debug scripted branch,
+  so PR 2's journey runs while the uses are not in force; the tool's import list admits
+  `FoodGenericSearch` with a rule that it never names that target's network types, and a pure Open Food
+  Facts product mapping makes an export record the app's candidate; a reported prompt above the
+  ceiling pauses the part, with a worst-case golden; an archive labelled below 13 holding CE1 content
+  fails decoding; PR 1 and PR 2 split the 2.4a rules by what each can compile.
