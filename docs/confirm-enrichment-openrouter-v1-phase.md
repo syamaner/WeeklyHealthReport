@@ -84,7 +84,7 @@ time received, `locale` that of the first of the bound candidate's own evidence 
 list order, or `en_GB` (the constant `PersonalFoodDatabaseSearch.swift:299` uses) when that list is empty, `originalPayload` `.text` of the canonical
 payload, `byteHash` its SHA-256 (citation sites in section 2.4a). Payload keys: `schema`, `contract`, `route`, `prompt`, `model`,
 `provider`, `endpoint` (the route version's constant, section 3.3 item 3), `generation_id` (read from
-the response, as CE1.7 names it for B), `request_body` (the exact body as a UTF-8 string, no key), `response` (verbatim, at most
+the response and derived from the stored response, as CE1.7 names it for B), `request_body` (the exact body as a UTF-8 string, no key), `response` (verbatim, at most
 50,000 bytes), `response_sha256`, `answers` (per asked fact, sorted: `fact`, `choice`, `confidence`),
 `threshold` (`"0.85"`), `applied` (sorted fact keys pre-filled).
 
@@ -697,10 +697,9 @@ export goldens for schema 7 alone and mixed with schema 3 and 5 content.
 
 - **Data source, no new destination.** The tool makes no Open Food Facts request. Open Food Facts cases
   are read locally from a public Open Food Facts data export that the owner downloads by hand outside
-  the tool and outside the app, carrying no user data, as the bundled source datasets are; no agent and
-  no tool fetches it, and a fetch by either would need its own approved paragraph in
-  `privacy-and-egress.md` first, and composition rows from the
-  app's bundled projections. The tool's only network calls are the 11.1a destinations (section 11,
+  the tool and outside the app (no user data, like the bundled source datasets). Composition rows come
+  from the app's bundled projections. No agent or tool fetches the export; a fetch by either would need
+  its own approved paragraph in `privacy-and-egress.md` first. The tool's only network calls are the 11.1a destinations (section 11,
   point 4).
 - **Sets.** Development set: 60 Open Food Facts products (UK and Taiwan, packaged, complete declared
   panels, at least 8 fortified) and 40 bundled rows; a sealed set of the same size and mix. The owner
@@ -743,8 +742,10 @@ export goldens for schema 7 alone and mixed with schema 3 and 5 content.
   report records W per part.
 - **Route freeze.** `confirm-details-route-v1` (committed in PR 2) is frozen only after the first A request has shown
   whether System One accepts `max_tokens`. Any change that follows to `ConfirmEnrichmentRoutes.swift`
-  and A's request golden lands in PR 4a, before the frozen configuration, and the committed golden
-  equals the body that first request sent.
+  and to A's synthetic request golden of PR 2 lands in PR 4a, before the frozen configuration. The first
+  request is an evaluation case, so its body never enters the repository: PR 4a commits only its
+  SHA-256, and the route freeze test rebuilds that body from the private case through the app's builder
+  and compares the hash.
 - **Order.** PR 4a commits the scorer, the bars as code, both manifests and the frozen configuration,
   and merges. Only then is the sealed set sent, once, by that configuration, and its report lands in
   PR 4b. A prompt change during development is a prompt version bump.
@@ -764,7 +765,7 @@ Each PR has its own branch, a ledger row, the validation gates of `AGENTS.md`, a
 | 1. Formats | Domain kinds, provenance and release constants, capture and choices types, row and energy checks with the parity test, the application response checks and the request input types with their decoders (which verification needs), the strip, skip, drop-on-new-log and verification rules of 2.4a (the B-choices term of "The reopen path" and `OpenRouterEstimateChoicesText` land in PR 2 with the suggestion layer), the four `OpenRouterUse` cases not in force with nil mappings, contract 13 floor and accepted set, store 13, export 7 writer and validators, verification on save and reopen, fixtures; dated notes in assistant-pasted estimates v1 and food daily export v2. Store 13 migrates every store on first open, so a downgrade past it is refused. No UI writes CE1 records yet. | None |
 | 2. Confirm layer | Application policy, session, spend, retry and cache policies, ports and their suites; the `FoodConfirmEnrichment` target and product with the file cache and ledger, the scripted adapters and the Debug scripted gate and the in-memory cache and ledger (no live adapter); `ConfirmEnrichmentRoutes.swift` with its `openrouter_exempt` entry, and the request goldens; `ConfirmEnrichmentPreference` (persistent-domain read of `confirmEnrichment.enabled.v1`), the Debug seed argument, the Debug-only scripted wiring at the composition root and `ConfirmEnrichmentAvailability`; the B-choices term of 2.4a's reopen path with `OpenRouterEstimateChoicesText`; boundary items 1, 2 and 4, the scripted gate self-test and the availability literal self-test; the Your food database read port and adapter; the suggestion layer, reducer, fill builder, Log requirement, re-log, quick add, re-resolution and reopen rules; presentation; the save-side writing of the captures and choices item in `FoodConfirmationService.save`; `OpenRouterEstimateCarry` and its use in both Your foods builders; scripted answers reachable only by a Debug launch argument; simulator journey with scripted answers. | None |
 | 3. Adapters and tooling | The two adapters, route checker and transport (G6 compares their wire bytes with PR 2's goldens); the public `OpenFoodFactsProductMapping`; boundary items 3 and 5; `Tools/ConfirmEnrichmentEval` with its preflight; the section 11.1a paragraph. Not wired into the app. | Tooling only, after merge |
-| 4a. Evaluation freeze | Any route constant and golden change from the first request (route freeze), development runs, review sheet outcome as counts, scorer, bars as code, manifests, frozen configuration. | Tooling only |
+| 4a. Evaluation freeze | Any route constant and golden change from the first request (route freeze), development run counts, versions and hashes (raw runs stay in the private folder), review sheet outcome as counts, scorer, bars as code, manifests, frozen configuration. | Tooling only |
 | 4b. Sealed report | The single sealed run's report. | Tooling only |
 | 5. Wiring | Composition root and the composed live gate, the Settings toggle row with its caption and the other Settings rows, the uses in force for each part that passed, section 11.1 rows, 11.2 entry, O1 title and framing changes, Developer tools disclosure, journey QA; then the combined device check. | App, with both switches on |
 
@@ -778,7 +779,7 @@ G16, G17 and G7's items 1, 2 and 4, the routes file exemption, the scripted gate
 literal, and a test that the scripted answers, captures and goldens take model, provider and endpoint
 from the `ConfirmEnrichmentRoutes` constants; **PR 3** G5 (live
 adapters), G6, G11, G14 and G7's items 3 and 5; **PR 4a** the scorer table test and the route freeze
-golden; **PR 5** G10, the verbatim records test, and a test that the scripted and live branches read the same
+hash test; **PR 5** G10, the verbatim records test, and a test that the scripted and live branches read the same
 route values.
 
 ## 11. Points the owner sees before approving
@@ -798,7 +799,7 @@ route values.
 4. **Per-request caps across retries, and the evaluation's data.** The gate reads "$0.01 per request"
    and "$0.02 per request" as whole-request totals across all attempts, enforced before each attempt
    (section 2.6), never as per-attempt figures. And the evaluation reads Open Food Facts data from a
-   public export downloaded outside the tool, adding no destination to 11.1a; a fetch by the tool would
+   public export the owner downloads by hand outside the tool, adding no destination to 11.1a; a fetch by the tool would
    need its own approved addition first. Both narrow; neither changes a term.
 5. **Every store moves to 13.** CE1 section 14 speaks of refusing a downgrade "for a store that holds a
    B value". The store's migrations are per store, not per record, so the first build carrying PR 1
@@ -946,3 +947,12 @@ its skill; external TestFlight or App Store builds; any evaluation call before s
   allows; the Open Food Facts export is downloaded by the owner by hand, never by an agent or the tool;
   the cache sentence says no field holds the request body; `generation_id` in A's capture is noted as
   CE1.7 names it for B; the PR count is corrected.
+- **Blind invariant re-review (21 November 2026, at `de390a6c`): BLOCK, fixed.** The route freeze
+  golden would have put one evaluation case's description in the repository; PR 4a now commits only
+  the first request body's SHA-256. Also taken: PR 4a commits development run counts, versions and
+  hashes only; a broken section 9 sentence is split; section 11 point 4 says the owner downloads the
+  export by hand.
+- **After approval.** The edits after the owner's approval of 21 November 2026 (the two invariant
+  reviews above) only narrow terms: what the repository receives from the evaluation, and who fetches
+  the Open Food Facts export (the owner by hand, a new manual step for the owner). They are shown to
+  the owner with the merge ask.
