@@ -8,8 +8,8 @@ transport, and section 11.1a before the first evaluation call. Architecture gate
 nine (section 17). Written for #549 (which
 folds in #553) against `main` at `91fa7479`, after the owner approved
 [one OpenRouter consent O1](openrouter-single-consent-v1-amendment.md) (#551, PR #554) the same day.
-No app egress, code, fixture or policy text changes before the owner approves the exact terms of
-section 10 and the decisions of section 16. The [privacy and egress](privacy-and-egress.md) rows and
+The owner approved the terms of section 10 and the decisions of section 16 on 20 November 2026; no app
+egress, code, fixture or policy text changes until the phases that implement them. The [privacy and egress](privacy-and-egress.md) rows and
 the privacy policy entries of section 11 are written here and take effect only in the PR that wires
 the live transport, as label photo E16 did.
 
@@ -357,7 +357,7 @@ sends nothing:
   that version without one is rejected); approved and photo estimates may be present alongside or
   absent (the version 3 and 5 rule that an `approved_estimate` must be present does not apply); for an
   `openrouter_estimate` value, `estimate_source_type`, `estimate_method` and `estimate_state_basis`
-  are absent and `estimate_quality` is `low`; versions 3 and 5 reject the three new fields. The new
+  are absent and `estimate_quality` is `low`; versions 3 and 5 reject the three new fields, and version 6, when it lands, rejects them too. The new
   version admits everything version 5 admits (approved estimate and label photo
   estimate fields), and everything version 6 admits once that lands, so a day mixing them is one
   file; goldens cover mixed days. Origin `openrouter_estimate` joins the closed origin table; the value exports `state:
@@ -588,8 +588,8 @@ for that food is skipped, with no note), and the gate is a backstop, not a guara
 ### 11.1 `docs/privacy-and-egress.md`, Allowed egress, two rows
 
 ```diff
-+| OpenRouter System One and its one allow-listed Jev endpoint (ZDR where listed, data collection denied, no fallbacks) | One food description for the food on Confirm (the source's name and brand, CoFID's variant text, and for Your food database entries the category, product type and state where present (pack details only as written in the title), a closed source token and the food details already known) and fixed choice questions for each unknown food detail; never text typed in a correction, the amount eaten, time or date, notes, other entries, Health data, barcode, identifiers, addresses, photos, prices or the key outside the Authorization header | With OpenRouter turned on in Settings (O1) and Suggest missing food details and values on, with the user's own validated key: automatically on Confirm, 1.5 s after a food with gaps is chosen, once per food and its details, when the selected food has unknown food details; two keyless catalogue requests confirm the endpoint on the first request of a session and of each local day, and again after a check that could not connect; at most 3 attempts in 60 s per request; at most 100 requests and $0.50 of reported cost per day across both Confirm suggestion rows; a cached answer is reused without sending | [confirm-enrichment-openrouter-v1.md](confirm-enrichment-openrouter-v1.md) |
-+| OpenRouter and its one allow-listed model endpoint for nutrient estimates (ZDR, data collection denied, no fallbacks) | The same food description, the food details after any suggestion, the nutrition basis, each known nutrient value with its unit and source phrase, the unknown nutrients asked, a fixed instruction and output schema; never the items listed in the row above | With OpenRouter turned on in Settings (O1) and Suggest missing food details and values on, with the user's own validated key: automatically on Confirm, 1.5 s after a food with gaps is chosen, once per food and its details, when at least one nutrient is unknown and eligible; two keyless catalogue requests confirm the endpoint as in the row above; at most $0.02 per request and the shared daily cap | [confirm-enrichment-openrouter-v1.md](confirm-enrichment-openrouter-v1.md) |
++| OpenRouter System One and its one allow-listed Jev endpoint (ZDR, data collection denied, no fallbacks; not enabled where no ZDR endpoint is listed) | One food description for the food on Confirm (the source's name and brand, CoFID's variant text, and for Your food database entries the category, product type and state where present (pack details only as written in the title), a closed source token and the food details already known) and fixed choice questions for each unknown food detail; never the search text typed, text typed in a correction, the amount eaten, time or date, notes, other entries, Health data, barcode, entry, record, release or device and account identifiers, addresses, location, photos, receipt text, shop names other than the brand, prices or the key outside the Authorization header (section 7 of the contract) | With OpenRouter turned on in Settings (O1) and Suggest missing food details and values on, with the user's own validated key: automatically on Confirm, 1.5 s after a food with gaps is chosen, once per food and its details, or on a tap of Ask again, within the cap, when the selected food has unknown food details; two keyless catalogue requests confirm the endpoint on the first request of a session and of each local day, and again after a check that could not connect; at most 3 attempts in 60 s and $0.01 per request; at most 100 requests and $0.50 of reported cost per day across both Confirm suggestion rows; a cached answer is reused without sending | [confirm-enrichment-openrouter-v1.md](confirm-enrichment-openrouter-v1.md) |
++| OpenRouter and its one allow-listed model endpoint for nutrient estimates (ZDR, data collection denied, no fallbacks) | The same food description, the food details after any suggestion, the nutrition basis, each known nutrient value with its unit and source phrase, the unknown nutrients asked, a fixed instruction and output schema; never the items listed in the row above | With OpenRouter turned on in Settings (O1) and Suggest missing food details and values on, with the user's own validated key: automatically on Confirm, 1.5 s after a food with gaps is chosen, once per food and its details, or on a tap of Ask again, within the cap, when at least one nutrient is unknown and eligible; two keyless catalogue requests confirm the endpoint as in the row above; at most 3 attempts in 60 s and $0.02 per request, and the shared daily cap | [confirm-enrichment-openrouter-v1.md](confirm-enrichment-openrouter-v1.md) |
 ```
 
 `Stays on the device unless the user sends it`, added: "**Confirm suggestions** (#549): the
@@ -616,12 +616,12 @@ and $0.05 per call, enforced in the evaluation's own spend ledger before every c
 failure is retried at most twice more with backoff that honours `Retry-After`. Raw responses, the
 cache and the ledger stay in the owner's private evaluation folder; the repository gets counts,
 versions and hashes only. The sealed set is sent once, by the frozen configuration. Owner approval:
-<date> (CE-T15)."
+20 November 2026 (CE-T15)."
 
 ### 11.2 Privacy policy, OpenRouter section (an entry in O1's list)
 
 ```text
-Confirm suggestions. Only if you also turn on Suggest missing food details and values on Confirm in Settings › OpenRouter. When the food you are confirming has unknown food details or unknown nutrient values, the app asks automatically, a moment after the food is chosen.. Sends a description of that food as its source gives it (never words you typed in a correction): the name and brand, a composition table's variant text, and for your own food database its category, product type and state where the app has them (a pack size written in a name is sent with the name), the food details already known and, for nutrient estimates, the nutrition basis and the known values. A name from your own food database can come from a receipt product title, so check names you would not want sent. Food details go to the Jev model through OpenRouter's System One service; nutrient estimates go to one named model endpoint (currently GPT-6.1 Sol on Azure) with no fallback to other providers. Never sent: the amount you ate, the time or date, notes, other entries, Apple Health data, barcodes, identifiers, photos or prices. Suggested food details are filled in for you to check and change; estimated values are marked est. and you can leave out each one before you tap Log. Nothing is saved until you tap Log, and an estimate never replaces a value from a label or a database. A failed request is retried at most twice; suggestions are limited to 100 requests and $0.50 of reported cost a day, and answers are kept on your device so the same food is not sent again. If you log a food with an estimated value, the Drive food file names the model that estimated it.
+Confirm suggestions. Only if you also turn on Suggest missing food details and values on Confirm in Settings › OpenRouter. When the food you are confirming has unknown food details or unknown nutrient values, the app asks automatically, a moment after the food is chosen. Sends a description of that food as its source gives it (never words you typed in a correction): the name and brand, a composition table's variant text, and for your own food database its category, product type and state where the app has them (a pack size written in a name is sent with the name), the food details already known and, for nutrient estimates, the nutrition basis and the known values. A name from your own food database can come from a receipt product title, so check names you would not want sent. Food details go to the Jev model through OpenRouter's System One service; nutrient estimates go to one named model endpoint (currently GPT-6.1 Sol on Azure) with no fallback to other providers. Never sent: the amount you ate, the time or date, notes, other entries, Apple Health data, barcodes, identifiers, photos or prices. Suggested food details are filled in for you to check and change; estimated values are marked est. and you can leave out each one before you tap Log. Nothing is saved until you tap Log, and an estimate never replaces a value from a label or a database. A failed request is retried at most twice; suggestions are limited to 100 requests and $0.50 of reported cost a day, and answers are kept on your device so the same food is not sent again. If you log a food with an estimated value, the Drive food file names the model that estimated it.
 ```
 
 ## 12. Evaluation bar before release
@@ -657,6 +657,15 @@ manifests and the scorer are committed before the sealed run, and the sealed set
 - HealthKit stays read-only and no Health data reaches any request.
 - Stored records, archives and exports decode and re-encode unchanged across versions; a record
   without B values keeps its contract and bytes.
+
+Two choices are stated plainly so they are not missed:
+
+- **A Jev answer can enable Log.** Under I1 only facts the owner had reviewed in the catalogue could
+  clear `sourceIdentityMissing`; here a Jev answer at or above 0.85 can, as a visible, changeable
+  pre-fill the owner sees before tapping Log. This is a deliberate change, approved with this contract.
+- **B rows start kept.** Assistant-pasted estimates start every row unticked; here each B value starts
+  kept with `Leave out` beside it, following the assistive principle (AI pre-fills, the owner checks
+  and corrects), with the `est.` tag on every one. This is also deliberate and approved.
 
 ## 14. Compatibility and rollback
 
@@ -795,8 +804,7 @@ compatibility choice of section 14 with the approval.
 - **CE-D2. The model for B.** **Decided as recommended (20 November 2026).** Recommendation: **GPT-6.1 Sol on Azure** (`openai/gpt-6.1-sol`, `azure`):
   listed with zero data retention and strict structured outputs, already measured on nutrition text in
   the pasted label evaluation, where its cost was about a cent a read for much longer inputs. Its
-  latency there missed a 20 s bar on long labels; B's prompts are short and run in the background of
-  Confirm, so section 12 measures it afresh. The alternative is Gemini 4 Argon on Google Vertex, already
+  latency there missed a 20 s bar on long labels; B's prompts are short and run while Confirm is open, so section 12 measures it afresh. The alternative is Gemini 4 Argon on Google Vertex, already
   qualified for label photos.
 - **CE-D3. The confidence threshold for A.** **Decided as recommended (20 November 2026).** Recommendation: **0.85**, on Jev's reported confidence,
   confirmed by section 12's wrong pre-fill bar (if 0.85 misses it, the evaluation reports the lowest
@@ -876,3 +884,11 @@ compatibility choice of section 14 with the approval.
   decided as 100 requests and $0.50 a day. Asked one at a time. Then CE-T1 to CE-T15 approved as written
   (at `6b3c4133`), and section 14's truthful provenance (a new kind and the next free food contract)
   confirmed.
+- **Blind invariant review (21 November 2026): BLOCK, fixed.** One blocking finding: the Jev egress row
+  said "ZDR where listed", looser than CE1.4 and CE-T5, which never enable a route without a listed ZDR
+  endpoint; the row now says so. Also taken: both rows name the `Ask again` tap, the per-request caps
+  and retry limit, and the full never-sent list; version 6 rejects the new export fields; a stray full
+  stop; the evaluation paragraph's approval date; the status wording after approval; "while Confirm is
+  open" rather than "in the background"; and two choices stated plainly in section 13 (a Jev answer
+  can enable Log, unlike I1; B rows start kept). No term changed: each fix brings a record into line
+  with the approved terms.
