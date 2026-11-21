@@ -5141,3 +5141,27 @@ Unmeasured: no boundary was captured at the start of this phase, separately from
 The session (`32bf77db-03f3-4072-bcf4-73859f27bd92`, `claude-opus-5-5`, started from another session) wrote the implementation phase gate for contract CE1 (`docs/confirm-enrichment-openrouter-v1-phase.md`): food contract 13 with 12 refused, store 13, daily food export 7, the `openrouter_estimate` provenance and source release fields, the three capture formats, the cache and day record formats (the cache holds only the approved CE1.2 value, with a rebuild-equals-live test), ports and contract suites, consent gating through O1's gate, when the privacy records take effect, the evaluation order before release and a six-PR split (1 to 5, with 4 in two parts). Documentation only; no code or egress. The blind architecture-gate rounds are recorded in the document's section 13.
 
 Unmeasured: no token boundary was captured at the start of this phase, so no figure is recorded rather than an estimate.
+
+## WHR-549-2026-11-21-PR1: Claude Code Confirm enrichment PR 1, formats (#549)
+
+The session (`32bf77db-03f3-4072-bcf4-73859f27bd92`, `claude-opus-5-5`) implemented PR 1 of the CE1 phase gate:
+
+- the `openrouter_estimate` provenance kind with its pinned form, augmented only and standing alone;
+- the three capture formats with strict keys, the request input objects and the pure response, row and energy checks, with an energy parity test against the label checks;
+- food contract 13 with 12 refused at every range site, store 13 (metadata only) and daily export 7;
+- the strip, skip and drop rules for CE1 evidence, a pure verifier for saved B values, and a save guard that refuses any such value before the suggestion layer exists;
+- the four Confirm enrichment uses, not in force, and dated notes in assistant-pasted estimates v1 and food daily export v2.
+
+No app egress and no UI. The window is `2026-11-21T11:24:07Z` to `2026-11-21T12:38:11Z`, from the owner's request to start PR 1 to this ledger edit.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Confirm enrichment PR 1, formats | 93,062,491 (92,309,053) | 752,896 | 207,405 | 93,269,896 | $27.12 |
+
+Method: `phase_usage.py --format claude --since 2026-11-21T11:24:07Z --include-subagents` on the session transcript, run at `2026-11-21T12:38:11Z`. Exact USD 27.1228866. The cache-write tokens are part of the input figure: 504,120 are 5-minute writes and 248,776 are 1-hour writes. The window includes the three review subagents (a blind invariant review, its re-review and a general defect review). The total is input plus output.
+
+Excluded:
+- the session's turns before the window (the phase gate, recorded in WHR-549-2026-11-21) and after it (the final gates, the pull request and the handover);
+- any hosted review run.
+
+Pricing: `claude-opus-5-5` at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, so the figure is a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
