@@ -23,6 +23,21 @@ public enum EvalConsole {
         return "summary part \(part) " + parts.joined(separator: " ")
     }
 
+    /// The scan's pool: counts only.
+    public static func poolLine(scanned: Int, eligible: Int, uk: Int, taiwan: Int, fortified: Int) -> String {
+        "pool scanned \(scanned) eligible \(eligible) uk \(uk) taiwan \(taiwan) fortified \(fortified)"
+    }
+
+    /// One selected set: its closed count names and numbers only.
+    public static func selectionLine(set: String, counts: [(String, Int)]) -> String {
+        "selected \(set) " + counts.map { "\($0.0) \($0.1)" }.joined(separator: " ")
+    }
+
+    /// One set's committed manifest.
+    public static func setManifestLine(set: String, _ manifest: EvalHashes.Manifest) -> String {
+        "manifest \(set) " + manifestLine(manifest)
+    }
+
     /// A stop: the reason's code only, never case data.
     public static func stopLine(_ reason: String) -> String { "stop \(reason)" }
 }
