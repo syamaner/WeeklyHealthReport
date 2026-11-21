@@ -112,9 +112,12 @@ sends nothing:
 
 - **Key:** the SHA-256 of the canonical request subject (CE1.5) plus the contract, route and prompt
   versions. Never the key, the amount or a date.
-- **Value:** the exact request body without the key, the validated response bytes, the response hash,
-  model, provider, cost, and the time received, so a capture built from a cached answer holds the
-  same request and response as one built from a live answer.
+- **Value:** the validated response bytes, the response hash, model, provider, cost, and the time
+  received. The request body is not kept: a hit means an identical subject and versions, and the
+  request is one pure function of those (section 7), so a capture built from a cached answer rebuilds
+  the exact request body without the key and holds the same request and response as one built from a
+  live answer (one test). The generation ID is read from the response bytes, and the endpoint is a
+  constant of the route version, so neither needs a field of its own.
 - **Store:** one file, `confirm-enrichment-cache-v1.json`, in the protected, backup-excluded app data
   directory, at most 500 entries, oldest first out, an entry expiring after 30 days. A corrupt or
   unknown file is discarded whole and rebuilt; it is never a reason to send more.
@@ -925,5 +928,10 @@ compatibility choice of section 14 with the approval.
   add sheet, re-resolution), and section 11's heading states 11.1a's earlier timing; the catalogue check
   is stated to run only immediately before a foreground request.
 - **Blind invariant re-review 5 (21 November 2026, at `26d613ef`): PASS.** Three wording fixes taken
-  (the policy's "added to your log", a sentence start, "at or above" in the ledger row), and the cache
-  now keeps the request body so a capture from a cached answer is complete.
+  (the policy's "added to your log", a sentence start, "at or above" in the ledger row), and a capture
+  from a cached answer is stated to be complete.
+- **Blind invariant re-review 6 (21 November 2026, at `a17926f4`): BLOCK, fixed.** The previous fix had
+  added the request body to the cache value, which widened what CE-T11 covers after approval. It is
+  reverted: the cache value is again the approved one, and a capture from a cached answer rebuilds the
+  request from the identical subject, with a test that it equals a live capture. The generation ID
+  comes from the response bytes and the endpoint from the route version. No term changed.
