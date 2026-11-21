@@ -120,3 +120,17 @@ public enum ConfirmEnrichmentVerification {
                                   values: saved.mapValues(\.0)))
     }
 }
+
+extension ConfirmEnrichmentCitation {
+    /// `saved` with each `openrouter_estimate` entry replaced by `expected`'s entry for that key, so a
+    /// layered entry's layer check compares everything but the B rows, which verification checks
+    /// (CE1 section 5a).
+    public static func replacingOpenRouterEstimates(_ saved: NutrientSet, from expected: NutrientSet) -> NutrientSet {
+        guard holdsOpenRouterEstimate(saved) else { return saved }
+        let entries = saved.entries.map { entry -> NutrientEntry in
+            guard entry.value.provenance.contains(where: { $0.sourceKind == .openRouterEstimate }) else { return entry }
+            return expected.entries.first { $0.key == entry.key } ?? entry
+        }
+        return (try? NutrientSet(entries: entries)) ?? saved
+    }
+}

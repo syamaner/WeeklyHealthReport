@@ -18,6 +18,22 @@ public enum FoodDetailsFillPolicy {
     /// Decision I1-D1 (docs/personal-food-catalogue-identity-facts-v1-amendment.md section 6): the stored
     /// reason when a fact a Your food database candidate states is changed with no typed reason.
     public static let databaseFactChangedReason = "Food details changed from your food database"
+    /// Confirm enrichment (CE1.4a): the stored reason of a Jev fill. Data, not copy.
+    public static let suggestedByJevReason = "Food details suggested by Jev"
+
+    /// The correction save writes for a Jev fill shown on Confirm (CE1.4a), beside
+    /// `PackagedAsSoldPolicy.correction(for:fortified:)`: only facts that were unknown change; the name,
+    /// brand, variant, item class and values are the candidate's. Nil without a shown fill.
+    public static func enrichmentFill(_ state: FoodConfirmationState) -> FoodCorrection? {
+        let facts = state.enrichment.filledFacts
+        guard state.correction == nil, state.reopened == nil, !facts.isEmpty,
+              let identity = try? ConfirmEnrichmentPolicy.applying(facts, to: state.selectedCandidate.candidate.identity),
+              let reason = try? LedgerText(suggestedByJevReason) else { return nil }
+        let candidate = state.selectedCandidate
+        let correction = FoodCorrection(name: candidate.name, brand: candidate.brand, variant: candidate.variant, identity: identity,
+                                        itemClass: candidate.itemClass, nutrients: candidate.candidate.nutrients, reason: reason)
+        return isFill(correction, in: state) ? correction : nil
+    }
 
     /// Frozen packing medium names (rule 2.3), stored as `.named` values.
     public static let packingAsSold = "as sold"
@@ -115,6 +131,8 @@ public enum FoodDetailsFillPolicy {
               // still carries its details, so a re-log re-checks the estimates against them.
               saved.resolutionVersion.nutrients == source.nutrients || FoodEntryEstimateStatus.isPartlyEstimated(saved)
                 || ApprovedEstimateSource.matchesExceptHiddenEstimates(saved.resolutionVersion.nutrients, candidate: source)
+                // CE1.7a: a Jev fill with B values (which are not carried) still carries its details.
+                || OpenRouterEstimateCarry.matchesExceptOpenRouterEstimates(saved.resolutionVersion.nutrients, candidate: source)
         else { return false }
         return fillsOnly(product, source: source.identity, current: source.identity)
     }
@@ -181,7 +199,9 @@ public enum PackagedAsSoldPolicy {
         guard state.reopened == nil, state.correction == nil,
               OpenFoodFactsEstimateSource.isProductCandidate(state.selectedCandidate.candidate),
               state.input.evidence.contains(where: OpenFoodFactsEstimateSource.isProductEvidence),
-              !state.unresolvedIdentity.isEmpty else { return false }
+              !state.unresolvedIdentity.isEmpty,
+              // CE1.4a: not while a Jev fill is shown; Not these brings the row back.
+              state.enrichment.filledFacts.isEmpty else { return false }
         // Only while no difference is pending at all: applying a correction clears decided answers,
         // so a decided Not sure (an estimate) must never be dropped by the tap (invariant review).
         return FoodLogPolicy.pendingDifferences(state).isEmpty

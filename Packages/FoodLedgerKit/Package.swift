@@ -25,7 +25,10 @@ let package = Package(
         .library(name: "FoodLedgerArchive", targets: ["FoodLedgerArchive"]),
         .library(name: "FoodLedgerGRDB", targets: ["FoodLedgerGRDB"]),
         .library(name: "FoodLedgerPersonalDatabase", targets: ["FoodLedgerPersonalDatabase"]),
-        .library(name: "FoodLedgerTestSupport", targets: ["FoodLedgerTestSupport"])
+        .library(name: "FoodLedgerTestSupport", targets: ["FoodLedgerTestSupport"]),
+        // Confirm enrichment adapters (#549, docs/confirm-enrichment-openrouter-v1-phase.md section 1): a
+        // library product so the evaluation tool can link it; imported only by the composition root.
+        .library(name: "FoodConfirmEnrichment", targets: ["FoodConfirmEnrichment"])
     ],
     dependencies: [
         .package(url: "https://github.com/groue/GRDB.swift.git", exact: "7.11.1"),
@@ -98,6 +101,10 @@ let package = Package(
         // Your food database store (#424 P1b, docs/personal-food-database-import-v1-phase-1.md 3):
         // Foundation file APIs only, no network; imported only by the composition root.
         .target(name: "FoodLedgerPersonalDatabase", dependencies: ["FoodLedgerApplication", "FoodLedgerDomain"]),
+        // Confirm enrichment adapters (#549, docs/confirm-enrichment-openrouter-v1-phase.md section 3.3): the
+        // file cache and day ledger, the route values, the timing adapters and the Debug-only scripted
+        // adapters; application and domain only, wired only at the composition root.
+        .target(name: "FoodConfirmEnrichment", dependencies: ["FoodLedgerApplication", "FoodLedgerDomain"]),
         .target(
             name: "FoodLedgerArchive",
             dependencies: ["FoodLedgerApplication", "FoodLedgerGRDB"]
@@ -145,6 +152,10 @@ let package = Package(
         .testTarget(
             name: "FoodLedgerPersonalDatabaseTests",
             dependencies: ["FoodLedgerApplication", "FoodLedgerDomain", "FoodLedgerPersonalDatabase", "FoodLedgerTestSupport"]
+        ),
+        .testTarget(
+            name: "FoodConfirmEnrichmentTests",
+            dependencies: ["FoodConfirmEnrichment", "FoodLedgerApplication", "FoodLedgerDomain", "FoodLedgerTestSupport"]
         ),
         .testTarget(
             name: "FoodLedgerDomainTests",

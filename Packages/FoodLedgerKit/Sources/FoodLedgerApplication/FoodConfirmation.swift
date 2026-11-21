@@ -198,6 +198,8 @@ public struct FoodConfirmationState: Codable, Equatable, Sendable {
     public var estimateManifests: [EvidenceID: ApprovedEstimateCaptureManifest] = [:]
     /// Set by `reopen` only: the saved leave-out keys and whether the estimate evidence verifies.
     public var estimateSeed = ApprovedEstimateSeed()
+    /// Confirm enrichment's suggestion layer (CE1 section 5a): transient, never encoded, decodes empty.
+    public var enrichment = ConfirmEnrichmentLayer()
 
     private enum CodingKeys: String, CodingKey {
         case input, selectedCandidateIndex, decision, correction, quantity, phase, reopened, decisions, occurredAt
@@ -296,10 +298,8 @@ public struct FoodConfirmationState: Codable, Equatable, Sendable {
     }
 
     public var unresolvedIdentity: [IdentityContradiction] {
-        let missing = FoodConfirmationPolicy.unresolvedIdentity(
-            correction?.identity ?? reopened?.productVersion.identity ?? selectedCandidate.candidate.identity,
-            allowingEstimate: isGenericEstimate
-        )
+        // The effective identity (CE1.4a): a Confirm suggestion layer's fill can satisfy missing details.
+        let missing = FoodConfirmationPolicy.unresolvedIdentity(enrichedIdentity, allowingEstimate: isGenericEstimate)
         // Pasted label Confirm v1 (#306) C4: on an editable pasted label, or a reopened entry that
         // recorded Not stated, unknown fortification is an inline decision, not missing identity.
         guard PastedLabelFortificationPolicy.applies(self) else { return missing }
@@ -357,6 +357,16 @@ public enum FoodConfirmationAction: Sendable {
     /// P6). There is no action that types a value for an estimated nutrient.
     case leaveOutEstimate(NutrientKey)
     case restoreEstimate(NutrientKey)
+    /// Confirm enrichment (CE1.4a, CE1.6): a checked A answer pre-fills unknown food details; `Not
+    /// these` clears it. A checked B answer pre-fills kept rows; each can be left out or put back.
+    case applyDetailsSuggestion(ConfirmDetailsSuggestion)
+    case clearDetailsSuggestion
+    case applyNutrientSuggestion(ConfirmNutrientSuggestion)
+    case clearNutrientSuggestion
+    case leaveOutOpenRouterEstimate(NutrientKey)
+    case restoreOpenRouterEstimate(NutrientKey)
+    /// What the chosen label estimate layer fills, so the merge checks run live (gate section 2.4).
+    case setEnrichmentLabelLayer([NutrientKey: Double])
     case beginSaving
     case saveFailed(String)
     case saved(LogItemID)
@@ -390,6 +400,7 @@ public enum FoodConfirmationReducer {
             if changed {
                 state.decisions = [:]
                 state.leftOutEstimates = []  // a leave-out belongs to its candidate
+                state.enrichment = ConfirmEnrichmentLayer()  // suggestions belong to their candidate
             }
             state.phase = .editing
         case .accept:
@@ -397,6 +408,8 @@ public enum FoodConfirmationReducer {
             state.decision = .accepted
             state.phase = .editing
         case let .decideDifference(facet, choice):
+            // A fill and a decided difference never stand together (CE1.4a): the fill is cleared first.
+            if !state.enrichment.filledFacts.isEmpty { state.enrichment.details = nil }
             state.decisions[facet] = choice
             state.phase = .editing
         case let .setOccurredAt(date):
@@ -413,7 +426,8 @@ public enum FoodConfirmationReducer {
             // Confirm rules review v1 (#470 rule 2.4): a correction that only fills in blanks keeps the
             // entered weight, conversion and portion guide; any other correction clears them as v5 did.
             let fill = FoodDetailsFillPolicy.isFill(correction, of: state.selectedCandidate, current: previousIdentity)
-            state.correction = correction
+            let suggested = state.enrichedIdentity
+            state.correction = ConfirmEnrichmentReduction.folding(correction, suggested: suggested, into: &state)
             state.correctionOrigin = nil
             state.decisions = [:]
             state.decision = .accepted
@@ -492,6 +506,33 @@ public enum FoodConfirmationReducer {
         case let .restoreEstimate(key):
             guard state.leftOutEstimates.contains(key) else { return }
             state.leftOutEstimates.remove(key)
+            state.phase = .editing
+        case let .applyDetailsSuggestion(suggestion):
+            ConfirmEnrichmentReduction.applyDetails(suggestion, to: &state)
+        case .clearDetailsSuggestion:
+            state.enrichment.details = nil
+            state.enrichment.detailsFolded = false
+            state.phase = .editing
+        case let .applyNutrientSuggestion(suggestion):
+            guard state.reopened == nil, suggestion.capture.captureMethodVersion.value == ConfirmEnrichmentVersions.nutrientCaptureMethodVersion
+            else { return }
+            state.enrichment.nutrients = suggestion
+            state.enrichment.leftOut = []
+            state.phase = .editing
+        case .clearNutrientSuggestion:
+            state.enrichment.nutrients = nil
+            state.enrichment.leftOut = []
+            state.phase = .editing
+        case let .leaveOutOpenRouterEstimate(key):
+            guard state.enrichmentMerge()?.available[key] != nil else { return }
+            state.enrichment.leftOut.insert(key)
+            state.phase = .editing
+        case let .setEnrichmentLabelLayer(values):
+            guard state.reopened == nil else { return }
+            state.enrichment.labelLayer = values
+        case let .restoreOpenRouterEstimate(key):
+            guard state.enrichment.leftOut.contains(key) else { return }
+            state.enrichment.leftOut.remove(key)
             state.phase = .editing
         case .beginSaving:
             state.phase = .saving
@@ -704,6 +745,8 @@ public final class FoodConfirmationService: @unchecked Sendable {
         // log, a corrected reopened log and an undo it verifies the manifest and reads the records
         // itself; a reopened log that only gains a leave-out reads no record.
         var state = submitted
+        // CE1.4a: a Jev fill shown on Confirm is written as a correction, exactly as a sheet fill is.
+        if let fill = FoodDetailsFillPolicy.enrichmentFill(state) { state.correction = fill }
         let holdsEstimates = ApprovedEstimateSource.holdsManifest(state.selectedCandidate.candidate, evidence: state.input.evidence)
         if holdsEstimates {
             let undoes = !state.estimateSeed.leftOut.isSubset(of: state.leftOutEstimates)
@@ -765,7 +808,8 @@ public final class FoodConfirmationService: @unchecked Sendable {
             guard OpenFoodFactsEstimateSource.applies(state.input, candidate: selected),
                   identity.servingBasis == selected.candidate.identity.servingBasis,
                   let expected = try LabelEstimateLayer.expectedNutrients(reopened, label: selected),
-                  reopened.resolutionVersion.nutrients == expected else {
+                  // CE1 section 5a: the layer merge plus the B rows, which verification checks.
+                  ConfirmEnrichmentCitation.replacingOpenRouterEstimates(reopened.resolutionVersion.nutrients, from: expected) == expected else {
                 throw FoodConfirmationSaveError.invalidLabelEstimate
             }
         }
@@ -834,9 +878,11 @@ public final class FoodConfirmationService: @unchecked Sendable {
         let changesProduct = previous == nil || state.foodFactsChanged
         let savedLeftOut = state.savedLeaveOutSet
         let leaveOutChanged = state.correction == nil && savedLeftOut != state.estimateSeed.leftOut
+        // Confirm enrichment (gate section 2.4a): a change of B choices alone on a reopened log.
+        let enrichmentChoicesChanged = previous != nil && state.correction == nil && state.enrichment.choicesChanged
         // A leave-out or undo alone on a reopened log: the saved identity, decision record and
         // outcome are carried unchanged into the new assertion and decision.
-        let leaveOutOnly = previous != nil && leaveOutChanged
+        let leaveOutOnly = previous != nil && state.correction == nil && (leaveOutChanged || enrichmentChoicesChanged)
         // One leave-out item per saved resolution version whose set is not empty. It names its
         // version, so that ID is made first; saves without a leave-out make their IDs as before.
         var leftOutEvidence: CaptureEvidence?
@@ -857,13 +903,39 @@ public final class FoodConfirmationService: @unchecked Sendable {
                 originalPayload: .text(LedgerText(String(decoding: payload, as: UTF8.self))), byteHash: digester.sha256(payload))
             leftOutVersionID = versionID
         }
+        // Confirm enrichment (gate sections 2.4 and 2.4a): the kept B rows are merged at save after the
+        // label layer, with one choices item naming the new version; the A capture is cited while the
+        // version keeps a fact it applied. A reopened log whose B choices change keeps its label layer.
+        let carriesLayer = changesProduct && layer == nil && state.correction == nil && previous?.estimate != nil
+            && state.enrichment.seedLeftOut != nil
+        let layerValues: [NutrientKey: Double] = layer.map {
+            ConfirmEnrichmentMerge.values($0.nutrients, release: $0.choice.sourceRelease.sourceReleaseID)
+        } ?? (carriesLayer ? previous.map(ConfirmEnrichmentMerge.layerValues) ?? [:] : [:])
+        var enrichmentMerge: ConfirmEnrichmentMerge.Result?
+        var nutrientCapture: CaptureEvidence?
+        var choicesEvidence: CaptureEvidence?
+        var choicesVersionID: ResolutionVersionID?
+        if changesProduct, let rows = state.enrichment.nutrients,
+           let merge = state.enrichmentMerge(layer: layerValues, base: layer?.nutrients ?? state.enrichmentBase), !merge.saved.isEmpty {
+            let versionID = try leftOutVersionID ?? ids.makeID(ResolutionVersionTag.self)
+            choicesEvidence = try ConfirmEnrichmentCaptureBuilder.choices(
+                capture: rows.capture, resolutionVersionID: versionID, merge: merge, capturedAt: now,
+                id: ids.makeID(EvidenceTag.self), encoder: encoder, digester: digester)
+            enrichmentMerge = merge
+            nutrientCapture = rows.capture
+            choicesVersionID = versionID
+        }
+        let detailsCapture = changesProduct ? Self.citedDetailsCapture(state: state, selected: selected, identity: identity) : nil
+        let enrichmentIDs = [detailsCapture, nutrientCapture, choicesEvidence].compactMap { $0?.evidenceID }
         // Evidence is reached through the decision's embedded candidate, so the new decision's
         // candidate lists the leave-out item after the bound candidate's own evidence IDs, and
         // differs from the bound candidate in that list only.
-        // Confirm enrichment (phase gate section 2.4a): a save of a candidate that cites CE1 items
-        // rebuilds the list from the candidate's own IDs, so no earlier CE1 or leave-out item is carried.
+        // Confirm enrichment (phase gate section 2.4a): a save of a candidate that cites CE1 items, or
+        // that writes one, rebuilds the list from the candidate's own IDs, so no earlier CE1 or
+        // leave-out item is carried; then the leave-out item, the A capture, the B capture and the
+        // version's own choices item, once each.
         let stripsEnrichment = changesProduct
-            && ConfirmEnrichmentCitation.citesEnrichment(selected.candidate, evidence: state.input.evidence)
+            && (ConfirmEnrichmentCitation.citesEnrichment(selected.candidate, evidence: state.input.evidence) || !enrichmentIDs.isEmpty)
         let decisionCandidate: ProviderNeutralCandidate
         if stripsEnrichment {
             decisionCandidate = try ProviderNeutralCandidate(
@@ -871,7 +943,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
                 identity: selected.candidate.identity, edibleQuantity: selected.candidate.edibleQuantity,
                 nutrients: selected.candidate.nutrients,
                 evidenceIDs: ConfirmEnrichmentCitation.ownEvidenceIDs(selected.candidate, evidence: state.input.evidence)
-                    + (leftOutEvidence.map { [$0.evidenceID] } ?? []),
+                    + (leftOutEvidence.map { [$0.evidenceID] } ?? []) + enrichmentIDs,
                 matchMetadata: selected.candidate.matchMetadata)
         } else {
             decisionCandidate = try leftOutEvidence.map { item in
@@ -884,7 +956,10 @@ public final class FoodConfirmationService: @unchecked Sendable {
         }
         let assertion = changesProduct
             ? try makeAssertion(state: state, selected: selected, previous: previous, record: decisionRecord,
-                                labelEstimate: layer?.assertion, leftOut: leaveOutChanged ? savedLeftOut : nil, at: now)
+                                labelEstimate: layer?.assertion
+                                    ?? (carriesLayer ? previous?.assertions.compactMap(\.labelEstimate).last : nil),
+                                leftOut: leaveOutChanged ? savedLeftOut : nil,
+                                enrichmentLeftOut: enrichmentChoicesChanged ? state.enrichment.leftOut : nil, at: now)
             : nil
         let product: Product
         if let existing = previous?.product {
@@ -945,6 +1020,14 @@ public final class FoodConfirmationService: @unchecked Sendable {
                     expectedIdentity: identity, expectedEdibleQuantity: state.input.expectedEdibleQuantity,
                     requestedOutcome: .selectedForEstimate, assertionID: assertion?.assertionID, createdAt: now)
             }
+            // A B-only edit of a layered entry keeps its layer: a new estimate decision on the same row,
+            // committed with the version, as confirm_food_v4 requires of a resolution's second decision.
+            if carriesLayer, let kept = previous?.estimate {
+                estimateDecision = try CandidateDecision(candidateDecisionID: ids.makeID(CandidateDecisionTag.self),
+                    candidate: kept.candidateDecision.candidate, expectedIdentity: kept.candidateDecision.expectedIdentity,
+                    expectedEdibleQuantity: kept.candidateDecision.expectedEdibleQuantity, requestedOutcome: .selectedForEstimate,
+                    assertionID: assertion?.assertionID, createdAt: now)
+            }
             resolution = NutritionResolution(
                 resolutionID: try ids.makeID(ResolutionTag.self),
                 productVersionID: productVersion.productVersionID,
@@ -953,20 +1036,39 @@ public final class FoodConfirmationService: @unchecked Sendable {
             )
             // The effective set: the candidate's or the correction's, with every withheld or left-out
             // estimate unknown. Without an approved estimate it is what was written before.
-            let nutrients = layer?.nutrients ?? state.effectiveNutrients
-            // CE1.6 rule 4: no `openrouter_estimate` value is written unless it verifies; before the
-            // suggestion layer there is no verified source for one.
-            guard !ConfirmEnrichmentCitation.holdsOpenRouterEstimate(nutrients) else {
-                throw FoodConfirmationSaveError.invalidOpenRouterEstimate
+            // A reopened version's earlier B values return to the candidate's entries first.
+            var nutrients = layer?.nutrients ?? state.enrichmentBase
+            if let merge = enrichmentMerge, let capture = nutrientCapture {
+                let basis = selected.candidate.identity.servingBasis
+                nutrients = try NutrientSet(entries: nutrients.entries.map { entry in
+                    guard let amount = merge.saved[entry.key] else { return entry }
+                    return try NutrientEntry(key: entry.key,
+                        value: ConfirmEnrichmentCaptureBuilder.value(amount, key: entry.key, basis: basis, capture: capture))
+                })
             }
+            let versionID = try leftOutVersionID ?? choicesVersionID ?? ids.makeID(ResolutionVersionTag.self)
+            // CE1.6 rule 4: no `openrouter_estimate` value is written unless it verifies against its cited
+            // capture and this version's choices item, on keys still eligible on the candidate.
+            if ConfirmEnrichmentCitation.holdsOpenRouterEstimate(nutrients) {
+                let evidence = state.input.evidence + [nutrientCapture, choicesEvidence].compactMap { $0 }
+                    .filter { item in !state.input.evidence.contains { $0.evidenceID == item.evidenceID } }
+                guard let rows = state.enrichment.nutrients, rows.inputs.basis == ConfirmEnrichmentPolicy.basis(identity.servingBasis),
+                      case .verified = ConfirmEnrichmentVerification.verify(
+                          nutrients: nutrients, resolutionVersionID: versionID, citedEvidenceIDs: decisionCandidate.evidenceIDs,
+                          evidence: evidence, layer: layerValues, digester: digester) else {
+                    throw FoodConfirmationSaveError.invalidOpenRouterEstimate
+                }
+            }
+            var releaseIDs = [selected.candidate.sourceReleaseID] + (layer.map { [$0.choice.sourceRelease.sourceReleaseID] } ?? [])
+            if carriesLayer, let kept = previous?.estimate { releaseIDs.append(kept.sourceRelease.sourceReleaseID) }
+            if let capture = nutrientCapture { releaseIDs.append(try ConfirmEnrichmentCaptureBuilder.release(capture).sourceReleaseID) }
             resolutionVersion = try NutritionResolutionVersion(
-                resolutionVersionID: leftOutVersionID ?? ids.makeID(ResolutionVersionTag.self),
+                resolutionVersionID: versionID,
                 resolutionID: resolution.resolutionID,
                 ordinal: VersionOrdinal(1),
                 methodVersion: LedgerText(FoodConfirmationPolicy.version),
-                sourceReleaseIDs: Self.linkedReleaseIDs(
-                    [selected.candidate.sourceReleaseID] + (layer.map { [$0.choice.sourceRelease.sourceReleaseID] } ?? []),
-                    nutrients: nutrients, candidate: selected.candidate, releases: state.input.sourceReleases),
+                sourceReleaseIDs: Self.linkedReleaseIDs(releaseIDs, nutrients: nutrients, candidate: selected.candidate,
+                                                        releases: state.input.sourceReleases),
                 nutrients: nutrients,
                 decisionIDs: [decision.candidateDecisionID] + (estimateDecision.map { [$0.candidateDecisionID] } ?? []),
                 assertionIDs: assertion.map { [$0.assertionID] } ?? [],
@@ -1000,7 +1102,9 @@ public final class FoodConfirmationService: @unchecked Sendable {
             originalResolutionVersionID: previous?.logItemVersion.originalResolutionVersionID ?? resolutionVersion.resolutionVersionID,
             effectiveResolutionVersionID: resolutionVersion.resolutionVersionID,
             correctionReason: previous.map { previous in
-                try state.correction?.reason ?? (leaveOutChanged ? LedgerText(ApprovedEstimateLeaveOutText.editReason) : nil)
+                try state.correction?.reason
+                    ?? (enrichmentChoicesChanged ? LedgerText(OpenRouterEstimateChoicesText.editReason) : nil)
+                    ?? (leaveOutChanged ? LedgerText(ApprovedEstimateLeaveOutText.editReason) : nil)
                     ?? Self.editReason(previous: previous.logItemVersion, occurredAt: occurredAt,
                     edibleQuantity: edibleQuantity, declaration: declaration,
                     conversionID: conversion.version?.quantityConversionVersionID, plateID: plate.version?.plateWeightVersionID)
@@ -1031,7 +1135,9 @@ public final class FoodConfirmationService: @unchecked Sendable {
             libraryRecords = (nil, nil)
         }
 
-        let missingReleases = try (state.input.sourceReleases + (layer.map { [$0.choice.sourceRelease] } ?? [])).filter {
+        let enrichmentRelease = try nutrientCapture.map(ConfirmEnrichmentCaptureBuilder.release)
+        let missingReleases = try (state.input.sourceReleases + (layer.map { [$0.choice.sourceRelease] } ?? [])
+                                   + (enrichmentRelease.map { [$0] } ?? [])).filter {
             try reader.sourceRelease(id: $0.sourceReleaseID) == nil
         }
         // Q11: evidence already retained with canonically identical bytes is skipped (re-log,
@@ -1045,8 +1151,11 @@ public final class FoodConfirmationService: @unchecked Sendable {
         let inputEvidence = state.input.evidence.filter {
             !ApprovedEstimateSource.isManifest($0) || selectedEvidenceIDs.contains($0.evidenceID)
         }
+        // CE1 captures are committed only with the Log that cites them, once.
+        let enrichmentEvidence = [detailsCapture, nutrientCapture].compactMap { $0 }.filter { !inputEvidenceIDs.contains($0.evidenceID) }
+            + (choicesEvidence.map { [$0] } ?? [])
         let newEvidence = (previous == nil ? try (inputEvidence + layerEvidence).filter { try !isRetained($0) } : [])
-            + (leftOutEvidence.map { [$0] } ?? [])
+            + (leftOutEvidence.map { [$0] } ?? []) + enrichmentEvidence
         let mutation = LedgerMutation(
             evidence: newEvidence,
             assertions: assertion.map { [$0] } ?? [],
@@ -1068,19 +1177,27 @@ public final class FoodConfirmationService: @unchecked Sendable {
             mutation,
             // confirm_food_v4 carries a new estimate layer, or an edit that keeps one; anything
             // else writes exactly the type it wrote before contract 8.
-            type: layer != nil || (!changesProduct && previous?.estimate != nil) ? .confirmFoodV4
+            type: layer != nil || (!changesProduct && previous?.estimate != nil) || carriesLayer ? .confirmFoodV4
                 : assertion?.confirmation != nil ? .confirmFoodV3 : (declaration == nil ? .confirmFood : .confirmFoodV2),
             operationID: operationID,
             idempotencyKey: idempotencyKey,
             persistedAttachments: persistedAttachments
         )
-        let keptEstimate = changesProduct ? nil : previous?.estimate
-        let returnedReleases = (previous?.sourceReleases ?? []) + state.input.sourceReleases.filter { source in
+        let keptEstimate: StoredLabelEstimate?
+        if carriesLayer, let kept = previous?.estimate, let decision = estimateDecision {
+            keptEstimate = StoredLabelEstimate(candidateDecision: decision, evidence: kept.evidence, sourceRelease: kept.sourceRelease)
+        } else {
+            keptEstimate = changesProduct ? nil : previous?.estimate
+        }
+        var returnedReleases = (previous?.sourceReleases ?? []) + state.input.sourceReleases.filter { source in
             !(previous?.sourceReleases.contains { $0.sourceReleaseID == source.sourceReleaseID } ?? false)
+        }
+        if let release = enrichmentRelease, !returnedReleases.contains(where: { $0.sourceReleaseID == release.sourceReleaseID }) {
+            returnedReleases.append(release)
         }
         return StoredFoodConfirmation(
             // What the store reads back: without another candidate's manifest, with a new leave-out item.
-            evidence: (previous?.evidence ?? inputEvidence) + (leftOutEvidence.map { [$0] } ?? []),
+            evidence: (previous?.evidence ?? inputEvidence) + (leftOutEvidence.map { [$0] } ?? []) + enrichmentEvidence,
             sourceReleases: returnedReleases,
             product: product,
             productVersion: productVersion,
@@ -1098,6 +1215,23 @@ public final class FoodConfirmationService: @unchecked Sendable {
                 layer.map { StoredLabelEstimate(candidateDecision: decision, evidence: $0.choice.evidence, sourceRelease: $0.choice.sourceRelease) }
             }
         )
+    }
+
+    /// The A capture a saved version cites (gate section 2.4a): the shown fill's, or on reopen the bound
+    /// candidate's earlier capture, only while the version keeps at least one fact it applied.
+    static func citedDetailsCapture(state: FoodConfirmationState, selected: PopulatedFoodCandidate,
+                                    identity: DecisiveIdentity) -> CaptureEvidence? {
+        let capture = state.enrichment.details?.capture ?? (state.reopened == nil ? nil : state.input.evidence.first {
+            selected.candidate.evidenceIDs.contains($0.evidenceID)
+                && $0.captureMethodVersion.value == ConfirmEnrichmentVersions.detailsCaptureMethodVersion
+        })
+        guard let capture, let payload = ConfirmEnrichmentEvidence.details(capture) else { return nil }
+        let choices = Dictionary(payload.answers.map { ($0.fact, $0.choice) }, uniquingKeysWith: { first, _ in first })
+        let holds = payload.applied.contains { fact in
+            guard let typed = ConfirmDetailsFact(rawValue: fact) else { return false }
+            return ConfirmEnrichmentPolicy.token(typed, of: identity) == choices[fact]
+        }
+        return holds ? capture : nil
     }
 
     /// Whether this evidence member is already stored with canonically identical bytes.
@@ -1120,7 +1254,34 @@ public final class FoodConfirmationService: @unchecked Sendable {
         var state = FoodConfirmationState(input: input, reopened: saved)
         state.decision = .accepted
         seedEstimates(&state, saved: saved)
+        seedEnrichment(&state, saved: saved)
         return state
+    }
+
+    /// A reopened log's suggestion layer (CE1.7a): rebuilt from the effective version's cited capture
+    /// and choices item, verified first (CE1.7, gate section 2.4). Reads no network. Evidence that does
+    /// not verify reads "Evidence not available" and changes no stored value.
+    private func seedEnrichment(_ state: inout FoodConfirmationState, saved: StoredFoodConfirmation) {
+        let layer = ConfirmEnrichmentMerge.layerValues(saved)
+        state.enrichment.labelLayer = layer
+        switch ConfirmEnrichmentVerification.verify(
+            nutrients: saved.resolutionVersion.nutrients, resolutionVersionID: saved.resolutionVersion.resolutionVersionID,
+            citedEvidenceIDs: saved.candidateDecision.candidate.evidenceIDs, evidence: saved.evidence, layer: layer,
+            digester: digester) {
+        case .none: return
+        case .notAvailable: state.enrichment.evidenceNotAvailable = true
+        case let .verified(verified):
+            guard let inputs = ConfirmNutrientRequestInputs.decode(requestBody: verified.capture.requestBody) else {
+                state.enrichment.evidenceNotAvailable = true
+                return
+            }
+            state.enrichment.nutrients = ConfirmNutrientSuggestion(
+                subjectSHA256: verified.capture.responseSHA256, capture: verified.captureEvidence, inputs: inputs,
+                rows: verified.capture.rows, model: verified.capture.model, receivedAt: verified.captureEvidence.capturedAt,
+                fromCache: false)
+            state.enrichment.leftOut = verified.choices.leftOutKeys
+            state.enrichment.seedLeftOut = verified.choices.leftOutKeys
+        }
     }
 
     /// A reopened log's estimate state (estimates on catalogue v2 section 5): its manifest when it
@@ -1287,7 +1448,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
             guard OpenFoodFactsEstimateSource.applies(input, candidate: populated),
                   saved.productVersion.identity.servingBasis == populated.candidate.identity.servingBasis,
                   let expected = try? LabelEstimateLayer.expectedNutrients(saved, label: populated),
-                  saved.resolutionVersion.nutrients == expected else {
+                  ConfirmEnrichmentCitation.replacingOpenRouterEstimates(saved.resolutionVersion.nutrients, from: expected) == expected else {
                 throw FoodLedgerStoreError.integrityFailure("label estimate layer on an entry that is not a label or a matching Open Food Facts product")
             }
         }
@@ -1445,6 +1606,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
         record: FoodLogDecisionRecord?,
         labelEstimate: LabelEstimateAssertion? = nil,
         leftOut: Set<NutrientKey>? = nil,
+        enrichmentLeftOut: Set<NutrientKey>? = nil,
         at date: Date
     ) throws -> UserAssertion? {
         let version = FoodConfirmationPolicy.version
@@ -1458,9 +1620,15 @@ public final class FoodConfirmationService: @unchecked Sendable {
             reason = correction.reason
             claim = try LedgerText("Corrected populated confirmation for \(selected.name.value)")
         } else if let previous {
-            guard let leftOut else { return nil }
-            reason = try LedgerText(ApprovedEstimateLeaveOutText.reason)
-            claim = try LedgerText(ApprovedEstimateLeaveOutText.claim(leftOut))
+            if let enrichmentLeftOut {
+                // Gate section 2.4a: the B texts, with the approved suffix when both change in one save.
+                reason = try LedgerText(OpenRouterEstimateChoicesText.reason)
+                claim = try LedgerText(OpenRouterEstimateChoicesText.claim(enrichmentLeftOut) + suffix)
+            } else {
+                guard let leftOut else { return nil }
+                reason = try LedgerText(ApprovedEstimateLeaveOutText.reason)
+                claim = try LedgerText(ApprovedEstimateLeaveOutText.claim(leftOut))
+            }
             carried = previous.assertions.last(where: { $0.confirmation != nil })?.confirmation
         } else if state.isGenericEstimate {
             reason = try LedgerText("Explicitly accepted generic composition estimate; unknown source details remain unknown")

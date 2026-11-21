@@ -872,19 +872,22 @@ public enum FoodDailyExportBuilder {
         }
         let calculated = NutrientDerivation.isCalculated(value)
         let exportKey = includeKey ? key.rawValue : nil
-        func unknown(_ reason: UnknownReason) -> FoodDailyExportNutrientValue {
-            FoodDailyExportNutrientValue(key: exportKey, state: "unknown", amount: nil, lower: nil, upper: nil,
+        // An unscalable OpenRouter estimate is unknown, so it takes the row's own origin; with no row
+        // origin it is unattributed, never exported as `openrouter_estimate` (an unknown is not one).
+        let unknownOrigin = value.provenance.first?.sourceKind == .openRouterEstimate ? rowOrigin : origin
+        func unknown(_ reason: UnknownReason) throws -> FoodDailyExportNutrientValue {
+            guard let unknownOrigin else { throw FoodDailyExportError.unattributedEntry }
+            return FoodDailyExportNutrientValue(key: exportKey, state: "unknown", amount: nil, lower: nil, upper: nil,
                                          lowerClosed: nil, upperClosed: nil, estimated: nil, unit: nil,
                                          reason: reason.rawValue,
-                                         // An unscalable OpenRouter estimate is unknown, so it takes the row's own origin.
-                                         origin: value.provenance.first?.sourceKind == .openRouterEstimate ? rowOrigin ?? origin : origin,
+                                         origin: unknownOrigin,
                                          calculated: nil, provenance: nil,
                                          conflict: candidates == nil ? nil : true, candidates: candidates)
         }
         switch value {
         case let .measured(exact), let .augmented(exact):
             // An unscalable amount, or one that overflows when scaled, is unknown, never zero.
-            guard let scale, (exact.amount * scale).isFinite else { return unknown(.missingConversion) }
+            guard let scale, (exact.amount * scale).isFinite else { return try unknown(.missingConversion) }
             let state = if case .augmented = value { "estimated" } else { "measured" }
             return FoodDailyExportNutrientValue(
                 key: exportKey, state: state, amount: exact.amount * scale, lower: nil, upper: nil,
@@ -893,14 +896,14 @@ public enum FoodDailyExportBuilder {
         case let .bounded(bounds):
             let lower = scale.flatMap { scale in bounds.lower.map { $0 * scale } }
             let upper = scale.flatMap { scale in bounds.upper.map { $0 * scale } }
-            guard scale != nil, lower?.isFinite != false, upper?.isFinite != false else { return unknown(.missingConversion) }
+            guard scale != nil, lower?.isFinite != false, upper?.isFinite != false else { return try unknown(.missingConversion) }
             return FoodDailyExportNutrientValue(
                 key: exportKey, state: "bounded", amount: nil, lower: lower, upper: upper,
                 lowerClosed: bounds.lowerClosed, upperClosed: bounds.upperClosed,
                 estimated: bounds.origin == .augmented, unit: bounds.unit.rawValue, reason: nil, origin: origin,
                 calculated: calculated, provenance: provenance, conflict: nil, candidates: nil)
         case let .unknown(reason):
-            return unknown(reason)
+            return try unknown(reason)
         }
     }
 

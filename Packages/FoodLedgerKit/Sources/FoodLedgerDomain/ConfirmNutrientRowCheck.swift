@@ -54,7 +54,9 @@ public enum ConfirmNutrientRowCheck {
             guard let key = NutrientKey(rawValue: row.nutrient), eligible.contains(key) else { return .unknownNutrient }
             if counts[row.nutrient, default: 0] > 1 { return .duplicateNutrient }
             guard row.unit == key.canonicalUnit.rawValue else { return .unit }
-            guard let amount = Double(row.value), amount.isFinite, amount >= 0, amount <= largestValue else { return .value }
+            // `-0` is a negative number as received: a `value` row, never a kept zero.
+            guard !row.value.hasPrefix("-"), let amount = Double(row.value), amount.isFinite, amount >= 0,
+                  amount <= largestValue else { return .value }
             if isImpossible(amount, key: key, basis: basis) { return .impossibleValue }
             return .kept
         }

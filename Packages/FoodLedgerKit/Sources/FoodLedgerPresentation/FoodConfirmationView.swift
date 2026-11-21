@@ -78,7 +78,9 @@ public final class FoodConfirmationViewModel: ObservableObject {
         return FoodDetailsFillPolicy.databaseFactsNote(state.selectedCandidate)
     }
     public var displayedVariant: LedgerText? { state.correction?.variant ?? state.reopened?.productVersion.variant ?? state.selectedCandidate.variant }
-    public var displayedIdentity: DecisiveIdentity { state.correction?.identity ?? state.reopened?.productVersion.identity ?? state.selectedCandidate.candidate.identity }
+    /// The effective identity (CE1.4a): a Confirm suggestion's fill is shown, and the Food details sheet
+    /// opens on it, so Change edits the suggested facts.
+    public var displayedIdentity: DecisiveIdentity { state.enrichedIdentity }
     public var selectionCaution: String? {
         FoodSearchResultText.caution(query: searchInterpretation?.parsedQuery, candidate: state.selectedCandidate,
             requestedPreparation: searchInterpretation?.preparation, isRecipe: state.isSourceRecipe)
@@ -98,6 +100,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
         estimateSaveAction: (@MainActor (FoodConfirmationState, LabelEstimateChoice) throws -> StoredFoodConfirmation)? = nil,
         labelEstimateNotCarried: Bool = false,
         estimateBinder: (@MainActor (inout FoodConfirmationState) -> Void)? = nil,
+        enrichmentContext: ConfirmEnrichmentContext? = nil,
         saveAction: @escaping @MainActor (FoodConfirmationState) throws -> StoredFoodConfirmation
     ) {
         // Approved estimates (estimates on catalogue v2 section 3.2): a new log's estimates are
@@ -128,6 +131,50 @@ public final class FoodConfirmationViewModel: ObservableObject {
         }
         normalisePortionGuide()
         self.labelEstimate?.prepare(state)
+        // Confirm enrichment (CE1.1): one controller per Confirm, refreshed after every change.
+        if let enrichmentContext {
+            enrichment = ConfirmEnrichmentController(context: enrichmentContext, state: { [unowned self] in self.state },
+                                                     apply: { [weak self] in self?.send($0) })
+            enrichment?.refresh()
+        }
+    }
+
+    /// Confirm enrichment's controller, nil on every route that does not wire it.
+    public private(set) var enrichment: ConfirmEnrichmentController?
+
+    /// `Food details suggested: …` while a Jev fill is shown (section 8); hidden after a correction or
+    /// on a reopened entry.
+    public var enrichmentDetailsLine: String? {
+        guard savedResult == nil, state.correction == nil, state.reopened == nil, !state.enrichment.filledFacts.isEmpty else { return nil }
+        return ConfirmEnrichmentText.detailsLine(state.enrichment.filledFacts)
+    }
+
+    /// The B rows Confirm offers Leave out or Put back for, and whether each is left out.
+    public var openRouterEstimateRows: [(key: NutrientKey, leftOut: Bool)] {
+        let rows = state.openRouterEstimateRows
+        return NutrientKey.allCases.filter { rows[$0] != nil }.map { ($0, state.enrichment.leftOut.contains($0)) }
+    }
+
+    /// Whether a shown value is an OpenRouter estimate (the `est.` tag).
+    public func isOpenRouterEstimate(_ key: NutrientKey) -> Bool {
+        state.displayNutrients.entries.first { $0.key == key }?.value.provenance.contains { $0.sourceKind == .openRouterEstimate } ?? false
+    }
+
+    /// The Source details line for B values: model and time received, or the saved capture's hash.
+    public var openRouterEstimateDetails: [String] {
+        guard let rows = state.enrichment.nutrients else {
+            return state.enrichment.evidenceNotAvailable ? [ConfirmEnrichmentText.evidenceNotAvailable] : []
+        }
+        var lines = [ConfirmEnrichmentText.estimatedBy(model: rows.model, receivedAt: rows.receivedAt)]
+        if state.reopened != nil, let hash = rows.capture.byteHash { lines.append("Capture SHA-256: \(hash.value)") }
+        return lines
+    }
+
+    /// Keeps the live merge checks in step with the chosen label estimate layer (gate section 2.4).
+    public func updateEnrichmentLabelLayer() {
+        guard state.reopened == nil else { return }
+        let values = pendingLabelEstimate.map { ConfirmEnrichmentMerge.layerValues($0, state: state) } ?? [:]
+        if values != state.enrichment.labelLayer { send(.setEnrichmentLabelLayer(values)) }
     }
 
     /// Whether Confirm shows the estimate section: a new pasted label or label photo entry whose
@@ -945,6 +992,10 @@ public final class FoodConfirmationViewModel: ObservableObject {
             sourceDetailsNotice = nil
             correctionAppliedOnConfirm = true
         }
+        switch action {
+        case .beginSaving, .saveFailed, .saved: break
+        default: enrichment?.refresh()
+        }
     }
 
     /// The Food details sheet's Apply (#276): records the typed details as a correction on
@@ -1113,6 +1164,7 @@ public struct FoodConfirmationView: View {
     private let completionTitle: String
     private let showsCancelButton: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.locale) private var locale
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     /// The focused amount field, if any; "Done" above the decimal pad clears it (#212).
@@ -1254,6 +1306,7 @@ public struct FoodConfirmationView: View {
             }
             Section {
                 DisclosureGroup("Source details") {
+                    ForEach(model.openRouterEstimateDetails, id: \.self) { Text($0).font(.caption) }
                     sourceDetails
                     nutritionSection
                 }
@@ -1282,6 +1335,13 @@ public struct FoodConfirmationView: View {
             }
         }
         .safeAreaInset(edge: .bottom) { logBar }
+        // Confirm enrichment (CE1.1 rules 2 and 4): nothing is sent from the background, and leaving
+        // Confirm cancels a request in flight.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { model.enrichment?.appBecameActive() } else { model.enrichment?.appBecameInactive() }
+        }
+        .onChange(of: model.pendingLabelEstimate) { _, _ in model.updateEnrichmentLabelLayer() }
+        .onDisappear { model.enrichment?.confirmClosed() }
         .sheet(isPresented: $showsCorrection, onDismiss: correctionSheetClosed) {
             NavigationStack {
                 FoodDetailsForm(model: model, draft: correctionDraftBinding) {
@@ -1351,6 +1411,9 @@ public struct FoodConfirmationView: View {
             if let line = model.databaseFactsLine {
                 Label(line, systemImage: "checkmark.circle").font(.subheadline).accessibilityLabel(line)
             }
+            if let line = model.enrichmentDetailsLine {
+                enrichmentDetailsRow(line)
+            }
             if model.displayedName != model.state.selectedCandidate.name {
                 LabeledContent("Source food", value: model.state.selectedCandidate.name.value).font(.caption)
             }
@@ -1393,12 +1456,34 @@ public struct FoodConfirmationView: View {
                 Button(title) { showsCorrection = true }
                     .frame(minHeight: 44)
             }
+            // After the fix the blocker names: a suggestion is never the first action offered.
+            if let enrichment = model.enrichment {
+                ConfirmEnrichmentStatusRows(controller: enrichment, part: .details)
+            }
             if model.state.input.candidates.count > 1 && model.state.reopened == nil && !model.asksLabelFortification {
                 Button("Choose a different match") { showsMatches = true }
                     .frame(minHeight: 44)
             }
         }
         .accessibilityElement(children: .contain)
+    }
+
+    /// Confirm enrichment (section 8): the suggested facts on one line, with Change (the Food details
+    /// sheet, opened on them) and Not these (every suggested fact back to unknown).
+    private func enrichmentDetailsRow(_ line: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(line, systemImage: "sparkles").font(.subheadline).accessibilityLabel(line)
+                .accessibilityIdentifier("confirmEnrichment.detailsLine")
+            HStack(spacing: 16) {
+                Button(ConfirmEnrichmentText.change) { showsCorrection = true }
+                    .buttonStyle(.borderless).frame(minHeight: 44)
+                    .accessibilityLabel("\(ConfirmEnrichmentText.change) suggested food details")
+                Button(ConfirmEnrichmentText.notThese) { model.send(.clearDetailsSuggestion) }
+                    .buttonStyle(.borderless).frame(minHeight: 44)
+                    .accessibilityLabel("\(ConfirmEnrichmentText.notThese): remove the suggested food details")
+                    .accessibilityIdentifier("confirmEnrichment.notThese")
+            }
+        }
     }
 
     /// Rule 1 (#470): one question for a packaged Open Food Facts product. Each answer is an
@@ -2086,8 +2171,16 @@ public struct FoodConfirmationView: View {
             Text(review.basis).font(.subheadline).foregroundStyle(.secondary)
             ForEach(review.mainRows, id: \.key.rawValue) { row in
                 let value = model.displayValue(row.key, row.value, consumed: model.consumedAmount(row.key, review), source: !review.isConsumed)
-                LabeledContent(row.title, value: value)
-                    .accessibilityLabel("\(row.title), \(value), \(review.basis)")
+                let estimated = model.isOpenRouterEstimate(row.key)
+                LabeledContent(row.title, value: estimated ? "\(value) \(ConfirmEnrichmentText.estimatedTag)" : value)
+                    .accessibilityLabel("\(row.title), \(value)\(estimated ? ", \(ConfirmEnrichmentText.estimatedSpoken)" : ""), \(review.basis)")
+                openRouterEstimateControl(row.key)
+            }
+            if let enrichment = model.enrichment {
+                ConfirmEnrichmentStatusRows(controller: enrichment, part: .nutrients)
+            }
+            if model.state.enrichment.removedBecauseDetailsChanged {
+                Label(ConfirmEnrichmentText.removedBecauseDetailsChanged, systemImage: "info.circle").font(.caption)
             }
             if review.includesEstimates || model.state.isGenericEstimate || model.state.isSourceRecipe || model.state.reviewedWebProposalScope != nil {
                 Text("Estimated nutrition").font(.caption)
@@ -2095,10 +2188,27 @@ public struct FoodConfirmationView: View {
             if !review.isConsumed { Text("Source values. Enter a compatible amount to see your intake.").font(.caption) }
             DisclosureGroup("More nutrients") {
                 ForEach(review.otherRows, id: \.key.rawValue) { row in
-                    LabeledContent(row.title, value: model.displayValue(row.key, row.value, consumed: model.consumedAmount(row.key, review),
-                                                                        source: !review.isConsumed))
+                    let value = model.displayValue(row.key, row.value, consumed: model.consumedAmount(row.key, review), source: !review.isConsumed)
+                    let estimated = model.isOpenRouterEstimate(row.key)
+                    LabeledContent(row.title, value: estimated ? "\(value) \(ConfirmEnrichmentText.estimatedTag)" : value)
+                        .accessibilityLabel("\(row.title), \(value)\(estimated ? ", \(ConfirmEnrichmentText.estimatedSpoken)" : "")")
+                    openRouterEstimateControl(row.key)
                 }
             }
+        }
+    }
+
+    /// CE1.6 rule 5: Leave out or Put back right under the value it acts on; a left-out value is unknown.
+    @ViewBuilder
+    private func openRouterEstimateControl(_ key: NutrientKey) -> some View {
+        ForEach(model.openRouterEstimateRows.filter { $0.key == key }, id: \.key.rawValue) { row in
+            let title = Self.nutrientLabel(row.key)
+            Button(row.leftOut ? "\(ConfirmEnrichmentText.putBack) \(title)" : "\(ConfirmEnrichmentText.leaveOut) \(title)") {
+                model.send(row.leftOut ? .restoreOpenRouterEstimate(row.key) : .leaveOutOpenRouterEstimate(row.key))
+            }
+            .buttonStyle(.borderless).frame(minHeight: 44)
+            .accessibilityLabel(row.leftOut ? "\(ConfirmEnrichmentText.putBack) estimated \(title)" : "\(ConfirmEnrichmentText.leaveOut) estimated \(title)")
+            .accessibilityIdentifier("confirmEnrichment.\(row.leftOut ? "putBack" : "leaveOut").\(row.key.rawValue)")
         }
     }
 

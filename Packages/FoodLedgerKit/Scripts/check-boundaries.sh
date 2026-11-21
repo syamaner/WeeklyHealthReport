@@ -456,7 +456,9 @@ openrouter_request_sites=(
   "FoodLabelPhotoCapture/OpenRouterPastedLabelAITextAttempt.swift"
   "FoodLabelPhotoCapture/OpenRouterPastedLabelAITextRouteChecker.swift"
 )
-openrouter_exempt=("FoodLabelPhotoCapture/OpenRouterLabelPhotoRequest.swift")
+# Confirm enrichment (#549, docs/confirm-enrichment-openrouter-v1-phase.md section 3.3 item 3): the routes
+# file holds the addresses only as route-version constants used by gated sites (a reviewed exemption).
+openrouter_exempt=("FoodLabelPhotoCapture/OpenRouterLabelPhotoRequest.swift" "FoodConfirmEnrichment/ConfirmEnrichmentRoutes.swift")
 openrouter_gate_violations() {
   local sources="$1" app="$2" file site relative candidates=()
   if [[ ! -d "$sources" ]]; then echo "$sources: missing"; return 0; fi
@@ -620,6 +622,13 @@ check_personal_database_search_edges() {
   # Approved estimates (#511): the manifest, eligibility and confirmation files follow the same rule.
   done < <(find "$pkg/Sources/FoodLedgerApplication" \( -name 'PersonalFoodDatabase*.swift' -o -name 'ApprovedEstimate*.swift' \) -exec \
     grep -lE '(FileManager|URLSession|URLRequest|NWConnection|contentsOf:)' {} + 2>/dev/null || true)
+  # Confirm enrichment (#549, phase gate section 3.3 item 4): the same ban, plus CryptoKit and a
+  # concrete clock (`Date()`); hashing and time come through the injected ports.
+  while IFS= read -r file; do
+    if [[ -n "$file" ]]; then violations+="Confirm enrichment application code names a file, network, hashing or clock API in $file"$'\n'; fi
+  done < <(find "$pkg/Sources/FoodLedgerApplication" \( -name 'ConfirmEnrichment*.swift' -o -name 'ConfirmDetails*.swift' \
+    -o -name 'ConfirmNutrient*.swift' -o -name 'OpenRouterEstimate*.swift' \) -exec \
+    grep -lE '(FileManager|URLSession|URLRequest|NWConnection|contentsOf:|CryptoKit|Date\(\))' {} + 2>/dev/null || true)
   local resolvers="$pkg/Sources/FoodGenericSearch/PersonalFoodDatabaseResolvers.swift"
   if [[ ! -f "$resolvers" ]]; then
     violations+="missing $resolvers"$'\n'
@@ -642,13 +651,18 @@ self_test_personal_database_search_edges() {
   if ! check_personal_database_search_edges "$base" 2>/dev/null; then
     echo "check-boundaries self-test: the personal database search baseline must pass" >&2; status=1
   fi
-  for fixture in file_manager url_session estimate_url_session resolver_load resolver_network resolver_foundation; do
+  for fixture in file_manager url_session estimate_url_session enrichment_url_session enrichment_cryptokit enrichment_clock \
+                 enrichment_file_manager resolver_load resolver_network resolver_foundation; do
     target="$scratch/$fixture/Packages/FoodLedgerKit"
     mkdir -p "$(dirname "$target")"; cp -R "$base" "$target"
     case "$fixture" in
       file_manager) echo 'let files = FileManager.default' >> "$target/Sources/FoodLedgerApplication/PersonalFoodDatabaseSearch.swift" ;;
       url_session) echo 'let session = URLSession.shared' >> "$target/Sources/FoodLedgerApplication/PersonalFoodDatabaseSearch.swift" ;;
       estimate_url_session) echo 'let session = URLSession.shared' > "$target/Sources/FoodLedgerApplication/ApprovedEstimateConfirmation.swift" ;;
+      enrichment_url_session) echo 'let session = URLSession.shared' > "$target/Sources/FoodLedgerApplication/ConfirmEnrichmentSession.swift" ;;
+      enrichment_cryptokit) echo 'import CryptoKit' > "$target/Sources/FoodLedgerApplication/ConfirmNutrientRows.swift" ;;
+      enrichment_clock) echo 'let now = Date()' > "$target/Sources/FoodLedgerApplication/OpenRouterEstimateCarry.swift" ;;
+      enrichment_file_manager) echo 'let files = FileManager.default' > "$target/Sources/FoodLedgerApplication/ConfirmDetailsFill.swift" ;;
       resolver_load) echo 'let page = try Data(contentsOf: url)' >> "$target/Sources/FoodGenericSearch/PersonalFoodDatabaseResolvers.swift" ;;
       resolver_network) echo '@preconcurrency import Network' >> "$target/Sources/FoodGenericSearch/PersonalFoodDatabaseResolvers.swift" ;;
       resolver_foundation) echo 'import Foundation' >> "$target/Sources/FoodGenericSearch/PersonalFoodDatabaseResolvers.swift" ;;
@@ -662,6 +676,136 @@ self_test_personal_database_search_edges() {
 }
 self_test_personal_database_search_edges
 check_personal_database_search_edges "$package_root"
+
+# Confirm enrichment adapters (#549, docs/confirm-enrichment-openrouter-v1-phase.md section 3.3 items 1
+# and 2, section 6): FoodConfirmEnrichment imports Foundation, the application and the domain only, and
+# loads URLs only in ConfirmEnrichmentTransport.swift. Only the composition root, the target's own tests
+# and Tools/ConfirmEnrichmentEval import it, and in Package.swift only its test target depends on it.
+# The Debug scripted gate and a true availability literal appear only inside `#if DEBUG` blocks, and
+# never in a block that names a live adapter. Prints each violation; a missing target fails.
+enrichment_live_adapters='OpenRouterJevFoodDetailsAdapter|OpenRouterNutrientEstimateAdapter|(^|[^A-Za-z])ConfirmEnrichmentRouteChecker([^A-Za-z]|$)|ConfirmEnrichmentTransport'
+# Prints `FILE:LINE` for each line matching PATTERN outside a `#if DEBUG` block, and `FILE:LINE live`
+# for each matching line inside a `#if DEBUG` block that also names a live adapter.
+enrichment_debug_only_lines() {
+  local pattern="$1"; shift
+  local file
+  for file in "$@"; do
+    awk -v pat="$pattern" -v live="$enrichment_live_adapters" -v f="$file" '
+      function debug() { for (i = 1; i <= depth; i++) if (stack[i] == 1) return 1; return 0 }
+      function flush() { if (blockHits != "" && blockLive) { n = split(blockHits, h, " "); for (k = 1; k <= n; k++) print f ":" h[k] " live" } blockHits = ""; blockLive = 0 }
+      /^[[:space:]]*#if[[:space:]]+DEBUG([[:space:]]|$)/ { depth++; stack[depth] = 1; next }
+      /^[[:space:]]*#if/ { depth++; stack[depth] = 0; next }
+      /^[[:space:]]*#else/ { if (depth > 0) { if (stack[depth] == 1) flush(); stack[depth] = (stack[depth] == 1 ? 0 : 0) } next }
+      /^[[:space:]]*#endif/ { if (depth > 0) { if (stack[depth] == 1) flush(); depth-- } next }
+      {
+        if (debug() && $0 ~ live) blockLive = 1
+        if ($0 ~ pat) { if (debug()) blockHits = blockHits " " NR; else print f ":" NR }
+      }
+      END { flush() }
+    ' "$file"
+  done
+}
+check_confirm_enrichment_edges() {
+  local pkg="$1" app="$2" violations="" file line base
+  local dir="$pkg/Sources/FoodConfirmEnrichment"
+  if [[ ! -d "$dir" ]]; then echo "$dir: missing"; return 0; fi
+  while IFS= read -r line; do
+    [[ -n "$line" ]] && violations+="FoodConfirmEnrichment imports $line"$'\n'
+  done < <(find "$dir" -name '*.swift' -exec sed -nE "s/${import_attributes}([A-Za-z0-9_]+).*$/\5/p" {} + \
+    | sort -u | grep -Ev '^(Foundation|FoodLedgerApplication|FoodLedgerDomain)$' || true)
+  while IFS= read -r file; do
+    [[ -z "$file" ]] && continue
+    base="${file##*/}"
+    [[ "$base" == "ConfirmEnrichmentTransport.swift" ]] || violations+="$file loads a URL outside ConfirmEnrichmentTransport.swift"$'\n'
+  done < <(grep -rlE --include='*.swift' 'URLSession|URLRequest|NSURLConnection|CFNetwork|CFStream|NWConnection|Data\(contentsOf:|String\(contentsOf:' "$dir" || true)
+  local scanned=("$pkg/Sources" "$pkg/Tests" "$pkg/Tools" "$app/WeeklyHealthReport" "$app/WeeklyHealthReportTests" "$app/WeeklyHealthReportUITests" "$app/Tools")
+  local dirs=() d
+  for d in "${scanned[@]}"; do [[ -d "$d" ]] && dirs+=("$d"); done
+  while IFS= read -r file; do
+    [[ -z "$file" ]] && continue
+    if [[ "$file" != "$app/WeeklyHealthReport/FoodLedger/FoodLedgerCompositionRoot.swift" && ! "$file" =~ /Tests/FoodConfirmEnrichmentTests/ \
+          && ! "$file" =~ /Tools/ConfirmEnrichmentEval/ && "$file" != "$dir/"* ]]; then
+      violations+="FoodConfirmEnrichment imported by $file"$'\n'
+    fi
+  done < <(files_importing FoodConfirmEnrichment "${dirs[@]}")
+  local declarations name rest
+  declarations="$(package_targets "$pkg/Package.swift")"
+  if [[ -z "$declarations" || "$declarations" != *'name:'* ]]; then violations+="Package.swift: no target declarations could be read"$'\n'; fi
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    name="$(sed -nE 's/^[^"]*name:[[:space:]]*"([A-Za-z0-9_]+)".*/\1/p' <<< "$line")"
+    rest="$(sed -E 's/name:[[:space:]]*"[A-Za-z0-9_]+"//' <<< "$line")"
+    if [[ "$rest" == *'"FoodConfirmEnrichment"'* && "$name" != "FoodConfirmEnrichmentTests" ]]; then
+      violations+="Package.swift: $name depends on FoodConfirmEnrichment"$'\n'
+    fi
+  done <<< "$declarations"
+  local sources=()
+  while IFS= read -r file; do [[ -n "$file" ]] && sources+=("$file"); done < <(find "$pkg/Sources" "$app/WeeklyHealthReport" -name '*.swift' -type f 2>/dev/null)
+  if [[ ${#sources[@]} -gt 0 ]]; then
+    while IFS= read -r line; do
+      [[ -n "$line" ]] && violations+="the Debug scripted gate is named outside a Debug-only scripted block at $line"$'\n'
+    done < <(enrichment_debug_only_lines 'ScriptedConfirmEnrichmentGate' "${sources[@]}")
+    while IFS= read -r line; do
+      [[ -n "$line" ]] && violations+="a true Confirm enrichment availability is set outside a Debug-only scripted block at $line"$'\n'
+    done < <(enrichment_debug_only_lines 'ConfirmEnrichmentAvailability[(][^)]*true' "${sources[@]}")
+  fi
+  printf '%s' "$violations"
+}
+self_test_confirm_enrichment_edges() {
+  local scratch status=0 fixture base target pkg app
+  scratch="$(mktemp -d "${TMPDIR:-/tmp}/check-boundaries-enrichment.XXXXXX")"
+  base="$scratch/base"
+  pkg="$base/Packages/FoodLedgerKit"; app="$base"
+  mkdir -p "$pkg/Sources/FoodConfirmEnrichment" "$pkg/Sources/FoodLedgerApplication" "$pkg/Tests/FoodConfirmEnrichmentTests" \
+    "$app/WeeklyHealthReport/FoodLedger"
+  printf 'import Foundation\nimport FoodLedgerApplication\nimport FoodLedgerDomain\nstruct Cache {}\n' > "$pkg/Sources/FoodConfirmEnrichment/FileConfirmEnrichmentCache.swift"
+  printf '#if DEBUG\nimport FoodLedgerApplication\npublic struct ScriptedConfirmEnrichmentGate {}\n#endif\n' > "$pkg/Sources/FoodConfirmEnrichment/ScriptedConfirmEnrichment.swift"
+  printf 'import FoodConfirmEnrichment\n' > "$pkg/Tests/FoodConfirmEnrichmentTests/CacheTests.swift"
+  printf 'import FoodConfirmEnrichment\nlet live = ConfirmEnrichmentAvailability.inForce\n#if DEBUG\nlet gate = ScriptedConfirmEnrichmentGate()\nlet scripted = ConfirmEnrichmentAvailability(details: true, nutrients: true)\n#endif\n' \
+    > "$app/WeeklyHealthReport/FoodLedger/FoodLedgerCompositionRoot.swift"
+  cat > "$pkg/Package.swift" <<'MANIFEST'
+let package = Package(
+    name: "FoodLedgerKit",
+    targets: [
+        .target(name: "FoodConfirmEnrichment", dependencies: ["FoodLedgerApplication", "FoodLedgerDomain"]),
+        .testTarget(name: "FoodConfirmEnrichmentTests", dependencies: ["FoodConfirmEnrichment"])
+    ]
+)
+MANIFEST
+  if [[ -n "$(check_confirm_enrichment_edges "$pkg" "$app")" ]]; then
+    echo "check-boundaries self-test: the Confirm enrichment baseline must pass" >&2; status=1
+  fi
+  for fixture in network_import url_outside_transport presentation_import app_import package_dependent gate_in_release \
+                 gate_beside_live availability_in_release availability_beside_live missing_target; do
+    target="$scratch/$fixture"
+    cp -R "$base" "$target"
+    pkg="$target/Packages/FoodLedgerKit"; app="$target"
+    local root="$app/WeeklyHealthReport/FoodLedger/FoodLedgerCompositionRoot.swift"
+    case "$fixture" in
+      network_import) echo 'import Network' >> "$pkg/Sources/FoodConfirmEnrichment/FileConfirmEnrichmentCache.swift" ;;
+      url_outside_transport) echo 'let session = URLSession.shared' >> "$pkg/Sources/FoodConfirmEnrichment/FileConfirmEnrichmentCache.swift" ;;
+      presentation_import) mkdir -p "$pkg/Sources/FoodLedgerPresentation"; echo 'import FoodConfirmEnrichment' > "$pkg/Sources/FoodLedgerPresentation/Leak.swift" ;;
+      app_import) echo 'import FoodConfirmEnrichment' > "$app/WeeklyHealthReport/FoodLedger/Leak.swift" ;;
+      package_dependent) perl -0pi -e 's/(        \.testTarget\(name: "FoodConfirmEnrichmentTests")/        .target(name: "FoodLedgerPresentation", dependencies: ["FoodConfirmEnrichment"]),\n$1/' "$pkg/Package.swift" ;;
+      gate_in_release) echo 'let leak = ScriptedConfirmEnrichmentGate()' >> "$root" ;;
+      gate_beside_live) printf '#if DEBUG\nlet gate = ScriptedConfirmEnrichmentGate()\nlet live = OpenRouterNutrientEstimateAdapter()\n#endif\n' >> "$root" ;;
+      availability_in_release) echo 'let open = ConfirmEnrichmentAvailability(details: true, nutrients: false)' >> "$root" ;;
+      availability_beside_live) printf '#if DEBUG\nlet a = ConfirmEnrichmentAvailability(details: true, nutrients: true)\nlet t = ConfirmEnrichmentTransport()\n#endif\n' >> "$root" ;;
+      missing_target) rm -rf "$pkg/Sources/FoodConfirmEnrichment" ;;
+    esac
+    if [[ -z "$(check_confirm_enrichment_edges "$pkg" "$app")" ]]; then
+      echo "check-boundaries self-test: the Confirm enrichment $fixture fixture must fail" >&2; status=1
+    fi
+  done
+  rm -rf "$scratch"
+  return "$status"
+}
+self_test_confirm_enrichment_edges
+confirm_enrichment_violations="$(check_confirm_enrichment_edges "$package_root" "$app_root")"
+if [[ -n "$confirm_enrichment_violations" ]]; then
+  printf '%s' "$confirm_enrichment_violations" >&2
+  exit 1
+fi
 
 # Part-read selection (#508 phase 3, docs/web-lookup-part-read-phase3-gate.md section 2): the pure
 # selection file imports Foundation and the domain only, in any import form; a missing file fails.

@@ -151,7 +151,8 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
             ),
             identity: record.productVersion.identity,
             edibleQuantity: quantity,
-            nutrients: record.resolutionVersion.nutrients,
+            // Confirm enrichment (CE1 section 2): saved OpenRouter estimates are never carried as source values.
+            nutrients: OpenRouterEstimateCarry.sourceNutrients(record.resolutionVersion.nutrients),
             evidenceIDs: evidence.map(\.evidenceID),
             matchMetadata: metadata
         )

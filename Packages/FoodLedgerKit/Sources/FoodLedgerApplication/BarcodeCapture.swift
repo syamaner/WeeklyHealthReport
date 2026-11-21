@@ -277,7 +277,8 @@ public final class BarcodeCaptureCoordinator: @unchecked Sendable {
                 ),
                 identity: record.productVersion.identity,
                 edibleQuantity: quantity,
-                nutrients: nutrients,
+                // Confirm enrichment (CE1 section 2): saved OpenRouter estimates are never carried as source values.
+                nutrients: OpenRouterEstimateCarry.sourceNutrients(nutrients),
                 evidenceIDs: [evidence.evidenceID]
             ),
             name: record.productVersion.name,
