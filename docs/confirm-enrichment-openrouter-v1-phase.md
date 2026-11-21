@@ -633,7 +633,9 @@ CE1 section 15's seventeen tests are adopted as written. The gate adds:
   B-only Leave out on reopen writes the frozen `OpenRouterEstimateChoicesText` reason, claim and edit
   reason and carries the earlier decision record; the request inputs decode from each route golden,
   and changing them while keeping the hashes fails verification; a details correction across a Your
-  food database release change keeps or removes B by the subject rule of 2.4a; `Not these` before the first Log commits no A capture; a
+  food database release change keeps or removes B by the subject rule of 2.4a; an Open Food Facts entry with the #464 layer and B rows keeps B after a details
+  correction that leaves the source-side subject unchanged, and removes it with the frozen note after one
+  that changes the identity tokens; `Not these` before the first Log commits no A capture; a
   B-only Leave out on a reopened log keeps the earlier expectations and outcome; a kill between
   reservation and reply leaves the request counted at its cap; a clock moved back resets nothing.
 Fixtures are synthetic, under `docs/fixtures/confirm-enrichment-v1/`: request goldens per route
