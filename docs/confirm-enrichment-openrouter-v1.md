@@ -1,7 +1,10 @@
 # Confirm enrichment through OpenRouter v1 (CE1)
 
-Status: **proposed, 20 November 2026; decisions CE-D1 to CE-D5 made the same day (section 16); egress
-terms not yet approved; documentation only.** Architecture gate PASS at round
+Status: **approved by the owner on 20 November 2026: decisions CE-D1 to CE-D5 (section 16), egress terms
+CE-T1 to CE-T15 as written (section 10) and the truthful provenance choice of section 14.
+Documentation only; no app code or egress yet.** The implementation is a later phase with its own
+architecture gate; the records of section 11.1 and 11.2 take effect in the PR that wires the live
+transport, and section 11.1a before the first evaluation call. Architecture gate PASS at round
 nine (section 17). Written for #549 (which
 folds in #553) against `main` at `91fa7479`, after the owner approved
 [one OpenRouter consent O1](openrouter-single-consent-v1-amendment.md) (#551, PR #554) the same day.
@@ -533,48 +536,48 @@ for that food is skipped, with no note), and the gate is a backstop, not a guara
 - **Turning either off** stops new requests at once; a request on the wire is not recalled; suggestions
   already shown stay until Confirm closes but nothing new arrives.
 
-## 10. Egress terms (for the owner's approval, line by line; nothing sent before)
+## 10. Egress terms (approved by the owner, 20 November 2026; nothing sent before the phases that wire them)
 
-- [ ] **CE-T1 Destinations.** `https://openrouter.ai/api/v1/systemone` (A, model `jev-1.13`) and
+- [x] **CE-T1 Destinations.** `https://openrouter.ai/api/v1/systemone` (A, model `jev-1.13`) and
   `https://openrouter.ai/api/v1/chat/completions` (B, the CE-D2 route), plus the keyless catalogue
   listings of E7 for both models. No other destination.
-- [ ] **CE-T2 Payload.** Exactly the fields of section 7, with the fixed questions or instruction and
+- [x] **CE-T2 Payload.** Exactly the fields of section 7, with the fixed questions or instruction and
   schema.
-- [ ] **CE-T3 Never sent.** The list of section 7, and the on-device gate.
-- [ ] **CE-T3a Differences from the catalogue's Jev terms (I1.6), approved knowingly.** The app sends
+- [x] **CE-T3 Never sent.** The list of section 7, and the on-device gate.
+- [x] **CE-T3a Differences from the catalogue's Jev terms (I1.6), approved knowingly.** The app sends
   more than I1.6's catalogue tooling does: CoFID's variant text, a closed source token, the food details already known and, for B only and to a chat model,
   known nutrient values with their source phrases (I1.6 never sends nutrient values). It also has no
   private shop-marker list, so a Your food database name is sent as stored, and its deny gate is the
   on-device gate above, not the skill's `safe_query`. Requests are automatic under CE-D1 rather than
   listed for the owner before a run.
-- [ ] **CE-T4 When.** Under CE-D1: automatically on Confirm after the 1.5 s debounce when gaps exist,
+- [x] **CE-T4 When.** Under CE-D1: automatically on Confirm after the 1.5 s debounce when gaps exist,
   or only on the one-tap row; in both cases only with OpenRouter on (O1), the enrichment switch on and
   a key validated in this session; never in the background, from search results, on quick add, on
   re-resolution or for a reopened log's saved details.
-- [ ] **CE-T5 Routing.** Zero-data-retention endpoints only, `data_collection: "deny"`,
+- [x] **CE-T5 Routing.** Zero-data-retention endpoints only, `data_collection: "deny"`,
   `allow_fallbacks: false`, one endpoint pinned per route; the response's model and provider must
   match; a model with no listed ZDR endpoint is not enabled.
-- [ ] **CE-T6 Identity check on the day.** E7's catalogue check per route, once per app session and per
+- [x] **CE-T6 Identity check on the day.** E7's catalogue check per route, once per app session and per
   local day, and again after a check that could not connect.
-- [ ] **CE-T7 Key.** The existing OpenRouter key from this-device-only Keychain, validated in the
+- [x] **CE-T7 Key.** The existing OpenRouter key from this-device-only Keychain, validated in the
   session; never in a body, log, capture, cache or export.
-- [ ] **CE-T8 Caps.** CE-D4's daily cap in `confirm-enrichment-day-v1`, the per-request caps of CE1.3,
+- [x] **CE-T8 Caps.** CE-D4's daily cap in `confirm-enrichment-day-v1`, the per-request caps of CE1.3,
   and the owner's own limit on the key.
-- [ ] **CE-T9 Retries.** As CE1.3.
-- [ ] **CE-T10 Response limits.** As CE1.4 and CE1.6 rule 1.
-- [ ] **CE-T11 On-device retention.** The per-subject cache of CE1.2 (protected, backup excluded,
+- [x] **CE-T9 Retries.** As CE1.3.
+- [x] **CE-T10 Response limits.** As CE1.4 and CE1.6 rule 1.
+- [x] **CE-T11 On-device retention.** The per-subject cache of CE1.2 (protected, backup excluded,
   500 entries, 30 days, clearable); captures only with a Log that uses them; nothing in the Drive food
   export but the fields of CE1.7.
-- [ ] **CE-T12 Provider records.** ZDR and no-collection cover the model endpoints only; OpenRouter
+- [x] **CE-T12 Provider records.** ZDR and no-collection cover the model endpoints only; OpenRouter
   keeps account and usage records (model, tokens, cost, time, generation ID) under its own terms, and
   the policy says so.
-- [ ] **CE-T13 Qualification before enabling.** Section 12's bars pass on the evaluation, run by
+- [x] **CE-T13 Qualification before enabling.** Section 12's bars pass on the evaluation, run by
   developer tooling under its own terms (CE-T15), before the route is reachable outside a Debug build;
   then internal TestFlight builds first.
-- [ ] **CE-T14 Records.** The `privacy-and-egress.md` rows and privacy policy entries of sections 11.1
+- [x] **CE-T14 Records.** The `privacy-and-egress.md` rows and privacy policy entries of sections 11.1
   and 11.2 take effect in the PR that wires the live transport, not before; the developer tooling
   paragraph of 11.1a takes effect before the first evaluation call.
-- [ ] **CE-T15 Evaluation egress.** The evaluation tool sends the same request shapes, built from
+- [x] **CE-T15 Evaluation egress.** The evaluation tool sends the same request shapes, built from
   public Open Food Facts product data and bundled composition rows only (no owner data), to the same
   two destinations, with the owner's key read into memory only, a $5 programme spend stop and a $0.05
   per-call stop, raw responses kept in the owner's private evaluation folder, and counts, versions and
@@ -870,4 +873,6 @@ compatibility choice of section 14 with the approval.
 - **Architecture gate, ninth round (20 November 2026, at `cc7491ac`): PASS.** No finding; every cited
   claim checked against the code at that head.
 - **Owner decisions (20 November 2026).** CE-D1, CE-D2, CE-D3 and CE-D5 decided as recommended; CE-D4
-  decided as 100 requests and $0.50 a day. Asked one at a time.
+  decided as 100 requests and $0.50 a day. Asked one at a time. Then CE-T1 to CE-T15 approved as written
+  (at `6b3c4133`), and section 14's truthful provenance (a new kind and the next free food contract)
+  confirmed.
