@@ -141,6 +141,9 @@ decision (verification refuses otherwise).
 - **A capture** is appended only while the version being saved still holds at least one fact equal
   to the capture's `applied` facts (on a first save, the fill; on reopen, the earlier capture). It is
   never committed after `Not these`, or when the sheet replaced every suggested fact.
+- **Product version.** The new `ProductVersion`'s evidence IDs (today `selected.candidate.evidenceIDs`,
+  `FoodConfirmation.swift:894`) take the same list as the new decision candidate, so a reopened save
+  never carries an earlier CE1 or leave-out item there either.
 - **B capture and choices item** are appended only while the saved version keeps at least one B
   value. A version with every B row left out cites neither (CE1.7: with every row left out, nothing is
   stored), so its B values are gone and a later reopen offers no Put back for them.
@@ -257,8 +260,10 @@ Same protection and backup exclusion as the cache. The arithmetic lives in a pur
   the reported costs (unreported attempts at W), up or down, never clamped to the reservation, as label
   photo does (`LabelPhotoSpendPolicy.swift:204-205`). So a request cut short by a crash or a kill still
   counts at its cap on relaunch. The day cap is then checked once, at reservation, against the cap, and
-  retries stay inside that reservation. A reported cost above the per-request cap adds
-  the part to `paused` for the rest of the local day.
+  retries stay inside that reservation. **One pause trigger:** at reconcile, the part is added to
+  `paused` for the rest of the local day when any single attempt is reported above W (W was then not a
+  worst case) or the request's total reported cost is above its per-request cap, as label photo sums
+  the tap (`LabelPhotoSpendPolicy.swift:209-213`).
 - **Prompt over the ceiling.** At reconcile, an attempt that reports more prompt tokens than its
   route's ceiling adds that part to `paused` for the rest of the local day, as label photo's `overInput`
   does (`LabelPhotoSpendPolicy.swift:206-213`), since W was then not a worst case; the other part stays
@@ -395,7 +400,12 @@ gains, each with a self-test fixture that makes it fail:
    row candidates are built there (`CoFIDGenericFoodSearch.swift:306-330` and the other tables), but it
    also holds network clients, so a further rule fails the tool if any of its files names
    `OpenFoodFactsLookup`, `OpenFoodFactsSearch`, `GeminiFoodSearch`, `OpenRouterFoodProvider` or
-   `URLSession` outside its live-transport file. Open Food Facts cases go through the existing pure
+   `URLSession`. No tool file loads URLs, the live-transport file included: that file builds
+   `FoodConfirmEnrichment`'s `ConfirmEnrichmentTransport`, adapters and route checker, so the redirect
+   refusal and the destinations are the app's, and the existing `url_loading_pattern` check
+   (`check-boundaries.sh:762-764`) runs over the whole tool with a self-test fixture of a `URLSession`
+   call in that file. The moved mapping below is named `OpenFoodFactsProductMapping`, which the rule
+   allows. Open Food Facts cases go through the existing pure
    `OpenFoodFactsLookup.project(product:artifact:gtin:evidence:retrievedAt:searchScore:searchCategory:)`
    (`OpenFoodFactsLookup.swift:112`), which barcode (`:106`) and search (`OpenFoodFactsSearch.swift:74`)
    already call. PR 3 moves it unchanged, with its full parameter list, into an
@@ -544,7 +554,9 @@ CE1 section 15's seventeen tests are adopted as written. The gate adds:
   500,000 micro-dollars does not start, so no retry can either; `.absent`, `.unreadable` and `.day` behave as 2.6 says in
   both ledgers; a failed reservation write sends nothing and a failed reconcile closes the part; W
   and reported costs round up to whole micro-dollars; an attempt reported above W is reconciled to its
-  full reported amount, above the reservation, counted in `settled_microusd` and pausing the part.
+  full reported amount, above the reservation, and counted in `settled_microusd`; the part pauses when
+  any attempt is reported above W, including one where the request stays under its cap (W 3,000,
+  reported 4,000, cap 10,000), or when the request's total is above its cap.
 - **G4 Numbers.** An archive labelled 12 is refused at each of the three range sites; an archive
   labelled 11 holding each kind of CE1 content (B provenance, an A capture, a B capture, a choices item)
   fails decoding; 11 and 13 are
@@ -593,7 +605,8 @@ CE1 section 15's seventeen tests are adopted as written. The gate adds:
   refuses with enrichment off and OpenRouter on, while the bare `OpenRouterConsentPreference` is
   unchanged (`OpenRouterConsentTests.swift:48`). A save of a reopened CE1 entry that writes no new CE1
   evidence (a details correction removing B, every B row left out, a fill replaced in the sheet)
-  carries no earlier B capture or choices item, carries the A capture exactly when the A rule holds,
+  carries no earlier B capture or choices item, in its decision candidate or its product version,
+  carries the A capture exactly when the A rule holds,
   and verifies; a quantity-only edit writes no new decision, product version or resolution version; a
   B-only Leave out on reopen writes the frozen `OpenRouterEstimateChoicesText` reason, claim and edit
   reason and carries the earlier decision record; the request inputs decode from each route golden,
@@ -651,12 +664,13 @@ export goldens for schema 7 alone and mixed with schema 3 and 5 content.
   | Energy | `energy_consumed` | 5 kcal | 20% |
   | Macronutrients | `carbohydrates`, `protein`, `fat_total`, `fat_saturated`, `fat_monounsaturated`, `fat_polyunsaturated`, `sugar` | 0.5 g | 20% |
   | Fibre and sodium | `fiber` (0.5 g), `sodium` (5 mg) | as shown | 35% |
-  | Other micronutrients | the thirteen vitamins and the fourteen other minerals (`calcium` to `selenium`) | 10% of the key's reference intake in Annex XIII of retained Regulation (EU) No 1169/2011, held as a constant table in the scorer only (the app gains no reference value); every one of these keys has one | 50% |
+  | Other micronutrients | the thirteen vitamins and the thirteen minerals from `calcium` to `selenium` except `sodium` | 10% of the key's reference intake in Annex XIII of retained Regulation (EU) No 1169/2011, held as a constant table in the scorer only (the app gains no reference value); every one of these keys has one | 50% |
   | Not measured | `cholesterol`, `water`, `caffeine`: no Annex XIII reference intake and not in any CE1 class | none | none |
 
   Because no bar can measure the last row, the gate removes those three keys from B's eligible set in
   v1 (`ConfirmEnrichmentPolicy` never requests them), so the app never shows an estimate the
-  evaluation did not measure (section 11, point 6). A scorer test maps every key to exactly one row.
+  evaluation did not measure (section 11, point 6). A scorer test maps all 39 keys (1 + 7 + 2 + 26 + 3)
+  to exactly one row each, `sodium` only in the fibre and sodium row.
 - **Run.** The tool sends exactly the app's request bytes through the `FoodConfirmEnrichment` adapters
   with a tool-local gate, under CE-T15 ($5 programme, $0.05 per call, in its own spend ledger before
   every call; at most 3 attempts with backoff honouring `Retry-After`). It runs its own loop over the
@@ -694,7 +708,7 @@ Each PR has its own branch, a ledger row, the validation gates of `AGENTS.md`, a
 | PR | Content | Egress |
 |---|---|---|
 | 1. Formats | Domain kinds, provenance and release constants, capture and choices types, row and energy checks with the parity test, the application response checks and the request input types with their decoders (which verification needs), the strip, skip, drop-on-new-log and verification rules of 2.4a (the B-choices term of "The reopen path" and `OpenRouterEstimateChoicesText` land in PR 2 with the suggestion layer), the four `OpenRouterUse` cases not in force with nil mappings, contract 13 floor and accepted set, store 13, export 7 writer and validators, verification on save and reopen, fixtures; dated notes in assistant-pasted estimates v1 and food daily export v2. Store 13 migrates every store on first open, so a downgrade past it is refused. No UI writes CE1 records yet. | None |
-| 2. Confirm layer | Application policy, session, spend, retry and cache policies, ports and their suites; the `FoodConfirmEnrichment` target and product with the file cache and ledger, the scripted adapters and the Debug scripted gate (no live adapter); the Debug seed argument, the Debug-only scripted wiring at the composition root and `ConfirmEnrichmentAvailability`; the B-choices term of 2.4a's reopen path with `OpenRouterEstimateChoicesText`; boundary items 1, 2 and 4 and the scripted gate self-test; the Your food database read port and adapter; the suggestion layer, reducer, fill builder, Log requirement, re-log, quick add, re-resolution and reopen rules; presentation; the save-side writing of the captures and choices item in `FoodConfirmationService.save`; `OpenRouterEstimateCarry` and its use in both Your foods builders; scripted answers reachable only by a Debug launch argument; simulator journey with scripted answers. | None |
+| 2. Confirm layer | Application policy, session, spend, retry and cache policies, ports and their suites; the `FoodConfirmEnrichment` target and product with the file cache and ledger, the scripted adapters and the Debug scripted gate (no live adapter); the Debug seed argument, the Debug-only scripted wiring at the composition root and `ConfirmEnrichmentAvailability`; the B-choices term of 2.4a's reopen path with `OpenRouterEstimateChoicesText`; boundary items 1, 2 and 4, the scripted gate self-test and the availability literal self-test; the Your food database read port and adapter; the suggestion layer, reducer, fill builder, Log requirement, re-log, quick add, re-resolution and reopen rules; presentation; the save-side writing of the captures and choices item in `FoodConfirmationService.save`; `OpenRouterEstimateCarry` and its use in both Your foods builders; scripted answers reachable only by a Debug launch argument; simulator journey with scripted answers. | None |
 | 3. Adapters and tooling | The two adapters, route checker, routes file and transport; `OpenFoodFactsProductMapping`; boundary items 3 and 5; `Tools/ConfirmEnrichmentEval` with its preflight; the section 11.1a paragraph. Not wired into the app. | Tooling only, after merge |
 | 4a. Evaluation freeze | Any route constant and golden change from the first request (route freeze), development runs, review sheet outcome, scorer, bars as code, manifests, frozen configuration. | Tooling only |
 | 4b. Sealed report | The single sealed run's report. | Tooling only |
@@ -826,3 +840,8 @@ its skill; external TestFlight or App Store builds; any evaluation call before s
   of B in v1 (an owner point); A's route is frozen after the first request, with any change in PR 4a;
   the existing Open Food Facts `project` function is moved unchanged rather than a new one written; the
   reconcile moves the charge up or down; every boundary self-test is in G7.
+- **Architecture gate, ninth round (21 November 2026, at `3aabe37f`): PASS WITH CHANGES.** All four
+  findings taken: sodium sits in one row only and the table counts all 39 keys; one pause trigger
+  (any attempt above W, or the request's total above its cap) in both places; no tool file loads URLs,
+  the tool reuses the app's transport, and the whole-tool URL check applies; the product version takes
+  the same evidence list as the new decision; the availability self-test is placed in PR 2.
