@@ -5189,3 +5189,26 @@ Excluded:
 - any hosted review run.
 
 Pricing: `claude-opus-5-5` at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, so the figure is a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
+## WHR-549-2026-11-21-PR3: Claude Code Confirm enrichment PR 3, adapters and tooling (#549)
+
+The session (`4f99e76d-c94a-4aba-936f-aa56bef648c4`, `claude-opus-5-5`) implemented PR 3 of the CE1 phase gate:
+
+- `ConfirmEnrichmentTransport`, the one file in `FoodConfirmEnrichment` that loads URLs, with the Jev and nutrient adapters and `ConfirmEnrichmentRouteChecker`; boundary item 3 (request sites) with self-tests;
+- `OpenFoodFactsProductMapping`, the Open Food Facts projection moved unchanged and made public;
+- `Tools/ConfirmEnrichmentEval` with its 11.1a preflight, CE-T15 ledger, first-request stop, retry loop matching the app's and hash-only console, its CI job, and boundary item 5 with self-tests;
+- the section 11.1a paragraph, word for word.
+
+Not wired into the app: the four uses stay out of force. The tool sends nothing until the 11.1a paragraph is on `main`. The window is `2026-11-21T19:08:44Z` to `2026-11-21T20:16:53Z`, from the start of the phase to this ledger edit.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Confirm enrichment PR 3, adapters and tooling | 104,078,706 (103,427,811) | 650,471 | 202,619 | 104,281,325 | $28.44 |
+
+Method: `phase_usage.py --format claude --since 2026-11-21T19:08:44Z --include-subagents` on the session transcript, run at `2026-11-21T20:16:53Z`. Exact USD 28.4440752. The cache-write tokens are part of the input figure: 499,777 are 5-minute writes and 150,694 are 1-hour writes. The window includes every subagent of the phase: two building forks (the mapping move and the evaluation tool), a blind invariant review, a general defect review and a re-review of the fixes. The total is input plus output.
+
+Excluded:
+- the session's turns before the window (PR 2, recorded in WHR-549-2026-11-21-PR2) and after it (the final app gates, the pull request and the handover);
+- any hosted review run.
+
+Pricing: `claude-opus-5-5` at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, so the figure is a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.

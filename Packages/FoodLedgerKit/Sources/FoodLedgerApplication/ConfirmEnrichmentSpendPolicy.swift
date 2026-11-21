@@ -127,8 +127,13 @@ public enum ConfirmEnrichmentSpendPolicy {
 
     // MARK: Money
 
-    /// US dollars to whole micro-dollars, rounded up.
+    /// The largest amount money is ever counted as: anything above (or a negative amount) saturates
+    /// here, so no price or reported cost can wrap into a small or negative figure and pass a cap.
+    public static let saturatedMicroUSD = 1_000_000_000_000
+
+    /// US dollars to whole micro-dollars, rounded up; a negative, non-finite or huge amount saturates.
     public static func microUSD(_ usd: Decimal) -> Int {
+        guard !usd.isNaN, usd >= 0, usd <= Decimal(saturatedMicroUSD) / 1_000_000 else { return saturatedMicroUSD }
         var scaled = usd * 1_000_000
         var rounded = Decimal()
         NSDecimalRound(&rounded, &scaled, 0, .up)

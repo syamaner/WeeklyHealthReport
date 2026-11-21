@@ -160,7 +160,7 @@ enum PersonalFoodDatabaseRules {
     static let massGToMG = (id: PFDText("mass-g-to-mg"), version: PFDText("v1"))
     static let servingToHundred = (id: PFDText(bytes: Array(OpenFoodFactsServingRule.transformID.utf8)),
                                    version: PFDText(bytes: Array(OpenFoodFactsServingRule.transformVersion.utf8)))
-    /// The eight Open Food Facts fields `OpenFoodFactsLookup.project` admits.
+    /// The eight Open Food Facts fields `OpenFoodFactsProductMapping.project` admits.
     static let servingNutrients: Set<NutrientKey> = [.energyConsumed, .protein, .carbohydrates, .fatTotal, .fatSaturated,
                                                      .fiber, .sugar, .sodium]
     static let offV6 = PFDText(bytes: Array(OpenFoodFactsServingRule.projectionVersion.utf8))

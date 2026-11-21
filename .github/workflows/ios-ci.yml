@@ -369,6 +369,24 @@ jobs:
       - name: Verify the evaluation statistics
         run: python3 -I -m unittest discover -s Tools/PastedLabelAITextEval/statistics/tests
 
+  confirm-enrichment-eval:
+    name: Confirm enrichment evaluation contracts
+    runs-on: macos-26
+    needs: changes
+    # Fail closed: only an explicit documentation-only decision skips this job.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    # #549 PR 3: the tool builds the FoodLedgerKit modules it runs (the adapters and the request builders).
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # #549 PR 3: the case format, hashes, the 11.1a preflight, the CE-T15 ledger and send over the fake
+      # transport, on synthetic fixtures. No network beyond the package checkout.
+      - name: Verify the Confirm enrichment evaluation core and harness
+        run: swift test --package-path Tools/ConfirmEnrichmentEval
+
   drive-export-kit-isolation:
     name: DriveExportKit isolation
     runs-on: macos-26
