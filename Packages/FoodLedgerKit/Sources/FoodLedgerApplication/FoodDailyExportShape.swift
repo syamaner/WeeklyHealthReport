@@ -47,7 +47,8 @@ public enum FoodDailyExportShape {
         1: ["food-intake-summary-v4", "food-intake-summary-v5", "food-intake-summary-v6"],
         2: ["food-intake-summary-v6"],
         3: ["food-intake-summary-v6"],
-        5: ["food-intake-summary-v6"]
+        5: ["food-intake-summary-v6"],
+        7: ["food-intake-summary-v6"]
     ]
 
     /// The closed estimate source-type list of each schema (label photo phase gate section 1): never
@@ -55,7 +56,7 @@ public enum FoodDailyExportShape {
     static func estimateSourceTypes(schema: Int) -> Set<PersonalFoodDatabaseEstimateSourceType> {
         switch schema {
         case 3: Set(PersonalFoodDatabaseEstimateSourceType.estimatesV2List)
-        case 5: Set(PersonalFoodDatabaseEstimateSourceType.estimatesV2List + [.productDatasetPhoto])
+        case 5, 7: Set(PersonalFoodDatabaseEstimateSourceType.estimatesV2List + [.productDatasetPhoto])
         default: []
         }
     }
@@ -64,6 +65,48 @@ public enum FoodDailyExportShape {
     public static func holdsPhotoEstimate(_ entry: FoodDailyExportEntry) -> Bool {
         provenance(entry).contains {
             $0.isApprovedEstimate && $0.estimateSourceType == PersonalFoodDatabaseEstimateSourceType.productDatasetPhoto.rawValue
+        }
+    }
+
+    /// Whether any value of the entry is an OpenRouter estimate (conflict candidates included).
+    public static func holdsOpenRouterEstimate(_ entry: FoodDailyExportEntry) -> Bool {
+        provenance(entry).contains(where: \.isOpenRouterEstimate)
+    }
+
+    static let openRouterEstimateOrigin = "openrouter_estimate"
+
+    /// Schema 7: an `openrouter_estimate` provenance carries the constant release ID, `low`, the model,
+    /// the contract and a 64-hex response hash, no estimates v2 token, address or digest; no other
+    /// provenance carries one of the three fields.
+    static func validateOpenRouterFields(_ provenance: FoodDailyExportProvenance) throws {
+        guard provenance.isOpenRouterEstimate else {
+            guard !provenance.hasOpenRouterField else { throw FoodDailyExportShapeError.invalidEstimateFields }
+            return
+        }
+        guard provenance.sourceReleaseID == OpenRouterEstimateProvenance.sourceID, provenance.transforms.isEmpty,
+              provenance.sourceURL == nil, provenance.contentHash == nil,
+              provenance.estimateSourceType == nil, provenance.estimateMethod == nil, provenance.estimateStateBasis == nil,
+              provenance.estimateQuality == OpenRouterEstimateProvenance.tier,
+              let model = provenance.estimateModel, !model.isEmpty,
+              provenance.estimateContract == ConfirmEnrichmentVersions.contract,
+              let hash = provenance.estimateResponseSHA256, hash.utf8.count == 64,
+              hash.utf8.allSatisfy({ (48...57).contains($0) || (97...102).contains($0) }) else {
+            throw FoodDailyExportShapeError.invalidEstimateFields
+        }
+    }
+
+    /// Schema 7: a value whose provenance is an OpenRouter estimate is `estimated`, origin
+    /// `openrouter_estimate`, not calculated, with that one provenance. No other value carries that
+    /// origin: an unknown keeps its source's origin.
+    static func validateOpenRouterValue(_ value: FoodDailyExportNutrientValue) throws {
+        let provenance = value.provenance ?? []
+        guard provenance.contains(where: \.isOpenRouterEstimate) else {
+            if value.origin == openRouterEstimateOrigin { throw FoodDailyExportShapeError.invalidEstimateFields }
+            return
+        }
+        guard provenance.count == 1, value.state == "estimated", value.origin == openRouterEstimateOrigin,
+              value.calculated == false else {
+            throw FoodDailyExportShapeError.invalidEstimateFields
         }
     }
 
@@ -119,7 +162,10 @@ public enum FoodDailyExportShape {
     /// tokens from the closed lists, and no other provenance carries one.
     static func validateEstimateFields(_ provenance: FoodDailyExportProvenance, schema: Int) throws {
         guard provenance.isApprovedEstimate else {
-            guard !provenance.hasEstimateField else { throw FoodDailyExportShapeError.invalidEstimateFields }
+            // An OpenRouter estimate's `estimate_quality` is checked by its own schema 7 rule.
+            guard provenance.isOpenRouterEstimate || !provenance.hasEstimateField else {
+                throw FoodDailyExportShapeError.invalidEstimateFields
+            }
             return
         }
         guard let type = provenance.estimateSourceType.flatMap(PersonalFoodDatabaseEstimateSourceType.init(rawValue:)),
@@ -151,7 +197,22 @@ public enum FoodDailyExportShape {
         }
         let provenance = document.entries.flatMap(provenance)
         let values = document.entries.flatMap(values)
-        if schema == 3 || schema == 5 {
+        // The OpenRouter estimate origin and its three fields exist only in schema 7, which requires one.
+        if schema == 7 {
+            guard provenance.contains(where: \.isOpenRouterEstimate) else { throw FoodDailyExportShapeError.missingEstimate }
+            guard document.notes.openRouterEstimates == FoodDailyExportNotes.openRouterEstimatesSentence else {
+                throw FoodDailyExportShapeError.invalidEstimateFields
+            }
+            try provenance.forEach(validateOpenRouterFields)
+            try values.forEach(validateOpenRouterValue)
+            // Approved and photo estimates may be present alongside, as version 5 admits them.
+            try provenance.forEach { try validateEstimateFields($0, schema: schema) }
+            try values.forEach { try validateEstimateValue($0, schema: schema) }
+        } else if provenance.contains(where: { $0.isOpenRouterEstimate || $0.hasOpenRouterField })
+                    || values.contains(where: { $0.origin == Self.openRouterEstimateOrigin })
+                    || document.notes.openRouterEstimates != nil {
+            throw FoodDailyExportShapeError.unexpectedEstimate
+        } else if schema == 3 || schema == 5 {
             guard provenance.contains(where: \.isApprovedEstimate) else { throw FoodDailyExportShapeError.missingEstimate }
             // Schema 5 exactly when a photo estimate is present (label photo estimates v1 section 4).
             guard (schema == 5) == document.entries.contains(where: holdsPhotoEstimate) else {
@@ -170,7 +231,7 @@ public enum FoodDailyExportShape {
                 throw FoodDailyExportShapeError.unexpectedAmountMethod
             }
             guard document.notes.quantityEstimates == nil else { throw FoodDailyExportShapeError.unexpectedQuantityEstimates }
-        case 2, 3, 5:
+        case 2, 3, 5, 7:
             for entry in document.entries {
                 guard let method = entry.quantity.amountMethod else { throw FoodDailyExportShapeError.missingAmountMethod }
                 try validate(method)

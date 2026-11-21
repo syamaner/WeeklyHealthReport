@@ -14,8 +14,8 @@ final class PhotoEstimateStorageContractTests: XCTestCase {
     static let digest = String(repeating: "e", count: 64)
 
     func testVersionsAllocatedByThePhaseGate() {
-        XCTAssertEqual(CanonicalFoodProjection.foodContractVersion, 11)
-        XCTAssertEqual(FoodLedgerGRDBStore.schemaVersion, 11)
+        XCTAssertEqual(CanonicalFoodProjection.foodContractVersion, 13)
+        XCTAssertEqual(FoodLedgerGRDBStore.schemaVersion, 13)
         XCTAssertEqual(FoodDailyExportDocument.photoEstimatesSchemaVersion, 5)
         XCTAssertEqual(FoodDailyExportDocument.estimatesSchemaVersion, 3)
         XCTAssertEqual(FoodDailyExportDocument.schemaVersion, 2)
@@ -82,6 +82,7 @@ final class PhotoEstimateStorageContractTests: XCTestCase {
         let queue = try DatabaseQueue(path: database.path)
         try queue.write { db in
             try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v11_label_photo_estimate'")
+            try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v13_confirm_enrichment'")
             try db.execute(sql: "UPDATE ledger_metadata SET value = 'food-ledger-v10' WHERE key = 'schema_identity'")
             try db.execute(sql: "PRAGMA user_version = 10")
         }
@@ -93,10 +94,10 @@ final class PhotoEstimateStorageContractTests: XCTestCase {
         let after = try ApprovedEstimateStorageContractTests.tableRows(check)
         XCTAssertEqual(Set(before.keys.filter { before[$0] != after[$0] }), ["ledger_metadata"], "Only ledger_metadata may change")
         try check.read { db in
-            XCTAssertEqual(try Int.fetchOne(db, sql: "PRAGMA user_version"), 11)
-            XCTAssertEqual(try String.fetchOne(db, sql: "SELECT value FROM ledger_metadata WHERE key = 'schema_identity'"), "food-ledger-v11")
+            XCTAssertEqual(try Int.fetchOne(db, sql: "PRAGMA user_version"), 13)
+            XCTAssertEqual(try String.fetchOne(db, sql: "SELECT value FROM ledger_metadata WHERE key = 'schema_identity'"), "food-ledger-v13")
             XCTAssertEqual(try String.fetchAll(db, sql: "SELECT identifier FROM grdb_migrations ORDER BY rowid").last,
-                           "v11_label_photo_estimate")
+                           "v13_confirm_enrichment")
         }
     }
 

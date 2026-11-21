@@ -11,12 +11,20 @@ public enum OpenRouterUse: String, CaseIterable, Sendable {
     /// The pasted label text adapters exist in code but are not wired into the app (route closed by D38).
     case pastedLabelTextRead
     case pastedLabelTextCatalogueCheck
+    /// Confirm enrichment v1 (docs/confirm-enrichment-openrouter-v1.md section 9): not in force until
+    /// the wiring PR adds their egress rows and policy entry (phase gate section 6).
+    case confirmEnrichmentDetails
+    case confirmEnrichmentNutrients
+    case confirmEnrichmentDetailsCatalogueCheck
+    case confirmEnrichmentNutrientsCatalogueCheck
 
     /// Whether the use is in force in the app. The app's gate refuses every use that is not.
     public var isInForce: Bool {
         switch self {
         case .keyValidation, .webLookup, .labelPhotoRead, .labelPhotoCatalogueCheck: true
-        case .pastedLabelTextRead, .pastedLabelTextCatalogueCheck: false
+        case .pastedLabelTextRead, .pastedLabelTextCatalogueCheck,
+             .confirmEnrichmentDetails, .confirmEnrichmentNutrients,
+             .confirmEnrichmentDetailsCatalogueCheck, .confirmEnrichmentNutrientsCatalogueCheck: false
         }
     }
 
@@ -26,7 +34,9 @@ public enum OpenRouterUse: String, CaseIterable, Sendable {
         case .keyValidation: "Key validation."
         case .webLookup: "Web lookup."
         case .labelPhotoRead, .labelPhotoCatalogueCheck: "Label photo reading."
-        case .pastedLabelTextRead, .pastedLabelTextCatalogueCheck: nil
+        case .pastedLabelTextRead, .pastedLabelTextCatalogueCheck,
+             .confirmEnrichmentDetails, .confirmEnrichmentNutrients,
+             .confirmEnrichmentDetailsCatalogueCheck, .confirmEnrichmentNutrientsCatalogueCheck: nil
         }
     }
 
@@ -35,7 +45,9 @@ public enum OpenRouterUse: String, CaseIterable, Sendable {
         switch self {
         case .keyValidation, .webLookup: "generic-food-proposal-integration-v1.md"
         case .labelPhotoRead, .labelPhotoCatalogueCheck: "label-photo-ai-prefill-v1.md"
-        case .pastedLabelTextRead, .pastedLabelTextCatalogueCheck: nil
+        case .pastedLabelTextRead, .pastedLabelTextCatalogueCheck,
+             .confirmEnrichmentDetails, .confirmEnrichmentNutrients,
+             .confirmEnrichmentDetailsCatalogueCheck, .confirmEnrichmentNutrientsCatalogueCheck: nil
         }
     }
 }

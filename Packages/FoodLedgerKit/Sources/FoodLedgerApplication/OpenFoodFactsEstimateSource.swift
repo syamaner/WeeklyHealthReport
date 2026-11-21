@@ -26,8 +26,12 @@ public enum OpenFoodFactsEstimateSource {
               release.sourceID.value == sourceID,
               isProductCandidate(source),
               !source.evidenceIDs.isEmpty else { return false }
-        let evidence = input.evidence.filter { source.evidenceIDs.contains($0.evidenceID) }
-        guard evidence.count == source.evidenceIDs.count, evidence.allSatisfy(isProductEvidence) else { return false }
+        // Confirm enrichment items cited after the product evidence are skipped (phase gate section 2.4a).
+        let enrichmentIDs = ConfirmEnrichmentCitation.enrichmentEvidenceIDs(input.evidence)
+        let ownIDs = source.evidenceIDs.filter { !enrichmentIDs.contains($0) }
+        guard !ownIDs.isEmpty else { return false }
+        let evidence = input.evidence.filter { ownIDs.contains($0.evidenceID) }
+        guard evidence.count == ownIDs.count, evidence.allSatisfy(isProductEvidence) else { return false }
         return LabelEstimateCompatibility.offersEstimate(name: candidate.name.value, basis: source.identity.servingBasis)
     }
 

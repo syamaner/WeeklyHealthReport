@@ -243,7 +243,8 @@ final class FoodDailyExportV2ReaderContractTests: XCTestCase {
             1: ["food-intake-summary-v4", "food-intake-summary-v5", "food-intake-summary-v6"],
             2: ["food-intake-summary-v6"],
             3: ["food-intake-summary-v6"],  // estimates on catalogue v2: schema 2's shape plus the estimate fields
-            5: ["food-intake-summary-v6"]   // label photo estimates: schema 3's shape plus the photo token
+            5: ["food-intake-summary-v6"],  // label photo estimates: schema 3's shape plus the photo token
+            7: ["food-intake-summary-v6"]   // Confirm enrichment: schema 5's shape plus the OpenRouter estimate fields
         ])
     }
 

@@ -566,7 +566,7 @@ final class DailyHealthExportTests: XCTestCase {
         let summary = CanonicalFoodNutritionSummary(
             summaryVersionID: try LedgerText("summary-fixture-v1"), reportingDate: try LedgerText("2026-09-06"),
             nutrients: nutrientSet, inputLogItemVersionIDs: [], hasUnknownContribution: true)
-        XCTAssertEqual(CanonicalFoodProjection.foodContractVersion, 11)
+        XCTAssertEqual(CanonicalFoodProjection.foodContractVersion, 13)
         XCTAssertEqual(DailyHealthExportBuilder.maximumExportedFoodContractVersion, 3)
         let three = try CanonicalFoodDocument(projection: CanonicalFoodProjection(
             records: LedgerMutation(), summaries: [summary], foodContractVersion: 3))

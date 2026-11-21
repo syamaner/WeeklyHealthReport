@@ -37,11 +37,19 @@ public struct CanonicalFoodNutritionSummary: Codable, Equatable, Sendable {
 }
 
 public struct CanonicalFoodProjection: Codable, Equatable, Sendable {
-    /// The highest contract this binary reads and writes (11: label photo estimates, a capture
+    /// The highest contract this binary reads and writes (13: Confirm enrichment, an
+    /// `openrouter_estimate` value or CE1 evidence; 12 is never written or read; 11: label photo estimates, a capture
     /// manifest citing `product_dataset_photo`; 10: approved estimates from Your food
     /// database, estimates on catalogue v2; 9: estimate layers on Open Food Facts products,
     /// off-label-estimate-v1; 8: label estimate layers).
-    public static let foodContractVersion = 11
+    public static let foodContractVersion = 13
+    /// Contract 12 was reserved for assistant-pasted estimates and is never built: the store's
+    /// migrations run in order, so once store 13 exists a `v12` migration cannot run (Confirm
+    /// enrichment phase gate section 2.7). Every reader takes this set, never a range.
+    public static let retiredFoodContractVersions: Set<Int> = [12]
+    public static func isAcceptedFoodContract(_ version: Int) -> Bool {
+        (1...foodContractVersion).contains(version) && !retiredFoodContractVersions.contains(version)
+    }
     /// The contract an export carries when its records need no more: unchanged from contract 6,
     /// so a store without pasted-label evidence exports exactly the bytes it did before contract 7.
     public static let exportFloorContractVersion = 6
@@ -69,7 +77,7 @@ public struct CanonicalFoodProjection: Codable, Equatable, Sendable {
         encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder()
     ) throws {
         let foodContractVersion = foodContractVersion ?? Self.exportContractVersion(for: records, favourites: favourites)
-        guard (1...Self.foodContractVersion).contains(foodContractVersion),
+        guard Self.isAcceptedFoodContract(foodContractVersion),
               foodContractVersion >= Self.minimumContractVersion(for: records, favourites: favourites) else { throw FoodArchiveError.unsupportedFoodContract(foodContractVersion) }
         self.foodContractVersion = foodContractVersion
         dailySchemaVersion = Self.dailySchemaVersion
@@ -101,6 +109,25 @@ public struct CanonicalFoodProjection: Codable, Equatable, Sendable {
         if foodContractVersion < 11, Self.holdsPhotoEstimate(records) {
             throw DecodingError.dataCorruptedError(forKey: .foodContractVersion, in: values,
                                                    debugDescription: "A label photo estimate below contract 11")
+        }
+        // Confirm enrichment content exists only from contract 13.
+        if foodContractVersion < 13, Self.holdsConfirmEnrichment(records) {
+            throw DecodingError.dataCorruptedError(forKey: .foodContractVersion, in: values,
+                                                   debugDescription: "Confirm enrichment content below contract 13")
+        }
+    }
+
+    /// Whether the records hold `openrouter_estimate` provenance anywhere a nutrient set is stored
+    /// (conflict candidates included) or evidence of any of the three CE1 method versions.
+    public static func holdsConfirmEnrichment(_ records: LedgerMutation) -> Bool {
+        // The method version alone raises the floor (gate 2.7), whatever the evidence kind: fail closed.
+        if records.evidence.contains(where: { ConfirmEnrichmentVersions.methodVersions.contains($0.captureMethodVersion.value) }) {
+            return true
+        }
+        let stored = records.resolutionVersions.flatMap { $0.nutrients.entries }
+            + records.candidateDecisions.flatMap { $0.candidate.nutrients.entries }
+        return stored.contains { entry in
+            ([entry.value] + entry.conflictCandidates).contains { $0.provenance.contains { $0.sourceKind == .openRouterEstimate } }
         }
     }
 
@@ -135,6 +162,8 @@ public struct CanonicalFoodProjection: Codable, Equatable, Sendable {
     /// and a pasted label is never reported as contract 6. Then contract 6: any favourite
     /// record, app reference provenance or reference definition evidence.
     public static func minimumContractVersion(for records: LedgerMutation, favourites: FavouriteMutation = FavouriteMutation()) -> Int {
+        // Contract 13 (Confirm enrichment v1): checked first; the earlier rules are left as they are.
+        if holdsConfirmEnrichment(records) { return 13 }
         // Contract 11 (label photo estimates v1): a capture manifest citing `product_dataset_photo`.
         // Checked before the contract 10 rule, which is left exactly as it is.
         if holdsPhotoEstimate(records) { return 11 }
@@ -323,7 +352,7 @@ public struct FoodArchiveManifest: Codable, Equatable, Sendable {
         foodContractVersion: Int = CanonicalFoodProjection.exportFloorContractVersion
     ) throws {
         backupFormatVersion = Self.currentBackupFormatVersion
-        guard (1...CanonicalFoodProjection.foodContractVersion).contains(foodContractVersion) else {
+        guard CanonicalFoodProjection.isAcceptedFoodContract(foodContractVersion) else {
             throw FoodArchiveError.unsupportedFoodContract(foodContractVersion)
         }
         self.foodContractVersion = foodContractVersion
@@ -337,7 +366,8 @@ public struct FoodArchiveManifest: Codable, Equatable, Sendable {
             : foodContractVersion == 3 ? [try LedgerText("food-ledger-v1"), try LedgerText("food-ledger-v2"), try LedgerText("food-ledger-v3")]
             : foodContractVersion == 4 ? [try LedgerText("food-ledger-v1"), try LedgerText("food-ledger-v2"), try LedgerText("food-ledger-v3"), try LedgerText("food-ledger-v4")]
             : foodContractVersion == 5 ? [try LedgerText("food-ledger-v1"), try LedgerText("food-ledger-v2"), try LedgerText("food-ledger-v3"), try LedgerText("food-ledger-v4"), try LedgerText("food-ledger-v5")]
-            : try (1...foodContractVersion).map { try LedgerText("food-ledger-v\($0)") }
+            : try (1...foodContractVersion).filter { !CanonicalFoodProjection.retiredFoodContractVersions.contains($0) }
+                .map { try LedgerText("food-ledger-v\($0)") }
         self.sourceReleaseIDs = sourceReleaseIDs.sorted { $0.value < $1.value }
         self.watermarks = watermarks.sorted { $0.actorID.rawValue < $1.actorID.rawValue }
         self.recordCount = recordCount
@@ -485,7 +515,7 @@ public struct FoodArchiveVerifier: Sendable {
         guard manifest.backupFormatVersion == FoodArchiveManifest.currentBackupFormatVersion else {
             throw FoodArchiveError.unsupportedBackupFormat(manifest.backupFormatVersion)
         }
-        guard (1...CanonicalFoodProjection.foodContractVersion).contains(manifest.foodContractVersion) else {
+        guard CanonicalFoodProjection.isAcceptedFoodContract(manifest.foodContractVersion) else {
             throw FoodArchiveError.unsupportedFoodContract(manifest.foodContractVersion)
         }
         guard manifest.dailySchemaVersion == CanonicalFoodProjection.dailySchemaVersion else {
