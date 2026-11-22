@@ -90,7 +90,8 @@ final class ConfirmEnrichmentPreferenceTests: XCTestCase {
         ConfirmEnrichmentRootBranch.make(
             defaults: defaults, consent: OpenRouterConsentPreference(defaults: defaults, domainName: name),
             preference: ConfirmEnrichmentPreference(defaults: defaults, domainName: name), database: NoDatabase(),
-            ids: RandomLedgerIDGenerator(), keys: SyntheticKeys(), directory: directory, keyState: { keyState }, diagnostics: nil)
+            ids: RandomLedgerIDGenerator(), keys: SyntheticKeys(), directory: directory, keyState: { keyState },
+            clock: SystemLedgerClock(), timeZone: .autoupdatingCurrent, diagnostics: nil)
     }
 
     private func directory() throws -> URL {

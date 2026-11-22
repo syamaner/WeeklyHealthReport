@@ -206,12 +206,13 @@ final class FoodLedgerCompositionRoot {
         genericRecordResolvers = resolvers
         let index = PersonalFoodDatabaseIndex(store: databaseStore, resolver: resolvers)
         personalFoodDatabaseIndex = index
-        // The key state comes from the shared key model, as label photo's live mode reads it (O1.2): the
-        // closure is called by Confirm on the main actor.
+        // The key state comes from the shared key model, as label photo's live mode reads it (O1.2); the
+        // closure is main-actor isolated. The session and Settings share one clock and time zone.
         confirmEnrichment = ConfirmEnrichmentRootBranch.make(
             defaults: userDefaults, consent: consent, preference: enrichmentPreference, database: ActiveReleaseEntryReader(index: index),
             ids: ids, keys: openRouterKeys, directory: root,
-            keyState: { MainActor.assumeIsolated { OpenRouterAccess.keyState(hasSavedKey: discovery.hasSavedKey, keyIsUsable: discovery.keyIsUsable) } },
+            keyState: { OpenRouterAccess.keyState(hasSavedKey: discovery.hasSavedKey, keyIsUsable: discovery.keyIsUsable) },
+            clock: confirmationClock, timeZone: confirmationCalendar.timeZone,
             diagnostics: ConfirmEnrichmentDiagnosticsForwarder(log: diagnosticsLog))
         foodSearchWithDatabase = CompositeGenericFoodSearch(sources: [cofid, usda], regionalSources: [tfda],
             referenceSources: [ciqual],
@@ -2274,7 +2275,7 @@ struct ConfirmEnrichmentRootBranch: Sendable {
 
     let mode: Mode
     let session: ConfirmEnrichmentSession
-    let preconditions: @Sendable () -> ConfirmEnrichmentSession.Preconditions
+    let preconditions: @MainActor @Sendable () -> ConfirmEnrichmentSession.Preconditions
     let database: any PersonalFoodDatabaseEntryReading
     /// The active mode's cache and day record, for Settings › OpenRouter.
     let cache: any ConfirmEnrichmentCaching
@@ -2289,7 +2290,8 @@ struct ConfirmEnrichmentRootBranch: Sendable {
     /// key model and is called on the main actor.
     static func make(defaults: UserDefaults, consent: OpenRouterConsentPreference, preference: ConfirmEnrichmentPreference,
                      database: any PersonalFoodDatabaseEntryReading, ids: any LedgerIDGenerating, keys: any FoodWebKeyStoring,
-                     directory: URL, keyState: @escaping @Sendable () -> OpenRouterKeyState,
+                     directory: URL, keyState: @escaping @MainActor @Sendable () -> OpenRouterKeyState,
+                     clock: any LedgerClock, timeZone: TimeZone,
                      diagnostics: (any ConfirmEnrichmentDiagnosticsRecording)?) -> ConfirmEnrichmentRootBranch {
         #if DEBUG
         if defaults.string(forKey: routeArgumentKey) == "scripted" {
@@ -2300,8 +2302,8 @@ struct ConfirmEnrichmentRootBranch: Sendable {
                 details: ScriptedFoodDetailsSuggester(egress: gate), nutrients: ScriptedNutrientEstimateSuggester(egress: gate),
                 checker: ScriptedConfirmEnrichmentRouteChecker(egress: gate), cache: cache,
                 ledger: ledger, egress: gate, delaying: TaskConfirmEnrichmentDelaying(),
-                timing: ContinuousConfirmEnrichmentTiming(), jitter: SystemConfirmEnrichmentJitter(), clock: SystemLedgerClock(),
-                timeZone: .autoupdatingCurrent, ids: ids, digester: SHA256Digester(), diagnostics: diagnostics)
+                timing: ContinuousConfirmEnrichmentTiming(), jitter: SystemConfirmEnrichmentJitter(), clock: clock,
+                timeZone: timeZone, ids: ids, digester: SHA256Digester(), diagnostics: diagnostics)
             return ConfirmEnrichmentRootBranch(mode: .scripted, session: session, preconditions: {
                 ConfirmEnrichmentSession.Preconditions(openRouterOn: consent.isOn, enrichmentOn: preference.isOn,
                                                        keyState: ScriptedConfirmEnrichmentKeySource.state)
@@ -2319,8 +2321,8 @@ struct ConfirmEnrichmentRootBranch: Sendable {
             nutrients: OpenRouterNutrientEstimateAdapter(egress: egress, transport: transport, keys: keys),
             checker: ConfirmEnrichmentRouteChecker(egress: egress, transport: transport), cache: cache,
             ledger: ledger, egress: egress, delaying: TaskConfirmEnrichmentDelaying(),
-            timing: ContinuousConfirmEnrichmentTiming(), jitter: SystemConfirmEnrichmentJitter(), clock: SystemLedgerClock(),
-            timeZone: .autoupdatingCurrent, ids: ids, digester: SHA256Digester(), diagnostics: diagnostics)
+            timing: ContinuousConfirmEnrichmentTiming(), jitter: SystemConfirmEnrichmentJitter(), clock: clock,
+            timeZone: timeZone, ids: ids, digester: SHA256Digester(), diagnostics: diagnostics)
         return ConfirmEnrichmentRootBranch(mode: .live, session: session, preconditions: {
             ConfirmEnrichmentSession.Preconditions(openRouterOn: consent.isOn, enrichmentOn: preference.isOn, keyState: keyState())
         }, database: database, cache: cache, ledger: ledger)

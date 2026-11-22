@@ -42,6 +42,10 @@ struct ConfirmEnrichmentEgress: OpenRouterEgressPermitting {
 /// `-ConfirmEnrichment on|off` for simulator journey checks (phase gate section 6), resolved like
 /// `OpenRouterConsentSeed`: in a Debug build `on` writes the persistent value and `off` removes it,
 /// before the first scene; any other value, and every value in a Release build, does nothing.
+/// Note: `-ConfirmEnrichment on` writes the persistent switch, which stays until `off` is passed or the
+/// row is turned off. Since the wiring PR a Debug launch without `-ConfirmEnrichmentRoute scripted` uses the
+/// live route, so a seeded `on` with OpenRouter on and a saved key sends real requests: scripted journeys
+/// end with `-ConfirmEnrichment off`.
 enum ConfirmEnrichmentSeed: Equatable {
     case write, remove, none
 
