@@ -1104,7 +1104,7 @@ What changed during the development run, each before the freeze and each recorde
 
 - **A's wire shape** (PR 566): System One takes `questions` as an object keyed by fact with `criteria`, answers carry `choice`, and usage reports `input_tokens`. The first request was refused with HTTP 400 until this was fixed.
 - **Route check** (PR 564): the live Azure listing's cache-write price and long-context tiers are admitted as section 2.6 states, with W kept a worst case.
-- **B's per-request cap** raised from $0.02 to $0.04 and **B's cost bar** from a $0.005 to a $0.01 median (owner decisions), and the **programme stop** from $5 to $25 (PR 567).
+- **B's per-request cap** raised from $0.02 to $0.04 and **B's cost bar** from a $0.005 to a $0.01 median (owner decisions, PR 564), and the **programme stop** from $5 to $25 (PR 567).
 - **Prompt v2 for A**: one fixed description per choice, after v1 pre-filled 12 of 360 unknown details; A's prompt ceiling raised from 4,000 to 8,000 tokens for the longer body.
 - **A's bars** reset for a best-effort suggestion the owner corrects on Confirm before Log: 95% of pre-fills right, 80% of preparation pre-fills right, 40% coverage. The fortification safety bars are unchanged (owner decision).
 
@@ -1112,5 +1112,5 @@ Limits of this result:
 
 - **Review truth.** Both review sheets were filled by web research from a separate agent that never saw the model's answers or the other set, and accepted by the owner. The sealed sheet has 9 of 60 rows marked unsure and 13 rechecked; its unknown cells are preparation 5, bone 2, skin 2, drained 0, packing medium 0 and fortification 12. A wrong truth cell can count against or for the model.
 - **Bars set from development.** A's bars and B's cost bar were sized from the development results; the sealed set, which neither saw, is what tests them. A's sealed coverage passes at its threshold exactly.
-- **Disclosure.** Section 9 keeps W and costs private. This PR's history discloses an approximate B W and B's approximate development cost per request in the contract's dated amendment notes and in the PR 566 and 567 descriptions.
+- **Disclosure.** Section 9 keeps W and costs private. Earlier PRs of this phase disclose approximate figures: B's W, B's and A's development cost per request and the development run's total, in the contract's dated amendment notes, a comment in `EvalScoring.swift`, the WHR-549-2026-11-22-STOP ledger row and the PR 566 and 567 descriptions. This report adds none.
 - **One run each.** Each set was sent once; the result carries the sampling noise of 60 products and 40 composition rows per set.
