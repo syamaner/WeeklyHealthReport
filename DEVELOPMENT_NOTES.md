@@ -5237,3 +5237,15 @@ Excluded:
 - any hosted review run.
 
 Pricing: `claude-opus-5-5` at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, so the figures are a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
+## WHR-549-2026-11-22-JEV: Claude Code Jev request and answer shape fix (#549)
+
+Claude Code (`claude-opus-5-5`, session `caf41dcb`) fixed A's wire shape after the evaluation's first request returned a 400. It checked System One's documented shape and sent one synthetic request (a made-up food, nothing from the evaluation). Then it changed the details body to keyed `questions` with `criteria` and per-question `instructions`, the answer check to read `choice`, and the usage parse to accept `input_tokens`, regenerated the request goldens, and re-ran the owner-requested probe, which passed. The agent read only the tool's console lines and a structure-only summary of the failed reply.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Diagnosis, fix, goldens and probe | 6,425,583 (6,335,733) | 125,616 | 28,516 | 6,454,099 | $2.45 |
+
+Method: `phase_usage.py --format claude --since 2026-11-22T11:05:43Z --until 2026-11-22T11:18:15Z --include-subagents`, from the owner's paste of the failed reply's structure to just before this ledger edit (exact USD 2.4484366; 35,842 5-minute and 89,774 1-hour cache writes; the documentation fetch subagent included). The cache-write tokens are part of the input figure. Excluded: earlier turns of the session, the pull request, reviews, hosted checks and OpenRouter charges (the synthetic request and the probe, both on the owner's key).
+
+Pricing: `claude-opus-5-5` at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, so the figure is a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
