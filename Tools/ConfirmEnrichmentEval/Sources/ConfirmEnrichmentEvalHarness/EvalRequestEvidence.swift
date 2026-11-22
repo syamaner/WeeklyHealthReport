@@ -56,26 +56,33 @@ struct EvalRequestEvidence: Codable {
 /// A probe or a partial run cannot be scored as a completed set. Each completion binds the
 /// request evidence to one run and to the original, unhidden case list.
 struct EvalCompletedRun: Codable {
-    static let version = "confirm-enrichment-eval-completed-run-v1"
+    static let version = "confirm-enrichment-eval-completed-run-v2"
     let schema: String
     let runID: UUID
     let manifestSHA256: String
+    let fake: Bool
+
+    static func claimSealed(part: ConfirmEnrichmentPart, folder: URL) throws {
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let claim = folder.appendingPathComponent("claimed-\(part.rawValue)")
+        try Data("confirm-enrichment-eval-sealed-claim-v1\n".utf8).write(to: claim, options: .withoutOverwriting)
+    }
 
     private static func url(folder: URL, part: ConfirmEnrichmentPart) -> URL {
         folder.appendingPathComponent("completed-\(part.rawValue).json")
     }
 
-    static func write(runID: UUID, list: EvalCaseList, folder: URL, part: ConfirmEnrichmentPart) throws {
+    static func write(runID: UUID, list: EvalCaseList, folder: URL, part: ConfirmEnrichmentPart, fake: Bool) throws {
         let manifest = try EvalHashes.manifest(list)
-        let record = Self(schema: version, runID: runID, manifestSHA256: manifest.sha256)
+        let record = Self(schema: version, runID: runID, manifestSHA256: manifest.sha256, fake: fake)
         try JSONEncoder().encode(record).write(to: url(folder: folder, part: part), options: .atomic)
     }
 
-    static func read(list: EvalCaseList, folder: URL, part: ConfirmEnrichmentPart) throws -> UUID {
+    static func read(list: EvalCaseList, folder: URL, part: ConfirmEnrichmentPart, fake: Bool) throws -> UUID {
         let manifest = try EvalHashes.manifest(list)
         let data = try Data(contentsOf: url(folder: folder, part: part))
         let record = try JSONDecoder().decode(Self.self, from: data)
-        guard record.schema == version, record.manifestSHA256 == manifest.sha256 else { throw EvalRequestEvidence.Invalid() }
+        guard record.schema == version, record.manifestSHA256 == manifest.sha256, record.fake == fake else { throw EvalRequestEvidence.Invalid() }
         return record.runID
     }
 }

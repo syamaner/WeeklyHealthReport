@@ -106,10 +106,13 @@ public enum EvalScoring {
         ]
         for (group, bar) in accuracyBars {
             let matching = cases.filter { EvalNutrientBars.rule($0.hidden).group == group }
-            let errors = matching.compactMap { item in
-                item.kept[item.hidden].flatMap { EvalNutrientBars.relativeError(key: item.hidden, estimate: $0, declared: item.declared) }
+            let errors = matching.map { item -> Double in
+                guard let estimate = item.kept[item.hidden],
+                      let error = EvalNutrientBars.relativeError(key: item.hidden, estimate: estimate, declared: item.declared)
+                else { return .infinity }
+                return error
             }
-            results.append(median(part, bar, values: errors, limit: group.limit!, missing: matching.count - errors.count))
+            results.append(median(part, bar, values: errors, limit: group.limit!, missing: 0))
         }
         return results + timing(part, cases.map(\.timing), cost: 5_000, seconds: 20)
     }
@@ -129,7 +132,7 @@ public enum EvalScoring {
             let value = sorted.count.isMultiple(of: 2) ? sorted[middle - 1] / 2 + sorted[middle] / 2 : sorted[middle]
             passed = value <= limit
         }
-        // Missing estimates affect coverage and the reported outside count. Accuracy uses kept estimates.
+        // For accuracy, a missing estimate is an infinite error in the ordered sample.
         return Result(part: part, bar: bar, passed: passed, within: within, outside: values.count - within + missing)
     }
 

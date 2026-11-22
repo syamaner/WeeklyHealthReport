@@ -44,19 +44,53 @@ final class EvalScoringTests: XCTestCase {
         XCTAssertEqual(results.first { $0.bar == .unfortifiedOnFortified }?.outside, 1)
     }
 
-    func testBUsesMedianOfKeptAndCountsMissingCoverageAndAccuracy() {
+    func testBUsesTheFullAccuracySampleAndCountsMissingCoverage() {
         let timing = EvalScoring.Timing(costMicroUSD: 5_000, elapsedSeconds: 20)
         let cases = [
             EvalScoring.Nutrients(requested: [.energyConsumed], known: [.protein], kept: [.energyConsumed: 90],
                                   hidden: .energyConsumed, declared: 100, timing: timing),
-            EvalScoring.Nutrients(requested: [.energyConsumed], known: [.protein], kept: [.energyConsumed: 130],
+            EvalScoring.Nutrients(requested: [.energyConsumed], known: [.protein], kept: [.energyConsumed: 115],
                                   hidden: .energyConsumed, declared: 100, timing: timing),
             EvalScoring.Nutrients(requested: [.energyConsumed], known: [.protein], kept: [:],
                                   hidden: .energyConsumed, declared: 100, timing: timing),
         ]
         let results = EvalScoring.nutrients(cases)
         XCTAssertEqual(results.filter(\.passed).map(\.bar), [.knownReplaced, .energy, .cost, .latency])
-        XCTAssertEqual(results.first { $0.bar == .energy }?.outside, 2)
+        XCTAssertEqual(results.first { $0.bar == .energy }?.outside, 1)
         XCTAssertEqual(results.first { $0.bar == .coverage }?.within, 2)
+    }
+
+    func testBAccuracyFailsWhenMostHiddenEstimatesAreMissing() {
+        let cases = (0..<5).map { index in
+            let kept: [NutrientKey: Double] = index < 2 ? [.energyConsumed: 100] : [:]
+            return EvalScoring.Nutrients(requested: [.energyConsumed], known: [], kept: kept,
+                                         hidden: .energyConsumed, declared: 100, timing: nil)
+        }
+        let energy = EvalScoring.nutrients(cases).first { $0.bar == .energy }
+        XCTAssertEqual(energy?.passed, false)
+        XCTAssertEqual(energy?.within, 2)
+        XCTAssertEqual(energy?.outside, 3)
+    }
+
+    func testSafetyBarsFailWhenTheObservationViolatesTheirInvariants() {
+        let details = EvalScoring.Details(asked: [.fortification], fills: [.fortification: "fortified"],
+                                          truth: [.fortification: "fortified"], timing: nil)
+        let nutrients = EvalScoring.Nutrients(requested: [.energyConsumed], known: [.protein], kept: [.protein: 2],
+                                              hidden: .energyConsumed, declared: 100, timing: nil)
+        let a = EvalScoring.details([details]).first { $0.bar == .fortifiedPrefills }
+        let b = EvalScoring.nutrients([nutrients]).first { $0.bar == .knownReplaced }
+        XCTAssertEqual(a?.passed, false)
+        XCTAssertEqual(a?.outside, 1)
+        XCTAssertEqual(b?.passed, false)
+        XCTAssertEqual(b?.outside, 1)
+    }
+
+    func testFreezeNeedsARequestHashAndTheDevelopmentAndReviewCounts() {
+        let complete = EvalConfiguration.Freeze(firstDetailsRequestSHA256: String(repeating: "a", count: 64),
+            developmentDetailsRequests: 60, developmentNutrientRequests: 200, reviewedProducts: 60, confirmedFortified: 8)
+        let incomplete = EvalConfiguration.Freeze(firstDetailsRequestSHA256: complete.firstDetailsRequestSHA256,
+            developmentDetailsRequests: 60, developmentNutrientRequests: 0, reviewedProducts: 60, confirmedFortified: 8)
+        XCTAssertTrue(complete.isComplete)
+        XCTAssertFalse(incomplete.isComplete)
     }
 }

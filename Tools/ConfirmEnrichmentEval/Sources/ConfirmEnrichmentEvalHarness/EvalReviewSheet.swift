@@ -2,8 +2,39 @@ import ConfirmEnrichmentEvalCore
 import FoodLedgerApplication
 import Foundation
 
-struct EvalReviewSheet {
+public enum EvalReviewSheet {
     struct Invalid: Error {}
+
+    static func header() -> [String] {
+        [EvalSelection.reviewSheetNote, EvalSelection.reviewSheetHeader.map(EvalSelection.csvField).joined(separator: ",")]
+    }
+
+    static func row(_ item: EvalCase, product: [String: Any]) throws -> String {
+        guard let code = product["code"] as? String else { throw Invalid() }
+        let hash = try EvalHashes.hash(item)
+        let fortified = EvalSelector.fortified(product) ? "yes" : "no"
+        let fields = [hash, EvalSelector.name(product), (product["brands"] as? String) ?? "", code, fortified]
+        return (fields + Array(repeating: "", count: 6)).map(EvalSelection.csvField).joined(separator: ",")
+    }
+
+    static func bytes(_ lines: [String]) -> Data {
+        Data((lines.joined(separator: "\n") + "\n").utf8)
+    }
+
+    public static func writeSealed(_ list: EvalCaseList, folder: URL) throws -> Int {
+        let cases = list.cases.filter { $0.kind == .openFoodFacts }
+        var lines = header()
+        for item in cases {
+            let product = try EvalCandidates.record(for: item, privateFolder: folder)
+            lines.append(try row(item, product: product))
+        }
+        let path = folder.appendingPathComponent("review-sheet-sealed.csv")
+        let staging = folder.appendingPathComponent(".sealed-review-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: staging) }
+        try bytes(lines).write(to: staging, options: .withoutOverwriting)
+        try FileManager.default.moveItem(at: staging, to: path)
+        return cases.count
+    }
 
     /// Reads only the owner-checked columns and their case digest. Names and barcodes have no role in scoring.
     static func read(_ url: URL, expected: Set<String>) throws -> [String: [ConfirmDetailsFact: String]] {

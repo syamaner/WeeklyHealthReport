@@ -11,7 +11,8 @@ import Foundation
 //   manifest CASES
 //   send --part details|nutrients --cases CASES --private DIR [--fake DIR] [--repo DIR]
 //   verify-freeze --cases DEVELOPMENT_CASES --private DIR
-//   score --part details|nutrients --cases CASES --private DIR [--review-sheet CSV]
+//   prepare-sealed-review --cases SEALED_CASES --private DIR
+//   score --part details|nutrients --cases CASES --private DIR [--review-sheet CSV] [--fake]
 //   select --export FILE --private DIR [--seed N] [--repo DIR]
 
 func fail(_ message: String) -> Never {
@@ -38,11 +39,11 @@ func validSendArguments(_ arguments: [String]) -> Bool {
     return true
 }
 
-/// `git show origin/main:docs/privacy-and-egress.md`, run locally: no network (run.sh fetched already).
-func originMainPolicy(repo: URL) -> String? {
+/// Local Git verification. The wrapper fetches origin before invoking the tool.
+func gitOutput(repo: URL, _ arguments: [String]) -> String? {
     let process = Process()
     process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-    process.arguments = ["git", "-C", repo.path, "show", "origin/main:docs/privacy-and-egress.md"]
+    process.arguments = ["git", "-C", repo.path] + arguments
     var environment = ProcessInfo.processInfo.environment
     environment[EnvironmentKey.variable] = nil
     process.environment = environment
@@ -59,7 +60,7 @@ func preflight(repo: URL) {
     guard let checkout = try? String(contentsOfFile: repo.appendingPathComponent("docs/privacy-and-egress.md").path, encoding: .utf8) else {
         fail(EvalConsole.stopLine("preflight_checkout_unreadable"))
     }
-    guard let origin = originMainPolicy(repo: repo) else { fail(EvalConsole.stopLine("preflight_origin_main_unreadable")) }
+    guard let origin = gitOutput(repo: repo, ["show", "origin/main:docs/privacy-and-egress.md"]) else { fail(EvalConsole.stopLine("preflight_origin_main_unreadable")) }
     do { try EvalPreflight.check(checkout: checkout, originMain: origin) } catch {
         fail(EvalConsole.stopLine(error is EvalPreflight.Refusal ? "preflight_paragraph_missing" : "preflight_failed"))
     }
@@ -72,33 +73,61 @@ func cases(_ path: String) -> EvalCaseList {
     } catch { fail(EvalConsole.stopLine("cases_unreadable")) }
 }
 
+func outsideWorkTrees(_ folder: URL, repo: URL) -> Bool {
+    !EvalPaths.isInside(folder.path, repository: repo.path) && !EvalWorkTree.contains(folder)
+}
+
+func needsMergedFreeze(repo: URL, folder: URL) {
+    guard let freeze = EvalConfiguration.freeze, freeze.isComplete else {
+        fail(EvalConsole.stopLine("route_freeze_pending"))
+    }
+    let merged = gitOutput(repo: repo, ["merge-base", "--is-ancestor", "HEAD", "origin/main"])
+    let status = gitOutput(repo: repo, ["status", "--porcelain", "--untracked-files=normal"])
+    let configPath = "HEAD:Tools/ConfirmEnrichmentEval/Sources/ConfirmEnrichmentEvalCore/EvalConfiguration.swift"
+    let config = gitOutput(repo: repo, ["show", configPath])
+    guard merged != nil, status == "", config?.contains(freeze.firstDetailsRequestSHA256) == true else {
+        fail(EvalConsole.stopLine("sealed_run_requires_clean_merged_checkout"))
+    }
+    let development = cases(folder.appendingPathComponent(EvalSelector.developmentFile).path)
+    guard (try? EvalHashes.manifest(development)) == EvalConfiguration.development,
+          EvalScorer().verifyDetailsFreeze(development, folder: folder, expectedSHA256: freeze.firstDetailsRequestSHA256) else {
+        fail(EvalConsole.stopLine("route_freeze_mismatch"))
+    }
+}
+
 let arguments = Array(CommandLine.arguments.dropFirst())
+let repo = URL(fileURLWithPath: value("--repo", in: arguments) ?? FileManager.default.currentDirectoryPath)
 if arguments.first == "score" {
     let part = value("--part", in: arguments).flatMap(ConfirmEnrichmentPart.init(rawValue:))
     let reportPart = part ?? .details
+    let fake = arguments.contains("--fake")
     let results: [EvalScoring.Result]
     if let part, let path = value("--cases", in: arguments), let folder = value("--private", in: arguments),
        let bytes = FileManager.default.contents(atPath: path), let list = try? EvalCaseList.decode(bytes),
        let manifest = try? EvalHashes.manifest(list),
-       manifest == EvalConfiguration.development || manifest == EvalConfiguration.sealed {
+       fake ? manifest != EvalConfiguration.sealed : (manifest == EvalConfiguration.development || manifest == EvalConfiguration.sealed) {
         let local = URL(fileURLWithPath: folder, isDirectory: true)
+        let sealed = manifest == EvalConfiguration.sealed
+        let child = fake ? "fake" : sealed ? "sealed" : nil
+        let evidence = child.map { local.appendingPathComponent($0, isDirectory: true) } ?? local
         let sheet = value("--review-sheet", in: arguments).map { URL(fileURLWithPath: $0) }
-        if EvalWorkTree.contains(local) {
-            results = [EvalScorer.invalid(part)]
+        if outsideWorkTrees(local, repo: repo), outsideWorkTrees(evidence, repo: repo),
+           EvalPaths.isInside(evidence.path, repository: local.path) {
+            results = EvalScorer().score(list, part: part, folder: local, reviewSheet: sheet,
+                                         evidenceFolder: evidence, fake: fake)
         } else {
-            results = EvalScorer().score(list, part: part, folder: local, reviewSheet: sheet)
+            results = [EvalScorer.invalid(part)]
         }
     } else {
         results = [EvalScorer.invalid(reportPart)]
     }
-    results.forEach { print(EvalConsole.scoreLine($0)) }
+    results.forEach { print(EvalConsole.scoreLine($0, fake: fake)) }
     exit(results.allSatisfy(\.passed) ? 0 : 1)
 }
 // A flag given without a value is a usage error, never "not given" (a bare `--fake` must not run live).
 for flag in ["--part", "--cases", "--private", "--fake", "--repo", "--export", "--seed"] where arguments.contains(flag) && value(flag, in: arguments) == nil {
     fail("usage: \(flag) needs a value")
 }
-let repo = URL(fileURLWithPath: value("--repo", in: arguments) ?? FileManager.default.currentDirectoryPath)
 
 switch arguments.first {
 case "preflight":
@@ -110,19 +139,34 @@ case "manifest":
     print(EvalConsole.manifestLine(manifest))
 case "verify-freeze":
     guard let path = value("--cases", in: arguments), let folder = value("--private", in: arguments),
-          let expected = EvalConfiguration.firstDetailsRequestSHA256 else {
+          let freeze = EvalConfiguration.freeze, freeze.isComplete else {
         fail(EvalConsole.stopLine("route_freeze_pending"))
     }
     let local = URL(fileURLWithPath: folder, isDirectory: true)
-    guard !EvalWorkTree.contains(local), !EvalPaths.isInside(local.path, repository: repo.path) else {
+    guard outsideWorkTrees(local, repo: repo) else {
         fail(EvalConsole.stopLine("private_folder_inside_repository"))
     }
     let list = cases(path)
     guard (try? EvalHashes.manifest(list)) == EvalConfiguration.development,
-          EvalScorer().verifyDetailsFreeze(list, folder: local, expectedSHA256: expected) else {
+          EvalScorer().verifyDetailsFreeze(list, folder: local, expectedSHA256: freeze.firstDetailsRequestSHA256) else {
         fail(EvalConsole.stopLine("route_freeze_mismatch"))
     }
     print("route freeze pass")
+case "prepare-sealed-review":
+    guard let path = value("--cases", in: arguments), let folder = value("--private", in: arguments) else {
+        fail(EvalConsole.stopLine("sealed_review_arguments_invalid"))
+    }
+    let local = URL(fileURLWithPath: folder, isDirectory: true)
+    guard outsideWorkTrees(local, repo: repo) else { fail(EvalConsole.stopLine("private_folder_inside_repository")) }
+    needsMergedFreeze(repo: repo, folder: local)
+    let list = cases(path)
+    guard (try? EvalHashes.manifest(list)) == EvalConfiguration.sealed else {
+        fail(EvalConsole.stopLine("sealed_manifest_mismatch"))
+    }
+    guard let count = try? EvalReviewSheet.writeSealed(list, folder: local) else {
+        fail(EvalConsole.stopLine("sealed_review_unwritable"))
+    }
+    print("review_sheet sealed cases \(count)")
 case "send":
     guard validSendArguments(arguments),
           let partName = value("--part", in: arguments), let part = ConfirmEnrichmentPart(rawValue: partName),
@@ -133,41 +177,50 @@ case "send":
     let list = cases(casesPath)
     let firstRequestOnly = arguments.contains("--first-request-only")
     if firstRequestOnly && part != .details { fail(EvalConsole.stopLine("first_request_details_only")) }
-    if value("--fake", in: arguments) == nil {
-        guard let manifest = try? EvalHashes.manifest(list), manifest == EvalConfiguration.development else {
-            fail(EvalConsole.stopLine("sealed_run_requires_frozen_configuration"))
-        }
+    let fakePath = value("--fake", in: arguments)
+    guard let manifest = try? EvalHashes.manifest(list) else { fail(EvalConsole.stopLine("manifest_failed")) }
+    let sealed = manifest == EvalConfiguration.sealed
+    if fakePath != nil && sealed { fail(EvalConsole.stopLine("sealed_run_requires_live_full_send")) }
+    if fakePath == nil && !sealed && manifest != EvalConfiguration.development {
+        fail(EvalConsole.stopLine("development_manifest_mismatch"))
     }
     let chosenFolder = URL(fileURLWithPath: privatePath, isDirectory: true)
-    // 11.1a: raw responses and the ledger stay in the private folder, never inside the repository or any
-    // other git work tree (a worktree's main checkout included).
-    if EvalPaths.isInside(chosenFolder.path, repository: repo.path) || EvalWorkTree.contains(chosenFolder) {
+    let child = fakePath != nil ? "fake" : sealed ? "sealed" : nil
+    let evidence = child.map { chosenFolder.appendingPathComponent($0, isDirectory: true) } ?? chosenFolder
+    guard outsideWorkTrees(chosenFolder, repo: repo), outsideWorkTrees(evidence, repo: repo),
+          EvalPaths.isInside(evidence.path, repository: chosenFolder.path) else {
         fail(EvalConsole.stopLine("private_folder_inside_repository"))
     }
-    // A fake run writes under its own subfolder: its ledger, responses and first-request record never
-    // touch a live run's.
-    let privateFolder = value("--fake", in: arguments) == nil ? chosenFolder : chosenFolder.appendingPathComponent("fake", isDirectory: true)
+    if sealed {
+        guard !firstRequestOnly else { fail(EvalConsole.stopLine("sealed_run_requires_live_full_send")) }
+        needsMergedFreeze(repo: repo, folder: chosenFolder)
+    }
     let transport: any ConfirmEnrichmentHTTPTransportingBox
     let keys: any FoodWebKeyStoring
-    if let fake = value("--fake", in: arguments) {
-        transport = Box(FakeTransport.directory(URL(fileURLWithPath: fake, isDirectory: true)))
+    if let fakePath {
+        transport = Box(FakeTransport.directory(URL(fileURLWithPath: fakePath, isDirectory: true)))
         keys = FixedEvalKey()
     } else {
         do { keys = try EnvironmentKey() } catch { fail(EvalConsole.stopLine("\(error)")) }
         transport = Box(LiveTransport.make())
     }
-    let ledger = EvalSpendLedger(url: privateFolder.appendingPathComponent("confirm-enrichment-eval-spend-ledger-v1.json"))
-    let sender = EvalSender(part: part, transport: transport.value, keys: keys, ledger: ledger, privateFolder: privateFolder)
+    let liveLock = fakePath == nil ? EvalLiveRunLock.acquire(in: chosenFolder) : nil
+    guard fakePath != nil || liveLock != nil else { fail(EvalConsole.stopLine("live_run_busy_or_unwritable")) }
+    defer { try? liveLock?.close() }
+    let ledgerFolder = fakePath == nil ? chosenFolder : evidence
+    let ledger = EvalSpendLedger(url: ledgerFolder.appendingPathComponent("confirm-enrichment-eval-spend-ledger-v1.json"))
+    let sender = EvalSender(part: part, transport: transport.value, keys: keys, ledger: ledger,
+                            privateFolder: chosenFolder, evidenceFolder: evidence, fake: fakePath != nil)
     let semaphore = DispatchSemaphore(value: 0)
     let output = OutputLines()
     // Detached: top-level code is main-actor isolated in Swift 6, so an inherited task would wait for
     // the main thread this line blocks (defect review of PR 3).
     Task.detached {
-        output.set(await sender.run(list, firstRequestOnly: firstRequestOnly))
+        output.set(await sender.run(list, firstRequestOnly: firstRequestOnly, sealed: sealed))
         semaphore.signal()
     }
     semaphore.wait()
-    output.lines.forEach { print($0) }
+    output.lines.forEach { print(fakePath == nil ? $0 : "fake " + $0) }
     if output.lines.contains(where: { $0.hasPrefix("stop ") }) { exit(1) }
 case "select":
     // The owner-approved case selection (docs/privacy-and-egress.md): deterministic, sends nothing, writes

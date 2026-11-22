@@ -39,9 +39,10 @@ public enum EvalConsole {
         "manifest \(set) " + manifestLine(manifest)
     }
 
-    public static func scoreLine(_ result: EvalScoring.Result) -> String {
+    public static func scoreLine(_ result: EvalScoring.Result, fake: Bool = false) -> String {
         let verdict = result.passed ? "pass" : "fail"
-        return "\(result.part.rawValue) \(result.bar.rawValue) \(verdict) within \(result.within) outside \(result.outside)"
+        let prefix = fake ? "fake " : ""
+        return "\(prefix)\(result.part.rawValue) \(result.bar.rawValue) \(verdict) within \(result.within) outside \(result.outside)"
     }
 
     public static func firstRequestLine(part: ConfirmEnrichmentPart, maxTokensSent: Bool, sha256: String) -> String {

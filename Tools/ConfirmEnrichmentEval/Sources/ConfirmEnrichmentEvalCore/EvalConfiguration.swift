@@ -9,6 +9,30 @@ public enum EvalConfiguration {
     public static let sealed = EvalHashes.Manifest(count: 100,
         sha256: "a3396991fe7b42a9a5faeb027a5e74f891ef5eacbe539cc6385fbe0b6dcc495b")
 
-    // Filled from the owner's first successful A request after the route is confirmed.
-    public static let firstDetailsRequestSHA256: String? = nil
+    public struct Freeze: Sendable {
+        public let firstDetailsRequestSHA256: String
+        public let developmentDetailsRequests: Int
+        public let developmentNutrientRequests: Int
+        public let reviewedProducts: Int
+        public let confirmedFortified: Int
+
+        public init(firstDetailsRequestSHA256: String, developmentDetailsRequests: Int, developmentNutrientRequests: Int,
+                    reviewedProducts: Int, confirmedFortified: Int) {
+            self.firstDetailsRequestSHA256 = firstDetailsRequestSHA256
+            self.developmentDetailsRequests = developmentDetailsRequests
+            self.developmentNutrientRequests = developmentNutrientRequests
+            self.reviewedProducts = reviewedProducts
+            self.confirmedFortified = confirmedFortified
+        }
+
+        public var isComplete: Bool {
+            let hash = firstDetailsRequestSHA256
+            return hash.utf8.count == 64 && hash.utf8.allSatisfy { (48...57).contains($0) || (97...102).contains($0) }
+                && developmentDetailsRequests > 0 && developmentNutrientRequests > 0
+                && reviewedProducts == 60 && (8...reviewedProducts).contains(confirmedFortified)
+        }
+    }
+
+    // Recorded together from the owner's console-only evidence and aggregate review counts.
+    public static let freeze: Freeze? = nil
 }

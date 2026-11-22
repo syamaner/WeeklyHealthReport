@@ -793,6 +793,25 @@ uses all requested keys. A's fact bars use the owner-reviewed Open Food Facts ca
 without a confirmed match counts outside the wrong pre-fill bar. The fortified safety bar needs
 at least eight owner-confirmed fortified products in each set.
 
+**Dated scorer rule, 22 November 2026 (owner decision, #564).** Each hidden key belongs in its
+accuracy class's median even when B omits the key or validation drops the estimate. The scorer
+counts it outside the limit and sorts it after every finite error. A missing middle value makes
+the median fail.
+
+Send and score use the same request plan. A reviewed case without A questions contributes no
+request. The tool refuses an unreadable case, a refused request build or an ineligible B variant
+before sending anything. A run with a planned request that never starts has no scorable completion.
+Failed attempts on a started request stay in the measured sample. The latency clock ends at the
+last attempted response or transport failure.
+
+The sealed send requires a complete freeze record, a clean checkout whose commit is on
+`origin/main`, the sealed manifest and a successful local rebuild of the first A request from
+the development manifest. It claims each sealed part once before sending it. The two parts and
+both sets share the live spend ledger. Development, sealed and fake completion evidence have
+separate locations. Fake sends and scores are labelled and refuse the sealed case list.
+The owner can use `prepare-sealed-review` after the same merged freeze checks. It creates the
+sealed review sheet once and reports only its row count.
+
 ## 10. PR split
 
 Each PR has its own branch, a ledger row, the validation gates of `AGENTS.md`, a blind
@@ -1019,7 +1038,7 @@ its skill; external TestFlight or App Store builds; any evaluation call before s
 | Evaluation configuration | `confirm-enrichment-eval-configuration-v1` |
 | Scorer | `confirm-enrichment-eval-scorer-v1` |
 | Case list | `confirm-enrichment-eval-cases-v1` |
-| Request and completion evidence | `confirm-enrichment-eval-request-v1`, `confirm-enrichment-eval-completed-run-v1` |
+| Request and completion evidence | `confirm-enrichment-eval-request-v1`, `confirm-enrichment-eval-completed-run-v2` |
 | A route and prompt | `confirm-details-route-v1`, `confirm-details-prompt-v1` |
 | B route, prompt and response schema | `confirm-nutrient-route-v1`, `confirm-nutrient-prompt-v1`, `confirm-nutrient-estimate-v1` |
 | Development count | 100 |
@@ -1033,7 +1052,8 @@ Route freeze is pending the owner's first A request and the development and revi
 The owner can use `send --part details --first-request-only` with the development set and
 their private folder. The tool reports the body SHA-256 after response validation and the
 first-request ceiling check. Once that hash is committed, `verify-freeze` rebuilds the first
-request privately and checks its hash. A score requires the completed review CSV passed as
+request privately and checks its hash. The owner runs `prepare-sealed-review --cases SEALED_CASES
+--private DIR` in the merged checkout to create `review-sheet-sealed.csv`. A score requires the completed review CSV passed as
 `--review-sheet`. B derives its variants from the selected case list, so the case-list
 manifests are unchanged. Scores use request cost across attempts, charging W when an attempt
 reported no cost, and elapsed wall time including retries. The latency bar uses nearest-rank p90.

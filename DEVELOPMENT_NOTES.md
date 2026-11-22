@@ -5254,3 +5254,17 @@ Comparison at [GPT-6.2 Sol Standard short-context rates](https://developers.open
 checked on 21 November 2026: $2/M uncached input, $0.10/M cached input and $10/M output.
 129,027 uncached input, 5,656,832 cached input and 31,468 output give $1.1384172 before rounding.
 This is an API-equivalent comparison under a subscription. Separate tool charges are unmeasured.
+
+### PR 4a review follow-up, 22 November 2026
+
+| Phase | Input (cached) | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: |
+| Review fixes, synthetic tests and privacy PR split | 3,884,694 (3,849,344) | 17,064 | 3,901,758 | $0.63 |
+
+Measured in the same session from the follow-up intake snapshot of 16,520,686 input tokens
+(16,174,592 cached) and 47,839 output tokens to the pre-ledger snapshot. At the
+[Standard short-context rates](https://developers.openai.com/api/docs/models/gpt-6.2-sol),
+checked again on 22 November 2026, 35,350 uncached input, 3,849,344 cached input and
+17,064 output give $0.6262744 before rounding. The two measured periods are disjoint.
+Later validation, the ledger edit, hosted checks, external reviews and owner runs are outside
+this measurement.

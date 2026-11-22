@@ -293,15 +293,12 @@ public struct EvalSelector: Sendable {
             try encoder.encode(development).write(to: staging.appendingPathComponent(Self.developmentFile), options: .withoutOverwriting)
             try encoder.encode(sealed).write(to: staging.appendingPathComponent(Self.sealedFile), options: .withoutOverwriting)
             try Data("\(seed)\n".utf8).write(to: staging.appendingPathComponent(Self.seedFile), options: .withoutOverwriting)
-            var sheet = [EvalSelection.reviewSheetNote, EvalSelection.reviewSheetHeader.map(EvalSelection.csvField).joined(separator: ",")]
+            var sheet = EvalReviewSheet.header()
             for (product, evalCase) in zip(draw.development, development.cases) {
                 guard let record = records[product.line] else { throw Problem.recordMissing }
-                let fields = [try EvalHashes.hash(evalCase), Self.name(record), (record["brands"] as? String) ?? "",
-                              product.code, product.fortified ? "yes" : "no"] + Array(repeating: "", count: 6)
-                sheet.append(fields.map(EvalSelection.csvField).joined(separator: ","))
+                sheet.append(try EvalReviewSheet.row(evalCase, product: record))
             }
-            try Data((sheet.joined(separator: "\n") + "\n").utf8)
-                .write(to: staging.appendingPathComponent(Self.reviewSheetFile), options: .withoutOverwriting)
+            try EvalReviewSheet.bytes(sheet).write(to: staging.appendingPathComponent(Self.reviewSheetFile), options: .withoutOverwriting)
             let summary = [
                 EvalConsole.selectionLine(set: "development", counts: EvalSelection.counts(products: draw.development, rows: rowDraw.development)),
                 EvalConsole.selectionLine(set: "sealed", counts: EvalSelection.counts(products: draw.sealed, rows: rowDraw.sealed)),
