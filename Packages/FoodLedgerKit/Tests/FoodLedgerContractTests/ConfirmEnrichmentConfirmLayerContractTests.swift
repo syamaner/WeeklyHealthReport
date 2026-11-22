@@ -66,7 +66,7 @@ final class ConfirmEnrichmentConfirmLayerContractTests: XCTestCase {
         var answers: [String: Any] = [:]
         for fact in asked {
             let (choice, confidence) = choices[fact.rawValue] ?? ("unknown", 0.5)
-            answers[fact.rawValue] = ["type": "choice", "value": choice, "confidence": confidence, "probabilities": [choice: confidence]]
+            answers[fact.rawValue] = ["type": "choice", "choice": choice, "confidence": confidence, "probabilities": [choice: confidence]]
         }
         let bytes = try JSONSerialization.data(withJSONObject: [
             "id": "gen-synthetic-details", "model": detailsRoute.model, "provider": detailsRoute.provider, "answers": answers,
