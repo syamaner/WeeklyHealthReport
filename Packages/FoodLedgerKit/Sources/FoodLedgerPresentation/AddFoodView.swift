@@ -398,10 +398,40 @@ public final class FoodSearchDiagnosticsLog: ObservableObject {
     /// The open label text screen's reading (#93): reason codes, format, flags and warnings.
     /// Set only while that screen is open and cleared when it closes; never the label text.
     @Published public private(set) var pastedLabelLines: [String] = []
+    /// The last Confirm enrichment request of each part (CE1.7 Developer tools), A's lines first.
+    /// Field names, hashes and counts only; never the key, a body or a value.
+    @Published public private(set) var confirmEnrichmentLines: [String] = []
+    private var confirmEnrichmentByPart: [ConfirmEnrichmentPart: [String]] = [:]
     public init() {}
     public func recordSearch(_ lines: [String]) { searchLines = lines }
     public func recordWebLookup(_ lines: [String]) { webLookupLines = lines }
     public func recordPastedLabel(_ lines: [String]) { pastedLabelLines = lines }
+    public func recordConfirmEnrichment(_ diagnostics: ConfirmEnrichmentDiagnostics) {
+        let part = ConfirmEnrichmentPart.allCases.first { $0.use == diagnostics.use } ?? .details
+        confirmEnrichmentByPart[part] = ConfirmEnrichmentDiagnosticsText.lines(diagnostics)
+        confirmEnrichmentLines = ConfirmEnrichmentPart.allCases.flatMap { confirmEnrichmentByPart[$0] ?? [] }
+    }
+}
+
+/// Developer tools lines for one Confirm enrichment request (CE1.7), pure.
+public enum ConfirmEnrichmentDiagnosticsText {
+    public static func lines(_ d: ConfirmEnrichmentDiagnostics) -> [String] {
+        let cost = d.reportedCostMicroUSD.map { String(format: "$%.6f", Double($0) / 1_000_000) } ?? "not reported"
+        return [
+            "use: \(d.use.rawValue)",
+            "route: \(d.routeVersion) \(d.endpoint)",
+            "model: \(d.model)",
+            "provider: \(d.provider)",
+            "request fields: \(d.requestFields.joined(separator: ", "))",
+            "request sha256: \(d.requestSHA256)",
+            "response sha256: \(d.responseSHA256 ?? "none")",
+            "latency: \(d.latencyMilliseconds.map { "\($0) ms" } ?? "nothing sent")",
+            "attempts: \(d.attempts)",
+            "reported cost: \(cost)",
+            "threshold: \(d.threshold ?? "none")",
+            "outcome: \(d.outcome)"
+        ]
+    }
 }
 
 /// What Add food's Favourites section shows (#198).

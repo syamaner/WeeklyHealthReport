@@ -38,7 +38,8 @@ final class ConfirmEnrichmentSessionTests: XCTestCase {
                  egress: RecordingOpenRouterEgress = RecordingOpenRouterEgress(permits: true),
                  ledger: ConfirmEnrichmentTestLedger = ConfirmEnrichmentTestLedger(),
                  availability: ConfirmEnrichmentAvailability = ConfirmEnrichmentAvailability(details: true, nutrients: true),
-                 adapterEgress: (any OpenRouterEgressPermitting)? = nil) -> Harness {
+                 adapterEgress: (any OpenRouterEgressPermitting)? = nil,
+                 diagnostics: (any ConfirmEnrichmentDiagnosticsRecording)? = nil) -> Harness {
         let timing = ConfirmEnrichmentTestTiming()
         let adapter = ConfirmEnrichmentTestAdapter(results, use: .confirmEnrichmentNutrients, egress: adapterEgress ?? PermittingOpenRouterEgress(),
                                                    timing: timing)
@@ -51,7 +52,7 @@ final class ConfirmEnrichmentSessionTests: XCTestCase {
             availability: availability, routes: .init(details: Self.detailsRoute, nutrients: Self.route), details: detailsAdapter,
             nutrients: adapter, checker: checker, cache: cache, ledger: ledger, egress: egress, delaying: delaying, timing: timing,
             jitter: ConfirmEnrichmentTestJitter(0.5), clock: clock, timeZone: TimeZone(identifier: "Europe/London")!,
-            ids: ConfirmEnrichmentTestIDs(), digester: SHA256Digester())
+            ids: ConfirmEnrichmentTestIDs(), digester: SHA256Digester(), diagnostics: diagnostics)
         return Harness(session: session, adapter: adapter, detailsAdapter: detailsAdapter, checker: checker, cache: cache, ledger: ledger,
                        egress: egress, delaying: delaying, clock: clock)
     }
@@ -90,6 +91,65 @@ final class ConfirmEnrichmentSessionTests: XCTestCase {
 
     func notNil(_ value: Any?, file: StaticString = #filePath, line: UInt = #line) {
         XCTAssertNotNil(value, file: file, line: line)
+    }
+
+    // MARK: Developer tools diagnostics (CE1.7)
+
+    final class DiagnosticsRecorder: ConfirmEnrichmentDiagnosticsRecording, @unchecked Sendable {
+        private let lock = NSLock()
+        private var stored: [ConfirmEnrichmentDiagnostics] = []
+        var entries: [ConfirmEnrichmentDiagnostics] { lock.withLock { stored } }
+        func record(_ diagnostics: ConfirmEnrichmentDiagnostics) { lock.withLock { stored.append(diagnostics) } }
+    }
+
+    /// Each request past the preconditions reports its use, route, model, provider, field names,
+    /// hashes, latency from the injected timing, attempts, reported cost, threshold and outcome; a
+    /// request stopped by a precondition reports nothing.
+    func testEachRequestReportsItsDiagnosticsAndAPreconditionStopReportsNothing() async throws {
+        let recorder = DiagnosticsRecorder()
+        let h = harness([try Self.ok()], diagnostics: recorder)
+        let req = try request()
+        let blocked = ConfirmEnrichmentSession.Preconditions(openRouterOn: true, enrichmentOn: false, keyState: .valid)
+        eq(await h.session.nutrients(req, mode: .automatic, preconditions: blocked, locale: Self.locale), .failed(.silent))
+        XCTAssertTrue(recorder.entries.isEmpty)
+        _ = await h.session.nutrients(req, mode: .automatic, preconditions: Self.on, locale: Self.locale)
+        _ = await h.session.nutrients(req, mode: .automatic, preconditions: Self.on, locale: Self.locale)
+        let entries = recorder.entries
+        XCTAssertEqual(entries.count, 2)
+        guard entries.count == 2 else { return }
+        let sent = entries[0], hit = entries[1]
+        let bodyHash = try SHA256Digester().sha256(req.body).value
+        XCTAssertEqual(sent.use, .confirmEnrichmentNutrients)
+        XCTAssertEqual(sent.routeVersion, Self.route.version)
+        XCTAssertEqual(sent.endpoint, Self.route.endpoint)
+        XCTAssertEqual(sent.model, ConfirmEnrichmentFixtures.model)
+        XCTAssertEqual(sent.provider, Self.route.provider)
+        XCTAssertEqual(sent.requestFields, ConfirmEnrichmentDiagnostics.fieldNames(req.inputs))
+        XCTAssertTrue(sent.requestFields.contains("eligible") && sent.requestFields.contains("basis"))
+        XCTAssertEqual(sent.requestSHA256, bodyHash)
+        XCTAssertNotNil(sent.responseSHA256)
+        XCTAssertEqual(sent.attempts, 1)
+        XCTAssertNotNil(sent.latencyMilliseconds)
+        XCTAssertNil(sent.threshold, "B has no threshold")
+        XCTAssertEqual(sent.outcome, "answered")
+        XCTAssertFalse(sent.fromCache)
+        XCTAssertEqual(hit.outcome, "answered_from_cache")
+        XCTAssertTrue(hit.fromCache)
+        XCTAssertEqual(hit.attempts, 0)
+        XCTAssertNil(hit.latencyMilliseconds, "nothing sent")
+        XCTAssertEqual(hit.responseSHA256, sent.responseSHA256)
+        XCTAssertEqual(hit.requestSHA256, bodyHash)
+    }
+
+    func testTheDetailsFieldNamesListOnlyFieldsThatHoldAValue() throws {
+        let description = ConfirmEnrichmentDescription(name: "Synthetic oat biscuit", brand: "Synthetic", variant: nil, category: nil,
+                                                       productType: nil, state: nil, source: .compositionTable)
+        let inputs = try ConfirmDetailsRequestInputs(description: description, knownDetails: [:], asked: [.preparation])
+        XCTAssertEqual(ConfirmEnrichmentDiagnostics.fieldNames(inputs),
+                       ["asked", "description.brand", "description.name", "description.source"])
+        let known = try ConfirmDetailsRequestInputs(description: description, knownDetails: ["bone": "boneless"], asked: [.preparation])
+        XCTAssertTrue(ConfirmEnrichmentDiagnostics.fieldNames(known).contains("known_details"))
+        XCTAssertEqual(ConfirmEnrichmentDiagnostics.outcome(.notPermittedAfterSending), "not_permitted_after_sending")
     }
 
     // MARK: G1 Rebuild equals live
