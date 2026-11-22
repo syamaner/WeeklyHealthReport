@@ -8,7 +8,7 @@ import FoodLedgerDomain
 /// - W per attempt: the prompt ceiling at the prompt price plus the completion ceiling (and the
 ///   reasoning limit where billed separately) at the completion price, from the day's catalogue check.
 /// - Whole-request cap: an attempt starts only when the request's attempts charged so far plus W are
-///   at most $0.01 (A) or $0.02 (B).
+///   at most $0.01 (A) or $0.04 (B; raised from $0.02 by the owner on 22 November 2026).
 /// - Day cap: a request starts only when fewer than 100 requests are counted today and the settled
 ///   cost plus every open reservation plus this request's cap is at most $0.50.
 /// - A reservation writes the whole per-request cap before the first attempt; the reconcile moves it

@@ -26,11 +26,12 @@ public enum ConfirmEnrichmentPart: String, Codable, Sendable, CaseIterable {
         }
     }
 
-    /// The whole-request cap in micro-dollars: $0.01 for A and $0.02 for B (CE1.3; gate section 2.6).
+    /// The whole-request cap in micro-dollars: $0.01 for A and $0.04 for B (CE1.3; gate section 2.6). B was
+    /// raised from $0.02 on 22 November 2026 by the owner, when today's prices put its W at about $0.029.
     public var perRequestCapMicroUSD: Int {
         switch self {
         case .details: 10_000
-        case .nutrients: 20_000
+        case .nutrients: 40_000
         }
     }
 }

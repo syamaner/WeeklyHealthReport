@@ -30,7 +30,7 @@ final class ConfirmEnrichmentPolicyTests: XCTestCase {
     func testRetriesAreGatedByAttemptsChargedNeverTheReservation() {
         XCTAssertTrue(ConfirmEnrichmentSpendPolicy.mayStartAttempt([], w: 9_000, part: .nutrients))
         XCTAssertTrue(ConfirmEnrichmentSpendPolicy.mayStartAttempt([.init(reportedMicroUSD: 1_000, promptTokens: nil)], w: 9_000, part: .nutrients))
-        XCTAssertFalse(ConfirmEnrichmentSpendPolicy.mayStartAttempt([.init(reportedMicroUSD: nil, promptTokens: nil)], w: 11_000, part: .nutrients),
+        XCTAssertFalse(ConfirmEnrichmentSpendPolicy.mayStartAttempt([.init(reportedMicroUSD: nil, promptTokens: nil)], w: 21_000, part: .nutrients),
                        "an unreported attempt is charged W")
         XCTAssertFalse(ConfirmEnrichmentSpendPolicy.mayStartAttempt([], w: 10_001, part: .details))
     }
@@ -79,8 +79,8 @@ final class ConfirmEnrichmentPolicyTests: XCTestCase {
         XCTAssertEqual(ConfirmEnrichmentSpendPolicy.current(today: "2026-11-21", stored: .unreadable).requests, 100, "fails closed")
         XCTAssertEqual(ConfirmEnrichmentSpendPolicy.admission(.details, day: .init(localDay: "d", requests: 99)), .allowed)
         XCTAssertEqual(ConfirmEnrichmentSpendPolicy.admission(.details, day: .init(localDay: "d", requests: 100)), .limitReached)
-        XCTAssertEqual(ConfirmEnrichmentSpendPolicy.admission(.nutrients, day: .init(localDay: "d", settledMicroUSD: 480_001)), .limitReached)
-        XCTAssertEqual(ConfirmEnrichmentSpendPolicy.admission(.nutrients, day: .init(localDay: "d", settledMicroUSD: 480_000)), .allowed)
+        XCTAssertEqual(ConfirmEnrichmentSpendPolicy.admission(.nutrients, day: .init(localDay: "d", settledMicroUSD: 460_001)), .limitReached)
+        XCTAssertEqual(ConfirmEnrichmentSpendPolicy.admission(.nutrients, day: .init(localDay: "d", settledMicroUSD: 460_000)), .allowed)
         XCTAssertEqual(ConfirmEnrichmentSpendPolicy.dayKey(Date(timeIntervalSince1970: 1_795_000_000), timeZone: TimeZone(identifier: "Asia/Taipei")!),
                        "2026-11-18")
     }

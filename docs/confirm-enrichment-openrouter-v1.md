@@ -134,7 +134,8 @@ sends nothing:
   `confirm-enrichment-day-v1`, separate from `label-ai-spend-day-v1`, so one feature cannot use up the
   other. A request with no reported cost counts as its per-request worst case W. A cached answer
   counts nothing.
-- **Per request:** A at most $0.01 and B at most $0.02 worst case W, sized from the route's
+- **Per request:** A at most $0.01 and B at most $0.04 worst case W (B raised from $0.02 by the owner on 22 November
+  2026, when the evaluation's route check put B's W at about $0.029), sized from the route's
   catalogue prices and `max_tokens` (CE1.5); a reported cost above the per-request cap pauses that
   part for the rest of the day.
 - **Retries:** as label photo E11 and the network resilience rule: only transport errors, timeouts,
@@ -177,7 +178,9 @@ sends nothing:
 
   **Fortified is never a choice, so it can never be pre-filled.** A fortified food keeps fortification
   unknown and is asked on Confirm as today (I1-D2's reason). The instructions are fixed text, pinned by
-  the prompt version `confirm-details-prompt-v1`, and tell the model to choose `unknown` whenever the
+  the prompt version `confirm-details-prompt-v2` (v2, 22 November 2026, adds one fixed description per
+  choice, sent as System One's `criteria`, after the development run left most inapplicable details
+  `unknown`; stored v1 captures still decode), and tell the model to choose `unknown` whenever the
   description does not settle the fact.
 - **Response checks.** The provider and model must be exactly those requested (`jev-1.13` or a dated
   slug pinned at the evaluation); `answers` holds exactly the asked question keys; each answer is a
@@ -599,7 +602,7 @@ for that food is skipped, with no note), and the gate is a backstop, not a guara
 
 ```diff
 +| OpenRouter System One and its one allow-listed Jev endpoint (ZDR, data collection denied, no fallbacks; not enabled where no ZDR endpoint is listed) | One food description for the food on Confirm (the source's name and brand, CoFID's variant text, and for Your food database entries the category, product type and state where present (pack details only as written in the title), a closed source token and the food details already known) and fixed choice questions for each unknown food detail; never the search text typed, text typed in a correction, the amount eaten, time or date, notes, other entries, Health data, barcode, entry, record, release, evidence, decision, device or account identifiers, digests, the catalogue's free-text states, addresses, location, photos, receipt text, shop names other than the brand, prices or the key outside the Authorization header (section 7 of the contract) | With OpenRouter turned on in Settings (O1) and Suggest missing food details and values on, with the user's own validated key: automatically on Confirm, 1.5 s after a food with gaps is chosen, once per food and its details, or on a tap of Ask again, within the cap, when the selected food has unknown food details. Never on a Confirm opened by re-log or quick add, on the quick add sheet, on a reopened log, on re-resolution, from search results or in the background; never for web lookup, pasted label, label photo or Your foods rows; nutrient estimates only on a per 100 g or per 100 ml basis. Two keyless catalogue requests confirm the endpoint on the first request of a session and of each local day, and again after a check that could not connect; at most 3 attempts in 60 s and $0.01 per request; at most 100 requests and $0.50 of reported cost per day across both Confirm suggestion rows; a cached answer is reused without sending | [confirm-enrichment-openrouter-v1.md](confirm-enrichment-openrouter-v1.md) |
-+| OpenRouter and its one allow-listed model endpoint for nutrient estimates (ZDR, data collection denied, no fallbacks; not enabled where no ZDR endpoint is listed) | The same food description, the food details after any suggestion, the nutrition basis, each known nutrient value with its unit and source phrase, the unknown nutrients asked, a fixed instruction and output schema; never the items listed in the row above | With OpenRouter turned on in Settings (O1) and Suggest missing food details and values on, with the user's own validated key: automatically on Confirm, 1.5 s after a food with gaps is chosen, once per food and its details, or on a tap of Ask again, within the cap, when at least one nutrient is unknown and eligible. Never on a Confirm opened by re-log or quick add, on the quick add sheet, on a reopened log, on re-resolution, from search results or in the background; never for web lookup, pasted label, label photo or Your foods rows; nutrient estimates only on a per 100 g or per 100 ml basis. Two keyless catalogue requests confirm the endpoint as in the row above; at most 3 attempts in 60 s and $0.02 per request, and the shared daily cap | [confirm-enrichment-openrouter-v1.md](confirm-enrichment-openrouter-v1.md) |
++| OpenRouter and its one allow-listed model endpoint for nutrient estimates (ZDR, data collection denied, no fallbacks; not enabled where no ZDR endpoint is listed) | The same food description, the food details after any suggestion, the nutrition basis, each known nutrient value with its unit and source phrase, the unknown nutrients asked, a fixed instruction and output schema; never the items listed in the row above | With OpenRouter turned on in Settings (O1) and Suggest missing food details and values on, with the user's own validated key: automatically on Confirm, 1.5 s after a food with gaps is chosen, once per food and its details, or on a tap of Ask again, within the cap, when at least one nutrient is unknown and eligible. Never on a Confirm opened by re-log or quick add, on the quick add sheet, on a reopened log, on re-resolution, from search results or in the background; never for web lookup, pasted label, label photo or Your foods rows; nutrient estimates only on a per 100 g or per 100 ml basis. Two keyless catalogue requests confirm the endpoint as in the row above; at most 3 attempts in 60 s and $0.04 per request, and the shared daily cap | [confirm-enrichment-openrouter-v1.md](confirm-enrichment-openrouter-v1.md) |
 ```
 
 `Stays on the device unless the user sends it`, added: "**Confirm suggestions** (#549): the
@@ -640,18 +643,18 @@ Confirm suggestions. Only if you also turn on Suggest missing food details and v
 
 Run by developer tooling (CE-T15) on two sets built from public data only, never the owner's data:
 a development set of 60 Open Food Facts products (UK and Taiwan, packaged, with complete declared
-panels and food details checked by the owner on a review sheet) and 40 bundled composition rows, and
+panels and food details on a review sheet: for the development set, researched on the web by a separate agent that never saw the model's answers, with its unsure rows marked, and accepted by the owner) and 40 bundled composition rows, and
 a sealed set of the same size and mix, opened once by the frozen configuration. For B, known values
 are hidden per case (energy, a macro, fibre, sodium and one micronutrient at a time) and the model's
 estimate is compared with the hidden declared value.
 
 | Bar | A. Food details | B. Nutrients |
 |---|---|---|
-| Wrong pre-fills | at most 2% of pre-filled facts, and 0 wrong `preparation` pre-fills | n/a |
-| Coverage | at least 60% of unknown facts pre-filled | at least 70% of requested nutrients returned and kept after validation |
+| Wrong pre-fills | at most 5% of pre-filled facts, and at most 20% of `preparation` pre-fills (was 2% and 0; A is a best-effort suggestion the owner corrects on Confirm before Log, owner decision of 22 November 2026) | n/a |
+| Coverage | at least 40% of unknown facts pre-filled (was 60%, same decision) | at least 70% of requested nutrients returned and kept after validation |
 | Accuracy | n/a | median absolute error, as a percentage of the declared value or of a floor where the declared value is smaller (5 kcal energy, 0.5 g for macronutrients and fibre, 5 mg sodium, 10% of the key's UK reference intake for other micronutrients), at most 20% for energy and macronutrients, 35% for fibre and sodium, 50% for other micronutrients |
 | Safety | 0 fortified pre-fills (by construction) and 0 `unfortified` pre-fills on fortified foods (both sets include fortified products, at least 8 each) | 0 known values replaced (by construction) |
-| Cost | median at most $0.002 per request | median at most $0.005 per request |
+| Cost | median at most $0.002 per request | median at most $0.01 per request (raised from $0.005 by the owner on 22 November 2026, after the development run measured about $0.0087) |
 | Latency | p90 at most 10 s | p90 at most 20 s |
 
 A missed bar stops release of that part; the other part may ship on its own. The bars, the sets'
@@ -826,7 +829,7 @@ compatibility choice of section 14 with the approval.
   threshold that passes, and the owner chooses). Jev's confidence is uncalibrated, so the threshold is a
   frozen contract value, changed only by a new version.
 - **CE-D4. The daily cap.** **Decided by the owner (20 November 2026): 100 requests and $0.50 of reported cost a day**, double the recommendation, with the per-request caps unchanged. Recommendation: **50 requests and $0.25 of reported cost a day**, A and B
-  together, with $0.01 (A) and $0.02 (B) per request: well above a normal day of logging, small enough
+  together, with $0.01 (A) and $0.04 (B) per request: well above a normal day of logging, small enough
   that a fault cannot spend much.
 - **CE-D5. Your food database entries with catalogue facts.** **Decided as recommended (20 November 2026).** Recommendation: **skip A for any entry
   whose `identity_facts` is not null** (the owner has reviewed it in the catalogue), and ask A for

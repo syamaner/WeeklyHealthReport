@@ -106,7 +106,213 @@ final class EvalHarnessTests: XCTestCase {
             XCTAssertEqual(sent.method == "POST", sent.headerNames.contains("Authorization"), "only the POSTs carry the key")
         }
         let responses = try FileManager.default.contentsOfDirectory(atPath: folder.appendingPathComponent("responses").path)
-        XCTAssertEqual(responses.count, 2, "raw responses stay in the private folder")
+        XCTAssertEqual(responses.filter { !$0.hasSuffix("-evidence.json") }.count, 2)
+        XCTAssertEqual(responses.filter { $0.hasSuffix("-evidence.json") }.count, 2)
+    }
+
+    func testDetailsScoreRebuildsTheRequestAndRejectsChangedResponseBytes() async throws {
+        let (folder, list) = try privateFolder()
+        let transport = Self.answering()
+        let lines = await sender(.details, transport: transport, folder: folder).run(list, firstRequestOnly: true)
+        let posts = transport.sent.filter { $0.method == "POST" }
+        XCTAssertEqual(posts.count, 1)
+        let body = try XCTUnwrap(posts.first?.body)
+        let digest = try SHA256Digester().sha256(body).value
+        XCTAssertTrue(lines.contains("first_request details accepted max_tokens_sent true sha256 " + digest))
+
+        let hash = try EvalHashes.hash(list.cases[0])
+        let row = [hash, "Synthetic, \"quoted\"\rrecord", Self.brand, Self.code, "yes",
+                   "as_sold", "unknown", "unknown", "unknown", "unknown", "fortified"]
+        let csv = [EvalSelection.reviewSheetHeader, row]
+            .map { $0.map(EvalSelection.csvField).joined(separator: ",") }
+            .joined(separator: "\r\n")
+        let sheet = folder.appendingPathComponent("review.csv")
+        try Data(csv.utf8).write(to: sheet)
+        let scorer = EvalScorer()
+        let probe = scorer.score(list, part: .details, folder: folder, reviewSheet: sheet)
+        XCTAssertEqual(probe.map { EvalConsole.scoreLine($0) }, ["details evidence fail within 0 outside 1"])
+        _ = await sender(.details, transport: transport, folder: folder).run(list)
+        let score = scorer.score(list, part: .details, folder: folder, reviewSheet: sheet)
+        XCTAssertEqual(score.first { $0.bar == .coverage }?.passed, false)
+        XCTAssertEqual(score.first { $0.bar == .cost }?.passed, true)
+        XCTAssertEqual(score.first { $0.bar == .unfortifiedOnFortified }?.within, 1)
+        XCTAssertEqual(score.first { $0.bar == .unfortifiedOnFortified }?.passed, false)
+        XCTAssertTrue(scorer.verifyDetailsFreeze(list, folder: folder, expectedSHA256: digest))
+        XCTAssertFalse(scorer.verifyDetailsFreeze(list, folder: folder, expectedSHA256: nil))
+        let response = folder.appendingPathComponent("responses/\(hash)-details-1.json")
+        try Data("unbound response".utf8).write(to: response)
+        let invalid = scorer.score(list, part: .details, folder: folder, reviewSheet: sheet)
+        XCTAssertEqual(invalid.map { EvalConsole.scoreLine($0) }, ["details evidence fail within 0 outside 1"])
+    }
+
+    func testBVariantsKeepReferencesOutOfTheWireAndScoreMissingClasses() async throws {
+        let (folder, list) = try privateFolder()
+        var product = Self.product
+        var declared = try XCTUnwrap(product["nutriments"] as? [String: Any])
+        declared["salt_100g"] = "1.25"
+        product["nutriments"] = declared
+        try JSONSerialization.data(withJSONObject: product).write(to: folder.appendingPathComponent("records/synthetic.json"))
+
+        let item = list.cases[0]
+        let unhidden = EvalCase(kind: item.kind, record: item.record, shape: item.shape, retrievedAt: item.retrievedAt)
+        let inputs = EvalCaseList(cases: [unhidden])
+        let transport = Self.answering()
+        _ = await sender(.nutrients, transport: transport, folder: folder).run(inputs)
+        let posts = transport.sent.filter { $0.method == "POST" }
+        XCTAssertEqual(posts.count, 3)
+        for (post, hidden) in zip(posts, [NutrientKey.energyConsumed, .fatTotal, .sodium]) {
+            let bytes = try XCTUnwrap(post.body)
+            let request = try XCTUnwrap(ConfirmNutrientRequestInputs.decode(requestBody: String(decoding: bytes, as: UTF8.self)))
+            XCTAssertTrue(request.eligibleKeys.contains(hidden))
+            XCTAssertNil(request.knownAmounts[hidden])
+            XCTAssertNil(request.knownAmounts[.sodium])
+        }
+        let score = EvalScorer().score(inputs, part: .nutrients, folder: folder, reviewSheet: nil)
+        XCTAssertEqual(score.first { $0.bar == .knownReplaced }?.passed, true)
+        XCTAssertEqual(score.first { $0.bar == .micronutrients }?.passed, false)
+        XCTAssertEqual(score.first { $0.bar == .cost }?.within, 3)
+    }
+
+    func testAnUnreadablePlannedCasePreventsSendingEitherPart() async throws {
+        let (folder, valid) = try privateFolder()
+        let missing = EvalCase(kind: .openFoodFacts, record: "records/missing.json", shape: .barcode,
+                               retrievedAt: "2026-11-21T10:00:00Z")
+        let list = EvalCaseList(cases: valid.cases + [missing])
+        for part in ConfirmEnrichmentPart.allCases {
+            let transport = Self.answering()
+            let lines = await sender(part, transport: transport, folder: folder).run(list)
+            XCTAssertEqual(lines, ["stop request_plan_unavailable"])
+            XCTAssertTrue(transport.sent.isEmpty)
+            XCTAssertFalse(FileManager.default.fileExists(atPath: folder.appendingPathComponent("completed-\(part.rawValue).json").path))
+        }
+    }
+
+    func testAnExplicitBVariantScoresAndFakeRunCannotBeReadAsLive() async throws {
+        let (folder, list) = try privateFolder()
+        let transport = Self.answering()
+        let evidence = folder.appendingPathComponent("fake", isDirectory: true)
+        let ledger = EvalSpendLedger(url: evidence.appendingPathComponent("ledger.json"))
+        let sender = EvalSender(part: .nutrients, transport: transport, keys: FixedEvalKey(), ledger: ledger,
+                                privateFolder: folder, evidenceFolder: evidence, fake: true)
+        _ = await sender.run(list)
+        XCTAssertEqual(transport.sent.filter { $0.method == "POST" }.count, 1)
+        let scorer = EvalScorer()
+        let score = scorer.score(list, part: .nutrients, folder: folder, reviewSheet: nil, evidenceFolder: evidence, fake: true)
+        XCTAssertEqual(score.first { $0.bar == .cost }?.within, 1)
+        XCTAssertTrue(score.allSatisfy { EvalConsole.scoreLine($0, fake: true).hasPrefix("fake nutrients ") })
+        let unmarked = scorer.score(list, part: .nutrients, folder: folder, reviewSheet: nil, evidenceFolder: evidence)
+        XCTAssertEqual(unmarked.map { $0.bar }, [.evidence])
+    }
+
+    func testTheLiveSpendLedgerHasOneProcessLockForBothParts() throws {
+        let (folder, _) = try privateFolder()
+        let first = try XCTUnwrap(EvalLiveRunLock.acquire(in: folder))
+        XCTAssertNil(EvalLiveRunLock.acquire(in: folder))
+        try first.close()
+        let second = try XCTUnwrap(EvalLiveRunLock.acquire(in: folder))
+        try second.close()
+    }
+
+    func testSealedPartCanSendOnceAndItsSheetCannotOverwriteEitherSheet() async throws {
+        let (folder, list) = try privateFolder()
+        let development = folder.appendingPathComponent("review-sheet-development.csv")
+        let sentinel = Data("development sentinel".utf8)
+        try sentinel.write(to: development)
+        XCTAssertEqual(try EvalReviewSheet.writeSealed(list, folder: folder), 1)
+        XCTAssertThrowsError(try EvalReviewSheet.writeSealed(list, folder: folder))
+        XCTAssertEqual(try Data(contentsOf: development), sentinel)
+        let sealedSheet = folder.appendingPathComponent("review-sheet-sealed.csv")
+        let hash = try EvalHashes.hash(list.cases[0])
+        XCTAssertTrue(try String(contentsOf: sealedSheet, encoding: .utf8).contains(hash))
+
+        let transport = Self.answering()
+        let sender = sender(.nutrients, transport: transport, folder: folder)
+        let first = await sender.run(list, sealed: true)
+        let second = await sender.run(list, sealed: true)
+        XCTAssertFalse(first.contains { $0.hasPrefix("stop ") })
+        XCTAssertEqual(second, ["stop sealed_run_already_claimed_or_unwritable"])
+        XCTAssertEqual(transport.sent.filter { $0.method == "POST" }.count, 1)
+    }
+
+    /// Freeze item 1: a sealed part is claimed only when the programme stop leaves room for its whole run at
+    /// worst, so a budget stop can never use up a sealed part.
+    func testASealedPartIsNotClaimedWhenTheBudgetCannotCoverItsWholeRun() async throws {
+        let (folder, list) = try privateFolder()
+        let ledger = EvalSpendLedger(url: folder.appendingPathComponent("ledger.json"))
+        // Leave $0.001 of headroom: below one nutrient request at W.
+        while (try? ledger.reserve(part: "nutrients", caseHash: "earlier", worstCaseMicroUSD: 50_000)) != nil {}
+        while (try? ledger.reserve(part: "nutrients", caseHash: "earlier", worstCaseMicroUSD: 1_000)) != nil {}
+        let headroom = try ledger.headroomMicroUSD()
+        XCTAssertLessThan(headroom, 1_000)
+        let transport = Self.answering()
+        let lines = await sender(.nutrients, transport: transport, folder: folder, ledger: ledger).run(list, sealed: true)
+        XCTAssertEqual(lines.last, "stop sealed_budget_insufficient", "\(lines)")
+        XCTAssertTrue(lines.first?.hasPrefix("budget sealed part nutrients needs_microusd ") == true, "\(lines)")
+        XCTAssertTrue(lines.first?.hasSuffix(" headroom_microusd \(headroom)") == true, "\(lines)")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: folder.appendingPathComponent("claimed-nutrients").path),
+                       "the part stays unclaimed")
+        XCTAssertFalse(transport.sent.contains { $0.method == "POST" })
+    }
+
+    /// A retried attempt that reports less than W lets another attempt start, so the bound per request is
+    /// the smaller of three attempts at W and the whole-request cap, not whole multiples of W within the cap.
+    func testTheSealedWorstCaseCoversRetriesThatReportLessThanW() {
+        let details = ConfirmEnrichmentPart.details.perRequestCapMicroUSD
+        let nutrients = ConfirmEnrichmentPart.nutrients.perRequestCapMicroUSD
+        // W of 60 % of the cap: a sub-W report then a timeout at W charges up to the cap.
+        XCTAssertEqual(EvalSender.sealedWorstCase(requests: 10, w: details * 6 / 10, part: .details), 10 * details)
+        // W of 35 % of the cap: three attempts can start, up to the cap.
+        XCTAssertEqual(EvalSender.sealedWorstCase(requests: 1, w: nutrients * 35 / 100, part: .nutrients), nutrients)
+        // A small W: three attempts at W.
+        XCTAssertEqual(EvalSender.sealedWorstCase(requests: 4, w: 100, part: .nutrients), 4 * 3 * 100)
+        XCTAssertEqual(EvalSender.sealedWorstCase(requests: 5, w: 0, part: .details), 0)
+        XCTAssertNil(EvalSender.sealedWorstCase(requests: Int.max, w: 100, part: .details))
+        XCTAssertNil(EvalSender.sealedWorstCase(requests: 1, w: -1, part: .details))
+    }
+
+    func testAStoppedLedgerRefusesASealedClaim() async throws {
+        let (folder, list) = try privateFolder()
+        let ledger = EvalSpendLedger(url: folder.appendingPathComponent("ledger.json"))
+        let id = try ledger.reserve(part: "nutrients", caseHash: "earlier", worstCaseMicroUSD: 1_000)
+        try ledger.settle(id, reportedMicroUSD: -1)
+        let lines = await sender(.nutrients, transport: Self.answering(), folder: folder, ledger: ledger).run(list, sealed: true)
+        XCTAssertEqual(lines, ["stop ledger_stopped"])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: folder.appendingPathComponent("claimed-nutrients").path))
+    }
+
+    /// Freeze item 3 (owner decision, 22 November 2026): a sealed part whose send fails after the claim stays used up. The
+    /// model may already have seen some of its requests, so it is never sent again.
+    func testASealedPartThatFailsAfterItsClaimStaysUsedUp() async throws {
+        let (folder, list) = try privateFolder()
+        struct Offline: ConfirmEnrichmentHTTPTransporting {
+            func send(_ request: ConfirmEnrichmentHTTPRequest, timeout: TimeInterval, maximumBodyBytes: Int) async throws
+                -> ConfirmEnrichmentHTTPResponse {
+                if let response = EvalHarnessTests.catalogue(request, prompt: "0.0000002") { return response }
+                throw ConfirmEnrichmentTransportError.offline
+            }
+        }
+        let failing = EvalSender(part: .details, transport: Offline(), keys: FixedEvalKey(),
+                                 ledger: EvalSpendLedger(url: folder.appendingPathComponent("ledger.json")), privateFolder: folder,
+                                 wait: { _ in })
+        let first = await failing.run(list, sealed: true)
+        XCTAssertTrue(first.contains("stop first_request_transport_failed"), "\(first)")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: folder.appendingPathComponent("claimed-details").path))
+        let transport = Self.answering()
+        let second = await sender(.details, transport: transport, folder: folder).run(list, sealed: true)
+        XCTAssertEqual(second, ["stop sealed_run_already_claimed_or_unwritable"])
+        XCTAssertFalse(transport.sent.contains { $0.method == "POST" }, "a used-up sealed part is never sent again")
+    }
+
+    /// Freeze item 2: the offline plan check builds both parts' plans with nothing sent.
+    func testThePlanCheckCountsBothPartsAndStopsOnACaseItCannotBuild() throws {
+        let (folder, list) = try privateFolder()
+        let lines = EvalPlanCheck.lines(list, set: "sealed", privateFolder: folder)
+        XCTAssertEqual(lines.count, 1, "\(lines)")
+        XCTAssertTrue(lines[0].hasPrefix("plan sealed details_requests "), "\(lines)")
+        XCTAssertFalse(lines[0].contains(Self.name) || lines[0].contains(Self.code), "counts only")
+        let missing = EvalCaseList(cases: list.cases + [EvalCase(kind: .openFoodFacts, record: "records/missing.json", shape: .barcode,
+                                                                  retrievedAt: "2026-11-21T10:00:00Z", hidden: [.fatTotal])])
+        XCTAssertEqual(EvalPlanCheck.lines(missing, set: "sealed", privateFolder: folder), ["stop plan_details_unavailable"])
     }
 
     func testTheRunStopsAtTheProgrammeStop() async throws {
@@ -159,19 +365,22 @@ final class EvalHarnessTests: XCTestCase {
         XCTAssertEqual(transport.sent.filter { $0.method == "POST" }.count, 1)
     }
 
-    /// Defect review of PR 3: the tool's retries follow the app's whole-request cap. W of about $0.0104 on
-    /// B fits the $0.02 cap once, so after a 503 no second attempt starts.
+    /// Defect review of PR 3: the tool's retries follow the app's whole-request cap. W of about $0.0254 on
+    /// B fits the $0.04 cap once, so after a 503 no second attempt starts.
     func testRetriesStopWhereTheAppsWholeRequestCapWould() async throws {
         let (folder, list) = try privateFolder()
-        // prompt 0.0000015, completion 0.0000008: W = 6,000 * 1.5e-6 + 1,700 * 8e-7 = 0.01036, under the $0.02 cap once.
+        // prompt 0.000004, completion 0.0000008: W = 6,000 * 4e-6 + 1,700 * 8e-7 = 0.02536, under the $0.04 cap once.
         let transport = FakeTransport { request in
-            if let response = Self.catalogue(request, prompt: "0.0000015") { return response }
+            if let response = Self.catalogue(request, prompt: "0.000004") { return response }
             return .init(status: 503, headers: [:], body: Data(), exceededLimit: false)
         }
-        _ = await sender(.nutrients, transport: transport, folder: folder).run(list)
+        let ledger = EvalSpendLedger(url: folder.appendingPathComponent("ledger.json"))
+        let sender = EvalSender(part: .nutrients, transport: transport, keys: FixedEvalKey(), ledger: ledger,
+                                privateFolder: folder, wait: { _ in XCTFail("A blocked retry must not wait") })
+        _ = await sender.run(list)
         let posts = transport.sent.filter { $0.method == "POST" }.count
         let w = ConfirmEnrichmentSpendPolicy.worstCase(ConfirmEnrichmentRoutes.nutrients,
-            prices: ConfirmEnrichmentPrices(promptPerTokenUSD: Decimal(string: "0.0000015")!, completionPerTokenUSD: Decimal(string: "0.0000008")!))
+            prices: ConfirmEnrichmentPrices(promptPerTokenUSD: Decimal(string: "0.000004")!, completionPerTokenUSD: Decimal(string: "0.0000008")!))
         XCTAssertGreaterThan(2 * w, ConfirmEnrichmentPart.nutrients.perRequestCapMicroUSD, "the fixture needs W above half the cap")
         XCTAssertEqual(posts, 1, "one attempt, as the app's session would make")
     }

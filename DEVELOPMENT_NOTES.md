@@ -5238,6 +5238,47 @@ Excluded:
 
 Pricing: `claude-opus-5-5` at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, so the figures are a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
 
+## WHR-549-2026-11-21-PR4A: Codex Confirm enrichment scorer and bars (#549)
+
+| Phase | Input (cached) | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: |
+| Scorer, synthetic tests and local review | 5,785,859 (5,656,832) | 31,468 | 5,817,327 | $1.14 |
+
+Measured from the intake snapshot of 65,989 input tokens (42,752 cached) and 456 output tokens in
+Codex session `01a20076-5e4c-7193-82dd-329ad2a55e39` to the pre-ledger snapshot. The
+recorded phase had no cache-write tokens. The snapshot excludes the initial intake, ledger edit,
+later verification, GitHub delivery, hosted checks and private owner runs. No external review
+usage is included.
+
+Comparison at [GPT-6.2 Sol Standard short-context rates](https://developers.openai.com/api/docs/models/gpt-6.2-sol),
+checked on 21 November 2026: $2/M uncached input, $0.10/M cached input and $10/M output.
+129,027 uncached input, 5,656,832 cached input and 31,468 output give $1.1384172 before rounding.
+This is an API-equivalent comparison under a subscription. Separate tool charges are unmeasured.
+
+### PR 4a review follow-up, 22 November 2026
+
+| Phase | Input (cached) | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: |
+| Review fixes, synthetic tests and privacy PR split | 3,884,694 (3,849,344) | 17,064 | 3,901,758 | $0.63 |
+
+Measured in the same session from the follow-up intake snapshot of 16,520,686 input tokens
+(16,174,592 cached) and 47,839 output tokens to the pre-ledger snapshot. At the
+[Standard short-context rates](https://developers.openai.com/api/docs/models/gpt-6.2-sol),
+checked again on 22 November 2026, 35,350 uncached input, 3,849,344 cached input and
+17,064 output give $0.6262744 before rounding. The two measured periods are disjoint.
+Later validation, the ledger edit, hosted checks, external reviews and owner runs are outside
+this measurement.
+
+### PR 4a freeze items, Claude Code, 22 November 2026
+
+Claude Code (`claude-opus-5-5`, session `caf41dcb`) took over the branch from Codex's handover and added the three freeze items: a budget check before a sealed claim, the offline `check-plan` command, and a test that pins a sealed part as used up after a failed send.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Freeze items, synthetic tests and doc wording | 2,995,318 (2,935,273) | 60,001 | 15,721 | 3,011,039 | $1.38 |
+
+Method: `phase_usage.py --format claude --since 2026-11-22T09:51:13Z --until 2026-11-22T09:56:22Z --include-subagents`, from the owner's handover message to just before this ledger edit (exact USD 1.3816586; all cache writes at the 1-hour rate). The cache-write tokens are part of the input figure. Excluded: the session's earlier turns (case selection, recorded in WHR-549-2026-11-21-SEL, and the PR 564 reviews, unmeasured), the later gates, review, push and handover, hosted checks and owner runs.
+
 ## WHR-549-2026-11-22-JEV: Claude Code Jev request and answer shape fix (#549)
 
 Claude Code (`claude-opus-5-5`, session `caf41dcb`) fixed A's wire shape after the evaluation's first request returned a 400. It checked System One's documented shape and sent one synthetic request (a made-up food, nothing from the evaluation). Then it changed the details body to keyed `questions` with `criteria` and per-question `instructions`, the answer check to read `choice`, and the usage parse to accept `input_tokens`, regenerated the request goldens, and re-ran the owner-requested probe, which passed. The agent read only the tool's console lines and a structure-only summary of the failed reply.

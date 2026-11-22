@@ -83,6 +83,15 @@ public final class EvalSpendLedger: @unchecked Sendable {
     /// What every call so far is charged: reported costs, and W for open or unreported calls.
     public func chargedMicroUSD() throws -> Int { try lock.withLock { charged(try read()) } }
 
+    /// What the programme stop still leaves for new reservations. A stopped ledger leaves nothing.
+    public func headroomMicroUSD() throws -> Int {
+        try lock.withLock {
+            let file = try read()
+            guard !file.stopped else { throw Refusal.stopped }
+            return max(0, Self.programmeStopMicroUSD - charged(file))
+        }
+    }
+
     /// Reserves one call at W, before it is sent. Returns the reservation's ID.
     public func reserve(part: String, caseHash: String, worstCaseMicroUSD w: Int) throws -> String {
         try lock.withLock {

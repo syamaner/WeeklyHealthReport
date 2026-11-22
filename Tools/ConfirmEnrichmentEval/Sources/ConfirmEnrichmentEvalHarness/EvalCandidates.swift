@@ -117,21 +117,75 @@ public struct EvalCandidates: Sendable {
             expectedIdentity: input.expectedIdentity, expectedEdibleQuantity: input.expectedEdibleQuantity)
     }
 
-    /// The Confirm state for a case, read from the private folder.
-    public func state(for evalCase: EvalCase, privateFolder: URL) throws -> FoodConfirmationState {
+    /// The original candidate and any legacy salt reference, local to the evaluation.
+    func source(for evalCase: EvalCase, privateFolder: URL) throws -> (PopulatedFoodConfirmation, Double?) {
         guard let retrievedAt = evalCase.retrievalDate else { throw Problem.recordUnreadable }
-        let input: PopulatedFoodConfirmation
         switch evalCase.kind {
         case .openFoodFacts:
-            guard let record = evalCase.record, let shape = evalCase.shape,
-                  let data = FileManager.default.contents(atPath: privateFolder.appendingPathComponent(record).path),
-                  let product = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw Problem.recordUnreadable }
-            input = try openFoodFactsInput(product: product, shape: shape, retrievedAt: retrievedAt)
+            guard let shape = evalCase.shape else { throw Problem.recordUnreadable }
+            let product = try Self.record(for: evalCase, privateFolder: privateFolder)
+            let input = try openFoodFactsInput(product: product, shape: shape, retrievedAt: retrievedAt)
+            let salt = (product["nutriments"] as? [String: Any])?["salt_100g"]
+            let declaredSalt: Double?
+            if let number = salt as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID() {
+                declaredSalt = number.doubleValue
+            } else if let text = salt as? String {
+                declaredSalt = Double(text.trimmingCharacters(in: .whitespacesAndNewlines))
+            } else {
+                declaredSalt = nil
+            }
+            return (input, declaredSalt)
         case .bundledRow:
             guard let table = evalCase.table, let search = evalCase.search, let recordID = evalCase.recordID else { throw Problem.rowAbsent }
-            input = try bundledInput(table: table, search: search, recordID: recordID, retrievedAt: retrievedAt)
+            return (try bundledInput(table: table, search: search, recordID: recordID, retrievedAt: retrievedAt), nil)
         }
+    }
+
+    static func record(for evalCase: EvalCase, privateFolder: URL) throws -> [String: Any] {
+        guard let record = evalCase.record else { throw Problem.recordUnreadable }
+        let path = privateFolder.appendingPathComponent(record).path
+        guard EvalPaths.isInside(path, repository: privateFolder.path),
+              let data = FileManager.default.contents(atPath: path),
+              let product = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw Problem.recordUnreadable
+        }
+        return product
+    }
+
+    /// The Confirm state for a case, read from the private folder.
+    public func state(for evalCase: EvalCase, privateFolder: URL) throws -> FoodConfirmationState {
+        let (input, _) = try source(for: evalCase, privateFolder: privateFolder)
         return FoodConfirmationState(input: try Self.hiding(input, keys: evalCase.hiddenKeys), prefillSourceQuantity: false)
+    }
+
+    /// Resolve once before sending or scoring. Only the unhidden case list is sealed by the manifest.
+    func nutrientVariants(for evalCase: EvalCase, index: Int, privateFolder: URL) throws
+        -> [(EvalCase, FoodConfirmationState, NutrientKey, Double)] {
+        let (input, salt) = try source(for: evalCase, privateFolder: privateFolder)
+        guard let candidate = input.candidates.first else { throw Problem.notACandidate }
+        var declared: [NutrientKey: Double] = [:]
+        for key in NutrientKey.allCases {
+            declared[key] = EvalHiding.declared(candidate.candidate.nutrients, key: key)
+        }
+        if declared[.sodium] == nil, let salt {
+            declared[.sodium] = EvalNutrientBars.sodiumMilligrams(saltGrams: salt)
+        }
+        let keys: [NutrientKey]
+        if evalCase.hidden.isEmpty {
+            keys = EvalNutrientBars.hiddenKeys(declared: Set(declared.keys), caseIndex: index)
+        } else {
+            guard evalCase.hidden.count == 1, let key = evalCase.hiddenKeys.first,
+                  EvalNutrientBars.rule(key).floor != nil, declared[key] != nil else {
+                throw Problem.notACandidate
+            }
+            keys = [key]
+        }
+        return try keys.map { key in
+            guard let amount = declared[key] else { throw Problem.notACandidate }
+            let hidden = try Self.hiding(input, keys: [key])
+            let state = FoodConfirmationState(input: hidden, prefillSourceQuantity: false)
+            return (evalCase.hiding(key), state, key, amount)
+        }
     }
 }
 

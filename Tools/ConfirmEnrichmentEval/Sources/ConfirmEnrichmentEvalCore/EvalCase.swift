@@ -51,6 +51,11 @@ public struct EvalCase: Codable, Equatable, Sendable {
 
     public var hiddenKeys: Set<NutrientKey> { Set(hidden.compactMap(NutrientKey.init(rawValue:))) }
 
+    public func hiding(_ key: NutrientKey) -> EvalCase {
+        EvalCase(kind: kind, record: record, shape: shape, table: table, search: search,
+                 recordID: recordID, retrievedAt: retrievedAt, hidden: [key])
+    }
+
     public var retrievalDate: Date? { ISO8601DateFormatter().date(from: retrievedAt) }
 
     /// Whether the case is complete for its kind.

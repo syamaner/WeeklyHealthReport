@@ -18,7 +18,7 @@ public enum ConfirmEnrichmentRoutes {
     public static let details = ConfirmEnrichmentRoute(
         part: .details, version: "confirm-details-route-v1", model: "typesafe/jev-1.13",
         acceptedModels: ["typesafe/jev-1.13", "typesafe/jev-1.13-20260917"], provider: "TypeSafe", providerEndpoint: "typesafe",
-        endpoint: detailsURL, promptCeilingTokens: 4_000, completionCeilingTokens: 400, reasoningLimitTokens: 0,
+        endpoint: detailsURL, promptCeilingTokens: 8_000, completionCeilingTokens: 400, reasoningLimitTokens: 0,
         reasoningBilledSeparately: false, sendsMaxTokens: true)
 
     /// `confirm-nutrient-route-v1`: GPT-6.1 Sol on Azure (CE-D2).

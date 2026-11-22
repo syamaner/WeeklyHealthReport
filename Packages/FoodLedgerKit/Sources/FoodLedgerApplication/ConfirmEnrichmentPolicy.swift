@@ -245,13 +245,43 @@ public enum ConfirmEnrichmentPolicy {
 
     // MARK: Fixed texts (prompt versions)
 
-    /// `confirm-details-prompt-v1`.
+    /// `confirm-details-prompt-v2` (the same instruction as v1; v2 adds the choice descriptions below).
     public static let detailsInstruction = """
         You are given one food description and questions about its food details. For each question, \
         choose exactly one of the listed choices for the food exactly as described. Choose unknown \
         whenever the description does not settle the fact. Never contradict the details already known. \
         Give a confidence from 0 to 1 and probabilities for the choices.
         """
+
+    /// `confirm-details-prompt-v2`: what each choice means, sent as System One's `criteria`. Fixed text with
+    /// no health, target or diet wording. The development run showed bare choice names left most details
+    /// that cannot apply to a food answered `unknown`.
+    public static func choiceDescription(_ fact: ConfirmDetailsFact, _ choice: String) -> String {
+        let unknown = "The description does not settle it."
+        switch (fact, choice) {
+        case (.preparation, "as_sold"): return "Eaten as bought, with no cooking needed, for example crisps, biscuits, yoghurt, bread, chocolate, a drink or a ready-to-eat snack."
+        case (.preparation, "raw"): return "Sold uncooked and normally cooked before eating, for example raw meat or fish, dried pasta, rice, flour or raw vegetables."
+        case (.preparation, "cooked"): return "Sold already cooked and described cooked, for example cooked ham, roast chicken or cooked prawns."
+        case (.bone, "with_bone"): return "Meat or fish sold with its bones in."
+        case (.bone, "boneless"): return "Meat or fish sold with the bones removed, for example fillets, mince or sliced ham."
+        case (.bone, "not_applicable"): return "Not a meat or fish food, so bone cannot apply, for example cereals, snacks, dairy, drinks, sauces, fruit or vegetables."
+        case (.skin, "skin_on"): return "Meat, fish, fruit or vegetables sold with their skin on."
+        case (.skin, "skinless"): return "Meat, fish, fruit or vegetables sold with the skin removed, for example skinless chicken breast or peeled vegetables."
+        case (.skin, "not_applicable"): return "Skin cannot apply to this food, for example drinks, dairy, cereals, biscuits, sauces, sweets or snacks."
+        case (.drained, "drained"): return "A tinned or jarred food described after its packing liquid is poured off."
+        case (.drained, "undrained"): return "A tinned or jarred food described together with its packing liquid."
+        case (.drained, "not_applicable"): return "Not sold in a packing liquid, so draining cannot apply, as for most foods such as snacks, cereals, dairy, bread and drinks."
+        case (.packingMedium, "as sold"): return "Described as sold, together with whatever it is packed in."
+        case (.packingMedium, "not applicable"): return "Not packed in a liquid or sauce, so a packing medium cannot apply, as for most foods such as snacks, cereals, dairy, bread and drinks."
+        case (.packingMedium, "water"): return "Packed in water."
+        case (.packingMedium, "brine"): return "Packed in brine (salted water)."
+        case (.packingMedium, "oil"): return "Packed in an oil other than olive oil, such as sunflower oil."
+        case (.packingMedium, "olive_oil"): return "Packed in olive oil."
+        case (.packingMedium, "sauce"): return "Packed in a sauce, such as tomato sauce."
+        case (.fortification, "unfortified"): return "No vitamins or minerals are added to this food."
+        default: return unknown
+        }
+    }
 
     /// `confirm-nutrient-prompt-v1`. No health, target or diet wording.
     public static let nutrientInstruction = """
@@ -312,9 +342,9 @@ public enum ConfirmEnrichmentPolicy {
         let instructions: String
         let criteria: [String: String]
 
-        init(choices: [String], instructions: String) {
+        init(fact: ConfirmDetailsFact, instructions: String) {
             self.instructions = instructions
-            criteria = Dictionary(uniqueKeysWithValues: choices.map { ($0, $0) })
+            criteria = Dictionary(uniqueKeysWithValues: fact.choices.map { ($0, ConfirmEnrichmentPolicy.choiceDescription(fact, $0)) })
         }
     }
 
@@ -438,7 +468,7 @@ public enum ConfirmEnrichmentPolicy {
         let body = try encoder.encode(DetailsBody(
             model: route.model, provider: ProviderBlock(route), state: inputs,
             questions: Dictionary(uniqueKeysWithValues: inputs.asked.map {
-                ($0.rawValue, DetailsQuestion(choices: $0.choices, instructions: detailsInstruction))
+                ($0.rawValue, DetailsQuestion(fact: $0, instructions: detailsInstruction))
             }),
             maxTokens: route.sendsMaxTokens ? route.completionCeilingTokens : nil))
         guard body.count <= route.promptCeilingTokens else { throw BuildFailure.overPromptCeiling }

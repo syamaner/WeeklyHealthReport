@@ -78,12 +78,17 @@ public struct ConfirmEnrichmentRouteChecker: ConfirmEnrichmentRouteChecking {
               let prompt = (pricing["prompt"] as? String).flatMap(price),
               let completion = (pricing["completion"] as? String).flatMap(price),
               pricesAreModelled(pricing, prompt: prompt, completion: completion,
-                                reasoningBilledSeparately: route.reasoningBilledSeparately) else { return nil }
+                                reasoningBilledSeparately: route.reasoningBilledSeparately,
+                                promptCeilingTokens: route.promptCeilingTokens) else { return nil }
         guard let zdrRoot = (try? JSONSerialization.jsonObject(with: zeroDataRetention)) as? [String: Any],
               let entries = zdrRoot["data"] as? [[String: Any]],
               entries.contains(where: { $0["model_id"] as? String == route.model && $0["tag"] as? String == route.providerEndpoint })
         else { return nil }
-        return ConfirmEnrichmentPrices(promptPerTokenUSD: prompt, completionPerTokenUSD: completion)
+        // A cache write may cost more than a plain prompt token (the live Azure listing, 22 November 2026,
+        // writes at USD 0.0000025 against 0.000002), so W prices every prompt token at the larger rate
+        // and stays a worst case.
+        let writes = cacheWrites.compactMap { (pricing[$0] as? String).flatMap(price) }
+        return ConfirmEnrichmentPrices(promptPerTokenUSD: ([prompt] + writes).max()!, completionPerTokenUSD: completion)
     }
 
     /// Pricing fields beside prompt and completion, as label photo bounds them (E7, 17.21): cached input
@@ -91,11 +96,29 @@ public struct ConfirmEnrichmentRouteChecker: ConfirmEnrichmentRouteChecking {
     /// reasoning at or below the completion rate, and non-zero only when W includes the reasoning limit;
     /// a discount from 0 up to 1 (W ignores it, so W stays the larger bound). Any other field fails closed
     /// unless it is zero.
-    static let inputAtMostPrompt: Set<String> = ["input_cache_read", "input_cache_write", "input_cache_write_1h"]
+    static let inputAtMostPrompt: Set<String> = ["input_cache_read"]
+    /// Cache writes are admitted at any well-formed price; W charges every prompt token at the larger of
+    /// the prompt and write rates.
+    static let cacheWrites = ["input_cache_write", "input_cache_write_1h"]
     static let neverSent: Set<String> = ["image", "audio", "input_audio_cache", "web_search"]
 
-    static func pricesAreModelled(_ pricing: [String: Any], prompt: Decimal, completion: Decimal, reasoningBilledSeparately: Bool) -> Bool {
+    static func pricesAreModelled(_ pricing: [String: Any], prompt: Decimal, completion: Decimal, reasoningBilledSeparately: Bool,
+                                  promptCeilingTokens: Int) -> Bool {
         for (name, value) in pricing where name != "prompt" && name != "completion" {
+            if name == "overrides" {
+                // Long-context price tiers: admitted only when every tier starts above the route's prompt
+                // ceiling, so no request of the route can reach one.
+                guard let tiers = value as? [[String: Any]], tiers.allSatisfy({ tier in
+                    guard let start = tier["min_prompt_tokens"] as? NSNumber, CFGetTypeID(start) != CFBooleanGetTypeID(),
+                          let tokens = Int(exactly: start.doubleValue) else { return false }
+                    return tokens > promptCeilingTokens
+                }) else { return false }
+                continue
+            }
+            if cacheWrites.contains(name) {
+                guard let text = value as? String, price(text) != nil else { return false }
+                continue
+            }
             if name == "discount" {
                 guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(),
                       number.doubleValue.isFinite, number.doubleValue >= 0, number.doubleValue < 1 else { return false }

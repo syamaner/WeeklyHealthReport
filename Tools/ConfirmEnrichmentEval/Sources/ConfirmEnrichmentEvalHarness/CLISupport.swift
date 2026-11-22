@@ -28,3 +28,17 @@ public final class OutputLines: @unchecked Sendable {
     public func set(_ lines: [String]) { lock.withLock { stored = lines } }
     public var lines: [String] { lock.withLock { stored } }
 }
+
+/// Both live parts and both sets use one spend ledger. Hold its process lock across a send.
+public enum EvalLiveRunLock {
+    public static func acquire(in folder: URL) -> FileHandle? {
+        let path = folder.appendingPathComponent("confirm-enrichment-eval.lock").path
+        let descriptor = open(path, O_WRONLY | O_CREAT | O_NOFOLLOW | O_CLOEXEC, S_IRUSR | S_IWUSR)
+        guard descriptor >= 0 else { return nil }
+        guard flock(descriptor, LOCK_EX | LOCK_NB) == 0 else {
+            close(descriptor)
+            return nil
+        }
+        return FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
+    }
+}

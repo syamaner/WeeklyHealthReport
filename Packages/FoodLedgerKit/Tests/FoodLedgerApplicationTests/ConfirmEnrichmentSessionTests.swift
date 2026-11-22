@@ -355,7 +355,7 @@ final class ConfirmEnrichmentSessionTests: XCTestCase {
     func testAKillBetweenReservationAndReplyLeavesTheRequestCountedAtItsCap() throws {
         let day = try XCTUnwrap(ConfirmEnrichmentSpendPolicy.reserved(.nutrients, requestID: "r1", day: .init(localDay: "2026-11-21")))
         XCTAssertEqual(day.requests, 1)
-        XCTAssertEqual(day.openMicroUSD, 20_000)
+        XCTAssertEqual(day.openMicroUSD, 40_000)
         XCTAssertEqual(ConfirmEnrichmentSpendPolicy.admission(.nutrients, day: day), .allowed)
     }
 

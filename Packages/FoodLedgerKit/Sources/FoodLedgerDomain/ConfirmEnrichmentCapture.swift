@@ -11,7 +11,9 @@ public enum ConfirmEnrichmentVersions {
     public static let contract = "confirm-enrichment-openrouter-v1"
     public static let detailsRoute = "confirm-details-route-v1"
     public static let nutrientRoute = "confirm-nutrient-route-v1"
-    public static let detailsPrompt = "confirm-details-prompt-v1"
+    public static let detailsPrompt = "confirm-details-prompt-v2"
+    /// Every details prompt version a stored capture may carry: v1 (bare choice names) still decodes unchanged.
+    public static let detailsPrompts: Set<String> = ["confirm-details-prompt-v1", "confirm-details-prompt-v2"]
     public static let nutrientPrompt = "confirm-nutrient-prompt-v1"
     public static let nutrientSchema = "confirm-nutrient-estimate-v1"
 
@@ -144,7 +146,7 @@ public struct ConfirmDetailsCapture: Codable, Equatable, Sendable {
         guard schema == ConfirmEnrichmentVersions.detailsCaptureMethodVersion,
               contract == ConfirmEnrichmentVersions.contract,
               route == ConfirmEnrichmentVersions.detailsRoute,
-              prompt == ConfirmEnrichmentVersions.detailsPrompt,
+              ConfirmEnrichmentVersions.detailsPrompts.contains(prompt),
               threshold == ConfirmEnrichmentVersions.detailsThreshold,
               response.utf8.count <= ConfirmEnrichmentVersions.detailsResponseByteLimit,
               (try? SHA256Digest(responseSHA256)) != nil,

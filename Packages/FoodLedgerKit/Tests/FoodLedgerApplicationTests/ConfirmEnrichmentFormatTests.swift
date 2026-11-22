@@ -86,6 +86,15 @@ final class ConfirmEnrichmentFormatTests: XCTestCase {
         let detailsPayload = try encoder.encode(details)
         XCTAssertTrue(String(decoding: detailsPayload, as: UTF8.self).contains("\"generation_id\":null"))
         XCTAssertEqual(try JSONDecoder().decode(ConfirmDetailsCapture.self, from: detailsPayload), details)
+        // Prompt v2 (22 November 2026): a stored v1 capture still decodes, keeps v1 and re-encodes unchanged;
+        // an unknown prompt version is refused.
+        let text = String(decoding: detailsPayload, as: UTF8.self)
+        XCTAssertTrue(text.contains("\"confirm-details-prompt-v2\""))
+        let v1 = Data(text.replacingOccurrences(of: "confirm-details-prompt-v2", with: "confirm-details-prompt-v1").utf8)
+        let storedV1 = try JSONDecoder().decode(ConfirmDetailsCapture.self, from: v1)
+        XCTAssertEqual(try encoder.encode(storedV1), v1, "a v1 capture re-encodes byte for byte")
+        let v3 = Data(text.replacingOccurrences(of: "confirm-details-prompt-v2", with: "confirm-details-prompt-v3").utf8)
+        XCTAssertThrowsError(try JSONDecoder().decode(ConfirmDetailsCapture.self, from: v3))
     }
 
     /// G12 (fixture half): each reader selects by its own method version and ignores the others.

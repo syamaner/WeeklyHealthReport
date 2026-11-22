@@ -25,7 +25,7 @@ where the gate reads CE1 strictly, for the owner to see before approving. No poi
 | Captures | `confirm-details-capture-v1` (A), `confirm-nutrient-capture-v1` (B), `confirm-nutrient-choices-v1` (B, per saved version) | CE1.4a, CE1.7. |
 | Cache file | `confirm-enrichment-cache-v1.json` | CE1.2. |
 | Day record | `confirm-enrichment-day-v1.json` | CE1.3 names the record; the gate makes it a file beside the cache. |
-| Versions | contract `confirm-enrichment-openrouter-v1`; routes `confirm-details-route-v1`, `confirm-nutrient-route-v1`; prompts `confirm-details-prompt-v1`, `confirm-nutrient-prompt-v1` | CE1.4, CE1.5. Each route version fixes model, provider, endpoint, `max_tokens`, reasoning limit and the prompt and completion ceilings; it holds no prices, which are read from the day's catalogue check (section 2.6). |
+| Versions | contract `confirm-enrichment-openrouter-v1`; routes `confirm-details-route-v1`, `confirm-nutrient-route-v1`; prompts `confirm-details-prompt-v2`, `confirm-nutrient-prompt-v1` | CE1.4, CE1.5. Each route version fixes model, provider, endpoint, `max_tokens`, reasoning limit and the prompt and completion ceilings; it holds no prices, which are read from the day's catalogue check (section 2.6). |
 | Response schema | `confirm-nutrient-estimate-v1` | CE1.5. |
 | `OpenRouterUse` cases | `confirmEnrichmentDetails`, `confirmEnrichmentNutrients`, `confirmEnrichmentDetailsCatalogueCheck`, `confirmEnrichmentNutrientsCatalogueCheck` | CE1 section 9; mapping and in-force timing in section 6. |
 | Feature switch | `confirmEnrichment.enabled.v1` | CE1 section 9. |
@@ -240,7 +240,7 @@ Same protection and backup exclusion as the cache. The arithmetic lives in a pur
 
   | Route | Prompt ceiling | Completion ceiling | Reasoning limit |
   |---|---|---|---|
-  | `confirm-details-route-v1` | 4,000 tokens | 400 tokens, sent as `max_tokens`; if System One does not accept `max_tokens`, the route version's completion ceiling is the 50,000-byte response limit counted as tokens, so W stays a true worst case | none |
+  | `confirm-details-route-v1` | 8,000 tokens (raised from 4,000 before the freeze, 22 November 2026, when prompt v2's choice descriptions made the body longer) | 400 tokens, sent as `max_tokens`; if System One does not accept `max_tokens`, the route version's completion ceiling is the 50,000-byte response limit counted as tokens, so W stays a true worst case | none |
   | `confirm-nutrient-route-v1` | 6,000 tokens | 1,200 (`max_tokens`, CE1.5) | 500 (CE1.5) |
 
   A request body longer in UTF-8 bytes than its prompt ceiling in tokens is refused before sending
@@ -250,10 +250,14 @@ Same protection and backup exclusion as the cache. The arithmetic lives in a pur
   exceed the per-request cap, the route check fails as route unavailable for that day and the part
   sends nothing. With the 50,000-token fallback, W for A is above $0.01 at almost any listed price, so
   A would never run; that case is a first-request stop for the owner (section 9), not a silent outcome.
-  W and every reported cost are rounded up to whole micro-dollars.
+  W and every reported cost are rounded up to whole micro-dollars. Pricing fields beside prompt and
+  completion (22 November 2026, after the live Azure listing): a cache-write price is admitted at any
+  well-formed rate and W prices every prompt token at the larger of the prompt and cache-write rates;
+  `overrides` long-context tiers are admitted only when every tier's `min_prompt_tokens` is above the
+  route's prompt ceiling, so no request can reach one; anything malformed fails the route closed.
 - **Whole-request cap.** An attempt may start only when the request's `attemptsCharged` (held in the
   session: each sent attempt's reported cost, or W when none is reported; never the reserved
-  `charged_microusd`) plus W is at most $0.01 (A) or $0.02 (B), checked before every attempt, so one request, retries included, never counts
+  `charged_microusd`) plus W is at most $0.01 (A) or $0.04 (B; raised from $0.02 by the owner on 22 November 2026), checked before every attempt, so one request, retries included, never counts
   or spends more than the approved per-request figure. An attempt with no reported cost is charged W.
   If W is so close to the cap that no retry fits, the request simply makes fewer attempts.
 - **Day cap.** A request may start only when `requests` is below 100 and `settled_microusd` plus the
@@ -261,7 +265,7 @@ Same protection and backup exclusion as the cache. The arithmetic lives in a pur
   take the day past $0.50. A request counts once, at its reservation.
 - **Reservations** are tagged with a `request_id` from an injected generator, so reconcile and release
   are idempotent per request, across a day change too. A reservation writes the whole per-request cap
-  (10,000 or 20,000) as `charged_microusd` in one atomic update before the first attempt is sent, as
+  (10,000 or 40,000) as `charged_microusd` in one atomic update before the first attempt is sent, as
   label photo reserves its whole per-tap limit (`LabelPhotoSpendPolicy.swift:177-180`); each sent
   attempt increments `attempts_sent` in the same way, and the reconcile at the end lowers the charge to
   the reported costs (unreported attempts at W), up or down, never clamped to the reservation, as label
@@ -589,7 +593,7 @@ CE1 section 15's seventeen tests are adopted as written. The gate adds:
   that would pass $0.50 make no reservation, no gate call for the request use and no transport call;
   the first attempt starts right after a reservation at the cap, and retries are gated by
   `attemptsCharged`, never `charged_microusd`; no attempt starts when charged plus W
-  would pass $0.01 (A) or $0.02 (B); an unreported cost is charged W; reconcile and release are
+  would pass $0.01 (A) or $0.04 (B); an unreported cost is charged W; reconcile and release are
   idempotent per `request_id`, across a day change; a reported cost above the cap pauses that part
   only; a corrupt ledger refuses until the next local day; a request whose cap would take the day past
   500,000 micro-dollars does not start, so no retry can either; `.absent`, `.unreadable` and `.day` behave as 2.6 says in
@@ -773,6 +777,55 @@ export goldens for schema 7 alone and mixed with schema 3 and 5 content.
 - **Release.** No build that can reach a route outside Debug goes anywhere until its part passes; then
   internal TestFlight only (CE-T13), after the owner's one combined device check of O1 and CE1.
 
+### PR 4a scorer architecture
+
+The evaluation core owns the versioned nutrient classes, hidden-key policy and bar arithmetic.
+The harness reads local evidence and reuses the app's request, response and merge rules. The CLI
+only renders aggregate counts and pass or fail. Dependencies point from the executable and harness
+to the core and from the core to the existing domain and application types. The scorer has no
+network access or open extension for new bars. An alternative evidence reader must supply the
+same typed observations and pass the synthetic integration tests. The contract tests cover all
+keys, hidden variants, validation drops, missing evidence and boundary values for each bar.
+
+For a legacy Open Food Facts panel with only declared salt, the scoring reference uses declared
+salt divided by 2.5, converted from grams to milligrams. The app's projection stays unknown for
+sodium. B creates one variant per available class in the order energy, macro, fibre, sodium,
+other micronutrient. Within the macro and other micronutrient classes, the case's position in its
+manifest rotates through its declared keys in raw-key order. Each variant hides one key; other
+eligible unknowns remain eligible. Only the hidden key has a reference for accuracy. B's coverage
+uses all requested keys. A's fact bars use the owner-reviewed Open Food Facts cases. A pre-fill
+without a confirmed match counts outside the wrong pre-fill bar. The fortified safety bar needs
+at least eight owner-confirmed fortified products in each set.
+
+**Dated scorer rule, 22 November 2026 (owner decision, #564).** Each hidden key belongs in its
+accuracy class's median even when B omits the key or validation drops the estimate. The scorer
+counts it outside the limit and sorts it after every finite error. A missing middle value makes
+the median fail.
+
+Send and score use the same request plan. A reviewed case without A questions contributes no
+request. The tool refuses an unreadable case, a refused request build or an ineligible B variant
+before sending anything. A run with a planned request that never starts has no scorable completion.
+Failed attempts on a started request stay in the measured sample. The latency clock ends at the
+last attempted response or transport failure.
+
+The sealed send requires a complete freeze record, a clean checkout whose commit is on
+`origin/main`, the sealed manifest and a successful local rebuild of the first A request from
+the development manifest. It claims each sealed part once before sending it, and only when the
+programme stop still leaves room for that part's whole run at worst: for every planned request,
+the smaller of three attempts at W and the part's whole-request cap. The bound holds while each
+attempt reports at most W; a report above W can still stop a claimed run. Otherwise it prints the needed and
+remaining amounts and stops without claiming or sending. A claim is never given back: a sealed part
+whose send stops after its claim (a transport failure, the first request stop, a ledger refusal or
+an unwritable record) stays used up and is never sent again, because the model may already have
+seen some of its requests. The owner decided this on 22 November 2026. The two parts and both sets share the live
+spend ledger. Development, sealed and fake completion evidence have
+separate locations. Fake sends and scores are labelled and refuse the sealed case list.
+Before the freeze, the owner can run `check-plan --cases CASES --private DIR` on either set. It
+builds both parts' request plans as `send` would, offline with no key, and prints the request
+counts, or one stop code for the part whose plan cannot be built (for example because of a bundled
+row with no measurable B variant) without naming the case. The owner can use `prepare-sealed-review` after the same merged freeze checks. It creates the
+sealed review sheet once and reports only its row count.
+
 ## 10. PR split
 
 Each PR has its own branch, a ledger row, the validation gates of `AGENTS.md`, a blind
@@ -815,7 +868,7 @@ route values.
 3. **Checks one layer down.** Section 3.2 places request building and response checks in application
    code rather than in the adapters, so a cache hit and a reopen run the same checks. No term changes.
 4. **Per-request caps across retries, and the evaluation's data.** The gate reads "$0.01 per request"
-   and "$0.02 per request" as whole-request totals across all attempts, enforced before each attempt
+   and "$0.02 per request" (since raised to $0.04 for B, 22 November 2026) as whole-request totals across all attempts, enforced before each attempt
    (section 2.6), never as per-attempt figures. And the evaluation reads Open Food Facts data from a
    public export the owner downloads by hand outside the tool, adding no destination to 11.1a; a fetch by the tool would
    need its own approved addition first. Both narrow; neither changes a term.
@@ -991,3 +1044,32 @@ its skill; external TestFlight or App Store builds; any evaluation call before s
 - **Blind invariant re-review 4 (21 November 2026, at `5ec923df`): PASS.** Every change since the
   approval at `af12ad6b` narrows a term or adds a step. One low citation fix taken after it: the key
   sentence now credits 11.1a only with what it says. That commit changes wording only.
+
+## PR 4a configuration record
+
+| Version or count | Value |
+|---|---|
+| Evaluation configuration | `confirm-enrichment-eval-configuration-v1` |
+| Scorer | `confirm-enrichment-eval-scorer-v1` |
+| Case list | `confirm-enrichment-eval-cases-v1` |
+| Request and completion evidence | `confirm-enrichment-eval-request-v1`, `confirm-enrichment-eval-completed-run-v2` |
+| A route and prompt | `confirm-details-route-v1`, `confirm-details-prompt-v2` |
+| B route, prompt and response schema | `confirm-nutrient-route-v1`, `confirm-nutrient-prompt-v1`, `confirm-nutrient-estimate-v1` |
+| Development count | 100 |
+| Sealed count | 100 |
+| Open Food Facts per set | 60, 30 UK, 30 Taiwan, 8 fortified |
+| Bundled rows per set | 40, 10 per table |
+| Development SHA-256 | `1c357f97866f1a5f62b078201e5217d9f814e00f93a59942099a948dcd619bfa` |
+| Sealed SHA-256 | `a3396991fe7b42a9a5faeb027a5e74f891ef5eacbe539cc6385fbe0b6dcc495b` |
+| First A request SHA-256 (prompt v2) | `7894c4ed72b4e0ddc95bd8fdc6b394cf31b7de0dd7bb9183620c80184b06a0cc` |
+| Development plan | 60 A requests, 406 B requests |
+| Reviewed products | 60, of which 11 fortified |
+
+The route freeze was recorded on 22 November 2026 (`EvalConfiguration.freeze`) from the first A
+request under prompt v2, reported by `send --part details --first-request-only` after response
+validation and the first-request ceiling check, and from the development plan and review counts.
+`verify-freeze` rebuilds that first request privately and checks its hash. The owner runs `prepare-sealed-review --cases SEALED_CASES
+--private DIR` in the merged checkout to create `review-sheet-sealed.csv`. A score requires the completed review CSV passed as
+`--review-sheet`. B derives its variants from the selected case list, so the case-list
+manifests are unchanged. Scores use request cost across attempts, charging W when an attempt
+reported no cost, and elapsed wall time including retries. The latency bar uses nearest-rank p90.
