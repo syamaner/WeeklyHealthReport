@@ -83,9 +83,11 @@ public enum EvalScoring {
                                     passed: fortified.count >= 8 && falseUnfortified == 0,
                                     within: fortified.count - falseUnfortified, outside: falseUnfortified)
         return [
-            count(part, .wrongPrefills, comparable.filter { $0 }.count, comparable.count, minimum: 98),
-            count(part, .wrongPreparation, preparation.filter { $0 }.count, preparation.count, minimum: 100, allowEmpty: true),
-            count(part, .coverage, filled, asked, minimum: 60),
+            // A is a best-effort suggestion the owner corrects on Confirm before Log (owner decision,
+            // 22 November 2026): 95% of pre-fills right, 80% of preparation pre-fills right, 40% coverage.
+            count(part, .wrongPrefills, comparable.filter { $0 }.count, comparable.count, minimum: 95),
+            count(part, .wrongPreparation, preparation.filter { $0 }.count, preparation.count, minimum: 80, allowEmpty: true),
+            count(part, .coverage, filled, asked, minimum: 40),
             count(part, .fortifiedPrefills, cases.count - fills, cases.count, minimum: 100),
             fortifiedSafety,
         ] + timing(part, cases.filter { !$0.asked.isEmpty }.map(\.timing), cost: 2_000, seconds: 10)
