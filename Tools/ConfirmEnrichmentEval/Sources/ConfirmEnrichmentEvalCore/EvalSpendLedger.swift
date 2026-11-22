@@ -5,7 +5,7 @@ import Foundation
 /// `confirm-enrichment-day-v1` and never another tool's ledger. Money is whole micro-dollars.
 ///
 /// - **Before every call** the call's worst case W is reserved as an open entry. It is refused when W
-///   passes the $0.05 per-call stop, or when what is charged so far plus W would pass the $5 programme stop.
+///   passes the $0.05 per-call stop, or when what is charged so far plus W would pass the $25 programme stop.
 /// - **After the call** the entry settles to the reported cost; with none it stays charged at W. A call
 ///   that sent nothing is released at zero. A reported cost above the per-call stop stops the ledger:
 ///   every later reservation is refused.
@@ -15,7 +15,7 @@ import Foundation
 /// response, a barcode or a description.
 public final class EvalSpendLedger: @unchecked Sendable {
     public static let schema = "confirm-enrichment-eval-spend-ledger-v1"
-    public static let programmeStopMicroUSD = 5_000_000
+    public static let programmeStopMicroUSD = 25_000_000
     public static let perCallStopMicroUSD = 50_000
 
     public enum Refusal: Error, Equatable, CustomStringConvertible {

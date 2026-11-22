@@ -5290,3 +5290,15 @@ Claude Code (`claude-opus-5-5`, session `caf41dcb`) fixed A's wire shape after t
 Method: `phase_usage.py --format claude --since 2026-11-22T11:05:43Z --until 2026-11-22T11:18:15Z --include-subagents`, from the owner's paste of the failed reply's structure to just before this ledger edit (exact USD 2.4484366; 35,842 5-minute and 89,774 1-hour cache writes; the documentation fetch subagent included). The cache-write tokens are part of the input figure. Excluded: earlier turns of the session, the pull request, reviews, hosted checks and OpenRouter charges (the synthetic request and the probe, both on the owner's key).
 
 Pricing: `claude-opus-5-5` at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, so the figure is a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
+## WHR-549-2026-11-22-STOP: Claude Code CE1 evaluation programme stop (#549)
+
+Claude Code (`claude-opus-5-5`, session `caf41dcb`) raised the CE-T15 programme stop from $5 to $25. The owner approved the size, which came from the development run's measured cost: $3.54 for 406 B and 62 A requests. The change touches the ledger constant, the approved privacy paragraph and its preflight copy, and the contract. The same window covers the B cost-bar change pushed to PR 564.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Sizing changes | 2,878,762 (2,866,399) | 12,341 | 7,510 | 2,886,272 | $0.82 |
+
+Method: `phase_usage.py --format claude --since 2026-11-22T13:41:45Z --until 2026-11-22T13:45:24Z --include-subagents`, from the owner's approval to just before this ledger edit (exact USD 0.8222958; all cache writes at the 1-hour rate). The cache-write tokens are part of the input figure. Excluded: earlier turns, the pull request, reviews, hosted checks and OpenRouter charges.
+
+Pricing: `claude-opus-5-5` at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, so the figure is a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.

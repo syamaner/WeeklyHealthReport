@@ -28,7 +28,7 @@ final class EvalCoreTests: XCTestCase {
     func testPreflightRefusesWhenTheParagraphIsMissingLocallyOrOnOriginMain() {
         let with = "# Policy\n\n" + EvalPreflight.paragraph + "\n"
         let without = "# Policy\n\nNo tooling paragraph.\n"
-        let altered = "# Policy\n\n" + EvalPreflight.paragraph.replacingOccurrences(of: "$5", with: "$50") + "\n"
+        let altered = "# Policy\n\n" + EvalPreflight.paragraph.replacingOccurrences(of: "$25 for the programme", with: "$50 for the programme") + "\n"
         XCTAssertThrowsError(try EvalPreflight.check(checkout: without, originMain: with)) {
             XCTAssertEqual($0 as? EvalPreflight.Refusal, .missingInCheckout)
         }
@@ -55,8 +55,8 @@ final class EvalCoreTests: XCTestCase {
                 break
             }
         }
-        XCTAssertEqual(reserved, 100, "$5 at $0.05 a call")
-        XCTAssertEqual(try ledger.chargedMicroUSD(), 5_000_000)
+        XCTAssertEqual(reserved, 500, "$25 at $0.05 a call")
+        XCTAssertEqual(try ledger.chargedMicroUSD(), 25_000_000)
     }
 
     func testSettlementAndRelease() throws {
