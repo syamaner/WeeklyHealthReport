@@ -1453,7 +1453,7 @@ public struct FoodConfirmationView: View {
             if model.offersPackagedAsSold {
                 packagedAsSold
             } else if let title = model.foodDetailsActionTitle {
-                Button(title) { showsCorrection = true }
+                Button(title) { openFoodDetails() }
                     .frame(minHeight: 44)
             }
             // After the fix the blocker names: a suggestion is never the first action offered.
@@ -1475,7 +1475,7 @@ public struct FoodConfirmationView: View {
             Label(line, systemImage: "sparkles").font(.subheadline).accessibilityLabel(line)
                 .accessibilityIdentifier("confirmEnrichment.detailsLine")
             HStack(spacing: 16) {
-                Button(ConfirmEnrichmentText.change) { showsCorrection = true }
+                Button(ConfirmEnrichmentText.change) { openFoodDetails() }
                     .buttonStyle(.borderless).frame(minHeight: 44)
                     .accessibilityLabel("\(ConfirmEnrichmentText.change) suggested food details")
                 Button(ConfirmEnrichmentText.notThese) { model.send(.clearDetailsSuggestion) }
@@ -1502,11 +1502,20 @@ public struct FoodConfirmationView: View {
                 .buttonStyle(.borderless)
                 .frame(minHeight: 44)
                 .accessibilityLabel("\(FoodConfirmationViewModel.packagedAsSoldTitle), fortified")
-            Button(FoodConfirmationViewModel.packagedNotSureTitle) { showsCorrection = true }
+            Button(FoodConfirmationViewModel.packagedNotSureTitle) { openFoodDetails() }
                 .buttonStyle(.borderless)
                 .frame(minHeight: 44)
         }
         .accessibilityElement(children: .contain)
+    }
+
+    /// Opens Food details on Confirm's current details, so a Jev fill that landed after Confirm opened
+    /// is shown; after an applied correction it reopens on the applied answers (#549, #352).
+    private func openFoodDetails() {
+        let current = FoodDetailsDraft(model: model)
+        if correctionDraft == nil { correctionDraft = FoodDetailsDraftSession(current) }
+        correctionDraft?.opening(current: current, correctionApplied: model.state.correction != nil)
+        showsCorrection = true
     }
 
     /// The one tap, then the Food details sheet reopens on the answer just recorded.
