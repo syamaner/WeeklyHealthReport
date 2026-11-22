@@ -114,7 +114,9 @@ public enum EvalScoring {
             }
             results.append(median(part, bar, values: errors, limit: group.limit!, missing: 0))
         }
-        return results + timing(part, cases.map(\.timing), cost: 5_000, seconds: 20)
+        // B's cost bar: $0.01 median, raised from $0.005 by the owner on 22 November 2026 after the development run
+        // measured about $0.0087 per request.
+        return results + timing(part, cases.map(\.timing), cost: 10_000, seconds: 20)
     }
 
     private static func count(_ part: ConfirmEnrichmentPart, _ bar: Bar, _ within: Int, _ total: Int,

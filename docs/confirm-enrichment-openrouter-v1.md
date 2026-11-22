@@ -651,7 +651,7 @@ estimate is compared with the hidden declared value.
 | Coverage | at least 60% of unknown facts pre-filled | at least 70% of requested nutrients returned and kept after validation |
 | Accuracy | n/a | median absolute error, as a percentage of the declared value or of a floor where the declared value is smaller (5 kcal energy, 0.5 g for macronutrients and fibre, 5 mg sodium, 10% of the key's UK reference intake for other micronutrients), at most 20% for energy and macronutrients, 35% for fibre and sodium, 50% for other micronutrients |
 | Safety | 0 fortified pre-fills (by construction) and 0 `unfortified` pre-fills on fortified foods (both sets include fortified products, at least 8 each) | 0 known values replaced (by construction) |
-| Cost | median at most $0.002 per request | median at most $0.005 per request |
+| Cost | median at most $0.002 per request | median at most $0.01 per request (raised from $0.005 by the owner on 22 November 2026, after the development run measured about $0.0087) |
 | Latency | p90 at most 10 s | p90 at most 20 s |
 
 A missed bar stops release of that part; the other part may ship on its own. The bars, the sets'
