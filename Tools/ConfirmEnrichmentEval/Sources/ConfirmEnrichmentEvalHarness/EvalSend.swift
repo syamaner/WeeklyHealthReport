@@ -96,8 +96,14 @@ public struct EvalSender: Sendable {
     /// The reported prompt tokens of a reply; nil when it reports none.
     static func promptTokens(_ body: Data) -> Int? {
         guard let root = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
-              let tokens = (root["usage"] as? [String: Any])?["prompt_tokens"] as? NSNumber,
-              CFGetTypeID(tokens) != CFBooleanGetTypeID() else { return nil }
+              let usage = root["usage"] as? [String: Any] else { return nil }
+        // Chat completions report `prompt_tokens`; System One reports `input_tokens`. A null or boolean
+        // count is no count, so the other key is read instead.
+        func count(_ key: String) -> NSNumber? {
+            guard let number = usage[key] as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID() else { return nil }
+            return number
+        }
+        guard let tokens = count("prompt_tokens") ?? count("input_tokens") else { return nil }
         return tokens.intValue
     }
 

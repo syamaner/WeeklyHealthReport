@@ -53,11 +53,11 @@ final class EvalHarnessTests: XCTestCase {
             if request.url.absoluteString == ConfirmEnrichmentRoutes.detailsURL, let inputs = ConfirmDetailsRequestInputs.decode(requestBody: body) {
                 var answers: [String: Any] = [:]
                 for fact in inputs.asked {
-                    answers[fact.rawValue] = ["type": "choice", "value": "unknown", "confidence": 0.9, "probabilities": ["unknown": 0.9]]
+                    answers[fact.rawValue] = ["type": "choice", "choice": "unknown", "confidence": 0.9, "probabilities": ["unknown": 0.9]]
                 }
                 let reply: [String: Any] = ["id": "gen-eval", "model": ConfirmEnrichmentRoutes.details.model,
                                             "provider": ConfirmEnrichmentRoutes.details.provider, "answers": answers,
-                                            "usage": ["cost": 0.0003, "prompt_tokens": promptTokens]]
+                                            "usage": ["cost": 0.0003, "input_tokens": promptTokens]]
                 return .init(status: 200, headers: [:], body: try! JSONSerialization.data(withJSONObject: reply), exceededLimit: false)
             }
             if request.url.absoluteString == ConfirmEnrichmentRoutes.nutrientURL, let inputs = ConfirmNutrientRequestInputs.decode(requestBody: body) {
