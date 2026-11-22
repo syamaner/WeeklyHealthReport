@@ -10,7 +10,7 @@ import Foundation
 /// app's daily caps do not apply and the retry behaviour the latency bar measures is the app's:
 ///
 /// 1. The route check once per run, through the app's `ConfirmEnrichmentRouteChecker`; W from its prices.
-/// 2. Before every call, a reservation of W in the CE-T15 ledger ($0.05 per call, $5 for the programme).
+/// 2. Before every call, a reservation of W in the CE-T15 ledger ($0.05 per call, $25 for the programme).
 /// 3. The call; its reported cost settles the reservation (unreported: charged at W).
 /// 4. At most 3 attempts, with backoff that honours `Retry-After`.
 /// 5. The first request stop (section 9): the run's first case that sends must return the checked
