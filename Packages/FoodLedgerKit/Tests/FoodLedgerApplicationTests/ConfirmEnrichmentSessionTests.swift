@@ -453,9 +453,9 @@ final class ConfirmEnrichmentSessionTests: XCTestCase {
                                                              digester: SHA256Digester())
         func reply(_ preparation: String) throws -> ConfirmEnrichmentAttemptResult {
             let answers: [String: Any] = [
-                "preparation": ["type": "choice", "value": preparation, "confidence": 0.9, "probabilities": [preparation: 0.9]],
-                "bone": ["type": "choice", "value": "not_applicable", "confidence": 0.5, "probabilities": ["not_applicable": 0.5]],
-                "fortification": ["type": "choice", "value": "unknown", "confidence": 0.99, "probabilities": ["unknown": 0.99]],
+                "preparation": ["type": "choice", "choice": preparation, "confidence": 0.9, "probabilities": [preparation: 0.9]],
+                "bone": ["type": "choice", "choice": "not_applicable", "confidence": 0.5, "probabilities": ["not_applicable": 0.5]],
+                "fortification": ["type": "choice", "choice": "unknown", "confidence": 0.99, "probabilities": ["unknown": 0.99]],
             ]
             return .sent(status: 200, body: try JSONSerialization.data(withJSONObject: [
                 "id": "gen-a", "model": "typesafe/jev-1.13", "provider": "TypeSafe", "answers": answers]), retryAfter: nil)

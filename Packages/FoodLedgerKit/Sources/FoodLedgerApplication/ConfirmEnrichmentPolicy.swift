@@ -303,22 +303,30 @@ public enum ConfirmEnrichmentPolicy {
         init(_ route: ConfirmEnrichmentRoute) { only = [route.providerEndpoint]; order = [route.providerEndpoint] }
     }
 
+    /// One System One choice question: `questions` is an object keyed by fact, and each choice question
+    /// carries `type`, its `instructions` and `criteria`, an object from each choice to its description
+    /// (here the choice itself). The fixed instruction travels in every question, where System One reads
+    /// it (the evaluation's first request, 22 November 2026, rejected a list of questions).
     struct DetailsQuestion: Encodable, Sendable {
-        let key: String
         let type = "choice"
-        let choices: [String]
+        let instructions: String
+        let criteria: [String: String]
+
+        init(choices: [String], instructions: String) {
+            self.instructions = instructions
+            criteria = Dictionary(uniqueKeysWithValues: choices.map { ($0, $0) })
+        }
     }
 
     struct DetailsBody: Encodable, Sendable {
         let model: String
         let provider: ProviderBlock
-        let instructions: String
         let state: ConfirmDetailsRequestInputs
-        let questions: [DetailsQuestion]
+        let questions: [String: DetailsQuestion]
         let maxTokens: Int?
 
         enum CodingKeys: String, CodingKey {
-            case model, provider, instructions, state, questions
+            case model, provider, state, questions
             case maxTokens = "max_tokens"
         }
 
@@ -326,7 +334,6 @@ public enum ConfirmEnrichmentPolicy {
             var c = encoder.container(keyedBy: CodingKeys.self)
             try c.encode(model, forKey: .model)
             try c.encode(provider, forKey: .provider)
-            try c.encode(instructions, forKey: .instructions)
             try c.encode(state, forKey: .state)
             try c.encode(questions, forKey: .questions)
             try c.encodeIfPresent(maxTokens, forKey: .maxTokens)
@@ -429,8 +436,10 @@ public enum ConfirmEnrichmentPolicy {
                                       encoder: any CanonicalEncoding, digester: any Digesting) throws -> DetailsRequest {
         guard passesDenyGate(inputs.description) else { throw BuildFailure.denied }
         let body = try encoder.encode(DetailsBody(
-            model: route.model, provider: ProviderBlock(route), instructions: detailsInstruction, state: inputs,
-            questions: inputs.asked.map { DetailsQuestion(key: $0.rawValue, choices: $0.choices) },
+            model: route.model, provider: ProviderBlock(route), state: inputs,
+            questions: Dictionary(uniqueKeysWithValues: inputs.asked.map {
+                ($0.rawValue, DetailsQuestion(choices: $0.choices, instructions: detailsInstruction))
+            }),
             maxTokens: route.sendsMaxTokens ? route.completionCeilingTokens : nil))
         guard body.count <= route.promptCeilingTokens else { throw BuildFailure.overPromptCeiling }
         let subject = try digester.sha256(encoder.encode(DetailsSubject(route: route.version, inputs: inputs))).value

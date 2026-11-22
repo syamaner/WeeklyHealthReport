@@ -55,10 +55,10 @@ public struct ScriptedFoodDetailsSuggester: FoodDetailsSuggesting {
         var answers: [String: Any] = [:]
         for fact in inputs.asked {
             let (choice, confidence) = Self.choices[fact.rawValue] ?? ("unknown", 0.5)
-            answers[fact.rawValue] = ["type": "choice", "value": choice, "confidence": confidence, "probabilities": [choice: confidence]]
+            answers[fact.rawValue] = ["type": "choice", "choice": choice, "confidence": confidence, "probabilities": [choice: confidence]]
         }
         let reply: [String: Any] = ["id": "gen-scripted-details", "model": route.model, "provider": route.provider, "answers": answers,
-                                    "usage": ["cost": 0.0004, "prompt_tokens": 300]]
+                                    "usage": ["cost": 0.0004, "input_tokens": 300]]
         let bytes = (try? JSONSerialization.data(withJSONObject: reply, options: [.sortedKeys])) ?? Data()
         return .sent(status: 200, body: bytes, retryAfter: nil)
     }

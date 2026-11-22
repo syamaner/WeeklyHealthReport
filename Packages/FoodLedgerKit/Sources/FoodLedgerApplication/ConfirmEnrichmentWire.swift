@@ -278,7 +278,8 @@ enum ConfirmEnrichmentUsageParse {
     static func usage(_ root: [String: Any]) -> ConfirmEnrichmentUsage {
         let usage = root["usage"] as? [String: Any]
         let cost = (usage?["cost"] as? NSNumber).map { Decimal(string: $0.stringValue) ?? $0.decimalValue }
-        let prompt = (usage?["prompt_tokens"] as? NSNumber)?.intValue
+        // Chat completions report `prompt_tokens`; System One reports `input_tokens`.
+        let prompt = ((usage?["prompt_tokens"] ?? usage?["input_tokens"]) as? NSNumber)?.intValue
         return ConfirmEnrichmentUsage(generationID: root["id"] as? String, cost: cost, promptTokens: prompt)
     }
 
@@ -352,7 +353,7 @@ public enum ConfirmDetailsResponseCheck {
         var parsed: [ConfirmDetailsCapture.Answer] = []
         for fact in request.asked {
             guard let answer = answers[fact.rawValue] as? [String: Any], answer["type"] as? String == "choice",
-                  let choice = answer["value"] as? String, fact.choices.contains(choice),
+                  let choice = answer["choice"] as? String, fact.choices.contains(choice),
                   ConfirmEnrichmentUsageParse.isNumber(answer["confidence"]),
                   let confidence = (answer["confidence"] as? NSNumber)?.doubleValue, confidence.isFinite, (0...1).contains(confidence),
                   let probabilities = answer["probabilities"] as? [String: Any], !probabilities.isEmpty,
