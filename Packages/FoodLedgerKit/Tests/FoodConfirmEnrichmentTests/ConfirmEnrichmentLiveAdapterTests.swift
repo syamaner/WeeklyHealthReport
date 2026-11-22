@@ -320,6 +320,27 @@ final class ConfirmEnrichmentLiveAdapterTests: XCTestCase {
         XCTAssertFalse(ConfirmEnrichmentSpendPolicy.routeFits(route, prices: huge))
     }
 
+    /// The live Azure listing of 22 November 2026: a cache write above the prompt rate and long-context
+    /// tiers far above the prompt ceiling. W prices prompt tokens at the write rate; a tier the route can
+    /// reach, or a malformed one, fails closed.
+    func testCacheWritesRaiseWAndOnlyUnreachableLongContextTiersAreAdmitted() throws {
+        let nutrients = ConfirmEnrichmentRoutes.nutrients
+        let retention = Data(try Self.retention(nutrients).utf8)
+        func parse(_ extra: [String: Any]) throws -> ConfirmEnrichmentPrices? {
+            ConfirmEnrichmentRouteChecker.parse(listing: Data(try Self.listing(nutrients, extra: extra).utf8),
+                                                zeroDataRetention: retention, route: nutrients)
+        }
+        let tier: [String: Any] = ["min_prompt_tokens": 272_000, "prompt": "0.000004", "completion": "0.000015"]
+        let live = try XCTUnwrap(try parse(["input_cache_read": "0.0000001", "input_cache_write": "0.0000025",
+                                            "discount": 0, "overrides": [tier]]))
+        XCTAssertEqual(live.promptPerTokenUSD, Decimal(string: "0.0000025")!, "W uses the larger write rate")
+        XCTAssertNil(try parse(["overrides": [["min_prompt_tokens": nutrients.promptCeilingTokens, "prompt": "0.000004"]]]),
+                     "a tier the route can reach")
+        XCTAssertNil(try parse(["overrides": [["prompt": "0.000004"]]]), "a tier with no start")
+        XCTAssertNil(try parse(["overrides": "none"]))
+        XCTAssertNil(try parse(["input_cache_write": "0.0000025 per token"]))
+    }
+
     func testReasoningPricedSeparatelyIsAdmittedOnlyWhereWIncludesIt() throws {
         let nutrients = ConfirmEnrichmentRoutes.nutrients
         XCTAssertTrue(nutrients.reasoningBilledSeparately)
