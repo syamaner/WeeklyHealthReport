@@ -365,13 +365,13 @@ final class EvalHarnessTests: XCTestCase {
         XCTAssertEqual(transport.sent.filter { $0.method == "POST" }.count, 1)
     }
 
-    /// Defect review of PR 3: the tool's retries follow the app's whole-request cap. W of about $0.0104 on
-    /// B fits the $0.02 cap once, so after a 503 no second attempt starts.
+    /// Defect review of PR 3: the tool's retries follow the app's whole-request cap. W of about $0.0254 on
+    /// B fits the $0.04 cap once, so after a 503 no second attempt starts.
     func testRetriesStopWhereTheAppsWholeRequestCapWould() async throws {
         let (folder, list) = try privateFolder()
-        // prompt 0.0000015, completion 0.0000008: W = 6,000 * 1.5e-6 + 1,700 * 8e-7 = 0.01036, under the $0.02 cap once.
+        // prompt 0.000004, completion 0.0000008: W = 6,000 * 4e-6 + 1,700 * 8e-7 = 0.02536, under the $0.04 cap once.
         let transport = FakeTransport { request in
-            if let response = Self.catalogue(request, prompt: "0.0000015") { return response }
+            if let response = Self.catalogue(request, prompt: "0.000004") { return response }
             return .init(status: 503, headers: [:], body: Data(), exceededLimit: false)
         }
         let ledger = EvalSpendLedger(url: folder.appendingPathComponent("ledger.json"))
@@ -380,7 +380,7 @@ final class EvalHarnessTests: XCTestCase {
         _ = await sender.run(list)
         let posts = transport.sent.filter { $0.method == "POST" }.count
         let w = ConfirmEnrichmentSpendPolicy.worstCase(ConfirmEnrichmentRoutes.nutrients,
-            prices: ConfirmEnrichmentPrices(promptPerTokenUSD: Decimal(string: "0.0000015")!, completionPerTokenUSD: Decimal(string: "0.0000008")!))
+            prices: ConfirmEnrichmentPrices(promptPerTokenUSD: Decimal(string: "0.000004")!, completionPerTokenUSD: Decimal(string: "0.0000008")!))
         XCTAssertGreaterThan(2 * w, ConfirmEnrichmentPart.nutrients.perRequestCapMicroUSD, "the fixture needs W above half the cap")
         XCTAssertEqual(posts, 1, "one attempt, as the app's session would make")
     }
