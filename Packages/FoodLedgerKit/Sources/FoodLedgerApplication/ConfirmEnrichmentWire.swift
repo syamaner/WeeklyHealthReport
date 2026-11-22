@@ -279,7 +279,9 @@ enum ConfirmEnrichmentUsageParse {
         let usage = root["usage"] as? [String: Any]
         let cost = (usage?["cost"] as? NSNumber).map { Decimal(string: $0.stringValue) ?? $0.decimalValue }
         // Chat completions report `prompt_tokens`; System One reports `input_tokens`.
-        let prompt = ((usage?["prompt_tokens"] ?? usage?["input_tokens"]) as? NSNumber)?.intValue
+        // A null or boolean count is no count, so the other key is read instead.
+        let count = { (key: String) in isNumber(usage?[key]) ? (usage?[key] as? NSNumber)?.intValue : nil }
+        let prompt = count("prompt_tokens") ?? count("input_tokens")
         return ConfirmEnrichmentUsage(generationID: root["id"] as? String, cost: cost, promptTokens: prompt)
     }
 

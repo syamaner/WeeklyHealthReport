@@ -203,6 +203,56 @@ final class ConfirmEnrichmentAdapterTests: XCTestCase {
         XCTAssertEqual(ScriptedConfirmEnrichmentKeySource.state, .valid)
     }
 
+    /// CE1.4's response checks, one refusal per rule, in System One's answer shape (review of PR 566).
+    func testTheDetailsCheckRefusesEveryReplyOutsideCE14() throws {
+        let details = try ConfirmEnrichmentRequestGoldenTests.detailsRequest(.openFoodFactsSearch)
+        let route = ConfirmEnrichmentRoutes.details
+        func answer(_ choice: Any = "unknown", confidence: Any = 0.9, probabilities: Any = ["unknown": 0.9]) -> [String: Any] {
+            ["type": "choice", "choice": choice, "confidence": confidence, "probabilities": probabilities]
+        }
+        func reply(_ change: (inout [String: Any]) -> Void = { _ in }) -> Data {
+            var answers: [String: Any] = [:]
+            for fact in details.inputs.asked { answers[fact.rawValue] = answer() }
+            var root: [String: Any] = ["id": "gen-test", "model": route.model, "provider": route.provider, "answers": answers,
+                                       "usage": ["input_tokens": 300, "output_tokens": 20, "cost": 0.00002]]
+            change(&root)
+            return try! JSONSerialization.data(withJSONObject: root)
+        }
+        func check(_ bytes: Data) -> Result<ConfirmDetailsResponseCheck.Parsed, ConfirmEnrichmentResponseFailure> {
+            ConfirmDetailsResponseCheck.check(bytes, request: details.inputs, models: route.acceptedModels, provider: route.provider)
+        }
+        guard case let .success(parsed) = check(reply()) else { return XCTFail("the valid reply fails") }
+        XCTAssertEqual(parsed.usage.promptTokens, 300, "System One reports input_tokens")
+        let first = details.inputs.asked[0].rawValue
+        func setting(_ value: Any) -> (inout [String: Any]) -> Void {
+            { root in var answers = root["answers"] as! [String: Any]; answers[first] = value; root["answers"] = answers }
+        }
+        let refusals: [(String, Data, ConfirmEnrichmentResponseFailure)] = [
+            ("old value key", reply(setting(["type": "choice", "value": "unknown", "confidence": 0.9, "probabilities": ["unknown": 0.9]])), .answers),
+            ("choice outside the list", reply(setting(answer("fortified"))), .answers),
+            ("confidence above 1", reply(setting(answer(confidence: 1.5))), .answers),
+            ("boolean confidence", reply(setting(answer(confidence: true))), .answers),
+            ("probability key outside the choices", reply(setting(answer(probabilities: ["fortified": 0.9]))), .answers),
+            ("empty probabilities", reply(setting(answer(probabilities: [String: Double]()))), .answers),
+            ("missing fact", reply { root in var a = root["answers"] as! [String: Any]; a[first] = nil; root["answers"] = a }, .answers),
+            ("extra fact", reply { root in var a = root["answers"] as! [String: Any]; a["colour"] = answer(); root["answers"] = a }, .answers),
+            ("wrong model", reply { $0["model"] = "typesafe/jev-0.1" }, .modelMismatch),
+            ("wrong provider", reply { $0["provider"] = "Other" }, .providerMismatch),
+            ("not JSON", Data("not json".utf8), .notJSON),
+            ("over 50,000 bytes", reply { $0["padding"] = String(repeating: "x", count: 50_001) }, .tooLarge),
+        ]
+        for (name, bytes, failure) in refusals {
+            guard case let .failure(found) = check(bytes) else { XCTFail("\(name) was accepted"); continue }
+            XCTAssertEqual(found, failure, name)
+        }
+        // A null or boolean prompt count falls back to input_tokens.
+        let nullPrompt = reply { $0["usage"] = ["prompt_tokens": NSNull(), "input_tokens": 5_000] }
+        guard case let .success(fallback) = check(nullPrompt) else { return XCTFail("null prompt_tokens refused the reply") }
+        XCTAssertEqual(fallback.usage.promptTokens, 5_000)
+        guard case let .success(boolean) = check(reply { $0["usage"] = ["prompt_tokens": true] }) else { return XCTFail("refused") }
+        XCTAssertNil(boolean.usage.promptTokens, "a boolean is no count")
+    }
+
     func testScriptedAnswersAndCapturesTakeTheRouteValues() async throws {
         let gate = PermittingOpenRouterEgress()
         let details = try ConfirmEnrichmentRequestGoldenTests.detailsRequest(.openFoodFactsSearch)
