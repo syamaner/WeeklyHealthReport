@@ -70,11 +70,13 @@ enum OpenRouterConsentSeed: Equatable {
     }
 }
 
-/// Settings › OpenRouter (O1.1): one section, directly after Food search.
+/// Settings › OpenRouter (O1.1): one section, directly after Food search. Confirm suggestions'
+/// rows follow the consent switch (docs/confirm-enrichment-openrouter-v1.md sections 8 and 9).
 @MainActor
 enum OpenRouterSettingsContribution {
     static let title = "OpenRouter"
-    static let consentTitle = "Use OpenRouter for food lookups and label reading"
+    /// Widened by Confirm enrichment (CE1 section 9); the key, `openRouter.consent.v1`, is unchanged.
+    static let consentTitle = "Use OpenRouter for food lookups, label reading and Confirm suggestions"
     static let consentCaption = "Off by default. While it is off, the app sends nothing to OpenRouter. Uses your own key and credit."
     static let keyRow = "API key"
     static let readsRow = "Label photo reads today"
@@ -82,6 +84,18 @@ enum OpenRouterSettingsContribution {
     static let manageKeys = "Manage OpenRouter keys and limits"
     static let manageKeysURL = URL(string: "https://openrouter.ai/settings/keys")!
     static let notAvailable = "Not available"
+    static let enrichmentTitle = "Suggest missing food details and values on Confirm"
+    static let enrichmentCaption = "Off by default. Sends a description of the food you are logging and its known values; never the amount, time, notes or Health data."
+    static let suggestionsRow = "Confirm suggestions today"
+    static let clearSuggestionsTitle = "Clear suggestions cache"
+    static let clearSuggestionsHint = "Removes the saved suggestions from this iPhone. Nothing is sent."
+
+    /// `<n> of 100` from the day record; an unreadable record shows `Not available`.
+    nonisolated static func suggestionsDetail(_ stored: ConfirmEnrichmentSpendPolicy.Stored, today: String) -> String {
+        if case .unreadable = stored { return notAvailable }
+        let requests = ConfirmEnrichmentSpendPolicy.current(today: today, stored: stored).requests
+        return "\(requests) of \(ConfirmEnrichmentSpendPolicy.dailyRequestLimit)"
+    }
 
     static func readsDetail(_ stored: LabelPhotoSpendPolicy.Stored, today: String) -> String {
         switch stored {
@@ -92,16 +106,23 @@ enum OpenRouterSettingsContribution {
         }
     }
 
-    /// `labelReads` reads the live spend ledger directly (O1-D1): no read session or flow, nothing sent.
-    /// `readsVisible` is true while the switch is on and a key is saved.
-    static func section(consent: OpenRouterConsentPreference, webLookup: FoodWebDiscoveryViewModel,
+    /// `labelReads` and `suggestionsToday` read their day records directly (O1-D1): no session or flow,
+    /// nothing sent. `readsVisible` is true while the switch is on and a key is saved; both rows follow
+    /// it. `clearSuggestions` clears the active mode's suggestions cache and sends nothing.
+    static func section(consent: OpenRouterConsentPreference, enrichment: ConfirmEnrichmentPreference,
+                        webLookup: FoodWebDiscoveryViewModel,
                         readsVisible: @escaping @MainActor () -> Bool,
-                        labelReads: @escaping @MainActor () -> String) -> SettingsSection {
+                        labelReads: @escaping @MainActor () -> String,
+                        suggestionsToday: @escaping @MainActor () -> String,
+                        clearSuggestions: @escaping @MainActor () -> Void) -> SettingsSection {
         // Quiet until a state change: the switch itself, or the saved key, changes whether the
-        // label reads row shows.
+        // label reads and suggestions rows show.
         let consentChanged = PassthroughSubject<Void, Never>()
         let toggle = SettingsToggle(title: consentTitle, caption: consentCaption,
                                     read: { consent.isOn }, write: { consent.isOn = $0; consentChanged.send() })
+        let enrichmentToggle = SettingsToggle(title: enrichmentTitle, caption: enrichmentCaption,
+                                              read: { enrichment.isOn }, write: { enrichment.isOn = $0 })
+        let suggestionsCleared = PassthroughSubject<Void, Never>()
         let readsChanges = consentChanged.merge(with: FoodSearchSettingsContribution.webLookupChanges(webLookup))
         return SettingsSection(
             id: .openRouter,
@@ -110,6 +131,13 @@ enum OpenRouterSettingsContribution {
             footerLink: SettingsExternalLink(title: manageKeys, url: manageKeysURL),
             rows: [
                 .toggle("openRouterConsent", toggle),
+                .toggle("confirmEnrichment", enrichmentToggle),
+                .value("confirmSuggestionsToday", suggestionsRow, detail: { readsVisible() ? suggestionsToday() : nil },
+                       changes: readsChanges.merge(with: suggestionsCleared).eraseToAnyPublisher()),
+                .action("clearSuggestionsCache", clearSuggestionsTitle, hint: clearSuggestionsHint) {
+                    clearSuggestions()
+                    suggestionsCleared.send()
+                },
                 .link(keyRow, route: .webLookupKey, detail: { [weak webLookup] in
                     guard let webLookup else { return nil }
                     return FoodSearchSettingsContribution.webLookupDetail(hasSavedKey: webLookup.hasSavedKey, keyIsUsable: webLookup.keyIsUsable,
@@ -136,7 +164,7 @@ struct OpenRouterSettingsScreen: View {
             Section {
                 ForEach(section.rows) { row in
                     switch row.kind {
-                    case let .toggle(toggle): SettingsToggleRow(toggle: toggle)
+                    case let .toggle(toggle): SettingsToggleRow(toggle: toggle, identifier: "openRouterSettings." + row.id)
                     case let .link(detail, route):
                         NavigationLink { destination(route) } label: {
                             LabeledContent(row.title) { if let detail = detail() { Text(detail) } }
@@ -146,6 +174,11 @@ struct OpenRouterSettingsScreen: View {
                         LabeledContent(row.title) { if let detail { Text(detail) } }
                     case let .value(detail):
                         if let value = detail() { LabeledContent(row.title, value: value) }
+                    case let .action(hint, perform):
+                        Button(row.title, action: perform)
+                            .frame(minHeight: 44)
+                            .accessibilityHint(hint ?? "")
+                            .accessibilityIdentifier("openRouterSettings." + row.id)
                     }
                 }
             } footer: {

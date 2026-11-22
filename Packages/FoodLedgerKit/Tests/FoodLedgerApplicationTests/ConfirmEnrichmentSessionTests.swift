@@ -204,8 +204,8 @@ final class ConfirmEnrichmentSessionTests: XCTestCase {
         eq(await h.session.nutrients(try request(), mode: .askAgain, preconditions: Self.on, locale: Self.locale), .failed(.silent))
         XCTAssertTrue(h.adapter.bodies.isEmpty)
         XCTAssertEqual(h.checker.checks, 0)
-        XCTAssertEqual(ConfirmEnrichmentAvailability.inForce, ConfirmEnrichmentAvailability(details: false, nutrients: false),
-                       "before the wiring PR the live session never starts")
+        XCTAssertEqual(ConfirmEnrichmentAvailability.inForce, ConfirmEnrichmentAvailability(details: true, nutrients: true),
+                       "both parts passed their bars, so the live session may start both from the wiring PR")
     }
 
     func testAskAgainSkipsTheCacheSendsOnceAndReplacesTheEntry() async throws {

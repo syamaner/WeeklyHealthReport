@@ -41,17 +41,19 @@ final class FoodLedgerCompositionRoot {
     /// The store shared by food search preferences and Settings.
     let userDefaults: UserDefaults
     let foodMarket: FoodMarketPreference
-    /// The last search and web lookup diagnostics for Settings › Developer tools. In memory only.
-    let searchDiagnostics = FoodSearchDiagnosticsLog()
+    /// The last search, web lookup and Confirm enrichment diagnostics for Settings › Developer tools.
+    /// In memory only.
+    let searchDiagnostics: FoodSearchDiagnosticsLog
     let webDiscovery: FoodWebDiscoveryViewModel
     /// Settings › OpenRouter, the one gate every OpenRouter adapter, journey and the label photo
     /// session ask (docs/openrouter-single-consent-v1-amendment.md section 6).
     let openRouterConsent: OpenRouterConsentPreference
     /// The Confirm enrichment feature switch (docs/confirm-enrichment-openrouter-v1.md section 9).
     let confirmEnrichmentPreference: ConfirmEnrichmentPreference
-    /// Confirm enrichment's app session (phase gate section 6). Nil in every build until the wiring PR
-    /// adds the live adapters; in a Debug build `-ConfirmEnrichmentRoute scripted` builds the scripted
-    /// branch, with its own gate, adapters, in-memory cache and day record and no key.
+    /// Confirm enrichment's app session (phase gate section 6): the live branch in every build, with the
+    /// composed gate, the live adapters and the file cache and day record; in a Debug build
+    /// `-ConfirmEnrichmentRoute scripted` builds the scripted branch instead, with its own gate, adapters,
+    /// in-memory cache and day record and no key.
     private(set) var confirmEnrichment: ConfirmEnrichmentRootBranch?
     /// The one OpenRouter key store, shared by web lookup and the live label photo route (17.22).
     /// Injectable so tests decide whether a key is saved without the device Keychain.
@@ -100,6 +102,8 @@ final class FoodLedgerCompositionRoot {
         openRouterConsentDomain: String? = nil
     ) throws {
         self.openRouterKeys = openRouterKeys
+        let diagnosticsLog = FoodSearchDiagnosticsLog()
+        searchDiagnostics = diagnosticsLog
         // One consent for every OpenRouter route (docs/openrouter-single-consent-v1-amendment.md O1.1):
         // the Debug-only seeding argument is applied before anything reads it.
         let consent = OpenRouterConsentPreference(defaults: userDefaults, domainName: openRouterConsentDomain)
@@ -144,8 +148,9 @@ final class FoodLedgerCompositionRoot {
         let clock = SystemLedgerClock()
         // Transient model-call failures are resent unchanged under the #500 retry amendment.
         let openRouter = OpenRouterFoodProvider(egress: consent, extractionRoute: .grok, selectionRoute: .applicability, retry: .live)
-        webDiscovery = FoodWebDiscoveryViewModel(egress: consent, provider: openRouter, keys: openRouterKeys,
+        let discovery = FoodWebDiscoveryViewModel(egress: consent, provider: openRouter, keys: openRouterKeys,
             providerName: "OpenRouter", operatorName: "OpenRouter", keyManagementName: "OpenRouter settings")
+        webDiscovery = discovery
         proposalReviewer = GenericFoodProposalReviewer(egress: consent, discovery: openRouter, capture: PublicFoodSourceCapture(),
             extraction: openRouter, sourceSelection: openRouter, selection: openRouter)
         proposalConfirmation = ReviewedFoodProposalConfirmation(ids: ids, clock: clock,
@@ -201,8 +206,13 @@ final class FoodLedgerCompositionRoot {
         genericRecordResolvers = resolvers
         let index = PersonalFoodDatabaseIndex(store: databaseStore, resolver: resolvers)
         personalFoodDatabaseIndex = index
-        confirmEnrichment = ConfirmEnrichmentRootBranch.make(defaults: userDefaults, consent: consent, preference: enrichmentPreference,
-                                                             database: ActiveReleaseEntryReader(index: index), ids: ids)
+        // The key state comes from the shared key model, as label photo's live mode reads it (O1.2): the
+        // closure is called by Confirm on the main actor.
+        confirmEnrichment = ConfirmEnrichmentRootBranch.make(
+            defaults: userDefaults, consent: consent, preference: enrichmentPreference, database: ActiveReleaseEntryReader(index: index),
+            ids: ids, keys: openRouterKeys, directory: root,
+            keyState: { MainActor.assumeIsolated { OpenRouterAccess.keyState(hasSavedKey: discovery.hasSavedKey, keyIsUsable: discovery.keyIsUsable) } },
+            diagnostics: ConfirmEnrichmentDiagnosticsForwarder(log: diagnosticsLog))
         foodSearchWithDatabase = CompositeGenericFoodSearch(sources: [cofid, usda], regionalSources: [tfda],
             referenceSources: [ciqual],
             databaseSource: PersonalFoodDatabaseFoodSearch(index: index, resolver: resolvers, ids: ids,
@@ -1922,18 +1932,26 @@ extension FoodLedgerCompositionRoot {
         }
     }
 
-    /// Settings › OpenRouter (O1.1). The label reads row shows only while the switch is on and a key
-    /// is saved, and reads the live spend ledger directly: no session, no flow, nothing sent (O1-D1).
+    /// Settings › OpenRouter (O1.1, CE1 section 8). The label reads and Confirm suggestions rows show
+    /// only while the switch is on and a key is saved, and read their day records directly: no session,
+    /// no flow, nothing sent (O1-D1). The suggestions row and Clear suggestions cache act on the active
+    /// mode's day record and cache only (phase gate section 6).
     @MainActor
     func openRouterSettingsSection() -> SettingsSection {
         let consent = openRouterConsent, credentials = webDiscovery, ledgerURL = labelPhotoLiveSpendLedgerURL
-        let clock = confirmationClock, calendar = confirmationCalendar
-        return OpenRouterSettingsContribution.section(consent: consent, webLookup: webDiscovery,
+        let clock = confirmationClock, calendar = confirmationCalendar, enrichment = confirmEnrichment
+        return OpenRouterSettingsContribution.section(consent: consent, enrichment: confirmEnrichmentPreference, webLookup: webDiscovery,
             readsVisible: { consent.isOn && credentials.hasSavedKey },
             labelReads: {
                 OpenRouterSettingsContribution.readsDetail(FileLabelPhotoSpendLedger(url: ledgerURL).load(),
                                                            today: LabelPhotoSpendPolicy.dayKey(clock.now(), calendar: calendar))
-            })
+            },
+            suggestionsToday: {
+                guard let enrichment else { return OpenRouterSettingsContribution.notAvailable }
+                return OpenRouterSettingsContribution.suggestionsDetail(
+                    enrichment.ledger.read(), today: ConfirmEnrichmentSpendPolicy.dayKey(clock.now(), timeZone: calendar.timeZone))
+            },
+            clearSuggestions: { enrichment?.cache.clear() })
     }
 
     /// Settings › OpenRouter as its own screen, opened by a journey's blocked row (O1.4).
@@ -2243,40 +2261,77 @@ struct NutritionLabelFlowView: View {
     }
 }
 
-/// Confirm enrichment at the root (docs/confirm-enrichment-openrouter-v1-phase.md section 6). PR 2 has no
-/// live adapters, so the live branch builds nothing and sends nothing; its availability will be
-/// `ConfirmEnrichmentAvailability.inForce` when the wiring PR adds them. The Debug scripted branch is
-/// built only under `-ConfirmEnrichmentRoute scripted`, with only scripted adapters.
+/// Confirm enrichment at the root (docs/confirm-enrichment-openrouter-v1-phase.md section 6). The live
+/// branch is built in every build, Debug included, unless a Debug build is launched with
+/// `-ConfirmEnrichmentRoute scripted`: then the scripted branch is built instead, with only scripted
+/// adapters, its own gate and its own in-memory cache and day record. The live branch gives every
+/// request site and the route checker the composed gate and starts each part only while its uses are
+/// in force (`ConfirmEnrichmentAvailability.inForce`).
 struct ConfirmEnrichmentRootBranch: Sendable {
     static let routeArgumentKey = "ConfirmEnrichmentRoute"
 
+    enum Mode: Equatable, Sendable { case live, scripted }
+
+    let mode: Mode
     let session: ConfirmEnrichmentSession
     let preconditions: @Sendable () -> ConfirmEnrichmentSession.Preconditions
     let database: any PersonalFoodDatabaseEntryReading
+    /// The active mode's cache and day record, for Settings › OpenRouter.
+    let cache: any ConfirmEnrichmentCaching
+    let ledger: any ConfirmEnrichmentSpendLedger
 
     func context(origin: ConfirmEnrichmentPolicy.Origin) -> ConfirmEnrichmentContext {
         ConfirmEnrichmentContext(session: session, preconditions: preconditions, database: database, origin: origin,
                                  digester: SHA256Digester())
     }
 
+    /// `directory` is the backup-excluded, file-protected FoodLedger root; `keyState` reads the shared
+    /// key model and is called on the main actor.
     static func make(defaults: UserDefaults, consent: OpenRouterConsentPreference, preference: ConfirmEnrichmentPreference,
-                     database: any PersonalFoodDatabaseEntryReading, ids: any LedgerIDGenerating) -> ConfirmEnrichmentRootBranch? {
+                     database: any PersonalFoodDatabaseEntryReading, ids: any LedgerIDGenerating, keys: any FoodWebKeyStoring,
+                     directory: URL, keyState: @escaping @Sendable () -> OpenRouterKeyState,
+                     diagnostics: (any ConfirmEnrichmentDiagnosticsRecording)?) -> ConfirmEnrichmentRootBranch {
         #if DEBUG
-        guard defaults.string(forKey: routeArgumentKey) == "scripted" else { return nil }
-        let gate = ScriptedConfirmEnrichmentGate(openRouterOn: { consent.isOn }, enrichmentOn: { preference.isOn })
-        let session = ConfirmEnrichmentSession(
-            availability: ConfirmEnrichmentAvailability(details: true, nutrients: true), routes: ConfirmEnrichmentRoutes.all,
-            details: ScriptedFoodDetailsSuggester(egress: gate), nutrients: ScriptedNutrientEstimateSuggester(egress: gate),
-            checker: ScriptedConfirmEnrichmentRouteChecker(egress: gate), cache: InMemoryConfirmEnrichmentCache(),
-            ledger: InMemoryConfirmEnrichmentDayLedger(), egress: gate, delaying: TaskConfirmEnrichmentDelaying(),
-            timing: ContinuousConfirmEnrichmentTiming(), jitter: SystemConfirmEnrichmentJitter(), clock: SystemLedgerClock(),
-            timeZone: .autoupdatingCurrent, ids: ids, digester: SHA256Digester())
-        return ConfirmEnrichmentRootBranch(session: session, preconditions: {
-            ConfirmEnrichmentSession.Preconditions(openRouterOn: consent.isOn, enrichmentOn: preference.isOn,
-                                                   keyState: ScriptedConfirmEnrichmentKeySource.state)
-        }, database: database)
-        #else
-        return nil
+        if defaults.string(forKey: routeArgumentKey) == "scripted" {
+            let gate = ScriptedConfirmEnrichmentGate(openRouterOn: { consent.isOn }, enrichmentOn: { preference.isOn })
+            let cache = InMemoryConfirmEnrichmentCache(), ledger = InMemoryConfirmEnrichmentDayLedger()
+            let session = ConfirmEnrichmentSession(
+                availability: ConfirmEnrichmentAvailability(details: true, nutrients: true), routes: ConfirmEnrichmentRoutes.all,
+                details: ScriptedFoodDetailsSuggester(egress: gate), nutrients: ScriptedNutrientEstimateSuggester(egress: gate),
+                checker: ScriptedConfirmEnrichmentRouteChecker(egress: gate), cache: cache,
+                ledger: ledger, egress: gate, delaying: TaskConfirmEnrichmentDelaying(),
+                timing: ContinuousConfirmEnrichmentTiming(), jitter: SystemConfirmEnrichmentJitter(), clock: SystemLedgerClock(),
+                timeZone: .autoupdatingCurrent, ids: ids, digester: SHA256Digester(), diagnostics: diagnostics)
+            return ConfirmEnrichmentRootBranch(mode: .scripted, session: session, preconditions: {
+                ConfirmEnrichmentSession.Preconditions(openRouterOn: consent.isOn, enrichmentOn: preference.isOn,
+                                                       keyState: ScriptedConfirmEnrichmentKeySource.state)
+            }, database: database, cache: cache, ledger: ledger)
+        }
         #endif
+        let egress = ConfirmEnrichmentEgress(consent: consent, preference: preference)
+        let transport = ConfirmEnrichmentTransport()
+        let cache = FileConfirmEnrichmentCache(url: directory.appendingPathComponent(FileConfirmEnrichmentCache.fileName))
+        let ledger = FileConfirmEnrichmentDayLedger(url: directory.appendingPathComponent(FileConfirmEnrichmentDayLedger.fileName))
+        let availability = ConfirmEnrichmentAvailability.inForce
+        let session = ConfirmEnrichmentSession(
+            availability: availability, routes: ConfirmEnrichmentRoutes.all,
+            details: OpenRouterJevFoodDetailsAdapter(egress: egress, transport: transport, keys: keys),
+            nutrients: OpenRouterNutrientEstimateAdapter(egress: egress, transport: transport, keys: keys),
+            checker: ConfirmEnrichmentRouteChecker(egress: egress, transport: transport), cache: cache,
+            ledger: ledger, egress: egress, delaying: TaskConfirmEnrichmentDelaying(),
+            timing: ContinuousConfirmEnrichmentTiming(), jitter: SystemConfirmEnrichmentJitter(), clock: SystemLedgerClock(),
+            timeZone: .autoupdatingCurrent, ids: ids, digester: SHA256Digester(), diagnostics: diagnostics)
+        return ConfirmEnrichmentRootBranch(mode: .live, session: session, preconditions: {
+            ConfirmEnrichmentSession.Preconditions(openRouterOn: consent.isOn, enrichmentOn: preference.isOn, keyState: keyState())
+        }, database: database, cache: cache, ledger: ledger)
+    }
+}
+
+/// Forwards each Confirm enrichment request's diagnostics to Developer tools, on the main actor.
+struct ConfirmEnrichmentDiagnosticsForwarder: ConfirmEnrichmentDiagnosticsRecording {
+    let log: FoodSearchDiagnosticsLog
+
+    func record(_ diagnostics: ConfirmEnrichmentDiagnostics) {
+        Task { @MainActor in log.recordConfirmEnrichment(diagnostics) }
     }
 }

@@ -24,6 +24,21 @@ struct ConfirmEnrichmentPreference: @unchecked Sendable {
     }
 }
 
+/// The app's gate for every Confirm enrichment request site and its route checker (phase gate sections
+/// 4 and 6, G17): a Confirm use is permitted only while the use is in force, Settings › OpenRouter is on
+/// and Suggest missing food details and values on Confirm is on. Every other use is refused here; the
+/// bare `OpenRouterConsentPreference` stays unchanged for the other routes.
+struct ConfirmEnrichmentEgress: OpenRouterEgressPermitting {
+    static let uses: Set<OpenRouterUse> = Set(ConfirmEnrichmentPart.allCases.flatMap { [$0.use, $0.catalogueUse] })
+
+    let consent: OpenRouterConsentPreference
+    let preference: ConfirmEnrichmentPreference
+
+    func permits(_ use: OpenRouterUse) -> Bool {
+        Self.uses.contains(use) && consent.permits(use) && preference.isOn
+    }
+}
+
 /// `-ConfirmEnrichment on|off` for simulator journey checks (phase gate section 6), resolved like
 /// `OpenRouterConsentSeed`: in a Debug build `on` writes the persistent value and `off` removes it,
 /// before the first scene; any other value, and every value in a Release build, does nothing.

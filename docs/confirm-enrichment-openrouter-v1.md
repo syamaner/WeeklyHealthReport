@@ -943,3 +943,11 @@ compatibility choice of section 14 with the approval.
 - **Blind invariant re-review 7 (21 November 2026, at `69add3a4`): PASS.** Two low wording gaps taken:
   A now has a named route version in its subject and capture, so its endpoint is fixed by that version
   as B's is, and the rebuild is stated to come from the live Confirm inputs the subject hashes.
+- **Dated note (22 November 2026), wiring PR (PR 5).** Both parts passed their bars on the sealed run,
+  so the four uses are in force and sections 11.1 and 11.2 take effect, copied word for word into
+  `privacy-and-egress.md` and `privacy-policy.txt`. Two owner decisions of the same day: O1's framing
+  sentence "each only when you start it:" was untrue for Confirm suggestions, which start
+  automatically once both switches are on, so it becomes "each only when you start it or turn it on:",
+  and the egress list's first rule, "User-initiated and visible", gains the same exception for Confirm
+  suggestions; nothing else in the approved text changes. The policy's Effective date is 22 November
+  2026, and O1's approved policy block is restated with these changes as its section 3.5a.

@@ -91,7 +91,7 @@ final class SettingsContributionTests: XCTestCase {
             switch row.kind {
             case let .link(detail, _): details.append(detail())
             case let .toggle(toggle): toggle.set(true); toggle.set(false)
-            case .text, .value: XCTFail("Food search has no plain text or value rows")
+            case .text, .value, .action: XCTFail("Food search has no plain text, value or action rows")
             }
         }
         XCTAssertEqual(details, ["Unspecified"])
@@ -111,26 +111,29 @@ final class SettingsContributionTests: XCTestCase {
         XCTAssertEqual(section.footer, "Open Food Facts receives only the food terms you search for or a barcode you look up. Your Health data and food log stay on this device unless you export them to Google Drive.")
     }
 
-    /// O1.6 test 9: Settings › OpenRouter has the exact rows, copy and order of O1.1; the switch is
-    /// off by default and writes only its versioned key; building and toggling it, and showing the
-    /// label reads row, sends no request and creates no read session.
+    /// O1.6 test 9 with CE1 section 8: Settings › OpenRouter has the exact rows, copy and order of O1.1,
+    /// with the Confirm suggestions rows after the consent switch; the switch is off by default and
+    /// writes only its versioned key; building and toggling it, and showing the label reads row, sends
+    /// no request and creates no read session.
     func testTheOpenRouterSectionRowsCopyAndOrder() throws {
         let (root, defaults) = try makeFoodLedger()
         let sessions = LabelPhotoSessions.count
         let section = root.openRouterSettingsSection()
         XCTAssertEqual(section.id, .openRouter)
         XCTAssertEqual(section.title, "OpenRouter")
-        XCTAssertEqual(section.rows.map(\.id), ["toggle.openRouterConsent", "route.webLookupKey", "value.labelPhotoReadsToday",
+        XCTAssertEqual(section.rows.map(\.id), ["toggle.openRouterConsent", "toggle.confirmEnrichment", "value.confirmSuggestionsToday",
+                                                "action.clearSuggestionsCache", "route.webLookupKey", "value.labelPhotoReadsToday",
                                                 "route.openRouterPrivacy"])
-        XCTAssertEqual(section.rows.map(\.title), ["Use OpenRouter for food lookups and label reading", "API key",
-                                                   "Label photo reads today", "How the app uses OpenRouter"])
+        XCTAssertEqual(section.rows.map(\.title), ["Use OpenRouter for food lookups, label reading and Confirm suggestions",
+                                                   "Suggest missing food details and values on Confirm", "Confirm suggestions today",
+                                                   "Clear suggestions cache", "API key", "Label photo reads today", "How the app uses OpenRouter"])
         XCTAssertNil(section.footer)
         XCTAssertEqual(section.footerLink?.title, "Manage OpenRouter keys and limits")
         XCTAssertEqual(section.footerLink?.url, URL(string: "https://openrouter.ai/settings/keys"))
         guard case let .toggle(toggle) = section.rows[0].kind else { return XCTFail("Expected the consent switch") }
         XCTAssertEqual(toggle.caption, "Off by default. While it is off, the app sends nothing to OpenRouter. Uses your own key and credit.")
         XCTAssertFalse(toggle.isOn, "off by default")
-        guard case let .link(keyDetail, _) = section.rows[1].kind, case let .value(reads) = section.rows[2].kind else {
+        guard case let .link(keyDetail, _) = section.rows[4].kind, case let .value(reads) = section.rows[5].kind else {
             return XCTFail("Expected the key link and the reads row")
         }
         XCTAssertEqual(keyDetail(), FoodSearchSettingsContribution.webLookupDetail(hasSavedKey: root.webDiscovery.hasSavedKey,
@@ -142,6 +145,55 @@ final class SettingsContributionTests: XCTestCase {
         toggle.set(false)
         XCTAssertNil(defaults.persistentDomain(forName: consentDomains[ObjectIdentifier(defaults)] ?? "")?[OpenRouterConsentPreference.key])
         XCTAssertEqual(LabelPhotoSessions.count, sessions, "the section builds no read flow")
+    }
+
+    /// CE1 sections 8 and 9: the enrichment switch is off by default, reads and writes only
+    /// `confirmEnrichment.enabled.v1` in the persistent domain, and is removed when off; the day row
+    /// follows the label reads row's visibility and reads `<n> of 100`; Clear suggestions cache deletes
+    /// the live cache file. Building, toggling, reading and clearing write no day record and no cache,
+    /// and so send nothing (a request reserves in the day record before it is sent).
+    func testTheConfirmSuggestionsRowsAreOffByDefaultAndSendNothing() throws {
+        let (root, defaults) = try makeFoodLedger()
+        let domain = consentDomains[ObjectIdentifier(defaults)] ?? ""
+        let section = root.openRouterSettingsSection()
+        guard case let .toggle(consent) = section.rows[0].kind, case let .toggle(enrichment) = section.rows[1].kind,
+              case let .value(today) = section.rows[2].kind, case let .action(hint, clear) = section.rows[3].kind else {
+            return XCTFail("Expected the consent switch, the enrichment switch, the day row and the clear action")
+        }
+        XCTAssertEqual(enrichment.caption, "Off by default. Sends a description of the food you are logging and its known values; never the amount, time, notes or Health data.")
+        XCTAssertEqual(hint, "Removes the saved suggestions from this iPhone. Nothing is sent.")
+        XCTAssertFalse(enrichment.isOn, "off by default")
+        XCTAssertNil(today(), "hidden while OpenRouter is off")
+        enrichment.set(true)
+        XCTAssertTrue(enrichment.isOn)
+        XCTAssertEqual(defaults.persistentDomain(forName: domain)?[ConfirmEnrichmentPreference.key] as? Bool, true)
+        XCTAssertTrue(root.confirmEnrichmentPreference.isOn)
+        consent.set(true)
+        if root.webDiscovery.hasSavedKey { XCTAssertEqual(today(), "0 of 100") } else { XCTAssertNil(today(), "hidden while no key is saved") }
+
+        let folder = root.healthDirectory.appendingPathComponent("FoodLedger/v1", isDirectory: true)
+        let cacheFile = folder.appendingPathComponent("confirm-enrichment-cache-v1.json")
+        let dayFile = folder.appendingPathComponent("confirm-enrichment-day-v1.json")
+        XCTAssertEqual(root.confirmEnrichment?.mode, .live)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: cacheFile.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: dayFile.path), "nothing reserved, so nothing sent")
+        try Data("{}".utf8).write(to: cacheFile)
+        clear()
+        XCTAssertFalse(FileManager.default.fileExists(atPath: cacheFile.path), "the live cache file is deleted")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: dayFile.path))
+        XCTAssertEqual(root.confirmEnrichment?.ledger.read(), .absent)
+
+        enrichment.set(false)
+        consent.set(false)
+        XCTAssertNil(defaults.persistentDomain(forName: domain)?[ConfirmEnrichmentPreference.key], "off removes the value")
+    }
+
+    func testTheConfirmSuggestionsDetail() {
+        XCTAssertEqual(OpenRouterSettingsContribution.suggestionsDetail(.absent, today: "2026-11-22"), "0 of 100")
+        XCTAssertEqual(OpenRouterSettingsContribution.suggestionsDetail(.unreadable, today: "2026-11-22"), "Not available")
+        let day = ConfirmEnrichmentSpendPolicy.Day(localDay: "2026-11-22", requests: 7)
+        XCTAssertEqual(OpenRouterSettingsContribution.suggestionsDetail(.day(day), today: "2026-11-22"), "7 of 100")
+        XCTAssertEqual(OpenRouterSettingsContribution.suggestionsDetail(.day(day), today: "2026-11-23"), "0 of 100", "a new day starts at 0")
     }
 
     func testTheLabelReadsDetail() {

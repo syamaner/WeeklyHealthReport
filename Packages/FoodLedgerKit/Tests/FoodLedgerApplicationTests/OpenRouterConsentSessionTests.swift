@@ -23,13 +23,26 @@ final class OpenRouterConsentSessionTests: XCTestCase {
 
     /// Section 6: the closed list and its explicit mapping to the policy and the egress table.
     func testTheUseListIsClosedAndMapsOnlyUsesInForce() {
-        XCTAssertEqual(OpenRouterUse.allCases.filter(\.isInForce), [.keyValidation, .webLookup, .labelPhotoRead, .labelPhotoCatalogueCheck])
+        XCTAssertEqual(OpenRouterUse.allCases.filter(\.isInForce), [
+            .keyValidation, .webLookup, .labelPhotoRead, .labelPhotoCatalogueCheck,
+            .confirmEnrichmentDetails, .confirmEnrichmentNutrients,
+            .confirmEnrichmentDetailsCatalogueCheck, .confirmEnrichmentNutrientsCatalogueCheck
+        ])
         for use in OpenRouterUse.allCases {
             XCTAssertEqual(use.policyEntry != nil, use.isInForce, "\(use)")
             XCTAssertEqual(use.egressRow != nil, use.isInForce, "\(use)")
         }
         XCTAssertEqual(OpenRouterUse.keyValidation.egressRow, OpenRouterUse.webLookup.egressRow)
         XCTAssertEqual(OpenRouterUse.labelPhotoRead.policyEntry, OpenRouterUse.labelPhotoCatalogueCheck.policyEntry)
+        // Confirm enrichment (phase gate section 6, PR 5): one policy entry, one row per part.
+        let enrichment: [OpenRouterUse] = [.confirmEnrichmentDetails, .confirmEnrichmentNutrients,
+                                           .confirmEnrichmentDetailsCatalogueCheck, .confirmEnrichmentNutrientsCatalogueCheck]
+        XCTAssertEqual(Set(enrichment.map(\.policyEntry)), ["Confirm suggestions."])
+        XCTAssertEqual(OpenRouterUse.confirmEnrichmentDetails.egressRow, "confirm-enrichment-openrouter-v1.md#OpenRouter System One")
+        XCTAssertEqual(OpenRouterUse.confirmEnrichmentDetailsCatalogueCheck.egressRow, OpenRouterUse.confirmEnrichmentDetails.egressRow)
+        XCTAssertEqual(OpenRouterUse.confirmEnrichmentNutrients.egressRow,
+                       "confirm-enrichment-openrouter-v1.md#OpenRouter and its one allow-listed model endpoint for nutrient estimates")
+        XCTAssertEqual(OpenRouterUse.confirmEnrichmentNutrientsCatalogueCheck.egressRow, OpenRouterUse.confirmEnrichmentNutrients.egressRow)
     }
 
     /// Section 6: the exhaustive switches name the new case; unreachable where the throw precedes them.
