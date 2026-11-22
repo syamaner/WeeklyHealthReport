@@ -1,7 +1,30 @@
 import ConfirmEnrichmentEvalCore
+import FoodConfirmEnrichment
 import FoodLedgerApplication
 import FoodLedgerDomain
 import Foundation
+
+/// The offline plan check (`check-plan`): builds both parts' plans, as `send` would, with nothing sent
+/// and no key read, so a case the plan cannot build (for example a bundled row with no measurable B
+/// variant) shows before any claim or spend. Its lines hold counts and stop codes only (G11).
+public enum EvalPlanCheck {
+    public static func lines(_ list: EvalCaseList, set: String, privateFolder: URL,
+                             candidates: EvalCandidates = EvalCandidates(),
+                             routes: ConfirmEnrichmentSession.Routes = ConfirmEnrichmentRoutes.all) -> [String] {
+        let plan = EvalPlan(candidates: candidates, folder: privateFolder)
+        guard let details = try? plan.details(list, route: routes.details) else {
+            return [EvalConsole.stopLine("plan_details_unavailable")]
+        }
+        guard let nutrients = try? plan.nutrients(list, route: routes.nutrients) else {
+            return [EvalConsole.stopLine("plan_nutrients_unavailable")]
+        }
+        let asked = details.filter { $0.request != nil }.count
+        guard asked > 0 else { return [EvalConsole.stopLine("plan_details_empty")] }
+        guard !nutrients.isEmpty else { return [EvalConsole.stopLine("plan_nutrients_empty")] }
+        return [EvalConsole.planLine(set: set, detailsRequests: asked, detailsWithoutQuestions: details.count - asked,
+                                     nutrientRequests: nutrients.count)]
+    }
+}
 
 /// Send and score rebuild the same plan. A case with no A questions still has review truth.
 struct EvalPlan {

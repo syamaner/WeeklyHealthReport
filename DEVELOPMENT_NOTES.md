@@ -5268,3 +5268,15 @@ checked again on 22 November 2026, 35,350 uncached input, 3,849,344 cached input
 17,064 output give $0.6262744 before rounding. The two measured periods are disjoint.
 Later validation, the ledger edit, hosted checks, external reviews and owner runs are outside
 this measurement.
+
+### PR 4a freeze items, Claude Code, 22 November 2026
+
+Claude Code (`claude-opus-5-5`, session `caf41dcb`) took over the branch from Codex's handover and added the three freeze items: a budget check before a sealed claim, the offline `check-plan` command, and a test that pins a sealed part as used up after a failed send.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Freeze items, synthetic tests and doc wording | 2,995,318 (2,935,273) | 60,001 | 15,721 | 3,011,039 | $1.38 |
+
+Method: `phase_usage.py --format claude --since 2026-11-22T09:51:13Z --until 2026-11-22T09:56:22Z --include-subagents`, from the owner's handover message to just before this ledger edit (exact USD 1.3816586; all cache writes at the 1-hour rate). The cache-write tokens are part of the input figure. Excluded: the session's earlier turns (case selection, recorded in WHR-549-2026-11-21-SEL, and the PR 564 reviews, unmeasured), the later gates, review, push and handover, hosted checks and owner runs.
+
+Pricing: `claude-opus-5-5` at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, so the figure is a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.

@@ -10,6 +10,7 @@ import Foundation
 //   preflight [--repo DIR]
 //   manifest CASES
 //   send --part details|nutrients --cases CASES --private DIR [--fake DIR] [--repo DIR]
+//   check-plan --cases CASES --private DIR [--repo DIR]
 //   verify-freeze --cases DEVELOPMENT_CASES --private DIR
 //   prepare-sealed-review --cases SEALED_CASES --private DIR
 //   score --part details|nutrients --cases CASES --private DIR [--review-sheet CSV] [--fake]
@@ -152,6 +153,23 @@ case "verify-freeze":
         fail(EvalConsole.stopLine("route_freeze_mismatch"))
     }
     print("route freeze pass")
+case "check-plan":
+    // Offline (docs/confirm-enrichment-openrouter-v1-phase.md section 9): builds both parts' plans for the
+    // development or sealed set as `send` would, sends nothing, reads no key and needs no freeze, so the
+    // sealed plan is checked before the freeze and before any claim. Counts and stop codes only.
+    guard let path = value("--cases", in: arguments), let folder = value("--private", in: arguments) else {
+        fail("usage: check-plan --cases CASES --private DIR [--repo DIR]")
+    }
+    let local = URL(fileURLWithPath: folder, isDirectory: true)
+    guard outsideWorkTrees(local, repo: repo) else { fail(EvalConsole.stopLine("private_folder_inside_repository")) }
+    let list = cases(path)
+    let manifest = try? EvalHashes.manifest(list)
+    guard let set = manifest == EvalConfiguration.sealed ? "sealed" : manifest == EvalConfiguration.development ? "development" : nil else {
+        fail(EvalConsole.stopLine("plan_manifest_mismatch"))
+    }
+    let lines = EvalPlanCheck.lines(list, set: set, privateFolder: local)
+    lines.forEach { print($0) }
+    if lines.contains(where: { $0.hasPrefix("stop ") }) { exit(1) }
 case "prepare-sealed-review":
     guard let path = value("--cases", in: arguments), let folder = value("--private", in: arguments) else {
         fail(EvalConsole.stopLine("sealed_review_arguments_invalid"))
@@ -244,5 +262,5 @@ case "select":
     lines.forEach { print($0) }
     if lines.last?.hasPrefix("stop ") == true { exit(1) }
 default:
-    fail("usage: preflight | manifest CASES | verify-freeze --cases CASES --private DIR | send --part details|nutrients --cases CASES --private DIR [--fake DIR] | score --part details|nutrients --cases CASES --private DIR [--review-sheet CSV] | select --export FILE --private DIR [--seed N]")
+    fail("usage: preflight | manifest CASES | check-plan --cases CASES --private DIR | verify-freeze --cases CASES --private DIR | send --part details|nutrients --cases CASES --private DIR [--fake DIR] | score --part details|nutrients --cases CASES --private DIR [--review-sheet CSV] | select --export FILE --private DIR [--seed N]")
 }

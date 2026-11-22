@@ -49,6 +49,17 @@ public enum EvalConsole {
         "first_request \(part.rawValue) accepted max_tokens_sent \(maxTokensSent) sha256 \(sha256)"
     }
 
+    /// Why a sealed part was not claimed: what its run could charge at worst against what the programme stop
+    /// leaves, in micro-dollars. `unbounded` when the worst case overflowed.
+    public static func budgetLine(part: String, needMicroUSD: Int?, headroomMicroUSD: Int) -> String {
+        "budget sealed part \(part) needs_microusd \(needMicroUSD.map(String.init) ?? "unbounded") headroom_microusd \(headroomMicroUSD)"
+    }
+
+    /// The offline plan check: how many requests each part's plan builds. Counts only.
+    public static func planLine(set: String, detailsRequests: Int, detailsWithoutQuestions: Int, nutrientRequests: Int) -> String {
+        "plan \(set) details_requests \(detailsRequests) details_without_questions \(detailsWithoutQuestions) nutrient_requests \(nutrientRequests)"
+    }
+
     /// A stop: the reason's code only, never case data.
     public static func stopLine(_ reason: String) -> String { "stop \(reason)" }
 }

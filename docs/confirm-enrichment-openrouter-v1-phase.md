@@ -806,10 +806,21 @@ last attempted response or transport failure.
 
 The sealed send requires a complete freeze record, a clean checkout whose commit is on
 `origin/main`, the sealed manifest and a successful local rebuild of the first A request from
-the development manifest. It claims each sealed part once before sending it. The two parts and
-both sets share the live spend ledger. Development, sealed and fake completion evidence have
+the development manifest. It claims each sealed part once before sending it, and only when the
+programme stop still leaves room for that part's whole run at worst: for every planned request,
+the smaller of three attempts at W and the part's whole-request cap. The bound holds while each
+attempt reports at most W; a report above W can still stop a claimed run. Otherwise it prints the needed and
+remaining amounts and stops without claiming or sending. A claim is never given back: a sealed part
+whose send stops after its claim (a transport failure, the first request stop, a ledger refusal or
+an unwritable record) stays used up and is never sent again, because the model may already have
+seen some of its requests. This is the recommended default and the owner confirms it before the
+freeze. The two parts and both sets share the live
+spend ledger. Development, sealed and fake completion evidence have
 separate locations. Fake sends and scores are labelled and refuse the sealed case list.
-The owner can use `prepare-sealed-review` after the same merged freeze checks. It creates the
+Before the freeze, the owner can run `check-plan --cases CASES --private DIR` on either set. It
+builds both parts' request plans as `send` would, offline with no key, and prints the request
+counts, or one stop code for the part whose plan cannot be built (for example because of a bundled
+row with no measurable B variant) without naming the case. The owner can use `prepare-sealed-review` after the same merged freeze checks. It creates the
 sealed review sheet once and reports only its row count.
 
 ## 10. PR split

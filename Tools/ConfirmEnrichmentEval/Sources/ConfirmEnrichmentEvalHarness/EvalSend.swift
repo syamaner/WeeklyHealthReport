@@ -98,6 +98,19 @@ public struct EvalSender: Sendable {
         return ConfirmEnrichmentSpendPolicy.microUSD(decimal)
     }
 
+    /// The most a run of `requests` planned requests can charge while every attempt reports at most W:
+    /// per request, at most `maxAttempts` attempts at W, and never more than the whole-request cap, since an
+    /// attempt starts only while the charge so far plus W fits the cap. A report above W (which the route's
+    /// W should rule out) is not covered and can still stop a claimed run. Nil on overflow.
+    public static func sealedWorstCase(requests: Int, w: Int, part: ConfirmEnrichmentPart) -> Int? {
+        guard requests >= 0, w >= 0 else { return nil }
+        let attempts = w.multipliedReportingOverflow(by: ConfirmEnrichmentRetryPolicy.maxAttempts)
+        guard !attempts.overflow else { return nil }
+        let perRequest = min(attempts.partialValue, max(w, part.perRequestCapMicroUSD))
+        let total = perRequest.multipliedReportingOverflow(by: requests)
+        return total.overflow ? nil : total.partialValue
+    }
+
     func save(_ bytes: Data, hash: String, attempt: Int) throws {
         let folder = evidenceFolder.appendingPathComponent("responses", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -162,6 +175,22 @@ public struct EvalSender: Sendable {
         let runID = UUID()
         var firstRequestChecked = false
         if sealed {
+            // A sealed part is sent once and a claim is never given back, so the claim is made only when the
+            // programme stop leaves room for every planned request at its worst (`sealedWorstCase`). Nothing
+            // is claimed or sent when it does not.
+            let need = Self.sealedWorstCase(requests: planned.count, w: w, part: part)
+            let headroom: Int
+            do {
+                headroom = try ledger.headroomMicroUSD()
+            } catch let refusal as EvalSpendLedger.Refusal {
+                return [EvalConsole.stopLine(refusal.description)]
+            } catch {
+                return [EvalConsole.stopLine("ledger_unreadable")]
+            }
+            guard let need, need <= headroom else {
+                return [EvalConsole.budgetLine(part: part.rawValue, needMicroUSD: need, headroomMicroUSD: headroom),
+                        EvalConsole.stopLine("sealed_budget_insufficient")]
+            }
             do {
                 try EvalCompletedRun.claimSealed(part: part, folder: evidenceFolder)
             } catch {
