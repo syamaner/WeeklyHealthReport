@@ -33,6 +33,10 @@ public enum EvalConfiguration {
         }
     }
 
-    // Recorded together from the owner's console-only evidence and aggregate review counts.
-    public static let freeze: Freeze? = nil
+    // Recorded together from console-only evidence and aggregate review counts, 22 November 2026: the
+    // prompt v2 first A request, the development plan's request counts, and the 60 reviewed products of
+    // which 11 are fortified.
+    public static let freeze: Freeze? = Freeze(
+        firstDetailsRequestSHA256: "7894c4ed72b4e0ddc95bd8fdc6b394cf31b7de0dd7bb9183620c80184b06a0cc",
+        developmentDetailsRequests: 60, developmentNutrientRequests: 406, reviewedProducts: 60, confirmedFortified: 11)
 }
