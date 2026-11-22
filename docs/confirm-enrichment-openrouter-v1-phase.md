@@ -813,8 +813,7 @@ attempt reports at most W; a report above W can still stop a claimed run. Otherw
 remaining amounts and stops without claiming or sending. A claim is never given back: a sealed part
 whose send stops after its claim (a transport failure, the first request stop, a ledger refusal or
 an unwritable record) stays used up and is never sent again, because the model may already have
-seen some of its requests. This is the recommended default and the owner confirms it before the
-freeze. The two parts and both sets share the live
+seen some of its requests. The owner decided this on 22 November 2026. The two parts and both sets share the live
 spend ledger. Development, sealed and fake completion evidence have
 separate locations. Fake sends and scores are labelled and refuse the sealed case list.
 Before the freeze, the owner can run `check-plan --cases CASES --private DIR` on either set. It

@@ -280,7 +280,7 @@ final class EvalHarnessTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: folder.appendingPathComponent("claimed-nutrients").path))
     }
 
-    /// Freeze item 3 (the recommended default, which the owner confirms before the freeze): a sealed part whose send fails after the claim stays used up. The
+    /// Freeze item 3 (owner decision, 22 November 2026): a sealed part whose send fails after the claim stays used up. The
     /// model may already have seen some of its requests, so it is never sent again.
     func testASealedPartThatFailsAfterItsClaimStaysUsedUp() async throws {
         let (folder, list) = try privateFolder()
