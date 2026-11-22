@@ -206,8 +206,8 @@ public protocol ConfirmEnrichmentJittering: Sendable {
 }
 
 /// Whether each part may run in this build (gate section 6). The live root sets it from
-/// `OpenRouterUse.isInForce`, so before the wiring PR the live session never starts; only the Debug
-/// scripted branch sets it to true.
+/// `OpenRouterUse.isInForce`, so a part whose uses are not in force never starts; only the Debug
+/// scripted branch sets it with literals.
 public struct ConfirmEnrichmentAvailability: Equatable, Sendable {
     public let details: Bool
     public let nutrients: Bool

@@ -11,8 +11,9 @@ public enum OpenRouterUse: String, CaseIterable, Sendable {
     /// The pasted label text adapters exist in code but are not wired into the app (route closed by D38).
     case pastedLabelTextRead
     case pastedLabelTextCatalogueCheck
-    /// Confirm enrichment v1 (docs/confirm-enrichment-openrouter-v1.md section 9): not in force until
-    /// the wiring PR adds their egress rows and policy entry (phase gate section 6).
+    /// Confirm enrichment v1 (docs/confirm-enrichment-openrouter-v1.md section 9): in force from the
+    /// wiring PR, after both parts passed the sealed run (phase gate section 6). The app's gate also needs
+    /// Suggest missing food details and values on Confirm turned on (`ConfirmEnrichmentEgress`).
     case confirmEnrichmentDetails
     case confirmEnrichmentNutrients
     case confirmEnrichmentDetailsCatalogueCheck
@@ -21,10 +22,10 @@ public enum OpenRouterUse: String, CaseIterable, Sendable {
     /// Whether the use is in force in the app. The app's gate refuses every use that is not.
     public var isInForce: Bool {
         switch self {
-        case .keyValidation, .webLookup, .labelPhotoRead, .labelPhotoCatalogueCheck: true
-        case .pastedLabelTextRead, .pastedLabelTextCatalogueCheck,
+        case .keyValidation, .webLookup, .labelPhotoRead, .labelPhotoCatalogueCheck,
              .confirmEnrichmentDetails, .confirmEnrichmentNutrients,
-             .confirmEnrichmentDetailsCatalogueCheck, .confirmEnrichmentNutrientsCatalogueCheck: false
+             .confirmEnrichmentDetailsCatalogueCheck, .confirmEnrichmentNutrientsCatalogueCheck: true
+        case .pastedLabelTextRead, .pastedLabelTextCatalogueCheck: false
         }
     }
 
@@ -34,20 +35,24 @@ public enum OpenRouterUse: String, CaseIterable, Sendable {
         case .keyValidation: "Key validation."
         case .webLookup: "Web lookup."
         case .labelPhotoRead, .labelPhotoCatalogueCheck: "Label photo reading."
-        case .pastedLabelTextRead, .pastedLabelTextCatalogueCheck,
-             .confirmEnrichmentDetails, .confirmEnrichmentNutrients,
-             .confirmEnrichmentDetailsCatalogueCheck, .confirmEnrichmentNutrientsCatalogueCheck: nil
+        case .confirmEnrichmentDetails, .confirmEnrichmentNutrients,
+             .confirmEnrichmentDetailsCatalogueCheck, .confirmEnrichmentNutrientsCatalogueCheck: "Confirm suggestions."
+        case .pastedLabelTextRead, .pastedLabelTextCatalogueCheck: nil
         }
     }
 
     /// The contract link that identifies the use's OpenRouter row in `privacy-and-egress.md`, or nil.
+    /// Where one contract has more than one row, the link is followed by `#` and the start of the row's
+    /// destination cell, so each use maps to exactly one row (Confirm enrichment phase gate section 6).
     public var egressRow: String? {
         switch self {
         case .keyValidation, .webLookup: "generic-food-proposal-integration-v1.md"
         case .labelPhotoRead, .labelPhotoCatalogueCheck: "label-photo-ai-prefill-v1.md"
-        case .pastedLabelTextRead, .pastedLabelTextCatalogueCheck,
-             .confirmEnrichmentDetails, .confirmEnrichmentNutrients,
-             .confirmEnrichmentDetailsCatalogueCheck, .confirmEnrichmentNutrientsCatalogueCheck: nil
+        case .confirmEnrichmentDetails, .confirmEnrichmentDetailsCatalogueCheck:
+            "confirm-enrichment-openrouter-v1.md#OpenRouter System One"
+        case .confirmEnrichmentNutrients, .confirmEnrichmentNutrientsCatalogueCheck:
+            "confirm-enrichment-openrouter-v1.md#OpenRouter and its one allow-listed model endpoint for nutrient estimates"
+        case .pastedLabelTextRead, .pastedLabelTextCatalogueCheck: nil
         }
     }
 }

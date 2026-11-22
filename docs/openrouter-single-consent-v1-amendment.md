@@ -500,6 +500,46 @@ matches the recorded decision.
 The "Effective" date moves to the release date of the implementing build. In "Local food records and
 notes", "Remove your OpenRouter key and disconnect Drive before deleting the app" stays as it is.
 
+### 3.5a Privacy policy as amended by CE1 PR 5 (dated note, 22 November 2026)
+
+Confirm enrichment v1 ([confirm-enrichment-openrouter-v1.md](confirm-enrichment-openrouter-v1.md)
+section 9) widens the consent switch's scope in its own contract, as section 3 of this amendment
+requires, and its wiring PR (#549, PR 5) changes the approved text above in four places only: the
+switch title quoted in the opening paragraph becomes `Use OpenRouter for food lookups, label reading
+and Confirm suggestions` (its key, `openRouter.consent.v1`, is unchanged, and the Settings switch in
+O1.1 takes the same title); "Lookups and label reads need your own OpenRouter API key" becomes
+"Lookups, label reads and Confirm suggestions need your own OpenRouter API key"; the Confirm
+suggestions entry of CE1 section 11.2 joins the list after Label photo reading; and, decided by the
+owner on 22 November 2026, "each only when you start it:" becomes "each only when you start it or
+turn it on:", because Confirm suggestions start automatically on Confirm once both switches are on,
+so the earlier sentence would no longer be true. No other sentence changes. The policy's Effective
+date moves to 22 November 2026. From this PR the OpenRouter section reads, word for word:
+
+```text
+OpenRouter
+
+The app uses OpenRouter only if you turn on Use OpenRouter for food lookups, label reading and Confirm suggestions in Settings › OpenRouter. It is off by default. While it is off, the app sends nothing to OpenRouter: no lookup, no label photo, no key validation and no model check. Turning it off stops every further request; requests already sent cannot be recalled. It does not delete your key, which you remove separately with Remove key. Lookups, label reads and Confirm suggestions need your own OpenRouter API key, kept in this-device-only Keychain storage, without sync or backup migration, and validated in the current session. Requests may incur charges on your account; set account and key limits at OpenRouter.
+
+While it is on, the app uses OpenRouter only in these ways, each only when you start it or turn it on:
+
+Key validation. When you save or revalidate a key. Sends only the key, to check it; never food terms or any other data.
+
+Web lookup. When you tap Look up or start a source review. Opening the screen, typing food terms or storing a key does not submit a food query. Each review uses at most one search request; for each source tried, one source-selection request, three website connections including redirects, one extraction request and one applicability check; and if the first source gives no usable values, one more suggested source may be tried in the same way, without a new search. The app has no monetary spending cap for web lookup; set credit limits at OpenRouter. A search sends the displayed food terms, tagged with the food market set in Settings when one is set, through OpenRouter to its configured model and the Exa search service; source selection also uses the returned page titles, addresses and excerpts. Supplying a public HTTPS source address skips search and source selection. The app fetches the chosen public page directly, without sending your key to that publisher. The captured page text and the displayed food terms then go to OpenRouter's configured extraction and applicability providers for a structured proposal and a separate check against the requested food. A page is sent whole up to a fixed size; for a larger page only its nutrition tables and lists, the lines and headings around them, its main heading and its structured data are sent, and the review says that only part of the page was read. When a page gives more than one set of values for the same food, those sets are also sent for the check. Never sent: Apple Health records, saved food or diary history, notes, receipts, photos or audio. If a model request fails for a temporary reason, such as a lost connection, a timeout or a busy service, the app may send the same request again, unchanged, at most twice; it never retries fetches of publisher pages. The current app uses Azure-hosted Luna for discovery, source selection and applicability checking and xAI-hosted Grok for extraction; Jev ranking is not enabled in the default flow. Avoid entering private or sensitive information in food terms.
+
+Label photo reading. Available only in internal test builds. When you tap Read label with AI. The photo may be one you took, chose from your library or pasted on the Nutrition label screen; the app reads the clipboard only when you tap Paste on that screen. Sends the part of the photo you cropped, made smaller and re-encoded with location, camera and other metadata removed, with a fixed instruction; OpenRouter passes it to one named model endpoint (currently Gemini 4 Argon on Google Vertex) with no fallback to other providers. Before the first read of a session and of each day, and again after a check that could not connect, two catalogue requests with no key and no data confirm that endpoint. Never sent: your food name, brand, food log, notes or Apple Health data. The model's answer pre-fills the label values, which you check and correct before anything is saved. A failed request is retried at most twice within the same tap, and reading is limited to 30 photos and $0.50 of reported cost a day. Avoid photographing anything other than the nutrition table.
+
+Confirm suggestions. Only if you also turn on Suggest missing food details and values on Confirm in Settings › OpenRouter. When the food you are confirming has unknown food details or unknown nutrient values, the app asks automatically, a moment after the food is chosen. It never asks in the background, from search results, on the quick add sheet, when you log again from an earlier entry or a favourite, when you reopen a log or update its nutrition from your database, or for web lookups, label readings or foods from Your foods. Sends a description of that food as its source gives it (never words you typed in a correction): the name and brand, a composition table's variant text, and for your own food database its category, product type and state where the app has them (a pack size written in a name is sent with the name), the food details already known, which source the food comes from (for example a food composition table), the questions asked or the nutrients wanted and, for nutrient estimates, the nutrition basis and the known values. A name from your own food database can come from a receipt product title, so check names you would not want sent. Food details go to the Jev model through OpenRouter's System One service; nutrient estimates go to one named model endpoint (currently GPT-6.1 Sol on Azure) with no fallback to other providers. You can also tap Ask again on Confirm to send the same request once more, within the daily limit. Never sent: the search text you typed, words you typed in a correction, the amount you ate, the time or date, notes, other entries, Apple Health data, barcodes, identifiers, photos or prices. Suggested food details are filled in for you to check and change; estimated values are marked est. and you can leave out each one before you tap Log. Nothing is added to your log until you tap Log, and an estimate never replaces a value from a label or a database. A failed request is retried at most twice; suggestions are limited to 100 requests and $0.50 of reported cost a day, and answers are kept on your device, so the same food is usually not sent again (a tap of Ask again, a change of details before you log or an answer older than 30 days sends again). OpenRouter keeps its own account and usage records for these requests, including the model, token counts, cost and time, under its terms. If you log a food with an estimated value, the Drive food file names the model that estimated it.
+
+Other uses are added to this list only in the release that starts them, after their own approval.
+
+For every use: model requests require endpoints classified by OpenRouter for zero data retention and no data collection, with no provider fallback. These controls do not establish the retention policy of search services, publisher websites or OpenRouter's own account and usage records, which include the model, token counts, cost and time of each request, kept under OpenRouter's terms. Search-service terms may permit query data to be used for service improvement or model training; model-retention settings do not prevent that. Providers and publishers receive ordinary network information such as IP addresses and request details. Those services apply their own terms; the app cannot independently verify or erase their logs. Requests already sent cannot be recalled, and removing your key or turning OpenRouter off cannot erase provider records. Read the applicable terms before turning it on:
+OpenRouter privacy: https://openrouter.ai/privacy/
+OpenRouter terms: https://openrouter.ai/terms
+OpenRouter model retention controls and their scope: https://openrouter.ai/docs/guides/features/zdr
+OpenRouter third-party provider policies: https://openrouter.ai/docs/guides/privacy/provider-logging
+Exa privacy: https://exa.ai/privacy-policy
+```
+
 ## 4. What stays closed
 
 - **Egress does not widen.** Destinations, payloads, routing, per-request and daily caps, retries,
@@ -737,3 +777,11 @@ Asked one at a time on #551, each with a recommendation. Approval of the amendme
   text and labels), synthetic data only and no OpenRouter request. Not reachable there: the label reads
   row's visible state, which needs a real key in the Keychain. Simulator runs prove software behaviour
   only; the owner's check on the device stands.
+- **Dated note (22 November 2026), CE1 PR 5 wiring.** Confirm enrichment's four uses are in force, with
+  their policy entry and egress rows, and the policy text of section 3.5 is amended as section 3.5a
+  records: the switch title, the key sentence, the Confirm suggestions entry and, by the owner's
+  decision of the same day, "each only when you start it or turn it on:". Test 8 now reads the
+  section 3.5a block, splits each `egressRow` at its first `#` (a contract link, then the start of the
+  row's destination cell), counts four OpenRouter rows and checks that each Confirm row's When names
+  both switches. The bare `OpenRouterConsentPreference` is unchanged; Confirm requests ask a composed
+  gate that also needs Suggest missing food details and values on Confirm.

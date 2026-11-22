@@ -5314,3 +5314,23 @@ Claude Code (`claude-opus-5-5`, session `caf41dcb`) wrote the sealed report in t
 Method: `phase_usage.py --format claude --since 2026-11-22T19:06:02Z --until 2026-11-22T19:09:36Z --include-subagents`, from the owner's yes through the blind review and its wording fixes, to just before this ledger edit (exact USD 1.4408022; 52,067 5-minute and 64,000 1-hour cache writes; the review subagent included). The cache-write tokens are part of the input figure. Excluded: the sealed and development runs, the freeze work (PR 564's rows), the pull request and OpenRouter charges.
 
 Pricing: `claude-opus-5-5` at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, so the figure is a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
+## WHR-549-2026-11-22-PR5: Claude Code CE1 PR 5, wiring (#549)
+
+Claude Code (`claude-opus-5-5`, session `caf41dcb`) wired Confirm enrichment live. The work covers:
+- the composed gate, and the four uses in force;
+- the Settings rows;
+- the widened O1 title, with a minimal truthful framing edit;
+- the 11.1 and 11.2 records;
+- the Developer tools disclosure;
+- the tests.
+
+A mapping agent and an implementation agent did most of the work. An invariant review, a defect review and a simulator journey then checked it, and a fix pass followed.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Wiring, reviews, journey QA and fixes | 239,094,968 (237,979,381) | 2,165,527 | 249,782 | 239,344,750 | $58.35 |
+
+Method: `phase_usage.py --format claude --since 2026-11-22T19:43:03Z --until 2026-11-22T20:55:41Z --include-subagents`, from the owner's request to just before this ledger edit (exact USD 58.3543522; 1,051,660 5-minute and 1,113,867 1-hour cache writes; all five subagents included, the implementation agent being most of it). The cache-write tokens are part of the input figure. Excluded: later gates, the pull request, hosted checks, the TestFlight upload and the owner's device check.
+
+Pricing: `claude-opus-5-5` at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, so the figure is a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.

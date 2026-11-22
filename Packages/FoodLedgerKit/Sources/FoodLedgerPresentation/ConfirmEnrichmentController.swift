@@ -7,13 +7,14 @@ import SwiftUI
 /// the Confirm came from. Nil on every route that does not wire it.
 public struct ConfirmEnrichmentContext: Sendable {
     public let session: ConfirmEnrichmentSession
-    public let preconditions: @Sendable () -> ConfirmEnrichmentSession.Preconditions
+    /// Read on the main actor only: it reads switch and key state the app keeps there.
+    public let preconditions: @MainActor @Sendable () -> ConfirmEnrichmentSession.Preconditions
     public let database: (any PersonalFoodDatabaseEntryReading)?
     public let origin: ConfirmEnrichmentPolicy.Origin
     public let encoder: any CanonicalEncoding
     public let digester: any Digesting
 
-    public init(session: ConfirmEnrichmentSession, preconditions: @escaping @Sendable () -> ConfirmEnrichmentSession.Preconditions,
+    public init(session: ConfirmEnrichmentSession, preconditions: @escaping @MainActor @Sendable () -> ConfirmEnrichmentSession.Preconditions,
                 database: (any PersonalFoodDatabaseEntryReading)?, origin: ConfirmEnrichmentPolicy.Origin,
                 encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder(), digester: any Digesting) {
         self.session = session; self.preconditions = preconditions; self.database = database; self.origin = origin

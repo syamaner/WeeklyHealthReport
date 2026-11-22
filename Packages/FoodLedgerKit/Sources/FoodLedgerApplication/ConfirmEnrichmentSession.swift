@@ -92,6 +92,7 @@ public actor ConfirmEnrichmentSession {
     let ids: any LedgerIDGenerating
     let encoder: any CanonicalEncoding
     let digester: any Digesting
+    let diagnostics: (any ConfirmEnrichmentDiagnosticsRecording)?
 
     private var active = true
     /// The day each part's route check passed on, with its prices.
@@ -106,11 +107,11 @@ public actor ConfirmEnrichmentSession {
                 ledger: any ConfirmEnrichmentSpendLedger, egress: any OpenRouterEgressPermitting, delaying: any ConfirmEnrichmentDelaying,
                 timing: any ConfirmEnrichmentElapsedTiming, jitter: any ConfirmEnrichmentJittering, clock: any LedgerClock,
                 timeZone: TimeZone, ids: any LedgerIDGenerating, encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder(),
-                digester: any Digesting) {
+                digester: any Digesting, diagnostics: (any ConfirmEnrichmentDiagnosticsRecording)? = nil) {
         self.availability = availability; self.routes = routes; detailsAdapter = details; nutrientAdapter = nutrients
         self.checker = checker; self.cache = cache; self.ledger = ledger; self.egress = egress; self.delaying = delaying
         self.timing = timing; self.jitter = jitter; self.clock = clock; self.timeZone = timeZone; self.ids = ids
-        self.encoder = encoder; self.digester = digester
+        self.encoder = encoder; self.digester = digester; self.diagnostics = diagnostics
     }
 
     public nonisolated var routeValues: Routes { routes }
@@ -144,7 +145,7 @@ public actor ConfirmEnrichmentSession {
             return parsed
         }
         switch await perform(.details, body: request.body, subject: request.subjectSHA256, mode: mode, preconditions: preconditions,
-                             valid: { check($0) != nil }) {
+                             fields: ConfirmEnrichmentDiagnostics.fieldNames(request.inputs), valid: { check($0) != nil }) {
         case let .failed(failure): return .failed(failure)
         case let .answer(bytes, receivedAt, model, fromCache):
             guard let parsed = check(bytes) else { return .failed(.notAvailable) }
@@ -183,7 +184,7 @@ public actor ConfirmEnrichmentSession {
             return parsed
         }
         switch await perform(.nutrients, body: request.body, subject: request.subjectSHA256, mode: mode, preconditions: preconditions,
-                             valid: { check($0) != nil }) {
+                             fields: ConfirmEnrichmentDiagnostics.fieldNames(request.inputs), valid: { check($0) != nil }) {
         case let .failed(failure): return .failed(failure)
         case let .answer(bytes, receivedAt, model, fromCache):
             guard let parsed = check(bytes) else { return .failed(.notAvailable) }
@@ -213,18 +214,53 @@ public actor ConfirmEnrichmentSession {
 
     private func stopped() -> Bool { Task.isCancelled || !active }
 
+    /// What one request did, for Developer tools. `reported` is false while nothing beyond the
+    /// preconditions happened (no cache hit and nothing asked of the ledger), so no line is kept.
+    struct Trace {
+        var reported = false
+        var responseSHA256: String?
+        var latency: Duration?
+        var attempts = 0
+        var reportedMicroUSD: Int?
+    }
+
     func perform(_ part: ConfirmEnrichmentPart, body: Data, subject: String, mode: Mode, preconditions: Preconditions,
-                 valid: @Sendable (Data) -> Bool) async -> Raw {
+                 fields: [String], valid: @Sendable (Data) -> Bool) async -> Raw {
+        var trace = Trace()
+        let raw = await run(part, body: body, subject: subject, mode: mode, preconditions: preconditions, valid: valid, trace: &trace)
+        guard trace.reported, let diagnostics else { return raw }
+        let route = routes.route(part)
+        let outcome: String, model: String, fromCache: Bool
+        switch raw {
+        case let .answer(_, _, answered, cached):
+            outcome = cached ? "answered_from_cache" : "answered"; model = answered; fromCache = cached
+        case let .failed(failure):
+            outcome = ConfirmEnrichmentDiagnostics.outcome(failure); model = route.model; fromCache = false
+        }
+        let latency = trace.latency.map { Int(((Double($0.components.seconds) + Double($0.components.attoseconds) / 1e18) * 1000).rounded()) }
+        diagnostics.record(ConfirmEnrichmentDiagnostics(
+            use: part.use, routeVersion: route.version, endpoint: route.endpoint, model: model, provider: route.provider,
+            requestFields: fields, requestSHA256: (try? digester.sha256(body).value) ?? "", responseSHA256: trace.responseSHA256,
+            latencyMilliseconds: latency, attempts: trace.attempts, reportedCostMicroUSD: trace.reportedMicroUSD,
+            threshold: part == .details ? ConfirmEnrichmentVersions.detailsThreshold : nil, fromCache: fromCache, outcome: outcome))
+        return raw
+    }
+
+    func run(_ part: ConfirmEnrichmentPart, body: Data, subject: String, mode: Mode, preconditions: Preconditions,
+             valid: @Sendable (Data) -> Bool, trace: inout Trace) async -> Raw {
         guard mayRun(part, preconditions: preconditions), active else { return .failed(.silent) }
         let route = routes.route(part)
         // 1. The cache.
         if mode != .askAgain, let hit = cache.answer(subject: subject, part: part, now: clock.now()) {
             if (try? digester.sha256(hit.response))?.value == hit.responseSHA256, valid(hit.response) {
+                trace.reported = true
+                trace.responseSHA256 = hit.responseSHA256
                 return .answer(hit.response, receivedAt: hit.receivedAt, model: hit.model, fromCache: true)
             }
             cache.remove(subject: subject, part: part)
         }
         guard mode != .cacheOnly else { return .failed(.silent) }
+        trace.reported = true
         guard !closed.contains(part) else { return .failed(.limitReached) }
         let today = today()
         // 2. The ledger's admission. An unreadable record closes the day, written at once.
@@ -301,6 +337,8 @@ public actor ConfirmEnrichmentSession {
                 break loop
             case let .transportFailed(failure):
                 attempts.append(.init(reportedMicroUSD: nil, promptTokens: nil))
+                trace.attempts = attempts.count
+                trace.latency = timing.now() - started
                 markSent(requestID)
                 if failure == .cancelled || stopped() { outcome = .failed(.cancelled); break loop }
                 outcome = .failed(.notAvailable)
@@ -312,6 +350,10 @@ public actor ConfirmEnrichmentSession {
             case let .sent(status, bytes, retryAfter):
                 let usage = (try? JSONSerialization.jsonObject(with: bytes) as? [String: Any]).map(ConfirmEnrichmentUsageParse.usage)
                 attempts.append(.init(reportedMicroUSD: usage?.cost.map(ConfirmEnrichmentSpendPolicy.microUSD), promptTokens: usage?.promptTokens))
+                trace.attempts = attempts.count
+                trace.latency = timing.now() - started
+                trace.responseSHA256 = try? digester.sha256(bytes).value
+                if let reported = attempts.last?.reportedMicroUSD { trace.reportedMicroUSD = (trace.reportedMicroUSD ?? 0) + reported }
                 markSent(requestID)
                 // A late answer is discarded and never cached (CE1.1 rule 4).
                 if stopped() { outcome = .failed(.cancelled); break loop }

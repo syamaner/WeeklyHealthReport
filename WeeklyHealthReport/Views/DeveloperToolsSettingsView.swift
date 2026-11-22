@@ -39,13 +39,13 @@ struct DeveloperToolsSettingsView: View {
     }
 }
 
-/// Last search and web lookup details: scores, identifiers and stage details. Held in memory
+/// Last search, web lookup and Confirm enrichment details: scores, identifiers and stage details. Held in memory
 /// for this session only; never persisted and never includes a key.
 private struct FoodSearchDiagnosticsSection: View {
     @ObservedObject var log: FoodSearchDiagnosticsLog
     var body: some View {
         Section {
-            if log.searchLines.isEmpty && log.webLookupLines.isEmpty && log.pastedLabelLines.isEmpty {
+            if log.searchLines.isEmpty && log.webLookupLines.isEmpty && log.pastedLabelLines.isEmpty && log.confirmEnrichmentLines.isEmpty {
                 Text("No search in this session yet.").foregroundStyle(.secondary)
             }
             if !log.searchLines.isEmpty {
@@ -56,6 +56,12 @@ private struct FoodSearchDiagnosticsSection: View {
             if !log.webLookupLines.isEmpty {
                 DisclosureGroup("Last web lookup") {
                     ForEach(Array(log.webLookupLines.enumerated()), id: \.offset) { Text($0.element).font(.caption).textSelection(.enabled) }
+                }
+            }
+            if !log.confirmEnrichmentLines.isEmpty {
+                // The last request of each part: field names, hashes and counts; never the key or a body.
+                DisclosureGroup("Last Confirm enrichment") {
+                    ForEach(Array(log.confirmEnrichmentLines.enumerated()), id: \.offset) { Text($0.element).font(.caption).textSelection(.enabled) }
                 }
             }
             if !log.pastedLabelLines.isEmpty {

@@ -61,6 +61,8 @@ struct SettingsRow: Identifiable {
         case text(detail: String?)
         /// A value read on demand; the row is hidden while `detail` is nil.
         case value(detail: @MainActor () -> String?)
+        /// A button that acts on the device only, such as clearing a cache; it sends nothing.
+        case action(hint: String?, perform: @MainActor () -> Void)
     }
 
     let id: String
@@ -85,6 +87,10 @@ struct SettingsRow: Identifiable {
     static func value(_ id: String, _ title: String, detail: @escaping @MainActor () -> String?,
                       changes: AnyPublisher<Void, Never>? = nil) -> SettingsRow {
         SettingsRow(id: "value." + id, title: title, kind: .value(detail: detail), changes: changes)
+    }
+
+    static func action(_ id: String, _ title: String, hint: String? = nil, perform: @escaping @MainActor () -> Void) -> SettingsRow {
+        SettingsRow(id: "action." + id, title: title, kind: .action(hint: hint, perform: perform))
     }
 
     static func toggle(_ id: String, _ toggle: SettingsToggle) -> SettingsRow {
@@ -195,7 +201,7 @@ struct SettingsView: View {
             }
             .accessibilityIdentifier("settings." + route.rawValue)
         case let .toggle(toggle):
-            SettingsToggleRow(toggle: toggle)
+            SettingsToggleRow(toggle: toggle, identifier: "settings." + row.id)
         case let .text(detail):
             LabeledContent(row.title) {
                 if let detail { Text(detail) }
@@ -205,17 +211,25 @@ struct SettingsView: View {
             if let value = detail() {
                 LabeledContent(row.title, value: value).accessibilityIdentifier("settings." + row.id)
             }
+        case let .action(hint, perform):
+            Button(row.title, action: perform)
+                .frame(minHeight: 44)
+                .accessibilityHint(hint ?? "")
+                .accessibilityIdentifier("settings." + row.id)
         }
     }
 }
 
 struct SettingsToggleRow: View {
     @ObservedObject var toggle: SettingsToggle
+    /// The switch's accessibility identifier, when its section gives one.
+    var identifier: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Toggle(toggle.title, isOn: Binding(get: { toggle.isOn }, set: { toggle.set($0) }))
                 .disabled(!toggle.isEnabled)
+                .accessibilityIdentifier(identifier ?? "")
             if let caption = toggle.caption {
                 Text(caption).font(.caption).foregroundStyle(.secondary)
             }

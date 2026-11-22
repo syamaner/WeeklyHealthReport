@@ -66,13 +66,21 @@ final class ConfirmEnrichmentLiveAdapterTests: XCTestCase {
         XCTAssertEqual(nutrients, [])
     }
 
-    func testAUseNotInForceMakesZeroTransportCallsWithBothSwitchesOn() async {
-        // The app's gate refuses every use not in force; a gate built the same way stands in for it.
-        struct InForceOnly: OpenRouterEgressPermitting { func permits(_ use: OpenRouterUse) -> Bool { use.isInForce } }
+    func testAWithholdingGateMakesZeroTransportCalls() async {
+        // The app's composed gate withholds the Confirm uses while either switch is off; a gate that
+        // withholds them stands in for it, for both adapters and the route checker.
+        struct Withholding: OpenRouterEgressPermitting {
+            func permits(_ use: OpenRouterUse) -> Bool { use.isInForce && ConfirmEnrichmentPart.allCases.allSatisfy { use != $0.use && use != $0.catalogueUse } }
+        }
         let transport = Recording([Self.ok()])
-        let adapter = OpenRouterNutrientEstimateAdapter(egress: InForceOnly(), transport: transport, keys: Keys(Self.key))
-        let result = await adapter.attempt(Data("{}".utf8), timeout: 30)
-        XCTAssertEqual(result, .notSent(.notPermitted))
+        let nutrients = OpenRouterNutrientEstimateAdapter(egress: Withholding(), transport: transport, keys: Keys(Self.key))
+        eq(await nutrients.attempt(Data("{}".utf8), timeout: 30), .notSent(.notPermitted))
+        let details = OpenRouterJevFoodDetailsAdapter(egress: Withholding(), transport: transport, keys: Keys(Self.key))
+        eq(await details.attempt(Data("{}".utf8), timeout: 30), .notSent(.notPermitted))
+        let checker = ConfirmEnrichmentRouteChecker(egress: Withholding(), transport: transport)
+        for part in ConfirmEnrichmentPart.allCases {
+            eq(await checker.check(part, catalogueUse: part.catalogueUse), .notPermitted)
+        }
         XCTAssertTrue(transport.requests.isEmpty)
     }
 

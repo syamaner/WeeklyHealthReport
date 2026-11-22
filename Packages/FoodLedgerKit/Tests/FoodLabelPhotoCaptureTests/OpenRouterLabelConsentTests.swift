@@ -74,12 +74,8 @@ final class OpenRouterLabelConsentTests: XCTestCase {
 
     /// The app's rule: uses not in force are never permitted, even with the switch on.
     func testUsesNotInForceAreTheTwoPastedTextUses() {
-        // The pasted label text uses (D38) and the four Confirm enrichment uses, which stay out of force
-        // until their wiring PR (Confirm enrichment phase gate section 6).
-        XCTAssertEqual(OpenRouterUse.allCases.filter { !$0.isInForce }, [
-            .pastedLabelTextRead, .pastedLabelTextCatalogueCheck,
-            .confirmEnrichmentDetails, .confirmEnrichmentNutrients,
-            .confirmEnrichmentDetailsCatalogueCheck, .confirmEnrichmentNutrientsCatalogueCheck
-        ])
+        // The pasted label text uses (D38) only: both Confirm enrichment parts passed their bars, so their
+        // four uses are in force from the wiring PR (Confirm enrichment phase gate section 6, G10).
+        XCTAssertEqual(OpenRouterUse.allCases.filter { !$0.isInForce }, [.pastedLabelTextRead, .pastedLabelTextCatalogueCheck])
     }
 }
