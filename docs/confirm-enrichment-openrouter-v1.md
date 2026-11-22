@@ -589,7 +589,7 @@ for that food is skipped, with no note), and the gate is a backstop, not a guara
   paragraph of 11.1a takes effect before the first evaluation call.
 - [x] **CE-T15 Evaluation egress.** The evaluation tool sends the same request shapes, built from
   public Open Food Facts product data and bundled composition rows only (no owner data), to the same
-  two destinations, with the owner's key read into memory only, a $5 programme spend stop and a $0.05
+  two destinations, with the owner's key read into memory only, a $25 programme spend stop (raised from $5 by the owner on 22 November 2026) and a $0.05
   per-call stop, raw responses kept in the owner's private evaluation folder, and counts, versions and
   hashes only in the repository.
 
@@ -622,12 +622,13 @@ Facts product data and bundled composition rows only, never the owner's data: th
 the food details known, and for nutrient estimates the basis, the known values and the keys asked,
 with the fixed questions or instruction and schema. Every request pins a zero-data-retention endpoint
 with data collection denied and no fallbacks. The key is the OpenRouter key already approved for the
-evaluations, read into memory only and never printed or stored. Spend stops at $5 for the programme
+evaluations, read into memory only and never printed or stored. Spend stops at $25 for the programme
 and $0.05 per call, enforced in the evaluation's own spend ledger before every call; a transient
 failure is retried at most twice more with backoff that honours `Retry-After`. Raw responses, the
 cache and the ledger stay in the owner's private evaluation folder; the repository gets counts,
 versions and hashes only. The sealed set is sent once, by the frozen configuration. Owner approval:
-20 November 2026 (CE-T15)."
+20 November 2026 (CE-T15); programme stop raised from $5 to $25 by the owner on 22 November 2026, sized
+from the development run's measured cost."
 
 ### 11.2 Privacy policy, OpenRouter section (an entry in O1's list)
 

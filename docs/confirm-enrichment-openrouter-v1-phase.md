@@ -739,7 +739,7 @@ export goldens for schema 7 alone and mixed with schema 3 and 5 content.
   the owner's own environment. The tool's console output, every error and stop message
   included, still names a case only by its hash (a G11 case), so a pasted log carries no case data.
 - **Run.** The tool sends exactly the app's request bytes through the `FoodConfirmEnrichment` adapters
-  with a tool-local gate, under CE-T15 ($5 programme, $0.05 per call, in its own spend ledger before
+  with a tool-local gate, under CE-T15 ($25 programme, $0.05 per call, in its own spend ledger before
   every call; at most 3 attempts with backoff honouring `Retry-After`). It runs its own loop over the
   pure `ConfirmEnrichmentRetryPolicy` and its CE-T15 ledger, not `ConfirmEnrichmentSession`, so the app's
   daily caps do not apply to it and the retry behaviour the latency bar measures is the app's. For B, known values are hidden

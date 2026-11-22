@@ -55,8 +55,8 @@ final class EvalCoreTests: XCTestCase {
                 break
             }
         }
-        XCTAssertEqual(reserved, 100, "$5 at $0.05 a call")
-        XCTAssertEqual(try ledger.chargedMicroUSD(), 5_000_000)
+        XCTAssertEqual(reserved, 500, "$25 at $0.05 a call")
+        XCTAssertEqual(try ledger.chargedMicroUSD(), 25_000_000)
     }
 
     func testSettlementAndRelease() throws {
