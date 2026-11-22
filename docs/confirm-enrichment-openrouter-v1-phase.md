@@ -250,10 +250,14 @@ Same protection and backup exclusion as the cache. The arithmetic lives in a pur
   exceed the per-request cap, the route check fails as route unavailable for that day and the part
   sends nothing. With the 50,000-token fallback, W for A is above $0.01 at almost any listed price, so
   A would never run; that case is a first-request stop for the owner (section 9), not a silent outcome.
-  W and every reported cost are rounded up to whole micro-dollars.
+  W and every reported cost are rounded up to whole micro-dollars. Pricing fields beside prompt and
+  completion (22 November 2026, after the live Azure listing): a cache-write price is admitted at any
+  well-formed rate and W prices every prompt token at the larger of the prompt and cache-write rates;
+  `overrides` long-context tiers are admitted only when every tier's `min_prompt_tokens` is above the
+  route's prompt ceiling, so no request can reach one; anything malformed fails the route closed.
 - **Whole-request cap.** An attempt may start only when the request's `attemptsCharged` (held in the
   session: each sent attempt's reported cost, or W when none is reported; never the reserved
-  `charged_microusd`) plus W is at most $0.01 (A) or $0.02 (B), checked before every attempt, so one request, retries included, never counts
+  `charged_microusd`) plus W is at most $0.01 (A) or $0.04 (B; raised from $0.02 by the owner on 22 November 2026), checked before every attempt, so one request, retries included, never counts
   or spends more than the approved per-request figure. An attempt with no reported cost is charged W.
   If W is so close to the cap that no retry fits, the request simply makes fewer attempts.
 - **Day cap.** A request may start only when `requests` is below 100 and `settled_microusd` plus the
@@ -261,7 +265,7 @@ Same protection and backup exclusion as the cache. The arithmetic lives in a pur
   take the day past $0.50. A request counts once, at its reservation.
 - **Reservations** are tagged with a `request_id` from an injected generator, so reconcile and release
   are idempotent per request, across a day change too. A reservation writes the whole per-request cap
-  (10,000 or 20,000) as `charged_microusd` in one atomic update before the first attempt is sent, as
+  (10,000 or 40,000) as `charged_microusd` in one atomic update before the first attempt is sent, as
   label photo reserves its whole per-tap limit (`LabelPhotoSpendPolicy.swift:177-180`); each sent
   attempt increments `attempts_sent` in the same way, and the reconcile at the end lowers the charge to
   the reported costs (unreported attempts at W), up or down, never clamped to the reservation, as label
@@ -589,7 +593,7 @@ CE1 section 15's seventeen tests are adopted as written. The gate adds:
   that would pass $0.50 make no reservation, no gate call for the request use and no transport call;
   the first attempt starts right after a reservation at the cap, and retries are gated by
   `attemptsCharged`, never `charged_microusd`; no attempt starts when charged plus W
-  would pass $0.01 (A) or $0.02 (B); an unreported cost is charged W; reconcile and release are
+  would pass $0.01 (A) or $0.04 (B); an unreported cost is charged W; reconcile and release are
   idempotent per `request_id`, across a day change; a reported cost above the cap pauses that part
   only; a corrupt ledger refuses until the next local day; a request whose cap would take the day past
   500,000 micro-dollars does not start, so no retry can either; `.absent`, `.unreadable` and `.day` behave as 2.6 says in
@@ -864,7 +868,7 @@ route values.
 3. **Checks one layer down.** Section 3.2 places request building and response checks in application
    code rather than in the adapters, so a cache hit and a reopen run the same checks. No term changes.
 4. **Per-request caps across retries, and the evaluation's data.** The gate reads "$0.01 per request"
-   and "$0.02 per request" as whole-request totals across all attempts, enforced before each attempt
+   and "$0.02 per request" (since raised to $0.04 for B, 22 November 2026) as whole-request totals across all attempts, enforced before each attempt
    (section 2.6), never as per-attempt figures. And the evaluation reads Open Food Facts data from a
    public export the owner downloads by hand outside the tool, adding no destination to 11.1a; a fetch by the tool would
    need its own approved addition first. Both narrow; neither changes a term.
@@ -1057,12 +1061,14 @@ its skill; external TestFlight or App Store builds; any evaluation call before s
 | Bundled rows per set | 40, 10 per table |
 | Development SHA-256 | `1c357f97866f1a5f62b078201e5217d9f814e00f93a59942099a948dcd619bfa` |
 | Sealed SHA-256 | `a3396991fe7b42a9a5faeb027a5e74f891ef5eacbe539cc6385fbe0b6dcc495b` |
+| First A request SHA-256 (prompt v2) | `7894c4ed72b4e0ddc95bd8fdc6b394cf31b7de0dd7bb9183620c80184b06a0cc` |
+| Development plan | 60 A requests, 406 B requests |
+| Reviewed products | 60, of which 11 fortified |
 
-Route freeze is pending the owner's first A request and the development and review counts.
-The owner can use `send --part details --first-request-only` with the development set and
-their private folder. The tool reports the body SHA-256 after response validation and the
-first-request ceiling check. Once that hash is committed, `verify-freeze` rebuilds the first
-request privately and checks its hash. The owner runs `prepare-sealed-review --cases SEALED_CASES
+The route freeze was recorded on 22 November 2026 (`EvalConfiguration.freeze`) from the first A
+request under prompt v2, reported by `send --part details --first-request-only` after response
+validation and the first-request ceiling check, and from the development plan and review counts.
+`verify-freeze` rebuilds that first request privately and checks its hash. The owner runs `prepare-sealed-review --cases SEALED_CASES
 --private DIR` in the merged checkout to create `review-sheet-sealed.csv`. A score requires the completed review CSV passed as
 `--review-sheet`. B derives its variants from the selected case list, so the case-list
 manifests are unchanged. Scores use request cost across attempts, charging W when an attempt
