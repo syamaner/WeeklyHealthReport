@@ -1073,3 +1073,44 @@ validation and the first-request ceiling check, and from the development plan an
 `--review-sheet`. B derives its variants from the selected case list, so the case-list
 manifests are unchanged. Scores use request cost across attempts, charging W when an attempt
 reported no cost, and elapsed wall time including retries. The latency bar uses nearest-rank p90.
+
+## PR 4b sealed report
+
+The sealed set was sent once on 22 November 2026, A then B, by the frozen configuration merged in PR 564 (`b7dae195`). Neither send stopped and the spend ledger did not stop. Both parts pass every bar, so neither part's release is stopped by the evaluation. Release still waits for the wiring PR, internal TestFlight only and the owner's combined device check (section 9, Release).
+
+Per bar, the result and the number of cases within and outside its threshold. Medians, the p90 latency, costs and W stay in the private folder.
+
+| Part | Bar | Development | Sealed |
+|---|---|---|---|
+| A | Wrong pre-fills | pass, 162 / 4 | pass, 141 / 3 |
+| A | Wrong preparation pre-fills | pass, 28 / 4 | pass, 23 / 3 |
+| A | Coverage | pass, 166 / 194 | pass, 144 / 216 |
+| A | Fortified pre-fills | pass, 60 / 0 | pass, 60 / 0 |
+| A | Unfortified on fortified | pass, 11 / 0 | pass, 11 / 0 |
+| A | Cost | pass, 60 / 0 | pass, 60 / 0 |
+| A | Latency | pass, 60 / 0 | pass, 60 / 0 |
+| B | Coverage | pass, 6448 / 2077 | pass, 6765 / 1818 |
+| B | Known values replaced | pass, 406 / 0 | pass, 398 / 0 |
+| B | Energy | pass, 88 / 12 | pass, 98 / 2 |
+| B | Macronutrients | pass, 82 / 18 | pass, 78 / 22 |
+| B | Fibre and sodium | pass, 97 / 69 | pass, 102 / 57 |
+| B | Micronutrients | pass, 32 / 8 | pass, 37 / 2 |
+| B | Cost | pass, 378 / 28 | pass, 388 / 10 |
+| B | Latency | pass, 403 / 3 | pass, 397 / 1 |
+
+W at the day's prices was within the per-request cap for both parts. Sends: A answered 60 of 60 in each set; B answered 390 of 406 in development (16 failed the response checks and count as misses) and 398 of 398 sealed.
+
+What changed during the development run, each before the freeze and each recorded where it applies:
+
+- **A's wire shape** (PR 566): System One takes `questions` as an object keyed by fact with `criteria`, answers carry `choice`, and usage reports `input_tokens`. The first request was refused with HTTP 400 until this was fixed.
+- **Route check** (PR 564): the live Azure listing's cache-write price and long-context tiers are admitted as section 2.6 states, with W kept a worst case.
+- **B's per-request cap** raised from $0.02 to $0.04 and **B's cost bar** from a $0.005 to a $0.01 median (owner decisions), and the **programme stop** from $5 to $25 (PR 567).
+- **Prompt v2 for A**: one fixed description per choice, after v1 pre-filled 12 of 360 unknown details; A's prompt ceiling raised from 4,000 to 8,000 tokens for the longer body.
+- **A's bars** reset for a best-effort suggestion the owner corrects on Confirm before Log: 95% of pre-fills right, 80% of preparation pre-fills right, 40% coverage. The fortification safety bars are unchanged (owner decision).
+
+Limits of this result:
+
+- **Review truth.** Both review sheets were filled by web research from a separate agent that never saw the model's answers or the other set, and accepted by the owner. The sealed sheet has 9 of 60 rows marked unsure and 13 rechecked; its unknown cells are preparation 5, bone 2, skin 2, drained 0, packing medium 0 and fortification 12. A wrong truth cell can count against or for the model.
+- **Bars set from development.** A's bars and B's cost bar were sized from the development results; the sealed set, which neither saw, is what tests them. A's sealed coverage passes at its threshold exactly.
+- **Disclosure.** Section 9 keeps W and costs private. This PR's history discloses an approximate B W and B's approximate development cost per request in the contract's dated amendment notes and in the PR 566 and 567 descriptions.
+- **One run each.** Each set was sent once; the result carries the sampling noise of 60 products and 40 composition rows per set.

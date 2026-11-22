@@ -5302,3 +5302,15 @@ Claude Code (`claude-opus-5-5`, session `caf41dcb`) raised the CE-T15 programme 
 Method: `phase_usage.py --format claude --since 2026-11-22T13:41:45Z --until 2026-11-22T13:45:24Z --include-subagents`, from the owner's approval to just before this ledger edit (exact USD 0.8222958; all cache writes at the 1-hour rate). The cache-write tokens are part of the input figure. Excluded: earlier turns, the pull request, reviews, hosted checks and OpenRouter charges.
 
 Pricing: `claude-opus-5-5` at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, so the figure is a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
+## WHR-549-2026-11-22-4B: Claude Code CE1 sealed report, PR 4b (#549)
+
+Claude Code (`claude-opus-5-5`, session `caf41dcb`) wrote the sealed report in the phase gate: per bar, pass or fail and the counts within and outside, for development and sealed sets, with the changes made during the development run and the limits of the result. It is documentation only.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Sealed report | 2,070,063 (2,063,967) | 6,084 | 3,806 | 2,073,869 | $0.54 |
+
+Method: `phase_usage.py --format claude --since 2026-11-22T19:06:02Z --until 2026-11-22T19:07:03Z --include-subagents`, from the owner's yes to just before this ledger edit (exact USD 0.5376334; all cache writes at the 1-hour rate). The cache-write tokens are part of the input figure. Excluded: the sealed and development runs, the freeze work (PR 564's rows), the review, the pull request and OpenRouter charges.
+
+Pricing: `claude-opus-5-5` at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, so the figure is a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
