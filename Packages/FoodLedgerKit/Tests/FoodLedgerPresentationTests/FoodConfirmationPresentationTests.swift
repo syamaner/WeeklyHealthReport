@@ -640,6 +640,51 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         XCTAssertEqual(reopened.reason, "Package says unfortified")
     }
 
+    /// #549 device check: a Jev fill arrives after Confirm opened, so opening Food details starts from
+    /// Confirm's current details, keeping the reason; after an applied correction the sheet reopens on
+    /// the applied answers, basis included (#352).
+    func testOpeningFoodDetailsStartsFromConfirmsCurrentDetailsUntilACorrectionIsApplied() throws {
+        let model = FoodConfirmationViewModel(state: try fixtureState(knownProtein: true)) { _ in
+            XCTFail("Food details never save"); throw CocoaError(.fileWriteUnknown)
+        }
+        var opened = FoodDetailsDraft(model: model)
+        opened.reason = "Kept reason"
+        var session = FoodDetailsDraftSession(opened)
+        // Values the fixture does not hold, so an opening that did nothing would fail.
+        var filled = FoodDetailsDraft(model: model)
+        filled.drained = DrainedState.drained.rawValue
+        filled.packingMedium = "water"
+        XCTAssertNotEqual(opened.drained, filled.drained)
+        XCTAssertNotEqual(opened.packingMedium, filled.packingMedium)
+
+        // No correction yet: the sheet opens on the filled details, with the reason kept.
+        session.opening(current: filled, correctionApplied: false)
+        XCTAssertEqual(session.draft.drained, DrainedState.drained.rawValue)
+        XCTAssertEqual(session.draft.packingMedium, "water")
+        XCTAssertEqual(session.draft.reason, "Kept reason")
+        XCTAssertEqual(session.kept, session.draft)
+
+        // Typed, closed, then the fill changes and the sheet reopens: it shows Confirm's details.
+        session.draft.brand = "Typed brand"
+        session.closed()
+        var later = filled
+        later.drained = DrainedState.undrained.rawValue
+        session.opening(current: later, correctionApplied: false)
+        XCTAssertEqual(session.draft.drained, DrainedState.undrained.rawValue)
+        XCTAssertNotEqual(session.draft.brand, "Typed brand", "unapplied typing was discarded on close")
+
+        // Applied with a chosen basis: reopening keeps exactly the applied answers.
+        session.draft.basis = .per100Millilitres
+        session.draft.reason = "Package says per 100 ml"
+        XCTAssertTrue(model.applyFoodDetails(session.draft))
+        session.applied()
+        let applied = session.draft
+        session.opening(current: FoodDetailsDraft(model: model), correctionApplied: model.state.correction != nil)
+        XCTAssertNotNil(model.state.correction)
+        XCTAssertEqual(session.draft, applied)
+        XCTAssertEqual(session.draft.basis, .per100Millilitres)
+    }
+
     /// #352: closing Food details without Apply discards the unapplied answers, so the sheet
     /// reopens on Confirm's details; Apply keeps the applied answers for the next opening, and a
     /// later close discards only what was typed after it. Nothing is saved either way.

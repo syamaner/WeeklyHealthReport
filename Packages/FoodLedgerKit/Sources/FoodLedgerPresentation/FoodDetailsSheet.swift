@@ -227,6 +227,17 @@ public struct FoodDetailsDraftSession: Equatable, Sendable {
 
     /// The sheet closed: drop any answers that were not applied.
     public mutating func closed() { draft = kept }
+
+    /// The sheet is opening (#549 device check): a Jev fill can land after Confirm opened, so while no
+    /// correction has been applied the sheet starts from Confirm's current details, keeping the reason.
+    /// After an applied correction it reopens on the applied answers (#352), basis included.
+    public mutating func opening(current: FoodDetailsDraft, correctionApplied: Bool) {
+        guard !correctionApplied else { return }
+        var fresh = current
+        fresh.reason = kept.reason
+        draft = fresh
+        kept = fresh
+    }
 }
 
 /// The Food details sheet's form. The host owns the draft and presentation; `applied` runs after

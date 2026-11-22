@@ -5334,3 +5334,15 @@ A mapping agent and an implementation agent did most of the work. An invariant r
 Method: `phase_usage.py --format claude --since 2026-11-22T19:43:03Z --until 2026-11-22T20:55:41Z --include-subagents`, from the owner's request to just before this ledger edit (exact USD 58.3543522; 1,051,660 5-minute and 1,113,867 1-hour cache writes; all five subagents included, the implementation agent being most of it). The cache-write tokens are part of the input figure. Excluded: later gates, the pull request, hosted checks, the TestFlight upload and the owner's device check.
 
 Pricing: `claude-opus-5-5` at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, so the figure is a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
+
+## WHR-549-2026-11-22-SHEET: Claude Code Food details sheet starts from the Jev fill (#549)
+
+Claude Code (`claude-opus-5-5`, session `caf41dcb`) fixed a bug found in the owner's device check: the Food details sheet's draft was captured when Confirm opened, before a Jev fill landed, so the sheet showed the filled facts as Unknown. Opening the sheet now starts from Confirm's current details while no correction is applied; an applied correction still reopens on its answers (#352). Two blind reviews shaped the final rule and the test.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Diagnosis, fix, reviews and tests | 16,966,145 (16,825,216) | 251,413 | 35,394 | 17,001,539 | $4.87 |
+
+Method: `phase_usage.py --format claude --since 2026-11-22T21:46:20Z --until 2026-11-22T22:33:58Z --include-subagents`, from the owner's yes to just before this ledger edit (exact USD 4.8680072; 110,612 5-minute and 140,801 1-hour cache writes; both review subagents included). The cache-write tokens are part of the input figure. Excluded: the pull request and hosted checks.
+
+Pricing: `claude-opus-5-5` at the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked today, so the figure is a comparison only. This is an API-equivalent comparison under a Claude subscription, not a bill, and not evidence of productivity or quality.
