@@ -289,7 +289,7 @@ final class ConfirmEnrichmentAdapterTests: XCTestCase {
         XCTAssertEqual(ConfirmEnrichmentRoutes.details.version, ConfirmEnrichmentVersions.detailsRoute)
         XCTAssertEqual(ConfirmEnrichmentRoutes.nutrients.version, ConfirmEnrichmentVersions.nutrientRoute)
         // The ceilings the phase gate pins (section 2.6).
-        XCTAssertEqual([route.promptCeilingTokens, route.completionCeilingTokens, route.reasoningLimitTokens], [4_000, 400, 0])
+        XCTAssertEqual([route.promptCeilingTokens, route.completionCeilingTokens, route.reasoningLimitTokens], [8_000, 400, 0])
         XCTAssertEqual([bRoute.promptCeilingTokens, bRoute.completionCeilingTokens, bRoute.reasoningLimitTokens], [6_000, 1_200, 500])
     }
 }

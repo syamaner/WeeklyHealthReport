@@ -178,7 +178,9 @@ sends nothing:
 
   **Fortified is never a choice, so it can never be pre-filled.** A fortified food keeps fortification
   unknown and is asked on Confirm as today (I1-D2's reason). The instructions are fixed text, pinned by
-  the prompt version `confirm-details-prompt-v1`, and tell the model to choose `unknown` whenever the
+  the prompt version `confirm-details-prompt-v2` (v2, 22 November 2026, adds one fixed description per
+  choice, sent as System One's `criteria`, after the development run left most inapplicable details
+  `unknown`; stored v1 captures still decode), and tell the model to choose `unknown` whenever the
   description does not settle the fact.
 - **Response checks.** The provider and model must be exactly those requested (`jev-1.13` or a dated
   slug pinned at the evaluation); `answers` holds exactly the asked question keys; each answer is a

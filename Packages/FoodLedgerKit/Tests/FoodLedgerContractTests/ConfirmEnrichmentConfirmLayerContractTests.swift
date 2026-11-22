@@ -19,7 +19,7 @@ final class ConfirmEnrichmentConfirmLayerContractTests: XCTestCase {
     static let detailsRoute = ConfirmEnrichmentRoute(
         part: .details, version: ConfirmEnrichmentVersions.detailsRoute, model: "typesafe/jev-1.13",
         acceptedModels: ["typesafe/jev-1.13"], provider: "TypeSafe", providerEndpoint: "typesafe",
-        endpoint: "https://example.invalid/v1/systemone", promptCeilingTokens: 4_000, completionCeilingTokens: 400,
+        endpoint: "https://example.invalid/v1/systemone", promptCeilingTokens: 8_000, completionCeilingTokens: 400,
         reasoningLimitTokens: 0, reasoningBilledSeparately: false, sendsMaxTokens: true)
     static let nutrientRoute = ConfirmEnrichmentRoute(
         part: .nutrients, version: ConfirmEnrichmentVersions.nutrientRoute, model: F.model, acceptedModels: [F.model],

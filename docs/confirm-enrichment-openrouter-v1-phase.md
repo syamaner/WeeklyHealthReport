@@ -25,7 +25,7 @@ where the gate reads CE1 strictly, for the owner to see before approving. No poi
 | Captures | `confirm-details-capture-v1` (A), `confirm-nutrient-capture-v1` (B), `confirm-nutrient-choices-v1` (B, per saved version) | CE1.4a, CE1.7. |
 | Cache file | `confirm-enrichment-cache-v1.json` | CE1.2. |
 | Day record | `confirm-enrichment-day-v1.json` | CE1.3 names the record; the gate makes it a file beside the cache. |
-| Versions | contract `confirm-enrichment-openrouter-v1`; routes `confirm-details-route-v1`, `confirm-nutrient-route-v1`; prompts `confirm-details-prompt-v1`, `confirm-nutrient-prompt-v1` | CE1.4, CE1.5. Each route version fixes model, provider, endpoint, `max_tokens`, reasoning limit and the prompt and completion ceilings; it holds no prices, which are read from the day's catalogue check (section 2.6). |
+| Versions | contract `confirm-enrichment-openrouter-v1`; routes `confirm-details-route-v1`, `confirm-nutrient-route-v1`; prompts `confirm-details-prompt-v2`, `confirm-nutrient-prompt-v1` | CE1.4, CE1.5. Each route version fixes model, provider, endpoint, `max_tokens`, reasoning limit and the prompt and completion ceilings; it holds no prices, which are read from the day's catalogue check (section 2.6). |
 | Response schema | `confirm-nutrient-estimate-v1` | CE1.5. |
 | `OpenRouterUse` cases | `confirmEnrichmentDetails`, `confirmEnrichmentNutrients`, `confirmEnrichmentDetailsCatalogueCheck`, `confirmEnrichmentNutrientsCatalogueCheck` | CE1 section 9; mapping and in-force timing in section 6. |
 | Feature switch | `confirmEnrichment.enabled.v1` | CE1 section 9. |
@@ -240,7 +240,7 @@ Same protection and backup exclusion as the cache. The arithmetic lives in a pur
 
   | Route | Prompt ceiling | Completion ceiling | Reasoning limit |
   |---|---|---|---|
-  | `confirm-details-route-v1` | 4,000 tokens | 400 tokens, sent as `max_tokens`; if System One does not accept `max_tokens`, the route version's completion ceiling is the 50,000-byte response limit counted as tokens, so W stays a true worst case | none |
+  | `confirm-details-route-v1` | 8,000 tokens (raised from 4,000 before the freeze, 22 November 2026, when prompt v2's choice descriptions made the body longer) | 400 tokens, sent as `max_tokens`; if System One does not accept `max_tokens`, the route version's completion ceiling is the 50,000-byte response limit counted as tokens, so W stays a true worst case | none |
   | `confirm-nutrient-route-v1` | 6,000 tokens | 1,200 (`max_tokens`, CE1.5) | 500 (CE1.5) |
 
   A request body longer in UTF-8 bytes than its prompt ceiling in tokens is refused before sending
@@ -1049,7 +1049,7 @@ its skill; external TestFlight or App Store builds; any evaluation call before s
 | Scorer | `confirm-enrichment-eval-scorer-v1` |
 | Case list | `confirm-enrichment-eval-cases-v1` |
 | Request and completion evidence | `confirm-enrichment-eval-request-v1`, `confirm-enrichment-eval-completed-run-v2` |
-| A route and prompt | `confirm-details-route-v1`, `confirm-details-prompt-v1` |
+| A route and prompt | `confirm-details-route-v1`, `confirm-details-prompt-v2` |
 | B route, prompt and response schema | `confirm-nutrient-route-v1`, `confirm-nutrient-prompt-v1`, `confirm-nutrient-estimate-v1` |
 | Development count | 100 |
 | Sealed count | 100 |
